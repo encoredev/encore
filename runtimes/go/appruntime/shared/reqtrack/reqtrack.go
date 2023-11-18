@@ -1,28 +1,24 @@
 package reqtrack
 
 import (
-	"bytes"
-	"context"
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/trace2"
-	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/traceprovider"
 )
 
 // New creates a new RequestTracker.
 //
 // If traceProvider is nil no traces are generated.
-//
-// If platform is nil no traces are sent (but are still generated if traceProvider is non-nil).
-func New(rootLogger zerolog.Logger, platform *platform.Client, traceProvider traceprovider.Factory) *RequestTracker {
+// If streamer is nil no traces are streamed to the platform.
+func New(rootLogger zerolog.Logger, streamer TraceStreamer, traceProvider traceprovider.Factory) *RequestTracker {
+	if streamer == nil {
+		streamer = &noopTraceStreamer{}
+	}
+
 	return &RequestTracker{
-		platform:   platform,
+		streamer:   streamer,
 		impl:       newImpl(),
 		trace:      traceProvider,
 		rootLogger: rootLogger,
@@ -30,7 +26,7 @@ func New(rootLogger zerolog.Logger, platform *platform.Client, traceProvider tra
 }
 
 type RequestTracker struct {
-	platform   *platform.Client
+	streamer   TraceStreamer
 	impl       reqTrackImpl
 	trace      traceprovider.Factory // nil if tracing is not enabled
 	rootLogger zerolog.Logger
@@ -116,24 +112,4 @@ func (t *RequestTracker) Logger() *zerolog.Logger {
 
 func (t *RequestTracker) TracingEnabled() bool {
 	return t.trace != nil
-}
-
-func (t *RequestTracker) sendTrace(tr trace2.Logger) {
-	// Do this first so we clear the buffer even if t.platform == nil
-	data := tr.GetAndClear()
-
-	if t.platform == nil {
-		// If we don't have a platform client we can't send traces.
-		// This is the case if the app is ejected.
-		return
-	}
-
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		err := t.platform.SendTrace(ctx, bytes.NewReader(data))
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "encore: could not record trace:", err)
-		}
-	}()
 }

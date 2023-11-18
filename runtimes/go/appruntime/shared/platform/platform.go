@@ -2,59 +2,27 @@
 package platform
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"encore.dev/appruntime/exported/config"
-	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/exported/experiments"
 )
 
 func NewClient(static *config.Static, rt *config.Runtime) *Client {
-	return &Client{static, rt}
+	exp := experiments.FromConfig(static, rt)
+	return &Client{static, rt, exp}
 }
 
 type Client struct {
 	static  *config.Static
 	runtime *config.Runtime
-}
-
-func (c *Client) SendTrace(ctx context.Context, data io.Reader) error {
-	req, err := http.NewRequestWithContext(ctx, "POST", c.runtime.TraceEndpoint, data)
-	if err != nil {
-		return err
-	}
-
-	ta, err := trace2.NewTimeAnchorNow().MarshalText()
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("X-Encore-App-ID", c.runtime.AppID)
-	req.Header.Set("X-Encore-Env-ID", c.runtime.EnvID)
-	req.Header.Set("X-Encore-Deploy-ID", c.runtime.DeployID)
-	req.Header.Set("X-Encore-App-Commit", c.static.AppCommit.AsRevisionString())
-	req.Header.Set("X-Encore-Trace-Version", strconv.Itoa(int(trace2.CurrentVersion)))
-	req.Header.Set("X-Encore-Trace-TimeAnchor", string(ta))
-	c.addAuthKey(req)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("http %s: %s", resp.Status, body)
-	}
-	return nil
+	exp     *experiments.Set
 }
 
 func (c *Client) addAuthKey(req *http.Request) {

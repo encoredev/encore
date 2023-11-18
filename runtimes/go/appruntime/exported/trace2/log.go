@@ -14,12 +14,20 @@ import (
 
 type EventID = model.TraceEventID
 
-// nextEventID is a atomic counter for event IDs.
+// nextEventID is an atomic counter for event IDs.
 var nextEventID atomic.Uint64
+
+func NewLog() *Log {
+	l := &Log{}
+	l.cond = sync.NewCond(&l.mu)
+	return l
+}
 
 type Log struct {
 	mu   sync.Mutex
 	data []byte
+	done bool
+	cond *sync.Cond
 }
 
 // Ensure Log implements Logger.
@@ -98,17 +106,63 @@ func (l *Log) Add(e Event) EventID {
 	l.mu.Lock()
 	l.data = append(l.data, append(header[:], eventData...)...)
 	l.mu.Unlock()
+	l.cond.Broadcast()
 
 	return EventID(eventID)
 }
 
-// GetAndClear gets the data and clears the buffer.
-func (l *Log) GetAndClear() []byte {
+func (l *Log) WaitUntilDone() {
 	l.mu.Lock()
-	data := l.data
+	for !l.done {
+		l.cond.Wait()
+	}
+	l.mu.Unlock()
+}
+
+// WaitAtLeast waits for at least dur to pass or for the log to be done.
+// If no trace data is being written it can block for longer than dur.
+// It reports whether the trace is done at the time of returning.
+func (l *Log) WaitAtLeast(dur time.Duration) (done bool) {
+	now := time.Now()
+	l.mu.Lock()
+	for !l.done && time.Since(now) < dur {
+		l.cond.Wait()
+	}
+	done = l.done
+	l.mu.Unlock()
+	return done
+}
+
+// WaitAndClear blocks for data to arrive and then returns the data
+// and whether the log has been completed. It also clears the log from
+// any data it returns.
+func (l *Log) WaitAndClear() (data []byte, done bool) {
+	l.mu.Lock()
+	for len(l.data) == 0 && !l.done {
+		l.cond.Wait()
+	}
+	done = l.done
+	data = l.data
 	l.data = l.data[len(l.data):]
 	l.mu.Unlock()
-	return data
+	return data, done
+}
+
+// MarkDone marks the log as done.
+func (l *Log) MarkDone() {
+	l.mu.Lock()
+	l.done = true
+	l.mu.Unlock()
+	l.cond.Broadcast()
+}
+
+// GetAndClear gets the data and clears the buffer.
+func (l *Log) GetAndClear() (data []byte, done bool) {
+	l.mu.Lock()
+	data, done = l.data, l.done
+	l.data = l.data[len(l.data):]
+	l.mu.Unlock()
+	return data, done
 }
 
 // EventBuffer is a performant, low-overhead, growable buffer
