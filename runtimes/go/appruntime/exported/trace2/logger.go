@@ -3,6 +3,7 @@ package trace2
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
@@ -11,8 +12,14 @@ import (
 //go:generate mockgen -source=./logger.go -package=mock_trace -destination ../../shared/traceprovider/mock_trace/mock_trace.go Logger
 
 type Logger interface {
+	MarkDone()
 	Add(Event) EventID
-	GetAndClear() []byte
+
+	WaitUntilDone()
+	WaitAtLeast(time.Duration) bool
+	GetAndClear() (data []byte, done bool)
+	WaitAndClear() (data []byte, done bool)
+
 	RequestSpanStart(req *model.Request, goid uint32)
 	RequestSpanEnd(params RequestSpanEndParams)
 	AuthSpanStart(req *model.Request, goid uint32)

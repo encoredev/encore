@@ -36,7 +36,7 @@ type encoreOp struct {
 	start int64 // start time of trace from nanotime()
 
 	// trace is the trace log; it is nil if the op is not traced.
-	trace trace2.Logger
+	trace *lazyTraceInit
 
 	// refs is the op refcount. It is 1 + number of requests
 	// that reference this op (see doc comment above).
@@ -75,7 +75,7 @@ func (t *RequestTracker) newOp(trace bool) *encoreOp {
 		refs:  1,
 	}
 	if trace && t.trace != nil {
-		op.trace = t.trace.NewLogger()
+		op.trace = newLazyTrace(t)
 	}
 	return op
 }
@@ -119,8 +119,8 @@ func (op *encoreOp) incRef() int32 {
 // If it reaches zero and the op is traced, it sends off the trace.
 func (op *encoreOp) decRef() int32 {
 	n := atomic.AddInt32(&op.refs, -1)
-	if n == 0 && op.trace != nil && op.t.platform != nil {
-		op.t.sendTrace(op.trace)
+	if n == 0 && op.trace != nil {
+		op.trace.MarkDone()
 	}
 	return n
 }
@@ -163,8 +163,8 @@ func (t *RequestTracker) finishReq() {
 func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, goctr uint32, svcNum uint16) {
 	if g := t.impl.get(); g != nil {
 		var tr trace2.Logger
-		if g.op != nil {
-			tr = g.op.trace
+		if g.op != nil && g.op.trace != nil {
+			tr = g.op.trace.Logger()
 		}
 		if g.req != nil {
 			req = g.req.data

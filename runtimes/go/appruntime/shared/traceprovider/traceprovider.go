@@ -10,4 +10,4 @@ type Factory interface {
 
 type DefaultFactory struct{}
 
-func (*DefaultFactory) NewLogger() trace2.Logger { return &trace2.Log{} }
+func (*DefaultFactory) NewLogger() trace2.Logger { return trace2.NewLog() }

@@ -8,6 +8,7 @@ import (
 	context "context"
 	http "net/http"
 	reflect "reflect"
+	time "time"
 
 	model "encore.dev/appruntime/exported/model"
 	stack "encore.dev/appruntime/exported/stack"
@@ -167,11 +168,12 @@ func (mr *MockLoggerMockRecorder) DBTransactionStart(arg0, arg1 interface{}) *go
 }
 
 // GetAndClear mocks base method.
-func (m *MockLogger) GetAndClear() []byte {
+func (m *MockLogger) GetAndClear() ([]byte, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAndClear")
 	ret0, _ := ret[0].([]byte)
-	return ret0
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
 }
 
 // GetAndClear indicates an expected call of GetAndClear.
@@ -217,6 +219,18 @@ func (m *MockLogger) LogMessage(arg0 trace2.LogMessageParams) {
 func (mr *MockLoggerMockRecorder) LogMessage(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogMessage", reflect.TypeOf((*MockLogger)(nil).LogMessage), arg0)
+}
+
+// MarkDone mocks base method.
+func (m *MockLogger) MarkDone() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "MarkDone")
+}
+
+// MarkDone indicates an expected call of MarkDone.
+func (mr *MockLoggerMockRecorder) MarkDone() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkDone", reflect.TypeOf((*MockLogger)(nil).MarkDone))
 }
 
 // PubsubMessageSpanEnd mocks base method.
@@ -343,4 +357,45 @@ func (m *MockLogger) ServiceInitStart(arg0 trace2.ServiceInitStartParams) trace2
 func (mr *MockLoggerMockRecorder) ServiceInitStart(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceInitStart", reflect.TypeOf((*MockLogger)(nil).ServiceInitStart), arg0)
+}
+
+// WaitAndClear mocks base method.
+func (m *MockLogger) WaitAndClear() ([]byte, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitAndClear")
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// WaitAndClear indicates an expected call of WaitAndClear.
+func (mr *MockLoggerMockRecorder) WaitAndClear() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitAndClear", reflect.TypeOf((*MockLogger)(nil).WaitAndClear))
+}
+
+// WaitAtLeast mocks base method.
+func (m *MockLogger) WaitAtLeast(arg0 time.Duration) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitAtLeast", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// WaitAtLeast indicates an expected call of WaitAtLeast.
+func (mr *MockLoggerMockRecorder) WaitAtLeast(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitAtLeast", reflect.TypeOf((*MockLogger)(nil).WaitAtLeast), arg0)
+}
+
+// WaitUntilDone mocks base method.
+func (m *MockLogger) WaitUntilDone() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "WaitUntilDone")
+}
+
+// WaitUntilDone indicates an expected call of WaitUntilDone.
+func (mr *MockLoggerMockRecorder) WaitUntilDone() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitUntilDone", reflect.TypeOf((*MockLogger)(nil).WaitUntilDone))
 }

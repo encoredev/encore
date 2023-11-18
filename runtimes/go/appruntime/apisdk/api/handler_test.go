@@ -310,6 +310,10 @@ func TestDescGeneratesTrace(t *testing.T) {
 				EXPECT().
 				RequestSpanEnd(gomock.Any()).MaxTimes(1)
 
+			traceMock.EXPECT().WaitAndClear().AnyTimes()
+			traceMock.EXPECT().WaitUntilDone().AnyTimes()
+			traceMock.EXPECT().MarkDone().MaxTimes(1)
+
 			handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 
 			if diff := cmp.Diff(test.want, beginReq, opts...); diff != "" {
@@ -362,6 +366,9 @@ func TestRawEndpointOverflow(t *testing.T) {
 		func(p trace2.BodyStreamParams) {
 			params = append(params, p)
 		}).AnyTimes()
+
+	traceMock.EXPECT().WaitAndClear().MinTimes(1)
+	traceMock.EXPECT().MarkDone().Times(1)
 
 	handler.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
 

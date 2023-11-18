@@ -663,9 +663,9 @@ func TestParse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			log := &trace2.Log{}
+			log := trace2.NewLog()
 			tt.Emit(log)
-			data := log.GetAndClear()
+			data, _ := log.GetAndClear()
 			ta := trace2.NewTimeAnchor(0, now)
 			got, err := ParseEvent(bufio.NewReader(bytes.NewReader(data)), ta)
 			if err != nil {
