@@ -64,12 +64,12 @@ func beginHTTPRoundTrip(req *http.Request) (context.Context, error) {
 		return nil, fmt.Errorf("http: nil Request.URL")
 	}
 
-	return g.op.trace.HTTPBeginRoundTrip(req, g.req.data, g.goctr)
+	return g.op.trace.Logger().HTTPBeginRoundTrip(req, g.req.data, g.goctr)
 }
 
 //go:linkname finishHTTPRoundTrip net/http.encoreFinishRoundTrip
 func finishHTTPRoundTrip(req *http.Request, resp *http.Response, err error) {
 	if g := getEncoreG(); g != nil && g.req != nil && g.op.trace != nil {
-		g.op.trace.HTTPCompleteRoundTrip(req, resp, g.goctr, err)
+		g.op.trace.Logger().HTTPCompleteRoundTrip(req, resp, g.goctr, err)
 	}
 }

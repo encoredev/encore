@@ -27,6 +27,10 @@ const (
 	// AuthDataRoundTrip forces auth data to be round-tripped through the wireformat
 	// when internal API calls are made.
 	AuthDataRoundTrip Name = "auth-data-round-trip"
+
+	// StreamTraces enables streaming traces to the Encore platform as they're happening,
+	// as opposed to waiting for the request to finish before starting the upload.
+	StreamTraces Name = "stream-traces"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -37,7 +41,8 @@ func (x Name) Valid() bool {
 		V2,
 		BetaRuntime,
 		LocalMultiProcess,
-		AuthDataRoundTrip:
+		AuthDataRoundTrip,
+		StreamTraces:
 		return true
 	default:
 		return false
