@@ -2,9 +2,11 @@ package sqldb
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -105,7 +107,7 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 	}
 
 	migrationDir := d.Pass.Pkg.FSPath.Join(migDir)
-	if fi, err := os.Stat(migrationDir.ToIO()); os.IsNotExist(err) || (err == nil && !fi.IsDir()) {
+	if fi, err := os.Stat(migrationDir.ToIO()); errors.Is(err, fs.ErrNotExist) || (err == nil && !fi.IsDir()) {
 		errs.Add(errNewDatabaseMigrationDirNotFound.AtGoNode(cfgLit.Expr("Migrations")))
 		return
 	} else if err != nil {
@@ -120,9 +122,9 @@ func parseDatabase(d parseutil.ReferenceInfo) {
 		return
 	}
 
-	migrations, err := parseMigrations(d.Pass.Pkg, migrationDir)
+	migrations, err := parseMigrations(migrationDir)
 	if err != nil {
-		errs.Add(errUnableToParseMigrations.Wrapping(err))
+		errs.Add(errUnableToParseMigrations.AtGoNode(cfgLit.Expr("Migrations")).Wrapping(err))
 		return
 	}
 
@@ -144,7 +146,7 @@ var MigrationParser = &resourceparser.Parser{
 	InterestingSubdirs: []string{"migrations"},
 	Run: func(p *resourceparser.Pass) {
 		migrationDir := p.Pkg.FSPath.Join("migrations")
-		migrations, err := parseMigrations(p.Pkg, migrationDir)
+		migrations, err := parseMigrations(migrationDir)
 		if err != nil {
 			// HACK(andre): We should only look for migration directories inside services,
 			// but when this code runs we don't yet know what services exist.
@@ -153,6 +155,7 @@ var MigrationParser = &resourceparser.Parser{
 				return
 			}
 
+			err := fmt.Errorf("parsing db migrations in %s: %v", p.Pkg.ImportPath, err)
 			p.Errs.Add(errUnableToParseMigrations.Wrapping(err))
 			return
 		} else if len(migrations) == 0 {
@@ -183,9 +186,9 @@ var MigrationParser = &resourceparser.Parser{
 	},
 }
 
-var migrationRe = regexp.MustCompile(`^(\d+)_([^.]+)\.(up|down).sql$`)
+var migrationRe = regexp.MustCompile(`^(\d+)(_[^.]+)?\.(up|down).sql$`)
 
-func parseMigrations(pkg *pkginfo.Package, migrationDir paths.FS) ([]MigrationFile, error) {
+func parseMigrations(migrationDir paths.FS) ([]MigrationFile, error) {
 	files, err := os.ReadDir(migrationDir.ToIO())
 	if err != nil {
 		return nil, fmt.Errorf("could not read migrations: %v", err)
@@ -206,25 +209,40 @@ func parseMigrations(pkg *pkginfo.Package, migrationDir paths.FS) ([]MigrationFi
 
 		match := migrationRe.FindStringSubmatch(f.Name())
 		if match == nil {
-			return nil, fmt.Errorf("migration %s/migrations/%s has an invalid name (must be of the format '[123]_[description].[up|down].sql')",
-				pkg.Name, f.Name())
+			return nil, fmt.Errorf("db migration %s: invalid name (must be of the format '[123]_[description].[up|down].sql')",
+				f.Name())
 		}
 		num, err := strconv.ParseUint(match[1], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("migration %s/migrations/%s has an invalid version number %q (must be a positive integer)",
-				pkg.Name, f.Name(), match[1])
+			return nil, fmt.Errorf("db migration %s: invalid version number %q (must be a positive integer)",
+				f.Name(), match[1])
 		}
+
+		description := strings.TrimPrefix(match[2], "_")
 		if match[3] == "up" {
 			migrations = append(migrations, MigrationFile{
 				Filename:    f.Name(),
 				Number:      num,
-				Description: match[2],
+				Description: description,
 			})
 		}
 	}
 	sort.Slice(migrations, func(i, j int) bool {
 		return migrations[i].Number < migrations[j].Number
 	})
+
+	// Catch invalid migration numbers.
+	seen := make(map[uint64]bool, len(migrations))
+	for _, mig := range migrations {
+		fn, num := mig.Filename, mig.Number
+		if num <= 0 {
+			return nil, fmt.Errorf("db migration %s: invalid migration number %d", fn, num)
+		} else if seen[num] {
+			return nil, fmt.Errorf("db migration %s: duplicate migration with number %d", fn, num)
+		}
+		seen[num] = true
+	}
+
 	return migrations, nil
 }
 
