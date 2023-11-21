@@ -62,9 +62,21 @@ type ConnConfig struct {
 type ClusterType string
 
 const (
-	Run  ClusterType = "run"
-	Test ClusterType = "test"
+	Run    ClusterType = "run"
+	Shadow ClusterType = "shadow"
+	Test   ClusterType = "test"
 )
+
+func (ct ClusterType) Memfs() bool {
+	switch ct {
+	case Run:
+		return false
+	case Shadow, Test:
+		return true
+	default:
+		return false
+	}
+}
 
 // CreateParams are the params to (*ClusterManager).Create.
 type CreateParams struct {
