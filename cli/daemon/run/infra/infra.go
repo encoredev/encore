@@ -169,7 +169,7 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 
 		cluster := rm.sqlMgr.Create(ctx, &sqldb.CreateParams{
 			ClusterID: sqldb.GetClusterID(rm.app, typ, rm.ns),
-			Memfs:     rm.forTests,
+			Memfs:     typ.Memfs(),
 		})
 
 		if _, err := cluster.Start(ctx, a.Tracker()); err != nil {
