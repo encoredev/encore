@@ -124,6 +124,8 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 			ct = Run
 		case "test":
 			ct = Test
+		case "shadow":
+			ct = Shadow
 		default:
 			cm.log.Error().Str("password", startup.Password).Msg("dbproxy: invalid password for connection URI")
 			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
@@ -139,7 +141,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		// with the app in question yet on this run
 		cluster = cm.Create(context.Background(), &CreateParams{
 			ClusterID: GetClusterID(app, ct, ns),
-			Memfs:     false,
+			Memfs:     ct.Memfs(),
 		})
 
 		// Ensure the cluster is started

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/fs"
 	"sync"
 	"time"
 
@@ -181,6 +180,10 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 
 // Migrate migrates the database.
 func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase) (err error) {
+	if db.Cluster.ID.Type == Shadow {
+		db.log.Debug().Msg("not applying migrations to shadow cluster")
+		return nil
+	}
 	if len(dbMeta.Migrations) == 0 {
 		db.log.Debug().Msg("no database migrations to run, skipping")
 		return nil

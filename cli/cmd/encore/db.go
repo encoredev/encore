@@ -27,6 +27,7 @@ var dbCmd = &cobra.Command{
 var (
 	resetAll bool
 	testDB   bool
+	shadowDB bool
 	nsName   string
 )
 
@@ -53,7 +54,7 @@ var dbResetCmd = &cobra.Command{
 		stream, err := daemon.DBReset(ctx, &daemonpb.DBResetRequest{
 			AppRoot:       appRoot,
 			DatabaseNames: dbNames,
-			Test:          testDB,
+			ClusterType:   dbClusterType(),
 			Namespace:     nonZeroPtr(nsName),
 		})
 		if err != nil {
@@ -66,13 +67,16 @@ var dbResetCmd = &cobra.Command{
 var dbEnv string
 
 var dbShellCmd = &cobra.Command{
-	Use:   "shell DATABASE_NAME [--test] [--env=<name>]",
+	Use:   "shell DATABASE_NAME [--env=<name>] [--test|--shadow]",
 	Short: "Connects to the database via psql shell",
 	Long: `Defaults to connecting to your local environment.
 Specify --env to connect to another environment.
 
 Use --test to connect to databases used for integration testing.
---test implies --env=local.
+Use --shadow to connect to the shadow database, used for database drift detection
+when using tools like Prisma.
+
+--test and --shadow imply --env=local.
 `,
 	Args: cobra.MaximumNArgs(1),
 
@@ -105,16 +109,16 @@ Use --test to connect to databases used for integration testing.
 			}
 		}
 
-		if testDB {
+		if testDB || shadowDB {
 			dbEnv = "local"
 		}
 
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
-			AppRoot:   appRoot,
-			DbName:    dbName,
-			EnvName:   dbEnv,
-			Test:      testDB,
-			Namespace: nonZeroPtr(nsName),
+			AppRoot:     appRoot,
+			DbName:      dbName,
+			EnvName:     dbEnv,
+			ClusterType: dbClusterType(),
+			Namespace:   nonZeroPtr(nsName),
 		})
 		if err != nil {
 			fatalf("could not connect to the database for service %s: %v", dbName, err)
@@ -162,12 +166,15 @@ Use --test to connect to databases used for integration testing.
 var dbProxyPort int32
 
 var dbProxyCmd = &cobra.Command{
-	Use:   "proxy [--env=<name>] [--test]",
+	Use:   "proxy [--env=<name>] [--test|--shadow]",
 	Short: "Sets up a proxy tunnel to the database",
 	Long: `Set up a proxy tunnel to a database for use with other tools.
 
 Use --test to connect to databases used for integration testing.
---test implies --env=local.
+Use --shadow to connect to the shadow database, used for database drift detection
+when using tools like Prisma.
+
+--test and --shadow imply --env=local.
 `,
 
 	Run: func(command *cobra.Command, args []string) {
@@ -181,17 +188,17 @@ Use --test to connect to databases used for integration testing.
 			cancel()
 		}()
 
-		if testDB {
+		if testDB || shadowDB {
 			dbEnv = "local"
 		}
 
 		daemon := setupDaemon(ctx)
 		stream, err := daemon.DBProxy(ctx, &daemonpb.DBProxyRequest{
-			AppRoot:   appRoot,
-			EnvName:   dbEnv,
-			Port:      dbProxyPort,
-			Test:      testDB,
-			Namespace: nonZeroPtr(nsName),
+			AppRoot:     appRoot,
+			EnvName:     dbEnv,
+			Port:        dbProxyPort,
+			ClusterType: dbClusterType(),
+			Namespace:   nonZeroPtr(nsName),
 		})
 		if err != nil {
 			log.Fatal().Err(err).Msg("could not setup db proxy")
@@ -201,9 +208,17 @@ Use --test to connect to databases used for integration testing.
 }
 
 var dbConnURICmd = &cobra.Command{
-	Use:   "conn-uri [<db-name>] [--test]",
+	Use:   "conn-uri [<db-name>] [--test|--shadow]",
 	Short: "Outputs the database connection string",
-	Args:  cobra.MaximumNArgs(1),
+	Long: `Retrieve a stable connection uri for connecting to a database.
+
+Use --test to connect to databases used for integration testing.
+Use --shadow to connect to the shadow database, used for database drift detection
+when using tools like Prisma.
+
+--test and --shadow imply --env=local.
+`,
+	Args: cobra.MaximumNArgs(1),
 
 	Run: func(command *cobra.Command, args []string) {
 		appRoot, relPath := determineAppRoot()
@@ -231,16 +246,16 @@ var dbConnURICmd = &cobra.Command{
 			}
 		}
 
-		if testDB {
+		if testDB || shadowDB {
 			dbEnv = "local"
 		}
 
 		resp, err := daemon.DBConnect(ctx, &daemonpb.DBConnectRequest{
-			AppRoot:   appRoot,
-			DbName:    dbName,
-			EnvName:   dbEnv,
-			Test:      testDB,
-			Namespace: nonZeroPtr(nsName),
+			AppRoot:     appRoot,
+			DbName:      dbName,
+			EnvName:     dbEnv,
+			ClusterType: dbClusterType(),
+			Namespace:   nonZeroPtr(nsName),
 		})
 		if err != nil {
 			st, ok := status.FromError(err)
@@ -262,21 +277,39 @@ func init() {
 	dbResetCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbResetCmd.Flags().BoolVar(&resetAll, "all", false, "Reset all services in the application")
 	dbResetCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Reset databases in the test cluster instead")
+	dbResetCmd.Flags().BoolVar(&shadowDB, "shadow", false, "Reset databases in the shadow cluster instead")
 	dbCmd.AddCommand(dbResetCmd)
 
 	dbShellCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbShellCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
+	dbShellCmd.Flags().BoolVar(&shadowDB, "shadow", false, "Connect to the shadow database (implies --env=local)")
 	dbCmd.AddCommand(dbShellCmd)
 
 	dbProxyCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbProxyCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbProxyCmd.Flags().Int32VarP(&dbProxyPort, "port", "p", 0, "Port to listen on (defaults to a random port)")
 	dbProxyCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
+	dbProxyCmd.Flags().BoolVar(&shadowDB, "shadow", false, "Connect to the shadow database (implies --env=local)")
 	dbCmd.AddCommand(dbProxyCmd)
 
 	dbConnURICmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	dbConnURICmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbConnURICmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
+	dbConnURICmd.Flags().BoolVar(&shadowDB, "shadow", false, "Connect to the shadow database (implies --env=local)")
 	dbCmd.AddCommand(dbConnURICmd)
+}
+
+func dbClusterType() daemonpb.DBClusterType {
+	if testDB && shadowDB {
+		fatal("cannot specify both --test and --shadow")
+	}
+	switch {
+	case testDB:
+		return daemonpb.DBClusterType_DB_CLUSTER_TYPE_TEST
+	case shadowDB:
+		return daemonpb.DBClusterType_DB_CLUSTER_TYPE_SHADOW
+	default:
+		return daemonpb.DBClusterType_DB_CLUSTER_TYPE_RUN
+	}
 }

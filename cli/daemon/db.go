@@ -83,7 +83,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		databaseExists := false
 		for _, s := range parse.Meta.SqlDatabases {
 			if s.Name == req.DbName {
-				databaseExists = len(s.Migrations) > 0
+				databaseExists = true
 				break
 			}
 		}
@@ -97,11 +97,13 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		return nil, err
 	}
 
-	clusterType := sqldb.Run
-	passwd := "local-" + string(clusterNS.ID)
-	if req.Test {
-		clusterType = sqldb.Test
-		passwd = "test-" + string(clusterNS.ID)
+	var passwd string
+	clusterType := getClusterType(req)
+	switch clusterType {
+	case sqldb.Run:
+		passwd = "local-" + string(clusterNS.ID)
+	default:
+		passwd = fmt.Sprintf("%s-%s", clusterType, clusterNS.ID)
 	}
 
 	clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
@@ -109,7 +111,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	log.Info().Msg("setting up database cluster")
 	cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 		ClusterID: clusterID,
-		Memfs:     clusterType == sqldb.Test,
+		Memfs:     clusterType.Memfs(),
 	})
 	// TODO would be nice to stream this to the CLI
 	if _, err := cluster.Start(ctx, nil); err != nil {
@@ -184,10 +186,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			return err
 		}
 
-		clusterType := sqldb.Run
-		if params.Test {
-			clusterType = sqldb.Test
-		}
+		clusterType := getClusterType(params)
 
 		clusterNS, err := s.namespaceOrActive(stream.Context(), app, params.Namespace)
 		if err != nil {
@@ -197,7 +196,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
 		cluster := s.cm.Create(ctx, &sqldb.CreateParams{
 			ClusterID: clusterID,
-			Memfs:     false,
+			Memfs:     clusterType.Memfs(),
 		})
 		if _, err := cluster.Start(ctx, nil); err != nil {
 			return err
@@ -291,16 +290,13 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		return nil
 	}
 
-	clusterType := sqldb.Run
-	if req.Test {
-		clusterType = sqldb.Test
-	}
+	clusterType := getClusterType(req)
 	clusterID := sqldb.GetClusterID(app, clusterType, clusterNS)
 	cluster, ok := s.cm.Get(clusterID)
 	if !ok {
 		cluster = s.cm.Create(stream.Context(), &sqldb.CreateParams{
 			ClusterID: clusterID,
-			Memfs:     clusterType == sqldb.Test,
+			Memfs:     clusterType.Memfs(),
 		})
 	}
 
@@ -338,5 +334,18 @@ func serveProxy(ctx context.Context, ln net.Listener, handler func(context.Conte
 		}
 		tempDelay = 0
 		go handler(ctx, frontend)
+	}
+}
+
+func getClusterType(req interface{ GetClusterType() daemonpb.DBClusterType }) sqldb.ClusterType {
+	switch req.GetClusterType() {
+	case daemonpb.DBClusterType_DB_CLUSTER_TYPE_RUN:
+		return sqldb.Run
+	case daemonpb.DBClusterType_DB_CLUSTER_TYPE_TEST:
+		return sqldb.Test
+	case daemonpb.DBClusterType_DB_CLUSTER_TYPE_SHADOW:
+		return sqldb.Shadow
+	default:
+		return sqldb.Run
 	}
 }
