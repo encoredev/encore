@@ -32,6 +32,7 @@ Now let's create a new `url` service.
 
 ```ts
 import { api } from "encore.dev/api";
+import { randomBytes } from "node:crypto";
 
 interface URL {
   id: string; // short-form URL id
@@ -42,17 +43,11 @@ interface ShortenParams {
   url: string; // the URL to shorten
 }
 
-// generateID generates a random short ID.
-const generateID = () => {
-  const result = Math.random().toString(36).substring(0, 6);
-  return Buffer.from(result).toString("base64url");
-};
-
 // Shorten shortens a URL.
 export const shorten = api(
   { method: "POST", path: "/url" },
   async ({ url }: ShortenParams): Promise<URL> => {
-    const id = generateID();
+    const id = randomBytes(6).toString("base64url");
     return { id, url };
   },
 );
@@ -109,6 +104,7 @@ CREATE TABLE url (
 
 ```ts
 import { api } from "encore.dev/api";
+import { randomBytes } from "node:crypto";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 ```
 
@@ -124,12 +120,11 @@ const DB = new SQLDatabase("url", { migrations: "./migrations" });
 export const shorten = api(
   { method: "POST", path: "/url" },
   async ({ url }: ShortenParams): Promise<URL> => {
-    const id = generateID();
-    for await (const row of DB.q`
-        INSERT INTO url (id, original_url)
-        VALUES (${id}, ${url})
-    `) {
-    }
+    const id = randomBytes(6).toString("base64url");
+    await DB.exec`
+      INSERT INTO url (id, original_url)
+      VALUES (${id}, ${url})
+    `;
     return { id, url };
   },
 );
@@ -176,15 +171,11 @@ To complete our URL shortener API, let’s add the endpoint to retrieve a URL gi
 export const get = api(
   { method: "GET", path: "/url/:id" },
   async ({ id }: { id: string }): Promise<URL> => {
-    const rows = DB.q`
-        SELECT original_url
-        FROM url
-        WHERE id = ${id}
+    const row = await DB.queryRow`
+      SELECT original_url FROM url WHERE id = ${id}
     `;
-    for await (const row of rows) {
-      return { id, url: row.original_url };
-    }
-    throw new Error("url not found");
+    if (!row) throw new Error("url not found");
+    return { id, url: row.original_url };
   },
 );
 ```
