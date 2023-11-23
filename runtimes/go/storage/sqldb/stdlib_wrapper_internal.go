@@ -79,7 +79,7 @@ func (i *interceptor) ConnQuery(ctx context.Context, conn driver.QueryerContext,
 		})
 	}
 
-	rows, err := conn.QueryContext(ctx, query, args)
+	rows, err := conn.QueryContext(markTraced(ctx), query, args)
 
 	if curr.Req != nil && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
@@ -111,7 +111,7 @@ func (i *interceptor) ConnExec(ctx context.Context, conn driver.ExecerContext, q
 		})
 	}
 
-	res, err := conn.ExecContext(ctx, query, args)
+	res, err := conn.ExecContext(markTraced(ctx), query, args)
 
 	if curr.Req != nil && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
@@ -142,7 +142,7 @@ func (i *interceptor) StmtQuery(ctx context.Context, conn driver.StmtQueryContex
 		})
 	}
 
-	rows, err := conn.QueryContext(ctx, args)
+	rows, err := conn.QueryContext(markTraced(ctx), args)
 
 	if curr.Req != nil && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
@@ -173,7 +173,7 @@ func (i *interceptor) StmtExec(ctx context.Context, conn driver.StmtExecContext,
 		})
 	}
 
-	res, err := conn.ExecContext(ctx, args)
+	res, err := conn.ExecContext(markTraced(ctx), args)
 
 	if curr.Req != nil && curr.Trace != nil {
 		curr.Trace.DBQueryEnd(eventParams, startEventID, err)
@@ -201,7 +201,7 @@ func (i *interceptor) ConnBegin(tx driver.Tx) (driver.Tx, error) {
 }
 
 func (i *interceptor) ConnBeginTx(ctx context.Context, conn driver.ConnBeginTx, opts driver.TxOptions) (driver.Tx, error) {
-	tx, err := conn.BeginTx(ctx, opts)
+	tx, err := conn.BeginTx(markTraced(ctx), opts)
 	if err != nil {
 		return nil, err
 	}
