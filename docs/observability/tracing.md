@@ -9,7 +9,7 @@ Distributed systems often have many moving parts, making it it difficult to unde
 
 Tracing is a revolutionary way to gain insight into what your applications is doing. It works by capturing the series of events as they occur during the execution of your code (a “trace”). This works by propagating a trace id between all individual systems, then corralating and joining the information together to present a unified picture of what happened end-to-end.
 
-As opposed to the labor intensive instrumentation you'd normally need to go through to use tracing, Encore automatically captures traces for your entire application – in all environments.
+As opposed to the labor intensive instrumentation you'd normally need to go through to use tracing, Encore automatically captures traces for your entire application – in all environments. Uniquely, this means you can use tracing even for local development to help debugging and speed up iterations.
 
 You view traces in the [Local Development Dashboard](./dev-dash) and in the [Cloud Dashboard](https://app.encore.dev) for Production and other environments.
 
@@ -28,8 +28,6 @@ Unlike other tracing solutions, Encore understands what each trace event is and 
 * API calls
 * Database queries
 * etc.
-
-Encore's tracing implementation sits at a lower abstraction level than what is normally possible, and leverages the Go runtime to do tracing with minimal application performance impact. This means Encore's tracing is much more performant than traditional tracing implementations like Datadog, Lightstep, or Dynatrace.
 
 ## Redacting sensitive data
 

@@ -1,6 +1,6 @@
 ---
 seotitle: Connect your cloud account to deploy to any cloud
-seodesc: Learn how to deploy your Go based backend application to all the major cloud providers (AWS or GCP) using Encore.
+seodesc: Learn how to deploy your backend application to all the major cloud providers (AWS or GCP) using Encore.
 title: Connect your cloud account
 subtitle: Whatever cloud you prefer is fine by us
 ---

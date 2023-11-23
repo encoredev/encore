@@ -43,7 +43,7 @@ Refactoring can serve as a breath of fresh air for your existing code, revitaliz
 - Removing unwanted complexity that’s become engrained as you’ve scaled up quickly.
 
 ### When to consider Encore
-Your application is already built using a supported programming language like **Go** (and soon, **TypeScript**) and you want to unlock modern development tools like [infrastructure automation](/docs/deploy/infra), [preview environments](/docs/deploy/preview-environments), and [distributed tracing](/docs/observability/tracing), with minimal adjustments to your existing backend and no manual setup.
+Your application is already built using a supported programming language like **Go** or **TypeScript**. and you want to unlock modern development tools like [infrastructure automation](/docs/deploy/infra), [preview environments](/docs/deploy/preview-environments), and [distributed tracing](/docs/observability/tracing), with minimal adjustments to your existing backend and no manual setup.
 
 ### How to adopt Encore in a Refactor
 - **1. Assess Your Goal:** Start by evaluating what changes you want to make to your existing application, and look for unnecessary complexities and bottlenecks that can be eliminated. Depending on your goal, you can decide if you want to fully implement Encore’s [API Framework](/docs/primitives/services-and-apis) or if you prefer to minimize changes by using a catch-all handler on your current router. Keep in mind that in order to use features like the [Service Catalog](/docs/develop/api-docs) and [API Explorer](/docs/observability/dev-dash), you need to use the API Framework. ([Learn more about the different options](https://encore.dev/docs/how-to/migrate-to-encore))
@@ -61,7 +61,7 @@ The Rebuild strategy is for those who want a fresh start by recreating an applic
 - Starting fresh by recreating an app from the ground up.
 
 ### When to consider Encore
-- You’re intending to use a supported programming language like **Go** (and soon, **TypeScript**).
+- You’re intending to use a supported programming language like **Go** or **TypeScript**.
 - You want to leverage the scalability and services of cloud providers like **AWS** or **GCP**, but don’t want to become locked-in to one specific provider. (Encore applications are cloud-portable by default.)
 - You want modern development tools like [infrastructure automation](/docs/deploy/infra), [preview environments](/docs/deploy/preview-environments), and [distributed tracing](/docs/observability/tracing), without manual setup or instrumentation.
 
