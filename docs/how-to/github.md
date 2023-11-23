@@ -1,6 +1,6 @@
 ---
 seotitle: Integrate your Encore application with GitHub
-seodesc: Learn how to integrate your Go backend application with GitHub to get automatic Preview Environments for each Pull Request using Encore.
+seodesc: Learn how to integrate your backend application with GitHub to get automatic Preview Environments for each Pull Request using Encore.
 title: Integrate with GitHub
 ---
 
