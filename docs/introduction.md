@@ -1,6 +1,6 @@
 ---
-seotitle: Introduction to Encore – the backend development platform
-seodesc: Learn how Encore works and how it helps backend developers build cloud based backend applications with a flow state developer experience.
+seotitle: Introduction to Encore – the Backend Development Platform
+seodesc: Learn how Encore works and how it helps backend developers build cloud based backend applications without manually dealing with infrastructure.
 title: What is Encore?
 subtitle: A Development Platform for cloud backend applications
 ---
@@ -15,7 +15,9 @@ Encore gives you a complete toolset for application development, cloud infrastru
 
 <img className="w-full h-auto noshadow" src="/assets/docs/encore_overview.png" title="Encore Overview" />
 
-Encore's functionality is based on a [declarative Infrastructure SDK](/docs/primitives/overview) which lets you define resources like services, databases, and queues, as logical objects within your application code. When you run your app, Encore parses your code and automatically sets up the corresponding infrastructure, seamlessly adapting to local, preview, and cloud environments. This removes the need to manage specific services or configurations during development. _No more messing around with Docker Compose!_
+Encore's functionality is based on a [declarative Infrastructure SDK](/docs/primitives/overview) which lets you define resources like services, databases, and queues, as type-safe objects within your application code. 
+
+When you run your app, Encore parses your code and automatically sets up the corresponding infrastructure, seamlessly adapting to local, preview, and cloud environments. This removes the need to manage specific services or configurations during development. _No more messing around with Docker Compose!_
 
 For production, select the cloud provider you want and [connect your cloud account](/docs/deploy/own-cloud). At deployment Encore automatically provisions your [infrastructure](/docs/deploy/infra) using pre-built solutions for popular and battle-tested cloud services on AWS or GCP, such as Cloud Run, Fargate, Kubernetes, CloudSQL, RDS, PubSub, Redis, Cron Jobs, and more.
 
@@ -75,10 +77,4 @@ The infrastructure SDK, parser, and compiler that enable this are all [Open Sour
 
 Developers make dozens of decisions when creating a backend application. Deciding how to structure the codebase, defining API schemas, picking underlying infrastructure, etc. The decisions often come down to personal preferences, not technical rationale. This creates a huge problem in the form of fragmentation! When every stack looks different, all tools have to be general purpose.
 
-When you adopt Encore, many of these stylistic decisions are already made for you. Encore's Infrastructure SDK ensures your application follows modern best practices. And when you run your application, Encore's Open Source parser and compiler check that you're sticking to the standard. This means you're free to focus your energy on what matters: writing your application's business logic.
-
-## Built ground up for Go
-
-Encore is deeply integrated with the [Go](https://golang.org/) programming language. This is not to say Encore is only for Go developers! Most backend developers will get incredible value from using Encore, and learning Go should not stop anyone from trying Encore.
-
-Really, why is picking a programming language seen as the most important decision in a new project? When you set out to build a new backend, there are often very few rational arguments for why one language is better than another. The only real difference is personal taste.
+When you adopt Encore, many of these stylistic decisions are already made for you. Encore's [Infrastructure SDK](/docs/primitives) ensures your application follows modern best practices. And when you run your application, Encore's Open Source parser and compiler check that you're sticking to the standard. This means you're free to focus your energy on what matters: writing your application's business logic.

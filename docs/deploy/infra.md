@@ -9,7 +9,7 @@ Encore automatically provisions all necessary infrastructure, in all environment
 
 <img src="/assets/docs/encore_overview.png" title="Infrastructure Overview" className="noshadow"/>
 
-This is powered by Encore's [Infrastructure SDK](/docs/primitives/overview), which lets you write regular Go code and declare infrastructure resources (databases, caches, queues, and scheduled jobs) in application code.
+This is powered by Encore's [Infrastructure SDK](/docs/primitives/overview), which lets you declare infrastructure resources (databases, caches, queues, scheduled jobs, etc.) as type-safe objects in application code.
 
 At compile time, Encore creates an [Application Model](/docs/introduction#meet-the-encore-application-model) with a definition of the infrastructure your application requires. Encore then uses this model to provision the infrastructure in both your cloud account, and development and preview environments in Encore Cloud.
 
@@ -23,10 +23,10 @@ Having an end-to-end integration between application code and infrastructure als
 
 By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via Encore's Cloud Dashboard and your cloud provider's console. Encore takes care of syncing your changes.
 
-|  | Local | Encore Cloud | GCP / AWS |
-| - | - | - | - |
-| **Environment types:** | Development | Preview, Development | Development, Production |
-| **Objectives:** | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
+|                        | Local              | Encore Cloud               | GCP / AWS                          |
+| ---------------------- | ------------------ | -------------------------- | ---------------------------------- |
+| **Environment types:** | Development        | Preview, Development       | Development, Production            |
+| **Objectives:**        | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
 
 \*Encore Cloud is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/about/usage)
 
@@ -34,12 +34,12 @@ By default, Encore provisions infrastructure using contextually appropriate obje
 
 Encore provisions infrastructure resources differently for each type of development environment.
 
-|  | Local | Preview / Development (Encore Cloud) | GCP / AWS |
-| - | - | - | - |
-| **SQL Databases:** | Docker | Encore Managed (Kubernetes) | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Pub/Sub:** | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Caches:** | In-memory (Redis) | In-memory (Redis) | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Cron Jobs:** | Disabled | [Encore Managed](/docs/primitives/cron-jobs) | [See production](/docs/deploy/infra#production-infrastructure) |
+|                    | Local                             | Preview / Development (Encore Cloud)         | GCP / AWS                                                      |
+| ------------------ | --------------------------------- | -------------------------------------------- | -------------------------------------------------------------- |
+| **SQL Databases:** | Docker                            | Encore Managed (Kubernetes)                  | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Pub/Sub:**       | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub                                  | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Caches:**        | In-memory (Redis)                 | In-memory (Redis)                            | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Cron Jobs:**     | Disabled                          | [Encore Managed](/docs/primitives/cron-jobs) | [See production](/docs/deploy/infra#production-infrastructure) |
 
 ### Local Development
 
@@ -78,15 +78,15 @@ are provisioned with small-scale use in mind.
 
 Encore provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
 
-|  | GCP | AWS                                                                      |
-| - | - |--------------------------------------------------------------------------|
-| **Networking:** | [VPC](#google-cloud-platform-gcp) | [VPC](#amazon-web-services-aws)                                          |
-| **Compute:** | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws) |
-| **SQL Databases:** | [GCP Cloud SQL](#sql-databases) | [Amazon RDS](#sql-databases-1)                                           |
-| **Pub/Sub:** | [GCP Pub/Sub](#pubsub) | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                          |
-| **Caches:** | [GCP Memorystore (Redis)](#caching) | [Amazon ElastiCache (Redis)](#caching-1)                                 |
-| **Cron Jobs:** | [Encore Managed](/docs/primitives/cron-jobs) | [Encore Managed](/docs/primitives/cron-jobs)                             | [Encore Managed](/docs/primitives/cron-jobs) |
-| **Secrets:** | [Secret Manager][gcp-secrets] | [AWS Secrets Manager][aws-secrets]                                       |
+|                    | GCP                                                                        | AWS                                                                      |
+| ------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Networking:**    | [VPC](#google-cloud-platform-gcp)                                          | [VPC](#amazon-web-services-aws)                                          |
+| **Compute:**       | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws) |
+| **SQL Databases:** | [GCP Cloud SQL](#sql-databases)                                            | [Amazon RDS](#sql-databases-1)                                           |
+| **Pub/Sub:**       | [GCP Pub/Sub](#pubsub)                                                     | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                          |
+| **Caches:**        | [GCP Memorystore (Redis)](#caching)                                        | [Amazon ElastiCache (Redis)](#caching-1)                                 |
+| **Cron Jobs:**     | [Encore Managed](/docs/primitives/cron-jobs)                               | [Encore Managed](/docs/primitives/cron-jobs)                             | [Encore Managed](/docs/primitives/cron-jobs) |
+| **Secrets:**       | [Secret Manager][gcp-secrets]                                              | [AWS Secrets Manager][aws-secrets]                                       |
 
 ### Configurability
 
