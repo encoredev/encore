@@ -59,7 +59,6 @@ func (mgr *Manager) Shutdown(p *shutdown.Process) error {
 	<-p.ServicesShutdownCompleted.Done()
 	<-p.OutstandingTasks.Done()
 
-	mgr.collectNow(p.ForceShutdown)
 	mgr.cancel()
 
 	if mgr.exp != nil {
@@ -75,10 +74,6 @@ func (mgr *Manager) BeginCollection() {
 		// Don't collect metrics when running tests.
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
-	mgr.collectNow(ctx)
-	cancel()
 
 	interval := mgr.runtime.Metrics.CollectionInterval
 	if interval <= 0 {
