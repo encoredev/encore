@@ -2,7 +2,7 @@
 seotitle: How to build a REST API
 seodesc: Learn how to build and ship a REST API in just a few minutes, using Go and Encore. Get your backend running in the cloud in minutes!
 title: Building a REST API
-subtitle: Learn how to build a URL shortener with a REST API and SQL database
+subtitle: Learn how to build a URL shortener with a REST API and PostgreSQL database
 ---
 
 In this tutorial you will create a REST API for a URL Shortener service. In a few short minutes, you'll learn how to:
@@ -126,15 +126,26 @@ import (
 )
 ```
 
+🥐 Then let's define our database object by adding the following to `url/url.go`:
+
+```go
+// Define a database named 'url', using the database
+// migrations in the "./migrations" folder.
+
+var db = sqldb.NewDatabase("url", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
+```
+
 🥐 Now, to insert data into our database, let’s create a helper function `insert`:
 
 ```go
 // insert inserts a URL into the database.
 func insert(ctx context.Context, id, url string) error {
-	_, err := sqldb.Exec(ctx, `
-		INSERT INTO url (id, original_url)
-		VALUES ($1, $2)
-	`, id, url)
+	_, err := db.Exec(ctx, `
+        INSERT INTO url (id, original_url)
+        VALUES ($1, $2)
+    `, id, url)
 	return err
 }
 ```
@@ -153,7 +164,7 @@ func Shorten(ctx context.Context, p *ShortenParams) (*URL, error) {
 }
 ```
 
-<Callout type="important">
+<Callout type="info">
 
 Before running your application, make sure you have [Docker](https://www.docker.com) installed and running. It's required to locally run Encore applications with databases.
 
@@ -169,7 +180,7 @@ Before running your application, make sure you have [Docker](https://www.docker.
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
-🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory:
+🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory (or you can look at the trace in the local dev dashboard at [localhost:9400](http://localhost:9400)):
 
 ```shell
 $ encore db shell url
@@ -195,17 +206,17 @@ To complete our URL shortener API, let’s add the endpoint to retrieve a URL gi
 //encore:api public method=GET path=/url/:id
 func Get(ctx context.Context, id string) (*URL, error) {
 	u := &URL{ID: id}
-	err := sqldb.QueryRow(ctx, `
-		SELECT original_url FROM url
-		WHERE id = $1
-	`, id).Scan(&u.URL)
+	err := db.QueryRow(ctx, `
+        SELECT original_url FROM url
+        WHERE id = $1
+    `, id).Scan(&u.URL)
 	return u, err
 }
 ```
 
 Encore uses the `path=/url/:id` syntax to represent a path with a parameter. The `id` name corresponds to the parameter name in the function signature. In this case it is of type `string`, but you can also use other built-in types like `int` or `bool` if you want to restrict the values.
 
-🥐 Let’s make sure it works by calling it:
+🥐 Let’s make sure it works by calling it (remember to change the `id` below to the one you found in the last step):
 
 ```shell
 $ curl http://localhost:4000/url/zr6RmZc4
@@ -220,7 +231,7 @@ You should now see this:
 }
 ```
 
-And there you have it! That's how you build REST APIs in Encore.
+And there you have it! That's how you build REST APIs and use PostgreSQL databases in Encore.
 
 ## 4. Add a test and deploy
 
