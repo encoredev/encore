@@ -21,7 +21,7 @@ We believe that adopting Encore is a low-risk decision for several reasons:
 - Encore apps are normal programs where less than 5% of the code is Encore-specific
 - All infrastructure, and data, lives in your own account in AWS/GCP
 - It's simple to integrate with "unsupported" cloud services and other systems
-- Key parts are Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/parser), [compiler](https://github.com/encoredev/encore/tree/main/compiler), and [runtime](https://github.com/encoredev/encore/tree/main/runtime)
+- Key parts are Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), and [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
 
 ## What to expect when migrating away
 
@@ -54,7 +54,7 @@ of key-value pairs, where the key is the secret name and the value is the secret
 `Foo=SGVsbG8,Bar=V29ybGQ`.
 
 `ENCORE_RUNTIME_CONFIG` provides the runtime configuration Encore applications need. As the precise configuration changes
-over time, please refer to the [current runtime config definition](https://github.com/encoredev/encore/blob/main/runtime/appruntime/exported/config/config.go). The app, environment, and deployment related information powers the [encore.Meta](https://pkg.go.dev/encore.dev#AppMetadata) API
+over time, please refer to the [current runtime config definition](https://github.com/encoredev/encore/blob/main/runtimes/go/appruntime/exported/config/config.go). The app, environment, and deployment related information powers the [encore.Meta](https://pkg.go.dev/encore.dev#AppMetadata) API
 and can be set to arbitrary values. The SQL database and SQL server information is used to configure how Encore connects to SQL databases,
 and should be configured according to your infrastructure setup. `AuthKeys` and `TraceEndpoint` must both be left unspecified as they determine how the application communicates with Encore, and leaving them empty disables that functionality.
 
