@@ -91,7 +91,7 @@ env "local" {
 ```
 
 Next, we need to create the `atlas-gorm-loader` script referenced above.
-It will use Atlas's provided [atlas-provider-gorm](https://github.com/ariga/atlas-provider-gorm) library.
+It will use the [atlas-provider-gorm](https://github.com/ariga/atlas-provider-gorm) library provided by Atlas.
 
 Create the file as follows:
 
@@ -127,9 +127,7 @@ func main() {
 
 ## Creating migrations
 
-To wrap things up, we'll create a script to automate the process of generating migrations.
-
-Create the script as follows:
+To wrap things up, let's create a script to automate the process of generating migrations:
 
 ```
 -- blog/scripts/generate-migration --
@@ -151,7 +149,7 @@ export ENCORERUNTIME_NOPANIC=1
 atlas migrate diff $MIGRATION_NAME --env local --dev-url "$(encore db conn-uri --shadow $DB_NAME)&search_path=public"
 ```
 
-Finally make the script executable, and generate our first migration:
+Finally let's make the script executable, and generate our first migration:
 
 ```shell
 $ chmod +x blog/scripts/generate-migration
