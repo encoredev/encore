@@ -38,6 +38,7 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 	allowedHeaders := []string{
 		"Authorization",
 		"Content-Type",
+		"User-Agent",
 		"X-Request-ID",
 		"X-Correlation-ID",
 	}
