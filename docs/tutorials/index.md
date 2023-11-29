@@ -1,11 +1,11 @@
 ---
 seotitle: Learn how to build Go based backends with these tutorials
-seodesc: Start building Go based backend applications using Encore. Create REST APIs, Slack bots, and more in just a few minutes.
+seodesc: Start building cloud backend applications using Encore with these tutorials. Create REST APIs, Slack bots, and more in just a few minutes.
 title: Tutorials
-subtitle: Start building your Go based backend application using Encore
+subtitle: Start building your backend application using Encore
 ---
 
-Check out these tutorials to learn how to build with Encore and find inspiration for what to create.
+Check out these tutorials to learn how to build applications with Encore and find inspiration for what to create.
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
     <a className="block group relative no-brandient" href="/docs/tutorials/rest-api">
