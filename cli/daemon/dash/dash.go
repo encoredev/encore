@@ -337,7 +337,7 @@ func (s *Server) listenTraces() {
 			continue
 		}
 
-		data, err := protoEncoder.Marshal(sp)
+		data, err := protoEncoder.Marshal(sp.Span)
 		if err != nil {
 			log.Error().Err(err).Msg("dash: could not marshal trace")
 			continue
@@ -345,7 +345,10 @@ func (s *Server) listenTraces() {
 
 		s.notify(&notification{
 			Method: "trace/new",
-			Params: json.RawMessage(data),
+			Params: map[string]any{
+				"app_id": sp.AppID,
+				"span":   json.RawMessage(data),
+			},
 		})
 	}
 }
