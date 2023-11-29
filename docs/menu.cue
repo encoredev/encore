@@ -200,6 +200,22 @@
 								text: "Services and APIs"
 								path: "/primitives/services-and-apis"
 								file: "primitives/services-and-apis"
+								inline_menu: [{
+									kind: "basic"
+									text: "App Structure"
+									path: "/develop/app-structure"
+									file: "develop/app-structure"
+								}, {
+									kind: "basic"
+									text: "API Schemas"
+									path: "/develop/api-schemas"
+									file: "develop/api-schemas"
+								}, {
+									kind: "basic"
+									text: "Service Structs"
+									path: "/primitives/services-and-apis/service-structs"
+									file: "primitives/service-structs"
+								}]
 							}, {
 								kind: "basic"
 								text: "Databases"
