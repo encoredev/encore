@@ -212,6 +212,11 @@
 									file: "develop/api-schemas"
 								}, {
 									kind: "basic"
+									text: "API Errors"
+									path: "/develop/errors"
+									file: "develop/errors"
+								}, {
+									kind: "basic"
 									text: "Service Structs"
 									path: "/primitives/services-and-apis/service-structs"
 									file: "primitives/service-structs"
