@@ -97,7 +97,10 @@ func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID,
 	ts := time.Unix(0, startedAt)
 	t.StartedAt = timestamppb.New(ts)
 	for _, ln := range s.listeners {
-		ln <- &t
+		ln <- trace2.NewSpanEvent{
+			AppID: appID,
+			Span:  &t,
+		}
 	}
 }
 

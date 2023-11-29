@@ -24,12 +24,12 @@ func New(db *sql.DB) *Store {
 
 type Store struct {
 	db        *sql.DB
-	listeners []chan<- *tracepbcli.SpanSummary
+	listeners []chan<- trace2.NewSpanEvent
 }
 
 var _ trace2.Store = (*Store)(nil)
 
-func (s *Store) Listen(ch chan<- *tracepbcli.SpanSummary) {
+func (s *Store) Listen(ch chan<- trace2.NewSpanEvent) {
 	s.listeners = append(s.listeners, ch)
 }
 

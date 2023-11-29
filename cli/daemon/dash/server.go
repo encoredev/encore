@@ -19,7 +19,6 @@ import (
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/internal/conf"
 	"encr.dev/pkg/fns"
-	tracepb2 "encr.dev/proto/encore/engine/trace2"
 )
 
 var upgrader = websocket.Upgrader{
@@ -45,7 +44,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 		run:      runMgr,
 		tr:       tr,
 		dashPort: dashPort,
-		traceCh:  make(chan *tracepb2.SpanSummary, 10),
+		traceCh:  make(chan trace2.NewSpanEvent, 10),
 		clients:  make(map[chan<- *notification]struct{}),
 	}
 
@@ -63,7 +62,7 @@ type Server struct {
 	run      *run.Manager
 	tr       trace2.Store
 	dashPort int
-	traceCh  chan *tracepb2.SpanSummary
+	traceCh  chan trace2.NewSpanEvent
 
 	mu      sync.Mutex
 	clients map[chan<- *notification]struct{}
