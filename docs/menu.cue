@@ -173,11 +173,11 @@
 			items: [
 				{
 					kind: "nav"
-					text: "GoLang API"
+					text: "Go SDK"
 					path: "/go"
-					file: "primitives/overview"
+					file: "go/overview"
 					submenu: {
-						title: "GoLang"
+						title: "Go SDK"
 						presentation: {
 							icon: "golang"
 						}
@@ -326,11 +326,11 @@
 				},
 				{
 					kind: "nav"
-					text: "TypeScript API"
+					text: "TypeScript SDK"
 					path: "/ts"
-					file: "tutorials/index"
+					file: "ts/overview"
 					submenu: {
-						title: "TypeScript"
+						title: "TypeScript SDK"
 						presentation: {
 							icon: "typescript"
 						}
