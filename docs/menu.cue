@@ -89,6 +89,8 @@
 #AccordionMenuItem: {
 	kind: "accordion"
 	text: string
+	// If the accordion is open by default.
+	defaultExpanded: bool | *false
 
 	// The items to display in the accordion.
 	accordion: [...#MenuItem]
@@ -187,7 +189,7 @@
 						}
 						items: [{
 							kind: "section"
-							text: "Infra SDK"
+							text: "Infrastructure"
 							items: [{
 								kind: "basic"
 								text: "Overview"
@@ -354,6 +356,7 @@
 				{
 					kind: "accordion"
 					text: "Deploy"
+					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
 						text: "Deploying & CI/CD"
@@ -409,6 +412,7 @@
 				{
 					kind: "accordion"
 					text: "Observability"
+					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
 						text: "Development Dashboard"
