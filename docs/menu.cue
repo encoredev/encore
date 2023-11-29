@@ -90,7 +90,7 @@
 	kind: "accordion"
 	text: string
 	// If the accordion is open by default.
-	defaultExpanded?: bool
+	defaultExpanded: bool | *false
 
 	// The items to display in the accordion.
 	accordion: [...#MenuItem]
