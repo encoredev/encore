@@ -344,6 +344,51 @@
 									path: "/develop/validation"
 									file: "develop/validation"
 								}]
+							},
+							{
+								kind: "section"
+								text: "How to guides"
+								items: [{
+									kind: "basic"
+									text: "Break a monolith into microservices"
+									path: "/how-to/break-up-monolith"
+									file: "how-to/break-up-monolith"
+								}, {
+									kind: "basic"
+									text: "Build with cgo"
+									path: "/how-to/cgo"
+									file: "how-to/cgo"
+								}, {
+									kind: "basic"
+									text: "Debug with Delve"
+									path: "/how-to/debug"
+									file: "how-to/debug"
+								}, {
+									kind: "basic"
+									text: "Receive regular HTTP requests & Use websockets"
+									path: "/how-to/http-requests"
+									file: "how-to/http-requests"
+								}, {
+									kind: "basic"
+									text: "Use Atlas + GORM for database migrations"
+									path: "/how-to/atlas-gorm"
+									file: "how-to/atlas-gorm"
+								}, {
+									kind: "basic"
+									text: "Use the ent ORM for migrations"
+									path: "/how-to/entgo-orm"
+									file: "how-to/entgo-orm"
+								}, {
+									kind: "basic"
+									text: "Use Dependency Injection"
+									path: "/how-to/dependency-injection"
+									file: "how-to/dependency-injection"
+								}, {
+									kind: "basic"
+									text: "Use Firebase Authentication"
+									path: "/how-to/firebase-auth"
+									file: "how-to/firebase-auth"
+								}]
 							}]
 					}
 				},
@@ -361,7 +406,16 @@
 							text: "Back to Main Menu"
 							path: "/docs"
 						}
-						items: []
+						items: [{
+							kind: "section"
+							text: "Docs"
+							items: [{
+								kind: "basic"
+								text: "TypeScript Preview"
+								path: "/other/typescript-preview"
+								file: "other/typescript-preview"
+							}]
+						}]
 					}
 				}, {
 					kind: "basic"
@@ -470,21 +524,6 @@
 				text: "How to guides"
 				accordion: [{
 					kind: "basic"
-					text: "Break a monolith into microservices"
-					path: "/how-to/break-up-monolith"
-					file: "how-to/break-up-monolith"
-				}, {
-					kind: "basic"
-					text: "Build with cgo"
-					path: "/how-to/cgo"
-					file: "how-to/cgo"
-				}, {
-					kind: "basic"
-					text: "Debug with Delve"
-					path: "/how-to/debug"
-					file: "how-to/debug"
-				}, {
-					kind: "basic"
 					text: "Generate Auth Keys"
 					path: "/develop/auth-keys"
 					file: "develop/auth-keys"
@@ -500,49 +539,24 @@
 					file: "how-to/integrate-frontend"
 				}, {
 					kind: "basic"
-					text: "Receive regular HTTP requests"
-					path: "/how-to/http-requests"
-					file: "how-to/http-requests"
-				}, {
-					kind: "basic"
 					text: "Use Temporal with Encore"
 					path: "/how-to/temporal"
 					file: "how-to/temporal"
 				}, {
 					kind: "basic"
-					text: "Use Atlas + GORM for database migrations"
-					path: "/how-to/atlas-gorm"
-					file: "how-to/atlas-gorm"
-				}, {
-					kind: "basic"
-					text: "Use the ent ORM for migrations"
-					path: "/how-to/entgo-orm"
-					file: "how-to/entgo-orm"
-				}, {
-					kind: "basic"
-					text: "Use Dependency Injection"
-					path: "/how-to/dependency-injection"
-					file: "how-to/dependency-injection"
-				}, {
-					kind: "basic"
-					text: "Use Firebase Authentication"
-					path: "/how-to/firebase-auth"
-					file: "how-to/firebase-auth"
-				}, {
-					kind: "basic"
 					text: "Submit a Template"
 					path: "/how-to/submit-template"
 					file: "how-to/submit-template"
-				}, {
-					kind: "basic"
-					text: "Try Encore for an existing project"
-					path: "/how-to/try-encore"
-					file: "how-to/try-encore"
 				}]
 			}, {
 				kind: "accordion"
 				text: "Migration guides"
 				accordion: [{
+					kind: "basic"
+					text: "Try Encore for an existing project"
+					path: "/how-to/try-encore"
+					file: "how-to/try-encore"
+				}, {
 					kind: "basic"
 					text: "Migrate an existing backend to Encore"
 					path: "/how-to/migrate-to-encore"
