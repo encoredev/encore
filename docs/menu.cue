@@ -298,12 +298,7 @@
 									text: "Authentication"
 									path: "/develop/auth"
 									file: "develop/auth"
-								}, {
-									kind: "basic"
-									text: "Client Generation"
-									path: "/develop/client-generation"
-									file: "develop/client-generation"
-								}, {
+								},{
 									kind: "basic"
 									text: "Configuration"
 									path: "/develop/config"
@@ -328,12 +323,7 @@
 									text: "Middleware"
 									path: "/develop/middleware"
 									file: "develop/middleware"
-								}, {
-									kind: "basic"
-									text: "Service Catalog"
-									path: "/develop/api-docs"
-									file: "develop/api-docs"
-								}, {
+								},{
 									kind: "basic"
 									text: "Testing"
 									path: "/develop/testing"
@@ -349,11 +339,6 @@
 								kind: "section"
 								text: "How to guides"
 								items: [{
-									kind: "basic"
-									text: "Break a monolith into microservices"
-									path: "/how-to/break-up-monolith"
-									file: "how-to/break-up-monolith"
-								}, {
 									kind: "basic"
 									text: "Build with cgo"
 									path: "/how-to/cgo"
@@ -422,6 +407,11 @@
 					text: "CLI Reference"
 					path: "/develop/cli-reference"
 					file: "develop/cli-reference"
+				}, {
+					kind: "basic"
+					text: "Client Generation"
+					path: "/develop/client-generation"
+					file: "develop/client-generation"
 				}]
 		},
 		{
@@ -513,6 +503,11 @@
 						text: "Metrics"
 						path: "/observability/metrics"
 						file: "observability/metrics"
+					}, {
+						kind: "basic"
+						text: "Service Catalog"
+						path: "/develop/api-docs"
+						file: "develop/api-docs"
 					}]
 				},
 			]
@@ -523,6 +518,11 @@
 				kind: "accordion"
 				text: "How to guides"
 				accordion: [{
+					kind: "basic"
+					text: "Break a monolith into microservices"
+					path: "/how-to/break-up-monolith"
+					file: "how-to/break-up-monolith"
+				}, {
 					kind: "basic"
 					text: "Generate Auth Keys"
 					path: "/develop/auth-keys"

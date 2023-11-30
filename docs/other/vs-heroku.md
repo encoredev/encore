@@ -1,27 +1,27 @@
 ---
 seotitle: Encore compared to Heroku
-seodesc: See how the Encore Backend Development Platform lets you avoid the growing pains often experienced when trying to scale an application using Heroku.
+seodesc: See how the Encore Backend Development Platform lets you avoid the lock-in problems of using Heroku.
 title: Encore compared to Heroku
-subtitle: Get the convenience you want, without limitations
+subtitle: Get the convenience you want — without limitations and lock-in
 ---
 
-In its heyday, Heroku was seen as an innovative cloud platform that made deployments and infrastructure management much more convenient than alternatives at the time. Ultimately Heroku lost momentum and, as cloud services rapidly evolved in the past decade, the platform didn't manage to provide enough flexibility to support users' needs.
+In the early days of the cloud, Heroku was seen as an innovative platform that made deployments and infrastructure management very simple. Ultimately, Heroku lost momentum and, as cloud services rapidly evolved in the past decade, the platform didn't manage to provide enough flexibility to support users' needs.
 
-Fans of Heroku will recognize much of the same simplicity in the Encore workflow. However, there are several key differences between Encore and Heroku, which make Encore a long term suitable technology choice.
+Fans of Heroku will recognize much of the same simplicity in Encore's **push to deploy** workflow — the big difference is that **Encore deploys to your own cloud in AWS/GCP**. This means you keep full flexibility to scale your application using battle-tested services from the major cloud providers, and can leverage their full arsenal of thousands of different services.
 
-Encore is designed to be flexible in letting you build your application using infrastructure, and cloud services, not yet natively supported in Encore's Infrastructure SDK. This means you can use any type cloud infrastructure, as you normally would, even if it's not a built-in [building block](/docs/primitives/overview). The only drawback is that your developer experience will be more conventional, and you will need to manually provision the "unsupported" infrastructure.
+This works because Encore is designed to be flexible in enabling you to use infrastructure services not yet natively supported in Encore's [Infrastructure SDK](/docs/primitives/overview). In practice you can use any type cloud infrastructure as you normally would, the only drawback is that your developer experience will be more conventional, and you will need to manually provision the "unsupported" infrastructure.
 
-|  | Encore | Heroku |
-| - | - | - |
-| **Infrastructure approach?** | Infrastructure from Code | Platform as a Service |
-| **Charges for hosting?** | No | Yes |
-| **Deploy to all major cloud providers?** | Yes | No |
-| **Deploy to your own cloud account?** | Yes | No |
-| **Cloud-agnostic applications?** | Yes, by default | Never |
-| **Built-in CI/CD?** | Yes | Yes |
-| **Built-in Preview Environments?** | Yes | Yes |
-| **Automatic Distributed Tracing?** | Yes | No |
-| **Pricing?** | [$99 per developer](https://encore.dev/pricing) | Variable (complex) |
+|                                          | Encore                                          | Heroku                |
+| ---------------------------------------- | ----------------------------------------------- | --------------------- |
+| **Infrastructure approach?**             | Infrastructure from Code                        | Platform as a Service |
+| **Charges for hosting?**                 | No                                              | Yes                   |
+| **Deploy to all major cloud providers?** | Yes (AWS/GCP)                                   | No                    |
+| **Deploy to your own cloud account?**    | Yes                                             | No                    |
+| **Cloud lock-in?**                       | No                                              | Always                |
+| **Built-in CI/CD?**                      | Yes                                             | Yes                   |
+| **Built-in Preview Environments?**       | Yes                                             | Yes                   |
+| **Automatic Distributed Tracing?**       | Yes                                             | No                    |
+| **Pricing?**                             | [$99 per developer](https://encore.dev/pricing) | Variable (complex)    |
 
 ## Advantages of Encore's Infrastructure from Code approach
 
