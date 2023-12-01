@@ -22,7 +22,7 @@ On disk it might look like this:
 │   ├── hello.ts        // hello service code
 │   └── hello_test.ts   // tests for hello service
 │
-└── world               // world service (a Go package)
+└── world               // world service (a folder)
     └── world.ts        // world service code
 ```
 
@@ -49,8 +49,8 @@ import { api } from "encore.dev/api"
 
 export const ping = api(
   { method: "POST" },
-  async ({ name }: PingParams): Promise<PingResponse> => {
-    return { message: `Hello ${name}!` };
+  async (p: PingParams): Promise<PingResponse> => {
+    return { message: `Hello ${p.name}!` };
   }
 );
 ```
@@ -77,8 +77,8 @@ interface PingResponse {
 // This is exposed as "hello.ping".
 export const hello = api(
   { method: "POST", path: "/hello" },
-  async ({ name }: PingParams): Promise<PingResponse> => {
-    return { message: `Hello ${name}!` };
+  async (p: PingParams): Promise<PingResponse> => {
+    return { message: `Hello ${p.name}!` };
   }
 );
 ```
