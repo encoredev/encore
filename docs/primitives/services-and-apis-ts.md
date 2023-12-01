@@ -61,7 +61,7 @@ In the example above we defined an API that uses request and response schemas. T
 
 ```typescript
 // inside the hello.ts file
-import { api } from "@encore.dev/api"
+import { api } from "encore.dev/api"
 
 // PingParams is the request data for the Ping endpoint.
 interface PingParams {
