@@ -38,7 +38,7 @@ It's easy to accept both the URL path parameters, as well as JSON request body d
 It's all done in a way that is fully declarative, enabling Encore to automatically parse and validate the incoming request
 and ensure it matches the schema, with zero boilerplate.
 
-To define an API, use the `api` function from the `@encore.dev/api` module to wrap a regular TypeScript async function that receives the request data as input and returns response data.
+To define an API, use the `api` function from the `encore.dev/api` module to wrap a regular TypeScript async function that receives the request data as input and returns response data.
 This tells Encore that the function is an API endpoint. Encore will then automatically generate the necessary boilerplate at compile-time.
 
 In the example below, we define the API endpoint `ping` which accepts `POST` requests and is exposed as `hello.ping` (because our service name is `hello`).
