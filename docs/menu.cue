@@ -192,11 +192,6 @@
 							text: "Infrastructure"
 							items: [{
 								kind: "basic"
-								text: "Overview"
-								path: "/primitives"
-								file: "primitives/overview"
-							}, {
-								kind: "basic"
 								text: "Services and APIs"
 								path: "/primitives/services-and-apis"
 								file: "primitives/services-and-apis"
