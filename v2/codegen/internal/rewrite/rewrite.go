@@ -34,6 +34,17 @@ func (r *Rewriter) ReplaceNode(node ast.Node, data []byte) {
 }
 
 func (r *Rewriter) Insert(start token.Pos, data []byte) {
+	// If the pos is at the very end of the file, insert a new segment directly,
+	// since calling r.seg(start) would panic.
+	if len(r.segs) > 0 && r.segs[len(r.segs)-1].end == int(start) {
+		r.segs = append(r.segs, segment{
+			start: int(start),
+			end:   int(start) + len(data),
+			data:  data,
+		})
+		return
+	}
+
 	si, so := r.seg(start)
 	r.replace(si, so, si, so, data)
 }
@@ -93,10 +104,12 @@ func (r *Rewriter) seg(pos token.Pos) (idx int, offset int) {
 			return i, int(p - seg.start)
 		}
 	}
+
 	panic(fmt.Sprintf("original file does not contain pos %v", pos))
 }
 
 type segment struct {
-	start, end int
-	data       []byte
+	start int // inclusive
+	end   int // exclusive
+	data  []byte
 }
