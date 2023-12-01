@@ -43,3 +43,15 @@ func TestDelete(t *testing.T) {
 		t.Errorf("got data %s, want %s", got, want)
 	}
 }
+
+func TestInsertAtEnd(t *testing.T) {
+	rw := New([]byte(""), 1)
+	rw.Insert(1, []byte("// test"))
+	if got, want := rw.Data(), []byte("// test"); !bytes.Equal(got, want) {
+		t.Errorf("got data %s, want %s", got, want)
+	}
+	rw.Delete(1, 4)
+	if got, want := rw.Data(), []byte("test"); !bytes.Equal(got, want) {
+		t.Errorf("got data %s, want %s", got, want)
+	}
+}
