@@ -155,7 +155,7 @@ type CreateBlogPost struct {
 The table below lists the data types supported by each HTTP message location.
 
 | Type            | Header | Path | Query | Body |
-|-----------------|--------|------|-------|------|
+| --------------- | ------ | ---- | ----- | ---- |
 | bool            | X      | X    | X     | X    |
 | numeric         | X      | X    | X     | X    |
 | string          | X      | X    | X     | X    |
@@ -174,7 +174,7 @@ This often requires you to parse custom HTTP headers and do other low-level thin
 
 For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
 
-Learn more about how to use raw endpoints in the [receiving webhooks guide](/docs/how-to/webhooks).
+Learn more in the [raw endpoints documentation](/docs/primitives/services-and-apis#raw-endpoints).
 
 ## Sensitive data
 
