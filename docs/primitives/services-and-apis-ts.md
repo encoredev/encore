@@ -45,7 +45,7 @@ In the example below, we define the API endpoint `ping` which accepts `POST` req
 
 ```typescript
 // inside the hello.ts file
-import { api } from "@encore.dev/api"
+import { api } from "encore.dev/api"
 
 export const ping = api(
   { method: "POST" },
