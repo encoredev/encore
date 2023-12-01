@@ -80,9 +80,13 @@
     "Title": "Infra SDK",
     "Children": [
       {
-        "Path": "/primitives",
+        "Path": "/go",
         "Title": "Overview",
-        "DocSlug": "primitives/overview"
+        "DocSlug": "go/overview",
+        "OldPaths": [
+          "/primitives",
+          "/primitives/overview"
+        ]
       },
       {
         "Path": "/primitives/services-and-apis",
