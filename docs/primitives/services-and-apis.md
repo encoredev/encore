@@ -206,7 +206,7 @@ Like any other Encore API endpoint, once deployed this will be exposed at the UR
 Experienced Go developers will have already noted this is just a regular Go HTTP handler.
 (See the <a href="https://pkg.go.dev/net/http#Handler" target="_blank" rel="nofollow">net/http documentation</a> for how Go HTTP handlers work.)
 
-You can read more about receiving webhooks in the [receive webhooks guide](/docs/how-to/webhooks).
+Learn more about receiving webhooks and using WebSockets in the [receiving regular HTTP requests guide](/docs/how-to/http-requests).
 
 ## Calling APIs
 Calling an API endpoint looks like a regular function call with Encore. Import the service package as a regular Go package using `import "encore.app/package-name"` and then call the API endpoint like a regular function.
