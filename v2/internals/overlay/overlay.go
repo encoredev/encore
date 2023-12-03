@@ -18,6 +18,9 @@ type File struct {
 
 	// Contents are the file contents of the overlaid file.
 	Contents []byte
+
+	// If set, overrides Contents and uses the dest directly instead.
+	Dest paths.FS
 }
 
 // Write writes the overlay files to the workdir
@@ -29,6 +32,11 @@ func Write(workdir paths.FS, files []File) (overlayFile paths.FS, err error) {
 
 	addFile := func(f File) error {
 		src := f.Source.ToIO()
+		if f.Dest != "" {
+			overlay[src] = f.Dest.ToIO()
+			return nil
+		}
+
 		baseName := "gen_" + filepath.Base(filepath.Dir(src)) + "__" + filepath.Base(src)
 		if _, exists := overlay[src]; exists {
 			return fmt.Errorf("duplicate overlay of %s", src)
