@@ -9,16 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/trace2"
 )
 
 func (c *Client) StreamTrace(log trace2.Logger) error {
-	if experiments.StreamTraces.Enabled(c.exp) {
-		return c.streamingTrace(log)
-	} else {
-		return c.blockingTrace(log)
-	}
+	return c.streamingTrace(log)
 }
 
 // streamingTrace streams a trace to the platform.
