@@ -156,7 +156,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		buildResult := build.Build(ctx, &build.Config{
 			Ctx:          pd.pc,
 			Overlays:     gg.Overlays(),
-			MainPkg:      paths.Pkg(p.Build.MainPkg.GetOrElse("./__encore/main")),
+			MainPkg:      paths.Pkg(p.Build.MainPkg.GetOrElse("./encore_internal/main")),
 			KeepOutput:   p.Build.KeepOutput,
 			StaticConfig: staticConfig,
 		})

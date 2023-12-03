@@ -53,8 +53,8 @@ func Gen(p GenParams) *config.Static {
 }
 
 func genMain(p GenParams) *config.Static {
-	mainPkgDir := p.MainModule.RootDir.Join("__encore", "main")
-	mainPkgPath := paths.Pkg(p.MainModule.Path).JoinSlash("__encore", "main")
+	mainPkgDir := p.MainModule.RootDir.Join("encore_internal", "main")
+	mainPkgPath := paths.Pkg(p.MainModule.Path).JoinSlash("encore_internal", "main")
 
 	file := p.Gen.InjectFile(mainPkgPath, "main", mainPkgDir, "main.go", "main")
 	f := file.Jen
