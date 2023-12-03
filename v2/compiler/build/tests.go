@@ -5,7 +5,6 @@ package build
 import (
 	"context"
 	"fmt"
-	"go/token"
 	"io"
 	"os"
 	"os/exec"
@@ -13,7 +12,6 @@ import (
 
 	"encr.dev/internal/etrace"
 	"encr.dev/pkg/paths"
-	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/perr"
 )
 
@@ -65,7 +63,6 @@ func (b *builder) Test() {
 
 	for _, fn := range []func(){
 		b.writeModFile,
-		b.writeSumFile,
 		b.runTests,
 	} {
 		fn()
@@ -78,21 +75,12 @@ func (b *builder) Test() {
 
 func (b *builder) runTests() {
 	etrace.Sync0(b.ctx, "", "runTests", func(ctx context.Context) {
-		overlayFiles := append(b.overlays, b.cfg.Overlays...)
-		overlayPath, err := overlay.Write(b.workdir, overlayFiles)
-		if err != nil {
-			b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
-			return
-		}
-
 		build := b.cfg.Ctx.Build
 		tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
 		args := []string{
 			"test",
 			"-tags=" + strings.Join(tags, ","),
-			"-overlay=" + overlayPath.ToIO(),
-			"-modfile=" + b.gomodPath().ToIO(),
-			"-mod=mod",
+			"-overlay=" + b.overlayPath.ToIO(),
 			"-vet=off",
 		}
 
@@ -143,7 +131,7 @@ func (b *builder) runTests() {
 		cmd.Stdout = b.testCfg.Stdout
 		cmd.Stderr = b.testCfg.Stderr
 
-		err = cmd.Run()
+		err := cmd.Run()
 		if err != nil {
 			if err.Error() == "exit status 1" {
 				// This is a standard error code for failed tests.

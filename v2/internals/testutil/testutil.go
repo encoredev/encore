@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	"encr.dev/internal/env"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
@@ -107,7 +109,7 @@ func newContextForFSPath(c *qt.C, mainModuleDir string, parseTests bool) *Contex
 		Experiments:   nil,
 		GOARCH:        d.GOARCH,
 		GOOS:          d.GOOS,
-		GOROOT:        paths.RootedFSPath(d.GOROOT, "."),
+		GOROOT:        paths.RootedFSPath(env.EncoreGoRoot(), "."),
 		BuildTags:     nil,
 		CgoEnabled:    true,
 		EncoreRuntime: paths.RootedFSPath(filepath.Join(RuntimeDir, "go"), "."),
@@ -175,7 +177,8 @@ func (c *Context) DeferExpectError(matches ...string) {
 
 // GoModTidy runs "go mod tidy" on the main module.
 func (c *Context) GoModTidy() {
-	cmd := exec.Command("go", "mod", "tidy")
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.Command(c.goBin(), "mod", "tidy")
 	cmd.Dir = c.MainModuleDir.ToIO()
 	c.TestC.Log("running 'go mod tidy'")
 	// nosemgrep
@@ -189,7 +192,9 @@ func (c *Context) GoModTidy() {
 func (c *Context) GoModDownload() {
 	// The "all" arg is needed to force 'go mod download' to update
 	// the go.sum file. See https://go-review.googlesource.com/c/go/+/318629.
-	cmd := exec.Command("go", "mod", "download", "all")
+
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.Command(c.goBin(), "mod", "download", "all")
 	cmd.Dir = c.MainModuleDir.ToIO()
 	c.TestC.Log("running 'go mod download'")
 	// nosemgrep
@@ -197,6 +202,14 @@ func (c *Context) GoModDownload() {
 		c.TestC.Fatalf("go mod download: %v\n%s", err, out)
 	}
 	c.TestC.Log("'go mod download' completed successfully")
+}
+
+func (c *Context) goBin() string {
+	s := c.Build.GOROOT.Join("bin", "go").ToIO()
+	if runtime.GOOS == "windows" {
+		s += ".exe"
+	}
+	return s
 }
 
 func ParseTxtar(s string) *txtar.Archive {
