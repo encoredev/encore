@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"slices"
 	"sort"
+
+	"encr.dev/pkg/option"
 )
 
 type LocationType uint8
@@ -94,6 +96,16 @@ func (s SrcLocations) Less(i, j int) bool {
 
 func (s SrcLocations) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+func NewSrcLocations(opts ...option.Option[*SrcLocation]) SrcLocations {
+	var rtn SrcLocations
+	for _, opt := range opts {
+		if loc, ok := opt.Get(); ok {
+			rtn = append(rtn, loc)
+		}
+	}
+	return rtn
 }
 
 // GroupByFile groups all locations by file and returns a new

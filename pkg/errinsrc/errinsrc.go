@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	encerrors "encr.dev/pkg/errors"
+	"encr.dev/pkg/option"
 
 	. "encr.dev/pkg/errinsrc/internal"
 )
@@ -69,40 +70,41 @@ func FromTemplate(template encerrors.Template, fileset *token.FileSet) *ErrInSrc
 	}
 
 	// Read the locations
-	for _, loc := range template.Locations {
-		var location *SrcLocation
-		switch loc.Kind {
+	for _, tmplLoc := range template.Locations {
+		var location option.Option[*SrcLocation]
+		switch tmplLoc.Kind {
 		case encerrors.LocFile:
-			params.Summary += "\n\nIn file: " + loc.Filepath
+			params.Summary += "\n\nIn file: " + tmplLoc.Filepath
 			continue
 		case encerrors.LocGoNode:
-			location = FromGoASTNode(fileset, loc.GoNode)
+			location = FromGoASTNode(fileset, tmplLoc.GoNode)
 		case encerrors.LocGoPos:
-			location = FromGoTokenPos(fileset, loc.GoStartPos, loc.GoEndPos)
+			location = FromGoTokenPos(fileset, tmplLoc.GoStartPos, tmplLoc.GoEndPos)
 		case encerrors.LocGoPositions:
-			location = FromGoTokenPositions(loc.GoStartPosition, loc.GoEndPosition)
+			location = FromGoTokenPositions(tmplLoc.GoStartPosition, tmplLoc.GoEndPosition)
 		default:
-			panic(fmt.Sprintf("unknown location kind: %v", loc.Kind))
+			panic(fmt.Sprintf("unknown location kind: %v", tmplLoc.Kind))
 		}
 
-		if location == nil {
+		loc, ok := location.Get()
+		if !ok {
 			continue
 		}
 
-		switch loc.LocType {
+		switch tmplLoc.LocType {
 		case encerrors.LocError:
-			location.Type = LocError
+			loc.Type = LocError
 		case encerrors.LocWarning:
-			location.Type = LocWarning
+			loc.Type = LocWarning
 		case encerrors.LocHelp:
-			location.Type = LocHelp
+			loc.Type = LocHelp
 		default:
-			panic(fmt.Sprintf("unknown location type: %v", loc.LocType))
+			panic(fmt.Sprintf("unknown location type: %v", tmplLoc.LocType))
 		}
 
-		location.Text = loc.Text
+		loc.Text = tmplLoc.Text
 
-		params.Locations = append(params.Locations, location)
+		params.Locations = append(params.Locations, loc)
 	}
 
 	// Create the error
@@ -219,5 +221,7 @@ func (e *ErrInSrc) OnSameLine(other *ErrInSrc) bool {
 
 // WithGoNode adds a Go AST node to the error
 func (e *ErrInSrc) WithGoNode(fileset *token.FileSet, node ast.Node) {
-	e.Params.Locations = append(e.Params.Locations, FromGoASTNode(fileset, node))
+	if val, ok := FromGoASTNode(fileset, node).Get(); ok {
+		e.Params.Locations = append(e.Params.Locations, val)
+	}
 }
