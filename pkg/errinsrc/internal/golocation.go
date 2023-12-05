@@ -7,18 +7,22 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
+
+	"encr.dev/pkg/option"
 )
 
-func FromGoASTNodeWithTypeAndText(fileset *token.FileSet, node ast.Node, typ LocationType, text string) *SrcLocation {
+func FromGoASTNodeWithTypeAndText(fileset *token.FileSet, node ast.Node, typ LocationType, text string) option.Option[*SrcLocation] {
 	loc := FromGoASTNode(fileset, node)
-	loc.Type = typ
-	loc.Text = text
+	if l, ok := loc.Get(); ok {
+		l.Type = typ
+		l.Text = text
+	}
 	return loc
 }
 
 // FromGoASTNode returns a SrcLocation from a Go AST node storing the start and end
 // locations of that node.
-func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {
+func FromGoASTNode(fileset *token.FileSet, node ast.Node) option.Option[*SrcLocation] {
 	start := fileset.Position(node.Pos())
 	end := fileset.Position(node.End())
 
@@ -29,18 +33,18 @@ func FromGoASTNode(fileset *token.FileSet, node ast.Node) *SrcLocation {
 	}
 
 	if !start.IsValid() || !end.IsValid() {
-		return nil
+		return option.None[*SrcLocation]()
 	}
 
 	return FromGoTokenPositions(start, end)
 }
 
-func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) *SrcLocation {
+func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) option.Option[*SrcLocation] {
 	startPos := fileset.Position(start)
 	endPos := fileset.Position(end)
 
 	if !startPos.IsValid() || !endPos.IsValid() {
-		return nil
+		return option.None[*SrcLocation]()
 	}
 
 	return FromGoTokenPositions(startPos, endPos)
@@ -51,7 +55,7 @@ func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) *SrcLocation {
 // be locations within the same file.
 //
 // This function will panic if the locations are in different files.
-func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation {
+func FromGoTokenPositions(start token.Position, end token.Position) option.Option[*SrcLocation] {
 	if start.Filename != end.Filename {
 		panic("FromGoASTNode: start and end files must be the same")
 	}
@@ -71,10 +75,10 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 	// as that means we're not dealing with a Go Token Position
 	if !start.IsValid() || !end.IsValid() {
 		log.Warn().Str("start", start.String()).Str("end", end.String()).Msg("Invalid Go token position")
-		return nil
+		return option.None[*SrcLocation]()
 	}
 
-	return &SrcLocation{
+	return option.Some(&SrcLocation{
 		File: &File{
 			RelPath:  start.Filename,
 			FullPath: start.Filename,
@@ -83,7 +87,7 @@ func FromGoTokenPositions(start token.Position, end token.Position) *SrcLocation
 		Start: Pos{Line: start.Line, Col: start.Column},
 		End:   Pos{Line: end.Line, Col: end.Column},
 		Type:  LocError,
-	}
+	})
 }
 
 // convertSingleGoPositionToRange attempts to convert a single Go token position to a range with a start and end
