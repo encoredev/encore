@@ -100,6 +100,10 @@ func (c *HistogramGroup[L, V]) get(labels L) *timeseries[*nativehist.Histogram] 
 	ts, setup := getTS[*nativehist.Histogram](c.reg, c.name, labels, c.metricInfo)
 
 	if !setup {
+		// Initialize this histogram timeseries on first use.
+		ts.init.Start()
+		defer ts.init.Done()
+
 		n := c.reg.numSvcs
 		if c.svcNum > 0 {
 			n = 1
@@ -108,6 +112,9 @@ func (c *HistogramGroup[L, V]) get(labels L) *timeseries[*nativehist.Histogram] 
 		for i := range ts.value {
 			ts.value[i] = nativehist.New(bucketFactor)
 		}
+	} else {
+		// Wait for the timeseries to be initialized before we continue.
+		ts.init.Wait()
 	}
 
 	return ts
