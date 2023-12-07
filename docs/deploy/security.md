@@ -11,7 +11,7 @@ We have designed Encore to make building secure applications an effortless task,
 
 For example, Encore's [secrets management](/docs/primitives/secrets) gives you a simple way of using secret keys, while at the same time providing state of the art security behind the scenes.
 
-Furthermore, thanks to the API framework and Infrastructure SDK, Encore understands which services require access to certain resources and automatically configures your application based on the principle of least access. This ensures each service only has the minimum necessary permissions.
+Furthermore, thanks to the API framework and Infrastructure SDK, Encore understands which services require access to specific resources. **Encore automatically manages IAM policies** based on the _principle of least privilege_ by default. This ensures each service only has the minimum necessary permissions.
 
 When your application is running, all communication to Encore uses mutual TLSv1.3 connections, and all database access is encrypted with certificate validation and strong security credentials.
 
