@@ -32,11 +32,6 @@ If you already have a monorepo and want to place your Encore application in a su
 
 Do this by opening your app in the [Cloud Dashboard](https://app.encore.dev) and go to **Settings** > **General**. Then in the **Root Directory** section, you specify the directory within your Git repository in which your `encore.app` file is located.
 
-## Clean up the old .git folder
-
-When you first created your app using `encore app create`, Encore automatically created a `.git` folder to enable Encore's built-in git workflow.
-Once you've linked your app to GitHub you may end up with multiple `.git` folders. In this case, you can safely delete the pre-existing `.git` folder created by Encore.
-
 ## Configure deploy trigger
 
 When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
