@@ -77,6 +77,9 @@ func (c *CounterGroup[L, V]) get(labels L) *timeseries[V] {
 	ts, setup := c.metricInfo.getTS(labels)
 	if !setup {
 		ts.setup(c.labelMapper(labels))
+	} else {
+		// Wait for the timeseries to be initialized before we continue.
+		ts.init.Wait()
 	}
 	return ts
 }
@@ -139,6 +142,9 @@ func (g *GaugeGroup[L, V]) get(labels L) *timeseries[V] {
 	ts, setup := g.metricInfo.getTS(labels)
 	if !setup {
 		ts.setup(g.labelMapper(labels))
+	} else {
+		// Wait for the timeseries to be initialized before we continue.
+		ts.init.Wait()
 	}
 	return ts
 }
