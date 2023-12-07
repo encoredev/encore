@@ -46,6 +46,8 @@ This completely removes the need for infrastructure configuration files, increas
 
 - **[Built-in DevOps](https://encore.dev/docs/introduction#a-developer-experience-designed-to-help-you-stay-in-the-flow):** Run `git push encore` to build, test, provision the necessary cloud infrastructure, and deploy.
 
+- **Automated IAM Management:** Principle of least privilege security is implemented by default.
+
 - **[Provision environments automatically](https://encore.dev/docs/deploy/environments):** Deploy to unlimited dev/preview/cloud environments in without code changes. Encore provisions the necessary infrastructure and ensures environments stay in sync.
 
 - **[Deploy to your own cloud](https://encore.dev/docs/deploy/infra):** Encore deploys your application to your cloud in AWS or GCP, using best practices like least-privileges security.
@@ -64,6 +66,8 @@ This completely removes the need for infrastructure configuration files, increas
   schemas for all your APIs and automatically generates a Service Catalog and high-quality API Documentation.
 
 - **[Generated Frontend Clients](https://encore.dev/docs/how-to/integrate-frontend):** Automatically generate type-safe API clients to integrate with your frontend.
+
+- **Extensible:** Extend your system with any infrastructure services you need, integration is simple because all infrastructure lives in your own cloud account.
 
 ## Why choose Encore?
 
