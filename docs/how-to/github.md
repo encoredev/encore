@@ -26,6 +26,12 @@ your Pull Requests, and provision Preview Environments for each Pull Request.
 
 <img class="max-w-lg w-full mx-auto" src="/assets/img/git-linked.png" />
 
+## Placing your Encore app in a monorepo sub-folder
+
+If you already have a monorepo and want to place your Encore application in a sub-folder, you need to tell Encore which folder the `encore.app` file is in.
+
+Do this by opening your app in the [Cloud Dashboard](https://app.encore.dev) and go to **Settings** > **General**. Then in the **Root Directory** section, you specify the directory within your Git repository in which your `encore.app` file is located.
+
 ## Configure deploy trigger
 
 When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
