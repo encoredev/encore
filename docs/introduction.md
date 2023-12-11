@@ -36,8 +36,9 @@ This is a powerful resource for teams that want to avoid investing engineering t
 - **Faster Development**: Encore streamlines the development process with its infrastructure SDK, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
 - **Reduced Costs**: Encore's infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload, allowing you to work more efficiently.
 - **Scalability & Performance**: Encore simplifies building microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
-- **Control & Standardization**: Built-in tools like automated architecture diagrams, infrastructure tracking, and approval workflows make it easy for teams and leaders to get an overview of the entire application.
-- **Security & Compliance**: Encore helps ensure your application is secure and compliant by enforcing standards and provisioning infrastructure according to best practises for each cloud provider.
+- **Control & Standardization**: Encore enforces standardization and provisions infrastructure consistently according to best practises for each cloud provider.
+- **Observability:** Built-in tools like automated architecture diagrams and API docs, infrastructure tracking, and distributed tracing make it simple for teams and leaders to get an always up-to-date picture of the system.
+- **Security**: Encore ensures your application is secure by automating IAM management and implementing _principle of least privilege_ security by default.
 
 ## Common use cases
 
