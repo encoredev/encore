@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -92,6 +93,7 @@ type Daemon struct {
 	Runtime  *retryingTCPListener
 	DBProxy  *retryingTCPListener
 	Dash     *retryingTCPListener
+	Debug    *retryingTCPListener
 	EncoreDB *sql.DB
 
 	Apps       *apps.Manager
@@ -117,6 +119,7 @@ func (d *Daemon) init() {
 	d.Dash = d.listenTCPRetry("dashboard", 9400)
 	d.DBProxy = d.listenTCPRetry("dbproxy", 9500)
 	d.Runtime = d.listenTCPRetry("runtime", 9600)
+	d.Debug = d.listenTCPRetry("debug", 9700)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
@@ -160,6 +163,7 @@ func (d *Daemon) serve() {
 	go d.serveRuntime()
 	go d.serveDBProxy()
 	go d.serveDash()
+	go d.serveDebug()
 }
 
 // listenDaemonSocket listens on the encored.sock UNIX socket
@@ -241,6 +245,18 @@ func (d *Daemon) serveDash() {
 	log.Info().Stringer("addr", d.Dash.Addr()).Msg("serving dash")
 	srv := dash.NewServer(d.Apps, d.RunMgr, d.Trace, d.Dash.Port())
 	d.exit <- http.Serve(d.Dash, srv)
+}
+
+func (d *Daemon) serveDebug() {
+	log.Info().Stringer("addr", d.Debug.Addr()).Msg("serving debug")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	d.exit <- http.Serve(d.Debug, mux)
 }
 
 // listenTCPRetry listens for TCP connections on the given port, retrying
