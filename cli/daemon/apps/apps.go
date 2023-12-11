@@ -393,19 +393,24 @@ func (i *Instance) beginWatch() error {
 		}
 
 		go func() {
-			for range i.watcher.EventsReady {
-				batch := i.watcher.GetEventsBatch()
-				events := batch.Events()
+			for {
+				select {
+				case <-i.watcher.Done():
+					return
+				case <-i.watcher.EventsReady:
+					batch := i.watcher.GetEventsBatch()
+					events := batch.Events()
 
-				if i.mgr != nil {
-					i.mgr.onWatchEvent(i, events)
-				}
+					if i.mgr != nil {
+						i.mgr.onWatchEvent(i, events)
+					}
 
-				i.watchMu.Lock()
-				watchers := i.watchers
-				i.watchMu.Unlock()
-				for _, sub := range watchers {
-					sub.f(i, events)
+					i.watchMu.Lock()
+					watchers := i.watchers
+					i.watchMu.Unlock()
+					for _, sub := range watchers {
+						sub.f(i, events)
+					}
 				}
 			}
 		}()

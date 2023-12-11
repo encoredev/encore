@@ -52,7 +52,7 @@ type Server struct {
 	availableVer     atomic.Value // string
 
 	appDebounceMu sync.Mutex
-	appDebouncers map[*apps.Instance]debouncer
+	appDebouncers map[*apps.Instance]*regenerateCodeDebouncer
 
 	daemonpb.UnimplementedDaemonServer
 }
@@ -67,7 +67,7 @@ func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *
 		ns:      ns,
 		streams: make(map[string]*streamLog),
 
-		appDebouncers: make(map[*apps.Instance]debouncer),
+		appDebouncers: make(map[*apps.Instance]*regenerateCodeDebouncer),
 	}
 
 	mgr.AddListener(srv)

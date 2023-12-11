@@ -177,8 +177,10 @@ func (w *Watcher) GetEventsBatch() *Events {
 }
 
 func (w *Watcher) Close() error {
-	w.stop <- struct{}{}
-	close(w.EventsReady)
 	close(w.stop)
 	return nil
+}
+
+func (w *Watcher) Done() <-chan struct{} {
+	return w.stop
 }

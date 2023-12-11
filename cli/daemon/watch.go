@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/bep/debounce"
@@ -44,12 +45,52 @@ func (s *Server) onWatchEvent(i *apps.Instance, events []watcher.Event) {
 	s.appDebounceMu.Lock()
 	deb := s.appDebouncers[i]
 	if deb == nil {
-		deb = debounce.New(100 * time.Millisecond)
+		deb = &regenerateCodeDebouncer{
+			debounce: debounce.New(100 * time.Millisecond),
+			doRun:    func() { s.regenerateUserCode(context.Background(), i) },
+		}
 		s.appDebouncers[i] = deb
 	}
 	s.appDebounceMu.Unlock()
 
-	deb(func() { s.regenerateUserCode(context.Background(), i) })
+	deb.ChangeEvent()
+}
+
+type regenerateCodeDebouncer struct {
+	debounce func(func())
+	mu       sync.Mutex
+	running  bool
+	runAfter bool
+
+	doRun func()
+}
+
+func (g *regenerateCodeDebouncer) ChangeEvent() {
+	g.debounce(func() {
+		g.mu.Lock()
+
+		// If we're already running, mark to run again when complete.
+		if g.running {
+			g.runAfter = true
+			g.mu.Unlock()
+			return
+		}
+
+		// Otherwise, keep re-running for as long as change events come in.
+		g.running = true
+		g.runAfter = true // to start us off, at least once.
+		for g.runAfter {
+			g.runAfter = false // reset for next time
+			g.mu.Unlock()
+			g.doRun() // actually run
+			g.mu.Lock()
+		}
+
+		// If we get here g.runAfter nobody requested another run, so we can stop.
+		g.running = false
+
+		g.mu.Unlock()
+	})
 }
 
 func (s *Server) regenerateUserCode(ctx context.Context, app *apps.Instance) {
@@ -99,5 +140,3 @@ func (s *Server) updateGitIgnore(i *apps.Instance) error {
 	}
 	return nil
 }
-
-type debouncer = func(fn func())
