@@ -293,7 +293,7 @@
 									text: "Authentication"
 									path: "/develop/auth"
 									file: "develop/auth"
-								},{
+								}, {
 									kind: "basic"
 									text: "Configuration"
 									path: "/develop/config"
@@ -318,7 +318,7 @@
 									text: "Middleware"
 									path: "/develop/middleware"
 									file: "develop/middleware"
-								},{
+								}, {
 									kind: "basic"
 									text: "Testing"
 									path: "/develop/testing"
@@ -394,6 +394,11 @@
 								text: "TypeScript Preview"
 								path: "/other/typescript-preview"
 								file: "other/typescript-preview"
+							}, {
+								kind: "basic"
+								text: "Services and APIs"
+								path: "/ts/primitives/services-and-apis"
+								file: "primitives/services-and-apis-ts"
 							}]
 						}]
 					}
@@ -414,8 +419,8 @@
 			text: "Platform"
 			items: [
 				{
-					kind: "accordion"
-					text: "Deploy"
+					kind:            "accordion"
+					text:            "Deploy"
 					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
@@ -470,8 +475,8 @@
 					}]
 				},
 				{
-					kind: "accordion"
-					text: "Observability"
+					kind:            "accordion"
+					text:            "Observability"
 					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
