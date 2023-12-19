@@ -18,18 +18,22 @@ import (
 	"github.com/tailscale/hujson"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/internal/version"
+	"encr.dev/pkg/fns"
 )
 
 const (
-	codeBlue   = "#6D89FF"
-	codePurple = "#A36C8C"
-	codeGreen  = "#B3D77E"
+	codeBlue       = "#6D89FF"
+	codePurple     = "#A36C8C"
+	codeGreen      = "#B3D77E"
+	validationFail = "#CB1010"
 )
 
 var (
 	inputStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeBlue, Light: codeBlue})
 	descStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeGreen, Light: codePurple})
 	docStyle   = lipgloss.NewStyle().Margin(1, 2, 0, 2)
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(validationFail))
 )
 
 type templateItem struct {
@@ -46,8 +50,9 @@ type createFormModel struct {
 	numInputs int // 1 or 2 depending on what is shown
 	focused   int // 0 or 1
 
-	showName bool
-	name     textinput.Model
+	showName  bool
+	name      textinput.Model
+	dirExists bool
 
 	showList     bool
 	list         list.Model
@@ -75,6 +80,10 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyEnter:
 			if m.focused == (m.numInputs - 1) {
+				// If the directory already exists, do nothing.
+				if m.dirExists {
+					return m, nil
+				}
 				return m, tea.Quit
 			}
 			m.nextInput()
@@ -109,6 +118,10 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.focused == 0 && m.showName {
 		m.name, c = m.name.Update(msg)
+		if val := m.name.Value(); val != "" {
+			_, err := os.Stat(val)
+			m.dirExists = err == nil
+		}
 		cmds = append(cmds, c)
 	} else {
 		m.list, c = m.list.Update(msg)
@@ -126,6 +139,9 @@ func (m createFormModel) View() string {
 		b.WriteString(descStyle.Render(" [Use only lowercase letters, digits, and dashes]"))
 		b.WriteByte('\n')
 		b.WriteString(m.name.View())
+		if m.dirExists {
+			b.WriteString(errorStyle.Render(" error: dir already exists"))
+		}
 		if m.showList {
 			b.WriteString("\n\n")
 		}
@@ -289,51 +305,70 @@ func selectTemplate(inputName, inputTemplate string) (appName, template string) 
 }
 
 func loadTemplates() tea.Msg {
-	// Get the list of templates from GitHub
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json"
-	if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
-		if resp, err := http.DefaultClient.Do(req); err == nil {
-			if data, err := io.ReadAll(resp.Body); err == nil {
-				if data, err = hujson.Standardize(data); err == nil {
-					var items []templateItem
-					if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
-						return loadedTemplates(items)
+	// Load the templates.
+	templates := (func() []templateItem {
+		// Get the list of templates from GitHub
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json"
+		if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
+			if resp, err := http.DefaultClient.Do(req); err == nil {
+				if data, err := io.ReadAll(resp.Body); err == nil {
+					if data, err = hujson.Standardize(data); err == nil {
+						var items []templateItem
+						if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
+							return items
+						}
 					}
 				}
 			}
 		}
+
+		// Return a precompiled list of default items in case we can't read them from GitHub.
+		return []templateItem{
+			{
+				ItemTitle: "Hello World",
+				Desc:      "A simple REST API",
+				Template:  "hello-world",
+			},
+			{
+				ItemTitle: "Uptime Monitor (TypeScript)",
+				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
+				Template:  "uptime-ts",
+			},
+			{
+				ItemTitle: "Uptime Monitor (Go)",
+				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
+				Template:  "uptime",
+			},
+			{
+				ItemTitle: "GraphQL",
+				Desc:      "GraphQL API, Microservices, SQL Database",
+				Template:  "graphql",
+			},
+			{
+				ItemTitle: "URL Shortener",
+				Desc:      "REST API, SQL Database",
+				Template:  "url-shortener",
+			},
+			{
+				ItemTitle: "Empty app",
+				Desc:      "Start from scratch (experienced users only)",
+				Template:  "",
+			},
+		}
+	})()
+
+	// If we're not running the Encore beta (with TypeScript support),
+	// filter out any TypeScript items.
+	haveTypeScript := version.Channel != version.GA
+	if !haveTypeScript {
+		templates = fns.Filter(templates, func(t templateItem) bool {
+			return !strings.Contains(strings.ToLower(t.ItemTitle), "typescript")
+		})
 	}
 
-	// Return a precompiled list of default items in case we can't read them from GitHub.
-	return loadedTemplates([]templateItem{
-		{
-			ItemTitle: "Hello World",
-			Desc:      "A simple REST API",
-			Template:  "hello-world",
-		},
-		{
-			ItemTitle: "Uptime Monitor",
-			Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
-			Template:  "https://github.com/encoredev/example-app-uptime",
-		},
-		{
-			ItemTitle: "GraphQL",
-			Desc:      "GraphQL API, Microservices, SQL Database",
-			Template:  "graphql",
-		},
-		{
-			ItemTitle: "URL Shortener",
-			Desc:      "REST API, SQL Database",
-			Template:  "url-shortener",
-		},
-		{
-			ItemTitle: "Empty app",
-			Desc:      "Start from scratch (experienced users only)",
-			Template:  "",
-		},
-	})
+	return loadedTemplates(templates)
 }
 
 // incrementalValidateName is like validateName but only
@@ -360,5 +395,6 @@ func incrementalValidateNameInput(name string) error {
 			}
 		}
 	}
+
 	return nil
 }
