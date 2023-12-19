@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
+
+	"encr.dev/pkg/option"
 )
 
 // These can be overwritten using
@@ -35,6 +37,13 @@ func EncoreGoRoot() string {
 			"You can specify the path to the Encore GOROOT manually by setting the ENCORE_GOROOT environment variable.")
 	}
 	return p
+}
+
+// OptEncoreGoRoot reports the path to the Encore Go root.
+// It can be overridden by setting ENCORE_GOROOT.
+// If the goroot can't be found, it reports None.
+func OptEncoreGoRoot() option.Option[string] {
+	return option.AsOptional(encoreGoRoot())
 }
 
 func encoreRuntimesPath() string {
