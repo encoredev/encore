@@ -328,7 +328,11 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
-					dict[field.WireFormat] = ts.Dot("params", field.SrcName) +
+					dot := ts.Dot("params", field.SrcName)
+					if field.Optional || ts.isRecursive(field.Type) {
+						dot += "?"
+					}
+					dict[field.WireFormat] = dot +
 						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
 				} else {
 					dict[field.WireFormat] = ts.convertBuiltinToString(
@@ -772,9 +776,12 @@ if (authData) {
 					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
 					if list := field.Type.GetList(); list != nil {
-						w.WriteString(
-							ts.Dot("authData", field.SrcName) +
-								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
+						dot := ts.Dot("authData", field.SrcName)
+						if field.Optional || ts.isRecursive(field.Type) {
+							dot += "?"
+						}
+						w.WriteString(dot +
+							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
 						)
 					} else {
 						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
@@ -1045,12 +1052,7 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			indent()
 			ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
 
-			// Treat recursively seen types as if they are optional
-			recursiveType := false
-			if n := field.Typ.GetNamed(); n != nil {
-				recursiveType = ts.typs.IsRecursiveRef(ts.currDecl.Id, n.Id)
-			}
-			if field.Optional || recursiveType {
+			if field.Optional || ts.isRecursive(field.Typ) {
 				ts.WriteString("?")
 			}
 			ts.WriteString(": ")
@@ -1176,6 +1178,15 @@ func (ts *typescript) fieldNameInStruct(field *schema.Field) string {
 		name = field.JsonName
 	}
 	return name
+}
+
+func (ts *typescript) isRecursive(typ *schema.Type) bool {
+	// Treat recursively seen types as if they are optional
+	recursiveType := false
+	if n := typ.GetNamed(); n != nil {
+		recursiveType = ts.typs.IsRecursiveRef(ts.currDecl.Id, n.Id)
+	}
+	return recursiveType
 }
 
 func (ts *typescript) writeCustomErrorType() {
