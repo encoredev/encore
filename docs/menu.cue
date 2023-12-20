@@ -360,6 +360,11 @@
 									file: "how-to/entgo-orm"
 								}, {
 									kind: "basic"
+									text: "Use Connect for gRPC communication"
+									path: "/how-to/grpc-connect"
+									file: "how-to/grpc-connect"
+								}, {
+									kind: "basic"
 									text: "Use Dependency Injection"
 									path: "/how-to/dependency-injection"
 									file: "how-to/dependency-injection"
