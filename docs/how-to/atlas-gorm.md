@@ -71,7 +71,7 @@ Then, add an `atlas.hcl` file inside the `blog` directory:
 ```
 -- blog/atlas.hcl --
 data "external_schema" "gorm" {
-  program = ["./scripts/atlas-gorm-loader.go"]
+  program = ["env", "ENCORERUNTIME_NOPANIC=1", "go", "run", "./scripts/atlas-gorm-loader.go"]
 }
 
 env "local" {
