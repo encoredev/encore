@@ -115,11 +115,11 @@ This will allow us to figure out who we should assign incoming incidents to!
 
 To get started, we need to create a `users` service with the following resources:
 
-| # | Type | Description / Filename |
-| - | - | - |
-| #1 | SQL Migration | Our PostgreSQL schema for scheduling data <br/> `users/migrations/1_create_users.up.sql` |
-| #2 | HTTP Endpoint <br/> `POST /users` | Create a new User <br/> `users/users.go` |
-| #3 | HTTP Endpoint <br/> `GET /users/:id` | Get an existing User <br/> `users/users.go` |
+| #   | Type                                 | Description / Filename                                                                   |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| #1  | SQL Migration                        | Our PostgreSQL schema for scheduling data <br/> `users/migrations/1_create_users.up.sql` |
+| #2  | HTTP Endpoint <br/> `POST /users`    | Create a new User <br/> `users/users.go`                                                 |
+| #3  | HTTP Endpoint <br/> `GET /users/:id` | Get an existing User <br/> `users/users.go`                                              |
 
 With #1, let's design our database schema for a User in our system. For now let's store a first and last name as well as a Slack handle in case we need to notify them about any incidents which may have been assigned to them or acknowledged by them.
 
@@ -214,12 +214,12 @@ A good incident management tool should be able to spread the workload of diagnos
 
 In order to achieve this, let's create a new service called `schedules`:
 
-| # | Type | Description / Filename |
-| - | - | - |
-| #1 | SQL Migration | Our PostgreSQL schema for user data <br/> `schedules/migrations/1_create_schedules.up.sql` |
-| #2 | HTTP Endpoint <br/> `GET /schedules` | Get list of schedules between time range <br/> `schedules/schedules.go` |
-| #3 | HTTP Endpoint <br/> `POST /users/:id/schedules` | Create a new Schedule <br/> `schedules/schedules.go` |
-| #4 | HTTP Endpoint <br/> `GET /scheduled/:timestamp` | Get Schedule at specific time <br/> `schedules/schedules.go` |
+| #   | Type                                            | Description / Filename                                                                     |
+| --- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| #1  | SQL Migration                                   | Our PostgreSQL schema for user data <br/> `schedules/migrations/1_create_schedules.up.sql` |
+| #2  | HTTP Endpoint <br/> `GET /schedules`            | Get list of schedules between time range <br/> `schedules/schedules.go`                    |
+| #3  | HTTP Endpoint <br/> `POST /users/:id/schedules` | Create a new Schedule <br/> `schedules/schedules.go`                                       |
+| #4  | HTTP Endpoint <br/> `GET /scheduled/:timestamp` | Get Schedule at specific time <br/> `schedules/schedules.go`                               |
 
 
 For the SQL migration in #1, we need to create both a table and an index. For every rotation let's need a new entry containing the user who it is for as well as the start and end times of the scheduled rotation.
@@ -437,12 +437,12 @@ The flow we're going to implement is: an incoming incident will arrive, let's ei
 To start with, we need to create a new `incidents` service with the following resources:
 
 
-| # | Type | Description / Filename |
-| - | - | - |
-| #1 | SQL Migration | Our PostgreSQL schema for storing incidents <br/> `incidents/migrations/1_create_incidents.up.sql` |
-| #2 | HTTP Endpoint <br/> `GET /incidents` | Get list of all unacknowledged incidents <br/> `incidents/incidents.go` |
-| #3 | HTTP Endpoint <br/> `PUT /incidents/:id/acknowledge` | Acknowledge an incident <br/> `incidents/incidents.go` |
-| #4 | HTTP Endpoint <br/> `GET /scheduled/:timestamp` | Get  <br/> `incidents/incidents.go` |
+| #   | Type                                                 | Description / Filename                                                                             |
+| --- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| #1  | SQL Migration                                        | Our PostgreSQL schema for storing incidents <br/> `incidents/migrations/1_create_incidents.up.sql` |
+| #2  | HTTP Endpoint <br/> `GET /incidents`                 | Get list of all unacknowledged incidents <br/> `incidents/incidents.go`                            |
+| #3  | HTTP Endpoint <br/> `PUT /incidents/:id/acknowledge` | Acknowledge an incident <br/> `incidents/incidents.go`                                             |
+| #4  | HTTP Endpoint <br/> `GET /scheduled/:timestamp`      | Get  <br/> `incidents/incidents.go`                                                                |
 
 For the SQL migration in #1, we need to create the table for our incidents. We need to have a one-to-many relationship between an user and an incident. That is, an incident can only be assigned to a single user but a single user can be assigned to many incidents.
 
@@ -814,6 +814,6 @@ $ encore app create --example https://github.com/encoredev/example-app-oncall
 
 ### Feedback
 
-🥐 We would love to hear what you learnt with this tutorial as well as what you're building.
-Let us know by [tweeting your experience](https://twitter.com/encoredotdev) and maybe even posting your new app [to Show & Tell on our Community Forums](https://community.encore.dev/c/show-and-tell/12) for some friendly feedback?
+🥐 We'd love to hear your thoughts about this tutorial and learn about what you're building next.
+Let us know by [tweeting your experience](https://twitter.com/encoredotdev), blog about it, or talk to us about it on [Slack](https://encore.dev/slack).
 

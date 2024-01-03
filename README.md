@@ -12,7 +12,7 @@ Start building today and unlock your creative potential, free from cloud complex
 
 **⭐ Star this repository** to help spread the word.
 
-**👋 Have questions?** Join the friendly [developer community](https://community.encore.dev), or say hello on [Slack](https://encore.dev/slack).
+**👋 Have questions?** Join the friendly developer community on [Slack](https://encore.dev/slack).
 
 **📞 See if Encore fits your project:** [Book a 1:1 demo](https://encore.dev/book).
 </br></br>
