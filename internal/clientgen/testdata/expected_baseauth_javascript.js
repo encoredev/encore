@@ -121,7 +121,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => auth                
+                this.authGenerator = () => Promise.resolve(auth)
             }
         }
 
@@ -143,7 +143,7 @@ class BaseClient {
         // If authorization data generator is present, call it and add the returned data to the request
         let authData
         if (this.authGenerator) {
-            authData = this.authGenerator()
+            authData = await this.authGenerator()
         }
 
         // If we now have authentication data, add it to the request
