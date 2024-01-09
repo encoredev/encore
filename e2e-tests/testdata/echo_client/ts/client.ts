@@ -780,7 +780,10 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => (echo.AuthParams | undefined)
+export type AuthDataGenerator = () =>
+  | echo.AuthParams
+  | undefined
+  | Promise<echo.AuthParams | undefined>;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
@@ -815,7 +818,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => auth                
+                this.authGenerator = () => Promise.resolve(auth)
             }
         }
 
@@ -837,7 +840,7 @@ class BaseClient {
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: echo.AuthParams | undefined
         if (this.authGenerator) {
-            authData = this.authGenerator()
+            authData = await this.authGenerator()
         }
 
         // If we now have authentication data, add it to the request
