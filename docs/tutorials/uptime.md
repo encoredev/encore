@@ -764,6 +764,18 @@ $ git commit -m 'Add slack integration'
 $ git push encore
 ```
 
+### Celebrate with fireworks
+
+Now that your app is running in the cloud, let's celebrate with some fireworks:
+
+🥐 In the Cloud Dashboard, open the Command Menu by pressing **Cmd + K** (Mac) or **Ctrl + K** (Windows/Linux).
+
+_From here you can easily access all Cloud Dashboard features and for example jump straight to specific services in the Service Catalog or view Traces for specific endpoints._
+
+🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
+
+![Fireworks](/assets/docs/fireworks.jpg)
+
 ## Conclusion
 
 We've now built a fully functioning uptime monitoring system.
