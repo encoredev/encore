@@ -296,6 +296,18 @@ From there you can also see metrics, traces, and connect your own AWS or GCP acc
 
 *Now you have a fully fledged backend running in the cloud, well done!*
 
+### Celebrate with fireworks
+
+Now that your app is running in the cloud, let's celebrate with some fireworks:
+
+🥐 In the Cloud Dashboard, open the Command Menu by pressing **Cmd + K** (Mac) or **Ctrl + K** (Windows/Linux).
+
+_From here you can easily access all Cloud Dashboard features and for example jump straight to specific services in the Service Catalog or view Traces for specific endpoints._
+
+🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
+
+![Fireworks](/assets/docs/fireworks.jpg)
+
 ## What's next
 
 Now that you know how to build a backend with a database, you're ready to let your creativity flow and begin building your next great idea!
