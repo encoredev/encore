@@ -672,12 +672,13 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 		ts.WriteString(`
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
 export type AuthDataGenerator = () =>
-    | `)
+  | `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
-		ts.WriteString(`\n    | undefined
-    | Promise<`)
+		ts.WriteString(`
+  | undefined
+  | Promise<`)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
-		ts.WriteString(`| undefined>;`)
+		ts.WriteString(` | undefined>;`)
 	}
 
 	ts.WriteString(`
@@ -723,7 +724,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => Promise.resolve(auth);
+                this.authGenerator = () => Promise.resolve(auth)
             }
         }
 `)
