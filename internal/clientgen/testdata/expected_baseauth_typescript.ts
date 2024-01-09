@@ -186,7 +186,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => Promise.resolve(auth);
+                this.authGenerator = () => Promise.resolve(auth)
             }
         }
 
