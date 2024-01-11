@@ -13,11 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"encr.dev/pkg/fns"
 )
@@ -494,47 +493,73 @@ func FinalizeInitialHandshake(client *pgproto3.Backend, server *pgproto3.Fronten
 
 // CopySteadyState copies messages back and forth after the initial handshake.
 func CopySteadyState(client *pgproto3.Backend, server *pgproto3.Frontend) error {
+	errChan := make(chan error, 2)
+	msgAck := make(chan struct{})
 	done := make(chan struct{})
 	defer close(done)
 
-	go func() {
-		// Copy from server to client.
+	runTask := func(task func() error) {
+		go func() {
+			errChan <- task()
+		}()
+	}
+	clientMsgs := make(chan pgproto3.FrontendMessage)
+
+	runTask(func() (err error) {
 		for {
 			msg, err := server.Receive()
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) {
-					select {
-					case <-done:
-						// The client terminated the connection so our connection
-						// to the server is also being torn down; ignore the error.
-						return
-					default:
-					}
-				}
-
-				log.Error().Err(err).Msg("pgproxy.CopySteadyState: failed to receive message from server")
-				return
+			if errors.Is(err, io.ErrUnexpectedEOF) {
+				log.Trace().Msg("pgproxy: connection terminated by server, closing connection")
+				return nil
+			} else if err != nil {
+				return err
 			}
 			if err := client.Send(msg); err != nil {
-				return
+				return err
+			}
+			select {
+			case <-done:
+				return nil
+			default:
 			}
 		}
-	}()
+	})
+
+	runTask(func() error {
+		for {
+			msg, err := client.Receive()
+			if err != nil {
+				return err
+			}
+			select {
+			case <-done:
+				return nil
+			case clientMsgs <- msg:
+			}
+			select {
+			case <-done:
+				return nil
+			case <-msgAck:
+			}
+		}
+	})
 
 	// Copy from client to server.
 	for {
-		msg, err := client.Receive()
-		if err != nil {
-			log.Error().Err(err).Msg("pgproxy.CopySteadyState: failed to receive message from client")
+		select {
+		case err := <-errChan:
 			return err
-		}
-		err = server.Send(msg)
-		if err != nil {
-			return err
-		}
-		if _, ok := msg.(*pgproto3.Terminate); ok {
-			log.Trace().Msg("received terminate from client, closing connection")
-			return nil
+		case msg := <-clientMsgs:
+			err := server.Send(msg)
+
+			if err != nil {
+				return err
+			}
+			if _, ok := msg.(*pgproto3.Terminate); ok {
+				log.Trace().Msg("received terminate from client, closing connection")
+				return nil
+			}
+			msgAck <- struct{}{}
 		}
 	}
 }
