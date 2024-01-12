@@ -37,6 +37,7 @@ func Test(ctx context.Context, cfg *TestConfig) {
 		ctx:     ctx,
 		cfg:     &cfg.Config,
 		testCfg: cfg,
+		mode:    testMode,
 		errs:    cfg.Ctx.Errs,
 	}
 	b.Test()
