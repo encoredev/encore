@@ -803,7 +803,7 @@ func DeleteBooking(ctx context.Context, id int64) error {
 }
 ```
 
-And that is it! We now have all the backend endpoints in place to be able to supply the frontend with data 🎉
+That's it! We now have all the backend endpoints in place to be able to supply the frontend with data. 🎉
 
 ## 7. Running the React frontend
 
