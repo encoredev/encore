@@ -260,7 +260,7 @@ $ cd booking
 $ sqlc generate
 ```
 
-Three files should now have been generated inside the `db` folder: `query.sql.go`, `db.go` & `models.go`. These files contain generated Go code and should not be manually edited. We will be adding more queries to `db/query.sql` later and then re-run `sqlc generate` to update the generated Go code.
+Three files should now have been generated inside the `db` folder: `query.sql.go`, `db.go` and `models.go`. These files contain generated Go code and should not be manually edited. We will be adding more queries to `db/query.sql` later and then re-run `sqlc generate` to update the generated Go code.
 
 Now let's create an endpoint that makes use of one of these queries.
 
