@@ -832,7 +832,7 @@ While you're developing, you are going to want to run this command quite often (
 
 For this frontend we use the request client together with [TanStack Query](https://tanstack.com/query/latest). When building something a bit more complex, you will likely need to deal with caching, refetching, and data going stale. [TanStack Query](https://tanstack.com/query/latest) is a popular library that was built to solve exactly these problems and works great with the Encore request client. 
 
-See our the docs page about [integrating with a web frontend](docs/how-to/integrate-frontend) to learn more about these subjects. 
+See our the docs page about [integrating with a web frontend](docs/how-to/integrate-frontend) to learn more. 
 
 ## 8. Deploy to Encore's development cloud
 
