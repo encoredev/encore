@@ -638,7 +638,7 @@ func filterBookableSlots(
 }
 ```
 
-We will use these functions to figure out which slots are bookable and which are not to avoid double bookings. 
+We'll use these functions to figure out which slots are bookable, and which are not, to avoid double bookings. 
 
 🥐 Now we can update the `Book` endpoint inside `booking.go` and make use of these new functions:
 
