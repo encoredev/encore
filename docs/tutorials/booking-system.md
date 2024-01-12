@@ -59,7 +59,7 @@ When we're done we'll have a backend with this [architecture](/docs/observabilit
 
 Let's start by creating the functionality to view bookable slots.
 
-With Encore you define a service by [defining one or more APIs](#defining-apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/deploy/infra) for each service.
+With Encore you define a service by [defining one or more APIs](/docs/primitives/services-and-apis#defining-apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/deploy/infra) for each service.
 
 We already have a Go package named `booking`, let's turn that into an Encore service.    
 
