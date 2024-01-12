@@ -179,7 +179,7 @@ a new terminal instead. Either way you should see the response:
 
 ## 3. Book an appointment
 
-Next, we want to make it possible to book an appointment. To be able to do that we will need a database to store the bookings in. Encore makes it really simple to [create and use databases](/docs/primitives/databases) (both for local and cloud environments) but for this example we will also make use of [sqlc](https://sqlc.dev/) that will compile our SQL queries into type-safe Go code that we can use in our application.
+Next, we want to make it possible to book an appointment. We'll need a database to store the bookings in. Encore makes it really simple to [create and use databases](/docs/primitives/databases) (both for local and cloud environments), but for this example we will also make use of [sqlc](https://sqlc.dev/) that will compile our SQL queries into type-safe Go code that we can use in our application.
 
 🥐 Let's create an SQL database for our booking service and the needed sqlc scaffolding. Create the following file structure:
 
