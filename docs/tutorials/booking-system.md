@@ -585,7 +585,7 @@ Don't leave the auth token empty, it will cause the auth handler to reject the r
 
 </Callout>
 
-Now try retrieving the availability by calling the `booking.GetAvailability` endpoint through the API Explorer.
+Now try retrieving the availability by calling the `booking.GetAvailability` endpoint through the API Explorer in the Development Dashboard.
 
 🥐 Somewhere inside the `booking` package, add the following functions and import the `slices` package:
 
