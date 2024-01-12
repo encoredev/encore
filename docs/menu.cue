@@ -162,6 +162,11 @@
 					path: "/tutorials/meeting-notes"
 					file: "tutorials/meeting-notes"
 				}, {
+					kind: "basic"
+					text: "Building a Booking System"
+					path: "/tutorials/booking-system"
+					file: "tutorials/booking-system"
+				}, {
 					kind:   "basic"
 					text:   "Building an Incident Management tool"
 					path:   "/tutorials/incident-management-tool"
