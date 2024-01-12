@@ -550,7 +550,7 @@ func SetAvailability(ctx context.Context, params SetAvailabilityParams) error {
 
 This file contains two endpoints, a setter and a getter. The `SetAvailability` endpoint is protected by the `auth` middleware which means that the user must be authenticated in order to call it. The `GetAvailability` endpoint is public and can be called without authentication.
 
-🥐 Let's set the availability for each day of the week. Go to the development dashboard at <http://localhost:9400> and select the `booking.SetAvailability` endpoint in the API Explorer. For the request body, paste the following:
+🥐 Let's set the availability for each day of the week. Open the Development Dashboard at <http://localhost:9400> and select the `booking.SetAvailability` endpoint in the API Explorer. For the request body, paste the following:
 
 ```json
 {
