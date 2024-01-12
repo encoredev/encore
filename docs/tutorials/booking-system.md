@@ -148,8 +148,8 @@ func bookableSlotsForDay(date time.Time) ([]BookableSlot, error) {
 }
 ```
 
-The availability is right now hardcoded to be 09:00 - 17:00 for each day. Later we'll add the functionality to set it for each day of the week.
-We are also returning slots that has already passed. Don't worry, we will come back and fix that as well.  
+The availability is currently hardcoded to be 09:00 - 17:00 for each day. Later we'll add the functionality to set it for each day of the week.
+We are also returning time slots that have already passed. Don't worry, we'll come back and fix it later on.
 
 🥐 Let's try it! Open up the Encore Development Dashboard running at <http://localhost:9400> and try calling
 the `booking.GetBookableSlots` endpoint, passing in `2024-12-01`.
