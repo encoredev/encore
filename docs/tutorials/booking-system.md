@@ -402,7 +402,7 @@ Next we will implement some of our auth endpoints and make use of our newly crea
 
 ## 5. Setting availability
 
-The availability is hardcoded to 9:00 - 17:00 at the moment. Let's change that by adding the functionality to make it possible set it dynamically. 
+Right now the availability is hardcoded to 9:00 - 17:00. Let's add the functionality to let our admin users customize this. 
 
 To do that we start by add another migration file, this time to add our `avilability` table.
 
