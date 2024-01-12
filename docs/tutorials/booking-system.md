@@ -396,7 +396,7 @@ incoming API call contains authentication data.
 The auth handler is responsible for validating the incoming authentication data and returning an `auth.UID` (a string type representing a user id). 
 The `auth.UID` can be whatever you wish, but in practice it usually maps directly to the primary key stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
 
-In order to keep this example simple we will just approve any request containing a token that is not empty .
+In order to keep this example simple, we'll just approve any request containing a token that is not empty.
 
 Next we will implement some of our auth endpoints and make use of our newly created auth handler.
 
