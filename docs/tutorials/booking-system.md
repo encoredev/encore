@@ -40,7 +40,6 @@ Make sure you have [Docker](https://docker.com) installed and running, it is use
 $ encore app create booking-system --example=github.com/encoredev/example-booking-system/tree/starting-point
 ```
 
-Your newly created application will also be registered on <https://app.encore.dev> for when you deploy your new app later.
 
 🥐 Check that your frontend works:
 
