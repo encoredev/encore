@@ -770,7 +770,7 @@ func bookableSlotsForDay(date time.Time, avail *Availability) ([]BookableSlot, e
 
 ## 6. Managing scheduled bookings
 
-In order to display the scheduled bookings in the admin dashboard we need to add the functionality to list all bookings. While we're at it, we will also make it possible to delete bookings.
+To display the scheduled bookings in the admin dashboard, we need to add the functionality to list all bookings. While we're at it, we'll also make it possible to delete bookings.
 
 🥐 Add two new endpoints to `booking/booking.go`:
 
