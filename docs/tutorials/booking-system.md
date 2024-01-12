@@ -348,7 +348,9 @@ Congratulations, you have now booked your first appointment!
 
 ## 4. Authentication
 
-In order to have an admin dashboard we need to add authentication to our application so that we can have protected endpoints. 
+To provide an admin dashboard for our booking system, we need to add authentication to our application so that we can have protected endpoints.
+
+Keep in mind, in this tutorial we'll only include a very basic implementation.
 
 🥐 Let's start by creating a new service named `user`:
 
