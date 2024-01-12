@@ -404,7 +404,7 @@ Next we will implement some of our auth endpoints and make use of our newly crea
 
 Right now the availability is hardcoded to 9:00 - 17:00. Let's add the functionality to let our admin users customize this. 
 
-To do that we start by add another migration file, this time to add our `avilability` table.
+Let's start by adding another migration file, this time to create an `avilability` table.
 
 🥐 Create a file called `2_add_availability.up.sql` inside the `booking/db/migrations` folder. Add the following contents to that file:
 
