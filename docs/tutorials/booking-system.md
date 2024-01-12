@@ -865,7 +865,7 @@ In order for the users to get a confirmation email when they book an appointment
 
 Conveniently for us, there is a ready to use SendGrid integration as an [Encore Bit](https://github.com/encoredev/examples?tab=readme-ov-file#bits). 
 
-🥐 Follow the instruction https://github.com/encoredev/examples/tree/main/bits/sendgrid to add the SendGrid integration to your project.
+🥐 [Follow the instructions](https://github.com/encoredev/examples/tree/main/bits/sendgrid) to add the SendGrid integration to your project.
 
 Next, we need to call our new `sendgrid` service when an appointment is booked.
 
