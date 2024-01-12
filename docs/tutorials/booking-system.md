@@ -817,7 +817,7 @@ The frontend is built using [React](https://react.dev/) and [Tailwind CSS](https
 $ encore gen client <APP_NAME> --output=./src/client.ts --env=<ENV_NAME>
 ```
 
-While you are developing you are going to want to run this command quite often (whenever you make a change to your endpoints) so having it as an `npm` script is a good idea. Take a look at the scripts in the `package.json` file:
+While you're developing, you are going to want to run this command quite often (whenever you make a change to your endpoints) so having it as an `npm` script is a good idea. Take a look at the scripts in the `package.json` file:
 
 ```json
 {
