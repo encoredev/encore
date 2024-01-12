@@ -811,7 +811,7 @@ The frontend should now be working as expected.
 
 🥐 Go to [http://localhost:4000/frontend/](http://localhost:4000/frontend/) and try out your new booking system.
 
-The frontend is built using [React](https://react.dev/) and [tailwindcss](https://tailwindcss.com/) and make makes use of Encores ability to generate type-safe [request clients](https://encore.dev/docs/develop/client-generation). This means that you do not need to manually keep the request/response objects in sync on the frontend. To generate a client run:
+The frontend is built using [React](https://react.dev/) and [Tailwind CSS](https://tailwindcss.com/). It uses Encore's ability to generate type-safe [request clients](https://encore.dev/docs/develop/client-generation). This means you don't need to manually keep the request/response objects in sync on the frontend. To generate a client:
 
 ```bash
 $ encore gen client <APP_NAME> --output=./src/client.ts --env=<ENV_NAME>
