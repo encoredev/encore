@@ -195,7 +195,7 @@ Next, we want to make it possible to book an appointment. We'll need a database 
     └── helpers.go                       // booking service code
 ```
 
-🥐  Naming of the database migration file is important, it must look something like: `1_<name>.up.sql`.
+🥐 Naming of the database migration file is important, it must look something like: `1_<name>.up.sql`.
 
 Add the following contents to the migration file:
 
