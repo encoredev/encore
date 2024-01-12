@@ -581,7 +581,7 @@ This file contains two endpoints, a setter and a getter. The `SetAvailability` e
 
 <Callout type="info">
 
-Remember to not leave the auth token empty because then the auth handler will then reject the request. You can use any value for the auth token.
+Don't leave the auth token empty, it will cause the auth handler to reject the request. You can use any value for the auth token.
 
 </Callout>
 
