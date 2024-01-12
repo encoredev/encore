@@ -49,7 +49,7 @@ $ encore run
 ```
 
 Then visit [http://localhost:4000/frontend/](http://localhost:4000/frontend/) to see the frontend.
-It won't work yet, since we haven't yet built the backend, so let's do just that!
+It won't function yet, since we haven't yet built the backend, so let's do just that!
 
 When we're done we'll have a backend with this [architecture](/docs/observability/encore-flow):
 
