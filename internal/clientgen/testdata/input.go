@@ -125,6 +125,13 @@ func RESTPath(ctx context.Context, a string, b int) error {
 //encore:api public raw path=/webhook/:a/*b
 func Webhook(w http.ResponseWriter, req *http.Request) {}
 
+
+//encore:api public path=/webhook2/:a/*b
+func Webhook2(ctx context.Context, a string, b string) error { return nil }
+
+//encore:api public path=/fallbackPath/:a/!b
+func FallbackPath(ctx context.Context, a string, b string) error { return nil }
+
 //encore:api public method=POST
 func RequestWithAllInputTypes(ctx context.Context, req *AllInputTypes[string]) (*AllInputTypes[float64], error) {
     return nil

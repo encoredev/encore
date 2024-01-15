@@ -11,7 +11,6 @@ import (
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
-	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/parser/apis/api"
 )
 
@@ -19,13 +18,12 @@ import (
 // generated code. If nothing needs to be generated it returns nil.
 func Gen(gen *codegen.Generator, svc *app.Service, withSvcStructImpl option.Option[*codegen.VarDecl]) option.Option[*codegen.File] {
 	if fw, ok := svc.Framework.Get(); ok {
-		f := genUserFacing(gen, fw, withSvcStructImpl)
-		return option.Some(f)
+		return genUserFacing(gen, fw, withSvcStructImpl)
 	}
 	return option.None[*codegen.File]()
 }
 
-func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, withImpl option.Option[*codegen.VarDecl]) *codegen.File {
+func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, withImpl option.Option[*codegen.VarDecl]) option.Option[*codegen.File] {
 	f := gen.InjectFile(svc.RootPkg.ImportPath, svc.RootPkg.Name, svc.RootPkg.FSPath,
 		"encore.gen.go", "encoregen")
 
@@ -36,77 +34,53 @@ func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, withIm
 	f.Jen.Comment("They are automatically updated by Encore whenever your API endpoints change.")
 	f.Jen.Line()
 
+	// count is the number of declarations we've generated in this file
+	count := 0
+
+	// Generate endpoint functions for endpoints defined on the service struct
 	for _, ep := range svc.Endpoints {
 		if ep.Recv.Empty() {
 			continue
 		}
+
 		genEndpoint(gen.Util, f, ep, withImpl)
+		f.Jen.Line()
+		count++
+	}
+
+	// Generate the service interface (this is useful for mocking)
+	if len(svc.Endpoints) > 0 {
+		f.Jen.Comment("Interface represents the entire API service area for this service; both API's defined as")
+		f.Jen.Comment("methods on the service struct, and API's defined as package functions.")
+		f.Jen.Comment("")
+		f.Jen.Comment("Note: Raw endpoints are not included in this interface, as calls to them are not supported from")
+		f.Jen.Comment("within an Encore application.")
+		f.Jen.Comment("")
+		f.Jen.Comment("Currently this interface exists to allow you to generate mocks for the entire service, using")
+		f.Jen.Comment("your favorite mocking library.")
+		f.Jen.Type().Id("Interface").InterfaceFunc(func(g *Group) {
+			for _, ep := range svc.Endpoints {
+				if !ep.Raw {
+					getEndpointPrototype(gen.Util, g, ep, false, option.None[*codegen.VarDecl]())
+					count++
+					g.Line()
+				}
+			}
+		})
 		f.Jen.Line()
 	}
 
-	return f
+	if count == 0 {
+		// If we've generated no declarations, then this file can be deleted
+		return option.None[*codegen.File]()
+	} else {
+		return option.Some(f)
+	}
 }
 
 func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, withImpl option.Option[*codegen.VarDecl]) {
-	if ep.Doc != "" {
-		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
-			f.Jen.Comment(line)
-		}
-	}
-
-	var pathParamNames []string
-
-	var names namealloc.Allocator
-	alloc := func(input string, pathParam bool) string {
-		name := names.Get(input)
-		if pathParam {
-			pathParamNames = append(pathParamNames, name)
-		}
-		return name
-	}
-
-	var (
-		ctxName    = alloc("ctx", false)
-		rawReqName string
-		paramName  string
-	)
-
-	f.Jen.Func().Id(ep.Name).ParamsFunc(func(g *Group) {
-		g.Id(ctxName).Qual("context", "Context")
-		for _, p := range ep.Path.Params() {
-			typ := gu.Builtin(p.Pos(), p.ValueType)
-			// Wrap wildcards and fallbacks as a slice of values
-			if p.Type == resourcepaths.Wildcard || p.Type == resourcepaths.Fallback {
-				typ = Index().Add(typ)
-			}
-			g.Id(alloc(p.Value, true)).Add(typ)
-		}
-		if ep.Raw {
-			rawReqName = alloc("req", false)
-			g.Id(rawReqName).Op("*").Qual("net/http", "Request")
-		} else if req := ep.Request; req != nil {
-			paramName = alloc("p", false)
-			g.Id(paramName).Add(gu.Type(req))
-		}
-	}).Do(func(s *Statement) {
-		if withImpl.Present() {
-			if ep.Raw {
-				s.Params(Op("*").Qual("net/http", "Response"), Error())
-			} else if resp := ep.Response; resp != nil {
-				s.Params(gu.Type(resp), Error())
-			} else {
-				s.Params(Error())
-			}
-		} else {
-			if ep.Raw {
-				s.Params(Op("*").Qual("net/http", "Response"), Error())
-			} else if resp := ep.Response; resp != nil {
-				s.Params(gu.Type(resp), Error())
-			} else {
-				s.Error()
-			}
-		}
-	}).BlockFunc(func(g *Group) {
+	stmt, pathParamNames, alloc, ctxName, paramName := getEndpointPrototype(gu, f.Jen.Group, ep, true, withImpl)
+	stmt.BlockFunc(func(g *Group) {
 		if svcStruct, ok := withImpl.Get(); ok {
 			if ep.Raw {
 				g.Return(Nil(), Qual("errors", "New").Call(Lit("encore: calling raw endpoints is not yet supported")))
@@ -144,4 +118,72 @@ func genEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, withImpl
 			}
 		}
 	})
+}
+
+func getEndpointPrototype(gu *genutil.Helper, grp *Group, ep *api.Endpoint, withFuncKeyWord bool, withImpl option.Option[*codegen.VarDecl]) (*Statement, []string, func(input string, pathParam bool) string, string, string) {
+	// Add the doc comment
+	if ep.Doc != "" {
+		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
+			grp.Comment(line)
+		}
+	}
+
+	var pathParamNames []string
+
+	var names namealloc.Allocator
+	alloc := func(input string, pathParam bool) string {
+		name := names.Get(input)
+		if pathParam {
+			pathParamNames = append(pathParamNames, name)
+		}
+		return name
+	}
+
+	var (
+		ctxName    = alloc("ctx", false)
+		rawReqName string
+		paramName  string
+	)
+
+	var stmt *Statement
+	if withFuncKeyWord {
+		stmt = grp.Func().Id(ep.Name)
+	} else {
+		stmt = grp.Id(ep.Name)
+	}
+
+	stmt = stmt.ParamsFunc(func(g *Group) {
+		g.Id(ctxName).Qual("context", "Context")
+		for _, p := range ep.Path.Params() {
+			typ := gu.Builtin(p.Pos(), p.ValueType)
+			g.Id(alloc(p.Value, true)).Add(typ)
+		}
+		if ep.Raw {
+			rawReqName = alloc("req", false)
+			g.Id(rawReqName).Op("*").Qual("net/http", "Request")
+		} else if req := ep.Request; req != nil {
+			paramName = alloc("p", false)
+			g.Id(paramName).Add(gu.Type(req))
+		}
+	}).Do(func(s *Statement) {
+		if withImpl.Present() {
+			if ep.Raw {
+				s.Params(Op("*").Qual("net/http", "Response"), Error())
+			} else if resp := ep.Response; resp != nil {
+				s.Params(gu.Type(resp), Error())
+			} else {
+				s.Params(Error())
+			}
+		} else {
+			if ep.Raw {
+				s.Params(Op("*").Qual("net/http", "Response"), Error())
+			} else if resp := ep.Response; resp != nil {
+				s.Params(gu.Type(resp), Error())
+			} else {
+				s.Error()
+			}
+		}
+	})
+
+	return stmt, pathParamNames, alloc, ctxName, paramName
 }
