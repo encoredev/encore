@@ -44,6 +44,18 @@ Check out these tutorials to learn how to build applications with Encore and fin
             </div>
         </div>
     </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/booking-system">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/booking-system/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Booking System</h3>
+                <p className="mt-2">Create an app for appointment booking using Encore and React.</p>
+            </div>
+        </div>
+    </a>
     <a className="block group relative no-brandient" href="/docs/tutorials/meeting-notes">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
         <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
