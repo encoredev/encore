@@ -52,7 +52,7 @@ Check out these tutorials to learn how to build applications with Encore and fin
             </div>
             <div className="p-8 mobile:p-4">
                 <h3 className="body-small">Booking System</h3>
-                <p className="mt-2">Create an app for appointment booking using Encore and React.</p>
+                <p className="mt-2">Create an appointment booking app using Encore and React.</p>
             </div>
         </div>
     </a>
