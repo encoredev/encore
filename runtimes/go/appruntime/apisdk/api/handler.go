@@ -501,6 +501,7 @@ func (d *Desc[Req, Resp]) getMockMethod(obj any) (reflectedAPIMethod[Req, Resp],
 		}
 
 		// Get the method
+		// nosemgrep
 		methodVal := val.MethodByName(d.Endpoint)
 		if !methodVal.IsValid() {
 			return nil, errs.B().Code(errs.Internal).Msgf("method %s not found on object %T", d.Endpoint, obj).Err()
