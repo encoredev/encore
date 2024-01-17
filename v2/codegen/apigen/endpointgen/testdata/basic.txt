@@ -11,9 +11,23 @@ func Foo(ctx context.Context) error { return nil }
 
 package basic
 
+import "context"
+
 // These functions are automatically generated and maintained by Encore
 // to simplify calling them from other services, as they were implemented as methods.
 // They are automatically updated by Encore whenever your API endpoints change.
+
+// Interface represents the entire API service area for this service; both API's defined as
+// methods on the service struct, and API's defined as package functions.
+//
+// Note: Raw endpoints are not included in this interface, as calls to them are not supported from
+// within an Encore application.
+//
+// Currently this interface exists to allow you to generate mocks for the entire service, using
+// your favorite mocking library.
+type Interface interface {
+	Foo(ctx context.Context) error
+}
 -- want:encore_internal__api.go --
 package basic
 
@@ -26,7 +40,7 @@ import (
 )
 
 func init() {
-	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo)
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo, Foo)
 }
 
 type EncoreInternal_FooReq struct{}

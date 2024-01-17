@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -107,8 +108,9 @@ type Server struct {
 
 	authHandler AuthHandler
 
-	globalMiddleware   map[string]*Middleware
-	registeredHandlers []Handler
+	globalMiddleware    map[string]*Middleware
+	registeredHandlers  []Handler
+	functionsToHandlers map[uintptr]Handler
 
 	public          *httprouter.Router
 	publicFallback  *httprouter.Router
@@ -153,21 +155,22 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 	}
 
 	s := &Server{
-		static:         static,
-		runtime:        runtime,
-		pc:             pc,
-		rt:             rt,
-		encoreMgr:      encoreMgr,
-		pubsubMgr:      pubsubMgr,
-		healthMgr:      healthMgr,
-		testingMgr:     testingMgr,
-		requestsTotal:  requestsTotal,
-		httpClient:     &http.Client{},
-		clock:          clock,
-		rootLogger:     rootLogger,
-		json:           json,
-		tracingEnabled: rt.TracingEnabled(),
-		experiments:    experiments.FromConfig(static, runtime),
+		static:              static,
+		runtime:             runtime,
+		pc:                  pc,
+		rt:                  rt,
+		encoreMgr:           encoreMgr,
+		pubsubMgr:           pubsubMgr,
+		healthMgr:           healthMgr,
+		testingMgr:          testingMgr,
+		requestsTotal:       requestsTotal,
+		httpClient:          &http.Client{},
+		clock:               clock,
+		rootLogger:          rootLogger,
+		json:                json,
+		tracingEnabled:      rt.TracingEnabled(),
+		experiments:         experiments.FromConfig(static, runtime),
+		functionsToHandlers: make(map[uintptr]Handler),
 
 		public:          newRouter(),
 		publicFallback:  newRouter(),
@@ -272,7 +275,7 @@ func (s *Server) RegisteredHandlers() []Handler {
 // wildcardMethod is an internal method name we register wildcard methods under.
 const wildcardMethod = "__ENCORE_WILDCARD__"
 
-func (s *Server) registerEndpoint(h Handler) {
+func (s *Server) registerEndpoint(h Handler, function any) {
 	routerPath := h.HTTPRouterPath()
 
 	// Decide which routers to use.
@@ -308,16 +311,21 @@ func (s *Server) registerEndpoint(h Handler) {
 			public.Handle(m, routerPath, adapter)
 		}
 	}
+
+	// Register the function mapped to the handler - this allows `et.MockAPI` to lookup the Handler
+	// for a given function
+	if reflect.TypeOf(function).Kind() == reflect.Func {
+		// reflect.TypeOf(function).PkgPath()
+		// reflect.TypeOf(function).Name()
+		s.functionsToHandlers[reflect.ValueOf(function).Pointer()] = h
+	} else {
+		s.rootLogger.Warn().Str("service", h.ServiceName()).Str("endpoint", h.EndpointName()).Msgf("not registering function as lookup for API handler as it is not a function: %T", function)
+	}
 }
 
-// EndpointExists returns true if the given endpoint exists.
-func (s *Server) EndpointExists(serviceName, endpointName string) bool {
-	for _, h := range s.registeredHandlers {
-		if strings.EqualFold(h.ServiceName(), serviceName) && strings.EqualFold(h.EndpointName(), endpointName) {
-			return true
-		}
-	}
-	return false
+// HandlerForFunc returns the Handler for the given function or nil if it does not exist.
+func (s *Server) HandlerForFunc(function any) Handler {
+	return s.functionsToHandlers[reflect.ValueOf(function).Pointer()]
 }
 
 // ServiceExists returns true if the given service exists and has at least one endpoint.

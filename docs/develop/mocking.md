@@ -45,7 +45,7 @@ func Test_Something(t *testing.T) {
 	t.Parallel() // Run this test in parallel with other tests without the mock implementation interfering
 	
 	// Create a mock implementation of pricing API which will only impact this test and any sub-tests
-	et.MockAPI("products", "GetPrice", func(ctx context.Context, p *products.PriceParams) (*products.PriceResponse, error) {
+	et.MockAPI(products.GetPrice, func(ctx context.Context, p *products.PriceParams) (*products.PriceResponse, error) {
 		return &products.PriceResponse{Price: 100}, nil
 	})
 	

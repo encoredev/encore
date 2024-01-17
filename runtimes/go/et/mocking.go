@@ -20,20 +20,25 @@ import (
 //
 // You can mock it out in your test as:
 //
-//	et.MockAPI("mysvc", "MyAPI", func(ctx context.Context, req *MyAPIRequest) (*MyAPIResponse, error) {
+//	et.MockAPI(mysvc.MyAPI, func(ctx context.Context, req *MyAPIRequest) (*MyAPIResponse, error) {
 //		...
 //	})
+//
+// If you want to mock out a single API method on a service, you can use the generated helper
+// package function to generate the API, however if you want to mock out more than one API
+// method on a service, consider using [MockService].
 //
 // Note: if you use [MockService] to mock a service and then use this function to mock
 // an API on that service, the API mock will take precedence over the service mock.
 //
-// Setting the mock to nil will remove the API mock
-func MockAPI(serviceName string, apiName string, mock any) {
-	if !Singleton.server.EndpointExists(serviceName, apiName) {
-		panic(fmt.Sprintf("cannot mock API %s.%s: API does not exist", serviceName, apiName))
+// Setting the mock to nil will remove the API mock.
+func MockAPI[T any](originalAPI T, mock T) {
+	handler := Singleton.server.HandlerForFunc(originalAPI)
+	if handler == nil {
+		panic(fmt.Sprintf("the function %T does not appear to be labelled as an Encore API.", originalAPI))
 	}
 
-	Singleton.testMgr.SetAPIMock(serviceName, apiName, mock)
+	Singleton.testMgr.SetAPIMock(handler.ServiceName(), handler.EndpointName(), mock)
 }
 
 // MockService allows you to mock out a service in your tests; Any calls made to the service
