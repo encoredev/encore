@@ -328,6 +328,12 @@
 									text: "Testing"
 									path: "/develop/testing"
 									file: "develop/testing"
+									inline_menu: [{
+										kind: "basic"
+										text: "Mocking"
+										path: "/develop/testing/mocking"
+										file: "develop/mocking"
+									}]
 								}, {
 									kind: "basic"
 									text: "Validation"

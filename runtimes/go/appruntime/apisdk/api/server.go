@@ -27,6 +27,7 @@ import (
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/shutdown"
+	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 	"encore.dev/metrics"
@@ -125,9 +126,10 @@ type Server struct {
 
 	pubsubSubscriptions map[string]func(r *http.Request) error
 	healthMgr           *health.CheckRegistry
+	testingMgr          *testsupport.Manager
 }
 
-func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, pc *platform.Client, encoreMgr *encore.Manager, pubsubMgr *pubsub.Manager, rootLogger zerolog.Logger, reg *metrics.Registry, healthMgr *health.CheckRegistry, json jsoniter.API, clock clock.Clock) *Server {
+func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, pc *platform.Client, encoreMgr *encore.Manager, pubsubMgr *pubsub.Manager, rootLogger zerolog.Logger, reg *metrics.Registry, healthMgr *health.CheckRegistry, testingMgr *testsupport.Manager, json jsoniter.API, clock clock.Clock) *Server {
 	requestsTotal := metrics.NewCounterGroupInternal[requestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
 		EncoreInternal_LabelMapper: func(labels requestsTotalLabels) []metrics.KeyValue {
 			return []metrics.KeyValue{
@@ -158,6 +160,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		encoreMgr:      encoreMgr,
 		pubsubMgr:      pubsubMgr,
 		healthMgr:      healthMgr,
+		testingMgr:     testingMgr,
 		requestsTotal:  requestsTotal,
 		httpClient:     &http.Client{},
 		clock:          clock,
@@ -305,6 +308,26 @@ func (s *Server) registerEndpoint(h Handler) {
 			public.Handle(m, routerPath, adapter)
 		}
 	}
+}
+
+// EndpointExists returns true if the given endpoint exists.
+func (s *Server) EndpointExists(serviceName, endpointName string) bool {
+	for _, h := range s.registeredHandlers {
+		if strings.EqualFold(h.ServiceName(), serviceName) && strings.EqualFold(h.EndpointName(), endpointName) {
+			return true
+		}
+	}
+	return false
+}
+
+// ServiceExists returns true if the given service exists and has at least one endpoint.
+func (s *Server) ServiceExists(serviceName string) bool {
+	for _, h := range s.registeredHandlers {
+		if strings.EqualFold(h.ServiceName(), serviceName) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) registerGlobalMiddleware(mw *Middleware) {

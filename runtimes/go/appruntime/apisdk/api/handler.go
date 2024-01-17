@@ -108,6 +108,10 @@ type Desc[Req, Resp any] struct {
 
 	rpcDescOnce   sync.Once
 	cachedRPCDesc *model.RPCDesc
+
+	mockCacheMu   sync.RWMutex
+	mockObjCache  map[any]reflectedAPIMethod[Req, Resp]    // map of object to reflected method
+	mockFuncCache map[uint64]reflectedAPIMethod[Req, Resp] // map of model.ApiMock.ID to reflected method
 }
 
 func (d *Desc[Req, Resp]) AccessType() Access     { return d.Access }
@@ -440,8 +444,30 @@ type CallContext struct {
 }
 
 func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr error) {
-	if c.server.static.Testing || cfgutil.IsHostedService(c.server.runtime, d.Service) {
-		// If we're in tests, or we're calling a hosted service, we can route via the
+	// If we're inside a test, we need to check if the target service has been mocked
+	// and if it has, we need to route the call to the mock, otherwise
+	// we'll make an internal call to the API
+	if c.server.static.Testing {
+		if mockedAPI, found := c.server.testingMgr.GetAPIMock(d.Service, d.Endpoint); found && mockedAPI.Function != nil {
+			fmt.Println("mocked API")
+			function, err := d.getMockFunction(mockedAPI)
+			if err != nil {
+				return respData, errs.Wrap(err, "unable to call mocked API due to an issue with the mock")
+			}
+			return d.mockedCall(c, function, req)
+		} else if mockedService, found := c.server.testingMgr.GetServiceMock(d.Service); found && mockedService != nil {
+			method, err := d.getMockMethod(mockedService)
+			if err != nil {
+				return respData, errs.Wrap(err, "unable to call mocked API due to an issue with the mock")
+			}
+			return d.mockedCall(c, method, req)
+		} else {
+			return d.internalCall(c, req)
+		}
+	}
+
+	if cfgutil.IsHostedService(c.server.runtime, d.Service) {
+		// If we're calling a hosted service, we can route via the
 		// internal process
 		return d.internalCall(c, req)
 	}
@@ -457,7 +483,97 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 	}
 }
 
+// getMockMethod returns a reflected method for the given object, caching the result.
+// so subsequent calls will be faster.
+func (d *Desc[Req, Resp]) getMockMethod(obj any) (reflectedAPIMethod[Req, Resp], error) {
+	d.mockCacheMu.RLock()
+	method, found := d.mockObjCache[obj]
+	d.mockCacheMu.RUnlock()
+
+	if !found {
+		d.mockCacheMu.Lock()
+		defer d.mockCacheMu.Unlock()
+
+		// Get a reflected value of the object
+		val := reflect.ValueOf(obj)
+		if !val.IsValid() {
+			return nil, errs.B().Code(errs.Internal).Msgf("object %T is not valid", obj).Err()
+		}
+
+		// Get the method
+		methodVal := val.MethodByName(d.Endpoint)
+		if !methodVal.IsValid() {
+			return nil, errs.B().Code(errs.Internal).Msgf("method %s not found on object %T", d.Endpoint, obj).Err()
+		}
+
+		m, err := createReflectionCaller[Req, Resp](methodVal)
+		if err != nil {
+			return nil, errs.Wrap(err, "unable to create mock caller")
+		}
+
+		// Cache the method
+		if len(d.mockObjCache) == 0 {
+			d.mockObjCache = make(map[any]reflectedAPIMethod[Req, Resp])
+		}
+		d.mockObjCache[obj] = m
+		return m, nil
+	}
+
+	return method, nil
+}
+
+// getMockFunction returns a reflected method for the given function, caching the result.
+// so subsequent calls will be faster.
+func (d *Desc[Req, Resp]) getMockFunction(apiMock model.ApiMock) (reflectedAPIMethod[Req, Resp], error) {
+	d.mockCacheMu.RLock()
+	method, found := d.mockFuncCache[apiMock.ID]
+	d.mockCacheMu.RUnlock()
+
+	if !found {
+		d.mockCacheMu.Lock()
+		defer d.mockCacheMu.Unlock()
+
+		// Get a reflected value of the object
+		val := reflect.ValueOf(apiMock.Function)
+		if !val.IsValid() {
+			return nil, errs.B().Code(errs.Internal).Msgf("function %T is not valid", apiMock.Function).Err()
+		}
+
+		m, err := createReflectionCaller[Req, Resp](val)
+		if err != nil {
+			return nil, errs.Wrap(err, "unable to create mock caller")
+		}
+
+		// Cache the method
+		if len(d.mockFuncCache) == 0 {
+			d.mockFuncCache = make(map[uint64]reflectedAPIMethod[Req, Resp])
+		}
+		d.mockFuncCache[apiMock.ID] = m
+		return m, nil
+	}
+
+	return method, nil
+}
+
+func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req, Resp], req Req) (respData Resp, respErr error) {
+	return d.runCall(c, req, func(ec execContext, req Req) (Resp, int, error) {
+		respData, err := mock(ec.ctx, req)
+		if err != nil {
+			return respData, errs.HTTPStatus(err), err
+		}
+		return respData, 200, nil
+	})
+}
+
 func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
+	return d.runCall(c, req, func(ec execContext, req Req) (Resp, int, error) {
+		return d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
+			return d.invokeHandlerNonRaw(mwReq, req)
+		})
+	})
+}
+
+func (d *Desc[Req, Resp]) runCall(c CallContext, req Req, executor func(ec execContext, req Req) (Resp, int, error)) (respData Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
@@ -552,9 +668,7 @@ func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, r
 		}
 
 		ec := c.server.newExecContext(c.ctx, params, meta)
-		r, httpStatus, rpcErr := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
-			return d.invokeHandlerNonRaw(mwReq, req)
-		})
+		r, httpStatus, rpcErr := executor(ec, req)
 
 		if rpcErr == nil {
 			r, rpcErr = d.CloneResp(r)

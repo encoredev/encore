@@ -254,7 +254,14 @@
       {
         "Path": "/develop/testing",
         "Title": "Testing",
-        "DocSlug": "develop/testing"
+        "DocSlug": "develop/testing",
+        "Children": [
+          {
+            "Path": "/develop/testing/mocking",
+            "Title": "Mocking",
+            "DocSlug": "develop/mocking"
+          }
+        ]
       },
       {
         "Path": "/develop/validation",
