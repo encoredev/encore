@@ -50,14 +50,10 @@ func genUserFacing(gen *codegen.Generator, svc *apiframework.ServiceDesc, withIm
 
 	// Generate the service interface (this is useful for mocking)
 	if len(svc.Endpoints) > 0 {
-		f.Jen.Comment("Interface represents the entire API service area for this service; both API's defined as")
-		f.Jen.Comment("methods on the service struct, and API's defined as package functions.")
+		f.Jen.Comment("Interface defines the service's API surface area, primarily for mocking purposes.")
 		f.Jen.Comment("")
-		f.Jen.Comment("Note: Raw endpoints are not included in this interface, as calls to them are not supported from")
-		f.Jen.Comment("within an Encore application.")
-		f.Jen.Comment("")
-		f.Jen.Comment("Currently this interface exists to allow you to generate mocks for the entire service, using")
-		f.Jen.Comment("your favorite mocking library.")
+		f.Jen.Comment("Raw endpoints are currently excluded from this interface, as Encore does not yet")
+		f.Jen.Comment("support service-to-service API calls to raw endpoints.")
 		f.Jen.Type().Id("Interface").InterfaceFunc(func(g *Group) {
 			for _, ep := range svc.Endpoints {
 				if !ep.Raw {

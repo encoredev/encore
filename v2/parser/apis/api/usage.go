@@ -49,7 +49,7 @@ func ResolveEndpointUsage(data usage.ResolveData, ep *Endpoint) usage.Usage {
 			Ref:      expr.BindRef,
 		}
 	case *usage.FuncArg:
-		// If this is a test file and we're calling `et.MockAPI` this is allowed.
+		// If this is a test file and we're calling `et.MockEndpoint` this is allowed.
 		if pkg, ok := expr.PkgFunc.Get(); ok && expr.DeclaredIn().TestFile && pkg.PkgPath == "encore.dev/et" && pkg.Name == "MockEndpoint" {
 			return &ReferenceUsage{
 				Base: usage.Base{
