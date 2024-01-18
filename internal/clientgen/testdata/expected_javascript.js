@@ -104,6 +104,10 @@ class SvcServiceClient {
         await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
     }
 
+    async FallbackPath(a, b) {
+        await this.baseClient.callAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+    }
+
     async Get(params) {
         // Convert our params into the objects we need for the request
         const query = makeRecord({
@@ -212,6 +216,10 @@ class SvcServiceClient {
 
     async Webhook(method, a, b, body, options) {
         return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
+    }
+
+    async Webhook2(a, b) {
+        await this.baseClient.callAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
     }
 }
 
