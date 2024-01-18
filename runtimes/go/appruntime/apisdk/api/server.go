@@ -312,14 +312,14 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 		}
 	}
 
-	// Register the function mapped to the handler - this allows `et.MockAPI` to lookup the Handler
+	// Register the function mapped to the handler - this allows `et.MockEndpoint` to lookup the Handler
 	// for a given function
-	if reflect.TypeOf(function).Kind() == reflect.Func {
-		// reflect.TypeOf(function).PkgPath()
-		// reflect.TypeOf(function).Name()
-		s.functionsToHandlers[reflect.ValueOf(function).Pointer()] = h
-	} else {
-		s.rootLogger.Warn().Str("service", h.ServiceName()).Str("endpoint", h.EndpointName()).Msgf("not registering function as lookup for API handler as it is not a function: %T", function)
+	if s.static.Testing {
+		if reflect.TypeOf(function).Kind() == reflect.Func {
+			s.functionsToHandlers[reflect.ValueOf(function).Pointer()] = h
+		} else {
+			s.rootLogger.Warn().Str("service", h.ServiceName()).Str("endpoint", h.EndpointName()).Msgf("not registering function as lookup for API handler as it is not a function: %T", function)
+		}
 	}
 }
 

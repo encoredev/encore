@@ -12,9 +12,9 @@ infobox: {
 Encore comes with built-in support for mocking out APIs and services, which makes it easier to test your application in
 isolation.
 
-## Mocking APIs
+## Mocking Endpoints
 
-Let's say you have a function that calls an external API in our `products` service:
+Let's say you have an endpoint that calls an external API in our `products` service:
 
 ```go
 //encore:api private
@@ -26,7 +26,7 @@ func GetPrice(ctx context.Context, p *PriceParams) (*PriceResponse, error) {
 When testing this function, you don't want to call the real external API since that would be slow and cause your tests
 to fail if the API is down. Instead, you want to mock out the API call and return a fake response.
 
-In Encore, you can do this by adding a mock implementation of the API using the `et.MockAPI` function inside your test:
+In Encore, you can do this by adding a mock implementation of the endpoint using the `et.MockEndpoint` function inside your test:
 
 ```go
 package shoppingcart
@@ -45,7 +45,7 @@ func Test_Something(t *testing.T) {
 	t.Parallel() // Run this test in parallel with other tests without the mock implementation interfering
 	
 	// Create a mock implementation of pricing API which will only impact this test and any sub-tests
-	et.MockAPI(products.GetPrice, func(ctx context.Context, p *products.PriceParams) (*products.PriceResponse, error) {
+	et.MockEndpoint(products.GetPrice, func(ctx context.Context, p *products.PriceParams) (*products.PriceResponse, error) {
 		return &products.PriceResponse{Price: 100}, nil
 	})
 	
@@ -54,8 +54,8 @@ func Test_Something(t *testing.T) {
 ```
 
 When any code within the test, or any sub-test calls the `GetPrice` API, the mock implementation will be called instead.
-The mock will not impact any other tests running in parallel. The function you pass to `et.MockAPI` must have the same
-signature as the real API.
+The mock will not impact any other tests running in parallel. The function you pass to `et.MockEndpoint` must have the same
+signature as the real endpoint.
 
 If you want to mock out the API for all tests in the package, you can add the mock implementation to the `TestMain` function:
 
@@ -74,7 +74,7 @@ import (
 
 func TestMain(m *testing.M) {
     // Create a mock implementation of pricing API which will impact all tests within this package
-    et.MockAPI("products", "GetPrice", func(ctx context.Context, p *products.PriceParams) (*products.PriceResponse, error) {
+    et.MockEndpoint(products.GetPrice, func(ctx context.Context, p *products.PriceParams) (*products.PriceResponse, error) {
         return &products.PriceResponse{Price: 100}, nil
     })
     
@@ -116,7 +116,7 @@ func Test_Something(t *testing.T) {
 ```
 
 When any code within the test, or any sub-test calls the `products` service, the mock implementation will be called instead.
-Unlike `et.MockAPI`, the mock implementation does not need to have the same signature, and can be any object. The only requirement
+Unlike `et.MockEndpoint`, the mock implementation does not need to have the same signature, and can be any object. The only requirement
 is that any of the services APIs that are called during the test must be implemented by as a receiver method on the mock object.
 (This also includes APIs that are defined as package level functions in the service, and are not necessarily defined as receiver methods
 on that services struct).

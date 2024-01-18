@@ -36,6 +36,9 @@ func (d *requestDesc) TypeDecl() *Statement {
 		if d.ep.Request != nil {
 			g.Id(d.reqDataPayloadName()).Add(d.gu.Type(d.ep.Request))
 		}
+		// Note: the path parameter order is important and must match the order of the segments as defined
+		// as the parameters of the user's endpoint function. This behaviour is expected by the mocking
+		// system - see runtimes/go/appruntime/apisdk/api/reflection.go.
 		for i, seg := range d.ep.Path.Params() {
 			g.Id(d.pathParamFieldName(i)).Add(d.gu.Builtin(d.ep.Decl.AST.Pos(), seg.ValueType))
 		}
@@ -156,6 +159,8 @@ func (d *requestDesc) reqDataExpr() *Statement {
 
 // reqDataPayloadName returns the name of the payload field in the reqData struct.
 func (d *requestDesc) reqDataPayloadName() string {
+	// Note: this hardcoded value is used by reflection during mocking.
+	// If you change this, update runtimes/go/appruntime/apisdk/api/reflection.go as well.
 	return "Payload"
 }
 

@@ -4,14 +4,15 @@ package et
 
 import (
 	"fmt"
+	"reflect"
 )
 
-// MockAPI allows you to mock out an API in your tests; Any calls made to the API
+// MockEndpoint allows you to mock out an endpoint in your tests; Any calls made to the endpoint
 // during this test or any of its sub-tests will be routed to the mock you provide.
 //
-// Your mocked function must match the signature of the API you are mocking.
+// Your mocked function must match the signature of the endpoint you are mocking.
 //
-// For example, if you have an API defined as:
+// For example, if you have an endpoint defined as:
 //
 //	//encore:api public
 //	func MyAPI(ctx context.Context, req *MyAPIRequest) (*MyAPIResponse, error) {
@@ -20,25 +21,33 @@ import (
 //
 // You can mock it out in your test as:
 //
-//	et.MockAPI(mysvc.MyAPI, func(ctx context.Context, req *MyAPIRequest) (*MyAPIResponse, error) {
+//	et.MockEndpoint(mysvc.MyAPI, func(ctx context.Context, req *MyAPIRequest) (*MyAPIResponse, error) {
 //		...
 //	})
 //
-// If you want to mock out a single API method on a service, you can use the generated helper
-// package function to generate the API, however if you want to mock out more than one API
-// method on a service, consider using [MockService].
+// If you want to mock out a single endpoint method on a service, you can use the generated helper
+// package function as the `originalEndpoint` argument to this function, however if you want to
+// mock out more than one API method on a service, consider using [MockService].
 //
 // Note: if you use [MockService] to mock a service and then use this function to mock
-// an API on that service, the API mock will take precedence over the service mock.
+// an endpoint on that service, the endpoint mock will take precedence over the service mock.
 //
-// Setting the mock to nil will remove the API mock.
-func MockAPI[T any](originalAPI T, mock T) {
-	handler := Singleton.server.HandlerForFunc(originalAPI)
+// Setting the mock to nil will remove the endpoint mock.
+func MockEndpoint[T any](originalEndpoint T, mock T) {
+	handler := Singleton.server.HandlerForFunc(originalEndpoint)
 	if handler == nil {
-		panic(fmt.Sprintf("the function %T does not appear to be labelled as an Encore API.", originalAPI))
+		panic(fmt.Sprintf("the function %T does not appear to be labelled as an Encore API.", originalEndpoint))
 	}
 
-	Singleton.testMgr.SetAPIMock(handler.ServiceName(), handler.EndpointName(), mock)
+	// This code ensures if the user set a `nil` mock, we get an untyped nil
+	// instead of a typed nil - which we can't check without reflecting and given
+	// that is checked in the hot path pf the Desc.Call method, it's better to do it here
+	var mockFunctionAsAny any
+	if reflect.ValueOf(mock).IsValid() && !reflect.ValueOf(mock).IsNil() {
+		mockFunctionAsAny = mock
+	}
+
+	Singleton.testMgr.SetAPIMock(handler.ServiceName(), handler.EndpointName(), mockFunctionAsAny)
 }
 
 // MockService allows you to mock out a service in your tests; Any calls made to the service

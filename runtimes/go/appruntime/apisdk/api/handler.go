@@ -449,7 +449,6 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 	// we'll make an internal call to the API
 	if c.server.static.Testing {
 		if mockedAPI, found := c.server.testingMgr.GetAPIMock(d.Service, d.Endpoint); found && mockedAPI.Function != nil {
-			fmt.Println("mocked API")
 			function, err := d.getMockFunction(mockedAPI)
 			if err != nil {
 				return respData, errs.Wrap(err, "unable to call mocked API due to an issue with the mock")
