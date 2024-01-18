@@ -20,7 +20,7 @@ func (d *Desc) validateServiceStructs(pc *parsectx.Context, result *parser.Resul
 						refText = fmt.Sprintf("referenced in service %q", useSvc.Name)
 					}
 
-					if !use.DeclaredIn().FSPath.HasPrefix(svc.FSRoot) {
+					if !use.DeclaredIn().FSPath.HasPrefix(svc.FSRoot) && !use.DeclaredIn().TestFile {
 						pc.Errs.Add(
 							servicestruct.ErrServiceStructReferencedInAnotherService.
 								AtGoNode(use, errors.AsError(refText)).

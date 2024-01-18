@@ -137,13 +137,39 @@ type TestData struct {
 	Current *testing.T         // The current test running
 	Parent  *Request           // The parent request (if we're looking at sub-tests)
 	Service string             // the service being tested, if any
+	Config  *TestConfig        // The test config (should always be set) and managed by the testsupport Manager
 
 	// UserID and AuthData are the test-level auth information,
 	// if overridden.
 	UserID   UID
 	AuthData any
 
+	ServiceInstancesMu sync.Mutex
+	ServiceInstances   map[string]any // The service instances isolated to this test
+
 	Wait sync.WaitGroup // If we're spun up async go routines, this wait allows to the test to wait for them to end
+}
+
+// TestConfig contains configuration for testing,
+//
+// It can either be the global test config, or a per-test config.
+type TestConfig struct {
+	// The parent test config, if any.
+	//
+	// If this is not set, then this test config exists at the global level.
+	Parent *TestConfig
+
+	// Lock for the below fields
+	Mu sync.RWMutex
+
+	ServiceMocks     map[string]any // The service mocks we want to use
+	APIMocks         map[string]map[string]ApiMock
+	IsolatedServices *bool // Whether to isolate services for this test
+}
+
+type ApiMock struct {
+	ID       uint64
+	Function any
 }
 
 type Response struct {

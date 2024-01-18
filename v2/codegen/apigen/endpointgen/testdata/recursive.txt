@@ -28,9 +28,19 @@ func Foo(ctx context.Context, p *Recursive) (*Recursive, error) { return p, nil 
 
 package basic
 
+import "context"
+
 // These functions are automatically generated and maintained by Encore
 // to simplify calling them from other services, as they were implemented as methods.
 // They are automatically updated by Encore whenever your API endpoints change.
+
+// Interface defines the service's API surface area, primarily for mocking purposes.
+//
+// Raw endpoints are currently excluded from this interface, as Encore does not yet
+// support service-to-service API calls to raw endpoints.
+type Interface interface {
+	Foo(ctx context.Context, p *Recursive) (*Recursive, error)
+}
 -- want:encore_internal__api.go --
 package basic
 
@@ -46,7 +56,7 @@ import (
 )
 
 func init() {
-	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo)
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo, Foo)
 }
 
 type EncoreInternal_FooReq struct {

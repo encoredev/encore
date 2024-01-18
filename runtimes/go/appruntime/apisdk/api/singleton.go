@@ -12,6 +12,7 @@ import (
 	"encore.dev/appruntime/shared/logging"
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
+	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/metrics"
 	"encore.dev/pubsub"
 )
@@ -19,6 +20,6 @@ import (
 var Singleton = NewServer(
 	appconf.Static, appconf.Runtime, reqtrack.Singleton, platform.Singleton,
 	encore.Singleton, pubsub.Singleton, logging.RootLogger, metrics.Singleton,
-	health.Singleton,
+	health.Singleton, testsupport.Singleton,
 	jsonapi.Default, clock.New(),
 )

@@ -6,6 +6,8 @@ import ("context"; "net/http")
 //encore:service
 type Service struct{}
 
+// Foo is an amazing API which does
+// x, y and z - it's really cool!
 //encore:api public
 func (s *Service) Foo(ctx context.Context) error { return nil }
 
@@ -23,6 +25,17 @@ func (s *Service) WithResp(context.Context) (*Data, error) { return nil, nil }
 //encore:api public
 func (s *Service) WithReqResp(context.Context, *Data) (*Data, error) { return nil, nil }
 
+//encore:api public path=/pathing/:name/:age/*other
+func (s *Service) WithPathParams(ctx context.Context, name string, age int, other string) error { return nil }
+
+//encore:api public path=/fallback/!url
+func (s *Service) WithFallback(ctx context.Context, url string) error { return nil }
+
+// This API doesn't
+// exist on the service struct, but should still
+// appear
+//
+// on the service Interface
 //encore:api public
 func NoServiceStruct(context.Context) error { return nil }
 -- want:encore.gen.go --
@@ -40,6 +53,8 @@ import (
 // to simplify calling them from other services, as they were implemented as methods.
 // They are automatically updated by Encore whenever your API endpoints change.
 
+// Foo is an amazing API which does
+// x, y and z - it's really cool!
 func Foo(ctx context.Context) error {
 	svc, err := EncoreInternal_svcstruct_Service.Get()
 	if err != nil {
@@ -74,6 +89,49 @@ func WithReqResp(ctx context.Context, p *Data) (*Data, error) {
 		return (*Data)(nil), err
 	}
 	return svc.WithReqResp(ctx, p)
+}
+
+func WithPathParams(ctx context.Context, name string, age int, other string) error {
+	svc, err := EncoreInternal_svcstruct_Service.Get()
+	if err != nil {
+		return err
+	}
+	return svc.WithPathParams(ctx, name, age, other)
+}
+
+func WithFallback(ctx context.Context, url string) error {
+	svc, err := EncoreInternal_svcstruct_Service.Get()
+	if err != nil {
+		return err
+	}
+	return svc.WithFallback(ctx, url)
+}
+
+// Interface defines the service's API surface area, primarily for mocking purposes.
+//
+// Raw endpoints are currently excluded from this interface, as Encore does not yet
+// support service-to-service API calls to raw endpoints.
+type Interface interface {
+	// Foo is an amazing API which does
+	// x, y and z - it's really cool!
+	Foo(ctx context.Context) error
+
+	WithReq(ctx context.Context, p *Data) error
+
+	WithResp(ctx context.Context) (*Data, error)
+
+	WithReqResp(ctx context.Context, p *Data) (*Data, error)
+
+	WithPathParams(ctx context.Context, name string, age int, other string) error
+
+	WithFallback(ctx context.Context, url string) error
+
+	// This API doesn't
+	// exist on the service struct, but should still
+	// appear
+	//
+	// on the service Interface
+	NoServiceStruct(ctx context.Context) error
 }
 -- want:encore_internal__svcstruct.go --
 package basic

@@ -5,7 +5,6 @@ checklog '{"message": "shutting down"}'
 package svc
 
 import (
-    "context"
     "encore.dev/shutdown"
     "encore.dev/rlog"
 )
