@@ -64,6 +64,12 @@ In some cases, it can be useful to define a secret for a specific environment in
 You can do so with `encore secret set --env <env-name> <secret-name>`. Secret values for specific environments
 take precedence over values for environment types.
 
+You can use content files, for secrets, imagine you need a certificate for create a database connection example cockroachdb you can set crt.
+
+```sh
+encore secrets set --type dev,local Certification <  ~/.postgresql/root.crt
+```
+
 ### Environment settings
 
 Each secret can only have one secret value for each environment type. For example: If you have a secret value that's shared between `development`, `preview` and `local`, and you want to override the value for `local`, you must first edit the existing secret and remove `local` using the Secrets Manager in the [Cloud Dashboard](https://app.encore.dev). You can then add a new secret value for `local`. The end result should look something like the picture below.
