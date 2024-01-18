@@ -29,14 +29,10 @@ import "context"
 // to simplify calling them from other services, as they were implemented as methods.
 // They are automatically updated by Encore whenever your API endpoints change.
 
-// Interface represents the entire API service area for this service; both API's defined as
-// methods on the service struct, and API's defined as package functions.
+// Interface defines the service's API surface area, primarily for mocking purposes.
 //
-// Note: Raw endpoints are not included in this interface, as calls to them are not supported from
-// within an Encore application.
-//
-// Currently this interface exists to allow you to generate mocks for the entire service, using
-// your favorite mocking library.
+// Raw endpoints are currently excluded from this interface, as Encore does not yet
+// support service-to-service API calls to raw endpoints.
 type Interface interface {
 	Foo(ctx context.Context, p *Params) error
 }
