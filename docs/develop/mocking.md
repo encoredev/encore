@@ -121,7 +121,7 @@ is that any of the services APIs that are called during the test must be impleme
 (This also includes APIs that are defined as package level functions in the service, and are not necessarily defined as receiver methods
 on that services struct).
 
-To help with compile time saftey on service mocking, for every service Encore will automatically generate an `Interface` interface
+To help with compile time safety on service mocking, for every service Encore will automatically generate an `Interface` interface
 which contains all the APIs defined in the service. This interface can be passed as a generic argument to `et.MockService` to ensure
 that the mock object implements all the APIs defined in the service:
 
@@ -139,7 +139,7 @@ func Test_Something(t *testing.T) {
     et.MockService[products.Interface]("products", &myMockObject{})
 }
 ```
-                                          \
+
 ### Automatic generation of mock objects
 
 Thanks to the generated `Interface` interface, it's possible to automatically generate mock objects for your services using
