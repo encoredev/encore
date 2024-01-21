@@ -65,16 +65,26 @@ func Build(ctx context.Context, cfg *Config) *Result {
 	b := &builder{
 		ctx:  ctx,
 		cfg:  cfg,
+		mode: buildMode,
 		errs: cfg.Ctx.Errs,
 	}
 	return b.Build()
 }
+
+// Mode is the build mode.
+type mode string
+
+const (
+	buildMode mode = "build"
+	testMode  mode = "test"
+)
 
 type builder struct {
 	// inputs
 	ctx     context.Context
 	cfg     *Config
 	testCfg *TestConfig
+	mode    mode
 
 	// internal state
 
@@ -442,7 +452,9 @@ func (b *builder) prepareWorkDir() (workdir paths.FS, temporary bool) {
 			if err != nil {
 				b.errs.Fatalf(token.NoPos, "unable to get user cache dir: %v", err)
 			}
-			workdir := filepath.Join(baseDir, "encore-build", appID)
+			// Use a per-mode work directory since the generated files are different.
+			// Otherwise concurrent build and test runs interfere and cause spurious compilation errors.
+			workdir := filepath.Join(baseDir, "encore-build", appID, string(b.mode))
 			return workdir, false
 		}
 

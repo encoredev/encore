@@ -26,3 +26,16 @@ import (
 func OverrideAuthInfo(uid auth.UID, data any) {
 	Singleton.OverrideAuthInfo(uid, data)
 }
+
+// EnableServiceInstanceIsolation will causes all Service singletons to be isolated to each test
+// from this test and on any of its sub-tests. (Calling this in a TestMain has the impact
+// of isolating all tests in the package.)
+//
+// By default, Service singletons are shared across all tests and initialized on
+// the first call to that service by any test, which results in faster tests as you
+// are not re-initializing the service for each test, however if your service structs
+// contain state that is not reset between tests, this can cause issues. In that case,
+// you can call this function to isolate the services for the impacted tests.
+func EnableServiceInstanceIsolation() {
+	Singleton.testMgr.SetIsolatedServices(true)
+}

@@ -422,7 +422,8 @@ func testServer(t *testing.T, klock clock.Clock, mockTraces bool) (*api.Server, 
 	tsMgr := testsupport.NewManager(static, rt, logger)
 	pubsubMgr := pubsub.NewManager(static, runtime, rt, tsMgr, logger, json)
 	healthMgr := health.NewCheckRegistry()
-	server := api.NewServer(static, runtime, rt, nil, encoreMgr, pubsubMgr, logger, metricsRegistry, healthMgr, json, klock)
+	testingMgr := testsupport.NewManager(static, rt, logger)
+	server := api.NewServer(static, runtime, rt, nil, encoreMgr, pubsubMgr, logger, metricsRegistry, healthMgr, testingMgr, json, klock)
 	return server, traceMock, metricsRegistry
 }
 

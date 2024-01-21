@@ -162,6 +162,11 @@
 					path: "/tutorials/meeting-notes"
 					file: "tutorials/meeting-notes"
 				}, {
+					kind: "basic"
+					text: "Building a Booking System"
+					path: "/tutorials/booking-system"
+					file: "tutorials/booking-system"
+				}, {
 					kind:   "basic"
 					text:   "Building an Incident Management tool"
 					path:   "/tutorials/incident-management-tool"
@@ -323,6 +328,12 @@
 									text: "Testing"
 									path: "/develop/testing"
 									file: "develop/testing"
+									inline_menu: [{
+										kind: "basic"
+										text: "Mocking"
+										path: "/develop/testing/mocking"
+										file: "develop/mocking"
+									}]
 								}, {
 									kind: "basic"
 									text: "Validation"

@@ -153,6 +153,78 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/fallbackPath/{a}/{b}": {
+      "get": {
+        "operationId": "GET:svc.FallbackPath",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "POST:svc.FallbackPath",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
     "/path/{a}/{b}": {
       "get": {
         "operationId": "GET:svc.RESTPath",
@@ -1155,6 +1227,78 @@
       },
       "put": {
         "operationId": "PUT:svc.Webhook",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/webhook2/{a}/{b}": {
+      "get": {
+        "operationId": "GET:svc.Webhook2",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "POST:svc.Webhook2",
         "parameters": [
           {
             "allowEmptyValue": true,

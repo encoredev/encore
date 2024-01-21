@@ -28,6 +28,12 @@ import (
 func Bar(ctx context.Context, req *http.Request) (*http.Response, error) {
 	return nil, errors.New("encore: calling raw endpoints is not yet supported")
 }
+
+// Interface defines the service's API surface area, primarily for mocking purposes.
+//
+// Raw endpoints are currently excluded from this interface, as Encore does not yet
+// support service-to-service API calls to raw endpoints.
+type Interface interface{}
 -- want:encore_internal__api.go --
 package code
 
@@ -40,8 +46,8 @@ import (
 )
 
 func init() {
-	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo)
-	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Bar)
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo, Foo)
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Bar, Bar)
 }
 
 type EncoreInternal_FooReq struct{}

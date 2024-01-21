@@ -97,6 +97,11 @@ func (d *Desc) validateAPIs(pc *parsectx.Context, fw *apiframework.AppDesc, resu
 			for _, usage := range result.Usages(ep) {
 				switch usage := usage.(type) {
 				case *api.ReferenceUsage:
+					if usage.File.TestFile {
+						// Ignore test files as we allow the MockAPI function to reference the API
+						continue
+					}
+
 					// API's can only be referenced
 					isValid := result.ResourceConstructorContaining(usage).Contains(func(res resource.Resource) bool {
 						switch res := res.(type) {

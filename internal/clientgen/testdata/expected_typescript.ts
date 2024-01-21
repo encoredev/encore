@@ -262,6 +262,10 @@ export namespace svc {
             await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
         }
 
+        public async FallbackPath(a: string, b: string[]): Promise<void> {
+            await this.baseClient.callAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+        }
+
         public async Get(params: GetRequest): Promise<void> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
@@ -370,6 +374,10 @@ export namespace svc {
 
         public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
             return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
+        }
+
+        public async Webhook2(a: string, b: string[]): Promise<void> {
+            await this.baseClient.callAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
         }
     }
 }

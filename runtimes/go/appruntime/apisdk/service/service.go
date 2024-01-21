@@ -16,6 +16,7 @@ import (
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/syncutil"
+	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/beta/errs"
 	eshutdown "encore.dev/shutdown"
 )
@@ -45,15 +46,19 @@ type Decl[T any] struct {
 	// It is 0 if Setup is nil.
 	SetupDefLoc uint32
 
+	holder InstanceHolder[T]
+}
+
+type InstanceHolder[T any] struct {
 	setupOnce syncutil.Once
-	instance  *T // initialized instance, or nil
+	instance  *T
 }
 
 func (g *Decl[T]) ServiceName() string {
 	return g.Service
 }
 
-func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
+func doSetupService[T any](mgr *Manager, decl *Decl[T], holder *InstanceHolder[T]) (err error) {
 	curr := mgr.rt.Current()
 	if curr.Trace != nil && curr.Req != nil && decl.SetupDefLoc != 0 {
 		eventParams := trace2.EventParams{
@@ -74,16 +79,17 @@ func doSetupService[T any](mgr *Manager, decl *Decl[T]) (err error) {
 		setupFn = func() (*T, error) { return new(T), nil }
 	}
 
-	decl.instance, err = setupFn()
+	instance, err := setupFn()
 	if err != nil {
 		mgr.rt.Logger().Error().Err(err).Str("service", decl.Service).Msg("service initialization failed")
 		return errs.B().Code(errs.Internal).Msgf("service %s: initialization failed", decl.Service).Err()
 	}
+	holder.instance = instance
 
 	// If the API Decl supports graceful shutdown, register that with the server.
-	if gs, ok := any(decl.instance).(shutdowner); ok {
+	if gs, ok := any(instance).(shutdowner); ok {
 		mgr.registerShutdownHandler(serviceShutdown{decl.Service, gs})
-	} else if legacy, ok := any(decl.instance).(legacyShutdowner); ok {
+	} else if legacy, ok := any(instance).(legacyShutdowner); ok {
 		adapter := legacyShutdownAdapter{legacy}
 		mgr.registerShutdownHandler(serviceShutdown{decl.Service, adapter})
 	}
@@ -116,8 +122,8 @@ type serviceShutdown struct {
 	instance shutdowner
 }
 
-func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry, rootLogger zerolog.Logger) *Manager {
-	mgr := &Manager{rt: rt, runtime: runtime, rootLogger: rootLogger, svcMap: make(map[string]Initializer), initialisedServices: make(map[string]struct{})}
+func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, healthChecks *health.CheckRegistry, rootLogger zerolog.Logger, testMgr *testsupport.Manager) *Manager {
+	mgr := &Manager{static: static, rt: rt, runtime: runtime, rootLogger: rootLogger, testMgr: testMgr, svcMap: make(map[string]Initializer), initialisedServices: make(map[string]struct{})}
 
 	// Register with the health check service.
 	healthChecks.Register(mgr)
@@ -126,9 +132,11 @@ func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, healthChec
 }
 
 type Manager struct {
+	static     *config.Static
 	runtime    *config.Runtime
 	rt         *reqtrack.RequestTracker
 	rootLogger zerolog.Logger
+	testMgr    *testsupport.Manager
 	svcInit    []Initializer
 	svcMap     map[string]Initializer
 

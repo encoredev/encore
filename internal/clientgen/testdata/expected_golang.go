@@ -252,6 +252,7 @@ type SvcWrapper[T any] struct {
 type SvcClient interface {
 	// DummyAPI is a dummy endpoint.
 	DummyAPI(ctx context.Context, params SvcRequest) error
+	FallbackPath(ctx context.Context, a string, b []string) error
 	Get(ctx context.Context, params SvcGetRequest) error
 	GetRequestWithAllInputTypes(ctx context.Context, params SvcAllInputTypes[int]) (SvcHeaderOnlyStruct, error)
 	HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyStruct) error
@@ -264,6 +265,7 @@ type SvcClient interface {
 	// and this comment is also multiline, so multiline comments get tested as well.
 	TupleInputOutput(ctx context.Context, params SvcTuple[string, SvcWrappedRequest]) (SvcTuple[bool, SvcFoo], error)
 	Webhook(ctx context.Context, a string, b []string, request *http.Request) (*http.Response, error)
+	Webhook2(ctx context.Context, a string, b []string) error
 }
 
 type svcClient struct {
@@ -303,6 +305,11 @@ func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
 	}
 
 	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/svc.DummyAPI?%s", queryString.Encode()), headers, body, nil)
+	return err
+}
+
+func (c *svcClient) FallbackPath(ctx context.Context, a string, b []string) error {
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/fallbackPath/%s/%s", url.PathEscape(a), pathEscapeSlice(b)), nil, nil, nil)
 	return err
 }
 
@@ -503,6 +510,11 @@ func (c *svcClient) Webhook(ctx context.Context, a string, b []string, request *
 	}
 
 	return c.base.Do(request)
+}
+
+func (c *svcClient) Webhook2(ctx context.Context, a string, b []string) error {
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/webhook2/%s/%s", url.PathEscape(a), pathEscapeSlice(b)), nil, nil, nil)
+	return err
 }
 
 type NestedType struct {
