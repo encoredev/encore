@@ -20,6 +20,7 @@ type Query struct {
 	Subscription string
 	TraceID      string
 	MessageID    string
+	TestFilter   *bool // nil means both test and non-test traces are returned
 	Tags         []Tag
 
 	// StartTime and EndTime specify the time range to query.
@@ -76,6 +77,7 @@ type Store interface {
 }
 
 type NewSpanEvent struct {
-	AppID string
-	Span  *tracepb2.SpanSummary
+	AppID     string
+	TestTrace bool
+	Span      *tracepb2.SpanSummary
 }

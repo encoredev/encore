@@ -34,7 +34,7 @@ func (h *Recorder) RecordTrace(data RecordData) error {
 	go func() {
 		defer close(eventCh)
 		for {
-			ev, err := traceparser.ParseEvent(data.Buf, data.Anchor)
+			ev, err := traceparser.ParseEvent(data.Buf, data.Anchor, data.TraceVersion)
 			if ev != nil {
 				eventCh <- ev
 			}

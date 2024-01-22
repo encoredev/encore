@@ -106,7 +106,7 @@ func (t *RequestTracker) finishOp() {
 	if e == nil {
 		panic("encore.finishOp: goroutine not in an operation")
 	}
-	e.op.decRef()
+	e.op.decRef(false)
 	t.impl.set(nil)
 }
 
@@ -117,10 +117,14 @@ func (op *encoreOp) incRef() int32 {
 
 // decRef decreases the op's refcount by one.
 // If it reaches zero and the op is traced, it sends off the trace.
-func (op *encoreOp) decRef() int32 {
+func (op *encoreOp) decRef(blockOnTraceSend bool) int32 {
 	n := atomic.AddInt32(&op.refs, -1)
 	if n == 0 && op.trace != nil {
 		op.trace.MarkDone()
+
+		if blockOnTraceSend {
+			op.trace.WaitForStreamSent()
+		}
 	}
 	return n
 }
@@ -149,14 +153,14 @@ func (t *RequestTracker) beginReq(data *model2.Request, trace bool) {
 // finishReq completes the request and decreases the
 // ref count on the operation.
 // The g must be processing a request.
-func (t *RequestTracker) finishReq() {
+func (t *RequestTracker) finishReq(blockOnTraceSend bool) {
 	e := t.impl.get()
 	if e == nil {
 		panic("encore.finishReq: goroutine not in an operation")
 	} else if e.req == nil {
 		panic("encore.finishReq: no current request")
 	}
-	e.op.decRef()
+	e.op.decRef(blockOnTraceSend)
 	e.req = nil
 }
 
