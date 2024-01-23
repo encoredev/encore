@@ -468,6 +468,12 @@
 						text: "Kubernetes deployment"
 						path: "/deploy/kubernetes"
 						file: "deploy/kubernetes"
+						inline_menu: [{
+							kind: "basic"
+							text: "Configure kubectl"
+							path: "/deploy/configure-kubectl"
+							file: "deploy/configure-kubectl"
+						}]
 					}, {
 						kind: "basic"
 						text: "Import your Kubernetes cluster"
