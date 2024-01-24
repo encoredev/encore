@@ -85,17 +85,19 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "traces/list":
 		var params struct {
-			AppID     string `json:"app_id"`
-			MessageID string `json:"message_id"`
+			AppID      string `json:"app_id"`
+			MessageID  string `json:"message_id"`
+			TestTraces *bool  `json:"test_traces,omitempty"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
 
 		query := &trace2.Query{
-			AppID:     params.AppID,
-			MessageID: params.MessageID,
-			Limit:     100,
+			AppID:      params.AppID,
+			TestFilter: params.TestTraces,
+			MessageID:  params.MessageID,
+			Limit:      100,
 		}
 		var list []*tracepb2.SpanSummary
 		iter := func(s *tracepb2.SpanSummary) bool {
@@ -346,8 +348,9 @@ func (s *Server) listenTraces() {
 		s.notify(&notification{
 			Method: "trace/new",
 			Params: map[string]any{
-				"app_id": sp.AppID,
-				"span":   json.RawMessage(data),
+				"app_id":     sp.AppID,
+				"test_trace": sp.TestTrace,
+				"span":       json.RawMessage(data),
 			},
 		})
 	}

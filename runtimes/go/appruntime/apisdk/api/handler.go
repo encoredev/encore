@@ -556,7 +556,7 @@ func (d *Desc[Req, Resp]) getMockFunction(apiMock model.ApiMock) (reflectedAPIMe
 }
 
 func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req, Resp], req Req) (respData Resp, respErr error) {
-	return d.runCall(c, req, func(ec execContext, req Req) (Resp, int, error) {
+	return d.runCall(c, req, true, func(ec execContext, req Req) (Resp, int, error) {
 		respData, err := mock(ec.ctx, req)
 		if err != nil {
 			return respData, errs.HTTPStatus(err), err
@@ -566,14 +566,14 @@ func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req,
 }
 
 func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
-	return d.runCall(c, req, func(ec execContext, req Req) (Resp, int, error) {
+	return d.runCall(c, req, false, func(ec execContext, req Req) (Resp, int, error) {
 		return d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req)
 		})
 	})
 }
 
-func (d *Desc[Req, Resp]) runCall(c CallContext, req Req, executor func(ec execContext, req Req) (Resp, int, error)) (respData Resp, respErr error) {
+func (d *Desc[Req, Resp]) runCall(c CallContext, req Req, mocked bool, executor func(ec execContext, req Req) (Resp, int, error)) (respData Resp, respErr error) {
 	// TODO: we don't currently support service-to-service calls of raw endpoints.
 	// To fix this we need to improve our request serialization and DI support to
 	// separate the signature for outgoing calls versus handlers.
@@ -636,6 +636,7 @@ func (d *Desc[Req, Resp]) runCall(c CallContext, req Req, executor func(ec execC
 				FromEncorePlatform:   false,
 				RequestHeaders:       nil, // not set right now for internal requests
 				ServiceToServiceCall: true,
+				Mocked:               mocked,
 			},
 		})
 

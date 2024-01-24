@@ -2,6 +2,7 @@ package trace2
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -37,6 +38,8 @@ const (
 	CacheCallStart         EventType = 0x14
 	CacheCallEnd           EventType = 0x15
 	BodyStream             EventType = 0x16
+	TestStart              EventType = 0x17
+	TestEnd                EventType = 0x18
 )
 
 func (te EventType) String() string {
@@ -85,6 +88,10 @@ func (te EventType) String() string {
 		return "CacheCallEnd"
 	case BodyStream:
 		return "BodyStream"
+	case TestStart:
+		return "TestStart"
+	case TestEnd:
+		return "TestEnd"
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -183,6 +190,7 @@ func (l *Log) RequestSpanStart(req *model.Request, goid uint32) {
 	tb.ByteString(data.NonRawPayload)
 	tb.String(req.ExtCorrelationID)
 	tb.String(string(data.UserID))
+	tb.Bool(data.Mocked)
 
 	l.Add(Event{
 		Type:    RequestSpanStart,
@@ -327,6 +335,66 @@ func (l *Log) PubsubMessageSpanEnd(p PubsubMessageSpanEndParams) {
 
 	l.Add(Event{
 		Type:    PubsubMessageSpanEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+func (l *Log) TestSpanStart(req *model.Request, goid uint32) {
+	data := req.Test
+	tb := l.newSpanStartEvent(spanStartEventData{
+		ParentTraceID:    req.ParentTraceID,
+		ParentSpanID:     req.ParentSpanID,
+		DefLoc:           req.DefLoc,
+		Goid:             goid,
+		CallerEventID:    req.CallerEventID,
+		ExtCorrelationID: req.ExtCorrelationID,
+		ExtraSpace:       len(data.Service) + len(data.Current.Name()) + len(data.UserID) + len(data.TestFile) + 30,
+	})
+
+	tb.String(data.Service)
+	tb.String(data.Current.Name())
+	tb.String(string(data.UserID))
+	tb.String(data.TestFile)
+	tb.Uint32(data.TestLine)
+
+	l.Add(Event{
+		Type:    TestStart,
+		TraceID: req.TraceID,
+		SpanID:  req.SpanID,
+		Data:    tb,
+	})
+}
+
+type TestSpanEndParams struct {
+	EventParams
+	Req     *model.Request
+	Failed  bool
+	Skipped bool
+}
+
+func (l *Log) TestSpanEnd(p TestSpanEndParams) {
+	desc := p.Req.Test
+	var err error
+	if desc.Current.Failed() {
+		err = errors.New("test failed")
+	}
+	tb := l.newSpanEndEvent(spanEndEventData{
+		Duration:      time.Since(p.Req.Start),
+		Err:           err,
+		ParentTraceID: p.Req.ParentTraceID,
+		ParentSpanID:  p.Req.ParentSpanID,
+		ExtraSpace:    len(desc.Service) + len(desc.Current.Name()) + 20,
+	})
+
+	tb.String(desc.Service)
+	tb.String(desc.Current.Name())
+	tb.Bool(p.Failed)
+	tb.Bool(p.Skipped)
+
+	l.Add(Event{
+		Type:    TestEnd,
 		TraceID: p.TraceID,
 		SpanID:  p.SpanID,
 		Data:    tb,

@@ -18,8 +18,8 @@ import (
 )
 
 // ParseEvent parses a single event from the buffer.
-func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor) (*tracepb2.TraceEvent, error) {
-	tp := &traceParser{traceReader: traceReader{buf: buf}, ta: ta, log: &log.Logger}
+func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor, version trace2.Version) (*tracepb2.TraceEvent, error) {
+	tp := &traceParser{traceReader: traceReader{buf: buf, version: version}, ta: ta, log: &log.Logger}
 	// If we already have an error, return it.
 	if err := tp.Err(); err != nil {
 		return nil, err
@@ -83,9 +83,8 @@ type spanEndEvent struct {
 
 type traceParser struct {
 	traceReader
-	ta      trace2.TimeAnchor
-	log     *zerolog.Logger
-	version trace2.Version
+	ta  trace2.TimeAnchor
+	log *zerolog.Logger
 }
 
 type header struct {
@@ -134,6 +133,10 @@ func (tp *traceParser) parseEvent(h header) (ev *tracepb2.TraceEvent, err error)
 		ev.Event = &tracepb2.TraceEvent_SpanStart{SpanStart: tp.pubsubMessageSpanStart()}
 	case trace2.PubsubMessageSpanEnd:
 		ev.Event = &tracepb2.TraceEvent_SpanEnd{SpanEnd: tp.pubsubMessageSpanEnd()}
+	case trace2.TestStart:
+		ev.Event = &tracepb2.TraceEvent_SpanStart{SpanStart: tp.testSpanStart()}
+	case trace2.TestEnd:
+		ev.Event = &tracepb2.TraceEvent_SpanEnd{SpanEnd: tp.testSpanEnd()}
 	default:
 		ev.Event = &tracepb2.TraceEvent_SpanEvent{SpanEvent: tp.spanEvent(h.Type)}
 	}
@@ -240,7 +243,7 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 func (tp *traceParser) requestSpanStart() *tracepb2.SpanStart {
 	spanStart := tp.spanStartEvent()
 
-	return &tracepb2.SpanStart{
+	start := &tracepb2.SpanStart{
 		Goid:                  spanStart.Goid,
 		ParentTraceId:         spanStart.ParentTraceID.GetOrElse(nil),
 		ParentSpanId:          spanStart.ParentSpanID.PtrOrNil(),
@@ -268,9 +271,12 @@ func (tp *traceParser) requestSpanStart() *tracepb2.SpanStart {
 				RequestPayload:   tp.ByteString(),
 				ExtCorrelationId: ptrOrNil(tp.String()),
 				Uid:              ptrOrNil(tp.String()),
+				Mocked:           tp.FromVer(15).Bool(false),
 			},
 		},
 	}
+
+	return start
 }
 
 func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
@@ -369,6 +375,47 @@ func (tp *traceParser) pubsubMessageSpanEnd() *tracepb2.SpanEnd {
 				ServiceName:      tp.String(),
 				TopicName:        tp.String(),
 				SubscriptionName: tp.String(),
+			},
+		},
+	}
+}
+
+func (tp *traceParser) testSpanStart() *tracepb2.SpanStart {
+	spanStart := tp.spanStartEvent()
+
+	return &tracepb2.SpanStart{
+		Goid:                  spanStart.Goid,
+		ParentTraceId:         spanStart.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:          spanStart.ParentSpanID.PtrOrNil(),
+		DefLoc:                spanStart.DefLoc.PtrOrNil(),
+		CallerEventId:         (*uint64)(spanStart.CallerEventID.PtrOrNil()),
+		ExternalCorrelationId: spanStart.ExtCorrelationID.PtrOrNil(),
+		Data: &tracepb2.SpanStart_Test{
+			Test: &tracepb2.TestSpanStart{
+				ServiceName: tp.String(),
+				TestName:    tp.String(),
+				Uid:         tp.String(),
+				TestFile:    tp.String(),
+				TestLine:    tp.Uint32(),
+			},
+		},
+	}
+}
+
+func (tp *traceParser) testSpanEnd() *tracepb2.SpanEnd {
+	spanEnd := tp.spanEndEvent()
+	return &tracepb2.SpanEnd{
+		DurationNanos: spanEnd.DurationNanos,
+		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
+		Data: &tracepb2.SpanEnd_Test{
+			Test: &tracepb2.TestSpanEnd{
+				ServiceName: tp.String(),
+				TestName:    tp.String(),
+				Failed:      tp.Bool(),
+				Skipped:     tp.Bool(),
 			},
 		},
 	}

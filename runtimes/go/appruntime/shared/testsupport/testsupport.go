@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -16,6 +18,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
 )
 
@@ -38,12 +41,29 @@ func NewManager(static *config.Static, rt *reqtrack.RequestTracker, rootLogger z
 
 // StartTest is called when a test starts running. This allows Encore's testing framework to
 // isolate behavior between different tests on global state.
-func (mgr *Manager) StartTest(t *testing.T) {
+func (mgr *Manager) StartTest(t *testing.T, fn func(*testing.T)) {
 	var parent *model.Request
 	parentConfig := mgr.rootTestConfig
 
+	// Convert the fn pointer to a file/line number if possible
+	// This is useful for debugging tests that are hanging
+	var testFile string
+	var testLine int
+	fnPtr := reflect.ValueOf(fn).Pointer()
+	if f := runtime.FuncForPC(fnPtr); f != nil {
+		testFile, testLine = f.FileLine(fnPtr)
+
+		if mgr.static.TestAppRootPath != "" {
+			testFile = strings.TrimPrefix(testFile, mgr.static.TestAppRootPath+string(filepath.Separator))
+		}
+	}
+
+	var traceID model.TraceID
+	var parentSpanID model.SpanID
 	if curr := mgr.rt.Current(); curr.Req != nil {
 		parent = curr.Req
+		traceID = curr.Req.TraceID
+		parentSpanID = curr.Req.ParentSpanID
 		parentConfig = curr.Req.Test.Config
 	}
 
@@ -57,17 +77,29 @@ func (mgr *Manager) StartTest(t *testing.T) {
 
 	testService, svcNum := mgr.TestService()
 
+	if traceID.IsZero() {
+		id, err := model.GenTraceID()
+		if err != nil {
+			t.Fatalf("encoreStartTest: failed to generate trace ID: %v", err)
+		}
+		traceID = id
+	}
+
 	req := &model.Request{
-		Type:   model.Test,
-		SpanID: spanID,
-		Start:  time.Now(),
-		Traced: false,
+		Type:         model.Test,
+		TraceID:      traceID,
+		SpanID:       spanID,
+		ParentSpanID: parentSpanID,
+		Start:        time.Now(),
+		Traced:       mgr.rt.TracingEnabled(),
 		Test: &model.TestData{
 			Ctx:              ctx,
 			Cancel:           cancel,
 			Current:          t,
 			Parent:           parent,
 			Service:          testService,
+			TestFile:         testFile,
+			TestLine:         uint32(testLine),
 			Config:           newTestConfig(parentConfig),
 			ServiceInstances: make(map[string]any),
 		},
@@ -75,6 +107,9 @@ func (mgr *Manager) StartTest(t *testing.T) {
 		SvcNum: svcNum,
 	}
 	mgr.rt.BeginRequest(req)
+	if curr := mgr.rt.Current(); curr.Trace != nil {
+		curr.Trace.TestSpanStart(req, curr.Goctr)
+	}
 }
 
 // PauseTest is called when a test is paused. This allows Encore's testing framework to
@@ -102,7 +137,8 @@ func (mgr *Manager) ResumeTest(t *testing.T) {
 // EndTest is called when a test ends. This allows Encore's testing framework to clear down any state from the test
 // and to perform any assertions on that state that it needs to.
 func (mgr *Manager) EndTest(t *testing.T) {
-	req := mgr.rt.Current().Req
+	curr := mgr.rt.Current()
+	req := curr.Req
 	if req == nil || req.Test == nil {
 		panic("encoreEndTest: no active test")
 	}
@@ -128,7 +164,16 @@ func (mgr *Manager) EndTest(t *testing.T) {
 	case <-done:
 	}
 
-	mgr.rt.FinishRequest()
+	if curr.Trace != nil {
+		curr.Trace.TestSpanEnd(trace2.TestSpanEndParams{
+			EventParams: trace2.EventParams{TraceID: req.TraceID, SpanID: req.SpanID},
+			Req:         req,
+			Failed:      t.Failed(),
+			Skipped:     t.Skipped(),
+		})
+	}
+
+	mgr.rt.FinishRequest(true)
 }
 
 // CurrentTest returns the currently running test.
