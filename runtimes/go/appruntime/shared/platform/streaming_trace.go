@@ -13,7 +13,12 @@ import (
 )
 
 func (c *Client) StreamTrace(log trace2.Logger) error {
-	return c.streamingTrace(log)
+	if c.static.Testing {
+		// In testing we want to block the test until the trace is done.
+		return c.blockingTrace(log)
+	} else {
+		return c.streamingTrace(log)
+	}
 }
 
 // streamingTrace streams a trace to the platform.

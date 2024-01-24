@@ -56,16 +56,23 @@ func (s *server) parseTraceData(req *http.Request) (d trace2.RecordData, err err
 	}
 	d.TraceVersion = tracemodel.Version(version)
 
-	// Look up app id
 	pid := req.Header.Get("X-Encore-Env-ID")
-	if pid == "" {
-		return d, errors.New("missing X-Encore-Env-ID header")
+	if pid == "test" {
+		appID := req.Header.Get("X-Encore-App-ID")
+		if appID == "" {
+			return d, errors.New("missing X-Encore-App-ID header")
+		}
+		d.Meta = &trace2.Meta{AppID: appID}
+	} else {
+		if pid == "" {
+			return d, errors.New("missing X-Encore-Env-ID header")
+		}
+		proc := s.runMgr.FindProc(pid)
+		if proc == nil {
+			return d, errors.Newf("process %q is not running", pid)
+		}
+		d.Meta = &trace2.Meta{AppID: proc.Run.App.PlatformOrLocalID()}
 	}
-	proc := s.runMgr.FindProc(pid)
-	if proc == nil {
-		return d, errors.Newf("process %q is not running", pid)
-	}
-	d.Meta = &trace2.Meta{AppID: proc.Run.App.PlatformOrLocalID()}
 
 	// Parse time anchor
 	timeAnchor := req.Header.Get("X-Encore-Trace-TimeAnchor")

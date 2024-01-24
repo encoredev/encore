@@ -106,7 +106,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		ForTests:    true,
 		AuthKey:     genAuthKey(),
 		APIBaseURL:  apiBaseURL,
-		ConfigAppID: "test",
+		ConfigAppID: params.App.PlatformOrLocalID(),
 		ConfigEnvID: "test",
 	})
 	if err != nil {

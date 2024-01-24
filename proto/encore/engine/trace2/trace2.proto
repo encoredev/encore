@@ -21,12 +21,16 @@ message SpanSummary {
   optional string topic_name           = 11;
   optional string subscription_name    = 12;
   optional string message_id           = 13;
+  optional bool   test_skipped         = 14; // whether the test was skipped
+  optional string src_file             = 15; // the source file where the span was started (if available)
+  optional uint32 src_line             = 16; // the source line where the span was started (if available)
 
   enum SpanType {
     UNKNOWN = 0;
     REQUEST = 1;
     AUTH = 2;
     PUBSUB_MESSAGE = 3;
+    TEST = 4;
   }
 }
 
@@ -64,6 +68,7 @@ message SpanStart {
     RequestSpanStart request = 10;
     AuthSpanStart auth = 11;
     PubsubMessageSpanStart pubsub_message = 12;
+    TestSpanStart test = 13;
   }
 }
 
@@ -79,6 +84,7 @@ message SpanEnd {
     RequestSpanEnd request = 10;
     AuthSpanEnd auth = 11;
     PubsubMessageSpanEnd pubsub_message = 12;
+    TestSpanEnd test = 13;
   }
 }
 
@@ -92,6 +98,8 @@ message RequestSpanStart {
   optional bytes request_payload = 7;
   optional string ext_correlation_id = 8;
   optional string uid = 9;
+  // mocked is true if the request was handled by a mock
+  bool mocked = 10;
 }
 
 message RequestSpanEnd {
@@ -137,6 +145,21 @@ message PubsubMessageSpanEnd {
   string service_name = 1;
   string topic_name = 2;
   string subscription_name = 3;
+}
+
+message TestSpanStart {
+  string service_name = 1;
+  string test_name = 2;
+  string uid = 3;
+  string test_file = 4;
+  uint32 test_line = 5;
+}
+
+message TestSpanEnd {
+  string service_name = 1;
+  string test_name = 2;
+  bool   failed = 3;
+  bool   skipped = 4;
 }
 
 message SpanEvent {

@@ -17,8 +17,9 @@ type Static struct {
 	CORSExposeHeaders []string // Headers to be exposed by cors
 	PubsubTopics      map[string]*StaticPubsubTopic
 
-	Testing        bool
-	TestServiceMap map[string]string // map of service names to their filesystem root
+	Testing         bool
+	TestServiceMap  map[string]string // map of service names to their filesystem root
+	TestAppRootPath string            // the root path of the app when running tests
 
 	// PrettyPrintLogs indicates whether logs should be pretty-printed.
 	// It's set when building a separate test binary, for example.
