@@ -223,7 +223,6 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	}
 
 	if msg := end.GetTest(); msg != nil {
-		// TODO: record skipped test spans
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, has_response, is_error, test_skipped, duration_nanos

@@ -16,6 +16,7 @@ var bin = binary.LittleEndian
 
 type traceReader struct {
 	buf        *bufio.Reader
+	version    trace2.Version
 	bytesRead  int
 	timeAnchor int64
 	err        error // any error encountered during reading
@@ -172,4 +173,20 @@ func unsignedToSigned(u uint64) int64 {
 		v = ^int64(u >> 1)
 	}
 	return v
+}
+
+type versionFilterReader struct {
+	traceReader *traceReader
+	filtered    bool
+}
+
+func (tr *traceReader) FromVer(version trace2.Version) versionFilterReader {
+	return versionFilterReader{traceReader: tr, filtered: tr.version < version}
+}
+
+func (tr versionFilterReader) Bool(defaultForOlderVersions bool) bool {
+	if tr.filtered {
+		return defaultForOlderVersions
+	}
+	return tr.traceReader.Bool()
 }

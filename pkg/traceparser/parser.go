@@ -19,7 +19,7 @@ import (
 
 // ParseEvent parses a single event from the buffer.
 func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor, version trace2.Version) (*tracepb2.TraceEvent, error) {
-	tp := &traceParser{traceReader: traceReader{buf: buf}, ta: ta, log: &log.Logger, version: version}
+	tp := &traceParser{traceReader: traceReader{buf: buf, version: version}, ta: ta, log: &log.Logger}
 	// If we already have an error, return it.
 	if err := tp.Err(); err != nil {
 		return nil, err
@@ -83,9 +83,8 @@ type spanEndEvent struct {
 
 type traceParser struct {
 	traceReader
-	ta      trace2.TimeAnchor
-	log     *zerolog.Logger
-	version trace2.Version
+	ta  trace2.TimeAnchor
+	log *zerolog.Logger
 }
 
 type header struct {
@@ -272,13 +271,9 @@ func (tp *traceParser) requestSpanStart() *tracepb2.SpanStart {
 				RequestPayload:   tp.ByteString(),
 				ExtCorrelationId: ptrOrNil(tp.String()),
 				Uid:              ptrOrNil(tp.String()),
-				Mocked:           false, // introduced in version 101
+				Mocked:           tp.FromVer(15).Bool(false),
 			},
 		},
-	}
-
-	if tp.version >= 15 {
-		start.Data.(*tracepb2.SpanStart_Request).Request.Mocked = tp.Bool()
 	}
 
 	return start
