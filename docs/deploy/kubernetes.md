@@ -25,4 +25,4 @@ You can also configure if you want to allocate all services in one process or ru
 
 **4. Automatic deployment by Encore:** Once you've triggered the deploy, Encore will automatically provision and deploy the necessary infrastructure on Kubernetes, per your environment configuration in the Cloud Dashboard. You can monitor the status of your deploy and view your environment's details through the Encore Cloud Dashboard.
 
-**5. Accessing your cluster with kubectl:** You can access your cluster using the `kubectl` CLI tool. [See the docs](/docs/deploy/configure-kubectl) for how to do this.
+**5. Accessing your cluster with kubectl:** You can access your cluster using the `kubectl` CLI tool. [See the docs](/docs/deploy/kubernetes/kubectl) for how to do this.
