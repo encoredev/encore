@@ -19,6 +19,7 @@ import (
 	"encr.dev/cli/cmd/encore/k8s/types"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/internal/conf"
+	"encr.dev/pkg/xos"
 
 	"sigs.k8s.io/yaml"
 )
@@ -243,7 +244,7 @@ func writeKubeConfig(file string, cfg *Cfg) error {
 	}
 
 	// Then write the file
-	err = os.WriteFile(file, b, 0600)
+	err = xos.WriteFile(file, b, 0600)
 	if err != nil {
 		return errors.Wrap(err, "unable to write kubeconfig file")
 	}

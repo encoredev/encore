@@ -8,6 +8,8 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/cockroachdb/errors"
+
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
@@ -86,6 +88,9 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	})
 	if err != nil {
 		return err
+	}
+	if err := params.App.CacheMetadata(parse.Meta); err != nil {
+		return errors.Wrap(err, "cache metadata")
 	}
 
 	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, params.NS, nil, mgr.DBProxyPort, true)

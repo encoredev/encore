@@ -4,6 +4,8 @@ import (
 	"context"
 	"runtime"
 
+	"github.com/cockroachdb/errors"
+
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -64,6 +66,9 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 	})
 	if err != nil {
 		return "", err
+	}
+	if err := p.App.CacheMetadata(parse.Meta); err != nil {
+		return "", errors.Wrap(err, "cache metadata")
 	}
 
 	result, err := bld.Compile(ctx, builder.CompileParams{

@@ -289,6 +289,10 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		return err
 	}
 
+	for _, ln := range r.Mgr.listeners {
+		ln.OnCompileStart(r)
+	}
+
 	jobs := optracker.NewAsyncBuildJobs(ctx, r.App.PlatformOrLocalID(), tracker)
 
 	// Parse the app source code
@@ -329,6 +333,9 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 	if err != nil {
 		tracker.Fail(parseOp, err)
 		return err
+	}
+	if err := r.App.CacheMetadata(parse.Meta); err != nil {
+		return errors.Wrap(err, "cache metadata")
 	}
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
