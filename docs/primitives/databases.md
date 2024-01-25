@@ -253,3 +253,5 @@ This means Encore was not able to create the database. Often this is due to a pr
 This error is commonly caused by the presence of the file `$HOME/.postgresql/root.crt` on the filesystem.
 When this file is present the PostgreSQL client library will assume the database server has that root certificate,
 which will cause the above error.
+
+- Remove or rename the file, then try `encore run` again.
