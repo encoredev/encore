@@ -16,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"encr.dev/internal/goldfish"
+	"encr.dev/pkg/xos"
 )
 
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
@@ -139,7 +140,7 @@ func Write(cfg *Config) (err error) {
 		return err
 	} else if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
-	} else if err := os.WriteFile(path, data, 0600); err != nil {
+	} else if err := xos.WriteFile(path, data, 0600); err != nil {
 		return err
 	}
 	return nil

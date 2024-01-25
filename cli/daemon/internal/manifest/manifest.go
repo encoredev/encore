@@ -10,6 +10,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"encr.dev/pkg/xos"
 )
 
 // Manifest represents the persisted manifest for
@@ -67,7 +69,7 @@ func ReadOrCreate(appRoot string) (mf *Manifest, err error) {
 	out, _ := json.Marshal(&man)
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0755); err != nil {
 		return nil, err
-	} else if err := os.WriteFile(cfgPath, out, 0644); err != nil {
+	} else if err := xos.WriteFile(cfgPath, out, 0644); err != nil {
 		return nil, err
 	}
 	return &man, nil
