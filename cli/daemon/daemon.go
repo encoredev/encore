@@ -113,6 +113,10 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 			return nil, status.Errorf(codes.InvalidArgument, "failed to parse app metadata: %v", err)
 		}
 		md = parse.Meta
+
+		if err := app.CacheMetadata(md); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to cache app metadata: %v", err)
+		}
 	} else {
 		envName := params.EnvName
 		if envName == "" {

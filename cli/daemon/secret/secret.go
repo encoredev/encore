@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -21,6 +23,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/pkg/xos"
 )
 
 // New returns a new manager.
@@ -241,7 +244,7 @@ func (mgr *Manager) writeToDisk(appSlug string, data *Data) (err error) {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, out, 0600)
+	return xos.WriteFile(path, out, 0600)
 }
 
 // readFromDisk reads the cached secrets from disk.
@@ -283,7 +286,7 @@ func applyLocalOverrides(app *apps.Instance, src *Data) (*Data, error) {
 	const name = ".secrets.local.cue"
 	data, err := os.ReadFile(filepath.Join(app.Root(), name))
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return src, nil
 		}
 		return nil, err

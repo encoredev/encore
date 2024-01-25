@@ -14,6 +14,7 @@ import (
 	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/internal/conf"
+	"encr.dev/pkg/xos"
 )
 
 // Create a new app from scratch: `encore app create`
@@ -89,7 +90,7 @@ func initializeApp(name string) error {
 	"id": "` + app.Slug + `",
 }
 `)
-	if err := os.WriteFile("encore.app", encoreAppData, 0644); err != nil {
+	if err := xos.WriteFile("encore.app", encoreAppData, 0644); err != nil {
 		return err
 	}
 

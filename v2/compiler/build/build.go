@@ -24,6 +24,7 @@ import (
 	"encr.dev/internal/etrace"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/paths"
+	"encr.dev/pkg/xos"
 	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
@@ -171,7 +172,7 @@ func (b *builder) writeModFile() {
 
 		gomodpath := b.workdir.Join("go.mod")
 		gosumpath := b.workdir.Join("go.sum")
-		if err := os.WriteFile(gomodpath.ToIO(), data, 0o644); err != nil {
+		if err := xos.WriteFile(gomodpath.ToIO(), data, 0o644); err != nil {
 			b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
 			return
 		}

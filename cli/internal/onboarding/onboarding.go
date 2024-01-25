@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"encr.dev/pkg/xos"
 )
 
 type Event struct {
@@ -59,7 +61,7 @@ func (cfg *State) Write() error {
 	} else if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return xos.WriteFile(path, data, 0644)
 }
 
 func configPath() (string, error) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"encr.dev/internal/goldfish"
+	"encr.dev/pkg/xos"
 )
 
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
@@ -72,6 +74,26 @@ func Dir() (string, error) {
 	return dir, nil
 }
 
+// CacheDir reports the base directory for storing data which can be cached
+// and deleted at any time by the user without affecting the Encore daemon.
+//
+// The directory may or may not exist already.
+func CacheDir() (string, error) {
+	dir := os.Getenv("ENCORE_CACHE_DIR")
+	if dir == "" {
+		d, err := os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(d, defaultConfigDirectory, "cache")
+	}
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("ENCORE_CACHE_DIR must be absolute, got %q", dir)
+	}
+
+	return dir, nil
+}
+
 // DataDir reports the base directory for storing data, like database volumes.
 // The directory may or may not exist already.
 func DataDir() (string, error) {
@@ -118,7 +140,7 @@ func Write(cfg *Config) (err error) {
 		return err
 	} else if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
-	} else if err := os.WriteFile(path, data, 0600); err != nil {
+	} else if err := xos.WriteFile(path, data, 0600); err != nil {
 		return err
 	}
 	return nil
@@ -130,7 +152,7 @@ func Logout() error {
 		return err
 	}
 	path := filepath.Join(dir, ".auth_token")
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	DefaultTokenSource = NewTokenSource()

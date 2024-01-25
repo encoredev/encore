@@ -25,6 +25,7 @@ import (
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/github"
+	"encr.dev/pkg/xos"
 )
 
 var (
@@ -118,11 +119,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		_, _ = gray.Printf("Downloaded template %s.\n", ex.Name())
 	} else {
 		// Set up files that we need when we don't have an example
-		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
+		if err := xos.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
 			cmdutil.Fatal(err)
 		}
 		encoreModData := []byte("module encore.app\n")
-		if err := os.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
+		if err := xos.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
 			cmdutil.Fatal(err)
 		}
 	}
@@ -167,7 +168,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "write encore.app file")
 	}
-	if err := os.WriteFile(encoreAppPath, appData, 0644); err != nil {
+	if err := xos.WriteFile(encoreAppPath, appData, 0644); err != nil {
 		return errors.Wrap(err, "write encore.app file")
 	}
 
@@ -449,7 +450,7 @@ func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error 
 	}
 
 	if replaced {
-		return os.WriteFile(path, data, info.Type().Perm())
+		return xos.WriteFile(path, data, info.Type().Perm())
 	}
 	return nil
 }

@@ -57,6 +57,10 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 		return errors.Wrap(err, "parse app")
 	}
 
+	if err := app.CacheMetadata(parse.Meta); err != nil {
+		return errors.Wrap(err, "cache metadata")
+	}
+
 	err = bld.GenUserFacing(ctx, builder.GenUserFacingParams{
 		App:   app,
 		Parse: parse,
