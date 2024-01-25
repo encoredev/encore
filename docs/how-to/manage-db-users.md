@@ -10,6 +10,9 @@ As an application **Admin**, open the [Cloud Dashboard](https://app.encore.dev) 
 
 In the section for the relevant **Database Cluster**, you will find a **Users** sub-section which lists your database users. Click on the "eye" icon next to each username to decrypt the password.
 
+Note that databases hosted in [Encore Cloud](/docs/deploy/infra#encore-cloud) currently does not expose usernames and passwords.
+To connect to an Encore Cloud-hosted database, use [`encore db shell`](https://encore.dev/docs/primitives/databases#connecting-to-databases).
+
 <img src="/assets/docs/db-user.png" title="View Database User Credentials"/>
 
 <Callout type="important">

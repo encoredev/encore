@@ -1,7 +1,7 @@
 ---
-seotitle: How to connect your Encore app to an existing database
-seodesc: Learn how to connect your Encore Go backend application to an existing database, in any cloud you choose.
-title: Connect to an existing database
+seotitle: How to integrate your Encore app with an existing database
+seodesc: Learn how to integrate your Encore Go backend application with an existing database, in any cloud you choose.
+title: Integrate with existing database
 ---
 
 Encore automatically provision the necessary infrastructure when you create a service and add a database. However, you may want to connect to an existing database for migration or prototyping purposes. It's simple to integrate your Encore app with an existing database in these cases.
