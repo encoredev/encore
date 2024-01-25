@@ -233,7 +233,7 @@
 									file: "how-to/change-db-schema"
 								}, {
 									kind: "basic"
-									text: "Integrate with existing database"
+									text: "Integrate with existing databases"
 									path: "/how-to/connect-existing-db"
 									file: "how-to/connect-existing-db"
 								}, {
