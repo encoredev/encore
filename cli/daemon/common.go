@@ -20,6 +20,8 @@ import (
 // OnStart implements run.EventListener.
 func (s *Server) OnStart(r *run.Run) {}
 
+func (s *Server) OnCompileStart(r *run.Run) {}
+
 // OnReload implements run.EventListener.
 func (s *Server) OnReload(r *run.Run) {}
 

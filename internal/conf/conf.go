@@ -72,6 +72,26 @@ func Dir() (string, error) {
 	return dir, nil
 }
 
+// CacheDir reports the base directory for storing data which can be cached
+// and deleted at any time by the user without affecting the Encore daemon.
+//
+// The directory may or may not exist already.
+func CacheDir() (string, error) {
+	dir := os.Getenv("ENCORE_CACHE_DIR")
+	if dir == "" {
+		d, err := os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(d, defaultConfigDirectory, "cache")
+	}
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("ENCORE_CACHE_DIR must be absolute, got %q", dir)
+	}
+
+	return dir, nil
+}
+
 // DataDir reports the base directory for storing data, like database volumes.
 // The directory may or may not exist already.
 func DataDir() (string, error) {

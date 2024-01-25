@@ -99,6 +99,9 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		tracker.Fail(parseOp, err)
 		return err
 	}
+	if err := p.App.CacheMetadata(parse.Meta); err != nil {
+		return errors.Wrap(err, "cache metadata")
+	}
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 

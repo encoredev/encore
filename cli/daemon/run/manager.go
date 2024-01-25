@@ -37,6 +37,8 @@ type Manager struct {
 type EventListener interface {
 	// OnStart is called when a run starts.
 	OnStart(r *Run)
+	// OnCompileStart is called when a run starts compiling.
+	OnCompileStart(r *Run)
 	// OnReload is called when a run reloads.
 	OnReload(r *Run)
 	// OnStop is called when a run stops.

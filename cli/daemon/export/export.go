@@ -70,6 +70,10 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	if err != nil {
 		return false, err
 	}
+	if err := app.CacheMetadata(parse.Meta); err != nil {
+		log.Info().Err(err).Msg("failed to cache metadata")
+		return false, errors.Wrap(err, "cache metadata")
+	}
 
 	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
 	result, err := bld.Compile(ctx, builder.CompileParams{
