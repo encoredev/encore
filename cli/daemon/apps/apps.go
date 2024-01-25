@@ -11,6 +11,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/renameio/v2"
 	"github.com/rs/zerolog/log"
 	"go4.org/syncutil"
 
@@ -468,7 +469,7 @@ func (i *Instance) CacheMetadata(md *meta.Data) error {
 		return errors.Wrap(err, "unable to marshal metadata")
 	}
 
-	err = os.WriteFile(filepath.Join(cacheDir, "metadata.pb"), data, 0644)
+	err = renameio.WriteFile(filepath.Join(cacheDir, "metadata.pb"), data, 0644)
 	if err != nil {
 		return errors.Wrap(err, "unable to write metadata")
 	}
