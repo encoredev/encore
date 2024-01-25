@@ -35,7 +35,7 @@ func (s *Server) OnStdout(r *run.Run, line []byte) {
 	s.mu.Unlock()
 
 	if ok {
-		slog.Stdout(true).Write(line)
+		_, _ = slog.Stdout(true).Write(line)
 	}
 }
 
@@ -46,7 +46,7 @@ func (s *Server) OnStderr(r *run.Run, line []byte) {
 	s.mu.Unlock()
 
 	if ok {
-		slog.Stderr(true).Write(line)
+		_, _ = slog.Stderr(true).Write(line)
 	}
 }
 
@@ -77,7 +77,7 @@ func showFirstRunExperience(run *run.Run, md *meta.Data, stdout io.Writer) {
 			if rpc != nil {
 				state.FirstRun.Set()
 				if err := state.Write(); err == nil {
-					stdout.Write([]byte(aurora.Sprintf("\nHint: make an API call by running: %s\n", aurora.Cyan(command))))
+					_, _ = stdout.Write([]byte(aurora.Sprintf("\nHint: make an API call by running: %s\n", aurora.Cyan(command))))
 				}
 			}
 		}
@@ -101,7 +101,7 @@ func findAvailableAddr(startAddr string) (host string, port int, ok bool) {
 		addr := host + ":" + strconv.Itoa(p)
 		ln, err := net.Listen("tcp", addr)
 		if err == nil {
-			ln.Close()
+			_ = ln.Close()
 			return host, p, true
 		}
 	}
@@ -150,6 +150,7 @@ func genCurlCommand(run *run.Run, md *meta.Data, rpc *meta.RPC) string {
 	if (payload != nil && method != "POST") || (payload == nil && method != "GET") {
 		parts = append(parts, " -X ", method)
 	}
+	// nosemgrep
 	path := "/" + strings.Join(segments, "/")
 	parts = append(parts, " http://", run.ListenAddr, path)
 	if payload != nil {
