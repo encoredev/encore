@@ -471,7 +471,7 @@
 						inline_menu: [{
 							kind: "basic"
 							text: "Configure kubectl"
-							path: "/deploy/configure-kubectl"
+							path: "/deploy/kubernetes/kubectl"
 							file: "deploy/configure-kubectl"
 						}]
 					}, {
