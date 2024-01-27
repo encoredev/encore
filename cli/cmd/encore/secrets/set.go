@@ -46,15 +46,6 @@ Note that this strips trailing newlines from the secret value.`,
 	},
 }
 
-var secretEnvs secretEnvSelector
-
-type secretEnvSelector struct {
-	devFlag  bool
-	prodFlag bool
-	envTypes []string
-	envNames []string
-}
-
 func init() {
 	secretCmd.AddCommand(setSecretCmd)
 	setSecretCmd.Flags().BoolVarP(&secretEnvs.devFlag, "dev", "d", false, "To set the secret for development use")
@@ -79,7 +70,7 @@ func setSecret(key string) {
 	}
 
 	// Does a matching secret group already exist?
-	secrets, err := platform.ListSecretGroups(ctx, app.Slug, []string{key})
+	secrets, err := platform.ListSecretGroups(ctx, app.Slug, []string{key}...)
 	if err != nil {
 		cmdutil.Fatalf("unable to list secrets: %v", err)
 	}
@@ -124,76 +115,6 @@ func setSecret(key string) {
 	}
 
 	fmt.Printf("Successfully created secret value for %s.\n", key)
-}
-
-func (s secretEnvSelector) ParseSelector(ctx context.Context, appSlug string) []gql.SecretSelector {
-	if s.devFlag && s.prodFlag {
-		cmdutil.Fatal("cannot specify both --dev and --prod")
-	} else if s.devFlag && (len(s.envTypes) > 0 || len(s.envNames) > 0) {
-		cmdutil.Fatal("cannot combine --dev with --type/--env")
-	} else if s.prodFlag && (len(s.envTypes) > 0 || len(s.envNames) > 0) {
-		cmdutil.Fatal("cannot combine --prod with --type/--env")
-	}
-
-	// Look up the environments
-	envMap := make(map[string]string) // name -> id
-	envs, err := platform.ListEnvs(ctx, appSlug)
-	if err != nil {
-		cmdutil.Fatalf("unable to list environments: %v", err)
-	}
-	for _, env := range envs {
-		envMap[env.Slug] = env.ID
-	}
-
-	var sel []gql.SecretSelector
-	if s.devFlag {
-		sel = append(sel,
-			&gql.SecretSelectorEnvType{Kind: "development"},
-			&gql.SecretSelectorEnvType{Kind: "preview"},
-			&gql.SecretSelectorEnvType{Kind: "local"},
-		)
-	} else if s.prodFlag {
-		sel = append(sel, &gql.SecretSelectorEnvType{Kind: "production"})
-	} else {
-		// Parse env types and env names
-		seenTypes := make(map[string]bool)
-		validTypes := map[string]string{
-			// Actual names
-			"development": "development",
-			"production":  "production",
-			"preview":     "preview",
-			"local":       "local",
-
-			// Aliases
-			"dev":       "development",
-			"prod":      "production",
-			"pr":        "preview",
-			"ephemeral": "preview",
-		}
-
-		for _, t := range s.envTypes {
-			val, ok := validTypes[t]
-			if !ok {
-				cmdutil.Fatalf("invalid environment type %q", t)
-			}
-			if !seenTypes[val] {
-				seenTypes[val] = true
-				sel = append(sel, &gql.SecretSelectorEnvType{Kind: val})
-			}
-		}
-		for _, n := range s.envNames {
-			envID, ok := envMap[n]
-			if !ok {
-				cmdutil.Fatalf("environment %q not found", n)
-			}
-			sel = append(sel, &gql.SecretSelectorSpecificEnv{Env: &gql.Env{ID: envID}})
-		}
-	}
-
-	if len(sel) == 0 {
-		cmdutil.Fatal("must specify at least one environment with --type/--env (or --dev/--prod)")
-	}
-	return sel
 }
 
 // readSecretValue reads the secret value from the user.

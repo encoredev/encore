@@ -1,7 +1,6 @@
 package secrets
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"fmt"
@@ -32,52 +31,22 @@ var listSecretCmd = &cobra.Command{
 		if len(args) > 0 {
 			keys = args
 		}
-		secrets, err := platform.ListSecretGroups(ctx, appSlug, keys)
+		secrets, err := platform.ListSecretGroups(ctx, appSlug, keys...)
 		if err != nil {
 			cmdutil.Fatal(err)
 		}
 
 		if keys == nil {
-			// Print secrets overview
-			var buf bytes.Buffer
-			w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', tabwriter.StripEscape)
+			labels := append(envTypeLabels, "Specific Envs")
 
-			_, _ = fmt.Fprint(w, "Secret Key\tProduction\tDevelopment\tLocal\tPreview\tSpecific Envs\t\n")
-			const (
-				checkYes = "\u2713"
-				checkNo  = "\u2717"
-			)
-			for _, s := range secrets {
-				render := func(b bool) string {
-					if b {
-						return checkYes
-					} else {
-						return checkNo
-					}
-				}
-				d := getSecretEnvDesc(s.Groups)
-				if !d.hasAny {
-					continue
-				}
-				_, _ = fmt.Fprintf(w, "%s\t%v\t%v\t%v\t%v\t", s.Key,
-					render(d.prod), render(d.dev), render(d.local), render(d.preview))
-				// Render specific envs, if any
+			printSecretsOverview(allEnvTypes, labels, secrets, func(w *tabwriter.Writer, d secretEnvDesc) {
 				for i, env := range d.specific {
 					if i > 0 {
 						_, _ = fmt.Fprintf(w, ",")
 					}
 					_, _ = fmt.Fprintf(w, "%s", env.Name)
 				}
-
-				_, _ = fmt.Fprint(w, "\t\n")
-			}
-			_ = w.Flush()
-
-			// Add color to the checkmarks now that the table is correctly laid out.
-			// We can't do it before since the tabwriter will get the alignment wrong
-			// if we include a bunch of ANSI escape codes that it doesn't understand.
-			r := strings.NewReplacer(checkYes, color.GreenString(checkYes), checkNo, color.RedString(checkNo))
-			_, _ = r.WriteString(os.Stdout, buf.String())
+			})
 		} else {
 			// Specific secrets
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
@@ -132,38 +101,4 @@ var listSecretCmd = &cobra.Command{
 
 func init() {
 	secretCmd.AddCommand(listSecretCmd)
-}
-
-type secretEnvDesc struct {
-	hasAny                    bool // if there are any non-archived groups at all
-	prod, dev, local, preview bool
-	specific                  []*gql.Env
-}
-
-func getSecretEnvDesc(groups []*gql.SecretGroup) secretEnvDesc {
-	var desc secretEnvDesc
-	for _, g := range groups {
-		if g.ArchivedAt != nil {
-			continue
-		}
-		desc.hasAny = true
-		for _, sel := range g.Selector {
-			switch sel := sel.(type) {
-			case *gql.SecretSelectorEnvType:
-				switch sel.Kind {
-				case "production":
-					desc.prod = true
-				case "development":
-					desc.dev = true
-				case "local":
-					desc.local = true
-				case "preview":
-					desc.preview = true
-				}
-			case *gql.SecretSelectorSpecificEnv:
-				desc.specific = append(desc.specific, sel.Env)
-			}
-		}
-	}
-	return desc
 }
