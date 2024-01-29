@@ -67,8 +67,8 @@ func init() {
 	setSecretCmd.Flags().BoolVarP(&secretEnvs.prodFlag, "prod", "p", false, "To set the secret for production use")
 	setSecretCmd.Flags().StringSliceVarP(&secretEnvs.envTypes, "type", "t", nil, "environment type(s) to set for (comma-separated list)")
 	setSecretCmd.Flags().StringSliceVarP(&secretEnvs.envNames, "env", "e", nil, "environment name(s) to set for (comma-separated list)")
-	setSecretCmd.Flags().MarkHidden("dev")
-	setSecretCmd.Flags().MarkHidden("prod")
+	_ = setSecretCmd.Flags().MarkHidden("dev")
+	_ = setSecretCmd.Flags().MarkHidden("prod")
 }
 
 func setSecret(key string) {
