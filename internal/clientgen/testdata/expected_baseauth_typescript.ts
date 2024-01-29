@@ -186,7 +186,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => Promise.resolve(auth)
+                this.authGenerator = () => auth
             }
         }
 
@@ -208,7 +208,12 @@ class BaseClient {
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: string | undefined
         if (this.authGenerator) {
-            authData = await this.authGenerator()
+            const mayBePromise = this.authGenerator()
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise
+            } else {
+                authData = mayBePromise
+            }
         }
 
         // If we now have authentication data, add it to the request
