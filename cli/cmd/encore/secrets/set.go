@@ -24,19 +24,25 @@ import (
 )
 
 var setSecretCmd = &cobra.Command{
-	Use:   "set --dev|prod <key>",
+	Use:   "set --type <types> <secret-name>",
 	Short: "Sets a secret value",
+	Long: `
+Sets a secret value for one or more environment types.
+
+The valid environment types are 'prod', 'dev', 'pr' and 'local'.
+`,
+
 	Example: `
 Entering a secret directly in terminal:
 
-	$ encore secret set --dev MySecret
+	$ encore secret set --type dev,local MySecret
 	Enter secret value: ...
-	Successfully created development secret MySecret.
+	Successfully created secret value for MySecret.
 
 Piping a secret from a file:
 
-	$ encore secret set --dev MySecret < my-secret.txt
-	Successfully created development secret MySecret.
+	$ encore secret set --type dev,local,pr MySecret < my-secret.txt
+	Successfully created secret value for MySecret.
 
 Note that this strips trailing newlines from the secret value.`,
 	Args:                  cobra.ExactArgs(1),
@@ -59,8 +65,10 @@ func init() {
 	secretCmd.AddCommand(setSecretCmd)
 	setSecretCmd.Flags().BoolVarP(&secretEnvs.devFlag, "dev", "d", false, "To set the secret for development use")
 	setSecretCmd.Flags().BoolVarP(&secretEnvs.prodFlag, "prod", "p", false, "To set the secret for production use")
-	setSecretCmd.Flags().StringSliceVarP(&secretEnvs.envTypes, "type", "t", nil, "To set the secret for specific environment types")
-	setSecretCmd.Flags().StringSliceVarP(&secretEnvs.envNames, "env", "e", nil, "To set the secret for specific environment names")
+	setSecretCmd.Flags().StringSliceVarP(&secretEnvs.envTypes, "type", "t", nil, "environment type(s) to set for (comma-separated list)")
+	setSecretCmd.Flags().StringSliceVarP(&secretEnvs.envNames, "env", "e", nil, "environment name(s) to set for (comma-separated list)")
+	_ = setSecretCmd.Flags().MarkHidden("dev")
+	_ = setSecretCmd.Flags().MarkHidden("prod")
 }
 
 func setSecret(key string) {

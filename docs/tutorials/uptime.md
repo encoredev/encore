@@ -717,7 +717,7 @@ help out.
 🥐 Once you have the Webhook URL, set it as an Encore secret:
 
 ```shell
-$ encore secret set --dev SlackWebhookURL
+$ encore secret set --type dev,local,pr SlackWebhookURL
 Enter secret value: *****
 Successfully updated development secret SlackWebhookURL.
 ```
