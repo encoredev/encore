@@ -46,8 +46,8 @@ Whenever you see a 🥐 it means there's something for you to do.
 🥐 Once you have your Webhook URL which starts with `https://hooks.slack.com/services/...` then copy and paste that and run the following commands to save these as secrets. We recommend having a different webhook/channel for development and production.
 
 ```shell
-$ encore secret set --dev SlackWebhookURL
-$ encore secret set --prod SlackWebhookURL
+$ encore secret set --type dev,local,pr SlackWebhookURL
+$ encore secret set --type prod SlackWebhookURL
 ```
 
 🥐 Next, let's create our `slack` service that contains the logic for calling the Webhook URL in order to post notifications to our Slack. To do this we need to implement our code in `slack/slack.go`:
