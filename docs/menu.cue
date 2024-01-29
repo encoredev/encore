@@ -310,11 +310,6 @@
 									file: "develop/cors"
 								}, {
 									kind: "basic"
-									text: "Infra Namespaces"
-									path: "/develop/infra-namespaces"
-									file: "develop/infra-namespaces"
-								}, {
-									kind: "basic"
 									text: "Metadata"
 									path: "/develop/metadata"
 									file: "develop/metadata"
@@ -428,6 +423,11 @@
 					text: "Client Generation"
 					path: "/develop/client-generation"
 					file: "develop/client-generation"
+				}, {
+					kind: "basic"
+					text: "Infra Namespaces"
+					path: "/develop/infra-namespaces"
+					file: "develop/infra-namespaces"
 				}]
 		},
 		{
