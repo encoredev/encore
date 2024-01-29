@@ -675,10 +675,10 @@ export type AuthDataGenerator = () =>
   | `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
 		ts.WriteString(`
-  | undefined
   | Promise<`)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
-		ts.WriteString(` | undefined>;`)
+		ts.WriteString(` | undefined>
+  | undefined;`)
 	}
 
 	ts.WriteString(`

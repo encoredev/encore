@@ -782,8 +782,8 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
 export type AuthDataGenerator = () =>
   | echo.AuthParams
-  | undefined
-  | Promise<echo.AuthParams | undefined>;
+  | Promise<echo.AuthParams | undefined>
+  | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
