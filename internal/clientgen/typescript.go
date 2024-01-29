@@ -724,7 +724,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => Promise.resolve(auth)
+                this.authGenerator = () => auth
             }
         }
 `)
@@ -755,7 +755,12 @@ let authData: `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
 		w.WriteString(" | undefined\n")
 		w.WriteString(`if (this.authGenerator) {
-    authData = await this.authGenerator()
+    const mayBePromise = this.authGenerator()
+    if (mayBePromise instanceof Promise) {
+        authData = await mayBePromise
+    } else {
+        authData = mayBePromise
+    }
 }
 
 // If we now have authentication data, add it to the request
