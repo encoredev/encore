@@ -132,7 +132,7 @@ Next, store the private key as your firebase secret.
 From your terminal (inside your Encore app directory), run:
 
 ```shell
-$ encore secret set --prod FirebasePrivateKey < /path/to/firebase-private-key.json
+$ encore secret set --type prod FirebasePrivateKey < /path/to/firebase-private-key.json
 Successfully updated production secret FirebasePrivateKey
 ```
 
@@ -145,7 +145,7 @@ but we recommend generating a new private key for development in that case.
 Once you have a private key for development, set it similarly to before:
 
 ```shell
-$ encore secret set --dev FirebasePrivateKey < /path/to/firebase-private-key.json
+$ encore secret set --type dev,local,pr FirebasePrivateKey < /path/to/firebase-private-key.json
 Successfully updated development secret FirebasePrivateKey
 ```
 

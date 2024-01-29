@@ -154,9 +154,9 @@ var secrets struct {
 
 🥐 Head over to the configuration section for your Slack app (go to [Your Apps](https://api.slack.com/apps) &rarr; select your app &rarr; Basic Information).
 
-🥐 Copy the **Signing Secret** and then run `encore secret set --prod SlackSigningSecret` and paste the secret.
+🥐 Copy the **Signing Secret** and then run `encore secret set --type prod SlackSigningSecret` and paste the secret.
 
-🥐 For local development you will also want to set `encore secret set --dev SlackSigningSecret`.
+🥐 For development you will also want to set `encore secret set --type dev,local,pr SlackSigningSecret`.
 You can use the same secret value or a placeholder value.
 
 ### Compute the HMAC
