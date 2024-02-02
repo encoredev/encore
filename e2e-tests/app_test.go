@@ -29,6 +29,7 @@ import (
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	. "encr.dev/internal/optracker"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -219,9 +220,11 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 
 	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{
-		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildTags: builder.LocalBuildTags,
+		BuildConfig: appfile.BuildCfg{
+			CgoEnabled: true,
+			StaticLink: false,
+		},
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
