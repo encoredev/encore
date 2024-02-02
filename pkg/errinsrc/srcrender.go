@@ -338,9 +338,7 @@ func renderErrorText(builder *strings.Builder, startCol int, numDigitsInLineNumb
 
 	// It's possible the start column references generated code; in that case reset
 	// the column information as a fallback to prevent panics below.
-	if startCol > len(srcLine) {
-		startCol = 0
-	} else {
+	if startCol <= len(srcLine) {
 		// Compute the whitespace prefix we need on each line
 		// (Note this will render tabs as tabs still if they are present)
 		prefixWhitespace = strings.Repeat(" ", calcNumberCharactersForColumnNumber(srcLine, startCol-1))
