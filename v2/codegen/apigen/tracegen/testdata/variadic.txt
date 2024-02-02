@@ -1,0 +1,41 @@
+-- svca/svca.go --
+package svca
+
+import "context"
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(target int, toCheck ...int) {
+	for _, v := range toCheck {
+        if v == target {
+            _ = Foo(context.Background())
+        }
+    }
+}
+-- want:svca/svca.go --
+package svca
+
+
+import __encore_tracing_api "encore.dev/tracing";/*line :3:1*/import "context"
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(target int, toCheck ...int) {
+	__auto_generated_span := __encore_tracing_api.StartSpan(
+		"svca.Bar",
+		__encore_tracing_api.WithAttributes("target", target, "toCheck", toCheck),
+	);
+	defer func() {
+		__auto_generated_span.
+			Finish(nil)
+	}();/*line :9:39*/
+	for _, v := range toCheck {
+        if v == target {
+            _ = Foo(context.Background())
+        }
+    }
+}

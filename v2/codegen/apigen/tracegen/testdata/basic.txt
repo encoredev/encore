@@ -1,0 +1,32 @@
+-- svca/svca.go --
+package svca
+
+import "context"
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(ctx context.Context) error {
+	return Foo(ctx)
+}
+-- want:svca/svca.go --
+package svca
+
+
+import __encore_tracing_api "encore.dev/tracing";/*line :3:1*/import "context"
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(ctx context.Context) (__encore_named_rtn_var_0 error) {
+	__auto_generated_span := __encore_tracing_api.StartSpan(
+		"svca.Bar",
+	);
+	defer func() {
+		__auto_generated_span.
+			Finish(__encore_named_rtn_var_0)
+	}();/*line :9:38*/
+	return Foo(ctx)
+}

@@ -9,8 +9,6 @@ import (
 	"encore.dev/appruntime/shared/traceprovider"
 )
 
-var Singleton *RequestTracker
-
 func init() {
 	var traceFactory traceprovider.Factory
 	tracingEnabled := appconf.Runtime.TraceEndpoint != "" && len(appconf.Runtime.AuthKeys) > 0
@@ -19,4 +17,6 @@ func init() {
 	}
 
 	Singleton = New(logging.RootLogger, platform.Singleton, traceFactory)
+
+	configureOpenTelemetry(Singleton)
 }

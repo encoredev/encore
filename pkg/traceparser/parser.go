@@ -2,11 +2,11 @@ package traceparser
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"runtime/debug"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -137,6 +137,10 @@ func (tp *traceParser) parseEvent(h header) (ev *tracepb2.TraceEvent, err error)
 		ev.Event = &tracepb2.TraceEvent_SpanStart{SpanStart: tp.testSpanStart()}
 	case trace2.TestEnd:
 		ev.Event = &tracepb2.TraceEvent_SpanEnd{SpanEnd: tp.testSpanEnd()}
+	case trace2.GenericSpanStart:
+		ev.Event = &tracepb2.TraceEvent_SpanStart{SpanStart: tp.genericSpanStart()}
+	case trace2.GenericSpanEnd:
+		ev.Event = &tracepb2.TraceEvent_SpanEnd{SpanEnd: tp.genericSpanEnd()}
 	default:
 		ev.Event = &tracepb2.TraceEvent_SpanEvent{SpanEvent: tp.spanEvent(h.Type)}
 	}
@@ -231,6 +235,8 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 		ev.Data = &tracepb2.SpanEvent_CacheCallStart{CacheCallStart: tp.cacheCallStart()}
 	case trace2.CacheCallEnd:
 		ev.Data = &tracepb2.SpanEvent_CacheCallEnd{CacheCallEnd: tp.cacheCallEnd()}
+	case trace2.GenericEvent:
+		ev.Data = &tracepb2.SpanEvent_GenericEvent{GenericEvent: tp.genericEvent()}
 	case trace2.BodyStream:
 		ev.Data = &tracepb2.SpanEvent_BodyStream{BodyStream: tp.bodyStream()}
 	default:
@@ -421,6 +427,46 @@ func (tp *traceParser) testSpanEnd() *tracepb2.SpanEnd {
 	}
 }
 
+func (tp *traceParser) genericSpanStart() *tracepb2.SpanStart {
+	spanStart := tp.spanStartEvent()
+
+	return &tracepb2.SpanStart{
+		Goid:                  spanStart.Goid,
+		ParentTraceId:         spanStart.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:          spanStart.ParentSpanID.PtrOrNil(),
+		DefLoc:                spanStart.DefLoc.PtrOrNil(),
+		CallerEventId:         (*uint64)(spanStart.CallerEventID.PtrOrNil()),
+		ExternalCorrelationId: spanStart.ExtCorrelationID.PtrOrNil(),
+		Data: &tracepb2.SpanStart_Generic{
+			Generic: &tracepb2.GenericSpanStart{
+				SpanName:   tp.String(),
+				Kind:       tracepb2.GenericSpanStart_Kind(tp.Byte()),
+				Time:       tp.Time(),
+				Attributes: tp.logFields(),
+				Stack:      tp.stack(),
+			},
+		},
+	}
+}
+
+func (tp *traceParser) genericSpanEnd() *tracepb2.SpanEnd {
+	spanEnd := tp.spanEndEvent()
+	return &tracepb2.SpanEnd{
+		DurationNanos: spanEnd.DurationNanos,
+		Error:         spanEnd.Err,
+		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
+		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
+		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
+		Data: &tracepb2.SpanEnd_Generic{
+			Generic: &tracepb2.GenericSpanEnd{
+				Time:       tp.Time(),
+				Attributes: tp.logFields(),
+				Stack:      tp.stack(),
+			},
+		},
+	}
+}
+
 func (tp *traceParser) rpcCallStart() *tracepb2.RPCCallStart {
 	return &tracepb2.RPCCallStart{
 		TargetServiceName:  tp.String(),
@@ -556,6 +602,16 @@ func (tp *traceParser) cacheCallEnd() *tracepb2.CacheCallEnd {
 			}
 		})(),
 		Err: tp.errWithStack(),
+	}
+}
+
+func (tp *traceParser) genericEvent() *tracepb2.GenericEvent {
+	return &tracepb2.GenericEvent{
+		EventName:  tp.String(),
+		Time:       tp.Time(),
+		Error:      tp.errWithStack(),
+		Attributes: tp.logFields(),
+		Stack:      tp.stack(),
 	}
 }
 
@@ -727,20 +783,22 @@ func (tp *traceParser) logMessage() *tracepb2.LogMessage {
 				return tracepb2.LogMessage_TRACE
 			}
 		})(),
-		Msg: tp.String(),
-		Fields: (func() []*tracepb2.LogField {
-			n := int(tp.UVarint())
-			if n > 64 {
-				// TODO bailout
-			}
-			fields := make([]*tracepb2.LogField, 0, n)
-			for i := 0; i < n; i++ {
-				fields = append(fields, tp.logField())
-			}
-			return fields
-		})(),
-		Stack: tp.stack(),
+		Msg:    tp.String(),
+		Fields: tp.logFields(),
+		Stack:  tp.stack(),
 	}
+}
+
+func (tp *traceParser) logFields() []*tracepb2.LogField {
+	n := int(tp.UVarint())
+	if n > 64 {
+		tp.bailout(errors.Newf("too many log fields: %d", n))
+	}
+	fields := make([]*tracepb2.LogField, 0, n)
+	for i := 0; i < n; i++ {
+		fields = append(fields, tp.logField())
+	}
+	return fields
 }
 
 func (tp *traceParser) logField() *tracepb2.LogField {

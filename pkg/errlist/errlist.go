@@ -206,6 +206,10 @@ func (l *List) ErrorList() []*errinsrc.ErrInSrc {
 // app root relative to the relwd (which must be a relative path
 // within the root).
 func (l *List) MakeRelative(root, relwd string) {
+	if l == nil {
+		return
+	}
+
 	wdroot := filepath.Join(root, relwd)
 	for _, e := range l.List {
 		for _, loc := range e.Params.Locations {

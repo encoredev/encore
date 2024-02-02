@@ -365,7 +365,16 @@ func (i *Instance) GlobalCORS() (appfile.CORS, error) {
 	}
 
 	return *cors, nil
+}
 
+// BuildConfig returns the build settings for this app.
+func (i *Instance) BuildConfig() (appfile.BuildCfg, error) {
+	build, err := appfile.Build(i.root)
+	if err != nil {
+		return appfile.BuildCfg{}, err
+	}
+
+	return build, nil
 }
 
 func (i *Instance) Watch(fn WatchFunc) (WatchSubscriptionID, error) {

@@ -1,0 +1,70 @@
+-- svca/svca.go --
+package svca
+
+import (
+    "context"
+    "example.com/lib"
+)
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(ctx context.Context, name string, p *lib.ExtraParams) (int, error) {
+	return 12, Foo(ctx)
+}
+
+//encore:trace name=my_baz type=call
+func Baz(ctx context.Context, p *lib.ExtraParams) (age *lib.ExtraParams, err error) {
+	return nil, Foo(ctx)
+}
+
+-- lib/lib.go --
+package lib
+
+type ExtraParams struct {
+    Name string
+    Age  int
+}
+
+-- want:svca/svca.go --
+package svca
+
+
+import __encore_tracing_api "encore.dev/tracing";/*line :3:1*/import (
+    "context"
+    "example.com/lib"
+)
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(ctx context.Context, name string, p *lib.ExtraParams) (__encore_named_rtn_var_0 int, __encore_named_rtn_var_1 error) {
+	__auto_generated_span := __encore_tracing_api.StartSpan(
+		"svca.Bar",
+		__encore_tracing_api.WithAttributes("name", name, "p", p),
+	);
+	defer func() {
+		__auto_generated_span.
+			WithAttributes("return 1", __encore_named_rtn_var_0).
+			Finish(__encore_named_rtn_var_1)
+	}();/*line :12:78*/
+	return 12, Foo(ctx)
+}
+
+//encore:trace name=my_baz type=call
+func Baz(ctx context.Context, p *lib.ExtraParams) (age *lib.ExtraParams, err error) {
+	__auto_generated_span := __encore_tracing_api.StartSpan(
+		"my_baz",
+		__encore_tracing_api.AsCall(),
+		__encore_tracing_api.WithAttributes("p", p),
+	);
+	defer func() {
+		__auto_generated_span.
+			WithAttributes("age", age).
+			Finish(err)
+	}();/*line :17:86*/
+	return nil, Foo(ctx)
+}
+

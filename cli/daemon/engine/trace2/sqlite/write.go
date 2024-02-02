@@ -153,6 +153,25 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		return nil
 	}
 
+	if span := start.GetGeneric(); span != nil {
+		_, err := s.db.ExecContext(ctx, `
+			INSERT INTO trace_span_index (
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, has_response, test_skipped
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, false, false)
+			ON CONFLICT (trace_id, span_id) DO UPDATE SET
+				is_root = excluded.is_root,
+				service_name = excluded.service_name,
+				endpoint_name = excluded.endpoint_name,
+				external_request_id = excluded.external_request_id
+		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
+			tracepbcli.SpanSummary_GENERIC_SPAN, ev.EventTime.AsTime().UnixNano(),
+			isRoot, "", span.SpanName)
+		if err != nil {
+			return errors.Wrap(err, "insert trace span event")
+		}
+		return nil
+	}
+
 	return nil
 }
 
@@ -235,6 +254,24 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_TEST, true,
 			msg.Failed, msg.Skipped, end.DurationNanos)
+		if err != nil {
+			return errors.Wrap(err, "insert trace span event")
+		}
+		return nil
+	}
+
+	if req := end.GetGeneric(); req != nil {
+		_, err := s.db.ExecContext(ctx, `
+			INSERT INTO trace_span_index (
+				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT (trace_id, span_id) DO UPDATE SET
+				has_response = excluded.has_response,
+				is_error = excluded.is_error,
+				duration_nanos = excluded.duration_nanos
+		`, meta.AppID, traceID, spanID,
+			tracepbcli.SpanSummary_GENERIC_SPAN, true,
+			end.Error != nil, end.DurationNanos)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}

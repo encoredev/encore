@@ -24,6 +24,7 @@ import (
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/github"
 	"encr.dev/pkg/xos"
 )
@@ -151,10 +152,12 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		}
 	}
 
-	encoreAppPath := filepath.Join(name, "encore.app")
+	encoreAppPath := filepath.Join(name, appfile.Name)
 	appData, err := os.ReadFile(encoreAppPath)
 	if err != nil {
-		appData, err = []byte("{}"), nil
+		appData, err = []byte(`{
+	"$schema": "https://encore.dev/schemas/appfile.schema.json"
+}`), nil
 	}
 
 	if app != nil {
@@ -504,7 +507,12 @@ func setEncoreAppID(data []byte, id string, commentLines []string) ([]byte, erro
 		Value: hujson.Literal(jsonValue),
 	}
 
+	schemaValue := hujson.Value{
+		Value: hujson.Literal(`"https://encore.dev/schemas/appfile.schema.json"`),
+	}
+
 	found := false
+	foundSchema := false
 	for i := range obj.Members {
 		m := &obj.Members[i]
 		if lit, ok := m.Name.Value.(hujson.Literal); ok && lit.String() == "id" {
@@ -515,6 +523,10 @@ func setEncoreAppID(data []byte, id string, commentLines []string) ([]byte, erro
 			found = true
 			break
 		}
+		if lit, ok := m.Name.Value.(hujson.Literal); ok && lit.String() == "$schema" {
+			foundSchema = true
+			m.Value = schemaValue
+		}
 	}
 
 	if !found {
@@ -524,6 +536,15 @@ func setEncoreAppID(data []byte, id string, commentLines []string) ([]byte, erro
 				Value:       hujson.Literal(`"id"`),
 			},
 			Value: value,
+		}}, obj.Members...)
+	}
+
+	if !foundSchema {
+		obj.Members = append([]hujson.ObjectMember{{
+			Name: hujson.Value{
+				Value: hujson.Literal(`"$schema"`),
+			},
+			Value: schemaValue,
 		}}, obj.Members...)
 	}
 

@@ -33,6 +33,10 @@ func ColoursInErrors(enabled bool) {
 	aurora = auroraPkg.NewAurora(enabled)
 }
 
+func ColoursEnabled() bool {
+	return enableColors
+}
+
 // renderSrc returns the lines of code surrounding the location with a pointer to the error on the error line
 func renderSrc(builder *strings.Builder, causes SrcLocations) {
 	const linesBeforeError = 2

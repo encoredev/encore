@@ -13,6 +13,7 @@ import (
 	"encr.dev/v2/codegen/apigen/maingen"
 	"encr.dev/v2/codegen/apigen/middlewaregen"
 	"encr.dev/v2/codegen/apigen/servicestructgen"
+	"encr.dev/v2/codegen/apigen/tracegen"
 	"encr.dev/v2/codegen/apigen/userfacinggen"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/api"
@@ -94,6 +95,8 @@ func Process(p Params) *config.Static {
 		mws := middlewaregen.Gen(p.Gen, fw.GlobalMiddleware, option.None[*codegen.VarDecl]())
 		maps.Copy(gp.Middleware, mws)
 	}
+
+	tracegen.Gen(p.Gen, p.Desc)
 
 	return maingen.Gen(gp)
 }

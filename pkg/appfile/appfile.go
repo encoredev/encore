@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/tailscale/hujson"
 
@@ -20,6 +21,8 @@ import (
 const Name = "encore.app"
 
 // File is a parsed encore.app file.
+//
+// If you update this struct, please update the matching appfile.schema.json file
 type File struct {
 	// ID is the encore.dev app id for the app.
 	// It is empty if the app is not linked to encore.dev.
@@ -37,7 +40,7 @@ type File struct {
 	GlobalCORS *CORS `json:"global_cors,omitempty"`
 
 	// Build contains build settings for the application.
-	Build Build `json:"build,omitempty"`
+	Build BuildCfg `json:"build,omitempty"`
 
 	// CgoEnabled enables building with cgo.
 	//
@@ -51,13 +54,35 @@ type File struct {
 	DockerBaseImage string `json:"docker_base_image,omitempty"`
 }
 
-type Build struct {
+type BuildCfg struct {
 	// CgoEnabled enables building with cgo.
 	CgoEnabled bool `json:"cgo_enabled,omitempty"`
+
+	// StaticLink enables static linking of the application.
+	StaticLink bool `json:"static_link,omitempty"`
 
 	// Docker configures the docker images built
 	// by Encore's CI/CD system.
 	Docker Docker `json:"docker,omitempty"`
+
+	// Integrations configures integrations with third party libraries
+	// which need to be enabled at build time, otherwise we don't compile
+	// them into the binary.
+	Integrations struct {
+		// OpenTelemetry enables the OpenTelemetry integration, so Encore
+		// will pickup spans generated through the OpenTelemetry API.
+		OpenTelemetry bool `json:"open_telemetry,omitempty"`
+	} `json:"integrations,omitempty"`
+}
+
+// BuildTags returns the build tags to use for this config
+func (b BuildCfg) BuildTags(baseSet []string) []string {
+	finalSet := slices.Clone(baseSet)
+	if b.Integrations.OpenTelemetry {
+		finalSet = append(finalSet, "opentelemetry")
+	}
+
+	return finalSet
 }
 
 type Docker struct {
@@ -111,7 +136,7 @@ func Parse(data []byte) (*File, error) {
 		return nil, fmt.Errorf("appfile.Parse: %v", err)
 	}
 
-	// Parse deprecated fields into the new Build struct.
+	// Parse deprecated fields into the new BuildCfg struct.
 	f.Build.CgoEnabled = f.Build.CgoEnabled || f.CgoEnabled
 	if f.Build.Docker.BaseImage == "" {
 		f.Build.Docker.BaseImage = f.DockerBaseImage
@@ -158,4 +183,14 @@ func GlobalCORS(appRoot string) (*CORS, error) {
 		return nil, err
 	}
 	return f.GlobalCORS, nil
+}
+
+// Build returns the build configuration for the app located
+// at appRoot.
+func Build(appRoot string) (BuildCfg, error) {
+	f, err := ParseFile(filepath.Join(appRoot, Name))
+	if err != nil {
+		return BuildCfg{}, err
+	}
+	return f.Build, nil
 }

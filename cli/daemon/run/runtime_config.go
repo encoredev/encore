@@ -166,7 +166,7 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service,
 
 	daemonProxyURL := option.Map(g.DaemonProxyAddr, func(t netip.AddrPort) string { return fmt.Sprintf("http://%s", t) })
 
-	// Build the base config
+	// BuildCfg the base config
 	runtimeCfg := &config.Runtime{
 		AppID:            g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
 		AppSlug:          g.App.PlatformID(),
@@ -377,7 +377,7 @@ func (g *RuntimeEnvGenerator) runtimeConfigForGateway(hostnames []string) (strin
 		return "", errors.Wrap(err, "failed to generate global CORS config")
 	}
 
-	// Build the base config
+	// BuildCfg the base config
 	runtimeCfg := &config.Runtime{
 		AppID:            g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
 		AppSlug:          g.App.PlatformID(),

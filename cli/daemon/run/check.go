@@ -43,11 +43,15 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 
 	// TODO: We should check that all secret keys are defined as well.
 
+	buildConfig, err := p.App.BuildConfig()
+	if err != nil {
+		return "", errors.Wrap(err, "get build settings")
+	}
+
 	vcsRevision := vcs.GetRevision(p.App.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildConfig:        buildConfig,
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

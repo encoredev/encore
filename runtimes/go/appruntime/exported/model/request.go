@@ -16,6 +16,7 @@ type TraceEventID uint64
 type RequestType byte
 
 const (
+	Unknown       RequestType = 0x00
 	RPCCall       RequestType = 0x01
 	AuthHandler   RequestType = 0x02
 	PubSubMessage RequestType = 0x03

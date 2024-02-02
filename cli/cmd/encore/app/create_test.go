@@ -17,6 +17,7 @@ func Test_setEncoreAppID(t *testing.T) {
 			id:           "foo",
 			commentLines: []string{"bar"},
 			want: `{
+	"$schema": "https://encore.dev/schemas/appfile.schema.json",
 	// bar
 	"id": "foo",
 }
@@ -27,6 +28,7 @@ func Test_setEncoreAppID(t *testing.T) {
 			id:           "foo",
 			commentLines: []string{"bar"},
 			want: `{
+	"$schema": "https://encore.dev/schemas/appfile.schema.json",
 	// bar
 	"id": "foo",
 }
@@ -40,6 +42,7 @@ func Test_setEncoreAppID(t *testing.T) {
 			id:           "foo",
 			commentLines: []string{"bar", "baz"},
 			want: `{
+	"$schema": "https://encore.dev/schemas/appfile.schema.json",
 	// bar
 	// baz
 	"id": "foo",
@@ -48,6 +51,7 @@ func Test_setEncoreAppID(t *testing.T) {
 		},
 		{
 			data: []byte(`{
+	"$schema": "https://encore.dev/AN-OLD-SCHEMA",
 	"some_other_field": true,
 	// foo
 	"id": "test",
@@ -55,6 +59,7 @@ func Test_setEncoreAppID(t *testing.T) {
 			id:           "foo",
 			commentLines: []string{"bar", "baz"},
 			want: `{
+	"$schema":          "https://encore.dev/schemas/appfile.schema.json",
 	"some_other_field": true,
 	// bar
 	// baz

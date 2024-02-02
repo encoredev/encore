@@ -110,7 +110,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	}
 
 	// Begin the request, copying data over from the previous request.
-	s.rt.BeginRequest(req)
+	s.rt.BeginRequest(req, false)
 	if curr := s.rt.Current(); curr.Trace != nil {
 		switch req.Type {
 		case model.RPCCall:

@@ -40,6 +40,9 @@ const (
 	BodyStream             EventType = 0x16
 	TestStart              EventType = 0x17
 	TestEnd                EventType = 0x18
+	GenericSpanStart       EventType = 0x19
+	GenericSpanEnd         EventType = 0x1A
+	GenericEvent           EventType = 0x1B
 )
 
 func (te EventType) String() string {
@@ -399,6 +402,132 @@ func (l *Log) TestSpanEnd(p TestSpanEndParams) {
 		SpanID:  p.SpanID,
 		Data:    tb,
 	})
+}
+
+type GenericSpanKind int8
+
+const (
+	GenericSpanKindUnknown GenericSpanKind = iota
+	GenericSpanKindInternal
+	GenericSpanKindRequest
+	GenericSpanKindCall
+	GenericSpanKindProducer
+	GenericSpanKindConsumer
+)
+
+type GenericSpanStartParams struct {
+	EventParams
+	Name       string
+	Kind       GenericSpanKind
+	Time       time.Time
+	Attributes []LogField
+	StackDepth int // negative means don't capture stack, positive means capture stack at that depth
+}
+
+func (l *Log) GenericSpanStart(req *model.Request, data GenericSpanStartParams, goid uint32) {
+	tb := l.newSpanStartEvent(spanStartEventData{
+		ParentTraceID:    req.ParentTraceID,
+		ParentSpanID:     req.ParentSpanID,
+		DefLoc:           req.DefLoc,
+		Goid:             goid,
+		CallerEventID:    req.CallerEventID,
+		ExtCorrelationID: req.ExtCorrelationID,
+		ExtraSpace:       len(data.Name) + 1 + 4 + 64*len(data.Attributes) + 100,
+	})
+
+	tb.String(data.Name)
+	tb.Byte(byte(data.Kind))
+	tb.Time(data.Time)
+	tb.UVarint(uint64(len(data.Attributes)))
+	for _, f := range data.Attributes {
+		addLogField(&tb, f.Key, f.Value)
+	}
+	if data.StackDepth < 0 {
+		tb.Stack(stack.Stack{}) // empty stack
+	} else {
+		tb.Stack(stack.Build(data.StackDepth + 1))
+	}
+
+	l.Add(Event{
+		Type:    GenericSpanStart,
+		TraceID: req.TraceID,
+		SpanID:  req.SpanID,
+		Data:    tb,
+	})
+}
+
+type GenericSpanEndParams struct {
+	EventParams
+	Time       time.Time
+	Error      error
+	Attributes []LogField
+	StackDepth int // negative means don't capture stack, positive means capture stack at that depth
+}
+
+func (l *Log) GenericSpanEnd(req *model.Request, data GenericSpanEndParams) {
+	tb := l.newSpanEndEvent(spanEndEventData{
+		Duration:      data.Time.Sub(req.Start),
+		Err:           data.Error,
+		ParentTraceID: req.ParentTraceID,
+		ParentSpanID:  req.ParentSpanID,
+		ExtraSpace:    64*len(data.Attributes) + 100,
+	})
+
+	tb.Time(data.Time)
+
+	tb.UVarint(uint64(len(data.Attributes)))
+	for _, f := range data.Attributes {
+		addLogField(&tb, f.Key, f.Value)
+	}
+	if data.StackDepth < 0 {
+		tb.Stack(stack.Stack{}) // empty stack
+	} else {
+		tb.Stack(stack.Build(data.StackDepth + 1))
+	}
+
+	l.Add(Event{
+		Type:    GenericSpanEnd,
+		TraceID: data.TraceID,
+		SpanID:  data.SpanID,
+		Data:    tb,
+	})
+}
+
+type GenericEventParams struct {
+	EventParams
+	Name       string
+	Time       time.Time
+	Error      error
+	Attributes []LogField
+	StackDepth int // negative means don't capture stack, positive means capture stack at that depth
+}
+
+func (l *Log) GenericEvent(data GenericEventParams) {
+	tb := l.newEvent(eventData{
+		Common:     data.EventParams,
+		ExtraSpace: len(data.Name) + 1 + 4 + 64*len(data.Attributes) + 100,
+	})
+
+	tb.String(data.Name)
+	tb.Time(data.Time)
+	tb.ErrWithStack(data.Error)
+	tb.UVarint(uint64(len(data.Attributes)))
+	for _, f := range data.Attributes {
+		addLogField(&tb, f.Key, f.Value)
+	}
+	if data.StackDepth < 0 {
+		tb.Stack(stack.Stack{}) // empty stack
+	} else {
+		tb.Stack(stack.Build(data.StackDepth + 1))
+	}
+
+	l.Add(Event{
+		Type:    GenericEvent,
+		TraceID: data.TraceID,
+		SpanID:  data.SpanID,
+		Data:    tb,
+	})
+
 }
 
 func (l *Log) RPCCallStart(call *model.APICall, goid uint32) EventID {

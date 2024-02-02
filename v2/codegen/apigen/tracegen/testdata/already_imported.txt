@@ -1,0 +1,71 @@
+-- svca/svca.go --
+package svca
+
+import (
+    "context"
+    "encore.dev/tracing"
+    "example.com/lib"
+)
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(ctx context.Context) error {
+    return lib.Baz(ctx, "foo")
+}
+-- lib/lib.go --
+package lib
+
+import (
+    "context"
+    alreadyNamed "encore.dev/tracing"
+)
+
+//encore:trace
+func Baz(ctx context.Context, name string) (err error) {
+	return nil
+}
+-- want:lib/lib.go --
+package lib
+
+import (
+    "context"
+    alreadyNamed "encore.dev/tracing"
+)
+
+//encore:trace
+func Baz(ctx context.Context, name string) (err error) {
+	__auto_generated_span := alreadyNamed.StartSpan(
+		"lib.Baz",
+		alreadyNamed.WithAttributes("name", name),
+	);
+	defer func() {
+		__auto_generated_span.
+			Finish(err)
+	}();/*line :9:57*/
+	return nil
+}
+-- want:svca/svca.go --
+package svca
+
+import (
+    "context"
+    "encore.dev/tracing"
+    "example.com/lib"
+)
+
+//encore:api public
+func Foo(ctx context.Context) error { return nil }
+
+//encore:trace
+func Bar(ctx context.Context) (__encore_named_rtn_var_0 error) {
+	__auto_generated_span := tracing.StartSpan(
+		"svca.Bar",
+	);
+	defer func() {
+		__auto_generated_span.
+			Finish(__encore_named_rtn_var_0)
+	}();/*line :13:38*/
+    return lib.Baz(ctx, "foo")
+}
