@@ -71,6 +71,13 @@ Just because you want to deploy each service separately in some environments, do
 
 Handily, Encore lets you decide how you want to deploy your services for cloud environments. You don't need to change a single line of code.
 
-When you create an environment, you can decide which process allocation you want for that environment.
+When you create an environment, you decide which process allocation you want for that environment.
 
 <img src="/assets/docs/microservices-process-allocation.png" title="Microservices - Process Allocation" />
+
+<Callout type="info>
+
+Deploying services as separate processes is not yet supported when using AWS Fargate.
+For multi-process deployments, select AWS EKS or GCP CloudRun / GKE.
+
+</Callout>

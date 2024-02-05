@@ -17,7 +17,7 @@ The approach removes the need for infrastructure configuration files and avoids 
 
 Having an end-to-end integration between application code and infrastructure also enables Encore to keep environments in sync and track cloud infrastructure, giving you an up-to-date view of your infrastructure to avoid unnecessary cloud costs.
 
-<img src="/assets/docs/infratracking.png" title="Infrastructure Tracking"/>
+<img src="/assets/docs/infra_config_new.png" title="Infrastructure Tracking"/>
 
 ## Environment types
 
@@ -90,9 +90,11 @@ Encore provisions production infrastructure resources using best-practice guidel
 
 ### Configurability
 
-With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use both your cloud provider's console to modify the provisioned resources and Encore's Cloud Dashboard. Encore takes care of syncing the changes automatically.
+With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in Encore's Cloud Dashboard. Encore takes care of syncing the changes automatically in both directions.
 
 In the future, Encore will offer automated optimization of cloud environments according to your application's real-world behavior.
+
+<img src="/assets/docs/infra_config.png" title="Infra configuration UI"/>
 
 #### Process allocation
 
@@ -100,6 +102,8 @@ You can configure how microservices should be deployed on the compute hardware; 
 
 It's often recommended to deploy all services in one process in order to reduce costs and minimize response times between services. (But it depends on your use case.)
 Deploying each service as its own process will improve scalability and decrease blast radius if things go wrong. This is only recommended for production environments.
+
+<img src="/assets/docs/microservices-process-allocation.png" title="Process allocation config"/>
 
 ### Google Cloud Platform (GCP)
 
