@@ -13,7 +13,7 @@ Encore is purpose-built to solve this problem, restoring creativity for develope
 
 Encore provides a complete toolset for backend development, from local development and testing, to cloud infrastructure management and DevOps.
 
-<img className="w-full h-auto noshadow" src="/assets/docs/arch_full.png" title="Encore Overview" />
+<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_full.png" title="Encore Overview" />
 
 Much of Encore's functionality is enabled by the Open Source [declarative Infrastructure SDK](/docs/primitives/overview), which lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
@@ -23,7 +23,7 @@ When your application is deployed to your cloud, there are **no runtime dependen
 
 ## Local Development
 
-<img className="w-full h-auto noshadow" src="/assets/docs/arch_local.png" title="Encore's Local Development Workflow" />
+<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_local.png" title="Encore's Local Development Workflow" />
 
 When you run your app locally using the [Encore CLI](/docs/install), Encore parses your code and automatically sets up the necessary local infrastructure on the fly. _No more messing around with Docker Compose!_
 
@@ -38,7 +38,7 @@ Aside from managing infrastructure, Encore's local development workflow comes wi
 
 ## Testing
 
-<img className="w-full h-auto noshadow" src="/assets/docs/arch_testing.png" title="Encore's Testing Workflow" />
+<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_testing.png" title="Encore's Testing Workflow" />
 
 Encore comes with several built-in tools to help with testing:
 
@@ -49,7 +49,7 @@ Encore comes with several built-in tools to help with testing:
 
 ## DevOps
 
-<img className="w-full h-auto noshadow" src="/assets/docs/arch_devops.png" title="Encore's DevOps Workflow" />
+<img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_devops.png" title="Encore's DevOps Workflow" />
 
 Our goal is that when you use Encore, you can focus your engineering effort on your product and completely avoid investing time in building a developer platform. You also get built-in tools that automate >90% of the normal day-to-day DevOps work.
 
