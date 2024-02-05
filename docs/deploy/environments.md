@@ -63,7 +63,7 @@ for the new backend API using `encore gen client --env=pr:72 --lang=typescript m
 
 ### Cloud environments
 
-Encore makes it simple to create multiple cloud environments using different cloud providers, by [connecting your cloud account](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
+Encore makes it simple to create multiple cloud environments in different cloud providers by [connecting your cloud account(s)](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
 
 #### Process Allocation
 
@@ -75,9 +75,8 @@ When you create an environment, you decide which process allocation you want for
 
 <img src="/assets/docs/microservices-process-allocation.png" title="Microservices - Process Allocation" />
 
-<Callout type="info>
+<Callout type="info">
 
-Deploying services as separate processes is not yet supported when using AWS Fargate.
-For multi-process deployments, select AWS EKS or GCP CloudRun / GKE.
+Deploying services as separate processes is not yet supported when using AWS Fargate. For multi-process deployments, select AWS EKS or GCP CloudRun / GKE.
 
 </Callout>

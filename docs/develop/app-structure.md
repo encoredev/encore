@@ -16,7 +16,7 @@ It's simple to integrate Encore applications with pre-existing systems you might
 
 Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/primitives/services-and-apis#calling-apis), along with cross-service type-safety.
 
-When creating a cloud environment, Encore enables you to combine multiple services into one process. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#cloud-environments).
+When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#cloud-environments).
 
 ## Creating services
 
