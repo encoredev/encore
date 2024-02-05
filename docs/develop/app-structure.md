@@ -5,25 +5,23 @@ title: App Structure
 subtitle: Structuring your Encore application
 ---
 
-Encore uses a monorepo design and it's best to use one Encore app for your entire backend application.
-This lets Encore build an application model that spans your entire app, necessary to get the most value out of many
+Encore uses a monorepo design and it's best to use one Encore app for your entire backend application. This lets Encore build an application model that spans your entire app, necessary to get the most value out of many
 features like [distributed tracing](/docs/observability/tracing) and [Encore Flow](/docs/develop/encore-flow).
 
 If you have a large application, see advice on how to [structure an app with several systems](/docs/develop/app-structure#large-applications-with-several-systems). 
 
-It's simple to integrate Encore applications with any pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/develop/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/how-to/migrate-to-encore) documentation.
+It's simple to integrate Encore applications with pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/develop/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/how-to/migrate-to-encore) documentation.
 
-## Monoliths and small microservices applications
+## Monolith or Microservices
 
-Small architectures like monoliths, or apps with a small number of services, can be structured using one or many Encore
-services. Services are the base building blocks of your application and divide it into isolated units
-with their own endpoints and database(s). In a microservices application, an Encore service represents a
-single microservice. While services are isolated and have their own databases by default,
-[databases can also be shared between services](/docs/how-to/share-db-between-services).
+Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/primitives/services-and-apis#calling-apis), along with cross-service type-safety.
 
-To create an Encore service, create a Go package for each service (also known as service packages),
-[define APIs](/docs/develop/services-and-apis) and business logic in Go files, and add database migrations to define the
-structure of any database(s). (See more about [SQL databases](/docs/develop/databases).)
+When creating a cloud environment, Encore enables you to combine multiple services into one process. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#cloud-environments).
+
+## Creating services
+
+To create an Encore service, you create a Go package and
+[define an API](/docs/develop/services-and-apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/develop/databases).
 
 On disk it might look like this:
 
@@ -32,7 +30,7 @@ On disk it might look like this:
 ├── encore.app                       // ... and other top-level project files
 │
 ├── hello                            // hello service (a Go package)
-│   ├── migrations                   // hello service db migrations (directory)
+│   ├── migrations                   // hello service db migration (directory)
 │   │   └── 1_create_table.up.sql    // hello service db migration
 │   ├── hello.go                     // hello service code
 │   └── hello_test.go                // tests for hello service
@@ -41,8 +39,7 @@ On disk it might look like this:
     └── world.go                     // world service code
 ```
 
-Encore is not opinionated about whether you use a monolith or multiple services. However, it does solve most of the
-traditional drawbacks that come with building microservices.
+When preferable, you can also [share databases between services](/docs/how-to/share-db-between-services).
 
 ## Structure services using sub-packages
 
@@ -115,8 +112,9 @@ On disk it might look like this:
 ## Large applications with several systems
 
 If you have a large application with several logical domains, each consisting of multiple services, it can be practical
-to separate these into distinct systems. Systems are not a special construct in Encore, they only help you divide your
-application logically around common concerns and purposes. Encore only handles services, the compiler will read your
+to separate these into distinct systems.
+
+Systems are not a special construct in Encore, they only help you divide your application logically around common concerns and purposes. Encore only handles services, the compiler will read your
 systems and extract the services of your application. As applications grow, systems help you decompose your application
 without requiring any complex refactoring.
 
@@ -153,6 +151,5 @@ On disk it might look like this:
 ```
 
 The only refactoring needed to divide an existing Encore application into systems is to move services into their respective
-subfolders. This is a simple way to separate the specific concerns of each system. What
-matters for Encore are the packages containing services, and the division in systems or subsystems will not change the endpoints or
+subfolders. This is a simple way to separate the specific concerns of each system. What matters for Encore are the packages containing services, and the division in systems or subsystems will not change the endpoints or
 architecture of your application.
