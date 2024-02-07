@@ -12,6 +12,8 @@ Start building today and unlock your creative potential, free from cloud complex
 
 **⭐ Star this repository** to help spread the word.
 
+**🍿 Intro video:** [Watch this video](https://youtu.be/LN8mQWho0Jc) for an introduction to Encore concepts & features
+
 **👋 Have questions?** Join the friendly developer community on [Slack](https://encore.dev/slack).
 
 **📞 See if Encore fits your project:** [Book a 1:1 demo](https://encore.dev/book).
@@ -114,11 +116,11 @@ Here's how you can contribute:
 - Leave feedback on the [Public Roadmap](https://encore.dev/roadmap).
 - Send a pull request here on GitHub with your contribution.
 
-## Demo video
+## Videos
 
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">![demo video](https://user-images.githubusercontent.com/78424526/205661341-086c2813-455c-4af4-9517-b0398def6364.gif)</a>
-</br>
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Play full video on YouTube</a>
+- <a href="https://youtu.be/LN8mQWho0Jc" alt="Intro video: Encore concepts & features" target="_blank">Intro: Encore concepts & features</a>
+- <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple serivce" target="_blank">Demo: Building and deploying a simple serivce</a>
+- <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system</a>
 
 ## Visuals
 
