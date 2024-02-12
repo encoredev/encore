@@ -18,6 +18,7 @@ func (g *Generator) bodyContent(params []*encoding.ParameterEncoding) openapi3.C
 		return nil
 	}
 
+	required := make([]string, 0, len(params))
 	props := make(openapi3.Schemas)
 	for _, p := range params {
 		val := g.schemaType(p.Type)
@@ -25,10 +26,14 @@ func (g *Generator) bodyContent(params []*encoding.ParameterEncoding) openapi3.C
 			vv.Title, vv.Description = splitDoc(p.Doc)
 		}
 		props[p.WireFormat] = val
+		if !p.Optional {
+			required = append(required, p.WireFormat)
+		}
 	}
 
 	s := openapi3.NewObjectSchema()
 	s.Properties = props
+	s.Required = required
 
 	return openapi3.Content{
 		"application/json": &openapi3.MediaType{
@@ -48,6 +53,7 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 
 	case *schema.Type_Struct:
 		props := make(openapi3.Schemas)
+		required := make([]string, 0, len(t.Struct.Fields))
 		for _, f := range t.Struct.Fields {
 			jsonName := f.JsonName
 			if jsonName == "-" {
@@ -55,6 +61,9 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 			}
 			if jsonName == "" {
 				jsonName = f.Name
+			}
+			if !f.Optional {
+				required = append(required, jsonName)
 			}
 
 			val := g.schemaType(f.Typ)
@@ -66,6 +75,7 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 
 		s := openapi3.NewObjectSchema()
 		s.Properties = props
+		s.Required = required
 		return s.NewRef()
 
 	case *schema.Type_Map:
