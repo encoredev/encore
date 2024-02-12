@@ -45,6 +45,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "nested.Type": {
@@ -53,6 +57,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "Message"
+        ],
         "type": "object"
       },
       "products.Product": {
@@ -75,6 +82,13 @@
             "type": "string"
           }
         },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "created_at",
+          "created_by"
+        ],
         "type": "object"
       },
       "svc.Foo": {
@@ -99,6 +113,10 @@
             "type": "array"
           }
         },
+        "required": [
+          "Slice",
+          "Map"
+        ],
         "type": "object"
       },
       "svc.Request": {
@@ -129,6 +147,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "boo",
+          "Raw"
+        ],
         "type": "object"
       },
       "svc.WrappedRequest": {
@@ -137,6 +159,9 @@
             "$ref": "#/components/schemas/svc.Request"
           }
         },
+        "required": [
+          "Value"
+        ],
         "type": "object"
       }
     }
@@ -327,6 +352,10 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "name",
+                  "description"
+                ],
                 "type": "object"
               }
             }
@@ -356,6 +385,13 @@
                       "type": "string"
                     }
                   },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "created_at",
+                    "created_by"
+                  ],
                   "type": "object"
                 }
               }
@@ -386,6 +422,10 @@
                           "type": "boolean"
                         }
                       },
+                      "required": [
+                        "cursor",
+                        "exists"
+                      ],
                       "type": "object"
                     },
                     "previous": {
@@ -397,6 +437,10 @@
                           "type": "boolean"
                         }
                       },
+                      "required": [
+                        "cursor",
+                        "exists"
+                      ],
                       "type": "object"
                     },
                     "products": {
@@ -406,6 +450,11 @@
                       "type": "array"
                     }
                   },
+                  "required": [
+                    "products",
+                    "previous",
+                    "next"
+                  ],
                   "type": "object"
                 }
               }
@@ -482,6 +531,10 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "boo",
+                  "Raw"
+                ],
                 "type": "object"
               }
             }
@@ -811,6 +864,9 @@
                     "$ref": "#/components/schemas/nested.Type"
                   }
                 },
+                "required": [
+                  "Nested"
+                ],
                 "type": "object"
               }
             }
@@ -826,6 +882,9 @@
                       "$ref": "#/components/schemas/nested.Type"
                     }
                   },
+                  "required": [
+                    "Nested"
+                  ],
                   "type": "object"
                 }
               }
@@ -862,6 +921,10 @@
                     "type": "array"
                   }
                 },
+                "required": [
+                  "Slice",
+                  "Map"
+                ],
                 "type": "object"
               }
             }
@@ -889,6 +952,10 @@
                       "type": "array"
                     }
                   },
+                  "required": [
+                    "Slice",
+                    "Map"
+                  ],
                   "type": "object"
                 }
               }
@@ -949,6 +1016,10 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "Charlies-Bool",
+                  "Dave"
+                ],
                 "type": "object"
               }
             }
@@ -977,6 +1048,11 @@
                       "type": "number"
                     }
                   },
+                  "required": [
+                    "B",
+                    "Charlies-Bool",
+                    "Dave"
+                  ],
                   "type": "object"
                 }
               }
@@ -1018,6 +1094,10 @@
                     "$ref": "#/components/schemas/svc.WrappedRequest"
                   }
                 },
+                "required": [
+                  "A",
+                  "B"
+                ],
                 "type": "object"
               }
             }
@@ -1036,6 +1116,10 @@
                       "$ref": "#/components/schemas/svc.Foo"
                     }
                   },
+                  "required": [
+                    "A",
+                    "B"
+                  ],
                   "type": "object"
                 }
               }
