@@ -461,8 +461,14 @@ class BaseClient {
         this.baseURL = baseURL
         this.headers = {
             "Content-Type": "application/json",
-            "User-Agent":   "app-Generated-TS-Client (Encore/devel)",
         }
+
+        // Add User-Agent header if the script is running in the server
+        // because browsers do not allow setting User-Agent headers to requests
+        if (typeof window === "undefined") {
+            this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/devel)";
+        }
+
         this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
