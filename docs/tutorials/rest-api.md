@@ -32,6 +32,7 @@ Now let's create a new `url` service.
 🥐 In your application's root folder, create a new folder `url` and create a new file `url.go` that looks like this:
 
 ```go
+// Service url takes URLs, generates random short IDs, and stores the URLs in a database.
 package url
 
 import (
