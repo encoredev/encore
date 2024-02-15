@@ -22,6 +22,16 @@ all the same flags that the `go test` command does.
 For example, use `encore test ./...` to run tests in all sub-directories,
 or just `encore test` for the current directory.
 
+## Test tracing
+
+Encore comes with built-in test tracing for local development.
+
+You only need to open Encore's local development dashboard at [localhost:9400](http://localhost:9400) to see traces for all your tests.
+This makes it very simple to understand the root cause for why a test is failing.
+
+<img className="w-full d:w-3/4 h-auto" src="/assets/docs/test_trace.png" title="Test tracing" />
+
+
 ## Integration testing
 
 Since Encore removes almost all boilerplate, most of the code you write
