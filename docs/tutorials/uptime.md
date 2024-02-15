@@ -1,8 +1,8 @@
 ---
 title: Building an Uptime Monitor
-subtitle: Learn how to build your own uptime monitoring system in 30 minutes
-seotitle: How to build an Uptime Monitoring System in Go
-seodesc: Learn how to build an uptime monitoring tool using Go and Encore. Get your entire application running in the cloud in 30 minutes!
+subtitle: Learn how to build an event-driven uptime monitoring system
+seotitle: How to build an event-driven Uptime Monitoring System in Go
+seodesc: Learn how to build an event-driven uptime monitoring tool using Go and Encore. Get your application running in the cloud in 30 minutes!
 ---
 
 Want to be notified when your website goes down so you can fix it before your users notice?
@@ -10,7 +10,7 @@ Want to be notified when your website goes down so you can fix it before your us
 You need an uptime monitoring system. Sounds daunting? Don't worry,
 we'll build it with Encore in 30 minutes!
 
-The final result will look like this:
+The app will use an event-driven architecture and the final result will look like this:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/frontend.png" title="Frontend" />
 
@@ -45,7 +45,7 @@ $ encore run
 Then visit [http://localhost:4000/frontend/](http://localhost:4000/frontend/) to see the frontend.
 It won't work yet, since we haven't yet built the backend, so let's do just that!
 
-When we're done we'll have a backend with this architecture:
+When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/encore-flow.png" title="Encore Flow" />
 
