@@ -379,6 +379,11 @@
 									text: "Use Firebase Authentication"
 									path: "/how-to/firebase-auth"
 									file: "how-to/firebase-auth"
+								}, {
+									kind: "basic"
+									text: "Use Auth0 Authentication"
+									path: "/how-to/auth0-auth"
+									file: "how-to/auth0-auth"
 								}]
 							}]
 					}
