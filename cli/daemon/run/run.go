@@ -541,7 +541,15 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	// This way we ensure requests are always hitting a running server,
 	// in case a batch job or something is running.
 	if params.IsReload {
-		p.Gateway.pollUntilProcessIsListening(params.Ctx)
+		g, ctx := errgroup.WithContext(params.Ctx)
+		for _, gw := range p.Gateways {
+			gw := gw
+			g.Go(func() error {
+				gw.pollUntilProcessIsListening(ctx)
+				return nil
+			})
+		}
+		_ = g.Wait()
 	}
 
 	return p, nil

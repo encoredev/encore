@@ -64,6 +64,12 @@ func (b *builder) Build() *meta.Data {
 	}
 	md := b.md
 
+	for _, gw := range b.app.Gateways {
+		b.md.Gateways = append(b.md.Gateways, &meta.Gateway{
+			EncoreName: gw.EncoreName,
+		})
+	}
+
 	svcByName := make(map[string]*meta.Service, len(b.app.Services))
 	for _, svc := range b.app.Services {
 		out := &meta.Service{
@@ -87,6 +93,7 @@ func (b *builder) Build() *meta.Data {
 					HttpMethods:    ep.HTTPMethods,
 					Tags:           ep.Tags.ToProto(),
 					Sensitive:      ep.Sensitive,
+					Expose:         make(map[string]*meta.RPC_ExposeOptions),
 				}
 				if ep.Raw {
 					rpc.Proto = meta.RPC_RAW
@@ -95,10 +102,14 @@ func (b *builder) Build() *meta.Data {
 				switch ep.Access {
 				case api.Public:
 					rpc.AccessType = meta.RPC_PUBLIC
-				case api.Private:
-					rpc.AccessType = meta.RPC_PRIVATE
+					rpc.Expose["default"] = &meta.RPC_ExposeOptions{}
+					rpc.AllowUnauthenticated = true
 				case api.Auth:
 					rpc.AccessType = meta.RPC_AUTH
+					rpc.Expose["default"] = &meta.RPC_ExposeOptions{}
+				case api.Private:
+					rpc.AccessType = meta.RPC_PRIVATE
+					rpc.AllowUnauthenticated = true
 				default:
 					b.errs.Addf(ep.Decl.AST.Pos(), "internal error: unknown API access type %v", ep.Access)
 				}
@@ -214,21 +225,23 @@ func (b *builder) Build() *meta.Data {
 			}
 
 		case *authhandler.AuthHandler:
-			ah := &meta.AuthHandler{
-				Name:    r.Name,
-				Doc:     r.Doc,
-				PkgPath: r.Package().ImportPath.String(),
-				PkgName: r.Package().Name,
-				Loc:     b.schemaLoc(r.Decl.File, r.Decl.AST),
-				Params:  b.schemaTypeUnwrapPointer(r.Param),
-			}
-			if data, ok := r.AuthData.Get(); ok {
-				ah.AuthData = b.typeDeclRefUnwrapPointer(data)
-			}
-			md.AuthHandler = ah
-
 			if svc, ok := b.app.ServiceForPath(r.Decl.File.FSPath); ok {
+				ah := &meta.AuthHandler{
+					Name:        r.Name,
+					Doc:         r.Doc,
+					PkgPath:     r.Package().ImportPath.String(),
+					PkgName:     r.Package().Name,
+					Loc:         b.schemaLoc(r.Decl.File, r.Decl.AST),
+					Params:      b.schemaTypeUnwrapPointer(r.Param),
+					ServiceName: svc.Name,
+				}
+				if data, ok := r.AuthData.Get(); ok {
+					ah.AuthData = b.typeDeclRefUnwrapPointer(data)
+				}
+				md.AuthHandler = ah
 				b.nodes.addAuthHandler(r, svc.Name)
+			} else {
+				b.errs.Addf(r.Decl.AST.Pos(), "auth handler %q must be defined within a service", r.Name)
 			}
 
 		case *sqldb.Database:

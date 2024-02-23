@@ -22,6 +22,7 @@ type Desc struct {
 	MainModule *pkginfo.Module
 	Parse      *parser.Result
 	Services   []*Service
+	Gateways   []*Gateway
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
