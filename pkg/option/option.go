@@ -1,10 +1,13 @@
 package option
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/google/go-cmp/cmp"
 )
 
 // Option is a type that represents a value that may or may not be present
@@ -16,34 +19,31 @@ type Option[T any] struct {
 	present bool
 }
 
-// Equal reports whether two fields are equal.
-// It's implemented for testing purposes.
-func (o Option[T]) Equal(other Option[T]) bool {
-	if !o.present && !other.present {
-		return true
-	} else if o.present != other.present {
-		return false
+func (o *Option[T]) MarshalJSON() ([]byte, error) {
+	if !o.present {
+		return []byte("null"), nil
+	}
+	return json.Marshal(o.value)
+}
+
+func (o *Option[T]) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		o.present = false
+		return nil
 	}
 
-	val := reflect.ValueOf(o.value)
+	o.present = true
+	return json.Unmarshal(data, &o.value)
+}
 
-	// If there is an Equal method, call it.
-	// We have to use reflection because Go doesn't support type assertions
-	// like o.value.(equaler[T]).
-	if equal := val.MethodByName("Equal"); equal.IsValid() {
-		// Make sure it looks like the right shape.
-		if equal.Kind() == reflect.Func && equal.Type().NumIn() == 1 {
-			result := equal.Call([]reflect.Value{reflect.ValueOf(other.value)})
-			return result[0].Bool()
-		}
+// CmpOpts returns the options to use to compare options
+// by checking the unexported fields. For testing purposes.
+func CmpOpts() []cmp.Option {
+	return []cmp.Option{
+		cmp.Exporter(func(rt reflect.Type) bool {
+			return rt.PkgPath() == "encr.dev/pkg/option" && strings.HasPrefix(rt.Name(), "Option[")
+		}),
 	}
-
-	// Make sure the types are comparable since we don't enforce
-	// that on the type constraint.
-	if val.Comparable() {
-		return val.Equal(reflect.ValueOf(other.value))
-	}
-	return false
 }
 
 // AsOptional returns an Option where a zero value T is considered None

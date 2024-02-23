@@ -12,6 +12,19 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 	return dst
 }
 
+// Find returns the first element where pred returns true.
+// The second argument is true if an element was found.
+func Find[A any](src []A, pred func(A) bool) (A, bool) {
+	for _, v := range src {
+		if pred(v) {
+			return v, true
+		}
+	}
+
+	var zero A
+	return zero, false
+}
+
 // Filter applies fn on all elements in src, producing a new slice
 // containing the elements for which fn returned true, preserving
 // the same order.
