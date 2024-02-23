@@ -186,6 +186,12 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 		} else {
 			return errors.New("nightly can not be automatically updated without homebrew")
 		}
+	case version.Beta:
+		if brewManaged {
+			script = "brew upgrade encore-beta --fetch-head"
+		} else {
+			return errors.New("beta can not be automatically updated without homebrew")
+		}
 	case version.DevBuild:
 		return errors.New("dev builds can not be automatically updated")
 	default:
@@ -225,6 +231,8 @@ func wasInstalledViaHomebrew(shell string, arg string, channel version.ReleaseCh
 	formulaName := "encore"
 	if channel == version.Nightly {
 		formulaName = "encore-nightly"
+	} else if channel == version.Beta {
+		formulaName = "encore-beta"
 	}
 
 	buf := new(bytes.Buffer)
