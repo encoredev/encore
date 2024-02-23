@@ -65,6 +65,21 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, errors.Wrap(err, "cache metadata")
 	}
 
+	// Validate the service configs.
+	_, err = bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+		Parse: parse,
+		CueMeta: &cueutil.Meta{
+			// Dummy data to satisfy config validation.
+			APIBaseURL: "http://localhost:0",
+			EnvName:    "encore-eject",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+
 	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
 	result, err := bld.Compile(ctx, builder.CompileParams{
 		Build:       buildInfo,
@@ -73,13 +88,6 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		OpTracker:   nil, // TODO
 		Experiments: expSet,
 		WorkingDir:  ".",
-		CueMeta: &cueutil.Meta{
-			// Dummy data to satisfy config validation.
-			APIBaseURL: "http://localhost:0",
-			EnvName:    "encore-eject",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
 	})
 
 	if err != nil {

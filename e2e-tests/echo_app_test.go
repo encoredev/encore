@@ -581,12 +581,11 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	c.Assert(jobs.Wait(), qt.IsNil)
 
 	p, err := run.StartProcGroup(&StartProcGroupParams{
-		Ctx:      ctx,
-		BuildDir: build.Dir,
-		BinPath:  build.Exe,
-		Meta:     parse.Meta,
-		Logger:   testRunLogger{t},
-		Environ:  os.Environ(),
+		Ctx:     ctx,
+		Outputs: build.Outputs,
+		Meta:    parse.Meta,
+		Logger:  testRunLogger{t},
+		Environ: os.Environ(),
 	})
 	c.Assert(err, qt.IsNil)
 	cancel()

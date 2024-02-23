@@ -62,6 +62,7 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 	}
 
 	err = bld.GenUserFacing(ctx, builder.GenUserFacingParams{
+		Build: buildInfo,
 		App:   app,
 		Parse: parse,
 	})

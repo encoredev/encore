@@ -71,6 +71,21 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		return "", errors.Wrap(err, "cache metadata")
 	}
 
+	// Validate the service configs.
+	_, err = bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+		Parse: parse,
+		CueMeta: &cueutil.Meta{
+			// Dummy data to satisfy config validation.
+			APIBaseURL: "http://localhost:0",
+			EnvName:    "encore-check",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
 	result, err := bld.Compile(ctx, builder.CompileParams{
 		Build:       buildInfo,
 		App:         p.App,
@@ -78,16 +93,10 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		OpTracker:   nil, // TODO
 		Experiments: expSet,
 		WorkingDir:  p.WorkingDir,
-		CueMeta: &cueutil.Meta{
-			APIBaseURL: "http://localhost:0",
-			EnvName:    "encore-check",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
 	})
 
-	if result != nil {
-		buildDir = result.Dir
+	if result != nil && len(result.Outputs) > 0 {
+		buildDir = result.Outputs[0].GetArtifactDir().ToIO()
 	}
 	return buildDir, err
 }

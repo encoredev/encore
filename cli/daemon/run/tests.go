@@ -104,20 +104,58 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
-	runtimeCfg, err := mgr.generateConfig(generateConfigParams{
-		App:         params.App,
-		RM:          rm,
-		Meta:        parse.Meta,
-		ForTests:    true,
-		AuthKey:     genAuthKey(),
-		APIBaseURL:  apiBaseURL,
-		ConfigAppID: params.App.PlatformOrLocalID(),
-		ConfigEnvID: "test",
+	gateways := make(map[string]GatewayConfig)
+	gatewayBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
+	for _, gw := range parse.Meta.Gateways {
+		gateways[gw.EncoreName] = GatewayConfig{
+			BaseURL:   gatewayBaseURL,
+			Hostnames: []string{"localhost"},
+		}
+	}
+
+	cfg, err := bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+		Parse: parse,
+		CueMeta: &cueutil.Meta{
+			APIBaseURL: gatewayBaseURL,
+			EnvName:    "local",
+			EnvType:    cueutil.EnvType_Test,
+			CloudType:  cueutil.CloudType_Local,
+		},
 	})
 	if err != nil {
 		return err
 	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
+
+	authKey := genAuthKey()
+	configGen := &RuntimeConfigGenerator{
+		app:            params.App,
+		infraManager:   rm,
+		md:             parse.Meta,
+		AppID:          option.Some("test"),
+		EnvID:          option.Some("test"),
+		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
+		AuthKey:        authKey,
+		Gateways:       gateways,
+		DefinedSecrets: secrets,
+		SvcConfigs:     cfg.Configs,
+		EnvName:        option.Some("test"),
+		EnvType:        option.Some(runtimev1.Environment_TYPE_TEST),
+		DeployID:       option.Some(fmt.Sprintf("clitest_%s", xid.New().String())),
+		IncludeMetaEnv: true,
+	}
+
+	env, err := configGen.ForTests(bld.UseNewRuntimeConfig(parse))
+	if err != nil {
+		return err
+	}
+	env = append(env, encodeServiceConfigs(cfg.Configs)...)
+
+	if params.PrepareOnly {
+		for _, e := range env {
+			_, _ = fmt.Fprintln(params.Stdout, e)
+		}
+		return nil
+	}
 
 	return bld.Test(ctx, builder.TestParams{
 		Compile: builder.CompileParams{

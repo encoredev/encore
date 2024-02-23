@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -19,8 +20,10 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/logrusorgru/aurora/v3"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
@@ -33,6 +36,7 @@ import (
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/promise"
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -342,6 +346,18 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 
 	r.ResourceManager.StartRequiredServices(jobs, parse.Meta)
 
+	configProm := promise.New(func() (*builder.ServiceConfigsResult, error) {
+		return r.builder.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+			Parse: parse,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Development,
+				CloudType:  cueutil.CloudType_Local,
+			},
+		})
+	})
+
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
 		build, err = r.builder.Compile(ctx, builder.CompileParams{
@@ -351,12 +367,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 			OpTracker:   tracker,
 			Experiments: expSet,
 			WorkingDir:  r.Params.WorkingDir,
-			CueMeta: &cueutil.Meta{
-				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
-				EnvName:    "local",
-				EnvType:    cueutil.EnvType_Development,
-				CloudType:  cueutil.CloudType_Local,
-			},
 		})
 		if err != nil {
 			return errors.Wrap(err, "compile error")
@@ -380,15 +390,19 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		return err
 	}
 
+	svcCfg, err := configProm.Get(ctx)
+	if err != nil {
+		return err
+	}
+
 	startOp := tracker.Add("Starting Encore application", start)
 	newProcess, err := r.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
-		BuildDir:       build.Dir,
-		BinPath:        build.Exe,
+		Outputs:        build.Outputs,
 		Meta:           parse.Meta,
 		Logger:         r.Mgr,
 		Secrets:        secrets,
-		ServiceConfigs: build.Configs,
+		ServiceConfigs: svcCfg.Configs,
 		Environ:        r.Params.Environ,
 		WorkingDir:     r.Params.WorkingDir,
 		IsReload:       isReload,
@@ -423,8 +437,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 
 type StartProcGroupParams struct {
 	Ctx            context.Context
-	BuildDir       string
-	BinPath        string
+	Outputs        []builder.BuildOutput
 	Meta           *meta.Data
 	Secrets        map[string]string
 	ServiceConfigs map[string]string

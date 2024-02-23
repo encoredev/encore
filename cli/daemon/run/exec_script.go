@@ -2,15 +2,13 @@ package run
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -18,12 +16,14 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
+	encoreEnv "encr.dev/internal/env"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
+	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vcs"
 )
 
@@ -121,6 +121,18 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
+	configProm := promise.New(func() (*builder.ServiceConfigsResult, error) {
+		return bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+			Parse: parse,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: apiBaseURL,
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Development,
+				CloudType:  cueutil.CloudType_Local,
+			},
+		})
+	})
+
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
 		build, err = bld.Compile(ctx, builder.CompileParams{
@@ -130,12 +142,6 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 			OpTracker:   tracker,
 			Experiments: expSet,
 			WorkingDir:  p.WorkingDir,
-			CueMeta: &cueutil.Meta{
-				APIBaseURL: apiBaseURL,
-				EnvName:    "local",
-				EnvType:    cueutil.EnvType_Development,
-				CloudType:  cueutil.CloudType_Local,
-			},
 		})
 		if err != nil {
 			return errors.Wrap(err, "compile error on exec")

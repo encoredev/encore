@@ -104,8 +104,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	p, err := run.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
-		BuildDir:       build.Dir,
-		BinPath:        build.Exe,
+		Outputs:        build.Outputs,
 		Meta:           parse.Meta,
 		Logger:         logger,
 		Environ:        env,
@@ -121,7 +120,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	}
 
 	// start proxying TCP requests to the running application
-	startProxy(ctx, ln, p.Gateway)
+	startProxy(ctx, ln, http.HandlerFunc(p.ProxyReq))
 
 	// wait for the service to come up
 	b := backoff.NewExponentialBackOff()
@@ -131,7 +130,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost/__encore/healthz", nil)
 		assertNil(err)
 
-		p.Gateway.ProxyReq(w, req)
+		p.ProxyReq(w, req)
 
 		if w.Result().StatusCode != http.StatusOK {
 			return fmt.Errorf("unexpected status: %s", w.Result().Status)
@@ -190,10 +189,8 @@ func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	l.log.Log(string(line))
 }
 
-func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
-	srv := &http.Server{
-		Handler: http.HandlerFunc(p.ProxyReq),
-	}
+func startProxy(ctx context.Context, ln net.Listener, proxyHandler http.Handler) {
+	srv := &http.Server{Handler: proxyHandler}
 	go func() {
 		<-ctx.Done()
 		_ = srv.Close()
@@ -242,6 +239,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	}
 
 	err = bld.GenUserFacing(ctx, builder.GenUserFacingParams{
+		Build: buildInfo,
 		App:   app,
 		Parse: parse,
 	})
@@ -269,7 +267,9 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	}
 
 	t.Cleanup(func() {
-		_ = os.RemoveAll(build.Dir)
+		for _, output := range build.Outputs {
+			_ = os.RemoveAll(output.GetArtifactDir().ToIO())
+		}
 	})
 	return parse, build
 }
