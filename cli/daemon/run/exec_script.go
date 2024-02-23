@@ -153,34 +153,61 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
-	runtimeCfg, err := mgr.generateConfig(generateConfigParams{
-		App:         p.App,
-		RM:          rm,
-		Meta:        parse.Meta,
-		ForTests:    false,
-		AuthKey:     genAuthKey(),
-		APIBaseURL:  apiBaseURL,
-		ConfigAppID: GenID(),
-		ConfigEnvID: GenID(),
-	})
+	gateways := make(map[string]GatewayConfig)
+	for _, gw := range parse.Meta.Gateways {
+		gateways[gw.EncoreName] = GatewayConfig{
+			BaseURL:   apiBaseURL,
+			Hostnames: []string{"localhost"},
+		}
+	}
+
+	outputs := build.Outputs
+	if len(outputs) != 1 {
+		return errors.New("ExecScript currently only supports a single build output")
+	}
+	entrypoints := outputs[0].GetEntrypoints()
+	if len(entrypoints) != 1 {
+		return errors.New("ExecScript currently only supports a single entrypoint")
+	}
+	proc := entrypoints[0].Cmd.Expand(outputs[0].GetArtifactDir())
+
+	cfg, err := configProm.Get(ctx)
 	if err != nil {
 		return err
 	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
-	env := append(os.Environ(), p.Environ...)
-	env = append(env,
-		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS="+encodeSecretsEnv(secrets),
-	)
-	for serviceName, cfgString := range build.Configs {
-		env = append(env, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+	authKey := genAuthKey()
+	configGen := &RuntimeConfigGenerator{
+		app:            p.App,
+		infraManager:   rm,
+		md:             parse.Meta,
+		AppID:          option.Some(GenID()),
+		EnvID:          option.Some(GenID()),
+		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
+		AuthKey:        authKey,
+		Gateways:       gateways,
+		DefinedSecrets: secrets,
+		SvcConfigs:     cfg.Configs,
+		IncludeMetaEnv: true,
+	}
+	procConf, err := configGen.AllInOneProc()
+	if err != nil {
+		return err
+	}
+
+	env := append(os.Environ(), proc.Env...)
+	env = append(env, p.Environ...)
+	env = append(env, procConf.ExtraEnv...)
+	env = append(env, encodeServiceConfigs(cfg.Configs)...)
+	if runtimeLibPath := encoreEnv.EncoreRuntimeLib(); runtimeLibPath != "" {
+		env = append(env, "ENCORE_RUNTIME_LIB="+runtimeLibPath)
 	}
 
 	tracker.AllDone()
 
+	args := append(slices.Clone(proc.Command[1:]), p.ScriptArgs...)
 	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(ctx, build.Exe, p.ScriptArgs...)
+	cmd := exec.CommandContext(ctx, proc.Command[0], args...)
 	cmd.Dir = filepath.Join(p.App.Root(), p.WorkingDir)
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr

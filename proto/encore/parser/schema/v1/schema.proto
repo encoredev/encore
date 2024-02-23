@@ -107,6 +107,27 @@ message Field {
   string query_string_name = 6; // The query string name to use in GET/HEAD/DELETE requests. (The value "-" indicates to omit the field.)
   string raw_tag           = 7; // The original Go struct tag; should not be parsed individually
   repeated Tag tags        = 8; // Parsed go struct tags. Used for marshalling hints
+  optional WireSpec wire   = 9; // The explicitly set wire location of the field.
+}
+
+// WireLocation provides information about how a field should be encoded on the wire.
+message WireSpec {
+  oneof location {
+    Header header = 1;
+    Query  query  = 2;
+  }
+
+  message Header {
+    // The explicitly specified header name.
+    // If empty, the name of the field is used.
+    optional string name = 1;
+  }
+
+  message Query {
+    // The explicitly specified query string name.
+    // If empty, the name of the field is used.
+    optional string name = 1;
+  }
 }
 
 message Tag {

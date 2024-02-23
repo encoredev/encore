@@ -555,6 +555,9 @@ type TestRequest struct {
 	TraceFile *string `protobuf:"bytes,6,opt,name=trace_file,json=traceFile,proto3,oneof" json:"trace_file,omitempty"`
 	// codegen_debug, if true, dumps the generated code and prints where it is located.
 	CodegenDebug bool `protobuf:"varint,7,opt,name=codegen_debug,json=codegenDebug,proto3" json:"codegen_debug,omitempty"`
+	// prepare_only, if true, prepares the test infrastructure and
+	// prints the environment variables to use.
+	PrepareOnly bool `protobuf:"varint,8,opt,name=prepare_only,json=prepareOnly,proto3" json:"prepare_only,omitempty"`
 }
 
 func (x *TestRequest) Reset() {
@@ -627,6 +630,13 @@ func (x *TestRequest) GetTraceFile() string {
 func (x *TestRequest) GetCodegenDebug() bool {
 	if x != nil {
 		return x.CodegenDebug
+	}
+	return false
+}
+
+func (x *TestRequest) GetPrepareOnly() bool {
+	if x != nil {
+		return x.PrepareOnly
 	}
 	return false
 }

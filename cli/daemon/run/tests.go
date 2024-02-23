@@ -2,13 +2,11 @@ package run
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"runtime"
 
-	"github.com/cockroachdb/errors"
+	"github.com/rs/xid"
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
@@ -18,7 +16,9 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/vcs"
+	runtimev1 "encr.dev/proto/encore/runtime/v1"
 )
 
 // TestParams groups the parameters for the Test method.
@@ -46,6 +46,10 @@ type TestParams struct {
 	// CodegenDebug, if true, specifies to keep the output
 	// around for codegen debugging purposes.
 	CodegenDebug bool
+
+	// PrepareOnly specifies to print the environment variables
+	// for testing, without actually running the tests.
+	PrepareOnly bool
 
 	// Stdout and Stderr are where "go test" output should be written.
 	Stdout, Stderr io.Writer
@@ -94,7 +98,6 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	}
 
 	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, params.NS, nil, mgr.DBProxyPort, true)
-	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
 	jobs := optracker.NewAsyncBuildJobs(ctx, params.App.PlatformOrLocalID(), nil)
 	rm.StartRequiredServices(jobs, parse.Meta)
@@ -165,17 +168,8 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 			OpTracker:   nil,
 			Experiments: expSet,
 			WorkingDir:  params.WorkingDir,
-			CueMeta: &cueutil.Meta{
-				APIBaseURL: apiBaseURL,
-				EnvName:    "local",
-				EnvType:    cueutil.EnvType_Test,
-				CloudType:  cueutil.CloudType_Local,
-			},
 		},
-		Env: append(params.Environ,
-			"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
-			"ENCORE_APP_SECRETS="+encodeSecretsEnv(secrets),
-		),
+		Env:    append(params.Environ, env...),
 		Args:   params.Args,
 		Stdout: params.Stdout,
 		Stderr: params.Stderr,

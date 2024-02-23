@@ -120,6 +120,10 @@ message TestRequest {
 
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 7;
+
+  // prepare_only, if true, prepares the test infrastructure and
+  // prints the environment variables to use.
+  bool prepare_only = 8;
 }
 
 message ExecScriptRequest {
