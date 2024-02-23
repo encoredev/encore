@@ -189,6 +189,14 @@ func createApp(ctx context.Context, name, template string) (err error) {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
+	} else if _, err := os.Stat(filepath.Join(name, "package.json")); err == nil {
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Prefix = "Running npm install encore.dev@latest"
+		s.Start()
+		if err := npmInstallEncore(name); err != nil {
+			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
+		}
+		s.Stop()
 	}
 
 	// Rewrite any existence of ENCORE_APP_ID to the allocated app id.
