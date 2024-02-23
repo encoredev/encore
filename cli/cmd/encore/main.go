@@ -20,6 +20,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	daemonpb "encr.dev/proto/encore/daemon"
+
 	// Register commands
 	_ "encr.dev/cli/cmd/encore/app"
 	_ "encr.dev/cli/cmd/encore/k8s"
@@ -147,7 +148,18 @@ func streamCommandOutput(stream commandOutputStream, converter outputConverter) 
 	}
 }
 
-func convertJSONLogs() outputConverter {
+type convertLogOptions struct {
+	Color bool
+}
+
+type convertLogOption func(*convertLogOptions)
+
+func convertJSONLogs(opts ...convertLogOption) outputConverter {
+	options := convertLogOptions{}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	var logMutex sync.Mutex
 	logLineBuffer := bytes.NewBuffer(make([]byte, 0, 1024))
 	cout := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
@@ -160,6 +172,9 @@ func convertJSONLogs() outputConverter {
 			return nil
 		}
 	})
+	if !options.Color {
+		cout.NoColor = true
+	}
 
 	return func(line []byte) []byte {
 		// If this isn't a JSON log line, just return it as-is
