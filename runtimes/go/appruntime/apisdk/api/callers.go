@@ -60,12 +60,13 @@ func (a AppCaller) PrivateAPIAccess() bool {
 // This is used to identify the fact that the call was made from a gateway, and not from a background process or init function
 // and should not be allowed access to the private routes
 type GatewayCaller struct {
-	ServiceName string // The service name being called by the gateway
-	Endpoint    string // The endpoint being called by the gateway
+	GatewayName string // The encore name of the gateway
 }
 
 func (g GatewayCaller) CallerString() string {
-	return fmt.Sprintf("gateway:%s.%s", g.ServiceName, g.Endpoint)
+	// Return the string with ".none" for backwards compatibility.
+	// This can be removed later when all services support the new format.
+	return fmt.Sprintf("gateway:%s.none", g.GatewayName)
 }
 
 func (g GatewayCaller) PrivateAPIAccess() bool {
@@ -107,11 +108,10 @@ func ParseCallerString(callerStr string) (Caller, error) {
 	case strings.HasPrefix(callerStr, "app:"):
 		return AppCaller{callerStr[len("app:"):]}, nil
 	case strings.HasPrefix(callerStr, "gateway:"):
-		service, endpoint, found := strings.Cut(callerStr[len("gateway:"):], ".")
-		if !found {
-			return nil, errors.New("invalid gateway caller")
-		}
-		return GatewayCaller{service, endpoint}, nil
+		// We used to have "service.endpoint" but now we only have the gateway name.
+		// Still parse the old format for backwards compatibility.
+		gateway, _, _ := strings.Cut(callerStr[len("gateway:"):], ".")
+		return GatewayCaller{gateway}, nil
 	case strings.HasPrefix(callerStr, "encore:"):
 		return EncoreCaller{callerStr[len("encore:"):]}, nil
 	default:
