@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/rs/zerolog"
+	"go.uber.org/automaxprocs/maxprocs"
 
 	"encore.dev/appruntime/apisdk/api"
 	"encore.dev/appruntime/apisdk/service"
@@ -33,6 +34,23 @@ func New(runtime *config.Runtime, service *service.Manager, api *api.Server, shu
 }
 
 func (app *App) Run() error {
+	// Set the maximum number of processes to use based on the enviroment we're running inside
+	// and what we can detect. Note this is required because the default value of GOMAXPROCS is
+	// the number of logical CPUs on the machine, which inside a kubernetes environment is not
+	// the same as the number of CPUs allocated to the container. This can lead to CPU throttling
+	// by the kernel and high tail latencies.
+	//
+	// We only do this when the app starts up, rather than using the automaxprocs magic import
+	// so it does not impact anything else which imports the Encore runtime (such as the CLI tooling).
+	undoMaxProcs, err := maxprocs.Set(maxprocs.Logger(func(s string, args ...interface{}) {
+		app.logger.Debug().Msgf(s, args...)
+	}))
+	if err != nil {
+		app.logger.Err(err).Msg("failed to set GOMAXPROCS")
+	} else {
+		defer undoMaxProcs()
+	}
+
 	ln, err := Listen()
 	if err != nil {
 		return err
