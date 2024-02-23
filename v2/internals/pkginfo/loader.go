@@ -200,7 +200,7 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 // and we want to ensure it uses the same 'go' binary as Encore.
 func updateGoPath(b parsectx.BuildInfo) {
 	curr := os.Getenv("PATH")
-	prefix := b.GOROOT.Join("bin", "go").ToIO() + string(filepath.ListSeparator)
+	prefix := b.GOROOT.Join("bin").ToIO() + string(filepath.ListSeparator)
 	if !strings.HasPrefix(curr, prefix) {
 		_ = os.Setenv("PATH", prefix+curr)
 	}
