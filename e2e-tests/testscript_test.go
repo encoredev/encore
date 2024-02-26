@@ -75,6 +75,10 @@ func doRun(t *testing.T, experiments []string) {
 				setVal(ts, "app", app)
 				setVal(ts, "log", log)
 			},
+			"shutdown": func(ts *ts.TestScript, neg bool, args []string) {
+				app := getVal[*RunAppData](ts, "app")
+				app.Run.ProcGroup().Close()
+			},
 			"test": func(ts *ts.TestScript, neg bool, args []string) {
 				log := &testscriptLogger{ts: ts}
 				exp := ts.Getenv("ENCORE_EXPERIMENT")
@@ -211,6 +215,8 @@ func doRun(t *testing.T, experiments []string) {
 				if len(args) != 1 {
 					ts.Fatalf("usage: checklog <pattern|file>")
 				}
+
+				time.Sleep(100 * time.Millisecond)
 
 				var want []jsonObj
 				var pattern jsonObj

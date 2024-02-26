@@ -1,4 +1,5 @@
 run
+shutdown
 checklog '{"message": "shutting down"}'
 
 -- svc/svc.go --
