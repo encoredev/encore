@@ -12,6 +12,7 @@ import (
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
@@ -21,6 +22,8 @@ import (
 )
 
 var (
+	color    bool
+	noColor  bool // for "--no-color" compatibility
 	debug    bool
 	watch    bool
 	listen   string
@@ -47,6 +50,8 @@ func init() {
 		},
 	}
 
+	isTerm := term.IsTerminal(int(os.Stdout.Fd()))
+
 	rootCmd.AddCommand(runCmd)
 	runCmd.Flags().BoolVar(&debug, "debug", false, "Compile for debugging (disables some optimizations)")
 	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
@@ -54,6 +59,9 @@ func init() {
 	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
 	runCmd.Flags().BoolVar(&jsonLogs, "json", false, "Display logs in JSON format")
 	runCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
+	runCmd.Flags().BoolVar(&color, "color", isTerm, "Whether to display colorized output")
+	runCmd.Flags().BoolVar(&noColor, "no-color", false, "Equivalent to --color=false")
+	runCmd.Flags().MarkHidden("no-color")
 	browser.AddFlag(runCmd)
 }
 
@@ -113,7 +121,7 @@ func runApp(appRoot, wd string) {
 
 	var converter outputConverter
 	if !jsonLogs {
-		converter = convertJSONLogs()
+		converter = convertJSONLogs(colorize(color && !noColor))
 	}
 	code := streamCommandOutput(stream, converter)
 	if code == 0 {
