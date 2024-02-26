@@ -232,7 +232,7 @@ func (d *Daemon) serveDaemon() {
 func (d *Daemon) serveRuntime() {
 	log.Info().Stringer("addr", d.Runtime.Addr()).Msg("serving runtime")
 	rec := trace2.NewRecorder(d.Trace)
-	srv := runtime.NewServer(d.RunMgr, rec)
+	srv := engine.NewServer(d.RunMgr, rec)
 	d.exit <- http.Serve(d.Runtime, srv)
 }
 

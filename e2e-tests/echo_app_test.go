@@ -499,8 +499,15 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 	})
 
 	c.Run("go_generated_client", func(c *qt.C) {
-		cmd := exec.Command("go", "run", ".", app.Addr)
+		encoreGoroot := os.Getenv("ENCORE_GOROOT")
+		c.Assert(encoreGoroot, qt.Not(qt.Equals), "")
+		goPath := filepath.Join(encoreGoroot, "bin", "go")
+		cmd := exec.Command(goPath, "run", ".", app.Addr)
 		cmd.Dir = filepath.Join("testdata", "echo_client")
+		cmd.Env = append(os.Environ(),
+			"GOROOT="+encoreGoroot,
+			"PATH="+fmt.Sprintf("%s%s%s", filepath.Join(encoreGoroot, "/bin"), string(filepath.ListSeparator), os.Getenv("PATH")),
+		)
 
 		out, err := cmd.CombinedOutput()
 		c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Go client: %s", out))
