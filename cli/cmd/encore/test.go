@@ -24,6 +24,7 @@ var testCmd = &cobra.Command{
 		var (
 			traceFile    string
 			codegenDebug bool
+			noColor      bool
 		)
 		// Support specific args but otherwise let all args be passed on to "go test"
 		for i := 0; i < len(args); i++ {
@@ -52,15 +53,19 @@ var testCmd = &cobra.Command{
 				codegenDebug = true
 				args = slices.Delete(args, i, i+1)
 				i--
+			} else if arg == "--no-color" {
+				noColor = true
+				args = slices.Delete(args, i, i+1)
+				i--
 			}
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args, traceFile, codegenDebug)
+		runTests(appRoot, relPath, args, traceFile, codegenDebug, noColor)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug bool) {
+func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug bool, noColor bool) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -70,7 +75,9 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		cancel()
 	}()
 
-	converter := convertJSONLogs()
+	converter := convertJSONLogs(func(clo *convertLogOptions) {
+		clo.Color = !noColor
+	})
 	if slices.Contains(args, "-json") {
 		converter = convertTestEventOutputOnly(converter)
 	}
