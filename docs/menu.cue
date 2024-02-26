@@ -376,14 +376,19 @@
 									file: "how-to/dependency-injection"
 								}, {
 									kind: "basic"
-									text: "Use Firebase Authentication"
-									path: "/how-to/firebase-auth"
-									file: "how-to/firebase-auth"
-								}, {
-									kind: "basic"
 									text: "Use Auth0 Authentication"
 									path: "/how-to/auth0-auth"
 									file: "how-to/auth0-auth"
+								}, {
+									kind: "basic"
+									text: "Use Clerk Authentication"
+									path: "/how-to/clerk-auth"
+									file: "how-to/clerk-auth"
+								}, {
+									kind: "basic"
+									text: "Use Firebase Authentication"
+									path: "/how-to/firebase-auth"
+									file: "how-to/firebase-auth"
 								}]
 							}]
 					}
