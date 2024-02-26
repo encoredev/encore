@@ -16,14 +16,21 @@ import (
 
 func init() {
 	registerCollector(collectorDesc{
-		name: "fargate_task",
+		name: "aws",
 		matches: func(envCloud string) bool {
 			return envCloud == encore.CloudAWS
 		},
 		collect: func() (*ContainerMetadata, error) {
+			// Encore supports running on both ECS Fargate and EKS.
+			// For Fargate, we can get the metadata from the ECS metadata service.
+			// For EKS there doesn't appear to be a standard way to get the metadata, so skip it in that case.
 			metadataURI, ok := os.LookupEnv("ECS_CONTAINER_METADATA_URI_V4")
 			if !ok {
-				return nil, fmt.Errorf("unable to read container metadata: metadata URI env variable unset")
+				return &ContainerMetadata{
+					ServiceID:  "",
+					RevisionID: "",
+					InstanceID: "",
+				}, nil
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
