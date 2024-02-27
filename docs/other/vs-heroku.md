@@ -14,15 +14,15 @@ Let's take a look at how Encore compares to PaaS tools like Heroku:
 |                                                      | Encore                                          | Heroku                |
 | ---------------------------------------------------- | ----------------------------------------------- | --------------------- |
 | **Infrastructure approach?**                         | Infrastructure from Code                        | Platform as a Service |
+| **Built-in CI/CD?**                                  | ✅︎ Yes                                           | ✅︎ Yes                 |
+| **Built-in Preview Environments?**                   | ✅︎ Yes                                           | ✅︎ Yes                 |
+| **Built-in local dev environment?**                  | ✅︎ Yes                                           | ❌ No                  |
+| **Built-in Distributed Tracing?**                    | ✅︎ Yes                                           | ❌ No                  |
+| **Deploys to major cloud providers like AWS & GCP?** | ✅︎ Yes                                           | ❌ No                  |
+| **Avoids cloud lock-in?**                            | ✅︎ Yes                                           | ❌ No                  |
+| **Supports Kubernetes and custom infra?**            | ✅︎ Yes                                           | ❌ No                  |
+| **Infrastructure is Type-Safe?**                     | ✅︎ Yes                                           | ❌ No                  |
 | **Charges for hosting?**                             | No                                              | Yes                   |
-| **Deploys to major cloud providers like AWS & GCP?** | ✓ Yes                                           | ✘ No                  |
-| **Deploys to your own cloud account?**               | ✓ Yes                                           | ✘ No                  |
-| **Cloud lock-in?**                                   | ✓ No                                            | ✘ Yes                 |
-| **Infrastructure is Type-Safe?**                     | ✓ Yes                                           | ✘ No                  |
-| **Built-in CI/CD?**                                  | ✓ Yes                                           | ✓ Yes                 |
-| **Built-in Preview Environments?**                   | ✓ Yes                                           | ✓ Yes                 |
-| **Built-in local dev environment?**                  | ✓ Yes                                           | ✘ No                  |
-| **Built-in Distributed Tracing?**                    | ✓ Yes                                           | ✘ No                  |
 | **Pricing?**                                         | [$99 per developer](https://encore.dev/pricing) | Variable (complex)    |
 
 ## Encore is the simplest way of accessing the full power and flexibility of the major cloud providers

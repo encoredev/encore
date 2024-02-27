@@ -13,21 +13,21 @@ This can be a great way of getting off the ground quickly. But as many developer
 
 Let's take a look at how Encore compares to BaaS platforms like Supabase and Firebase:
 
-|                                                              | Encore                                           | Supabase             | Firebase             |
-| ------------------------------------------------------------ | ------------------------------------------------ | -------------------- | -------------------- |
-| **Approach?**                                                | Backend Development Platform                     | Backend as a Service | Backend as a Service |
-| **Charges for hosting?**                                     | No                                               | Yes                  | Yes                  |
-| **Deploys to major cloud providers like AWS & GCP?**         | ✓ Yes                                            | ✘ No                 | ✘ No                 |
-| **Deploys to your own cloud account?**                       | ✓ Yes                                            | ✘ No                 | ✓ Yes (GCP only)     |
-| **Cloud lock-in?**                                           | ✓ No                                             | ✘ Yes                | ✘ Yes                |
-| **Native PostgreSQL support?**                               | ✓ Yes                                            | ✓ Yes                | ✘ No                 |
-| **Supports Microservices?**                                  | ✓ Yes                                            | ✘ No                 | ✘ No                 |
-| **Supports Event-Driven systems?**                           | ✓ Yes                                            | ✘ No                 | ✘ No                 |
-| **Requires continuous effort to keep environments in sync?** | ✓ No                                             | ✘ Yes                | ✘ Yes                |
-| **Built-in local dev environment?**                          | ✓ Yes                                            | ✘ No                 | ✘ No                 |
-| **Built-in Preview Environments?**                           | ✓ Yes                                            | ✘ No                 | ✘ No                 |
-| **Bilt-in Distributed Tracing?**                             | ✓ Yes                                            | ✘ No                 | ✘ No                 |
-| **Pricing?**                                                 | [$299 per developer](https://encore.dev/pricing) | Variable (complex)   | Variable (complex)   |
+|                                                     | Encore                                           | Supabase             | Firebase             |
+| --------------------------------------------------- | ------------------------------------------------ | -------------------- | -------------------- |
+| **Approach?**                                       | Backend Development Platform                     | Backend as a Service | Backend as a Service |
+| **Native PostgreSQL support?**                      | ✅︎ Yes                                            | ✅︎ Yes                | ❌ No                 |
+| **Support pgvector for AI use cases?**              | ✅︎ Yes                                            | ✅︎ Yes                | ❌ No                 |
+| **Supports major cloud providers like AWS/GCP?**    | ✅︎ Yes                                            | ❌ No                 | ✅︎ Yes (GCP only)     |
+| **Supports Microservices?**                         | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Supports Event-Driven systems?**                  | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Supports Kubernetes and custom infra?**           | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Infrastructure is Type-Safe?**                    | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Built-in local dev environment?**                 | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Built-in Preview Environments per Pull Request?** | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Built-in Distributed Tracing?**                   | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
+| **Charges for hosting?**                            | No                                               | Yes                  | Yes                  |
+| **Pricing?**                                        | [$299 per developer](https://encore.dev/pricing) | Variable (complex)   | Variable (complex)   |
 
 ## Encore is the simplest way of accessing the full power and flexibility of the major cloud providers
 
@@ -71,6 +71,15 @@ or on the next deployment (in the cloud). Encore automatically injects the appro
 and connect to the database, so once the application starts up the database is ready to be used.
 
 [Learn more about using databases with Encore](/docs/primitives/databases)
+
+## Encore makes it simple to build type-safe event-driven systems
+
+Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support for building microservices backends and event-driven systems.
+
+For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
+
+With Encore's [Infrastructure SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
+This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
 
 ## Encore's local development workflow lets application developers focus
 
