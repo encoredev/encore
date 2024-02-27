@@ -76,6 +76,7 @@ on [Enabling interactivity with Slash Commands](https://api.slack.com/interactiv
 🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.go` with the following contents:
 
 ```go
+// Service slack implements a cowsaw Slack bot.
 package slack
 
 import (
