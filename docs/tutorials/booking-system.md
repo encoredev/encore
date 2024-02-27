@@ -73,6 +73,7 @@ $ touch booking/slots.go
 
 ```go
 -- booking/slots.go --
+// Service booking keeps track of bookable slots in the calendar.
 package booking
 
 import (
@@ -363,6 +364,7 @@ $ touch user/auth.go
 
 ```go
 -- user/auth.go --
+// Service user authenticates users.
 package user
 
 import (
