@@ -5,7 +5,9 @@ title: Encore compared to Terraform & Pulumi
 subtitle: How Encore is different from Infrastructure as Code tools
 ---
 
-There are many tools designed to overcome the challenges of cloud infrastructure complexity. Terraform and Pulumi are _Infrastructure as Code_ tools that help you provision infrastructure by writing infrastructure configuration files. **Encore uses a fundamentally different approach that lets you declare infrastructure as type-safe objects in your application**. Let's take a look at how they compare.
+There are many tools designed to overcome the challenges of cloud infrastructure complexity. Terraform and Pulumi are _Infrastructure as Code_ tools that help you provision infrastructure by writing infrastructure configuration files. **Encore uses a fundamentally different approach that lets you declare infrastructure as type-safe objects in your application**.
+
+Let's take a look at how Encire compares to IaC tools like Terraform and Pulumi:
 
 |                                                              | Encore                                           | Terraform              | Pulumi                 |
 | ------------------------------------------------------------ | ------------------------------------------------ | ---------------------- | ---------------------- |

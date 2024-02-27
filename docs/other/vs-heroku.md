@@ -5,9 +5,11 @@ title: Encore compared to Heroku
 subtitle: Get the convenience you want — without limitations and lock-in
 ---
 
-In the early days of the cloud, Heroku was seen as an innovative platform that made deployments and infrastructure management very simple. Ultimately, Heroku lost momentum and, as cloud services rapidly evolved in the past decade, the platform didn't manage to provide enough flexibility to support users' needs.
+In the early days of the cloud, Heroku was seen as an innovative platform that made deployments and infrastructure management very simple using a Platform as a Service (PaaS) approach. Ultimately, Heroku lost momentum and, as cloud services rapidly evolved in the past decade, the platform didn't manage to provide enough flexibility to support users' needs.
 
 Fans of Heroku will recognize much of the same simplicity in Encore's **push to deploy** workflow — the big difference is that **Encore deploys to your own cloud in AWS/GCP**. This means you keep full flexibility to scale your application using battle-tested services from the major cloud providers, and can leverage their full arsenal of thousands of different services.
+
+Let's take a look at how Encore compares to PaaS tools like Heroku:
 
 |                                                      | Encore                                          | Heroku                |
 | ---------------------------------------------------- | ----------------------------------------------- | --------------------- |
