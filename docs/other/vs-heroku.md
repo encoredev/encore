@@ -19,9 +19,9 @@ Let's take a look at how Encore compares to PaaS tools like Heroku:
 | **Deploys to your own cloud account?**               | ✓ Yes                                           | ✘ No                  |
 | **Cloud lock-in?**                                   | ✓ No                                            | ✘ Yes                 |
 | **Infrastructure is Type-Safe?**                     | ✓ Yes                                           | ✘ No                  |
-| **Built-in local dev environment?**                  | ✓ Yes                                           | ✘ No                  |
 | **Built-in CI/CD?**                                  | ✓ Yes                                           | ✓ Yes                 |
 | **Built-in Preview Environments?**                   | ✓ Yes                                           | ✓ Yes                 |
+| **Built-in local dev environment?**                  | ✓ Yes                                           | ✘ No                  |
 | **Built-in Distributed Tracing?**                    | ✓ Yes                                           | ✘ No                  |
 | **Pricing?**                                         | [$99 per developer](https://encore.dev/pricing) | Variable (complex)    |
 
