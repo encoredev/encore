@@ -177,9 +177,8 @@ PASS
 ok      encore.app/monitor      1.660
 ```
 
-Nice!
-_It works. Well done!_
-
+And if you open the local development dashboard at [localhost:9400](http://localhost:9400), you can also see traces for the tests.
+ 
 ## 3. Create site service
 
 Next, we want to keep track of a list of websites to monitor.
