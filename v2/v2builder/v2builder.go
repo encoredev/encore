@@ -303,6 +303,8 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 			errs.AddStdNode(err, resourceNode)
 			continue
 		}
+		// Convert the path since io/fs operates on forward slashes.
+		rel = filepath.ToSlash(rel)
 		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
 		if err != nil {
 			errs.AddStdNode(err, resourceNode)
@@ -320,19 +322,32 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 }
 
 func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
-	// Create a virtual filesystem for the config files
-	configFiles, err := vfs.FromDir(mainModule.RootDir.ToIO(), func(path string, info fs.DirEntry) bool {
-		// any CUE files
-		if filepath.Ext(path) == ".cue" {
-			return true
+	inCueModFolder := func(path string, info fs.DirEntry) bool {
+		// If it's not a directory, get the parent directory
+		if !info.IsDir() {
+			path = filepath.Dir(path)
 		}
 
-		// Pickup any files within a CUE module folder (either at the root of the app or in a subfolder)
-		if strings.Contains(path, "/cue.mod/") || strings.HasPrefix(path, "cue.mod/") {
-			return true
+		for i := 0; i < 30; i++ {
+			base := filepath.Base(path)
+			if strings.ToLower(base) == "cue.mod" {
+				return true
+			}
+
+			parent := filepath.Dir(path)
+			if parent == path {
+				break
+			}
+			path = parent
 		}
 		return false
+	}
+
+	// Create a virtual filesystem for the config files
+	configFiles, err := vfs.FromDir(mainModule.RootDir.ToIO(), func(path string, info fs.DirEntry) bool {
+		return filepath.Ext(path) == ".cue" || inCueModFolder(path, info)
 	})
+
 	if err != nil {
 		errs.AssertStd(fmt.Errorf("unable to package configuration files: %w", err))
 	}

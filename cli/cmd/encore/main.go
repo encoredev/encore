@@ -154,8 +154,16 @@ type convertLogOptions struct {
 
 type convertLogOption func(*convertLogOptions)
 
+func colorize(enable bool) convertLogOption {
+	return func(clo *convertLogOptions) {
+		clo.Color = enable
+	}
+}
+
 func convertJSONLogs(opts ...convertLogOption) outputConverter {
-	options := convertLogOptions{}
+	// Default to colorized output.
+	options := convertLogOptions{Color: true}
+
 	for _, opt := range opts {
 		opt(&options)
 	}

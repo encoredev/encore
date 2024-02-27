@@ -75,9 +75,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		cancel()
 	}()
 
-	converter := convertJSONLogs(func(clo *convertLogOptions) {
-		clo.Color = !noColor
-	})
+	converter := convertJSONLogs(colorize(!noColor))
 	if slices.Contains(args, "-json") {
 		converter = convertTestEventOutputOnly(converter)
 	}
@@ -106,6 +104,7 @@ func init() {
 	// so that the help text is correct.
 	testCmd.Flags().Bool("codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
 	testCmd.Flags().String("trace", "", "Specifies a trace file to write trace information about the parse and compilation process to.")
+	testCmd.Flags().Bool("no-color", false, "Disable colorized output")
 
 }
 
