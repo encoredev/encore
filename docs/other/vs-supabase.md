@@ -29,7 +29,6 @@ Let's take a look at how Encore compares to BaaS platforms like Supabase and Fir
 | **Charges for hosting?**                            | No                                               | Yes                  | Yes                  |
 | **Pricing?**                                        | [$299 per developer](https://encore.dev/pricing) | Variable (complex)   | Variable (complex)   |
 
-
 ## Encore is the simplest way of accessing the full power and flexibility of the major cloud providers
 
 With Encore you don't need to be a cloud expert to make full use of the services offered by major cloud providers like AWS and GCP.
@@ -81,7 +80,6 @@ For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) u
 
 With Encore's [Infrastructure SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
-
 
 ## Encore's local development workflow lets application developers focus
 
