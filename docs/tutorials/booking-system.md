@@ -214,7 +214,7 @@ CREATE TABLE booking (
 🥐 Next, install the sqlc library:
 
 ```shell
-$ go install github.com/sqlc-dev/sqlc/cmd/sqlc
+$ go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 ```
 
 🥐 Next, we need to configure sqlc. Add the following contents to `sqlc.yaml`:
