@@ -3,6 +3,7 @@ seotitle: Encore TypeScript (Preview)
 seodesc: Encore makes it easy to define fully type-safe, idiomatic APIs in TypeScript.
 title: TypeScript (Preview)
 subtitle: Your feedback is welcome!
+lang: ts
 ---
 _This section shows how Encore's upcoming TypeScript support is intended to work and focuses only on TypeScript specifics. It does not contain full documentation on all Encore features. Please use [the complete Go docs](/docs) as a reference point for how Encore works generally._
 

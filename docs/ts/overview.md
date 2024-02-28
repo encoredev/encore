@@ -4,6 +4,7 @@ seodesc: Learn how Encore's TypeScript SDK works, and get to know the powerful f
 title: TypeScript SDK (beta)
 subtitle: Learn how to use Encore to build production-ready TypeScript backend applications and distributed systems
 toc: false
+lang: ts
 ---
 
 Encore's TypeScript SDK is currently in beta, more information will be available shortly.
