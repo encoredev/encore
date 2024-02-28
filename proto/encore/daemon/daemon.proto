@@ -44,6 +44,8 @@ service Daemon {
   rpc ListNamespaces (ListNamespacesRequest) returns (ListNamespacesResponse);
   // DeleteNamespace deletes an infra namespace.
   rpc DeleteNamespace (DeleteNamespaceRequest) returns (google.protobuf.Empty);
+
+  rpc DumpMeta(DumpMetaRequest) returns (DumpMetaResponse);
 }
 
 message CommandMessage {
@@ -303,4 +305,28 @@ message DeleteNamespaceRequest {
 
 message ListNamespacesResponse {
   repeated Namespace namespaces = 1;
+}
+
+message DumpMetaRequest {
+  string app_root = 1;
+  string working_dir = 2; // for error reporting
+
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 3;
+
+  // Whether or not to parse tests.
+  bool parse_tests = 4;
+
+  Format format = 5;
+
+  enum Format {
+    FORMAT_UNSPECIFIED = 0;
+    FORMAT_JSON = 1;
+    FORMAT_PROTO = 2;
+  }
+}
+
+message DumpMetaResponse {
+  bytes meta = 1;
 }

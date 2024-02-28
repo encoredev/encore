@@ -127,21 +127,24 @@ func allFilesUnder(filesys fs.FS, path string) ([]string, error) {
 }
 
 // writeFSToPath writes the contents of the given filesystem to a temporary directory on the local filesystem.
-func writeFSToPath(filesys fs.FS, targetPath string) error {
+func writeFSToPath(fsys fs.FS, targetPath string) error {
 	// Copy the files into the temporary directory
-	err := fs.WalkDir(filesys, ".", func(path string, info fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, ".", func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return eerror.Wrap(err, "config", "unable to walk VFS", nil)
 		}
 
+		// Convert the io/fs slash-based path to a filepath.
+		osPath := filepath.FromSlash(path)
+
 		if !info.IsDir() {
 			// Open the source file from our filesystem
-			srcFile, err := filesys.Open(path)
+			srcFile, err := fsys.Open(path)
 			if err != nil {
 				return eerror.Wrap(err, "config", "unable to open src file", nil)
 			}
 
-			dstFile, err := os.OpenFile(filepath.Join(targetPath, path), os.O_CREATE|os.O_WRONLY, 0644)
+			dstFile, err := os.OpenFile(filepath.Join(targetPath, osPath), os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				return eerror.Wrap(err, "config", "unable to open dst file", nil)
 			}
@@ -151,7 +154,7 @@ func writeFSToPath(filesys fs.FS, targetPath string) error {
 				return eerror.Wrap(err, "config", "unable to copy file", nil)
 			}
 		} else {
-			if err := os.Mkdir(filepath.Join(targetPath, path), 0755); err != nil && !errors.Is(err, os.ErrExist) {
+			if err := os.Mkdir(filepath.Join(targetPath, osPath), 0755); err != nil && !errors.Is(err, os.ErrExist) {
 				return eerror.Wrap(err, "config", "unable to make dir", nil)
 			}
 		}

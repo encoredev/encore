@@ -73,6 +73,7 @@ $ touch booking/slots.go
 
 ```go
 -- booking/slots.go --
+// Service booking keeps track of bookable slots in the calendar.
 package booking
 
 import (
@@ -213,7 +214,7 @@ CREATE TABLE booking (
 🥐 Next, install the sqlc library:
 
 ```shell
-$ go get github.com/sqlc-dev/sqlc/cmd/sqlc
+$ go install github.com/sqlc-dev/sqlc/cmd/sqlc
 ```
 
 🥐 Next, we need to configure sqlc. Add the following contents to `sqlc.yaml`:
@@ -363,6 +364,7 @@ $ touch user/auth.go
 
 ```go
 -- user/auth.go --
+// Service user authenticates users.
 package user
 
 import (
