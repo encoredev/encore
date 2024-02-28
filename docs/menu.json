@@ -330,7 +330,7 @@
       },
       {
         "Path": "/deploy/terraform",
-        "Title": "Terraform",
+        "Title": "Integrating with Terraform",
         "DocSlug": "deploy/terraform"
       }
     ]
