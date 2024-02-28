@@ -504,6 +504,11 @@
 						text: "Webhooks"
 						path: "/deploy/webhooks"
 						file: "deploy/webhooks"
+					}, {
+						kind: "basic"
+						text: "Integrating with Terraform"
+						path: "/deploy/terraform"
+						file: "deploy/terraform"
 					}]
 				},
 				{
