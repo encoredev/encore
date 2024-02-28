@@ -34,7 +34,7 @@ terraform {
 }
 ```
 
-Once you've declared the provider, terraform will automatically download the provider plugin when initializing the 
+Once you've declared the provider, Terraform will automatically download the provider plugin when initializing the 
 working directory using `terraform init`.
 
 To authenticate with the Encore API, the provider need an Encore Auth Key. You can generate an auth key using the
