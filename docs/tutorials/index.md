@@ -40,7 +40,7 @@ Check out these tutorials to learn how to build applications with Encore and fin
             </div>
             <div className="p-8 mobile:p-4">
                 <h3 className="body-small">Uptime Monitor</h3>
-                <p className="mt-2">Build a tool to monitor websites and get alerted when they go down.</p>
+                <p className="mt-2">Build an event-driven app to monitor websites and get alerted when they go down.</p>
             </div>
         </div>
     </a>
