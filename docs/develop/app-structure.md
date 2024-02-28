@@ -3,6 +3,7 @@ seotitle: Structuring your microservices backend application
 seodesc: Learn how to structure your microservices backend application. See recommended app structures for monoliths, small microservices backends, and large scale microservices applications.
 title: App Structure
 subtitle: Structuring your Encore application
+lang: go
 ---
 
 Encore uses a monorepo design and it's best to use one Encore app for your entire backend application. This lets Encore build an application model that spans your entire app, necessary to get the most value out of many

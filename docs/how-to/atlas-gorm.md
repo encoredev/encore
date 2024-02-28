@@ -2,6 +2,7 @@
 seotitle: How to use Atlas + GORM for database migrations with Encore
 seodesc: See how you can use Atlas to manage your database migrations in your Encore application.
 title: Use Atlas + GORM for database migrations
+lang: go
 ---
 
 [Atlas](https://atlasgo.io) is a popular tool for managing database migrations.

@@ -2,6 +2,7 @@
 seotitle: How to use Firebase Auth for your backend application
 seodesc: Learn how to use Firebase Auth for user authentication in your backend application. In this guide we show you how to integrate your Go backend with Firebase Auth.
 title: Use Firebase Auth with your app
+lang: go
 ---
 
 Encore's [authentication support](/docs/concepts/auth) provides a simple yet powerful

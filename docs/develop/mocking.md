@@ -7,6 +7,7 @@ infobox: {
   title: "Testing",
   import: "encore.dev/et",
 }
+lang: go
 ---
 
 Encore comes with built-in support for mocking out APIs and services, which makes it easier to test your application in

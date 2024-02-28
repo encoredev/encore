@@ -7,6 +7,7 @@ infobox: {
   title: "Testing",
   import: "encore.dev/et",
 }
+lang: go
 ---
 
 Go comes with excellent built-in support for automated tests.

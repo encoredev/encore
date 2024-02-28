@@ -2,6 +2,7 @@
 seotitle: How to insert test data in a database
 seodesc: Learn how to populate your database with test data using Go and Encore, making testing your backend application much simpler.
 title: Insert test data in a database
+lang: go
 ---
 
 When you're developing or testing, it's often useful to seed databases with test data.

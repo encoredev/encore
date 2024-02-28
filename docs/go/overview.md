@@ -4,6 +4,7 @@ seodesc: Learn how Encore's Go Infrastructure SDK works, and get to know the pow
 title: Go SDK
 subtitle: Learn how to use Encore's Go SDK to build scalable backend applications and distributed systems
 toc: false
+lang: go
 ---
 
 Modern backend applications rely on a common set of infrastructure primitives for most of the behavior. To improve your development workflow, Encore's Go SDK lets you declare these primitives as type-safe objects in application code. Encore then takes care of running your local environments, [provisioning cloud infrastructure](/docs/deploy/infra) and deploying to [your cloud](/docs/deploy/own-cloud) in AWS/GCP.
