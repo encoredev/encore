@@ -22,7 +22,7 @@ To do this, you only need to provide the name of the resource and the environmen
 ## Configuring the Encore Terraform Provider
 
 To use Encore data sources, you need to declare the Encore Terraform provider in the `required_providers` of
-your terraform configuration file. Here's an example of how to declare the provider:
+your Terraform configuration file. Here's an example of how to declare the provider:
 
 ```terraform
 terraform {
