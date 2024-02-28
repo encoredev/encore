@@ -15,7 +15,7 @@ offer a powerful mechanism for bridging this gap.
 ## Understanding Encore Terraform Data Sources
 
 Encore Terraform data sources act as read-only references to resources Encore has already provisioned on your behalf. 
-Unlike Terraform resources (which create or modify infrastructure), data sources only retrieve information. The encore
+Unlike Terraform resources (which create or modify infrastructure), data sources only retrieve information. The Encore
 data sources let's you retrieve cloud identifiers for resources managed by Encore, such as databases, caches, and more.
 To do this, you only need to provide the name of the resource and the environment it's in.
 
