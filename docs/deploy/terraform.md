@@ -1,6 +1,6 @@
 ---
 seotitle: Integrate Encore with existing infrastructure
-seodesc: The Encore terraform provider lets you integrate your encore deployment with existing infrastructure
+seodesc: The Encore Terraform Provider lets you integrate your Encore deployment with existing infrastructure
 title: Terraform Provider
 subtitle: Integrate Encore with existing infrastructure
 infobox: {
@@ -8,8 +8,7 @@ infobox: {
   import: "https://registry.terraform.io/providers/encoredev/encore",
 }
 ---
-Encore simplifies the deployment and management of cloud applications. When working with complex systems, you often
-need to integrate Encore-provisioned resources into your broader infrastructure landscape. For this purpose, Encore maintains a Terraform Provider with data sources that offer a powerful mechanism for bridging this gap.
+Encore makes it simple to deploy and manage cloud applications. When you're dealing with a large and complex system, you may want to integrate Encore-provisioned resources with an existing infrastructure landscape. For this purpose, Encore maintains a Terraform Provider with data sources for all Encore-provisioned resources.
 
 ## Understanding Encore Terraform Data Sources
 
@@ -36,8 +35,8 @@ terraform {
 Once you've declared the provider, Terraform will automatically download the provider plugin when initializing the
 working directory using `terraform init`.
 
-To authenticate with the Encore API, the provider need an Encore Auth Key. You can generate an auth key using the
-encore [cloud dashboard](https://encore.dev/docs/develop/auth-keys). Once you have the auth key, you can configure the
+To authenticate with the Encore API, the provider need an Encore Auth Key. You can generate an auth key from
+Encore's [Cloud Dashboard](https://encore.dev/docs/develop/auth-keys). Once you have the auth key, you can configure the
 provider in your Terraform configuration file like this:
 
 ```
@@ -50,7 +49,7 @@ You can also set the `ENCORE_AUTH_KEY` environment variable to avoid hardcoding 
 
 ## Using Encore Terraform Data Sources
 
-Once you have the provider configured, you can use the encore data sources to retrieve information about resources.
+Once you have the provider configured, you can use the Encore data sources to retrieve information about resources.
 There are several data sources available, such as `encore_database`, `encore_cache`, and `encore_pubsub_topic`. Each data
 source has its own set of attributes that you can use to retrieve information about the resource. The full documentation
 for each data source is available in the [Terraform Registry](https://registry.terraform.io/providers/encoredev/encore).
