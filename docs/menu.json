@@ -327,6 +327,11 @@
         "Path": "/deploy/webhooks",
         "Title": "Webhooks",
         "DocSlug": "deploy/webhooks"
+      },
+      {
+        "Path": "/deploy/terraform",
+        "Title": "Integrating with Terraform",
+        "DocSlug": "deploy/terraform"
       }
     ]
   },
