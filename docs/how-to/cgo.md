@@ -2,6 +2,7 @@
 seotitle: Build Go applications with cgo using Encore
 seodesc: Learn how to build Go applications with cgo using Encore
 title: Build with cgo
+lang: go
 ---
 
 Cgo is a feature of the Go compiler that enables Go programs to interface

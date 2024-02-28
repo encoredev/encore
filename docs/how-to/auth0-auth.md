@@ -2,6 +2,7 @@
 seotitle: How to use Auth0 for your backend application
 seodesc: Learn how to use Auth0 for user authentication in your backend application. In this guide we show you how to integrate your Go backend with Auth0.
 title: Use Auth0 with your app
+lang: go
 ---
 
 In this guide you will learn how to set up an Encore [auth handler](/docs/develop/auth#the-auth-handler) that makes use of

@@ -8,6 +8,7 @@ infobox: {
   import: "encore.dev/cron",
   example_link: "/docs/tutorials/uptime"
 }
+lang: go
 ---
 
 When you need to run periodic and recurring tasks, Encore's Infrastructure SDK provides a declarative way of using Cron Jobs.

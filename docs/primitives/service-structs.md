@@ -2,6 +2,7 @@
 seotitle: Service Structs
 seodesc: Learn how to use service structs to define APIs as methods.
 title: Service structs
+lang: go
 ---
 
 Encore lets you define a type, called a service struct, to represent your running service. This lets you define an initialization function (similar to the `main` function in regular Go programs).

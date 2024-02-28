@@ -3,6 +3,7 @@ seotitle: How to receive regular HTTP requests in your backend application
 seodesc: Learn how to receive regular HTTP requests in your Go based backend application using Encore.
 title: Receive regular HTTP requests
 subtitle: Dropping down in abstraction level
+lang: go
 ---
 
 Encore makes it easy to define APIs and expose them, but it works best when you are in charge of the API schema.

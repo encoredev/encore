@@ -2,6 +2,7 @@
 seotitle: Use Connect for gRPC/protobuf-based APIs with Encore
 seodesc: See how you can use the Connect protocol for gRPC communication with Encore services
 title: Use Connect for incoming gRPC requests
+lang: go
 ---
 
 The [Connect protocol](https://connectrpc.com/) is an HTTP/2-based protocol for RPC communication.

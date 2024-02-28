@@ -2,6 +2,7 @@
 seotitle: Managing database user credentials
 seodesc: Learn how to manage user credentials for databases created by Encore.
 title: Managing database user credentials
+lang: go
 ---
 
 Encore provisions your databases automatically, meaning you don't need to manually create database users. However, in some use cases you need access to the database user credentials, so Encore makes it simple to view them.
