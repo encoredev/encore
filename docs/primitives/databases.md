@@ -8,6 +8,7 @@ infobox: {
   import: "encore.dev/storage/sqldb",
   example_link: "/docs/tutorials/uptime"
 }
+lang: go
 ---
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.

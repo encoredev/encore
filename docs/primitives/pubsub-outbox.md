@@ -3,6 +3,7 @@ seotitle: Using a transactional Pub/Sub outbox
 seodesc: Learn how you can use a transactional outbox with Pub/Sub to guarantee consistency between your database and Pub/Sub subscribers
 title: Transactional Pub/Sub outbox
 subtitle: Guarantee consistency between your database and Pub/Sub subscribers
+lang: go
 ---
 
 One of the hardest parts of building an event-driven application is ensuring consistency between services.

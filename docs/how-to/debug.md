@@ -2,6 +2,7 @@
 seotitle: How to debug your application with Delve
 seodesc: Learn how to debug your Go backend application using Delve and Encore.
 title: Debug with Delve
+lang: go
 ---
 
 Encore makes it easy to debug your application using [Delve](https://github.com/go-delve/delve "Delve").

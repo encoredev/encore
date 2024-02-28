@@ -7,6 +7,7 @@ infobox: {
   title: "Authentication",
   import: "encore.dev/beta/auth",
 }
+lang: go
 ---
 Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.

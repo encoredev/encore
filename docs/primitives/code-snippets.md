@@ -3,6 +3,7 @@ seotitle: Code snippets for using the Infrastructure SDK's building blocks in yo
 seodesc: Learn how to build cloud-agnostic backend applications using Encore's Infrastructure SDK.
 title: Code snippets
 subtitle: Shortcuts for building with Encore
+lang: go
 ---
 
 When you're familiar with how Encore works, you can simplify your development workflow by copy-pasting these examples. If you're looking for details on how Encore works, please refer to the relevant docs section.

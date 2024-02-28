@@ -7,6 +7,7 @@ infobox: {
   title: "Caching",
   import: "encore.dev/storage/cache",
 }
+lang: go
 ---
 
 A cache is a high-speed storage layer, commonly used in distributed systems to improve user experiences

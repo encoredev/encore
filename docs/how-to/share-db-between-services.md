@@ -2,6 +2,7 @@
 seotitle: How to share SQL databases between services
 seodesc: Learn how to share a SQL database between multiple Go backend services using Encore.
 title: Share SQL databases between services
+lang: go
 ---
 
 By default, each service in an Encore app has its own database. This approach has many benefits: 

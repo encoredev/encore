@@ -7,6 +7,7 @@ infobox: {
   title: "API Errors",
   import: "encore.dev/beta/errs",
 }
+lang: go
 ---
 
 Encore supports returning structured error information from your APIs using the [encore.dev/beta/errs](https://pkg.go.dev/encore.dev/beta/errs) package.

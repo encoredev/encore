@@ -445,8 +445,8 @@
 			text: "Platform"
 			items: [
 				{
-					kind:            "accordion"
-					text:            "Deploy"
+					kind: "accordion"
+					text: "Deploy"
 					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
