@@ -59,11 +59,16 @@ Note that when you run commands like `encore run` must use the same `encore` bin
 
 ### Testing the Daemon run logic
 The codegen tests in the `internal/clientgen/client_test.go` file uses many auto generated files from the
-`e2e-tests/testdata` directory. To generate the client files and other test files, run `go test -golden-update` from
-the `e2e-tests` directory. This will generate client files for all the supported client generation languages.
+`e2e-tests/testdata` directory. To generate the client files and other test files, run:
 
-Running `go test ./internal/clientgen` will now work and use the most recent client generated files. If
-you change the client or content of the `testdata` folder, you may need to regenerate the client files again.
+```bash
+go test ./internal/clientgen -golden-update
+go test ./e2e-tests -golden-update
+```
+
+This will generate client files for all the supported client generation languages.
+
+Running `go test ./internal/clientgen` will now work and use the most recent client generated files. If you change the client or content of the `testdata` folder, you may need to regenerate the client files again.
 
 ## Architecture
 

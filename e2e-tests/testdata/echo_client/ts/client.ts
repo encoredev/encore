@@ -799,9 +799,7 @@ class BaseClient {
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
+		this.headers = {}
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
@@ -842,6 +840,12 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
+
+		// If the body is not FormData, set the Content-Type to application/json
+		// otherwise allow fetch to set the Content-Type including the boundary
+		if (!(body instanceof FormData)) {
+            init.headers['Content-Type'] = 'application/json';
+		}
 
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: echo.AuthParams | undefined
