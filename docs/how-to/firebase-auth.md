@@ -12,6 +12,8 @@ way of dealing with various authentication scenarios.
 
 Encore makes it really easy to integrate with Firebase Authentication on the backend.
 
+For all the code and instructions of how to clone and run this example locally, see the [Firebase Auth Example](https://github.com/encoredev/examples/tree/main/firebase-auth) in our examples repo.
+
 ## Set up auth handler
 
 First, install two modules:
@@ -151,3 +153,10 @@ Successfully updated development secret FirebasePrivateKey
 
 That's it! You can now call your Encore application and pass in Firebase tokens.
 Encore will run your auth handler and validate the token against Firebase Auth.
+
+## Frontend
+
+Firebase offers a [npm package](https://www.npmjs.com/package/firebase) for your web frontend which makes it really simple to create 
+a login/signup flow inside your web app as well as getting the token required to communicate with your Encore backend. 
+
+For a fully working backend + frontend example see the [Firebase Auth Example](https://github.com/encoredev/examples/tree/main/firebase-auth) in our examples repo.
