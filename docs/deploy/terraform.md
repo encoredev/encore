@@ -9,8 +9,7 @@ infobox: {
 }
 ---
 Encore simplifies the deployment and management of cloud applications. When working with complex systems, you often 
-need to integrate Encore-provisioned resources into your broader infrastructure landscape. For this purpose, Encore maintains a Terraform Provider with data sources that
-offer a powerful mechanism for bridging this gap.
+need to integrate Encore-provisioned resources into your broader infrastructure landscape. For this purpose, Encore maintains a Terraform Provider with data sources that offer a powerful mechanism for bridging this gap.
 
 ## Understanding Encore Terraform Data Sources
 
