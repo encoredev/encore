@@ -18,7 +18,11 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
-var LocalBuildTags = []string{"encore_local", "encore_no_gcp", "encore_no_aws", "encore_no_azure"}
+var LocalBuildTags = []string{
+	"encore_local",
+	"encore_no_gcp", "encore_no_aws", "encore_no_azure",
+	"encore_no_datadog", "encore_no_prometheus",
+}
 
 type BuildInfo struct {
 	BuildTags          []string
