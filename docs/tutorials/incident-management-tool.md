@@ -841,7 +841,7 @@ Take a look at the [Encore Flow](/docs/develop/encore-flow) diagram that was aut
 ### GitHub Repository
 
 🥐 Check out the `example-app-oncall` repository on GitHub for this example which includes additional features and tests:
-<https://github.com/encoredev/example-app-oncall>
+[https://github.com/encoredev/example-app-oncall](https://github.com/encoredev/example-app-oncall)
 
 Alternatively, you can clone our example application by running this in your Terminal:
 
