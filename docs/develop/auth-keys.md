@@ -14,7 +14,7 @@ Pre-authentication keys (“auth keys” for short) let you authenticate the Enc
 
 - **Reusable Keys** for authenticating more than one machine.
 
-- **Ephemeral Keys** - Machines authenticated by this key will be automatically logged out after one our.
+- **Ephemeral Keys** - Machines authenticated by this key will be automatically logged out after one hour.
 
 <Callout type="important">
 
