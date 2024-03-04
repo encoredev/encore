@@ -33,7 +33,7 @@ Whenever you see a 🥐 it means there's something for you to do.
 $ encore app create uptime --example=github.com/encoredev/example-app-uptime/tree/starting-point
 ```
 
-Your newly created application will also be registered on <https://app.encore.dev> for when you deploy your new app later.
+Your newly created application will also be registered on [https://app.encore.dev](https://app.encore.dev) for when you deploy your new app later.
 
 🥐 Check that your frontend works:
 
@@ -109,7 +109,7 @@ func Ping(ctx context.Context, url string) (*PingResponse, error) {
 
 🥐 Let's try it! Run `encore run` in your terminal and you should see the service start up.
 
-Then open up the Local Development Dashboard running at <http://localhost:9400> and try calling
+Then open up the Local Development Dashboard running at [http://localhost:9400](http://localhost:9400) and try calling
 the `monitor.Ping` endpoint, passing in `google.com` as the URL.
 
 If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in
