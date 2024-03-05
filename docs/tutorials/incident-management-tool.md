@@ -22,9 +22,7 @@ Or if you'd rather watch a video of this tutorial, you can do that below.
 
 <iframe width="360" height="202" src="https://www.youtube.com/embed/BR_ys_qR2kI?controls=0" title="Building an Incident Management Tool Video Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-<div className="not-prose my-10">
-   <Editor projectName="incidentManagement" />
-</div>
+View full project on [GitHub](https://github.com/encoredev/example-app-oncall)
 
 <Callout type="info">
 
