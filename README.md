@@ -90,7 +90,7 @@ You also get built-in tools for an efficient workflow when creating distributed 
 - **Type-aware infrastructure:** With Encore, infrastructure like Pub/Sub queues are type-aware objects in your program. This enables full end-to-end type-safety when building event-driven applications.
 - **Secrets management:** Built-in [secrets management](https://encore.dev/docs/primitives/secrets) for all environments.
 - **Tracing:** The [local development dashboard](https://encore.dev/docs/observability/dev-dash) provides local tracing to help understand application behavior and find bugs.
-- **Automatic API docs & clients:** Encore generates [API docs](https://encore.dev/docs/develop/api-docs) and [API clients](https://encore.dev/docs/develop/client-generation[]) in Go, TypeScript, JavaScript, and OpenAPI specification.
+- **Automatic API docs & clients:** Encore generates [API docs](https://encore.dev/docs/develop/api-docs) and [API clients](https://encore.dev/docs/develop/client-generation) in Go, TypeScript, JavaScript, and OpenAPI specification.
 
 _Here's a video showing the local development dashboard:_
 
