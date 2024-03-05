@@ -326,6 +326,7 @@ Now that you know how to build a backend with a database, you're ready to let yo
 
 We're excited to hear what you're going to build with Encore, join the pioneering developer community on [Slack](/slack) and share your story.
 
+
 </LangTabPanel>
 <LangTabPanel>
 
@@ -519,9 +520,11 @@ You should now see this:
 
 And there you have it! That's how you build REST APIs and use PostgreSQL databases in Encore.
 
-## 4. Deploy
+## 4. Deploy to the cloud
 
-🥐 Commit all files to the project's git repo and trigger a deploy to Encore's free development cloud by running:
+The final step before you deploy is to commit all changes to the project repo.
+
+🥐 Commit the new files to the project's git repo and trigger a deploy to Encore's free development cloud by running:
 
 ```shell
 $ git add -A .
@@ -529,7 +532,7 @@ $ git commit -m 'Initial commit'
 $ git push encore
 ```
 
-Encore will now build your app, provision the needed infrastructure, and deploy your application to the cloud.
+Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
 After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
 
@@ -537,9 +540,23 @@ From there you can also see metrics, traces, and connect your own AWS or GCP acc
 
 *Now you have a fully fledged backend running in the cloud, well done!*
 
+### Celebrate with fireworks
+
+Now that your app is running in the cloud, let's celebrate with some fireworks:
+
+🥐 In the Cloud Dashboard, open the Command Menu by pressing **Cmd + K** (Mac) or **Ctrl + K** (Windows/Linux).
+
+_From here you can easily access all Cloud Dashboard features and for example jump straight to specific services in the Service Catalog or view Traces for specific endpoints._
+
+🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
+
+![Fireworks](/assets/docs/fireworks.jpg)
+
 ## What's next
 
 Now that you know how to build a backend with a database, you're ready to let your creativity flow and begin building your next great idea!
+
+🥐 A great next step is to [integrate with GitHub](/docs/how-to/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
 
 We're excited to hear what you're going to build with Encore, join the pioneering developer community on [Slack](/slack) and share your story.
 
