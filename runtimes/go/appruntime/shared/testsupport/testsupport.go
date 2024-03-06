@@ -106,7 +106,7 @@ func (mgr *Manager) StartTest(t *testing.T, fn func(*testing.T)) {
 		Logger: &logger,
 		SvcNum: svcNum,
 	}
-	mgr.rt.BeginRequest(req)
+	mgr.rt.BeginRequest(req, false)
 	if curr := mgr.rt.Current(); curr.Trace != nil {
 		curr.Trace.TestSpanStart(req, curr.Goctr)
 	}

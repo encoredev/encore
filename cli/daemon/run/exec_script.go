@@ -62,6 +62,11 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
+	buildConfig, err := p.App.BuildConfig()
+	if err != nil {
+		return errors.Wrap(err, "get build settings")
+	}
+
 	rm := infra.NewResourceManager(p.App, mgr.ClusterMgr, p.NS, p.Environ, mgr.DBProxyPort, false)
 	defer rm.StopAll()
 
@@ -77,8 +82,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	vcsRevision := vcs.GetRevision(p.App.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildConfig:        buildConfig,
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

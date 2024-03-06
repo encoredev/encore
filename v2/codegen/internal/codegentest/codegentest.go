@@ -37,6 +37,12 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 	flag.Parse()
 	c := qt.New(t)
 	tests := readTestCases(c, "testdata")
+
+	goRuntime := filepath.Join(os.Getenv("ENCORE_RUNTIMES_PATH"), "go")
+	if _, err := os.Stat(goRuntime); err != nil {
+		c.Fatal(err)
+	}
+
 	for _, test := range tests {
 		c.Run(test.name, func(c *qt.C) {
 			tc := testutil.NewContext(c, false, test.input)
@@ -48,7 +54,7 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 				if !errors.Is(err, fs.ErrNotExist) {
 					c.Fatal(err)
 				}
-				modContents := "module example.com\nrequire encore.dev v1.13.4"
+				modContents := "module example.com\nrequire encore.dev v1.30.0\nreplace encore.dev => " + goRuntime
 				err := os.WriteFile(modPath, []byte(modContents), 0644)
 				c.Assert(err, qt.IsNil)
 			}

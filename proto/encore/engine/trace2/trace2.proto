@@ -31,6 +31,7 @@ message SpanSummary {
     AUTH = 2;
     PUBSUB_MESSAGE = 3;
     TEST = 4;
+    GENERIC_SPAN = 5;
   }
 }
 
@@ -69,6 +70,7 @@ message SpanStart {
     AuthSpanStart auth = 11;
     PubsubMessageSpanStart pubsub_message = 12;
     TestSpanStart test = 13;
+    GenericSpanStart generic = 14;
   }
 }
 
@@ -85,6 +87,7 @@ message SpanEnd {
     AuthSpanEnd auth = 11;
     PubsubMessageSpanEnd pubsub_message = 12;
     TestSpanEnd test = 13;
+    GenericSpanEnd generic = 14;
   }
 }
 
@@ -162,6 +165,29 @@ message TestSpanEnd {
   bool   skipped = 4;
 }
 
+message GenericSpanStart {
+  string                    span_name  = 1;
+  Kind                      kind       = 2;
+  google.protobuf.Timestamp time       = 3;
+  repeated LogField         attributes = 4;
+  StackTrace                stack      = 5;
+
+  enum Kind {
+    UNKNOWN  = 0;
+    INTERNAL = 1;
+    REQUEST  = 2;
+    CALL     = 3;
+    PRODUCER = 4;
+    CONSUMER = 5;
+  }
+}
+
+message GenericSpanEnd {
+  google.protobuf.Timestamp time       = 1;
+  repeated LogField         attributes = 2;
+  StackTrace                stack      = 3;
+}
+
 message SpanEvent {
   uint32 goid = 1;
   optional uint32 def_loc = 2;
@@ -187,6 +213,7 @@ message SpanEvent {
     CacheCallEnd cache_call_end = 23;
     ServiceInitStart service_init_start = 24;
     ServiceInitEnd service_init_end = 25;
+    GenericEvent generic_event = 26;
   }
 }
 
@@ -266,6 +293,14 @@ message CacheCallEnd {
     CONFLICT = 3;
     ERR = 4;
   }
+}
+
+message GenericEvent {
+  string                    event_name = 1;
+  google.protobuf.Timestamp time       = 2;
+  Error                     error      = 3;
+  repeated LogField         attributes = 4;
+  StackTrace                stack      = 5;
 }
 
 message BodyStream {

@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"encr.dev/pkg/errors"
@@ -253,6 +254,12 @@ func parseOne(errs *perr.List, pos token.Pos, line string) (d Directive, ok bool
 			f.Key = key
 			f.Value = value
 
+			// If the value is quoted, unquote it.
+			if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+				unquoted, _ := strconv.Unquote(value)
+				f.Value = unquoted
+			}
+
 			if value == "" {
 				errs.Add(errFieldHasNoValue.AtGoNode(f))
 				return Directive{}, false
@@ -264,7 +271,7 @@ func parseOne(errs *perr.List, pos token.Pos, line string) (d Directive, ok bool
 				return Directive{}, false
 			}
 			d.Fields = append(d.Fields, f)
-		} else {
+		} else if f.Value != "" {
 			if !nameRe.MatchString(f.Value) {
 				errs.Add(errInvalidOptionName(f.Value).AtGoNode(f))
 				return Directive{}, false

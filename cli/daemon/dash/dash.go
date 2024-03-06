@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/rs/zerolog/log"
@@ -26,6 +27,7 @@ import (
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/editors"
+	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errlist"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -378,6 +380,10 @@ func (s *Server) OnStart(r *run.Run) {
 }
 
 func (s *Server) OnCompileStart(r *run.Run) {
+	lastErrorMu.Lock()
+	lastError[r.App.PlatformOrLocalID()] = nil
+	lastErrorMu.Unlock()
+
 	status, err := buildAppStatus(r.App, r)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not build app status")
@@ -394,6 +400,11 @@ func (s *Server) OnCompileStart(r *run.Run) {
 
 // OnReload notifies active websocket clients about the reloaded run.
 func (s *Server) OnReload(r *run.Run) {
+	// A reload means a successful compile, so clear any previous compile errors.
+	lastErrorMu.Lock()
+	lastError[r.App.PlatformOrLocalID()] = nil
+	lastErrorMu.Unlock()
+
 	status, err := buildAppStatus(r.App, r)
 	if err != nil {
 		log.Error().Err(err).Msg("dash: could not build app status")
@@ -430,8 +441,16 @@ func (s *Server) OnStderr(r *run.Run, out []byte) {
 	s.onOutput(r, out)
 }
 
-func (s *Server) OnError(r *run.Run, err *errlist.List) {
-	if err == nil {
+var lastErrorMu sync.Mutex
+var lastError = make(map[string]*errlist.List)
+
+func (s *Server) OnError(r *run.Run, compileErr *errlist.List) {
+	lastErrorMu.Lock()
+	compileErr.MakeRelative(r.App.Root(), "")
+	lastError[r.App.PlatformOrLocalID()] = compileErr
+	lastErrorMu.Unlock()
+
+	if compileErr == nil {
 		return
 	}
 
@@ -440,10 +459,6 @@ func (s *Server) OnError(r *run.Run, err *errlist.List) {
 		log.Error().Err(statusErr).Msg("dash: could not build app status")
 		return
 	}
-
-	err.MakeRelative(r.App.Root(), "")
-
-	status.CompileError = err.Error()
 
 	s.notify(&notification{
 		Method: "process/compile-error",
@@ -735,16 +750,17 @@ func makeProtoReplier(rep jsonrpc2.Replier) jsonrpc2.Replier {
 //
 // It is mirrored in the frontend at src/lib/client/dev-dash-client.ts as `AppStatus`.
 type appStatus struct {
-	Running      bool                  `json:"running"`
-	AppID        string                `json:"appID"`
-	PlatformID   string                `json:"platformID,omitempty"`
-	AppRoot      string                `json:"appRoot"`
-	PID          string                `json:"pid,omitempty"`
-	Meta         json.RawMessage       `json:"meta,omitempty"`
-	Addr         string                `json:"addr,omitempty"`
-	APIEncoding  *encoding.APIEncoding `json:"apiEncoding,omitempty"`
-	Compiling    bool                  `json:"compiling"`
-	CompileError string                `json:"compileError,omitempty"`
+	Running         bool                  `json:"running"`
+	AppID           string                `json:"appID"`
+	PlatformID      string                `json:"platformID,omitempty"`
+	AppRoot         string                `json:"appRoot"`
+	PID             string                `json:"pid,omitempty"`
+	Meta            json.RawMessage       `json:"meta,omitempty"`
+	Addr            string                `json:"addr,omitempty"`
+	APIEncoding     *encoding.APIEncoding `json:"apiEncoding,omitempty"`
+	Compiling       bool                  `json:"compiling"`
+	CompileError    string                `json:"compileError,omitempty"`
+	CompileErrorRaw *errlist.List         `json:"compileErrorRaw,omitempty"`
 }
 
 func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err error) {
@@ -778,14 +794,28 @@ func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err 
 		apiEnc = encoding.DescribeAPI(md)
 	}
 
+	lastErrorMu.Lock()
+	compileErr := lastError[app.PlatformOrLocalID()]
+	lastErrorMu.Unlock()
+
+	errStr := ""
+	if compileErr != nil && compileErr.List.Len() > 0 {
+		wasEnabled := errinsrc.ColoursEnabled()
+		errinsrc.ColoursInErrors(true)
+		errStr = compileErr.Error()
+		errinsrc.ColoursInErrors(wasEnabled)
+	}
+
 	// Build the response
 	resp := appStatus{
-		Running:     false,
-		AppID:       app.PlatformOrLocalID(),
-		PlatformID:  app.PlatformID(),
-		Meta:        json.RawMessage(mdStr),
-		AppRoot:     app.Root(),
-		APIEncoding: apiEnc,
+		Running:         false,
+		AppID:           app.PlatformOrLocalID(),
+		PlatformID:      app.PlatformID(),
+		Meta:            json.RawMessage(mdStr),
+		AppRoot:         app.Root(),
+		APIEncoding:     apiEnc,
+		CompileError:    errStr,
+		CompileErrorRaw: compileErr,
 	}
 	if runInstance != nil {
 		resp.Running = true

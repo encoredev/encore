@@ -12,6 +12,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
@@ -22,8 +23,7 @@ var LocalBuildTags = []string{"encore_local", "encore_no_gcp", "encore_no_aws", 
 
 type BuildInfo struct {
 	BuildTags          []string
-	CgoEnabled         bool
-	StaticLink         bool
+	BuildConfig        appfile.BuildCfg
 	Debug              bool
 	GOOS, GOARCH       string
 	KeepOutput         bool
@@ -47,8 +47,7 @@ type BuildInfo struct {
 func DefaultBuildInfo() BuildInfo {
 	return BuildInfo{
 		BuildTags:          slices.Clone(LocalBuildTags),
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildConfig:        appfile.BuildCfg{},
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

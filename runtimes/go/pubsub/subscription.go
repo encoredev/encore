@@ -204,7 +204,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 			}
 		}
 
-		mgr.rt.BeginRequest(req)
+		mgr.rt.BeginRequest(req, false)
 		curr := mgr.rt.Current()
 		if curr.Trace != nil {
 			curr.Trace.PubsubMessageSpanStart(req, curr.Goctr)

@@ -58,6 +58,11 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		return err
 	}
 
+	buildConfig, err := params.App.BuildConfig()
+	if err != nil {
+		return errors.Wrap(err, "get build settings")
+	}
+
 	secretData, err := params.Secrets.Get(ctx, expSet)
 	if err != nil {
 		return err
@@ -69,8 +74,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	vcsRevision := vcs.GetRevision(params.App.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildConfig:        buildConfig,
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

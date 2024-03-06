@@ -206,6 +206,10 @@ func (l *List) ErrorList() []*errinsrc.ErrInSrc {
 // app root relative to the relwd (which must be a relative path
 // within the root).
 func (l *List) MakeRelative(root, relwd string) {
+	if l == nil {
+		return
+	}
+
 	wdroot := filepath.Join(root, relwd)
 	for _, e := range l.List {
 		for _, loc := range e.Params.Locations {
@@ -276,9 +280,9 @@ func (l *List) SendToStream(stream interface {
 func Print(w io.Writer, err error) {
 	if l, ok := err.(*List); ok {
 		for _, e := range l.List {
-			fmt.Fprintf(w, "%s\n", e)
+			_, _ = fmt.Fprintf(w, "%s\n", e)
 		}
 	} else if err != nil {
-		fmt.Fprintf(w, "%s\n", err)
+		_, _ = fmt.Fprintf(w, "%s\n", err)
 	}
 }

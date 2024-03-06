@@ -167,6 +167,42 @@ func (mr *MockLoggerMockRecorder) DBTransactionStart(arg0, arg1 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DBTransactionStart", reflect.TypeOf((*MockLogger)(nil).DBTransactionStart), arg0, arg1)
 }
 
+// GenericEvent mocks base method.
+func (m *MockLogger) GenericEvent(params trace2.GenericEventParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "GenericEvent", params)
+}
+
+// GenericEvent indicates an expected call of GenericEvent.
+func (mr *MockLoggerMockRecorder) GenericEvent(params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenericEvent", reflect.TypeOf((*MockLogger)(nil).GenericEvent), params)
+}
+
+// GenericSpanEnd mocks base method.
+func (m *MockLogger) GenericSpanEnd(req *model.Request, params trace2.GenericSpanEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "GenericSpanEnd", req, params)
+}
+
+// GenericSpanEnd indicates an expected call of GenericSpanEnd.
+func (mr *MockLoggerMockRecorder) GenericSpanEnd(req, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenericSpanEnd", reflect.TypeOf((*MockLogger)(nil).GenericSpanEnd), req, params)
+}
+
+// GenericSpanStart mocks base method.
+func (m *MockLogger) GenericSpanStart(req *model.Request, params trace2.GenericSpanStartParams, goid uint32) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "GenericSpanStart", req, params, goid)
+}
+
+// GenericSpanStart indicates an expected call of GenericSpanStart.
+func (mr *MockLoggerMockRecorder) GenericSpanStart(req, params, goid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenericSpanStart", reflect.TypeOf((*MockLogger)(nil).GenericSpanStart), req, params, goid)
+}
+
 // GetAndClear mocks base method.
 func (m *MockLogger) GetAndClear() ([]byte, bool) {
 	m.ctrl.T.Helper()

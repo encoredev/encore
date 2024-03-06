@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/parser/apis/internal/directive"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/servicestruct"
+	"encr.dev/v2/parser/apis/tracedfunc"
 	"encr.dev/v2/parser/resource/resourceparser"
 )
 
@@ -85,6 +86,22 @@ var Parser = &resourceparser.Parser{
 							if mw.Recv.Empty() {
 								p.AddNamedBind(file, mw.Decl.AST.Name, mw)
 							}
+						}
+
+					case "trace":
+						tf := tracedfunc.Parse(tracedfunc.ParseData{
+							Errs:   p.Errs,
+							Schema: p.SchemaParser,
+							File:   file,
+							Func:   decl,
+							Dir:    dir,
+							Doc:    doc,
+						})
+
+						if tf != nil {
+							p.RegisterResource(tf)
+							// We don't bind this function because we don't need to know
+							// anything else, apart from the fact it exists and is traced.
 						}
 
 					default:

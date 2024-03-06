@@ -306,6 +306,11 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		return err
 	}
 
+	buildConfig, err := r.App.BuildConfig()
+	if err != nil {
+		return errors.Wrap(err, "get build settings")
+	}
+
 	if r.builder == nil {
 		r.builder = builderimpl.Resolve(expSet)
 	}
@@ -313,8 +318,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 	vcsRevision := vcs.GetRevision(r.App.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildConfig:        buildConfig,
 		Debug:              r.Params.Debug,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

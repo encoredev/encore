@@ -87,6 +87,7 @@ func initializeApp(name string) error {
 
 	// Create the encore.app file
 	encoreAppData := []byte(`{
+	"$schema": "https://encore.dev/schemas/appfile.schema.json",
 	"id": "` + app.Slug + `",
 }
 `)

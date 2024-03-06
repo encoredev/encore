@@ -27,6 +27,7 @@ const (
 	AuthHandler
 	Middleware
 	ServiceStruct
+	TracedFunc
 )
 
 type Resource interface {

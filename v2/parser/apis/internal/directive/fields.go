@@ -40,8 +40,28 @@ func fields(startPos token.Pos, s string) []Field {
 		i++
 	}
 	fieldStart = i
+	inQuote := false
+	escaped := false
 	for i < len(s) {
-		if asciiSpace[s[i]] == 0 {
+		if !escaped {
+			switch {
+			// check if we enter a quoted field which is always the characters ="
+			case !inQuote && s[i] == '=' && i+1 < len(s) && s[i+1] == '"':
+				inQuote = true
+
+			// check if we exit a quoted field which is always the character " followed by a space
+			case inQuote && s[i] == '"' && i+1 < len(s) && asciiSpace[s[i+1]] == 1:
+				inQuote = false
+
+			// check if we're about to escape something
+			case inQuote && s[i] == '\\':
+				escaped = true
+			}
+		} else {
+			escaped = false
+		}
+
+		if inQuote || asciiSpace[s[i]] == 0 {
 			i++
 			continue
 		}

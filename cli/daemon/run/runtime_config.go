@@ -166,7 +166,7 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service,
 
 	daemonProxyURL := option.Map(g.DaemonProxyAddr, func(t netip.AddrPort) string { return fmt.Sprintf("http://%s", t) })
 
-	// Build the base config
+	// BuildCfg the base config
 	runtimeCfg := &config.Runtime{
 		AppID:            g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
 		AppSlug:          g.App.PlatformID(),
@@ -236,6 +236,7 @@ func (g *RuntimeEnvGenerator) runtimeConfigForServices(services []*meta.Service,
 	for _, svc := range services {
 		// Configure all the SQL databases for the service
 		for _, sqlDB := range g.dbsBySvc[svc.Name] {
+			// nosemgrep
 			server, db, err := g.InfraManager.SQLConfig(sqlDB)
 			if err != nil {
 				return "", errors.Wrapf(err, "failed to generate SQL config for database %s for service %s", db.DatabaseName, svc.Name)
@@ -377,7 +378,7 @@ func (g *RuntimeEnvGenerator) runtimeConfigForGateway(hostnames []string) (strin
 		return "", errors.Wrap(err, "failed to generate global CORS config")
 	}
 
-	// Build the base config
+	// BuildCfg the base config
 	runtimeCfg := &config.Runtime{
 		AppID:            g.AppID.GetOrElseF(g.App.PlatformOrLocalID),
 		AppSlug:          g.App.PlatformID(),

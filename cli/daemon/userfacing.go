@@ -32,11 +32,15 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 		return errors.Wrap(err, "resolve experiments")
 	}
 
+	buildConfig, err := app.BuildConfig()
+	if err != nil {
+		return errors.Wrap(err, "get build settings")
+	}
+
 	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
-		CgoEnabled:         true,
-		StaticLink:         false,
+		BuildConfig:        buildConfig,
 		Debug:              false,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

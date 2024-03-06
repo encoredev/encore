@@ -67,10 +67,10 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 
 				GOARCH:             p.Build.GOARCH,
 				GOOS:               p.Build.GOOS,
-				CgoEnabled:         p.Build.CgoEnabled,
-				StaticLink:         p.Build.StaticLink,
+				CgoEnabled:         p.Build.BuildConfig.CgoEnabled,
+				StaticLink:         p.Build.BuildConfig.StaticLink,
 				Debug:              p.Build.Debug,
-				BuildTags:          p.Build.BuildTags,
+				BuildTags:          p.Build.BuildConfig.BuildTags(p.Build.BuildTags),
 				Revision:           p.Build.Revision,
 				UncommittedChanges: p.Build.UncommittedChanges,
 				MainPkg:            p.Build.MainPkg,

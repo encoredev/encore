@@ -54,6 +54,8 @@ type encoreReq struct {
 	spanID model2.SpanID
 	// data is request-specific data defined in the Encore runtime.
 	data *model2.Request
+	// previous request to restore, if any
+	prev *encoreReq
 }
 
 // beginOp begins a new Encore operation.
@@ -133,9 +135,9 @@ func (op *encoreOp) decRef(blockOnTraceSend bool) int32 {
 // and increases the ref count on the operation.
 // If the g is not part of an op, it creates a new op
 // that is bound to the request lifetime.
-func (t *RequestTracker) beginReq(data *model2.Request, trace bool) {
+func (t *RequestTracker) beginReq(data *model2.Request, trace bool, toStack *encoreReq) {
 	e := t.impl.get()
-	req := &encoreReq{spanID: data.SpanID, data: data}
+	req := &encoreReq{spanID: data.SpanID, data: data, prev: toStack}
 	if e == nil {
 		op := t.newOp(trace)
 		t.tagG(op, req)
@@ -161,7 +163,7 @@ func (t *RequestTracker) finishReq(blockOnTraceSend bool) {
 		panic("encore.finishReq: no current request")
 	}
 	e.op.decRef(blockOnTraceSend)
-	e.req = nil
+	e.req = e.req.prev
 }
 
 func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, goctr uint32, svcNum uint16) {
@@ -182,14 +184,16 @@ func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, go
 // encoreClearReq clears request data from the running g
 // without decrementing the ref count.
 // The g must be processing a request.
-func (t *RequestTracker) clearReq() {
+func (t *RequestTracker) clearReq() *encoreReq {
 	e := t.impl.get()
 	if e == nil {
 		panic("encore.replaceReq: goroutine not in an operation")
 	} else if e.req == nil {
 		panic("encore.replaceReq: no current request")
 	}
+	old := e.req
 	e.req = nil
+	return old
 }
 
 //go:linkname nanotime runtime.nanotime

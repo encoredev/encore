@@ -67,7 +67,7 @@ func TestCounter_MultipleServices(t *testing.T) {
 
 	// Inside a request they should work.
 	{
-		rt.BeginRequest(&model.Request{SvcNum: 1})
+		rt.BeginRequest(&model.Request{SvcNum: 1}, false)
 		c.Increment()
 		c.Add(2)
 		eq(t, ts.value[0], 3)
@@ -83,7 +83,7 @@ func TestCounter_MultipleServices(t *testing.T) {
 
 	// Inside a request they should work.
 	{
-		rt.BeginRequest(&model.Request{SvcNum: 2})
+		rt.BeginRequest(&model.Request{SvcNum: 2}, false)
 		c.Increment()
 		eq(t, ts.value[0], 3)
 		eq(t, ts.value[1], 1)

@@ -8,6 +8,8 @@ import (
 	"encore.dev/appruntime/shared/traceprovider"
 )
 
+var Singleton *RequestTracker
+
 // New creates a new RequestTracker.
 //
 // If traceProvider is nil no traces are generated.
@@ -40,12 +42,21 @@ func (t *RequestTracker) FinishOperation() {
 	t.finishOp()
 }
 
-func (t *RequestTracker) BeginRequest(req *model.Request) {
+// BeginRequest starts a new request for this Goroutine.
+//
+// If pushStack is true the current stack is pushed onto the operations stack
+// meaning that when the request if finished the stack will be popped off the
+// operations stack and restored.
+func (t *RequestTracker) BeginRequest(req *model.Request, pushStack bool) {
+	var old *encoreReq
 	if prev, _, _, _ := t.currentReq(); prev != nil {
 		copyReqInfoFromParent(req, prev)
-		t.clearReq()
+		old = t.clearReq()
 	}
-	t.beginReq(req, req.Traced)
+	if !pushStack {
+		old = nil
+	}
+	t.beginReq(req, req.Traced, old)
 }
 
 // copyReqInfoFromParent copies over relevant request from the parent request.

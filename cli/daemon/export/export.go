@@ -46,11 +46,21 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, errors.Wrap(err, "get experimental features")
 	}
 
+	buildConfig, err := app.BuildConfig()
+	if err != nil {
+		return false, errors.Wrap(err, "get build settings")
+	}
+	if req.CgoEnabled {
+		buildConfig.CgoEnabled = true
+	}
+	if params.BaseImageTag != "" {
+		buildConfig.Docker.BaseImage = params.BaseImageTag
+	}
+
 	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          []string{"timetzdata"},
-		CgoEnabled:         req.CgoEnabled,
-		StaticLink:         true,
+		BuildConfig:        buildConfig,
 		Debug:              false,
 		GOOS:               req.Goos,
 		GOARCH:             req.Goarch,
