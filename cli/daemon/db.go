@@ -36,7 +36,7 @@ func (s *Server) DBConnect(ctx context.Context, req *daemonpb.DBConnectRequest) 
 	if err != nil {
 		return nil, err
 	}
-	dsn := fmt.Sprintf("postgresql://encore:%s@localhost:%d/%s?sslmode=disable", passwd, port, req.DbName)
+	dsn := fmt.Sprintf("postgresql://encore:%s@127.0.0.1:%d/%s?sslmode=disable", passwd, port, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
 
@@ -123,7 +123,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	}
 	log.Info().Msg("created database cluster")
 
-	dsn := fmt.Sprintf("postgresql://%s:%s@localhost:%d/%s?sslmode=disable",
+	dsn := fmt.Sprintf("postgresql://%s:%s@127.0.0.1:%d/%s?sslmode=disable",
 		app.PlatformOrLocalID(), passwd, s.mgr.DBProxyPort, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
