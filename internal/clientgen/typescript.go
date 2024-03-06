@@ -328,7 +328,11 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			dict := make(map[string]string)
 			for _, field := range reqEnc.QueryParameters {
 				if list := field.Type.GetList(); list != nil {
-					dict[field.WireFormat] = ts.Dot("params", field.SrcName) +
+					dot := ts.Dot("params", field.SrcName)
+					if field.Optional || ts.isRecursive(field.Type) {
+						dot += "?"
+					}
+					dict[field.WireFormat] = dot +
 						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
 				} else {
 					dict[field.WireFormat] = ts.convertBuiltinToString(
@@ -667,9 +671,14 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 	if ts.hasAuth {
 		ts.WriteString(`
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => (`)
+export type AuthDataGenerator = () =>
+  | `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
-		ts.WriteString(` | undefined)`)
+		ts.WriteString(`
+  | Promise<`)
+		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.WriteString(` | undefined>
+  | undefined;`)
 	}
 
 	ts.WriteString(`
@@ -695,8 +704,14 @@ class BaseClient {
         this.baseURL = baseURL
         this.headers = {
             "Content-Type": "application/json",
-            "User-Agent":   "` + userAgent + `",
         }
+
+        // Add User-Agent header if the script is running in the server
+        // because browsers do not allow setting User-Agent headers to requests
+        if (typeof window === "undefined") {
+            this.headers["User-Agent"] = "` + userAgent + `";
+        }
+
         this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
@@ -715,7 +730,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => auth                
+                this.authGenerator = () => auth
             }
         }
 `)
@@ -746,7 +761,12 @@ let authData: `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
 		w.WriteString(" | undefined\n")
 		w.WriteString(`if (this.authGenerator) {
-    authData = this.authGenerator()
+    const mayBePromise = this.authGenerator()
+    if (mayBePromise instanceof Promise) {
+        authData = await mayBePromise
+    } else {
+        authData = mayBePromise
+    }
 }
 
 // If we now have authentication data, add it to the request
@@ -772,9 +792,12 @@ if (authData) {
 					w.WriteString(field.WireFormat)
 					w.WriteString("\"] = ")
 					if list := field.Type.GetList(); list != nil {
-						w.WriteString(
-							ts.Dot("authData", field.SrcName) +
-								".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
+						dot := ts.Dot("authData", field.SrcName)
+						if field.Optional || ts.isRecursive(field.Type) {
+							dot += "?"
+						}
+						w.WriteString(dot +
+							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
 						)
 					} else {
 						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
@@ -1045,12 +1068,7 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			indent()
 			ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
 
-			// Treat recursively seen types as if they are optional
-			recursiveType := false
-			if n := field.Typ.GetNamed(); n != nil {
-				recursiveType = ts.typs.IsRecursiveRef(ts.currDecl.Id, n.Id)
-			}
-			if field.Optional || recursiveType {
+			if field.Optional || ts.isRecursive(field.Typ) {
 				ts.WriteString("?")
 			}
 			ts.WriteString(": ")
@@ -1176,6 +1194,15 @@ func (ts *typescript) fieldNameInStruct(field *schema.Field) string {
 		name = field.JsonName
 	}
 	return name
+}
+
+func (ts *typescript) isRecursive(typ *schema.Type) bool {
+	// Treat recursively seen types as if they are optional
+	recursiveType := false
+	if n := typ.GetNamed(); n != nil {
+		recursiveType = ts.typs.IsRecursiveRef(ts.currDecl.Id, n.Id)
+	}
+	return recursiveType
 }
 
 func (ts *typescript) writeCustomErrorType() {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/golang/protobuf/proto"
 	"github.com/rs/zerolog/log"
 	"go4.org/syncutil"
 
@@ -21,6 +22,8 @@ import (
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/watcher"
+	"encr.dev/pkg/xos"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 var ErrNotFound = errors.New("app not found")
@@ -264,6 +267,9 @@ type Instance struct {
 	watchMu     sync.Mutex
 	nextWatchID WatchSubscriptionID
 	watchers    map[WatchSubscriptionID]*watchSubscription
+
+	mdMu     sync.Mutex
+	cachedMd *meta.Data
 }
 
 func NewInstance(root, localID, platformID string) *Instance {
@@ -301,6 +307,16 @@ func (i *Instance) PlatformOrLocalID() string {
 		return id
 	}
 	return i.localID
+}
+
+// Name returns the platform ID for the app, or if there isn't one
+// it returns the folder name the app is in.
+func (i *Instance) Name() string {
+	if id := i.PlatformID(); id != "" {
+		return id
+	}
+
+	return filepath.Base(i.root)
 }
 
 func (i *Instance) fetchPlatformID() (string, error) {
@@ -393,25 +409,104 @@ func (i *Instance) beginWatch() error {
 		}
 
 		go func() {
-			for range i.watcher.EventsReady {
-				batch := i.watcher.GetEventsBatch()
-				events := batch.Events()
+			for {
+				select {
+				case <-i.watcher.Done():
+					return
+				case <-i.watcher.EventsReady:
+					batch := i.watcher.GetEventsBatch()
+					events := batch.Events()
 
-				if i.mgr != nil {
-					i.mgr.onWatchEvent(i, events)
-				}
+					if i.mgr != nil {
+						i.mgr.onWatchEvent(i, events)
+					}
 
-				i.watchMu.Lock()
-				watchers := i.watchers
-				i.watchMu.Unlock()
-				for _, sub := range watchers {
-					sub.f(i, events)
+					i.watchMu.Lock()
+					watchers := i.watchers
+					i.watchMu.Unlock()
+					for _, sub := range watchers {
+						sub.f(i, events)
+					}
 				}
 			}
 		}()
 
 		return nil
 	})
+}
+
+// CachePath returns the path to the cache directory for this app.
+// It creates the directory if it does not exist.
+func (i *Instance) CachePath() (string, error) {
+	cacheDir, err := conf.CacheDir()
+	if err != nil {
+		return "", errors.Wrap(err, "unable to get encore cache dir")
+	}
+
+	// we use local ID to be stable if the app is linked to the platform later
+	cacheDir = filepath.Join(cacheDir, i.localID)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return "", errors.Wrap(err, "unable to create app cache dir")
+	}
+
+	return cacheDir, nil
+}
+
+// CacheMetadata caches the metadata for this app onto the file system
+func (i *Instance) CacheMetadata(md *meta.Data) error {
+	i.mdMu.Lock()
+	defer i.mdMu.Unlock()
+
+	i.cachedMd = md
+
+	cacheDir, err := i.CachePath()
+	if err != nil {
+		return err
+	}
+
+	data, err := proto.Marshal(md)
+	if err != nil {
+		return errors.Wrap(err, "unable to marshal metadata")
+	}
+
+	err = xos.WriteFile(filepath.Join(cacheDir, "metadata.pb"), data, 0644)
+	if err != nil {
+		return errors.Wrap(err, "unable to write metadata")
+	}
+
+	return nil
+}
+
+// CachedMetadata returns the cached metadata for this app, if any
+func (i *Instance) CachedMetadata() (*meta.Data, error) {
+	i.mdMu.Lock()
+	defer i.mdMu.Unlock()
+
+	if i.cachedMd != nil {
+		return i.cachedMd, nil
+	}
+
+	cacheDir, err := i.CachePath()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(filepath.Join(cacheDir, "metadata.pb"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "unable to read metadata")
+	}
+
+	md := &meta.Data{}
+	err = proto.Unmarshal(data, md)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to unmarshal metadata")
+	}
+
+	i.cachedMd = md
+	return md, nil
 }
 
 func (i *Instance) Close() error {

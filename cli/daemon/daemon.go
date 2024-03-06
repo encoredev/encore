@@ -52,7 +52,7 @@ type Server struct {
 	availableVer     atomic.Value // string
 
 	appDebounceMu sync.Mutex
-	appDebouncers map[*apps.Instance]debouncer
+	appDebouncers map[*apps.Instance]*regenerateCodeDebouncer
 
 	daemonpb.UnimplementedDaemonServer
 }
@@ -67,7 +67,7 @@ func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *
 		ns:      ns,
 		streams: make(map[string]*streamLog),
 
-		appDebouncers: make(map[*apps.Instance]debouncer),
+		appDebouncers: make(map[*apps.Instance]*regenerateCodeDebouncer),
 	}
 
 	mgr.AddListener(srv)
@@ -113,6 +113,10 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 			return nil, status.Errorf(codes.InvalidArgument, "failed to parse app metadata: %v", err)
 		}
 		md = parse.Meta
+
+		if err := app.CacheMetadata(md); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to cache app metadata: %v", err)
+		}
 	} else {
 		envName := params.EnvName
 		if envName == "" {

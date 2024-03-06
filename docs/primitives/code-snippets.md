@@ -3,6 +3,7 @@ seotitle: Code snippets for using the Infrastructure SDK's building blocks in yo
 seodesc: Learn how to build cloud-agnostic backend applications using Encore's Infrastructure SDK.
 title: Code snippets
 subtitle: Shortcuts for building with Encore
+lang: go
 ---
 
 When you're familiar with how Encore works, you can simplify your development workflow by copy-pasting these examples. If you're looking for details on how Encore works, please refer to the relevant docs section.
@@ -69,26 +70,27 @@ func Webhook(w http.ResponseWriter, req *http.Request) {
 
 ## Databases
 
-### Defining a SQL database
+### Creating a SQL database
 
-Database schemas are defined by creating *migration files*, Encore automatically runs migrations and provisions the necessary infrastructure.
+To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
+`sqldb.DatabaseConfig` specifies the directory containing the database migration files, which is how you define the database schema.
 
 ```
-/my-app
-└── todo                             // todo service (a Go package)
-    ├── migrations                   // todo service db migrations (directory)
-    │   ├── 1_create_table.up.sql    // todo service db migration
-    │   └── 2_add_field.up.sql       // todo service db migration
-    └── todo.go                      // todo service code
-```
+-- todo/db.go --
+package todo
 
-The first migration usually defines the initial table structure, for example:
+// Create the todo database and assign it to the "tododb" variable
+var tododb = sqldb.NewDatabase("todo", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
 
-```sql
+// Then, query the database using db.QueryRow, db.Exec, etc.
+-- todo/migrations/1_create_table.up.sql --
 CREATE TABLE todo_item (
-    id BIGSERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    done BOOLEAN NOT NULL DEFAULT false
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  done BOOLEAN NOT NULL DEFAULT false
+  -- etc...
 );
 ```
 
@@ -101,7 +103,7 @@ import "encore.dev/storage/sqldb"
 
 // insert inserts a todo item into the database.
 func insert(ctx context.Context, id, title string, done bool) error {
-	_, err := sqldb.Exec(ctx, `
+	_, err := tododb.Exec(ctx, `
 		INSERT INTO todo_item (id, title, done)
 		VALUES ($1, $2, $3)
 	`, id, title, done)
@@ -121,7 +123,7 @@ var item struct {
     Title string
     Done bool
 }
-err := sqldb.QueryRow(ctx, `
+err := tododb.QueryRow(ctx, `
     SELECT id, title, done
     FROM todo_item
     LIMIT 1

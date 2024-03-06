@@ -7,6 +7,7 @@ infobox: {
   title: "SQL Databases",
   import: "encore.dev/storage/sqldb"
 }
+lang: go
 ---
 
 Encore uses the [encoredotdev/postgres](https://github.com/encoredev/postgres-image) docker image for local development,

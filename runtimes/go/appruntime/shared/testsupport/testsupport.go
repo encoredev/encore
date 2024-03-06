@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -16,13 +18,15 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
+	"encore.dev/appruntime/exported/trace2"
 	"encore.dev/appruntime/shared/reqtrack"
 )
 
 type Manager struct {
-	static     *config.Static
-	rt         *reqtrack.RequestTracker
-	rootLogger zerolog.Logger
+	static         *config.Static
+	rt             *reqtrack.RequestTracker
+	rootLogger     zerolog.Logger
+	rootTestConfig *TestConfig
 
 	wd              string
 	testServiceOnce sync.Once
@@ -32,15 +36,35 @@ type Manager struct {
 
 func NewManager(static *config.Static, rt *reqtrack.RequestTracker, rootLogger zerolog.Logger) *Manager {
 	wd, _ := os.Getwd()
-	return &Manager{static: static, rt: rt, rootLogger: rootLogger, wd: wd}
+	return &Manager{static: static, rt: rt, rootLogger: rootLogger, wd: wd, rootTestConfig: newTestConfig(nil)}
 }
 
 // StartTest is called when a test starts running. This allows Encore's testing framework to
 // isolate behavior between different tests on global state.
-func (mgr *Manager) StartTest(t *testing.T) {
+func (mgr *Manager) StartTest(t *testing.T, fn func(*testing.T)) {
 	var parent *model.Request
+	parentConfig := mgr.rootTestConfig
+
+	// Convert the fn pointer to a file/line number if possible
+	// This is useful for debugging tests that are hanging
+	var testFile string
+	var testLine int
+	fnPtr := reflect.ValueOf(fn).Pointer()
+	if f := runtime.FuncForPC(fnPtr); f != nil {
+		testFile, testLine = f.FileLine(fnPtr)
+
+		if mgr.static.TestAppRootPath != "" {
+			testFile = strings.TrimPrefix(testFile, mgr.static.TestAppRootPath+string(filepath.Separator))
+		}
+	}
+
+	var traceID model.TraceID
+	var parentSpanID model.SpanID
 	if curr := mgr.rt.Current(); curr.Req != nil {
 		parent = curr.Req
+		traceID = curr.Req.TraceID
+		parentSpanID = curr.Req.ParentSpanID
+		parentConfig = curr.Req.Test.Config
 	}
 
 	spanID, err := model.GenSpanID()
@@ -53,22 +77,39 @@ func (mgr *Manager) StartTest(t *testing.T) {
 
 	testService, svcNum := mgr.TestService()
 
+	if traceID.IsZero() {
+		id, err := model.GenTraceID()
+		if err != nil {
+			t.Fatalf("encoreStartTest: failed to generate trace ID: %v", err)
+		}
+		traceID = id
+	}
+
 	req := &model.Request{
-		Type:   model.Test,
-		SpanID: spanID,
-		Start:  time.Now(),
-		Traced: false,
+		Type:         model.Test,
+		TraceID:      traceID,
+		SpanID:       spanID,
+		ParentSpanID: parentSpanID,
+		Start:        time.Now(),
+		Traced:       mgr.rt.TracingEnabled(),
 		Test: &model.TestData{
-			Ctx:     ctx,
-			Cancel:  cancel,
-			Current: t,
-			Parent:  parent,
-			Service: testService,
+			Ctx:              ctx,
+			Cancel:           cancel,
+			Current:          t,
+			Parent:           parent,
+			Service:          testService,
+			TestFile:         testFile,
+			TestLine:         uint32(testLine),
+			Config:           newTestConfig(parentConfig),
+			ServiceInstances: make(map[string]any),
 		},
 		Logger: &logger,
 		SvcNum: svcNum,
 	}
 	mgr.rt.BeginRequest(req)
+	if curr := mgr.rt.Current(); curr.Trace != nil {
+		curr.Trace.TestSpanStart(req, curr.Goctr)
+	}
 }
 
 // PauseTest is called when a test is paused. This allows Encore's testing framework to
@@ -96,7 +137,8 @@ func (mgr *Manager) ResumeTest(t *testing.T) {
 // EndTest is called when a test ends. This allows Encore's testing framework to clear down any state from the test
 // and to perform any assertions on that state that it needs to.
 func (mgr *Manager) EndTest(t *testing.T) {
-	req := mgr.rt.Current().Req
+	curr := mgr.rt.Current()
+	req := curr.Req
 	if req == nil || req.Test == nil {
 		panic("encoreEndTest: no active test")
 	}
@@ -122,7 +164,16 @@ func (mgr *Manager) EndTest(t *testing.T) {
 	case <-done:
 	}
 
-	mgr.rt.FinishRequest()
+	if curr.Trace != nil {
+		curr.Trace.TestSpanEnd(trace2.TestSpanEndParams{
+			EventParams: trace2.EventParams{TraceID: req.TraceID, SpanID: req.SpanID},
+			Req:         req,
+			Failed:      t.Failed(),
+			Skipped:     t.Skipped(),
+		})
+	}
+
+	mgr.rt.FinishRequest(true)
 }
 
 // CurrentTest returns the currently running test.
@@ -180,4 +231,93 @@ func (mgr *Manager) RunAsyncCodeInTest(t *testing.T, f func(ctx context.Context)
 
 		f(td.Ctx)
 	}()
+}
+
+// currentConfig returns the current test config object
+func (mgr *Manager) currentConfig() *TestConfig {
+	req := mgr.rt.Current().Req
+	if req == nil || req.Test == nil {
+		return mgr.rootTestConfig
+	}
+
+	if req.Test.Config == nil {
+		panic("currentConfig: no active test config even though in test")
+	}
+
+	return req.Test.Config
+}
+
+// SetIsolatedServices sets whether isolated services should be enabled for the current test
+func (mgr *Manager) SetIsolatedServices(enabled bool) {
+	cfg := mgr.currentConfig()
+	cfg.Mu.Lock()
+	defer cfg.Mu.Unlock()
+	cfg.IsolatedServices = &enabled
+}
+
+// GetIsolatedServices returns whether isolated services are enabled for the current test
+func (mgr *Manager) GetIsolatedServices() bool {
+	result, _ := walkConfig(mgr.currentConfig(), func(cfg *TestConfig) (value *bool, found bool) {
+		value, found = cfg.IsolatedServices, cfg.IsolatedServices != nil
+		return
+	})
+
+	if result == nil {
+		return false
+	}
+	return *result
+}
+
+// SetServiceMock allows us to set a mock for a service for the current test
+func (mgr *Manager) SetServiceMock(service string, mock any) {
+	service = strings.TrimSpace(strings.ToLower(service))
+
+	cfg := mgr.currentConfig()
+	cfg.Mu.Lock()
+	defer cfg.Mu.Unlock()
+	cfg.ServiceMocks[service] = mock
+}
+
+// GetServiceMock allows us to get a mock for a service for the current test
+// or any parent tests - returning the lowest level mock available.
+func (mgr *Manager) GetServiceMock(service string) (any, bool) {
+	service = strings.TrimSpace(strings.ToLower(service))
+
+	return walkConfig(mgr.currentConfig(), func(cfg *TestConfig) (value any, found bool) {
+		value, found = cfg.ServiceMocks[service]
+		return
+	})
+}
+
+// SetAPIMock allows us to set a mock for an API for the current test
+func (mgr *Manager) SetAPIMock(service string, api string, mock any) {
+	service = strings.TrimSpace(strings.ToLower(service))
+	api = strings.TrimSpace(strings.ToLower(api))
+
+	cfg := mgr.currentConfig()
+	cfg.Mu.Lock()
+	defer cfg.Mu.Unlock()
+
+	if cfg.APIMocks[service] == nil {
+		cfg.APIMocks[service] = make(map[string]model.ApiMock)
+	}
+	cfg.APIMocks[service][api] = model.ApiMock{
+		ID:       nextApiMockID.Add(1),
+		Function: mock,
+	}
+}
+
+// GetAPIMock allows us to get a mock for an API for the current test
+// or any parent tests - returning the lowest level mock available.
+func (mgr *Manager) GetAPIMock(service string, api string) (model.ApiMock, bool) {
+	service = strings.TrimSpace(strings.ToLower(service))
+	api = strings.TrimSpace(strings.ToLower(api))
+
+	return walkConfig(mgr.currentConfig(), func(cfg *TestConfig) (value model.ApiMock, found bool) {
+		if cfg.APIMocks[service] == nil {
+			return
+		}
+		value, found = cfg.APIMocks[service][api]
+		return
+	})
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/cockroachdb/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -70,4 +71,13 @@ func ArrangeExtraFiles(cmd *exec.Cmd, files ...*os.File) error {
 func IsAdminUser() (bool, error) {
 	// For Windows we elevate permissions on demand, so pretend we are admin
 	return true, nil
+}
+
+// WriteFile writes the given file with the given data and permissions.
+//
+// Where possible (i.e. not on windows) it will use an atomic write process
+// which removes the possibility of a partial file being written during a crash
+// or error.
+func WriteFile(filename string, data []byte, perm os.FileMode) error {
+	return errors.WithStack(os.WriteFile(filename, data, perm))
 }

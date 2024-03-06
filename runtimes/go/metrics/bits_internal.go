@@ -85,10 +85,11 @@ type initGate struct {
 }
 
 func (g *initGate) Start() {
+	g.mu.Lock()
 	if !atomic.CompareAndSwapUint32(&g.state, 0, 1) {
+		g.mu.Unlock() // don't leave the mutex in a locked state if we panic
 		panic("initGate: already started")
 	}
-	g.mu.Lock()
 }
 
 func (g *initGate) Done() {

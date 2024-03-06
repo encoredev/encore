@@ -42,7 +42,7 @@ func UnhandledPanic(recovered any) error {
 // should have specific errors listed below
 func GenericGoParserError(err *scanner.Error) *errinsrc.ErrInSrc {
 	locs := SrcLocations{}
-	if pos := FromGoTokenPositions(err.Pos, err.Pos); pos != nil {
+	if pos, ok := FromGoTokenPositions(err.Pos, err.Pos).Get(); ok {
 		locs = SrcLocations{pos}
 	}
 
@@ -76,7 +76,7 @@ func GenericGoPackageError(err packages.Error) *errinsrc.ErrInSrc {
 		}
 	}
 	if pos.Filename != "" && pos.Line > 0 {
-		locations = SrcLocations{FromGoTokenPositions(pos, pos)}
+		locations = NewSrcLocations(FromGoTokenPositions(pos, pos))
 	}
 
 	return errinsrc.New(ErrParams{
@@ -103,7 +103,7 @@ func GenericGoCompilerError(fileName string, lineNumber int, column int, error s
 		Code:      3,
 		Title:     "Go Compilation Error",
 		Summary:   strings.TrimSpace(error),
-		Locations: SrcLocations{FromGoTokenPositions(errLocation, errLocation)},
+		Locations: NewSrcLocations(FromGoTokenPositions(errLocation, errLocation)),
 	}, false)
 }
 
@@ -125,7 +125,7 @@ func GenericError(pos token.Position, msg string) *errinsrc.ErrInSrc {
 		Code:      3,
 		Title:     "Error",
 		Summary:   msg,
-		Locations: SrcLocations{FromGoTokenPositions(pos, pos)},
+		Locations: NewSrcLocations(FromGoTokenPositions(pos, pos)),
 	}, false)
 }
 
@@ -172,6 +172,6 @@ func ResourceNameReserved(fileset *token.FileSet, node ast.Node, resourceType st
 		// The metrics.NewCounter metric name "e_blah" uses the reserved prefix "e_".
 		Summary:   fmt.Sprintf("The %s %s %q uses the reserved prefix %q", resourceType, paramName, name, reservedPrefix),
 		Detail:    detail,
-		Locations: SrcLocations{FromGoASTNodeWithTypeAndText(fileset, node, LocError, suggestion)},
+		Locations: NewSrcLocations(FromGoASTNodeWithTypeAndText(fileset, node, LocError, suggestion)),
 	}, false)
 }

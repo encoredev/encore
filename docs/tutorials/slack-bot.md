@@ -76,6 +76,7 @@ on [Enabling interactivity with Slash Commands](https://api.slack.com/interactiv
 🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.go` with the following contents:
 
 ```go
+// Service slack implements a cowsaw Slack bot.
 package slack
 
 import (
@@ -154,9 +155,9 @@ var secrets struct {
 
 🥐 Head over to the configuration section for your Slack app (go to [Your Apps](https://api.slack.com/apps) &rarr; select your app &rarr; Basic Information).
 
-🥐 Copy the **Signing Secret** and then run `encore secret set --prod SlackSigningSecret` and paste the secret.
+🥐 Copy the **Signing Secret** and then run `encore secret set --type prod SlackSigningSecret` and paste the secret.
 
-🥐 For local development you will also want to set `encore secret set --dev SlackSigningSecret`.
+🥐 For development you will also want to set `encore secret set --type dev,local,pr SlackSigningSecret`.
 You can use the same secret value or a placeholder value.
 
 ### Compute the HMAC
@@ -289,3 +290,15 @@ If everything is set up correctly, you should see:
 And there we go, a production-ready Slack bot in less than 100 lines of code.
 
 Well done!
+
+### Celebrate with fireworks
+
+Now that your app is running in the cloud, let's celebrate with some fireworks:
+
+🥐 In the Cloud Dashboard, open the Command Menu by pressing **Cmd + K** (Mac) or **Ctrl + K** (Windows/Linux).
+
+_From here you can easily access all Cloud Dashboard features and for example jump straight to specific services in the Service Catalog or view Traces for specific endpoints._
+
+🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
+
+![Fireworks](/assets/docs/fireworks.jpg)

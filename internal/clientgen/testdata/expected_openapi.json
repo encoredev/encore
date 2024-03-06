@@ -45,6 +45,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "nested.Type": {
@@ -53,6 +57,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "Message"
+        ],
         "type": "object"
       },
       "products.Product": {
@@ -75,6 +82,13 @@
             "type": "string"
           }
         },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "created_at",
+          "created_by"
+        ],
         "type": "object"
       },
       "svc.Foo": {
@@ -99,6 +113,10 @@
             "type": "array"
           }
         },
+        "required": [
+          "Slice",
+          "Map"
+        ],
         "type": "object"
       },
       "svc.Request": {
@@ -129,6 +147,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "boo",
+          "Raw"
+        ],
         "type": "object"
       },
       "svc.WrappedRequest": {
@@ -137,6 +159,9 @@
             "$ref": "#/components/schemas/svc.Request"
           }
         },
+        "required": [
+          "Value"
+        ],
         "type": "object"
       }
     }
@@ -153,6 +178,78 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/fallbackPath/{a}/{b}": {
+      "get": {
+        "operationId": "GET:svc.FallbackPath",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "POST:svc.FallbackPath",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
     "/path/{a}/{b}": {
       "get": {
         "operationId": "GET:svc.RESTPath",
@@ -255,6 +352,10 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "name",
+                  "description"
+                ],
                 "type": "object"
               }
             }
@@ -284,6 +385,13 @@
                       "type": "string"
                     }
                   },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "created_at",
+                    "created_by"
+                  ],
                   "type": "object"
                 }
               }
@@ -314,6 +422,10 @@
                           "type": "boolean"
                         }
                       },
+                      "required": [
+                        "cursor",
+                        "exists"
+                      ],
                       "type": "object"
                     },
                     "previous": {
@@ -325,6 +437,10 @@
                           "type": "boolean"
                         }
                       },
+                      "required": [
+                        "cursor",
+                        "exists"
+                      ],
                       "type": "object"
                     },
                     "products": {
@@ -334,6 +450,11 @@
                       "type": "array"
                     }
                   },
+                  "required": [
+                    "products",
+                    "previous",
+                    "next"
+                  ],
                   "type": "object"
                 }
               }
@@ -410,6 +531,10 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "boo",
+                  "Raw"
+                ],
                 "type": "object"
               }
             }
@@ -739,6 +864,9 @@
                     "$ref": "#/components/schemas/nested.Type"
                   }
                 },
+                "required": [
+                  "Nested"
+                ],
                 "type": "object"
               }
             }
@@ -754,6 +882,9 @@
                       "$ref": "#/components/schemas/nested.Type"
                     }
                   },
+                  "required": [
+                    "Nested"
+                  ],
                   "type": "object"
                 }
               }
@@ -790,6 +921,10 @@
                     "type": "array"
                   }
                 },
+                "required": [
+                  "Slice",
+                  "Map"
+                ],
                 "type": "object"
               }
             }
@@ -817,6 +952,10 @@
                       "type": "array"
                     }
                   },
+                  "required": [
+                    "Slice",
+                    "Map"
+                  ],
                   "type": "object"
                 }
               }
@@ -877,6 +1016,10 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "Charlies-Bool",
+                  "Dave"
+                ],
                 "type": "object"
               }
             }
@@ -905,6 +1048,11 @@
                       "type": "number"
                     }
                   },
+                  "required": [
+                    "B",
+                    "Charlies-Bool",
+                    "Dave"
+                  ],
                   "type": "object"
                 }
               }
@@ -946,6 +1094,10 @@
                     "$ref": "#/components/schemas/svc.WrappedRequest"
                   }
                 },
+                "required": [
+                  "A",
+                  "B"
+                ],
                 "type": "object"
               }
             }
@@ -964,6 +1116,10 @@
                       "$ref": "#/components/schemas/svc.Foo"
                     }
                   },
+                  "required": [
+                    "A",
+                    "B"
+                  ],
                   "type": "object"
                 }
               }
@@ -1155,6 +1311,78 @@
       },
       "put": {
         "operationId": "PUT:svc.Webhook",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/webhook2/{a}/{b}": {
+      "get": {
+        "operationId": "GET:svc.Webhook2",
+        "parameters": [
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": false,
+            "in": "path",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "POST:svc.Webhook2",
         "parameters": [
           {
             "allowEmptyValue": true,

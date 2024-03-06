@@ -20,9 +20,21 @@ func Baz(ctx context.Context) error { return svca.Foo(ctx) }
 
 package svca
 
+import "context"
+
 // These functions are automatically generated and maintained by Encore
 // to simplify calling them from other services, as they were implemented as methods.
 // They are automatically updated by Encore whenever your API endpoints change.
+
+// Interface defines the service's API surface area, primarily for mocking purposes.
+//
+// Raw endpoints are currently excluded from this interface, as Encore does not yet
+// support service-to-service API calls to raw endpoints.
+type Interface interface {
+	Foo(ctx context.Context) error
+
+	Bar(ctx context.Context) error
+}
 -- want:svca/encore_internal__api.go --
 package svca
 
@@ -35,8 +47,8 @@ import (
 )
 
 func init() {
-	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo)
-	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Bar)
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Foo, Foo)
+	__api.RegisterEndpoint(EncoreInternal_api_APIDesc_Bar, Bar)
 }
 
 type EncoreInternal_FooReq struct{}

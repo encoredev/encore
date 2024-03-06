@@ -7,6 +7,7 @@ infobox: {
   title: "Testing",
   import: "encore.dev/et",
 }
+lang: go
 ---
 
 Go comes with excellent built-in support for automated tests.
@@ -21,6 +22,16 @@ all the same flags that the `go test` command does.
 
 For example, use `encore test ./...` to run tests in all sub-directories,
 or just `encore test` for the current directory.
+
+## Test tracing
+
+Encore comes with built-in test tracing for local development.
+
+You only need to open Encore's local development dashboard at [localhost:9400](http://localhost:9400) to see traces for all your tests.
+This makes it very simple to understand the root cause for why a test is failing.
+
+<img className="w-full d:w-3/4 h-auto" src="/assets/docs/test_trace.png" title="Test tracing" />
+
 
 ## Integration testing
 
@@ -37,6 +48,15 @@ This drastically reduces the speed overhead of writing integration tests.
 In general, Encore applications tend to focus more on integration tests
 compared to traditional applications that are heavier on unit tests.
 This is nothing to worry about and is the recommended best practice.
+
+### Service Structs
+
+In tests, [service structs](/docs/primitives/services-and-apis/service-structs) are initialised on demand when the first
+API call is made to that service and then that instance of the service struct for all future tests. This means your tests
+can run faster as they don't have to each initialise all the service struct's each time a new test starts.
+
+However, in some situations you might be storing state in the service struct that would interfere with other tests. When
+you have a test you want to have it's own instance of the service struct, you can use the `et.EnableServiceInstanceIsolation()` function within the test to enable this for just that test, while the rest of your tests will continue to use the shared instance.
 
 ## Test-only infrastructure
 
@@ -59,4 +79,3 @@ It lets you run unit tests directly from within your IDE with support for debug 
 There's no official VS Code plugin available yet, but we are happy to include your contribution if you  build one. Reach out on [Slack](/slack) if you need help to get started.
 
 For advice on debugging when using VS Code, see the [Debugging docs](/docs/how-to/debug).
-

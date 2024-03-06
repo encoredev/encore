@@ -1,11 +1,11 @@
 ---
 seotitle: Learn how to build Go based backends with these tutorials
-seodesc: Start building Go based backend applications using Encore. Create REST APIs, Slack bots, and more in just a few minutes.
+seodesc: Start building cloud backend applications using Encore with these tutorials. Create REST APIs, Slack bots, and more in just a few minutes.
 title: Tutorials
-subtitle: Start building your Go based backend application using Encore
+subtitle: Start building your backend application using Encore
 ---
 
-Check out these tutorials to learn how to build with Encore and find inspiration for what to create.
+Check out these tutorials to learn how to build applications with Encore and find inspiration for what to create.
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
     <a className="block group relative no-brandient" href="/docs/tutorials/rest-api">
@@ -40,7 +40,19 @@ Check out these tutorials to learn how to build with Encore and find inspiration
             </div>
             <div className="p-8 mobile:p-4">
                 <h3 className="body-small">Uptime Monitor</h3>
-                <p className="mt-2">Build a tool to monitor websites and get alerted when they go down.</p>
+                <p className="mt-2">Build an event-driven app to monitor websites and get alerted when they go down.</p>
+            </div>
+        </div>
+    </a>
+    <a className="block group relative no-brandient" href="/docs/tutorials/booking-system">
+        <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
+        <div className="min-h-full border border-black dark:border-white bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
+            <div className="flex-none">
+                <img className="width-100% noshadow" src="/assets/tutorials/booking-system/cover.png" />
+            </div>
+            <div className="p-8 mobile:p-4">
+                <h3 className="body-small">Booking System</h3>
+                <p className="mt-2">Create an appointment booking app using Encore and React.</p>
             </div>
         </div>
     </a>

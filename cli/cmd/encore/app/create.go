@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/cockroachdb/errors"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
@@ -23,10 +23,15 @@ import (
 	"encr.dev/cli/internal/platform"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/github"
+	"encr.dev/pkg/xos"
 )
 
-var createAppTemplate string
+var (
+	createAppTemplate   string
+	createAppOnPlatform bool
+)
 
 var createAppCmd = &cobra.Command{
 	Use:   "create [name]",
@@ -47,6 +52,7 @@ var createAppCmd = &cobra.Command{
 
 func init() {
 	appCmd.AddCommand(createAppCmd)
+	createAppCmd.Flags().BoolVar(&createAppOnPlatform, "platform", true, "whether to create the app with the Encore Platform")
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
 }
 
@@ -55,9 +61,9 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	cyan := color.New(color.FgCyan)
 	green := color.New(color.FgGreen)
 
-	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
-		cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
-		fmt.Scanln()
+	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) && createAppOnPlatform {
+		_, _ = cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
+		_, _ = fmt.Scanln()
 		if err := auth.DoLogin(auth.AutoFlow); err != nil {
 			cmdutil.Fatal(err)
 		}
@@ -94,7 +100,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	defer func() {
 		if err != nil {
 			// Clean up the directory we just created in case of an error.
-			os.RemoveAll(name)
+			_ = os.RemoveAll(name)
 		}
 	}()
 
@@ -110,14 +116,14 @@ func createApp(ctx context.Context, name, template string) (err error) {
 			return fmt.Errorf("failed to download template %s: %v", ex.Name(), err)
 		}
 		gray := color.New(color.Faint)
-		gray.Printf("Downloaded template %s.\n", ex.Name())
+		_, _ = gray.Printf("Downloaded template %s.\n", ex.Name())
 	} else {
 		// Set up files that we need when we don't have an example
-		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
+		if err := xos.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
 			cmdutil.Fatal(err)
 		}
 		encoreModData := []byte("module encore.app\n")
-		if err := os.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
+		if err := xos.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
 			cmdutil.Fatal(err)
 		}
 	}
@@ -127,7 +133,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	loggedIn := err == nil
 
 	var app *platform.App
-	if loggedIn {
+	if loggedIn && createAppOnPlatform {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Creating app on encore.dev "
 		s.Start()
@@ -145,31 +151,41 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		}
 	}
 
-	// Create the encore.app file
-	var encoreAppData []byte
-	if loggedIn {
-		encoreAppData = []byte(`{
-	"id": "` + app.Slug + `",
-}
-`)
-	} else {
-		encoreAppData = []byte(`{
-	// The app is not currently linked to the encore.dev platform.
-	// Use "encore app link" to link it.
-	"id": "",
-}
-`)
+	encoreAppPath := filepath.Join(name, "encore.app")
+	appData, err := os.ReadFile(encoreAppPath)
+	if err != nil {
+		appData, err = []byte("{}"), nil
 	}
-	if err := os.WriteFile(filepath.Join(name, "encore.app"), encoreAppData, 0644); err != nil {
-		return err
+
+	if app != nil {
+		appData, err = setEncoreAppID(appData, app.Slug, []string{})
+	} else {
+		appData, err = setEncoreAppID(appData, "", []string{
+			"The app is not currently linked to the encore.dev platform.",
+			`Use "encore app link" to link it.`,
+		})
+	}
+	if err != nil {
+		return errors.Wrap(err, "write encore.app file")
+	}
+	if err := xos.WriteFile(encoreAppPath, appData, 0644); err != nil {
+		return errors.Wrap(err, "write encore.app file")
 	}
 
 	// Update to latest encore.dev release
-	{
+	if _, err := os.Stat(filepath.Join(name, "go.mod")); err == nil {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
 		if err := gogetEncore(name); err != nil {
+			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
+		}
+		s.Stop()
+	} else if _, err := os.Stat(filepath.Join(name, "package.json")); err == nil {
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Prefix = "Running npm install encore.dev@latest"
+		s.Start()
+		if err := npmInstallEncore(name); err != nil {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
@@ -179,7 +195,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if app != nil {
 		if err := rewritePlaceholders(name, app); err != nil {
 			red := color.New(color.FgRed)
-			red.Printf("Failed rewriting source code placeholders, skipping: %v\n", err)
+			_, _ = red.Printf("Failed rewriting source code placeholders, skipping: %v\n", err)
 		}
 	}
 
@@ -187,7 +203,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		return err
 	}
 
-	green.Printf("\nSuccessfully created app %s!\n", name)
+	// Try to generate wrappers. Don't error out if it fails for some reason,
+	// it's a nice-to-have to avoid IDEs thinking there are compile errors before 'encore run' runs.
+	_ = generateWrappers(name)
+
+	_, _ = green.Printf("\nSuccessfully created app %s!\n", name)
 	cyanf := cyan.SprintfFunc()
 	if app != nil {
 		fmt.Printf("App ID:  %s\n", cyanf(app.Slug))
@@ -196,14 +216,14 @@ func createApp(ctx context.Context, name, template string) (err error) {
 
 	fmt.Print("\nUseful commands:\n\n")
 
-	cyan.Printf("    encore run\n")
+	_, _ = cyan.Printf("    encore run\n")
 	fmt.Print("        Run your app locally\n\n")
 
-	cyan.Printf("    encore test ./...\n")
+	_, _ = cyan.Printf("    encore test ./...\n")
 	fmt.Print("        Run tests\n\n")
 
 	if app != nil {
-		cyan.Printf("    git push encore\n")
+		_, _ = cyan.Printf("    git push encore\n")
 		fmt.Print("        Deploys your app\n\n")
 	}
 
@@ -238,12 +258,37 @@ func validateName(name string) error {
 	return nil
 }
 
-func gogetEncore(name string) error {
+func gogetEncore(dir string) error {
+	var goBinPath string
+
+	// Prefer the 'go' binary from the Encore GOROOT if available.
+	if goroot, ok := env.OptEncoreGoRoot().Get(); ok {
+		goBinPath = filepath.Join(goroot, "bin", "go")
+	} else {
+		// Otherwise fall back to just "go", so that exec.Command
+		// does a path lookup.
+		goBinPath = "go"
+	}
+
 	// Use the 'go' binary from the Encore GOROOT in case the user
 	// does not have Go installed separately from Encore.
-	goPath := filepath.Join(env.EncoreGoRoot(), "bin", "go")
-	cmd := exec.Command(goPath, "get", "encore.dev@latest")
-	cmd.Dir = name
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.Command(goBinPath, "get", "encore.dev@latest")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return errors.New(string(out))
+	}
+	return nil
+}
+
+func npmInstallEncore(dir string) error {
+	verToInstall := version.Version
+	if version.Channel == version.DevBuild {
+		verToInstall = "latest"
+	}
+
+	cmd := exec.Command("npm", "install", fmt.Sprintf("encore.dev@%s", verToInstall), fmt.Sprintf("encore.app@%s", verToInstall), fmt.Sprintf("@encore.dev/node-runtime@%s", verToInstall))
+	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.New(string(out))
 	}
@@ -290,7 +335,7 @@ func initGitRepo(path string, app *platform.App) (err error) {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = path
 		out, err := cmd.CombinedOutput()
-		if err != nil && err != exec.ErrNotFound {
+		if err != nil && !errors.Is(err, exec.ErrNotFound) {
 			panic(fmt.Errorf("git %s: %s (%w)", strings.Join(args, " "), out, err))
 		}
 		return out
@@ -315,7 +360,7 @@ func initGitRepo(path string, app *platform.App) (err error) {
 			"GIT_COMMITTER_EMAIL=git-bot@encore.dev",
 		)
 	}
-	if out, err := cmd.CombinedOutput(); err != nil && err != exec.ErrNotFound {
+	if out, err := cmd.CombinedOutput(); err != nil && !errors.Is(err, exec.ErrNotFound) {
 		return fmt.Errorf("create initial commit repository: %s (%v)", out, err)
 	}
 
@@ -405,7 +450,7 @@ func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error 
 	}
 
 	if replaced {
-		return os.WriteFile(path, data, info.Type().Perm())
+		return xos.WriteFile(path, data, info.Type().Perm())
 	}
 	return nil
 }
@@ -428,4 +473,76 @@ func parseExampleConfig(repoPath string) (cfg exampleConfig, exists bool) {
 
 func exampleJSONPath(repoPath string) string {
 	return filepath.Join(repoPath, "example-initial-setup.json")
+}
+
+// setEncoreAppID rewrites the encore.app file to replace the app id, preserving comments.
+// It optionally adds comment lines before the "id" field if commentLines is not nil.
+func setEncoreAppID(data []byte, id string, commentLines []string) ([]byte, error) {
+	if len(data) == 0 {
+		data = []byte("{}")
+	}
+
+	root, err := hujson.Parse(data)
+	if err != nil {
+		return data, errors.Wrap(err, "parse encore.app")
+	}
+	obj, ok := root.Value.(*hujson.Object)
+	if !ok {
+		return data, errors.New("invalid encore.app format: not a json object")
+	}
+
+	var buf bytes.Buffer
+	for i, ln := range commentLines {
+		if i == 0 {
+			fmt.Fprintf(&buf, "\n")
+		}
+		fmt.Fprintf(&buf, "\t// %s\n", strings.TrimSpace(ln))
+	}
+	extra := hujson.Extra(buf.Bytes())
+	jsonValue, _ := json.Marshal(id)
+	value := hujson.Value{
+		Value: hujson.Literal(jsonValue),
+	}
+
+	found := false
+	for i := range obj.Members {
+		m := &obj.Members[i]
+		if lit, ok := m.Name.Value.(hujson.Literal); ok && lit.String() == "id" {
+			if commentLines != nil {
+				m.Name.BeforeExtra = extra
+			}
+			m.Value = value
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		obj.Members = append([]hujson.ObjectMember{{
+			Name: hujson.Value{
+				BeforeExtra: extra,
+				Value:       hujson.Literal(`"id"`),
+			},
+			Value: value,
+		}}, obj.Members...)
+	}
+
+	root.Format()
+	return root.Pack(), nil
+}
+
+// generateWrappers runs 'encore gen wrappers' in the given directory.
+func generateWrappers(dir string) error {
+	// Use this executable if we can.
+	exe, err := os.Executable()
+	if err != nil {
+		exe = "encore"
+	}
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.Command(exe, "gen", "wrappers")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("encore gen wrappers failed: %v: %s", err, out)
+	}
+	return nil
 }

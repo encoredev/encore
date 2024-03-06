@@ -89,6 +89,8 @@
 #AccordionMenuItem: {
 	kind: "accordion"
 	text: string
+	// If the accordion is open by default.
+	defaultExpanded: bool | *false
 
 	// The items to display in the accordion.
 	accordion: [...#MenuItem]
@@ -160,6 +162,11 @@
 					path: "/tutorials/meeting-notes"
 					file: "tutorials/meeting-notes"
 				}, {
+					kind: "basic"
+					text: "Building a Booking System"
+					path: "/tutorials/booking-system"
+					file: "tutorials/booking-system"
+				}, {
 					kind:   "basic"
 					text:   "Building an Incident Management tool"
 					path:   "/tutorials/incident-management-tool"
@@ -173,11 +180,11 @@
 			items: [
 				{
 					kind: "nav"
-					text: "GoLang API"
+					text: "Go SDK"
 					path: "/go"
-					file: "primitives/overview"
+					file: "go/overview"
 					submenu: {
-						title: "GoLang"
+						title: "Go SDK"
 						presentation: {
 							icon: "golang"
 						}
@@ -187,17 +194,33 @@
 						}
 						items: [{
 							kind: "section"
-							text: "Infra SDK"
+							text: "Infrastructure"
 							items: [{
-								kind: "basic"
-								text: "Overview"
-								path: "/primitives"
-								file: "primitives/overview"
-							}, {
 								kind: "basic"
 								text: "Services and APIs"
 								path: "/primitives/services-and-apis"
 								file: "primitives/services-and-apis"
+								inline_menu: [{
+									kind: "basic"
+									text: "App Structure"
+									path: "/develop/app-structure"
+									file: "develop/app-structure"
+								}, {
+									kind: "basic"
+									text: "API Schemas"
+									path: "/develop/api-schemas"
+									file: "develop/api-schemas"
+								}, {
+									kind: "basic"
+									text: "API Errors"
+									path: "/develop/errors"
+									file: "develop/errors"
+								}, {
+									kind: "basic"
+									text: "Service Structs"
+									path: "/primitives/services-and-apis/service-structs"
+									file: "primitives/service-structs"
+								}]
 							}, {
 								kind: "basic"
 								text: "Databases"
@@ -210,7 +233,7 @@
 									file: "how-to/change-db-schema"
 								}, {
 									kind: "basic"
-									text: "Connect to an existing database"
+									text: "Integrate with existing databases"
 									path: "/how-to/connect-existing-db"
 									file: "how-to/connect-existing-db"
 								}, {
@@ -277,11 +300,6 @@
 									file: "develop/auth"
 								}, {
 									kind: "basic"
-									text: "Client Generation"
-									path: "/develop/client-generation"
-									file: "develop/client-generation"
-								}, {
-									kind: "basic"
 									text: "Configuration"
 									path: "/develop/config"
 									file: "develop/config"
@@ -290,11 +308,6 @@
 									text: "CORS"
 									path: "/develop/cors"
 									file: "develop/cors"
-								}, {
-									kind: "basic"
-									text: "Infra Namespaces"
-									path: "/develop/infra-namespaces"
-									file: "develop/infra-namespaces"
 								}, {
 									kind: "basic"
 									text: "Metadata"
@@ -307,30 +320,86 @@
 									file: "develop/middleware"
 								}, {
 									kind: "basic"
-									text: "Service Catalog"
-									path: "/develop/api-docs"
-									file: "develop/api-docs"
-								}, {
-									kind: "basic"
 									text: "Testing"
 									path: "/develop/testing"
 									file: "develop/testing"
+									inline_menu: [{
+										kind: "basic"
+										text: "Mocking"
+										path: "/develop/testing/mocking"
+										file: "develop/mocking"
+									}]
 								}, {
 									kind: "basic"
 									text: "Validation"
 									path: "/develop/validation"
 									file: "develop/validation"
 								}]
+							},
+							{
+								kind: "section"
+								text: "How to guides"
+								items: [{
+									kind: "basic"
+									text: "Build with cgo"
+									path: "/how-to/cgo"
+									file: "how-to/cgo"
+								}, {
+									kind: "basic"
+									text: "Debug with Delve"
+									path: "/how-to/debug"
+									file: "how-to/debug"
+								}, {
+									kind: "basic"
+									text: "Receive regular HTTP requests & Use websockets"
+									path: "/how-to/http-requests"
+									file: "how-to/http-requests"
+								}, {
+									kind: "basic"
+									text: "Use Atlas + GORM for database migrations"
+									path: "/how-to/atlas-gorm"
+									file: "how-to/atlas-gorm"
+								}, {
+									kind: "basic"
+									text: "Use the ent ORM for migrations"
+									path: "/how-to/entgo-orm"
+									file: "how-to/entgo-orm"
+								}, {
+									kind: "basic"
+									text: "Use Connect for gRPC communication"
+									path: "/how-to/grpc-connect"
+									file: "how-to/grpc-connect"
+								}, {
+									kind: "basic"
+									text: "Use Dependency Injection"
+									path: "/how-to/dependency-injection"
+									file: "how-to/dependency-injection"
+								}, {
+									kind: "basic"
+									text: "Use Auth0 Authentication"
+									path: "/how-to/auth0-auth"
+									file: "how-to/auth0-auth"
+								}, {
+									kind: "basic"
+									text: "Use Clerk Authentication"
+									path: "/how-to/clerk-auth"
+									file: "how-to/clerk-auth"
+								}, {
+									kind: "basic"
+									text: "Use Firebase Authentication"
+									path: "/how-to/firebase-auth"
+									file: "how-to/firebase-auth"
+								}]
 							}]
 					}
 				},
 				{
 					kind: "nav"
-					text: "TypeScript API"
+					text: "TypeScript SDK"
 					path: "/ts"
-					file: "tutorials/index"
+					file: "ts/overview"
 					submenu: {
-						title: "TypeScript"
+						title: "TypeScript SDK"
 						presentation: {
 							icon: "typescript"
 						}
@@ -338,13 +407,37 @@
 							text: "Back to Main Menu"
 							path: "/docs"
 						}
-						items: []
+						items: [{
+							kind: "section"
+							text: "Docs"
+							items: [{
+								kind: "basic"
+								text: "TypeScript Preview"
+								path: "/other/typescript-preview"
+								file: "other/typescript-preview"
+							}, {
+								kind: "basic"
+								text: "Services and APIs"
+								path: "/ts/primitives/services-and-apis"
+								file: "primitives/services-and-apis-ts"
+							}]
+						}]
 					}
 				}, {
 					kind: "basic"
 					text: "CLI Reference"
 					path: "/develop/cli-reference"
 					file: "develop/cli-reference"
+				}, {
+					kind: "basic"
+					text: "Client Generation"
+					path: "/develop/client-generation"
+					file: "develop/client-generation"
+				}, {
+					kind: "basic"
+					text: "Infra Namespaces"
+					path: "/develop/infra-namespaces"
+					file: "develop/infra-namespaces"
 				}]
 		},
 		{
@@ -354,6 +447,7 @@
 				{
 					kind: "accordion"
 					text: "Deploy"
+					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
 						text: "Deploying & CI/CD"
@@ -384,6 +478,12 @@
 						text: "Kubernetes deployment"
 						path: "/deploy/kubernetes"
 						file: "deploy/kubernetes"
+						inline_menu: [{
+							kind: "basic"
+							text: "Configure kubectl"
+							path: "/deploy/kubernetes/kubectl"
+							file: "deploy/configure-kubectl"
+						}]
 					}, {
 						kind: "basic"
 						text: "Import your Kubernetes cluster"
@@ -404,11 +504,17 @@
 						text: "Webhooks"
 						path: "/deploy/webhooks"
 						file: "deploy/webhooks"
+					}, {
+						kind: "basic"
+						text: "Integrating with Terraform"
+						path: "/deploy/terraform"
+						file: "deploy/terraform"
 					}]
 				},
 				{
-					kind: "accordion"
-					text: "Observability"
+					kind:            "accordion"
+					text:            "Observability"
+					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
 						text: "Development Dashboard"
@@ -434,6 +540,11 @@
 						text: "Metrics"
 						path: "/observability/metrics"
 						file: "observability/metrics"
+					}, {
+						kind: "basic"
+						text: "Service Catalog"
+						path: "/develop/api-docs"
+						file: "develop/api-docs"
 					}]
 				},
 			]
@@ -448,16 +559,6 @@
 					text: "Break a monolith into microservices"
 					path: "/how-to/break-up-monolith"
 					file: "how-to/break-up-monolith"
-				}, {
-					kind: "basic"
-					text: "Build with cgo"
-					path: "/how-to/cgo"
-					file: "how-to/cgo"
-				}, {
-					kind: "basic"
-					text: "Debug with Delve"
-					path: "/how-to/debug"
-					file: "how-to/debug"
 				}, {
 					kind: "basic"
 					text: "Generate Auth Keys"
@@ -475,49 +576,24 @@
 					file: "how-to/integrate-frontend"
 				}, {
 					kind: "basic"
-					text: "Receive regular HTTP requests"
-					path: "/how-to/http-requests"
-					file: "how-to/http-requests"
-				}, {
-					kind: "basic"
 					text: "Use Temporal with Encore"
 					path: "/how-to/temporal"
 					file: "how-to/temporal"
 				}, {
 					kind: "basic"
-					text: "Use Atlas + GORM for database migrations"
-					path: "/how-to/atlas-gorm"
-					file: "how-to/atlas-gorm"
-				}, {
-					kind: "basic"
-					text: "Use the ent ORM for migrations"
-					path: "/how-to/entgo-orm"
-					file: "how-to/entgo-orm"
-				}, {
-					kind: "basic"
-					text: "Use Dependency Injection"
-					path: "/how-to/dependency-injection"
-					file: "how-to/dependency-injection"
-				}, {
-					kind: "basic"
-					text: "Use Firebase Authentication"
-					path: "/how-to/firebase-auth"
-					file: "how-to/firebase-auth"
-				}, {
-					kind: "basic"
 					text: "Submit a Template"
 					path: "/how-to/submit-template"
 					file: "how-to/submit-template"
-				}, {
-					kind: "basic"
-					text: "Try Encore for an existing project"
-					path: "/how-to/try-encore"
-					file: "how-to/try-encore"
 				}]
 			}, {
 				kind: "accordion"
 				text: "Migration guides"
 				accordion: [{
+					kind: "basic"
+					text: "Try Encore for an existing project"
+					path: "/how-to/try-encore"
+					file: "how-to/try-encore"
+				}, {
 					kind: "basic"
 					text: "Migrate an existing backend to Encore"
 					path: "/how-to/migrate-to-encore"

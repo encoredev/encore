@@ -71,10 +71,11 @@ func ExtractFromPanic(recovered any) error {
 func AddHintFromGo(err error, fileset *token.FileSet, node ast.Node, hint string) {
 	switch err := err.(type) {
 	case *ErrInSrc:
-		hintLoc := FromGoASTNode(fileset, node)
-		hintLoc.Type = LocHelp
-		hintLoc.Text = hint
-		err.Params.Locations = append(err.Params.Locations, hintLoc)
+		if hintLoc, ok := FromGoASTNode(fileset, node).Get(); ok {
+			hintLoc.Type = LocHelp
+			hintLoc.Text = hint
+			err.Params.Locations = append(err.Params.Locations, hintLoc)
+		}
 	case ErrorList:
 		for _, err := range err.ErrorList() {
 			AddHintFromGo(err, fileset, node, hint)

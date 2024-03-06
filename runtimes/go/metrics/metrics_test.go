@@ -72,7 +72,7 @@ func TestCounter_MultipleServices(t *testing.T) {
 		c.Add(2)
 		eq(t, ts.value[0], 3)
 		eq(t, ts.value[1], 0)
-		rt.FinishRequest()
+		rt.FinishRequest(false)
 	}
 
 	// Without a service running these should be no-ops again.
@@ -87,7 +87,7 @@ func TestCounter_MultipleServices(t *testing.T) {
 		c.Increment()
 		eq(t, ts.value[0], 3)
 		eq(t, ts.value[1], 1)
-		rt.FinishRequest()
+		rt.FinishRequest(false)
 	}
 
 	// Without a service running these should be no-ops again.

@@ -27,13 +27,6 @@ There are many ways to get involved. Here's where you can start straight away.
 Use GitHub to report bugs, feedback on proposals, or contribute your ideas.
 
 <p className="flex items-center gap-x-2 lead-xsmall">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 -1 104 106" fill="currentColor"><path d="M51.87,0C23.71,0,0,22.83,0,51c0,.91,0,52.81,0,52.81l51.86-.05c28.16,0,51-23.71,51-51.87S80,0,51.87,0Z" fill="currentColor"></path><path d="M52.37,19.74A31.62,31.62,0,0,0,24.58,66.41l-5.72,18.4L39.4,80.17a31.61,31.61,0,1,0,13-60.43Z" fill="#fff9ae"></path><path d="M77.45,32.12a31.6,31.6,0,0,1-38.05,48L18.86,84.82l20.91-2.47A31.6,31.6,0,0,0,77.45,32.12Z" fill="#00aeef"></path><path d="M71.63,26.29A31.6,31.6,0,0,1,38.8,78L18.86,84.82,39.4,80.17A31.6,31.6,0,0,0,71.63,26.29Z" fill="#00a94f"></path><path d="M26.47,67.11a31.61,31.61,0,0,1,51-35A31.61,31.61,0,0,0,24.58,66.41l-5.72,18.4Z" fill="#f15d22"></path><path d="M24.58,66.41A31.61,31.61,0,0,1,71.63,26.29a31.61,31.61,0,0,0-49,39.63l-3.76,18.9Z" fill="#e31b23"></path></svg>
-    <a href="https://community.encore.dev">Join the Discourse community</a>
-</p>
-
-Find answers, ask questions, and learn from other backend developers.
-
-<p className="flex items-center gap-x-2 lead-xsmall">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 123 123">
 		<path fill="#111111" d="M25.8,77.7c0,7.1-5.8,12.9-12.9,12.9S0,84.8,0,77.7c0-7.1,5.8-12.9,12.9-12.9h12.9V77.7z"/>
 		<path fill="#111111" d="M32.4,77.7c0-7.1,5.8-12.9,12.9-12.9s12.9,5.8,12.9,12.9v32.4c0,7.1-5.8,12.9-12.9,12.9s-12.9-5.8-12.9-12.9 C32.4,110.1,32.4,77.7,32.4,77.7z"/>

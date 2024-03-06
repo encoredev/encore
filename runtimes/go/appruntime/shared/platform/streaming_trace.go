@@ -9,15 +9,15 @@ import (
 	"strconv"
 	"time"
 
-	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/appruntime/exported/trace2"
 )
 
 func (c *Client) StreamTrace(log trace2.Logger) error {
-	if experiments.StreamTraces.Enabled(c.exp) {
-		return c.streamingTrace(log)
-	} else {
+	if c.static.Testing {
+		// In testing we want to block the test until the trace is done.
 		return c.blockingTrace(log)
+	} else {
+		return c.streamingTrace(log)
 	}
 }
 

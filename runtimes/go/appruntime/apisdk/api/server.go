@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -27,6 +28,7 @@ import (
 	"encore.dev/appruntime/shared/platform"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/shutdown"
+	"encore.dev/appruntime/shared/testsupport"
 	"encore.dev/beta/errs"
 	"encore.dev/internal/platformauth"
 	"encore.dev/metrics"
@@ -106,8 +108,9 @@ type Server struct {
 
 	authHandler AuthHandler
 
-	globalMiddleware   map[string]*Middleware
-	registeredHandlers []Handler
+	globalMiddleware    map[string]*Middleware
+	registeredHandlers  []Handler
+	functionsToHandlers map[uintptr]Handler
 
 	public          *httprouter.Router
 	publicFallback  *httprouter.Router
@@ -125,9 +128,10 @@ type Server struct {
 
 	pubsubSubscriptions map[string]func(r *http.Request) error
 	healthMgr           *health.CheckRegistry
+	testingMgr          *testsupport.Manager
 }
 
-func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, pc *platform.Client, encoreMgr *encore.Manager, pubsubMgr *pubsub.Manager, rootLogger zerolog.Logger, reg *metrics.Registry, healthMgr *health.CheckRegistry, json jsoniter.API, clock clock.Clock) *Server {
+func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker, pc *platform.Client, encoreMgr *encore.Manager, pubsubMgr *pubsub.Manager, rootLogger zerolog.Logger, reg *metrics.Registry, healthMgr *health.CheckRegistry, testingMgr *testsupport.Manager, json jsoniter.API, clock clock.Clock) *Server {
 	requestsTotal := metrics.NewCounterGroupInternal[requestsTotalLabels, uint64](reg, "e_requests_total", metrics.CounterConfig{
 		EncoreInternal_LabelMapper: func(labels requestsTotalLabels) []metrics.KeyValue {
 			return []metrics.KeyValue{
@@ -151,20 +155,22 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 	}
 
 	s := &Server{
-		static:         static,
-		runtime:        runtime,
-		pc:             pc,
-		rt:             rt,
-		encoreMgr:      encoreMgr,
-		pubsubMgr:      pubsubMgr,
-		healthMgr:      healthMgr,
-		requestsTotal:  requestsTotal,
-		httpClient:     &http.Client{},
-		clock:          clock,
-		rootLogger:     rootLogger,
-		json:           json,
-		tracingEnabled: rt.TracingEnabled(),
-		experiments:    experiments.FromConfig(static, runtime),
+		static:              static,
+		runtime:             runtime,
+		pc:                  pc,
+		rt:                  rt,
+		encoreMgr:           encoreMgr,
+		pubsubMgr:           pubsubMgr,
+		healthMgr:           healthMgr,
+		testingMgr:          testingMgr,
+		requestsTotal:       requestsTotal,
+		httpClient:          &http.Client{},
+		clock:               clock,
+		rootLogger:          rootLogger,
+		json:                json,
+		tracingEnabled:      rt.TracingEnabled(),
+		experiments:         experiments.FromConfig(static, runtime),
+		functionsToHandlers: make(map[uintptr]Handler),
 
 		public:          newRouter(),
 		publicFallback:  newRouter(),
@@ -269,7 +275,7 @@ func (s *Server) RegisteredHandlers() []Handler {
 // wildcardMethod is an internal method name we register wildcard methods under.
 const wildcardMethod = "__ENCORE_WILDCARD__"
 
-func (s *Server) registerEndpoint(h Handler) {
+func (s *Server) registerEndpoint(h Handler, function any) {
 	routerPath := h.HTTPRouterPath()
 
 	// Decide which routers to use.
@@ -305,6 +311,31 @@ func (s *Server) registerEndpoint(h Handler) {
 			public.Handle(m, routerPath, adapter)
 		}
 	}
+
+	// Register the function mapped to the handler - this allows `et.MockEndpoint` to lookup the Handler
+	// for a given function
+	if s.static.Testing {
+		if reflect.TypeOf(function).Kind() == reflect.Func {
+			s.functionsToHandlers[reflect.ValueOf(function).Pointer()] = h
+		} else {
+			s.rootLogger.Warn().Str("service", h.ServiceName()).Str("endpoint", h.EndpointName()).Msgf("not registering function as lookup for API handler as it is not a function: %T", function)
+		}
+	}
+}
+
+// HandlerForFunc returns the Handler for the given function or nil if it does not exist.
+func (s *Server) HandlerForFunc(function any) Handler {
+	return s.functionsToHandlers[reflect.ValueOf(function).Pointer()]
+}
+
+// ServiceExists returns true if the given service exists and has at least one endpoint.
+func (s *Server) ServiceExists(serviceName string) bool {
+	for _, h := range s.registeredHandlers {
+		if strings.EqualFold(h.ServiceName(), serviceName) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) registerGlobalMiddleware(mw *Middleware) {

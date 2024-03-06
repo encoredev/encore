@@ -7,6 +7,7 @@ infobox: {
   title: "Configuration",
   import: "encore.dev/config",
 }
+lang: go
 ---
 
 Configuration files let you define default behavior for your application, and override it for specific environments. This allows you to make changes without affecting deployments in other environments.

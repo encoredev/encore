@@ -20,6 +20,7 @@ type Query struct {
 	Subscription string
 	TraceID      string
 	MessageID    string
+	TestFilter   *bool // nil means both test and non-test traces are returned
 	Tags         []Tag
 
 	// StartTime and EndTime specify the time range to query.
@@ -72,5 +73,11 @@ type Store interface {
 	Get(ctx context.Context, appID, traceID string, iter EventIterator) error
 
 	// Listen listens for new spans.
-	Listen(ch chan<- *tracepb2.SpanSummary)
+	Listen(ch chan<- NewSpanEvent)
+}
+
+type NewSpanEvent struct {
+	AppID     string
+	TestTrace bool
+	Span      *tracepb2.SpanSummary
 }

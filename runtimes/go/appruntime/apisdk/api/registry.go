@@ -4,8 +4,8 @@ package api
 
 import "reflect"
 
-func RegisterEndpoint(handler Handler) {
-	Singleton.registerEndpoint(handler)
+func RegisterEndpoint(handler Handler, function any) {
+	Singleton.registerEndpoint(handler, function)
 }
 
 func RegisterAuthHandler(handler AuthHandler) {

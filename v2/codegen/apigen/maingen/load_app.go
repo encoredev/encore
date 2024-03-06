@@ -30,6 +30,11 @@ type testParams struct {
 func GenAppConfig(p GenParams, test option.Option[testParams]) *config.Static {
 	allowHeaders, exposeHeaders := computeCORSHeaders(p.Desc)
 
+	rootDir := p.Desc.MainModule.RootDir.ToDisplay()
+	if GenerateForInternalPackageTests {
+		rootDir = "testing_path:main"
+	}
+
 	cfg := &config.Static{
 		EncoreCompiler: p.CompilerVersion,
 		AppCommit: config.CommitInfo{
@@ -41,6 +46,7 @@ func GenAppConfig(p GenParams, test option.Option[testParams]) *config.Static {
 		PubsubTopics:       pubsubTopics(p.Gen, p.Desc),
 		Testing:            test.Present(),
 		TestServiceMap:     testServiceMap(p.Desc),
+		TestAppRootPath:    rootDir,
 		BundledServices:    bundledServices(p.Desc),
 		EnabledExperiments: p.Gen.Build.Experiments.StringList(),
 		EmbeddedEnvs:       make(map[string]string),

@@ -34,6 +34,7 @@ type lazyTraceInit struct {
 	rt       *RequestTracker
 	log      trace2.Logger
 	initOnce sync.Once
+	sent     sync.WaitGroup
 }
 
 func (l *lazyTraceInit) MarkDone() {
@@ -46,9 +47,17 @@ func (l *lazyTraceInit) Logger() trace2.Logger {
 	return l.log
 }
 
+func (l *lazyTraceInit) WaitForStreamSent() {
+	l.sent.Wait()
+}
+
 func (l *lazyTraceInit) initStream() {
 	l.initOnce.Do(func() {
+		l.sent.Add(1)
+
 		go func() {
+			defer l.sent.Done()
+
 			if err := l.rt.streamer.StreamTrace(l.log); err != nil {
 				l.rt.rootLogger.Error().Err(err).Msg("failed to stream trace")
 			}

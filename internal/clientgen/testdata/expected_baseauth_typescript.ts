@@ -148,7 +148,10 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 }
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => (string | undefined)
+export type AuthDataGenerator = () =>
+  | string
+  | Promise<string | undefined>
+  | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
@@ -166,8 +169,14 @@ class BaseClient {
         this.baseURL = baseURL
         this.headers = {
             "Content-Type": "application/json",
-            "User-Agent":   "app-Generated-TS-Client (Encore/devel)",
         }
+
+        // Add User-Agent header if the script is running in the server
+        // because browsers do not allow setting User-Agent headers to requests
+        if (typeof window === "undefined") {
+            this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/devel)";
+        }
+
         this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
@@ -183,7 +192,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => auth                
+                this.authGenerator = () => auth
             }
         }
 
@@ -205,7 +214,12 @@ class BaseClient {
         // If authorization data generator is present, call it and add the returned data to the request
         let authData: string | undefined
         if (this.authGenerator) {
-            authData = this.authGenerator()
+            const mayBePromise = this.authGenerator()
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise
+            } else {
+                authData = mayBePromise
+            }
         }
 
         // If we now have authentication data, add it to the request

@@ -3,6 +3,7 @@ seotitle: Handling CORS (Cross-Origin Resource Sharing)
 seodesc: See how you can configure CORS for your Encore application.
 title: CORS
 subtitle: Configure CORS (Cross-Origin Resource Sharing) for your Encore application
+lang: go
 ---
 
 CORS is a web security concept that defines which website origins are allowed to access your API.

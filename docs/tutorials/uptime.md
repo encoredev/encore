@@ -1,8 +1,8 @@
 ---
 title: Building an Uptime Monitor
-subtitle: Learn how to build your own uptime monitoring system in 30 minutes
-seotitle: How to build an Uptime Monitoring System in Go
-seodesc: Learn how to build an uptime monitoring tool using Go and Encore. Get your entire application running in the cloud in 30 minutes!
+subtitle: Learn how to build an event-driven uptime monitoring system
+seotitle: How to build an event-driven Uptime Monitoring System in Go
+seodesc: Learn how to build an event-driven uptime monitoring tool using Go and Encore. Get your application running in the cloud in 30 minutes!
 ---
 
 Want to be notified when your website goes down so you can fix it before your users notice?
@@ -10,7 +10,7 @@ Want to be notified when your website goes down so you can fix it before your us
 You need an uptime monitoring system. Sounds daunting? Don't worry,
 we'll build it with Encore in 30 minutes!
 
-The final result will look like this:
+The app will use an event-driven architecture and the final result will look like this:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/frontend.png" title="Frontend" />
 
@@ -33,7 +33,7 @@ Whenever you see a 🥐 it means there's something for you to do.
 $ encore app create uptime --example=github.com/encoredev/example-app-uptime/tree/starting-point
 ```
 
-Your newly created application will also be registered on <https://app.encore.dev> for when you deploy your new app later.
+Your newly created application will also be registered on [https://app.encore.dev](https://app.encore.dev) for when you deploy your new app later.
 
 🥐 Check that your frontend works:
 
@@ -45,7 +45,7 @@ $ encore run
 Then visit [http://localhost:4000/frontend/](http://localhost:4000/frontend/) to see the frontend.
 It won't work yet, since we haven't yet built the backend, so let's do just that!
 
-When we're done we'll have a backend with this architecture:
+When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/encore-flow.png" title="Encore Flow" />
 
@@ -67,6 +67,7 @@ indicating whether the site is up or down.
 
 ```go
 -- monitor/ping.go --
+// Service monitor checks if a website is up or down.
 package monitor
 
 import (
@@ -106,9 +107,9 @@ func Ping(ctx context.Context, url string) (*PingResponse, error) {
 }
 ```
 
-🥐 Let's try it! Make sure you have [Docker](https://docker.com) installed and running, then run `encore run`
-in your terminal and you should see the service start up.
-Then open up the Encore Development Dashboard running at <http://localhost:9400> and try calling
+🥐 Let's try it! Run `encore run` in your terminal and you should see the service start up.
+
+Then open up the Local Development Dashboard running at [http://localhost:9400](http://localhost:9400) and try calling
 the `monitor.Ping` endpoint, passing in `google.com` as the URL.
 
 If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in
@@ -176,19 +177,16 @@ PASS
 ok      encore.app/monitor      1.660
 ```
 
-Nice!
-_It works. Well done!_
-
+And if you open the local development dashboard at [localhost:9400](http://localhost:9400), you can also see traces for the tests.
+ 
 ## 3. Create site service
 
 Next, we want to keep track of a list of websites to monitor.
 
-Since most of these APIs will be simple "CRUD" (Create/Read/Update/Delete) endpoints,
-let's build this service using [GORM](https://gorm.io/), an ORM
+Since most of these APIs will be simple "CRUD" (Create/Read/Update/Delete) endpoints, let's build this service using [GORM](https://gorm.io/), an ORM
 library that makes building CRUD endpoints really simple.
 
-🥐 Let's create a new service named `site` with a SQL database. To do so, create
-a new directory `site` in the application root with `migrations` folder inside that folder:
+🥐 Let's create a new service named `site` with a SQL database. To do so, create a new directory `site` in the application root with `migrations` folder inside that folder:
 
 ```shell
 $ mkdir site
@@ -214,14 +212,13 @@ CREATE TABLE sites (
 $ go get -u gorm.io/gorm gorm.io/driver/postgres
 ```
 
-Now let's create the `site` service itself. To do this we'll use Encore's support for
-[dependency injection](https://encore.dev/docs/how-to/dependency-injection) to inject
-the GORM database connection.
+Now let's create the `site` service itself. To do this we'll use Encore's support for [dependency injection](https://encore.dev/docs/how-to/dependency-injection) to inject the GORM database connection.
 
 🥐 Create `site/service.go` with the contents:
 
 ```go
 -- site/service.go --
+// Service site keeps track of which sites to monitor.
 package site
 
 import (
@@ -235,13 +232,18 @@ type Service struct {
 	db *gorm.DB
 }
 
-var siteDB = sqldb.Named("site").Stdlib()
+// Define a database named 'site', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+var db = sqldb.NewDatabase("site", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
 
 // initService initializes the site service.
 // It is automatically called by Encore on service startup.
 func initService() (*Service, error) {
 	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: siteDB,
+		Conn: db.Stdlib(),
 	}))
 	if err != nil {
 		return nil, err
@@ -331,7 +333,7 @@ func (s *Service) Delete(ctx context.Context, siteID int) error {
 }
 ```
 
-🥐 Restart `encore run` to cause the `site` database to be created, and then call the `site.Add` endpoint:
+🥐 Now make sure you have [Docker](https://docker.com) installed and running, and then restart `encore run` to cause the `site` database to be created by Encore. Then let's call the `site.Add` endpoint:
 
 ```shell
 $ curl -X POST 'http://localhost:4000/site' -d '{"url": "https://encore.dev"}'
@@ -390,12 +392,19 @@ func Check(ctx context.Context, siteID int) error {
 	if err != nil {
 		return err
 	}
-	_, err = sqldb.Exec(ctx, `
+	_, err = db.Exec(ctx, `
 		INSERT INTO checks (site_id, up, checked_at)
 		VALUES ($1, $2, NOW())
 	`, site.ID, result.Up)
 	return err
 }
+
+// Define a database named 'monitor', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+var db = sqldb.NewDatabase("monitor", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
 ```
 
 🥐 Restart `encore run` to cause the `monitor` database to be created, and then call the new `monitor.Check` endpoint:
@@ -448,7 +457,7 @@ func check(ctx context.Context, site *site.Site) error {
 	if err != nil {
 		return err
 	}
-	_, err = sqldb.Exec(ctx, `
+	_, err = db.Exec(ctx, `
 		INSERT INTO checks (site_id, up, checked_at)
 		VALUES ($1, $2, NOW())
 	`, site.ID, result.Up)
@@ -544,9 +553,7 @@ From there you can also see metrics, traces, link your app to a GitHub repo to g
 An uptime monitoring system isn't very useful if it doesn't
 actually notify you when a site goes down.
 
-To do so let's add a [Pub/Sub topic](https://encore.dev/docs/primitives/pubsub)
-on which we'll publish a message every time a site transitions from being up
-to being down, or vice versa.
+To do so let's add a [Pub/Sub topic](https://encore.dev/docs/primitives/pubsub) on which we'll publish a message every time a site transitions from being up to being down, or vice versa.
 
 🥐 Define the topic using Encore's Pub/Sub package in a new file, `monitor/alerts.go`:
 
@@ -717,7 +724,7 @@ help out.
 🥐 Once you have the Webhook URL, set it as an Encore secret:
 
 ```shell
-$ encore secret set --dev SlackWebhookURL
+$ encore secret set --type dev,local,pr SlackWebhookURL
 Enter secret value: *****
 Successfully updated development secret SlackWebhookURL.
 ```
@@ -763,6 +770,18 @@ $ git add -A .
 $ git commit -m 'Add slack integration'
 $ git push encore
 ```
+
+### Celebrate with fireworks
+
+Now that your app is running in the cloud, let's celebrate with some fireworks:
+
+🥐 In the Cloud Dashboard, open the Command Menu by pressing **Cmd + K** (Mac) or **Ctrl + K** (Windows/Linux).
+
+_From here you can easily access all Cloud Dashboard features and for example jump straight to specific services in the Service Catalog or view Traces for specific endpoints._
+
+🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
+
+![Fireworks](/assets/docs/fireworks.jpg)
 
 ## Conclusion
 

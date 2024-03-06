@@ -14,16 +14,17 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/semver"
 
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/internal/etrace"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/paths"
+	"encr.dev/pkg/xos"
 	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
@@ -65,24 +66,34 @@ func Build(ctx context.Context, cfg *Config) *Result {
 	b := &builder{
 		ctx:  ctx,
 		cfg:  cfg,
+		mode: buildMode,
 		errs: cfg.Ctx.Errs,
 	}
 	return b.Build()
 }
+
+// Mode is the build mode.
+type mode string
+
+const (
+	buildMode mode = "build"
+	testMode  mode = "test"
+)
 
 type builder struct {
 	// inputs
 	ctx     context.Context
 	cfg     *Config
 	testCfg *TestConfig
+	mode    mode
 
 	// internal state
 
 	// errs is the error list to use.
 	errs *perr.List
 
-	// overlays are the additional overlay files to apply.
-	overlays []overlay.File
+	// overlayPath is set when the overlay file is written.
+	overlayPath paths.FS
 
 	workdir paths.FS
 	// deleteWorkDir reports whether the workdir should be deleted.
@@ -112,7 +123,6 @@ func (b *builder) Build() *Result {
 
 	for _, fn := range []func(){
 		b.writeModFile,
-		b.writeSumFile,
 		b.buildMain,
 	} {
 		fn()
@@ -129,7 +139,9 @@ func (b *builder) writeModFile() {
 		newPath := b.cfg.Ctx.Build.EncoreRuntime.ToIO()
 		oldPath := "encore.dev"
 
-		modData, err := os.ReadFile(b.cfg.Ctx.MainModuleDir.Join("go.mod").ToIO())
+		modFilePath := b.cfg.Ctx.MainModuleDir.Join("go.mod")
+		sumFilePath := b.cfg.Ctx.MainModuleDir.Join("go.sum")
+		modData, err := os.ReadFile(modFilePath.ToIO())
 		if err != nil {
 			b.errs.Addf(token.NoPos, "unable to read go.mod: %v", err)
 			return
@@ -156,70 +168,93 @@ func (b *builder) writeModFile() {
 		}
 		mainMod.Cleanup()
 
-		runtimeModData, err := os.ReadFile(filepath.Join(newPath, "go.mod"))
-		if err != nil {
-			b.errs.Addf(token.NoPos, "unable to read encore runtime's go.mod: %v", err)
-			return
-		}
-		runtimeModfile, err := modfile.Parse("encore-runtime/go.mod", runtimeModData, nil)
-		if err != nil {
-			b.errs.Addf(token.NoPos, "unable to parse encore runtime's go.mod: %v", err)
-			return
-		}
-		mergeModfiles(mainMod, runtimeModfile)
-
 		data := modfile.Format(mainMod.Syntax)
-		if err := os.WriteFile(b.gomodPath().ToIO(), data, 0o644); err != nil {
+
+		gomodpath := b.workdir.Join("go.mod")
+		gosumpath := b.workdir.Join("go.sum")
+		if err := xos.WriteFile(gomodpath.ToIO(), data, 0o644); err != nil {
 			b.errs.Addf(token.NoPos, "unable to write go.mod: %v", err)
 			return
 		}
-	})
-}
 
-func (b *builder) writeSumFile() {
-	etrace.Sync0(b.ctx, "", "writeSumFile", func(ctx context.Context) {
-		appSum, err := os.ReadFile(b.cfg.Ctx.MainModuleDir.Join("go.sum").ToIO())
-		if err != nil && !os.IsNotExist(err) {
-			b.errs.Addf(token.NoPos, "unable to parse go.sum: %v", err)
-			return
-		}
-		runtimeSum, err := os.ReadFile(b.cfg.Ctx.Build.EncoreRuntime.Join("go.sum").ToIO())
-		if err != nil {
-			b.errs.Addf(token.NoPos, "unable to parse encore runtime's go.sum: %v", err)
-			return
-		}
-		if !bytes.HasSuffix(appSum, []byte{'\n'}) {
-			appSum = append(appSum, '\n')
-		}
-		data := append(appSum, runtimeSum...)
-
-		if err := os.WriteFile(b.gosumPath().ToIO(), data, 0o644); err != nil {
-			b.errs.Addf(token.NoPos, "unable to write go.sum: %v", err)
-			return
-		}
-	})
-}
-
-func (b *builder) gomodPath() paths.FS { return b.workdir.Join("go.mod") }
-func (b *builder) gosumPath() paths.FS { return b.workdir.Join("go.sum") }
-
-func (b *builder) buildMain() {
-	etrace.Sync0(b.ctx, "", "buildMain", func(ctx context.Context) {
-		overlayFiles := append(b.overlays, b.cfg.Overlays...)
+		// Write an initial overlay for use with 'go mod tidy' when writing the go.mod file.
+		overlayFiles := slices.Clone(b.cfg.Overlays)
 		overlayPath, err := overlay.Write(b.workdir, overlayFiles)
 		if err != nil {
 			b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
 			return
 		}
 
+		// Run `go mod tidy` on this modfile.
+		{
+
+			build := b.cfg.Ctx.Build
+			goroot := build.GOROOT
+			cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(),
+				"mod", "tidy",
+				"-overlay="+overlayPath.ToIO(),
+				"-modfile="+gomodpath.ToIO(),
+			)
+
+			// Copy the env before we add additional env vars
+			// to avoid accidentally sharing the same backing array.
+			env := make([]string, len(b.cfg.Env))
+			copy(env, b.cfg.Env)
+			env = append(env,
+				"GO111MODULE=on",
+				"GOROOT="+goroot.ToIO(),
+				"GOTOOLCHAIN=local",
+			)
+			if goos := build.GOOS; goos != "" {
+				env = append(env, "GOOS="+goos)
+			}
+			if goarch := build.GOARCH; goarch != "" {
+				env = append(env, "GOARCH="+goarch)
+			}
+			if !build.CgoEnabled {
+				env = append(env, "CGO_ENABLED=0")
+			}
+
+			cmd.Env = append(os.Environ(), env...)
+			cmd.Dir = b.cfg.Ctx.MainModuleDir.ToIO()
+
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				if len(out) == 0 {
+					out = []byte(err.Error())
+				}
+				out = convertCompileErrors(b.errs, out, b.workdir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO(), b.cfg.Ctx.MainModuleDir.ToIO())
+				if len(out) > 0 {
+					// HACK(andre): Make this nicer
+					b.errs.AddStd(fmt.Errorf("'go mod tidy' failed: %s", out))
+				}
+			}
+		}
+
+		// Add the go.mod and go.sum files to the overlay, and write a new overlay file.
+		overlayFiles = append(overlayFiles, overlay.File{
+			Source: modFilePath,
+			Dest:   gomodpath,
+		}, overlay.File{
+			Source: sumFilePath,
+			Dest:   gosumpath,
+		})
+		b.overlayPath, err = overlay.Write(b.workdir, overlayFiles)
+		if err != nil {
+			b.errs.Addf(token.NoPos, "unable to write overlay file: %v", err)
+			return
+		}
+	})
+}
+
+func (b *builder) buildMain() {
+	etrace.Sync0(b.ctx, "", "buildMain", func(ctx context.Context) {
 		build := b.cfg.Ctx.Build
 		tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
 		args := []string{
 			"build",
 			"-tags=" + strings.Join(tags, ","),
-			"-overlay=" + overlayPath.ToIO(),
-			"-modfile=" + b.gomodPath().ToIO(),
-			"-mod=mod",
+			"-overlay=" + b.overlayPath.ToIO(),
 		}
 
 		if !b.cfg.NoBinary {
@@ -293,29 +328,6 @@ func (b *builder) writeStaticConfig(ldflags *strings.Builder) {
 	}
 	ldflags.WriteString(base64.StdEncoding.EncodeToString(data))
 	ldflags.WriteByte('\'')
-}
-
-// mergeModFiles merges two modfiles, adding the require statements from the latter to the former.
-// If both files have the same module requirement, it keeps the one with the greater semver version.
-func mergeModfiles(src, add *modfile.File) {
-	reqs := src.Require
-	for _, a := range add.Require {
-		found := false
-		for _, r := range src.Require {
-			if r.Mod.Path == a.Mod.Path {
-				found = true
-				// Update the version if the one to add is greater.
-				if semver.Compare(a.Mod.Version, r.Mod.Version) > 0 {
-					r.Mod.Version = a.Mod.Version
-				}
-			}
-		}
-		if !found {
-			reqs = append(reqs, a)
-		}
-	}
-	src.SetRequire(reqs)
-	src.Cleanup()
 }
 
 const binaryName = "encore_app_out"
@@ -441,7 +453,9 @@ func (b *builder) prepareWorkDir() (workdir paths.FS, temporary bool) {
 			if err != nil {
 				b.errs.Fatalf(token.NoPos, "unable to get user cache dir: %v", err)
 			}
-			workdir := filepath.Join(baseDir, "encore-build", appID)
+			// Use a per-mode work directory since the generated files are different.
+			// Otherwise concurrent build and test runs interfere and cause spurious compilation errors.
+			workdir := filepath.Join(baseDir, "encore-build", appID, string(b.mode))
 			return workdir, false
 		}
 

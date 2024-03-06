@@ -132,9 +132,11 @@ func registerHandlers(appDesc *app.Desc, file *codegen.File, handlers []*handler
 	f := file.Jen
 	f.Func().Id("init").Params().BlockFunc(func(g *Group) {
 		for _, h := range handlers {
-			g.Qual("encore.dev/appruntime/apisdk/api", "RegisterEndpoint").Call(
-				h.desc.Qual(),
-			)
+			g.Qual("encore.dev/appruntime/apisdk/api", "RegisterEndpoint").CallFunc(func(g *Group) {
+				g.Add(h.desc.Qual())
+
+				g.Add(Id(h.ep.Name))
+			})
 		}
 	})
 }

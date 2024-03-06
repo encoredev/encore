@@ -34,7 +34,7 @@ Once you've created you app, [integrate it with your GitHub repository](/docs/ho
 
 Once you've created your app, it's time to start building. If you're new to Encore, we recommend trying out some of the [tutorials](/docs/tutorials).
 
-If you need help or have questions, join us on [Slack](https://encore.dev/slack) or post your questions on the [Community Forums](https://community.encore.dev).
+If you need help or have questions, join the friendly developer community on [Slack](https://encore.dev/slack).
 
 #### Design your APIs
 
@@ -117,7 +117,7 @@ As you run your app locally, using `encore run`, Encore will parse and compile i
 
 By iteratively making adjustments, you should relatively quickly be able to get your application up and running with Encore.
 
-If you need help or have questions, join us on [Slack](https://encore.dev/slack) or post your questions on the [Community Forums](https://community.encore.dev).
+If you need help or have questions, join the developer community on [Slack](https://encore.dev/slack) or send an email to [help@encore.dev](mailto:help@encore.dev).
 
 ### Incrementally start using the Encore infrastructure SDK
 

@@ -3,6 +3,7 @@ seotitle: API Schemas – Path, Query, and Body parameters
 seodesc: See how to design API schemas for your Go based backend application using Encore.
 title: API Schemas
 subtitle: How to design schemas for your APIs
+lang: go
 ---
 APIs in Encore are regular functions with request and response data types.
 These types are structs (or pointers to structs) with optional field tags, which Encore uses to encode API requests to HTTP messages. The same struct can be used for requests and responses, but the `query` tag is ignored when generating responses.
@@ -155,7 +156,7 @@ type CreateBlogPost struct {
 The table below lists the data types supported by each HTTP message location.
 
 | Type            | Header | Path | Query | Body |
-|-----------------|--------|------|-------|------|
+| --------------- | ------ | ---- | ----- | ---- |
 | bool            | X      | X    | X     | X    |
 | numeric         | X      | X    | X     | X    |
 | string          | X      | X    | X     | X    |
@@ -174,7 +175,7 @@ This often requires you to parse custom HTTP headers and do other low-level thin
 
 For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
 
-Learn more about how to use raw endpoints in the [receiving webhooks guide](/docs/how-to/webhooks).
+Learn more in the [raw endpoints documentation](/docs/primitives/services-and-apis#raw-endpoints).
 
 ## Sensitive data
 

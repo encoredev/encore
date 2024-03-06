@@ -1,0 +1,196 @@
+test
+
+-- products/price.go --
+package products
+
+import (
+    "context"
+)
+
+type PriceParams struct {
+    Quantity int
+}
+
+type PriceResult struct {
+    Total float64
+}
+
+//encore:api public method=GET path=/products/:productID/price
+func GetPrice(ctx context.Context, productID int, p *PriceParams) (*PriceResult, error) {
+    return &PriceResult{ Total: 99.99 * float64(p.Quantity) }, nil
+}
+
+-- shoppingcart/cart.go --
+package shoppingcart
+
+import (
+    "context"
+
+    "test/products"
+)
+
+type CartItem struct {
+    ProductID int
+    Quantity int
+}
+
+//encore:service
+type Service struct {
+    Items []CartItem
+}
+
+func initService() (*Service, error) {
+    return &Service{
+        Items: []CartItem{
+            { ProductID: 1, Quantity: 2 },
+            { ProductID: 2, Quantity: 1 },
+        },
+    }, nil
+}
+
+type TotalResult struct {
+    Total float64
+}
+
+//encore:api public method=GET path=/cart/total
+func (s *Service) Total(ctx context.Context) (*TotalResult, error) {
+    var total float64
+
+    for _, item := range s.Items {
+        price, err := products.GetPrice(ctx, item.ProductID, &products.PriceParams{ Quantity: item.Quantity })
+        if err != nil {
+            return nil, err
+        }
+
+        total += price.Total
+    }
+
+    return &TotalResult{ Total: total }, nil
+}
+
+//encore:api private
+func (s *Service) Empty(ctx context.Context) error {
+    s.Items = []CartItem{}
+    return nil
+}
+
+-- shoppingcart/cart_test.go --
+package shoppingcart
+
+import (
+    "context"
+    "math"
+    "testing"
+
+    "encore.dev/et"
+
+    "test/products"
+)
+
+func callAndExpect(t *testing.T, total float64) {
+    resp, err := Total(context.Background())
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    if math.Abs(resp.Total - total) > 0.001 {
+        t.Fatalf("expected total to be %f, got %f", total, resp.Total)
+    }
+}
+
+func TestTotal_NoMocking(t *testing.T) {
+    t.Parallel()
+
+    callAndExpect(t, 299.97)
+}
+
+func TestTotal_WithMockingOfProductsEndpoint(t *testing.T) {
+    t.Parallel()
+
+    et.MockEndpoint(products.GetPrice, func(ctx context.Context, productID int, p *products.PriceParams) (*products.PriceResult, error) {
+       return &products.PriceResult{ Total: 20 * float64(p.Quantity) }, nil
+    })
+
+    callAndExpect(t, 60.0)
+}
+
+func TestTotal_WithMockingOfServiceMethod(t *testing.T) {
+    t.Parallel()
+
+    et.MockEndpoint(Total, func(ctx context.Context) (*TotalResult, error) {
+        return &TotalResult{ Total: 100.0 }, nil
+    })
+
+    callAndExpect(t, 100.0)
+}
+
+func TestTotal_WithMockingOfServiceObjectWithDifferentInstance(t *testing.T) {
+    t.Parallel()
+
+    et.MockService("shoppingcart", &Service{
+        Items: []CartItem{
+            { ProductID: 1, Quantity: 5 },
+        },
+    })
+
+    callAndExpect(t, 499.95)
+}
+
+func TestTotal_WithMockingOfServiceWithMockObject(t *testing.T) {
+    t.Parallel()
+
+    et.MockService[products.Interface]("products", &mockProducts{})
+
+    callAndExpect(t, 303.0)
+}
+
+type mockProducts struct{}
+
+func (m *mockProducts) GetPrice(ctx context.Context, productID int, p *products.PriceParams) (*products.PriceResult, error) {
+    return &products.PriceResult{ Total: float64(productID) + float64(p.Quantity * 100) }, nil
+}
+
+func TestTotal_UsingServiceIsolation(t *testing.T) {
+    t.Parallel()
+
+    callAndExpect(t, 299.97)
+
+    // These don't run with parallel so we can test the isolation
+    t.Run("emptied in isolation", func(t *testing.T) {
+        et.EnableServiceInstanceIsolation()
+        Empty(context.Background())
+        callAndExpect(t, 0.0)
+    })
+
+    t.Run("non isolated still has items", func(t *testing.T) {
+        callAndExpect(t, 299.97)
+    })
+}
+
+func TestTotal_RemovingMockServices(t *testing.T) {
+    t.Parallel()
+
+    et.MockService[products.Interface]("products", &mockProducts{})
+
+    t.Run("remove mock", func(t *testing.T) {
+        et.MockService[products.Interface]("products", nil)
+        callAndExpect(t, 299.97)
+    })
+
+    callAndExpect(t, 303.0)
+}
+
+func TestTotal_RemovingMockEndpoints(t *testing.T) {
+    t.Parallel()
+
+    et.MockEndpoint(products.GetPrice, func(ctx context.Context, productID int, p *products.PriceParams) (*products.PriceResult, error) {
+       return &products.PriceResult{ Total: 20 * float64(p.Quantity) }, nil
+    })
+
+    t.Run("remove mock", func(t *testing.T) {
+        et.MockEndpoint(products.GetPrice, nil)
+        callAndExpect(t, 299.97)
+    })
+
+    callAndExpect(t, 60.0)
+}

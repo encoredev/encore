@@ -22,9 +22,7 @@ Or if you'd rather watch a video of this tutorial, you can do that below.
 
 <iframe width="360" height="202" src="https://www.youtube.com/embed/BR_ys_qR2kI?controls=0" title="Building an Incident Management Tool Video Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-<div className="not-prose my-10">
-   <Editor projectName="incidentManagement" />
-</div>
+View full project on [GitHub](https://github.com/encoredev/example-app-oncall)
 
 <Callout type="info">
 
@@ -46,13 +44,14 @@ Whenever you see a 🥐 it means there's something for you to do.
 🥐 Once you have your Webhook URL which starts with `https://hooks.slack.com/services/...` then copy and paste that and run the following commands to save these as secrets. We recommend having a different webhook/channel for development and production.
 
 ```shell
-$ encore secret set --dev SlackWebhookURL
-$ encore secret set --prod SlackWebhookURL
+$ encore secret set --type dev,local,pr SlackWebhookURL
+$ encore secret set --type prod SlackWebhookURL
 ```
 
 🥐 Next, let's create our `slack` service that contains the logic for calling the Webhook URL in order to post notifications to our Slack. To do this we need to implement our code in `slack/slack.go`:
 
 ```go
+// Service slack calls a webhook to post notifications to Slack.
 package slack
 
 import (
@@ -115,11 +114,11 @@ This will allow us to figure out who we should assign incoming incidents to!
 
 To get started, we need to create a `users` service with the following resources:
 
-| # | Type | Description / Filename |
-| - | - | - |
-| #1 | SQL Migration | Our PostgreSQL schema for scheduling data <br/> `users/migrations/1_create_users.up.sql` |
-| #2 | HTTP Endpoint <br/> `POST /users` | Create a new User <br/> `users/users.go` |
-| #3 | HTTP Endpoint <br/> `GET /users/:id` | Get an existing User <br/> `users/users.go` |
+| #   | Type                                 | Description / Filename                                                                   |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| #1  | SQL Migration                        | Our PostgreSQL schema for scheduling data <br/> `users/migrations/1_create_users.up.sql` |
+| #2  | HTTP Endpoint <br/> `POST /users`    | Create a new User <br/> `users/users.go`                                                 |
+| #3  | HTTP Endpoint <br/> `GET /users/:id` | Get an existing User <br/> `users/users.go`                                              |
 
 With #1, let's design our database schema for a User in our system. For now let's store a first and last name as well as a Slack handle in case we need to notify them about any incidents which may have been assigned to them or acknowledged by them.
 
@@ -137,6 +136,7 @@ CREATE TABLE users (
 🥐 Then, we need to write our code to implement the HTTP endpoints listed in #2 (for creating a user) and #3 (for listing a user) belonging in `users/users.go`. Let's split them out into three sections: our structs (i.e. data models) and methods.
 
 ```go
+// Service users manages users and assigns incidents.
 package users
 
 import (
@@ -152,10 +152,17 @@ type User struct {
 	SlackHandle string
 }
 
+// Define a database named 'users', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+var db = sqldb.NewDatabase("users", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
+
 //encore:api public method=POST path=/users
 func Create(ctx context.Context, params CreateParams) (*User, error) {
 	user := User{}
-	err := sqldb.QueryRow(ctx, `
+	err := db.QueryRow(ctx, `
 		INSERT INTO users (first_name, last_name, slack_handle)
 		VALUES ($1, $2, $3)
 		RETURNING id, first_name, last_name, slack_handle
@@ -176,7 +183,7 @@ type CreateParams struct {
 //encore:api public method=GET path=/users/:id
 func Get(ctx context.Context, id int32) (*User, error) {
 	user := User{}
-	err := sqldb.QueryRow(ctx, `
+	err := db.QueryRow(ctx, `
 	  SELECT id, first_name, last_name, slack_handle
 		FROM users
 		WHERE id = $1
@@ -214,12 +221,12 @@ A good incident management tool should be able to spread the workload of diagnos
 
 In order to achieve this, let's create a new service called `schedules`:
 
-| # | Type | Description / Filename |
-| - | - | - |
-| #1 | SQL Migration | Our PostgreSQL schema for user data <br/> `schedules/migrations/1_create_schedules.up.sql` |
-| #2 | HTTP Endpoint <br/> `GET /schedules` | Get list of schedules between time range <br/> `schedules/schedules.go` |
-| #3 | HTTP Endpoint <br/> `POST /users/:id/schedules` | Create a new Schedule <br/> `schedules/schedules.go` |
-| #4 | HTTP Endpoint <br/> `GET /scheduled/:timestamp` | Get Schedule at specific time <br/> `schedules/schedules.go` |
+| #   | Type                                            | Description / Filename                                                                     |
+| --- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| #1  | SQL Migration                                   | Our PostgreSQL schema for user data <br/> `schedules/migrations/1_create_schedules.up.sql` |
+| #2  | HTTP Endpoint <br/> `GET /schedules`            | Get list of schedules between time range <br/> `schedules/schedules.go`                    |
+| #3  | HTTP Endpoint <br/> `POST /users/:id/schedules` | Create a new Schedule <br/> `schedules/schedules.go`                                       |
+| #4  | HTTP Endpoint <br/> `GET /scheduled/:timestamp` | Get Schedule at specific time <br/> `schedules/schedules.go`                               |
 
 
 For the SQL migration in #1, we need to create both a table and an index. For every rotation let's need a new entry containing the user who it is for as well as the start and end times of the scheduled rotation.
@@ -248,6 +255,7 @@ Table indexes are used to optimize lookups without having to search every row in
 🥐 Next, let's implement the HTTP endpoints for #2 (listing schedules), #3 (creating a schedule) and #4 (getting the schedule/user at a specific time) in `schedules/schedules.go`:
 
 ```go
+// Service schedules implements schedules to answer who should be assigned to an incident.
 package schedules
 
 import (
@@ -259,6 +267,13 @@ import (
 	"encore.dev/beta/errs"
 	"encore.dev/storage/sqldb"
 )
+
+// Define a database named 'schedules', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+var db = sqldb.NewDatabase("schedules", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
 
 // This struct holds multiple Schedule structs
 type Schedules struct {
@@ -296,7 +311,7 @@ func Create(ctx context.Context, userId int32, timeRange TimeRange) (*Schedule, 
 	}
 
 	schedule := Schedule{User: *user, Time: TimeRange{}}
-	err = sqldb.QueryRow(
+	err = db.QueryRow(
 		ctx,
 		`INSERT INTO schedules (user_id, start_time, end_time) VALUES ($1, $2, $3) RETURNING id, start_time, end_time`,
 		userId, timeRange.Start, timeRange.End,
@@ -326,13 +341,13 @@ func ScheduledAt(ctx context.Context, timestamp string) (*Schedule, error) {
 
 func scheduled(ctx context.Context, timestamp time.Time) (*Schedule, error) {
 	eb := errs.B().Meta("timestamp", timestamp)
-	schedule, err := RowToSchedule(ctx, sqldb.QueryRow(ctx, `
+	schedule, err := RowToSchedule(ctx, db.QueryRow(ctx, `
 		SELECT id, user_id, start_time, end_time
 		FROM schedules
 		WHERE start_time <= $1
 		  AND end_time >= $1
 	`, timestamp.UTC()))
-	if errors.Is(err, sqldb.ErrNoRows) {
+	if errors.Is(err, db.ErrNoRows) {
 		return nil, eb.Code(errs.NotFound).Msg("no schedule found").Err()
 	}
 	if err != nil {
@@ -343,7 +358,7 @@ func scheduled(ctx context.Context, timestamp time.Time) (*Schedule, error) {
 
 //encore:api public method=GET path=/schedules
 func ListByTimeRange(ctx context.Context, timeRange TimeRange) (*Schedules, error) {
-	rows, err := sqldb.Query(ctx, `
+	rows, err := db.Query(ctx, `
 		SELECT id, user_id, start_time, end_time
 		FROM schedules
 		WHERE start_time >= $1
@@ -374,7 +389,7 @@ func DeleteByTimeRange(ctx context.Context, timeRange TimeRange) (*Schedules, er
 	if err != nil {
 		return nil, err
 	}
-	_, err = sqldb.Exec(ctx, `DELETE FROM schedules WHERE start_time >= $1 AND end_time <= $2`, timeRange.Start, timeRange.End)
+	_, err = db.Exec(ctx, `DELETE FROM schedules WHERE start_time >= $1 AND end_time <= $2`, timeRange.Start, timeRange.End)
 	if err != nil {
 		return nil, err
 	}
@@ -437,12 +452,12 @@ The flow we're going to implement is: an incoming incident will arrive, let's ei
 To start with, we need to create a new `incidents` service with the following resources:
 
 
-| # | Type | Description / Filename |
-| - | - | - |
-| #1 | SQL Migration | Our PostgreSQL schema for storing incidents <br/> `incidents/migrations/1_create_incidents.up.sql` |
-| #2 | HTTP Endpoint <br/> `GET /incidents` | Get list of all unacknowledged incidents <br/> `incidents/incidents.go` |
-| #3 | HTTP Endpoint <br/> `PUT /incidents/:id/acknowledge` | Acknowledge an incident <br/> `incidents/incidents.go` |
-| #4 | HTTP Endpoint <br/> `GET /scheduled/:timestamp` | Get  <br/> `incidents/incidents.go` |
+| #   | Type                                                 | Description / Filename                                                                             |
+| --- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| #1  | SQL Migration                                        | Our PostgreSQL schema for storing incidents <br/> `incidents/migrations/1_create_incidents.up.sql` |
+| #2  | HTTP Endpoint <br/> `GET /incidents`                 | Get list of all unacknowledged incidents <br/> `incidents/incidents.go`                            |
+| #3  | HTTP Endpoint <br/> `PUT /incidents/:id/acknowledge` | Acknowledge an incident <br/> `incidents/incidents.go`                                             |
+| #4  | HTTP Endpoint <br/> `GET /scheduled/:timestamp`      | Get  <br/> `incidents/incidents.go`                                                                |
 
 For the SQL migration in #1, we need to create the table for our incidents. We need to have a one-to-many relationship between an user and an incident. That is, an incident can only be assigned to a single user but a single user can be assigned to many incidents.
 
@@ -462,6 +477,7 @@ CREATE TABLE incidents
 🥐 Next, our code belonging in `incidents/incidents.go` for being able to support incidents is below:
 
 ```go
+// Service incidents reports, assigns and acknowledges incidents.
 package incidents
 
 import (
@@ -474,6 +490,13 @@ import (
 	"fmt"
 	"time"
 )
+
+// Define a database named 'incidents', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+var db = sqldb.NewDatabase("incidents", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
 
 // This struct holds multiple Incidents structs
 type Incidents struct {
@@ -492,7 +515,7 @@ type Incident struct {
 
 //encore:api public method=GET path=/incidents
 func List(ctx context.Context) (*Incidents, error) {
-	rows, err := sqldb.Query(ctx, `
+	rows, err := db.Query(ctx, `
 		SELECT id, assigned_user_id, body, created_at, acknowledged_at
 		FROM incidents
 		WHERE acknowledged_at IS NULL
@@ -506,7 +529,7 @@ func List(ctx context.Context) (*Incidents, error) {
 //encore:api public method=PUT path=/incidents/:id/acknowledge
 func Acknowledge(ctx context.Context, id int32) (*Incident, error) {
 	eb := errs.B().Meta("incidentId", id)
-	rows, err := sqldb.Query(ctx, `
+	rows, err := db.Query(ctx, `
 		UPDATE incidents
 		SET acknowledged_at = NOW()
 		WHERE acknowledged_at IS NULL
@@ -543,17 +566,17 @@ func Create(ctx context.Context, params *CreateParams) (*Incident, error) {
 		incident.Assignee = &schedule.User
 	}
 
-	var row *sqldb.Row
+	var row *db.Row
 	if schedule != nil {
 		// Someone is on-call
-		row = sqldb.QueryRow(ctx, `
+		row = db.QueryRow(ctx, `
 			INSERT INTO incidents (assigned_user_id, body)
 			VALUES ($1, $2)
 			RETURNING id, body, created_at
 		`, &schedule.User.Id, params.Body)
 	} else {
 		// Nobody is on-call
-		row = sqldb.QueryRow(ctx, `
+		row = db.QueryRow(ctx, `
 			INSERT INTO incidents (body)
 			VALUES ($1)
 			RETURNING id, body, created_at
@@ -579,8 +602,8 @@ type CreateParams struct {
 	Body string
 }
 
-// Helper to take a sqldb.Rows instance and convert it into a list of Incidents
-func RowsToIncidents(ctx context.Context, rows *sqldb.Rows) (*Incidents, error) {
+// Helper to take a db.Rows instance and convert it into a list of Incidents
+func RowsToIncidents(ctx context.Context, rows *db.Rows) (*Incidents, error) {
 	eb := errs.B()
 
 	defer rows.Close()
@@ -660,7 +683,7 @@ And for our second cronjob, when someone goes on call we need to automatically a
 //encore:api public method=PUT path=/incidents/:id/assign
 func Assign(ctx context.Context, id int32, params *AssignParams) (*Incident, error) {
 	eb := errs.B().Meta("params", params)
-	rows, err := sqldb.Query(ctx, `
+	rows, err := db.Query(ctx, `
 		UPDATE incidents
 		SET assigned_user_id = $1
 		WHERE acknowledged_at IS NULL
@@ -795,6 +818,18 @@ After triggering the deployment, you will see a URL where you can view its progr
 
 From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
 
+### Celebrate with fireworks
+
+Now that your app is running in the cloud, let's celebrate with some fireworks:
+
+🥐 In the Cloud Dashboard, open the Command Menu by pressing **Cmd + K** (Mac) or **Ctrl + K** (Windows/Linux).
+
+_From here you can easily access all Cloud Dashboard features and for example jump straight to specific services in the Service Catalog or view Traces for specific endpoints._
+
+🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
+
+![Fireworks](/assets/docs/fireworks.jpg)
+
 ### Architecture Diagram
 
 Take a look at the [Encore Flow](/docs/develop/encore-flow) diagram that was automatically generated for our new application too!
@@ -804,7 +839,7 @@ Take a look at the [Encore Flow](/docs/develop/encore-flow) diagram that was aut
 ### GitHub Repository
 
 🥐 Check out the `example-app-oncall` repository on GitHub for this example which includes additional features and tests:
-<https://github.com/encoredev/example-app-oncall>
+[https://github.com/encoredev/example-app-oncall](https://github.com/encoredev/example-app-oncall)
 
 Alternatively, you can clone our example application by running this in your Terminal:
 
@@ -814,6 +849,6 @@ $ encore app create --example https://github.com/encoredev/example-app-oncall
 
 ### Feedback
 
-🥐 We would love to hear what you learnt with this tutorial as well as what you're building.
-Let us know by [tweeting your experience](https://twitter.com/encoredotdev) and maybe even posting your new app [to Show & Tell on our Community Forums](https://community.encore.dev/c/show-and-tell/12) for some friendly feedback?
+🥐 We'd love to hear your thoughts about this tutorial and learn about what you're building next.
+Let us know by [tweeting your experience](https://twitter.com/encoredotdev), blog about it, or talk to us about it on [Slack](https://encore.dev/slack).
 

@@ -93,7 +93,7 @@ To further narrow down the services to generate, use the '--services' flag.
 			}
 
 			if output == "" {
-				os.Stdout.Write(resp.Code)
+				_, _ = os.Stdout.Write(resp.Code)
 			} else {
 				if err := os.WriteFile(output, resp.Code, 0755); err != nil {
 					fatal(err)
@@ -117,8 +117,7 @@ which may require the user-facing wrapper code to be manually generated.`,
 		Args: cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, _ := determineAppRoot()
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+			ctx := context.Background()
 			daemon := setupDaemon(ctx)
 			_, err := daemon.GenWrappers(ctx, &daemonpb.GenWrappersRequest{
 				AppRoot: appRoot,

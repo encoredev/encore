@@ -2,6 +2,7 @@
 seotitle: Use ent + Atlas for database schema management with Encore.
 seodesc: See how you can use an ORM like ent with Atlas to handle your database schemas.
 title: Use ent ORM + Atlas for database schemas
+lang: go
 ---
 
 Encore has all the tools needed to support ORMs and migration frameworks out-of-the-box through

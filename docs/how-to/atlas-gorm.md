@@ -2,6 +2,7 @@
 seotitle: How to use Atlas + GORM for database migrations with Encore
 seodesc: See how you can use Atlas to manage your database migrations in your Encore application.
 title: Use Atlas + GORM for database migrations
+lang: go
 ---
 
 [Atlas](https://atlasgo.io) is a popular tool for managing database migrations.
@@ -71,7 +72,7 @@ Then, add an `atlas.hcl` file inside the `blog` directory:
 ```
 -- blog/atlas.hcl --
 data "external_schema" "gorm" {
-  program = ["./scripts/atlas-gorm-loader.go"]
+  program = ["env", "ENCORERUNTIME_NOPANIC=1", "go", "run", "./scripts/atlas-gorm-loader.go"]
 }
 
 env "local" {

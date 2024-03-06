@@ -359,6 +359,30 @@ func (mr *MockLoggerMockRecorder) ServiceInitStart(arg0 interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceInitStart", reflect.TypeOf((*MockLogger)(nil).ServiceInitStart), arg0)
 }
 
+// TestSpanEnd mocks base method.
+func (m *MockLogger) TestSpanEnd(params trace2.TestSpanEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "TestSpanEnd", params)
+}
+
+// TestSpanEnd indicates an expected call of TestSpanEnd.
+func (mr *MockLoggerMockRecorder) TestSpanEnd(params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TestSpanEnd", reflect.TypeOf((*MockLogger)(nil).TestSpanEnd), params)
+}
+
+// TestSpanStart mocks base method.
+func (m *MockLogger) TestSpanStart(req *model.Request, goid uint32) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "TestSpanStart", req, goid)
+}
+
+// TestSpanStart indicates an expected call of TestSpanStart.
+func (mr *MockLoggerMockRecorder) TestSpanStart(req, goid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TestSpanStart", reflect.TypeOf((*MockLogger)(nil).TestSpanStart), req, goid)
+}
+
 // WaitAndClear mocks base method.
 func (m *MockLogger) WaitAndClear() ([]byte, bool) {
 	m.ctrl.T.Helper()

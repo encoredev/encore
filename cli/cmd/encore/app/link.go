@@ -16,6 +16,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/internal/conf"
+	"encr.dev/pkg/xos"
 )
 
 var forceLink bool
@@ -118,7 +119,7 @@ func linkApp(appID string, force bool) {
 	}
 
 	val.Format()
-	if err := os.WriteFile(filePath, val.Pack(), 0644); err != nil {
+	if err := xos.WriteFile(filePath, val.Pack(), 0644); err != nil {
 		cmdutil.Fatal(err)
 		os.Exit(1)
 	}

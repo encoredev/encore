@@ -13,7 +13,7 @@ var Singleton *RequestTracker
 
 func init() {
 	var traceFactory traceprovider.Factory
-	tracingEnabled := appconf.Runtime.TraceEndpoint != "" && len(appconf.Runtime.AuthKeys) > 0 && !appconf.Static.Testing
+	tracingEnabled := appconf.Runtime.TraceEndpoint != "" && len(appconf.Runtime.AuthKeys) > 0
 	if tracingEnabled {
 		traceFactory = &traceprovider.DefaultFactory{}
 	}

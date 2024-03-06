@@ -267,7 +267,7 @@ func (s *Server) finishRequest(resp *model.Response) {
 		endpoint: req.RPCData.Desc.Endpoint,
 		code:     Code(resp.Err, resp.HTTPStatus),
 	}).Increment()
-	s.rt.FinishRequest()
+	s.rt.FinishRequest(false)
 }
 
 type CallOptions struct {

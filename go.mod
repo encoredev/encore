@@ -28,6 +28,7 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.11.0
+	github.com/google/renameio/v2 v2.0.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/jackc/pgconn v1.14.0
@@ -54,13 +55,13 @@ require (
 	go.encore.dev/platform-sdk v1.1.0
 	go.uber.org/goleak v1.1.12
 	go4.org v0.0.0-20201209231011-d4a079459e60
-	golang.org/x/crypto v0.11.0
-	golang.org/x/mod v0.12.0
+	golang.org/x/crypto v0.13.0
+	golang.org/x/mod v0.14.0
 	golang.org/x/oauth2 v0.10.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/sys v0.10.0
-	golang.org/x/text v0.11.0
-	golang.org/x/tools v0.8.0
+	golang.org/x/sys v0.12.0
+	golang.org/x/text v0.13.0
+	golang.org/x/tools v0.13.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230803162519-f966b187b2e5
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
@@ -137,8 +138,8 @@ require (
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/net v0.13.0 // indirect
-	golang.org/x/term v0.10.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/term v0.12.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
