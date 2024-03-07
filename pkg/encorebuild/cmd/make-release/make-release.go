@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/internal/version"
+	"encr.dev/pkg/encorebuild"
+	"encr.dev/pkg/encorebuild/buildconf"
+	"encr.dev/pkg/encorebuild/buildutil"
+	"encr.dev/pkg/option"
 )
 
 func join(strs ...string) string {
@@ -21,11 +26,10 @@ func main() {
 
 	dst := flag.String("dst", "", "build destination")
 	versionStr := flag.String("v", "", "version number")
-	tsParserRepo := flag.String("ts-parser", "", "path to ts-parser repo")
 	onlyBuild := flag.String("only", "", "build only the valid target ('darwin-arm64' or 'darwin' or 'arm64' or '' for all)")
 	flag.Parse()
-	if *dst == "" || *versionStr == "" || *tsParserRepo == "" {
-		log.Fatal().Msgf("missing -dst %q, -v %q or ts-parser %q", *dst, *versionStr, *tsParserRepo)
+	if *dst == "" || *versionStr == "" {
+		log.Fatal().Msgf("missing -dst %q or -v %q", *dst, *versionStr)
 	}
 
 	if (*versionStr)[0] != 'v' {
@@ -45,6 +49,12 @@ func main() {
 		log.Fatal().Err(err).Msg("expected to run make-release.go from encr.dev repository root")
 	}
 
+	userCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to get user cache dir")
+	}
+	cacheDir := filepath.Join(userCacheDir, "encore-build-cache")
+
 	*dst, err = filepath.Abs(*dst)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to get absolute path to destination")
@@ -57,42 +67,57 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create target dir")
 	}
 
-	jsBuilder := &JSPackager{
-		WorkspaceRoot:    join(root, "runtimes", "js"),
-		Version:          *versionStr,
-		log:              log.Logger.With().Str("builder", "js").Logger(),
-		compileCompleted: make(chan struct{}),
+	type buildTarget struct {
+		OS   string
+		Arch string
 	}
 
-	// Create all the builders
-	builders := []*DistBuilder{
-		{OS: "darwin", Arch: "amd64"},
-		{OS: "darwin", Arch: "arm64"},
-		{OS: "linux", Arch: "amd64"},
-		{OS: "linux", Arch: "arm64"},
-		{OS: "windows", Arch: "amd64"},
+	targets := []buildTarget{
+		{"darwin", "amd64"},
+		{"darwin", "arm64"},
+		{"linux", "amd64"},
+		{"linux", "arm64"},
+		{"windows", "amd64"},
 	}
-	parralelFuncs := make([]func() error, 1, len(builders)+1)
-	parralelFuncs[0] = jsBuilder.Package
 
+	var parralelFuncs []func()
 	// Give them the common settings
-	for _, b := range builders {
-		if *onlyBuild != "" && !(*onlyBuild == fmt.Sprintf("%s-%s", b.OS, b.Arch) ||
-			*onlyBuild == b.OS ||
-			*onlyBuild == b.Arch) {
+	for _, t := range targets {
+		if *onlyBuild != "" && !(*onlyBuild == fmt.Sprintf("%s-%s", t.OS, t.Arch) ||
+			*onlyBuild == t.OS ||
+			*onlyBuild == t.Arch) {
 			continue
 		}
-		b.TSParserPath = *tsParserRepo
-		b.DistBuildDir = join(*dst, b.OS+"_"+b.Arch)
-		b.ArtifactsTarFile = join(*dst, "artifacts", "encore-"+*versionStr+"-"+b.OS+"_"+b.Arch+".tar.gz")
-		b.Version = *versionStr
-		b.jsBuilder = jsBuilder
+
+		b := &encorebuild.DistBuilder{
+			Cfg: &buildconf.Config{
+				Log:        log.With().Str("os", t.OS).Str("arch", t.Arch).Logger(),
+				OS:         t.OS,
+				Arch:       t.Arch,
+				Release:    true,
+				Version:    *versionStr,
+				RepoDir:    root,
+				CacheDir:   cacheDir,
+				MacSDKPath: option.Some("/sdk"),
+			},
+			DistBuildDir:     join(*dst, t.OS+"_"+t.Arch),
+			ArtifactsTarFile: join(*dst, "artifacts", "encore-"+*versionStr+"-"+t.OS+"_"+t.Arch+".tar.gz"),
+		}
 
 		parralelFuncs = append(parralelFuncs, b.Build)
 	}
 
-	if err := runParallel(parralelFuncs...); err != nil {
-		log.Fatal().Err(err).Msg("failed to build all distributions")
-	}
+	defer func() {
+		if err := recover(); err != nil {
+			if b, ok := err.(buildutil.Bailout); ok {
+				log.Fatal().Err(b.Err).Msg("failed to build")
+			} else {
+				stack := debug.Stack()
+				log.Fatal().Msgf("failed to build: unrecovered panic: %v: \n%s", err, stack)
+			}
+		}
+	}()
+
+	buildutil.RunParallel(parralelFuncs...)
 	log.Info().Msg("all distributions built successfully")
 }
