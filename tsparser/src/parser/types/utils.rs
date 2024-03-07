@@ -1,0 +1,26 @@
+use crate::parser::types::{Basic, Ctx, Type};
+
+pub fn unwrap_promise<'a>(ctx: &Ctx, typ: &'a Type) -> &'a Type {
+    if let Type::Named(named) = &typ {
+        if named.obj.name.as_deref() == Some("Promise") && ctx.is_universe(named.obj.module_id) {
+            if let Some(t) = named.type_arguments.get(0) {
+                return t;
+            }
+        }
+    }
+    typ
+}
+
+pub fn drop_empty_or_void(typ: Type) -> Option<Type> {
+    match typ {
+        Type::Interface(iface) => {
+            if iface.fields.is_empty() {
+                None
+            } else {
+                Some(Type::Interface(iface))
+            }
+        }
+        Type::Basic(Basic::Void) => None,
+        _ => Some(typ),
+    }
+}

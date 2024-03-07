@@ -39,6 +39,14 @@ func EncoreGoRoot() string {
 	return p
 }
 
+// EncoreBin reports the path to the directory containing the Encore installation's binaries.
+func EncoreBin() option.Option[string] {
+	if root, ok := determineRoot(); ok {
+		return option.Some(filepath.Join(root, "bin"))
+	}
+	return option.None[string]()
+}
+
 // OptEncoreGoRoot reports the path to the Encore Go root.
 // It can be overridden by setting ENCORE_GOROOT.
 // If the goroot can't be found, it reports None.
@@ -54,6 +62,17 @@ func encoreRuntimesPath() string {
 		return alternativeEncoreRuntimesPath
 	} else if root, ok := determineRoot(); ok {
 		return filepath.Join(root, "runtimes")
+	}
+	return ""
+}
+
+// EncoreRuntimeLib reports the path to the Encore runtime library for
+// node.js. It can be overridden by setting ENCORE_RUNTIME_LIB.
+func EncoreRuntimeLib() string {
+	if p := os.Getenv("ENCORE_RUNTIME_LIB"); p != "" {
+		return p
+	} else if root, ok := determineRoot(); ok {
+		return filepath.Join(root, "bin", "encore-runtime.node")
 	}
 	return ""
 }

@@ -38,47 +38,47 @@ jobs:
 
     runs-on: ${{ matrix.builder }}
     steps:
-    - name: Check out repo
-      uses: actions/checkout@v3
-      with:
-        path: encr.dev
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          path: encr.dev
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version-file: 'encr.dev/go.mod'
-        check-latest: true
-        cache-dependency-path: 'encr.dev/go.sum'
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "encr.dev/go.mod"
+          check-latest: true
+          cache-dependency-path: "encr.dev/go.sum"
 
-    - name: Set up Zig
-      uses: goto-bus-stop/setup-zig@v1
-      with:
-        version: 0.10.1
+      - name: Set up Zig
+        uses: goto-bus-stop/setup-zig@7ab2955eb728f5440978d5824358023be3a2802d # v2.2.0
+        with:
+          version: 0.10.1
 
-    - name: Install encore-go
-      run: curl --fail -o encore-go.tar.gz -L https://github.com/encoredev/go/releases/download/${{ github.event.inputs.encorego_version }}/${{ matrix.release_key }}.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz
+      - name: Install encore-go
+        run: curl --fail -o encore-go.tar.gz -L https://github.com/encoredev/go/releases/download/${{ github.event.inputs.encorego_version }}/${{ matrix.release_key }}.tar.gz && tar -C ${{ github.workspace }} -xzf ./encore-go.tar.gz
 
-    - name: Build
-      run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go"
-      env:
-        GO111MODULE: "on"
-      if: runner.os != 'windows'
+      - name: Build
+        run: cd encr.dev && go run ./pkg/make-release/make-release.go -v="${{ github.event.inputs.version }}" -dst=dist -goos=${{ matrix.goos }} -goarch=${{ matrix.goarch }} -encore-go="../encore-go"
+        env:
+          GO111MODULE: "on"
+        if: runner.os != 'windows'
 
-    - name: Build
-      run: cd encr.dev && .\pkg\make-release\windows\build.bat
-      env:
-        GO111MODULE: "on"
-        ENCORE_VERSION: "${{ github.event.inputs.version }}"
-        ENCORE_GOROOT: "../encore-go"
-      if: runner.os == 'windows'
+      - name: Build
+        run: cd encr.dev && .\pkg\make-release\windows\build.bat
+        env:
+          GO111MODULE: "on"
+          ENCORE_VERSION: "${{ github.event.inputs.version }}"
+          ENCORE_GOROOT: "../encore-go"
+        if: runner.os == 'windows'
 
-    - name: 'Tar artifacts'
-      run: tar -czvf encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz -C encr.dev/dist/${{ matrix.goos }}_${{ matrix.goarch }} .
-    - name: Publish artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}
-        path: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
+      - name: "Tar artifacts"
+        run: tar -czvf encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz -C encr.dev/dist/${{ matrix.goos }}_${{ matrix.goarch }} .
+      - name: Publish artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}
+          path: encore-${{ github.event.inputs.version }}-${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
 
   publish-docker-images:
     name: "publish docker images"
@@ -144,13 +144,13 @@ jobs:
 
   notify_release_success:
     needs:
-    - build
-    - publish-docker-images
+      - build
+      - publish-docker-images
     runs-on: ubuntu-20.04
     steps:
-    - name: Webhook
-      uses: distributhor/workflow-webhook@v3
-      env:
-        webhook_type: 'json'
-        webhook_url: ${{ secrets.RELEASE_WEBHOOK }}
-        data: '{ "version": "${{ github.event.inputs.version }}", "run_id": "${{ github.run_id }}" }'
+      - name: Webhook
+        uses: distributhor/workflow-webhook@v3.0.7
+        env:
+          webhook_type: "json"
+          webhook_url: ${{ secrets.RELEASE_WEBHOOK }}
+          data: '{ "version": "${{ github.event.inputs.version }}", "run_id": "${{ github.run_id }}" }'

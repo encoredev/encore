@@ -573,7 +573,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	rm := infra.NewResourceManager(app, nil, ns, nil, 0, false)
 	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212", SvcProxy: svcProxy}
 
-	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
+	parse, build, _ := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
 	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
 	defer run.Close()
@@ -581,12 +581,11 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	c.Assert(jobs.Wait(), qt.IsNil)
 
 	p, err := run.StartProcGroup(&StartProcGroupParams{
-		Ctx:      ctx,
-		BuildDir: build.Dir,
-		BinPath:  build.Exe,
-		Meta:     parse.Meta,
-		Logger:   testRunLogger{t},
-		Environ:  os.Environ(),
+		Ctx:     ctx,
+		Outputs: build.Outputs,
+		Meta:    parse.Meta,
+		Logger:  testRunLogger{t},
+		Environ: os.Environ(),
 	})
 	c.Assert(err, qt.IsNil)
 	cancel()

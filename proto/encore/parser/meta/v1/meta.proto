@@ -22,6 +22,7 @@ message Data {
   repeated string         experiments         = 12;
   repeated Metric         metrics             = 13;
   repeated SQLDatabase    sql_databases       = 14;
+  repeated Gateway        gateways            = 15;
 }
 
 // QualifiedName is a name of an object in a specific package.
@@ -65,7 +66,7 @@ message Selector {
 
 message RPC {
   string                   name            = 1; // name of the RPC endpoint
-  string                   doc             = 2; // associated documentation
+  optional string          doc             = 2; // associated documentation
   string                   service_name    = 3; // the service the RPC belongs to.
   AccessType               access_type     = 4; // how can the RPC be accessed?
   optional schema.v1.Type  request_schema  = 5; // request schema, or nil
@@ -78,7 +79,13 @@ message RPC {
 
   // sensitive reports whether the whole payload is sensitive.
   // If true, none of the request/response payload will be traced.
-  bool                     sensitive       = 12;
+  bool sensitive = 12;
+
+  // Whether the endpoint can be called without auth parameters.
+  bool allow_unauthenticated = 13;
+
+  // Whether the endpoint is exposed to the public, keyed by gateway.
+  map<string, ExposeOptions> expose = 14;
 
   enum AccessType {
     PRIVATE = 0;
@@ -90,6 +97,8 @@ message RPC {
     REGULAR = 0;
     RAW = 1;
   }
+
+  message ExposeOptions {}
 }
 
 message AuthHandler {
@@ -100,6 +109,7 @@ message AuthHandler {
   schema.v1.Loc           loc       = 5;
   optional schema.v1.Type auth_data = 6; // custom auth data, or nil
   optional schema.v1.Type params    = 7; // builtin string or named type
+  string service_name               = 8;
 }
 
 message Middleware {
@@ -241,33 +251,46 @@ message PathSegment {
   ParamType value_type = 3;
 }
 
+message Gateway {
+  string encore_name = 1;
+
+  // Spec is the configuration for the gateway, if it's explicitly defined.
+  optional Explicit explicit = 2;
+
+  message Explicit {
+    // The service name this gateway belongs to.
+    string service_name               = 1;
+    optional AuthHandler auth_handler = 2;
+  }
+}
+
 message CronJob {
   string id = 1;
   string title = 2;
-  string doc = 3;
+  optional string doc = 3;
   string schedule = 4;
   QualifiedName endpoint = 5;
 }
 
 message SQLDatabase {
   string name = 1;
-  string doc = 2;
+  optional string doc = 2;
   // migration_rel_path is the slash-separated path to the migrations,
   // relative to the main module's root directory.
-  string migration_rel_path = 3;
+  optional string migration_rel_path = 3;
   repeated DBMigration migrations = 4;
 }
 
 message DBMigration {
   string filename    = 1; // filename
-  uint64  number     = 2; // migration number
+  uint64 number     = 2; // migration number
   string description = 3; // descriptive name
 }
 
 
 message PubSubTopic {
   string                name               = 1; // The pub sub topic name (unique per application)
-  string                doc                = 2; // The documentation for the topic
+  optional string       doc                = 2; // The documentation for the topic
   schema.v1.Type        message_type       = 3; // The type of the message
   DeliveryGuarantee     delivery_guarantee = 4; // The delivery guarantee for the topic
   string                ordering_key       = 5; // The field used to group messages; if empty, the topic is not ordered

@@ -1,0 +1,4 @@
+
+export class Promise<T> {
+
+}

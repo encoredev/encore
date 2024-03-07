@@ -318,15 +318,25 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 	return nil
 }
 
-// SQLConfig returns the SQL server and database configuration for the given database.
-func (rm *ResourceManager) SQLConfig(db *meta.SQLDatabase) (config.SQLServer, config.SQLDatabase, error) {
+// SQLServerConfig returns the SQL server configuration.
+func (rm *ResourceManager) SQLServerConfig() (config.SQLServer, error) {
 	cluster := rm.GetSQLCluster()
 	if cluster == nil {
-		return config.SQLServer{}, config.SQLDatabase{}, errors.New("no SQL cluster found")
+		return config.SQLServer{}, errors.New("no SQL cluster found")
 	}
 
 	srvCfg := config.SQLServer{
 		Host: "localhost:" + strconv.Itoa(rm.dbProxyPort),
+	}
+
+	return srvCfg, nil
+}
+
+// SQLDatabaseConfig returns the SQL server and database configuration for the given database.
+func (rm *ResourceManager) SQLDatabaseConfig(db *meta.SQLDatabase) (config.SQLDatabase, error) {
+	cluster := rm.GetSQLCluster()
+	if cluster == nil {
+		return config.SQLDatabase{}, errors.New("no SQL cluster found")
 	}
 
 	dbCfg := config.SQLDatabase{
@@ -336,20 +346,28 @@ func (rm *ResourceManager) SQLConfig(db *meta.SQLDatabase) (config.SQLServer, co
 		Password:     cluster.Password,
 	}
 
-	return srvCfg, dbCfg, nil
+	return dbCfg, nil
+}
+
+// PubSubProviderConfig returns the PubSub provider configuration.
+func (rm *ResourceManager) PubSubProviderConfig() (config.PubsubProvider, error) {
+	nsq := rm.GetPubSub()
+	if nsq == nil {
+		return config.PubsubProvider{}, errors.New("no PubSub server found")
+	}
+
+	return config.PubsubProvider{
+		NSQ: &config.NSQProvider{
+			Host: nsq.Addr(),
+		},
+	}, nil
 }
 
 // PubSubTopicConfig returns the PubSub provider and topic configuration for the given topic.
 func (rm *ResourceManager) PubSubTopicConfig(topic *meta.PubSubTopic) (config.PubsubProvider, config.PubsubTopic, error) {
-	nsq := rm.GetPubSub()
-	if nsq == nil {
-		return config.PubsubProvider{}, config.PubsubTopic{}, errors.New("no PubSub server found")
-	}
-
-	providerCfg := config.PubsubProvider{
-		NSQ: &config.NSQProvider{
-			Host: nsq.Addr(),
-		},
+	providerCfg, err := rm.PubSubProviderConfig()
+	if err != nil {
+		return config.PubsubProvider{}, config.PubsubTopic{}, err
 	}
 
 	topicCfg := config.PubsubTopic{

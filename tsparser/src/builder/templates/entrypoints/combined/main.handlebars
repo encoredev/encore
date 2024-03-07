@@ -1,0 +1,30 @@
+import { registerGateways, registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
+
+{{#each gateways}}
+import { {{bind_name}} as {{encoreNameToIdent encore_name}}GW } from {{toJSON import_path}};
+{{/each}}
+{{#each endpoints}}
+import { {{name}} as {{name}}Impl } from {{toJSON import_path}};
+{{/each}}
+
+
+const gateways: any[] = [
+{{#each gateways}}
+    {{encoreNameToIdent encore_name}}GW,
+{{/each}}
+];
+
+const handlers: Handler[] = [
+{{#each endpoints}}
+    {
+        service: {{toJSON service_name}},
+        name:    {{toJSON name}},
+        handler: {{name}}Impl,
+    },
+{{/each}}
+];
+
+registerGateways(gateways);
+registerHandlers(handlers);
+
+await run();

@@ -1,0 +1,10 @@
+[package]
+name = "litparser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+duration-string = "0.3.0"
+swc_ecma_ast = "0.110.9"
+clean-path = "0.2.1"

@@ -118,7 +118,10 @@ func (g *Generator) getOrCreatePath(rpc *meta.RPC) *openapi3.PathItem {
 }
 
 func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc *encoding.RequestEncoding, respEnc *encoding.ResponseEncoding) (*openapi3.Operation, error) {
-	summary, desc := splitDoc(rpc.Doc)
+	summary, desc := "", ""
+	if rpc.Doc != nil {
+		summary, desc = splitDoc(*rpc.Doc)
+	}
 	op := &openapi3.Operation{
 		Summary:     summary,
 		Description: desc,

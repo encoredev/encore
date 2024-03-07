@@ -24,6 +24,7 @@ var testCmd = &cobra.Command{
 		var (
 			traceFile    string
 			codegenDebug bool
+			prepareOnly  bool
 			noColor      bool
 		)
 		// Support specific args but otherwise let all args be passed on to "go test"
@@ -53,6 +54,10 @@ var testCmd = &cobra.Command{
 				codegenDebug = true
 				args = slices.Delete(args, i, i+1)
 				i--
+			} else if arg == "--prepare" {
+				prepareOnly = true
+				args = slices.Delete(args, i, i+1)
+				i--
 			} else if arg == "--no-color" {
 				noColor = true
 				args = slices.Delete(args, i, i+1)
@@ -61,11 +66,11 @@ var testCmd = &cobra.Command{
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args, traceFile, codegenDebug, noColor)
+		runTests(appRoot, relPath, args, traceFile, codegenDebug, prepareOnly, noColor)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug bool, noColor bool) {
+func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug, prepareOnly, noColor bool) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -89,6 +94,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		Environ:      os.Environ(),
 		TraceFile:    nonZeroPtr(traceFile),
 		CodegenDebug: codegenDebug,
+		PrepareOnly:  prepareOnly,
 	})
 	if err != nil {
 		fatal(err)
@@ -103,6 +109,7 @@ func init() {
 	// Even though we've disabled flag parsing, we still need to define the flags
 	// so that the help text is correct.
 	testCmd.Flags().Bool("codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
+	testCmd.Flags().Bool("prepare", false, "Prepare for running tests (without running them)")
 	testCmd.Flags().String("trace", "", "Specifies a trace file to write trace information about the parse and compilation process to.")
 	testCmd.Flags().Bool("no-color", false, "Disable colorized output")
 

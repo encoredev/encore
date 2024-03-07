@@ -8,7 +8,7 @@ import (
 // as they'll never impact an Encore app, and they cause an extreme amount of noise.
 func IgnoreFolder(folder string) bool {
 	folderName := filepath.Base(filepath.Clean(folder))
-	if folderName == "node_modules" {
+	if folderName == "node_modules" || folderName == "encore.gen" {
 		return true
 	}
 

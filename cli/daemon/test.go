@@ -70,6 +70,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 			Args:         req.Args,
 			Secrets:      secrets,
 			CodegenDebug: req.CodegenDebug,
+			PrepareOnly:  req.PrepareOnly,
 			Stdout:       slog.Stdout(false),
 			Stderr:       slog.Stderr(false),
 		}

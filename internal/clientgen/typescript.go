@@ -169,8 +169,8 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		ts.WriteByte('\n')
 
 		// Doc string
-		if rpc.Doc != "" {
-			scanner := bufio.NewScanner(strings.NewReader(rpc.Doc))
+		if rpc.Doc != nil && *rpc.Doc != "" {
+			scanner := bufio.NewScanner(strings.NewReader(*rpc.Doc))
 			indent()
 			ts.WriteString("/**\n")
 			for scanner.Scan() {

@@ -2,6 +2,7 @@
 /dist
 /encore
 /git-remote-encore
+/target
 
 # Don't commit dotfiles
 /.encore

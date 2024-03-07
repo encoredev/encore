@@ -22,6 +22,7 @@ type Desc struct {
 	MainModule *pkginfo.Module
 	Parse      *parser.Result
 	Services   []*Service
+	Gateways   []*Gateway
 
 	// Framework describes API Framework-specific application-global data.
 	Framework option.Option[*apiframework.AppDesc]
@@ -82,6 +83,9 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 	// First we want to discover the service layout
 	services := discoverServices(pc, result)
 
+	// We always have a default API gateway, for now.
+	gateways := []*Gateway{{EncoreName: "api-gateway"}}
+
 	// Now we can configure the API framework by combining the service information
 	// with the parse results.
 	framework := configureAPIFramework(pc, services, result)
@@ -92,6 +96,7 @@ func ValidateAndDescribe(pc *parsectx.Context, result *parser.Result) *Desc {
 		MainModule:                   result.MainModule(),
 		Parse:                        result,
 		Services:                     services,
+		Gateways:                     gateways,
 		Framework:                    framework,
 		ResourceUsageOutsideServices: make(map[resource.Resource][]usage.Usage),
 	}

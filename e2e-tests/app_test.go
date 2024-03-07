@@ -32,6 +32,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -81,7 +82,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Mgr:             mgr,
 	}
 
-	parse, build := testBuild(c, appRoot, env)
+	parse, build, configs := testBuild(c, appRoot, env)
 
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
 	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
@@ -104,24 +105,23 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	p, err := run.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
-		BuildDir:       build.Dir,
-		BinPath:        build.Exe,
+		Outputs:        build.Outputs,
 		Meta:           parse.Meta,
 		Logger:         logger,
 		Environ:        env,
-		ServiceConfigs: build.Configs,
+		ServiceConfigs: configs.Configs,
 		Experiments:    expSet,
 		Secrets:        secretData.Values,
 	})
 	assertNil(err)
 	c.Cleanup(p.Close)
 	run.StoreProc(p)
-	for serviceName, config := range build.Configs {
+	for serviceName, config := range configs.Configs {
 		env = append(env, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
 	}
 
 	// start proxying TCP requests to the running application
-	startProxy(ctx, ln, p.Gateway)
+	startProxy(ctx, ln, http.HandlerFunc(p.ProxyReq))
 
 	// wait for the service to come up
 	b := backoff.NewExponentialBackOff()
@@ -131,7 +131,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost/__encore/healthz", nil)
 		assertNil(err)
 
-		p.Gateway.ProxyReq(w, req)
+		p.ProxyReq(w, req)
 
 		if w.Result().StatusCode != http.StatusOK {
 			return fmt.Errorf("unexpected status: %s", w.Result().Status)
@@ -190,10 +190,8 @@ func (l testRunLogger) RunStderr(r *Run, line []byte) {
 	l.log.Log(string(line))
 }
 
-func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
-	srv := &http.Server{
-		Handler: http.HandlerFunc(p.ProxyReq),
-	}
+func startProxy(ctx context.Context, ln net.Listener, proxyHandler http.Handler) {
+	srv := &http.Server{Handler: proxyHandler}
 	go func() {
 		<-ctx.Done()
 		_ = srv.Close()
@@ -204,13 +202,14 @@ func startProxy(ctx context.Context, ln net.Listener, p *Proc) {
 
 // testBuild is a helper that compiles the app situated at appRoot
 // and cleans up the build dir during test cleanup.
-func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult, *builder.CompileResult) {
+func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult, *builder.CompileResult, *builder.ServiceConfigsResult) {
 	expSet, err := experiments.FromAppFileAndEnviron(nil, env)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	ctx := context.Background()
 
 	// Use a randomly generated app id to avoid tests trampling on each other
@@ -242,8 +241,22 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	}
 
 	err = bld.GenUserFacing(ctx, builder.GenUserFacingParams{
+		Build: buildInfo,
 		App:   app,
 		Parse: parse,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configs, err := bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+		Parse: parse,
+		CueMeta: &cueutil.Meta{
+			APIBaseURL: "http://what?",
+			EnvName:    "end_to_end_test",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -256,12 +269,6 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		OpTracker:   nil,
 		Experiments: expSet,
 		WorkingDir:  ".",
-		CueMeta: &cueutil.Meta{
-			APIBaseURL: "http://what?",
-			EnvName:    "end_to_end_test",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
 	})
 
 	if err != nil {
@@ -269,9 +276,11 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	}
 
 	t.Cleanup(func() {
-		_ = os.RemoveAll(build.Dir)
+		for _, output := range build.Outputs {
+			_ = os.RemoveAll(output.GetArtifactDir().ToIO())
+		}
 	})
-	return parse, build
+	return parse, build, configs
 }
 
 func runGoModTidy(dir string) error {

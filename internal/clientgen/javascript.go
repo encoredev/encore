@@ -141,8 +141,8 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 		js.WriteByte('\n')
 
 		// Doc string
-		if rpc.Doc != "" {
-			scanner := bufio.NewScanner(strings.NewReader(rpc.Doc))
+		if rpc.Doc != nil && *rpc.Doc != "" {
+			scanner := bufio.NewScanner(strings.NewReader(*rpc.Doc))
 			indent()
 			js.WriteString("/**\n")
 			for scanner.Scan() {

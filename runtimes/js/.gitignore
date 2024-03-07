@@ -1,0 +1,4 @@
+encore-runtime.*.node
+node_modules
+dist
+.turbo

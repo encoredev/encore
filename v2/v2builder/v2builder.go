@@ -3,7 +3,6 @@ package v2builder
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"go/token"
 	"io/fs"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
@@ -21,9 +21,9 @@ import (
 	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
-	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vfs"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/legacymeta"
@@ -42,6 +42,8 @@ import (
 
 type BuilderImpl struct{}
 
+func (BuilderImpl) Close() error { return nil }
+
 func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
 		defer func() {
@@ -49,6 +51,8 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		}()
 		fset := token.NewFileSet()
 		errs := perr.NewList(ctx, fset)
+
+		runtimesDir := p.Build.EncoreRuntimes.GetOrElseF(func() paths.FS { return paths.FS(env.EncoreRuntimesPath()) })
 		pc := &parsectx.Context{
 			AppID: option.Some(p.App.PlatformOrLocalID()),
 			Ctx:   ctx,
@@ -61,9 +65,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 				GOROOT: p.Build.GoRoot.GetOrElseF(func() paths.FS {
 					return paths.RootedFSPath(env.EncoreGoRoot(), ".")
 				}),
-				EncoreRuntime: p.Build.EncoreRuntime.GetOrElseF(func() paths.FS {
-					return paths.RootedFSPath(filepath.Join(env.EncoreRuntimesPath(), "go"), ".")
-				}),
+				EncoreRuntime: runtimesDir.Join("go"),
 
 				GOARCH:             p.Build.GOARCH,
 				GOOS:               p.Build.GOOS,
@@ -142,16 +144,6 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		}
 		p.OpTracker.Done(codegenOp, 450*time.Millisecond)
 
-		configProm := promise.New(func() (res configResult, err error) {
-			defer func() {
-				if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
-					err = l.AsError()
-				}
-			}()
-
-			return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
-		})
-
 		compileOp := p.OpTracker.Add("Compiling application source code", time.Now())
 		buildResult := build.Build(ctx, &build.Config{
 			Ctx:          pd.pc,
@@ -161,23 +153,34 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			StaticConfig: staticConfig,
 		})
 
+		output := &builder.GoBuildOutput{ArtifactDir: buildResult.Dir}
 		res = &builder.CompileResult{
-			Dir: buildResult.Dir.ToIO(),
-			Exe: buildResult.Exe.ToIO(),
+			Outputs: []builder.BuildOutput{output},
 		}
+
+		// Set the built binaries according to the multi-proc build setting.
+		relExe, err := filepath.Rel(output.ArtifactDir.ToIO(), buildResult.Exe.ToIO())
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to compute relative path to executable")
+		}
+
+		exeFile := builder.ArtifactString("${ARTIFACT_DIR}").Join(relExe)
+		spec := builder.CmdSpec{
+			Command:          builder.ArtifactStrings{exeFile},
+			PrioritizedFiles: builder.ArtifactStrings{exeFile},
+		}
+		output.Entrypoints = []builder.Entrypoint{{
+			Cmd:      spec,
+			Services: fns.Map(pd.appDesc.Services, func(svc *app.Service) string { return svc.Name }),
+			Gateways: fns.Map(pd.appDesc.Gateways, func(gw *app.Gateway) string { return gw.EncoreName }),
+		}}
+
 		// Check if the compile result caused errors and if it did return
 		if pd.pc.Errs.Len() > 0 {
 			p.OpTracker.Fail(compileOp, pd.pc.Errs.AsError())
 			return res, pd.pc.Errs.AsError()
 		}
 		p.OpTracker.Done(compileOp, 450*time.Millisecond)
-
-		config, err := configProm.Get(pd.pc.Ctx)
-		if err != nil {
-			return res, err
-		}
-		res.Configs = config.configs
-		res.ConfigFiles = config.files
 
 		// Then check if the config generation caused an error
 		if pd.pc.Errs.Len() > 0 {
@@ -188,6 +191,28 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 	})
 }
 
+func (i BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfigsParams) (res *builder.ServiceConfigsResult, err error) {
+	defer func() {
+		if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
+			err = l.AsError()
+		}
+	}()
+
+	pd := p.Parse.Data.(*parseData)
+	cfg := computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta)
+	if err != nil {
+		return nil, err
+	}
+	return &builder.ServiceConfigsResult{
+		Configs:     cfg.configs,
+		ConfigFiles: cfg.files,
+	}, nil
+}
+
+func (i BuilderImpl) UseNewRuntimeConfig(_ *builder.ParseResult) bool {
+	return false
+}
+
 func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
 		defer func() {
@@ -195,14 +220,6 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 		}()
 
 		pd := p.Compile.Parse.Data.(*parseData)
-
-		configs := computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta)
-
-		envs := make([]string, 0, len(p.Env)+len(configs.configs))
-		envs = append(envs, p.Env...)
-		for serviceName, cfgString := range configs.configs {
-			envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
-		}
 
 		gg := codegen.New(pd.pc, pd.traceNodes)
 		staticConfig := etrace.Sync1(ctx, "", "codegen", func(ctx context.Context) *config.Static {
@@ -214,7 +231,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 					testCfg.Packages = append(testCfg.Packages, pkg)
 				}
 			}
-			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p, envs)
+			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p, p.Env)
 
 			infragen.Process(gg, pd.appDesc)
 			return apigen.Process(apigen.Params{
@@ -234,7 +251,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 				Ctx:          pd.pc,
 				Overlays:     gg.Overlays(),
 				KeepOutput:   p.Compile.Build.KeepOutput,
-				Env:          envs,
+				Env:          p.Env,
 				StaticConfig: staticConfig,
 			},
 			Args:       p.Args,

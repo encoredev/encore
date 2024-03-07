@@ -2,11 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - feature/typescript
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - feature/typescript
   schedule:
-    - cron: '30 2 * * *' # Every night at 2:30am UTC (if you change this schedule, also change the if statement in the test steps)
+    - cron: "30 2 * * *" # Every night at 2:30am UTC (if you change this schedule, also change the if statement in the test steps)
 
 jobs:
   build:
@@ -24,15 +28,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version-file:       'encr.dev/go.mod'
-          check-latest:          true
-          cache-dependency-path: 'encr.dev/go.sum'
+          go-version-file: "encr.dev/go.mod"
+          check-latest: true
+          cache-dependency-path: "encr.dev/go.sum"
 
       - name: Build
-        run:  cd encr.dev && go build ./...
+        run: cd encr.dev && go build ./...
 
       - name: Build for Windows
-        run:  cd encr.dev && go build ./...
+        run: cd encr.dev && go build ./...
         env:
           GOOS: windows
 
@@ -41,90 +45,90 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        path: encr.dev
+      - uses: actions/checkout@v3
+        with:
+          path: encr.dev
 
-    - name: Set up Node
-      uses: actions/setup-node@v3
+      - name: Set up Node
+        uses: actions/setup-node@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version-file: 'encr.dev/go.mod'
-        check-latest: true
-        cache-dependency-path: 'encr.dev/go.sum'
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "encr.dev/go.mod"
+          check-latest: true
+          cache-dependency-path: "encr.dev/go.sum"
 
-    - name: Install go-junit-report
-      run: go install github.com/jstemmer/go-junit-report/v2@7933520 # Note: this is an untagged latest release, as the v2.0.0 tag has a bug which doesn't work with the reporting tool
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@7933520 # Note: this is an untagged latest release, as the v2.0.0 tag has a bug which doesn't work with the reporting tool
 
-    - name: Install encore-go
-      run: |
-        URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
-        curl --fail -L -o encore-go.tar.gz $URL && tar -C . -xzf ./encore-go.tar.gz
+      - name: Install encore-go
+        run: |
+          URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
+          curl --fail -L -o encore-go.tar.gz $URL && tar -C . -xzf ./encore-go.tar.gz
 
-    # If we're not running on a schedule, we only want to run tests on changed code
-    - name: Run tests on changed code on the CLI
-      run: cd encr.dev && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > cli-test-report.xml
-      if: github.event.schedule != '30 2 * * *'
-      env:
-        ENCORE_GOROOT: ${{ github.workspace }}/encore-go
-        ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
+      # If we're not running on a schedule, we only want to run tests on changed code
+      - name: Run tests on changed code on the CLI
+        run: cd encr.dev && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > cli-test-report.xml
+        if: github.event.schedule != '30 2 * * *'
+        env:
+          ENCORE_GOROOT: ${{ github.workspace }}/encore-go
+          ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
-    - name: Run tests on changed runtime code
-      run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
-      if: github.event.schedule != '30 2 * * *'
+      - name: Run tests on changed runtime code
+        run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
+        if: github.event.schedule != '30 2 * * *'
 
-    # Each night we want to run all tests multiple times to catch any flaky tests
-    # We will shuffle the order in which tests are run and run them 25 times looking
-    # for failures. We will also fail fast so that we don't waste time running tests
-    # that are already failing.
-    - name: Run all tests multiple times on the CLI
-      run:  cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out cli-test-report.xml
-      if:   github.event.schedule == '30 2 * * *'
-      env:
-        ENCORE_GOROOT: ${{ github.workspace }}/encore-go
-        ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
+      # Each night we want to run all tests multiple times to catch any flaky tests
+      # We will shuffle the order in which tests are run and run them 25 times looking
+      # for failures. We will also fail fast so that we don't waste time running tests
+      # that are already failing.
+      - name: Run all tests multiple times on the CLI
+        run: cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out cli-test-report.xml
+        if: github.event.schedule == '30 2 * * *'
+        env:
+          ENCORE_GOROOT: ${{ github.workspace }}/encore-go
+          ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
-    - name: Run all tests multiple times on the runtime
-      run:  cd encr.dev/runtimes/go && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out runtime-test-report.xml
-      if:   github.event.schedule == '30 2 * * *'
+      - name: Run all tests multiple times on the runtime
+        run: cd encr.dev/runtimes/go && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out runtime-test-report.xml
+        if: github.event.schedule == '30 2 * * *'
 
-    # We upload the test results as artifacts so that in PR's
-    # we can use a separate action to post a comment with the
-    # test results.
-    #
-    # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
-    - name: Upload Test Results
-      if:   always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: Test Results
-        path: encr.dev/**/*-test-report.xml
+      # We upload the test results as artifacts so that in PR's
+      # we can use a separate action to post a comment with the
+      # test results.
+      #
+      # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Test Results
+          path: encr.dev/**/*-test-report.xml
 
-    - name: Report Nightly Failure
-      uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-      if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
-      with:
-        status: ${{ job.status }} # required
-        notification_title: "{workflow} has {status_message}"
-        message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
-        footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
+      - name: Report Nightly Failure
+        uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
+        if: ${{ failure() && github.event.schedule == '30 2 * * *' }}
+        with:
+          status: ${{ job.status }} # required
+          notification_title: "{workflow} has {status_message}"
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }} # required
 
   # Run static analysis on the PR
   static-analysis:
-    name:    "Static Analysis"
+    name: "Static Analysis"
     # We're using buildjet for this as it's very slow on Github's own runners
     runs-on: buildjet-4vcpu-ubuntu-2204
 
     # Skip any PR created by dependabot to avoid permission issues:
-    if:      (github.actor != 'dependabot[bot]')
+    if: (github.actor != 'dependabot[bot]')
 
     permissions:
-      checks:        write
-      contents:      read
+      checks: write
+      contents: read
       pull-requests: write
 
     steps:
@@ -138,21 +142,21 @@ jobs:
         uses: dcarbone/install-jq-action@91d8da7268538e8a0ae0c8b72af44f1763228455
 
       - name: Install semgrep
-        run:  |
-              python3 -m pip install semgrep
-              python3 -m pip install --upgrade requests
+        run: |
+          python3 -m pip install semgrep
+          python3 -m pip install --upgrade requests
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version-file: 'go.mod'
-          cache:           false
+          go-version-file: "go.mod"
+          cache: false
 
       - name: Install ci tools
-        run:  |
-              go install honnef.co/go/tools/cmd/staticcheck@master
-              go install github.com/kisielk/errcheck@latest
-              go install github.com/gordonklaus/ineffassign@latest
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@master
+          go install github.com/kisielk/errcheck@latest
+          go install github.com/gordonklaus/ineffassign@latest
 
       - name: Run reviewdog
         env:
@@ -163,13 +167,41 @@ jobs:
         # If we want to fail on any errors only within the lines modified, change to "-filter-mode=added"
         # If we want to fail on any errors found in files modified, change to "-filter-mode=file"
         # If you want to fail on any errors found in the entire codebase, change to "-filter-mode=nofilter"
-        run:  reviewdog -fail-on-error -filter-mode=file -reporter=github-pr-review
+        run: reviewdog -fail-on-error -filter-mode=file -reporter=github-pr-review
 
+  rust_core:
+    name: "Test core runtime"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Install Protoc
+        uses: arduino/setup-protoc@a8b67ba40b37d35169e222f3bb352603327985b6 # v2
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo
+      - name: Run test
+        run: cargo test
+      - name: Run rustfmt
+        run: cargo fmt --all --check
 
   # This job is needed for forked repo's
   # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
   event_file:
-    name:    "Upload Event File"
+    name: "Upload Event File"
     runs-on: ubuntu-latest
     steps:
       - name: Upload
