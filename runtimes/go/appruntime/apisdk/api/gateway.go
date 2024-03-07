@@ -49,7 +49,7 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 		if proceed {
 			meta.Internal = &InternalCallMeta{
 				Caller: GatewayCaller{
-					GatewayName: "default",
+					GatewayName: "api-gateway",
 				},
 				AuthUID:  string(info.UID),
 				AuthData: info.UserData,

@@ -19,6 +19,7 @@ import (
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/dockerbuild"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -50,6 +51,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,

@@ -64,7 +64,8 @@ func ignoreEvent(ev watcher.Event) bool {
 	// Ignore files which wouldn't impact the running app
 	ext := filepath.Ext(ev.Path)
 	switch ext {
-	case ".go", ".sql", ".mod", ".sum", ".work", ".app", ".cue":
+	case ".go", ".sql", ".mod", ".sum", ".work", ".app", ".cue",
+		".ts", ".js", ".tsx", ".jsx", ".mts", ".mjs", ".cjs", ".cts":
 		return false
 	default:
 		return true

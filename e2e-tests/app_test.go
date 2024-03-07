@@ -32,6 +32,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -208,6 +209,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 	}
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	ctx := context.Background()
 
 	// Use a randomly generated app id to avoid tests trampling on each other

@@ -176,6 +176,9 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 }
 
 func (r *Run) Close() {
+	if r.builder != nil {
+		_ = r.builder.Close()
+	}
 	r.SvcProxy.Close()
 	r.ResourceManager.StopAll()
 }
@@ -327,7 +330,17 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	parse, err := r.builder.Parse(ctx, builder.ParseParams{
+	// A context that is canceled when the proc exits.
+	procCtx, cancelProcCtx := context.WithCancel(ctx)
+
+	// Cancel the proc context if we exit with a non-nil error.
+	defer func() {
+		if err != nil {
+			cancelProcCtx()
+		}
+	}()
+
+	parse, err := r.builder.Parse(procCtx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
@@ -412,6 +425,16 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		tracker.Fail(startOp, err)
 		return err
 	}
+
+	// Close the proc context when the proc exits.
+	go func() {
+		select {
+		case <-procCtx.Done():
+		// Already done
+		case <-newProcess.Done():
+			cancelProcCtx()
+		}
+	}()
 
 	previousProcess := r.proc.Swap(newProcess)
 	if previousProcess != nil {

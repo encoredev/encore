@@ -111,7 +111,7 @@ func (s *Server) updateGitIgnore(i *apps.Instance) error {
 	}
 
 	// Find which directives are already present
-	directives := []string{"encore.gen.go", "encore.gen.cue", "/.encore"}
+	directives := []string{"encore.gen.go", "encore.gen.cue", "/.encore", "/encore.gen"}
 	found := make([]bool, len(directives))
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {

@@ -31,6 +31,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -102,6 +103,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 
 		// Parse the app to figure out what infrastructure is needed.
 		bld := builderimpl.Resolve(expSet)
+		defer fns.CloseIgnore(bld)
 		parse, err := bld.Parse(ctx, builder.ParseParams{
 			Build:       builder.DefaultBuildInfo(),
 			App:         app,

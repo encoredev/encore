@@ -185,7 +185,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 		db.log.Debug().Msg("not applying migrations to shadow cluster")
 		return nil
 	}
-	if len(dbMeta.Migrations) == 0 {
+	if len(dbMeta.Migrations) == 0 || dbMeta.MigrationRelPath == nil {
 		db.log.Debug().Msg("no database migrations to run, skipping")
 		return nil
 	}
@@ -226,7 +226,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 
 	s := &src{
 		appRoot:           appRoot,
-		migrationsRelPath: dbMeta.MigrationRelPath,
+		migrationsRelPath: *dbMeta.MigrationRelPath,
 		migrations:        dbMeta.Migrations,
 	}
 	m, err := migrate.NewWithInstance("src", s, db.DriverName, instance)

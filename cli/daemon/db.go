@@ -16,6 +16,7 @@ import (
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/pgproxy"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -53,6 +54,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 
 	// Parse the app to figure out what infrastructure is needed.
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       builder.DefaultBuildInfo(),
 		App:         app,
@@ -175,6 +177,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 
 		// Parse the app to figure out what infrastructure is needed.
 		bld := builderimpl.Resolve(expSet)
+		defer fns.CloseIgnore(bld)
 		parse, err := bld.Parse(ctx, builder.ParseParams{
 			Build:       builder.DefaultBuildInfo(),
 			App:         app,
@@ -272,6 +275,7 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 
 	// Parse the app to figure out what infrastructure is needed.
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(stream.Context(), builder.ParseParams{
 		Build:       builder.DefaultBuildInfo(),
 		App:         app,

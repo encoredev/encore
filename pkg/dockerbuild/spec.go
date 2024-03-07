@@ -375,11 +375,11 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 		for _, out := range cfg.Compile.Outputs {
 			if jsOut, ok := out.(*builder.JSBuildOutput); ok {
 				if jsOut.UsesLocalRuntime {
-					// Include the local runtime, at the same location.
-					runtimeSrc := cfg.Runtimes.Join("js", "packages")
+					// Include the encore.dev package, at the same location.
+					runtimeSrc := cfg.Runtimes.Join("js", "encore.dev")
 					b.spec.CopyData[runtimeSrc.ToImage()] = runtimeSrc
-					binSrc := cfg.Runtimes.Join("bin")
-					b.spec.CopyData[binSrc.ToImage()] = binSrc
+					// binSrc := cfg.Runtimes.Join("bin")
+					// b.spec.CopyData[binSrc.ToImage()] = binSrc
 					break
 				}
 			}

@@ -6,6 +6,7 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/xid"
 
 	"encr.dev/cli/daemon/apps"
@@ -16,6 +17,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/vcs"
 	runtimev1 "encr.dev/proto/encore/runtime/v1"
@@ -69,6 +71,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	secrets := secretData.Values
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 
 	vcsRevision := vcs.GetRevision(params.App.Root())
 	buildInfo := builder.BuildInfo{

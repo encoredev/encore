@@ -101,7 +101,7 @@ type ProcGroup struct {
 func (pg *ProcGroup) ProxyReq(w http.ResponseWriter, req *http.Request) {
 	// Currently we only support proxying to the default gateway.
 	// Need to rethink how this should work when we support multiple gateways.
-	if gw, ok := pg.Gateways["default"]; ok {
+	if gw, ok := pg.Gateways["api-gateway"]; ok {
 		gw.ProxyReq(w, req)
 	} else {
 		pg.noopGW.ServeHTTP(w, req)

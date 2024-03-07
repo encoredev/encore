@@ -21,6 +21,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/pkg/promise"
@@ -74,6 +75,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	topoOp := tracker.Add("Analyzing service topology", start)
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	vcsRevision := vcs.GetRevision(p.App.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,

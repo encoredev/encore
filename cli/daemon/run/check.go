@@ -10,6 +10,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/vcs"
 )
 
@@ -57,6 +58,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 	}
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         p.App,

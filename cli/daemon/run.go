@@ -163,7 +163,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	}
 	if req.Debug {
 		// Print the pid for debugging. Currently we only support this if we have a default gateway.
-		if gw, ok := runInstance.ProcGroup().Gateways["default"]; ok {
+		if gw, ok := runInstance.ProcGroup().Gateways["api-gateway"]; ok {
 			_, _ = fmt.Fprintf(stderr, "  Process ID:                 %d\n", aurora.Cyan(gw.Pid))
 		}
 	}

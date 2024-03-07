@@ -56,23 +56,12 @@ func getTSParserPath() (string, error) {
 		return path, nil
 	}
 
-	// Check alongside the encore binary.
-	exe, err := os.Executable()
-	if err != nil {
-		return "", errors.Wrap(err, "unable to get executable")
-	}
-	exe, err = filepath.EvalSymlinks(exe)
-	if err != nil {
-		return "", errors.Wrap(err, "unable to resolve symlink(s)")
-	}
-
-	// Grab the directory of the executable.
-	binDir := filepath.Join(filepath.Dir(exe), tsParserBinaryName)
-	if _, err := os.Stat(binDir); err == nil {
-		// Ok we found it
-		return binDir, nil
-	} else if !os.IsNotExist(err) {
-		return "", errors.Wrap(err, "unable to stat tsparser binary")
+	// Check the encore bin directory.
+	if bin, ok := env.EncoreBin().Get(); ok {
+		candidate := filepath.Join(bin, tsParserBinaryName)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
 	}
 
 	// Now default to the path
@@ -111,6 +100,11 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 		"ENCORE_JS_RUNTIME_PATH="+jsRuntimePath.ToIO(),
 		"ENCORE_APP_REVISION="+p.Build.Revision,
 	)
+
+	// If we have an encore-bin directory, add it to the path.
+	if bin, ok := env.EncoreBin().Get(); ok {
+		cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH")+string(filepath.ListSeparator)+bin)
+	}
 
 	// Close the process when the ctx is canceled.
 	cmd.WaitDelay = 1 * time.Second
@@ -340,14 +334,7 @@ func readResp(reader io.Reader) (isSuccess bool, data []byte, err error) {
 
 // Reports the JS Runtime root directory.
 func jsRuntimeRoot(runtimesPath paths.FS) paths.FS {
-	base := runtimesPath.Join("js")
-
-	// If this points to the encoredev/encore repo, the packages live in the "packages" subdirectory.
-	pkgDir := base.Join("packages")
-	if _, err := os.Stat(pkgDir.ToIO()); err == nil {
-		return pkgDir
-	}
-	return base
+	return runtimesPath.Join("js")
 }
 
 type runningCmd struct {

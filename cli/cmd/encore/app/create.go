@@ -189,14 +189,6 @@ func createApp(ctx context.Context, name, template string) (err error) {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
-	} else if _, err := os.Stat(filepath.Join(name, "package.json")); err == nil {
-		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Prefix = "Running npm install encore.dev@latest"
-		s.Start()
-		if err := npmInstallEncore(name); err != nil {
-			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
-		}
-		s.Stop()
 	}
 
 	// Rewrite any existence of ENCORE_APP_ID to the allocated app id.
@@ -295,12 +287,22 @@ func npmInstallEncore(dir string) error {
 		verToInstall = "latest"
 	}
 
-	cmd := exec.Command("npm", "install", fmt.Sprintf("encore.dev@%s", verToInstall), fmt.Sprintf("encore.app@%s", verToInstall), fmt.Sprintf("@encore.dev/node-runtime@%s", verToInstall))
+	// First install the 'encore.dev' package.
+	cmd := exec.Command("npm", "install", fmt.Sprintf("encore.dev@%s", verToInstall))
 	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.New(string(out))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("'npm install encore.dev@%s' failed: %v: %s", verToInstall, err, out)
 	}
-	return nil
+
+	// Then run 'npm install'.
+	cmd = exec.Command("npm install")
+	cmd.Dir = dir
+	if out2, err2 := cmd.CombinedOutput(); err2 != nil && err == nil {
+		err = fmt.Errorf("'npm install' failed: %v: %s", err2, out2)
+	}
+
+	return err
 }
 
 func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
