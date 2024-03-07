@@ -290,7 +290,17 @@ func (d *Daemon) openDB() *sql.DB {
 	} else if err := os.MkdirAll(dir, 0755); err != nil {
 		fatal(err)
 	}
+
 	dbPath := filepath.Join(dir, "encore.db")
+
+	// Create the database file if it doesn't exist, as
+	// we've observed some failures to open the database file when it doesn't already exist.
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		if f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_WRONLY, 0600); err == nil {
+			_ = f.Close()
+		}
+	}
+
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_journal=wal", dbPath))
 	if err != nil {
 		fatal(err)
