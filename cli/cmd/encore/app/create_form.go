@@ -18,8 +18,6 @@ import (
 	"github.com/tailscale/hujson"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
-	"encr.dev/internal/version"
-	"encr.dev/pkg/fns"
 )
 
 const (
@@ -358,15 +356,6 @@ func loadTemplates() tea.Msg {
 			},
 		}
 	})()
-
-	// If we're not running the Encore beta (with TypeScript support),
-	// filter out any TypeScript items.
-	haveTypeScript := version.Channel != version.GA
-	if !haveTypeScript {
-		templates = fns.Filter(templates, func(t templateItem) bool {
-			return !strings.Contains(strings.ToLower(t.ItemTitle), "typescript")
-		})
-	}
 
 	return loadedTemplates(templates)
 }
