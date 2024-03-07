@@ -1,0 +1,367 @@
+syntax = "proto3";
+package encore.runtime.v1;
+
+import "encore/runtime/v1/secretdata.proto";
+
+option go_package = "encr.dev/proto/encore/runtime/v1;runtimev1";
+
+message Infrastructure {
+  Resources resources = 1;
+  Credentials credentials = 2;
+
+  message Credentials {
+    repeated ClientCert client_certs = 1;
+    repeated SQLRole sql_roles = 2;
+    repeated RedisRole redis_roles = 3;
+  }
+
+  message Resources {
+    repeated Gateway gateways = 1;
+    repeated SQLCluster sql_clusters = 2;
+    repeated PubSubCluster pubsub_clusters = 3;
+    repeated RedisCluster redis_clusters = 4;
+    repeated AppSecret app_secrets = 5;
+  }
+}
+
+message SQLCluster {
+  // The unique resource id for this cluster.
+  string rid = 1;
+
+  repeated SQLServer servers = 2;
+  repeated SQLDatabase databases = 3;
+}
+
+enum ServerKind {
+  SERVER_KIND_UNSPECIFIED = 0;
+  SERVER_KIND_PRIMARY = 1;
+
+  // A hot-standby (a read replica designed to take over write traffic
+  // at a moment's notice).
+  SERVER_KIND_HOT_STANDBY = 2;
+
+  // A read-replica.
+  SERVER_KIND_READ_REPLICA = 3;
+}
+
+message SQLServer {
+  // The unique resource id for this server.
+  string rid = 1;
+
+  // Host is the host to connect to.
+  // Valid formats are "hostname", "hostname:port", and "/path/to/unix.socket".
+  string host = 2;
+  ServerKind kind = 3;
+
+  optional string server_ca_cert = 4;
+}
+
+message ClientCert {
+  // The unique resource id for this certificate.
+  string rid = 1;
+
+  string cert = 2;
+  SecretData key = 3;
+}
+
+message SQLRole {
+  // The unique resource id for this role.
+  string rid = 1;
+
+  string username = 2;
+  SecretData password = 3;
+
+  // The client cert to use to authenticate, if any.
+  optional string client_cert_rid = 4;
+}
+
+message SQLDatabase {
+  // The unique resource id for this database.
+  string rid = 1;
+
+  string encore_name = 2;
+
+  // The physical name of the database in the cluster.
+  string cloud_name = 3;
+
+  // Connection pools to use for connecting to the database.
+  repeated SQLConnectionPool conn_pools = 4;
+}
+
+message SQLConnectionPool {
+  // Whether this connection pool is for read-only servers.
+  bool is_readonly = 1;
+
+  // The role to use to authenticate.
+  string role_rid = 2;
+
+  // The minimum and maximum number of connections to use.
+  int32 min_connections = 3;
+  int32 max_connections = 4;
+}
+
+message RedisCluster {
+  // The unique resource id for this cluster.
+  string rid = 1;
+
+  repeated RedisServer servers = 2;
+
+  repeated RedisDatabase databases = 3;
+}
+
+message RedisServer {
+  // The unique resource id for this server.
+  string rid = 1;
+
+  // Host is the host to connect to.
+  // Valid formats are "hostname", "hostname:port", and "/path/to/unix.socket".
+  string host = 2;
+  ServerKind kind = 3;
+
+  // Whether or not to use TLS to connect.
+  // If server_ca_cert or client_cert are set, TLS is always used
+  // regardless of this value.
+  bool enable_tls = 4;
+
+  optional string server_ca_cert = 5;
+}
+
+message RedisConnectionPool {
+  // Whether this connection pool is for read-only servers.
+  bool is_readonly = 1;
+
+  // The role to use to authenticate.
+  string role_rid = 2;
+
+  // The minimum and maximum number of connections to use.
+  int32 min_connections = 3;
+  int32 max_connections = 4;
+}
+
+message RedisRole {
+  // The unique resource id for this role.
+  string rid = 1;
+
+  // The client cert to use to authenticate, if any.
+  optional string client_cert_rid = 2;
+
+  // How to authenticate with Redis.
+  // If unset, no authentication is used.
+  oneof auth {
+    AuthACL acl = 10; // Redis ACL
+    SecretData auth_string = 11; // Redis AUTH string
+  }
+
+  message AuthACL {
+    string username = 1;
+    SecretData password = 2;
+  }
+}
+
+message RedisDatabase {
+  // Unique resource id for this database.
+  string rid = 1;
+
+  // The encore name of the database.
+  string encore_name = 2;
+
+  // The database index to use, [0-15].
+  int32 database_idx = 3;
+
+  // KeyPrefix specifies a prefix to add to all cache keys
+  // for this database. It exists to enable multiple cache clusters
+  // to use the same physical Redis database for local development
+  // without having to coordinate and persist database index ids.
+  optional string key_prefix = 4;
+
+  // Connection pools to use for connecting to the database.
+  repeated RedisConnectionPool conn_pools = 5;
+}
+
+message AppSecret {
+  // The unique resource id for this secret.
+  string rid = 1;
+
+  // The encore name of the secret.
+  string encore_name = 2;
+
+  // The secret data.
+  SecretData data = 3;
+}
+
+message PubSubCluster {
+  // The unique resource id for this cluster.
+  string rid = 1;
+
+  repeated PubSubTopic topics = 2;
+  repeated PubSubSubscription subscriptions = 3;
+
+  oneof provider {
+    EncoreCloud encore = 5;
+    AWSSqsSns aws = 6;
+    GCPPubSub gcp = 7;
+    AzureServiceBus azure = 8;
+    NSQ nsq = 9;
+  }
+
+  message EncoreCloud {}
+  message AWSSqsSns {}
+  message GCPPubSub {}
+
+  message NSQ {
+    // The hosts to connect to NSQ. Must be non-empty.
+    repeated string hosts = 1;
+  }
+
+  message AzureServiceBus {
+    string namespace = 1;
+  }
+}
+
+message PubSubTopic {
+  // The unique resource id for this topic.
+  string rid = 1;
+
+  // The encore name of the topic.
+  string encore_name = 2;
+
+  // The cloud name of the topic.
+  string cloud_name = 3;
+
+  // The delivery guarantee.
+  DeliveryGuarantee delivery_guarantee = 4;
+
+  // Optional ordering attribute. Specifies the attribute name
+  // to use for message ordering.
+  optional string ordering_attr = 5;
+
+  // Provider-specific configuration.
+  // Not all providers require this, but it must always be set
+  // for the providers that are present.
+  oneof provider_config {
+    GCPConfig gcp_config = 10;
+    // Null: no provider-specific configuration.
+  }
+
+  message GCPConfig {
+    // The GCP project id where the topic exists.
+    string project_id = 1;
+  }
+
+  enum DeliveryGuarantee {
+    DELIVERY_GUARANTEE_UNSPECIFIED = 0;
+    DELIVERY_GUARANTEE_AT_LEAST_ONCE = 1; // All messages will be delivered to each subscription at least once
+    DELIVERY_GUARANTEE_EXACTLY_ONCE = 2; // All messages will be delivered to each subscription exactly once
+  }
+}
+
+message PubSubSubscription {
+  // The unique resource id for this subscription.
+  string rid = 1;
+
+  // The encore name of the topic this subscription is for.
+  string topic_encore_name = 2;
+
+  // The encore name of the subscription.
+  string subscription_encore_name = 3;
+
+  // The cloud name of the subscription.
+  string topic_cloud_name = 4;
+
+  // The cloud name of the subscription.
+  string subscription_cloud_name = 5;
+
+  // If true the application will not actively subscribe but wait
+  // for incoming messages to be pushed to it.
+  bool push_only = 6;
+
+  // Subscription-specific provider configuration.
+  // Not all providers require this, but it must always be set
+  // for the providers that are present.
+  oneof provider_config {
+    GCPConfig gcp_config = 10;
+    // Null: no provider-specific configuration.
+  }
+
+  message GCPConfig {
+    // The GCP project id where the subscription exists.
+    string project_id = 1;
+
+    // The service account used to authenticate messages being delivered over push.
+    // If unset, pushes are rejected.
+    optional string push_service_account = 2;
+
+    // The audience to use when validating JWTs delivered over push.
+    // If set, the JWT audience claim must match. If unset, any JWT audience is allowed.
+    optional string push_jwt_audience = 3;
+  }
+}
+
+message Gateway {
+  // The unique id for this resource.
+  string rid = 1;
+
+  //  The encore name of the gateway.
+  string encore_name = 2;
+
+  // The base url for reaching this gateway, for returning to the application
+  // via e.g. the metadata APIs.
+  string base_url = 3;
+
+  // The hostnames this gateway accepts requests for.
+  repeated string hostnames = 4;
+
+  // CORS is the CORS configuration for this gateway.
+  CORS cors = 5;
+
+  // CORS describes the CORS configuration for a gateway.
+  message CORS {
+    bool debug = 1;
+
+    // If true, causes Encore to respond to OPTIONS requests
+    // without setting Access-Control-Allow-Credentials: true.
+    bool disable_credentials = 2;
+
+    // Specifies the allowed origins for requests that include credentials.
+    // If a request is made from an Origin in this list
+    // Encore responds with Access-Control-Allow-Origin: <Origin>.
+    //
+    // If disable_credentials is true this field is not used.
+    oneof allowed_origins_with_credentials {
+      CORSAllowedOrigins allowed_origins = 3;
+      bool unsafe_allow_all_origins_with_credentials = 4;
+    }
+
+    // Specifies the allowed origins for requests
+    // that don't include credentials.
+    //
+    // The URLs in this list may include wildcards (e.g. "https://*.example.com"
+    // or "https://*-myapp.example.com").
+    CORSAllowedOrigins allowed_origins_without_credentials = 5;
+
+    // Specifies extra headers to allow, beyond
+    // the default set always recognized by Encore.
+    // As a special case, if the list contains "*" all headers are allowed.
+    repeated string extra_allowed_headers = 6;
+
+    // Specifies extra headers to expose, beyond
+    // the default set always recognized by Encore.
+    // As a special case, if the list contains "*" all headers are allowed.
+    repeated string extra_exposed_headers = 7;
+
+    // If true, allows requests to Encore apps running
+    // on private networks from websites.
+    // See: https://wicg.github.io/private-network-access/
+    bool allow_private_network_access = 8;
+  }
+
+  message CORSAllowedOrigins {
+    // The list of allowed origins.
+    // The URLs in this list may include wildcards (e.g. "https://*.example.com"
+    // or "https://*-myapp.example.com").
+    //
+    // The string "*" allows all origins, except for requests with credentials;
+    // use CORS.unsafe_allow_unsafe_all_origins_with_credentials for that.
+    repeated string allowed_origins = 1;
+  }
+}

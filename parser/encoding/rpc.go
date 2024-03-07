@@ -279,7 +279,7 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 		AccessType:    rpc.AccessType.String(),
 		Proto:         rpc.Proto.String(),
 		Path:          rpc.Path,
-		Doc:           findDoc(rpc.Doc, appMetaData),
+		Doc:           rpc.GetDoc(),
 	}
 	var err error
 	// Work out the request encoding

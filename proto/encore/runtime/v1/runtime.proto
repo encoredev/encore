@@ -1,0 +1,240 @@
+syntax = "proto3";
+package encore.runtime.v1;
+
+import "encore/runtime/v1/infra.proto";
+import "encore/runtime/v1/secretdata.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "encr.dev/proto/encore/runtime/v1;runtimev1";
+
+message RuntimeConfig {
+  Environment environment = 1;
+  Infrastructure infra = 2;
+  Deployment deployment = 3;
+  optional EncorePlatform encore_platform = 5;
+}
+
+message Environment {
+  string app_id = 1;
+  string app_slug = 2;
+  string env_id = 3;
+  string env_name = 4;
+  Type env_type = 5;
+  Cloud cloud = 6;
+
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_DEVELOPMENT = 1;
+    TYPE_PRODUCTION = 2;
+    TYPE_EPHEMERAL = 3;
+    TYPE_TEST = 4;
+  }
+
+  enum Cloud {
+    CLOUD_UNSPECIFIED = 0;
+    CLOUD_LOCAL = 1;
+    CLOUD_ENCORE = 2;
+    CLOUD_AWS = 3;
+    CLOUD_GCP = 4;
+    CLOUD_AZURE = 5;
+  }
+}
+
+// Describes the configuration related to a specific deployment,
+// meaning a group of services deployed together (think a single k8s Deployment).
+message Deployment {
+  string deploy_id = 1;
+  google.protobuf.Timestamp deployed_at = 2;
+
+  // A list of experiments to enable at runtime.
+  repeated string dynamic_experiments = 3;
+
+  // The gateways hosted by this deployment, by rid.
+  repeated string hosted_gateways = 4;
+
+  // The services hosted by this deployment.
+  repeated HostedService hosted_services = 5;
+
+  // The authentication method(s) that can be used when talking
+  // to this deployment for internal service-to-service calls.
+  //
+  // An empty list means no service-to-service calls can be made to this deployment.
+  repeated ServiceAuth auth_methods = 6;
+
+  // Observability-related configuration.
+  Observability observability = 7;
+
+  // Service discovery configuration.
+  ServiceDiscovery service_discovery = 8;
+
+  // Graceful shutdown behavior.
+  GracefulShutdown graceful_shutdown = 9;
+}
+
+message Observability {
+  // The observability providers to use.
+  repeated TracingProvider tracing = 1;
+  repeated MetricsProvider metrics = 2;
+  repeated LogsProvider logs = 3;
+}
+
+message HostedService {
+  // The name of the service.
+  string name = 1;
+
+  // The infrastructure resources this service has access to, as resource ids.
+  // repeated string infra_access_rids = 3;
+}
+
+message ServiceAuth {
+  // The auth method to use.
+  oneof auth_method {
+    // Messages start at 10 to allow for other fields on ServiceAuth.
+    NoopAuth noop = 10;
+    EncoreAuth encore_auth = 11;
+  }
+
+  message NoopAuth {}
+  message EncoreAuth {
+    repeated EncoreAuthKey auth_keys = 1;
+  }
+}
+
+message TracingProvider {
+  // The unique resource id for this provider.
+  string rid = 1;
+
+  oneof provider {
+    EncoreTracingProvider encore = 10;
+  }
+
+  message EncoreTracingProvider {
+    string trace_endpoint = 1;
+  }
+}
+
+message MetricsProvider {
+  // The unique resource id for this provider.
+  string rid = 1;
+
+  google.protobuf.Duration collection_interval = 2;
+
+  oneof provider {
+    GCPCloudMonitoring encore_cloud = 10;
+    GCPCloudMonitoring gcp = 11;
+    AWSCloudWatch aws = 12;
+    PrometheusRemoteWrite prom_remote_write = 13;
+    Datadog datadog = 14;
+  }
+
+  message GCPCloudMonitoring {
+    // The GCP project id to send metrics to.
+    string project_id = 1;
+
+    // The enum value for the monitored resource this application is monitoring.
+    // See https://cloud.google.com/monitoring/api/resources for valid values.
+    string monitored_resource_type = 2;
+
+    // The labels to specify for the monitored resource.
+    // Each monitored resource type has a pre-defined set of labels that must be set.
+    // See https://cloud.google.com/monitoring/api/resources for expected labels.
+    map<string, string> monitored_resource_labels = 3;
+
+    // The mapping between metric names in Encore and metric names in GCP.
+    map<string, string> metric_names = 4;
+  }
+
+  message AWSCloudWatch {
+    // The namespace to use for metrics.
+    string namespace = 1;
+  }
+
+  message PrometheusRemoteWrite {
+    // The URL to send metrics to.
+    SecretData remote_write_url = 1;
+  }
+
+  message Datadog {
+    string site = 1;
+    SecretData api_key = 2;
+  }
+}
+
+message LogsProvider {
+  // The unique resource id for this provider.
+  string rid = 1;
+
+  // Not yet implemented.
+}
+
+message EncoreAuthKey {
+  uint32 id = 1;
+  SecretData data = 2;
+}
+
+// Describes service discovery configuration.
+message ServiceDiscovery {
+  // Where services are located, keyed by the service name.
+  map<string, Location> services = 1;
+
+  message Location {
+    // The base URL of the service (including scheme and port).
+    string base_url = 1;
+
+    // The auth methods to use when talking to this service.
+    repeated ServiceAuth auth_methods = 2;
+  }
+}
+
+// GracefulShutdown defines the graceful shutdown timings.
+message GracefulShutdown {
+  // Total is how long we allow the total shutdown to take
+  // before the process forcibly exits.
+  google.protobuf.Duration total = 1;
+
+  // ShutdownHooks is how long before [total] runs out that we cancel
+  // the context that is passed to the shutdown hooks.
+  //
+  // It is expected that ShutdownHooks is a larger value than Handlers.
+  google.protobuf.Duration shutdown_hooks = 2;
+
+  // Handlers is how long before [total] runs out that we cancel
+  // the context that is passed to API and PubSub Subscription handlers.
+  //
+  // For example, if [total] is 10 seconds and [handlers] is 2 seconds,
+  // then we will cancel the context passed to handlers 8 seconds after
+  // a graceful shutdown is initiated.
+  google.protobuf.Duration handlers = 3;
+}
+
+message EncorePlatform {
+  // Auth keys for validating signed requests from the Encore Platform.
+  repeated EncoreAuthKey platform_signing_keys = 1;
+
+  // The Encore Cloud configuration to use, if running in Encore Cloud.
+  optional EncoreCloudProvider encore_cloud = 2;
+}
+
+message RateLimiter {
+  oneof kind {
+    TokenBucket token_bucket = 1;
+  }
+
+  message TokenBucket {
+    // The rate (in events per per second) to allow.
+    double rate = 1;
+    // The burst size to allow.
+    uint32 burst = 2;
+  }
+}
+
+message EncoreCloudProvider {
+  // The unique resource id for this provider.
+  string rid = 1;
+
+  // URL to use to authenticate with the server.
+  string server_url = 2;
+
+  repeated EncoreAuthKey auth_keys = 3;
+}

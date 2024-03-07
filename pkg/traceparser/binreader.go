@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"io"
 	"math"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -59,7 +61,13 @@ func (tr *traceReader) Bool() bool {
 }
 
 func (tr *traceReader) String() string {
-	return string(tr.ByteString())
+	s := string(tr.ByteString())
+
+	// Ensure the string is valid UTF-8.
+	// Needed because proto.Marshal requires strings to be valid utf8.
+	s = strings.ToValidUTF8(s, string(utf8.RuneError))
+
+	return s
 }
 
 func (tr *traceReader) ByteString() []byte {

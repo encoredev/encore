@@ -28,6 +28,9 @@ const (
 	// when internal API calls are made.
 	AuthDataRoundTrip Name = "auth-data-round-trip"
 
+	// TypeScript enables building the app with TypeScript support.
+	TypeScript Name = "typescript"
+
 	// StreamTraces enables streaming traces to the Encore platform as they're happening,
 	// as opposed to waiting for the request to finish before starting the upload.
 	StreamTraces Name = "stream-traces"
@@ -42,6 +45,7 @@ func (x Name) Valid() bool {
 		BetaRuntime,
 		LocalMultiProcess,
 		AuthDataRoundTrip,
+		TypeScript,
 		StreamTraces:
 		return true
 	default:

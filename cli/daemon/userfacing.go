@@ -9,6 +9,7 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -46,6 +47,8 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 	}
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
+
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,
@@ -62,6 +65,7 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 	}
 
 	err = bld.GenUserFacing(ctx, builder.GenUserFacingParams{
+		Build: buildInfo,
 		App:   app,
 		Parse: parse,
 	})

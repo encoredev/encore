@@ -1,0 +1,24 @@
+[package]
+name = "txtar"
+version = "1.0.0"
+edition = "2021"
+authors = ["Frank de Jong <f.jin@protonmail.com>"]
+description = "A Rust implementation of the txtar Go package"
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://gitlab.com/foo-jin/txtar"
+documentation = "https://docs.rs/txtar/latest/txtar/"
+categories = ["filesystem", "development-tools::testing"]
+keywords = ["fs", "filesystem", "txtar", "tempfs"]
+exclude = [".gitignore"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clean-path = "0.2.1"
+thiserror = "1.0"
+
+[dev-dependencies]
+assert_fs = "1.0.7"
+predicates = "2.1.1"
+similar-asserts = "1.2.0"

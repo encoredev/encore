@@ -1,0 +1,88 @@
+{
+  "name": "encore.dev",
+  "description": "Encore's JavaScript/TypeScript SDK",
+  "version": "0.0.0-devel.202311141645",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/encoredev/encore/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/encoredev/encore",
+    "directory": "runtimes/js/encore.dev"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "lint": "eslint \"**/*.ts*\"",
+    "test": "bun test"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./mod.ts",
+      "bun": "./mod.ts",
+      "default": "./dist/mod.js"
+    },
+    "./api": {
+      "types": "./api/mod.ts",
+      "bun": "./api/mod.ts",
+      "default": "./dist/api/mod.js"
+    },
+    "./auth": {
+      "types": "./auth/mod.ts",
+      "bun": "./auth/mod.ts",
+      "default": "./dist/auth/mod.js"
+    },
+    "./config": {
+      "types": "./config/mod.ts",
+      "bun": "./config/mod.ts",
+      "default": "./dist/config/mod.js"
+    },
+    "./cron": {
+      "types": "./cron/mod.ts",
+      "bun": "./cron/mod.ts",
+      "default": "./dist/cron/mod.js"
+    },
+    "./errs": {
+      "types": "./errs/mod.ts",
+      "bun": "./errs/mod.ts",
+      "default": "./dist/errs/mod.js"
+    },
+    "./log": {
+      "types": "./log/mod.ts",
+      "bun": "./log/mod.ts",
+      "default": "./dist/log/mod.js"
+    },
+    "./pubsub": {
+      "types": "./pubsub/mod.ts",
+      "bun": "./pubsub/mod.ts",
+      "default": "./dist/pubsub/mod.js"
+    },
+    "./storage/sqldb": {
+      "types": "./storage/sqldb/mod.ts",
+      "bun": "./storage/sqldb/mod.ts",
+      "default": "./dist/storage/sqldb/mod.js"
+    },
+    "./internal/codegen/*": {
+      "types": "./internal/codegen/*.ts",
+      "bun": "./internal/codegen/*.ts",
+      "default": "./dist/internal/codegen/*.js"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "*.ts",
+    "**/*.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "tsc-esm-fix": "^2.20.26",
+    "typescript": "^5.3.3"
+  }
+}

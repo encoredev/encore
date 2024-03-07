@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -24,24 +23,61 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/noopgateway"
+	"encr.dev/pkg/noopgwdesc"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
+
+type procGroupOptions struct {
+	Ctx         context.Context
+	ProcID      string           // unique process id
+	Run         *Run             // the run the process belongs to
+	Meta        *meta.Data       // app metadata snapshot
+	Experiments *experiments.Set // enabled experiments
+	AuthKey     config.EncoreAuthKey
+	Logger      RunLogger
+	WorkingDir  string
+	ConfigGen   *RuntimeConfigGenerator
+}
+
+func newProcGroup(opts procGroupOptions) *ProcGroup {
+	p := &ProcGroup{
+		ID:          opts.ProcID,
+		Run:         opts.Run,
+		Meta:        opts.Meta,
+		Experiments: opts.Experiments,
+		workingDir:  opts.WorkingDir,
+		ctx:         opts.Ctx,
+		logger:      opts.Logger,
+		log:         opts.Run.log.With().Str("proc_id", opts.ProcID).Logger(),
+		ConfigGen:   opts.ConfigGen,
+
+		symParsed: make(chan struct{}),
+		Services:  make(map[string]*Proc),
+		Gateways:  make(map[string]*Proc),
+		authKey:   opts.AuthKey,
+	}
+
+	p.procCond.L = &p.procMu
+	return p
+}
 
 // ProcGroup represents a running Encore application
 //
 // It is a collection of [Proc]'s that are all part of the same application,
-// where each [Proc] represents a one or more services or a API gateway.
+// where each [Proc] represents a one or more services or an API gateway.
 type ProcGroup struct {
 	ID          string           // unique process id
 	Run         *Run             // the run the process belongs to
 	Meta        *meta.Data       // app metadata snapshot
 	Experiments *experiments.Set // enabled experiments
 
-	Gateway  *Proc            // the API gateway process
+	Gateways map[string]*Proc // the gateway processes, by name (if any)
 	Services map[string]*Proc // all the service processes by name
 
-	EnvGenerator *RuntimeEnvGenerator // generates runtime environment variables
+	ConfigGen *RuntimeConfigGenerator // generates runtime configuration
 
 	procMu       sync.Mutex // protects both allProcesses and runningProcs
 	procCond     sync.Cond  // used to signal a change in runningProcs
@@ -51,13 +87,25 @@ type ProcGroup struct {
 	ctx        context.Context
 	logger     RunLogger
 	log        zerolog.Logger
-	buildDir   string
 	workingDir string
+
+	// Used for proxying requests when there is no gateway.
+	noopGW *noopgateway.Gateway
 
 	authKey   config.EncoreAuthKey
 	sym       *sym.Table
 	symErr    error
 	symParsed chan struct{} // closed when sym and symErr are set
+}
+
+func (pg *ProcGroup) ProxyReq(w http.ResponseWriter, req *http.Request) {
+	// Currently we only support proxying to the default gateway.
+	// Need to rethink how this should work when we support multiple gateways.
+	if gw, ok := pg.Gateways["api-gateway"]; ok {
+		gw.ProxyReq(w, req)
+	} else {
+		pg.noopGW.ServeHTTP(w, req)
+	}
 }
 
 // Done returns a channel that is closed when all processes in the group have exited.
@@ -90,6 +138,7 @@ func (pg *ProcGroup) Start() (err error) {
 		}
 	}
 
+	pg.noopGW = newNoopGateway(pg)
 	return nil
 }
 
@@ -105,6 +154,7 @@ func (pg *ProcGroup) Close() {
 			wg.Done()
 		}(p)
 	}
+
 	pg.procMu.Unlock()
 
 	wg.Wait()
@@ -180,34 +230,55 @@ func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Pr
 	return p, nil
 }
 
-type NewProcParams struct {
-	BinPath string   // The path to the binary to run
-	Environ []string // The base environment to run the process with
-}
-
-func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
-	ports, err := GenerateListenAddresses(pg.Run.SvcProxy, nil)
+func (pg *ProcGroup) NewAllInOneProc(spec builder.Cmd, listenAddr netip.AddrPort, env []string) error {
+	p, err := pg.newProc("all-in-one", listenAddr)
 	if err != nil {
 		return err
 	}
 
-	p, err := pg.newProc("all-in-one", ports.Gateway.ListenAddr)
-	if err != nil {
-		return err
-	}
-	pg.Gateway = p
-
-	// Generate the environmental variables for the process
-	envs, err := pg.EnvGenerator.ForAllInOne(ports.Gateway.ListenAddr, "localhost", ports.Gateway.ListenAddr.Addr().String())
-	if err != nil {
-		return errors.Wrap(err, "failed to generate environment variables")
-	}
-	envs = append(envs, params.Environ...)
+	// Append both the command-specific env and the base environment.
+	env = append(env, spec.Env...)
 
 	// This is safe since the command comes from our build.
 	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(pg.ctx, params.BinPath)
-	cmd.Env = envs
+	cmd := exec.CommandContext(pg.ctx, spec.Command[0], spec.Command[1:]...)
+	cmd.Env = env
+	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+
+	// Proxy stdout and stderr to the given app logger, if any.
+	if l := pg.logger; l != nil {
+		cmd.Stdout = newLogWriter(pg.Run, l.RunStdout)
+		cmd.Stderr = newLogWriter(pg.Run, l.RunStderr)
+	}
+
+	p.cmd = cmd
+
+	// Assign all the gateways to this process.
+	for _, gw := range pg.Meta.Gateways {
+		pg.Gateways[gw.EncoreName] = p
+	}
+
+	return nil
+}
+
+func (pg *ProcGroup) NewProcForService(serviceName string, listenAddr netip.AddrPort, spec builder.Cmd, env []string) error {
+	if !listenAddr.IsValid() {
+		return errors.New("invalid listen address")
+	}
+
+	p, err := pg.newProc(serviceName, listenAddr)
+	if err != nil {
+		return err
+	}
+	pg.Services[serviceName] = p
+
+	// Append both the command-specific env and the base environment.
+	env = append(env, spec.Env...)
+
+	// This is safe since the command comes from our build.
+	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd := exec.CommandContext(pg.ctx, spec.Command[0], spec.Command[1:]...)
+	cmd.Env = env
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
 
 	// Proxy stdout and stderr to the given app logger, if any.
@@ -221,62 +292,24 @@ func (pg *ProcGroup) NewAllInOneProc(params *NewProcParams) error {
 	return nil
 }
 
-func (pg *ProcGroup) NewProcForService(service *meta.Service, listenAddr netip.AddrPort, params *NewProcParams) error {
+func (pg *ProcGroup) NewProcForGateway(gatewayName string, listenAddr netip.AddrPort, spec builder.Cmd, env []string) error {
 	if !listenAddr.IsValid() {
 		return errors.New("invalid listen address")
 	}
 
-	p, err := pg.newProc(service.Name, listenAddr)
+	p, err := pg.newProc("gateway-"+gatewayName, listenAddr)
 	if err != nil {
 		return err
 	}
-	pg.Services[service.Name] = p
+	pg.Gateways[gatewayName] = p
 
-	// Generate the environmental variables for the process
-	envs, err := pg.EnvGenerator.ForServices(listenAddr, service)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate environment variables")
-	}
-	envs = append(envs, params.Environ...)
+	// Append both the command-specific env and the base environment.
+	env = append(env, spec.Env...)
 
 	// This is safe since the command comes from our build.
 	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(pg.ctx, params.BinPath)
-	cmd.Env = envs
-	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
-
-	// Proxy stdout and stderr to the given app logger, if any.
-	if l := pg.logger; l != nil {
-		cmd.Stdout = newLogWriter(pg.Run, l.RunStdout)
-		cmd.Stderr = newLogWriter(pg.Run, l.RunStderr)
-	}
-
-	p.cmd = cmd
-
-	return nil
-}
-
-func (pg *ProcGroup) NewProcForGateway(listenAddr netip.AddrPort, params *NewProcParams) error {
-	if !listenAddr.IsValid() {
-		return errors.New("invalid listen address")
-	}
-
-	p, err := pg.newProc("api-gateway", listenAddr)
-	if err != nil {
-		return err
-	}
-	pg.Gateway = p
-
-	envs, err := pg.EnvGenerator.ForGateway(listenAddr, "localhost", "127.0.0.1")
-	if err != nil {
-		return errors.Wrap(err, "failed to generate environment variables")
-	}
-	envs = append(envs, params.Environ...)
-
-	// This is safe since the command comes from our build.
-	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(pg.ctx, params.BinPath)
-	cmd.Env = envs
+	cmd := exec.CommandContext(pg.ctx, spec.Command[0], spec.Command[1:]...)
+	cmd.Env = env
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
 
 	// Proxy stdout and stderr to the given app logger, if any.
@@ -296,13 +329,7 @@ type warning struct {
 }
 
 func (pg *ProcGroup) Warnings() (rtn []warning) {
-	if len(pg.EnvGenerator.missingSecrets) > 0 {
-		var missing []string
-		for k := range pg.EnvGenerator.missingSecrets {
-			missing = append(missing, k)
-		}
-		sort.Strings(missing)
-
+	if missing := pg.ConfigGen.MissingSecrets(); len(missing) > 0 {
 		rtn = append(rtn, warning{
 			Title: "secrets not defined: " + strings.Join(missing, ", "),
 			Help:  "undefined secrets are left empty for local development only.\nsee https://encore.dev/docs/primitives/secrets for more information",
@@ -349,7 +376,7 @@ func (p *Proc) start() error {
 	if err := p.cmd.Start(); err != nil {
 		return errors.Wrap(err, "could not start process")
 	}
-	p.log.Info().Msg("process started")
+	p.log.Info().Str("addr", p.listenAddr.String()).Msg("process started")
 	p.group.runningProcs++
 
 	p.Pid = p.cmd.Process.Pid
@@ -441,11 +468,32 @@ func (p *Proc) pollUntilProcessIsListening(ctx context.Context) (ok bool) {
 			return backoff.Permanent(err)
 		}
 
-		conn, err := net.Dial("tcp", p.listenAddr.String())
+		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", p.listenAddr.String())
 		if err == nil {
 			_ = conn.Close()
 		}
 		return err
 	}, b)
 	return err == nil
+}
+
+func newNoopGateway(pg *ProcGroup) *noopgateway.Gateway {
+	svcDiscovery := make(map[noopgateway.ServiceName]string)
+	for _, svc := range pg.Meta.Svcs {
+		if proc, ok := pg.Services[svc.Name]; ok {
+			svcDiscovery[noopgateway.ServiceName(svc.Name)] = proc.listenAddr.String()
+		}
+	}
+
+	desc := noopgwdesc.Describe(pg.Meta, svcDiscovery)
+	gw := noopgateway.New(desc)
+
+	gw.Rewrite = func(rp *httputil.ProxyRequest) {
+		// Add the auth key unless the test header is set.
+		if rp.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
+			addAuthKeyToRequest(rp.Out, pg.authKey)
+		}
+	}
+
+	return gw
 }

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -19,8 +20,10 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/logrusorgru/aurora/v3"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
@@ -33,6 +36,7 @@ import (
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/promise"
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -172,6 +176,9 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 }
 
 func (r *Run) Close() {
+	if r.builder != nil {
+		_ = r.builder.Close()
+	}
 	r.SvcProxy.Close()
 	r.ResourceManager.StopAll()
 }
@@ -323,7 +330,17 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	parse, err := r.builder.Parse(ctx, builder.ParseParams{
+	// A context that is canceled when the proc exits.
+	procCtx, cancelProcCtx := context.WithCancel(ctx)
+
+	// Cancel the proc context if we exit with a non-nil error.
+	defer func() {
+		if err != nil {
+			cancelProcCtx()
+		}
+	}()
+
+	parse, err := r.builder.Parse(procCtx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
@@ -342,6 +359,18 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 
 	r.ResourceManager.StartRequiredServices(jobs, parse.Meta)
 
+	configProm := promise.New(func() (*builder.ServiceConfigsResult, error) {
+		return r.builder.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+			Parse: parse,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Development,
+				CloudType:  cueutil.CloudType_Local,
+			},
+		})
+	})
+
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
 		build, err = r.builder.Compile(ctx, builder.CompileParams{
@@ -351,12 +380,6 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 			OpTracker:   tracker,
 			Experiments: expSet,
 			WorkingDir:  r.Params.WorkingDir,
-			CueMeta: &cueutil.Meta{
-				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
-				EnvName:    "local",
-				EnvType:    cueutil.EnvType_Development,
-				CloudType:  cueutil.CloudType_Local,
-			},
 		})
 		if err != nil {
 			return errors.Wrap(err, "compile error")
@@ -380,15 +403,19 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		return err
 	}
 
+	svcCfg, err := configProm.Get(ctx)
+	if err != nil {
+		return err
+	}
+
 	startOp := tracker.Add("Starting Encore application", start)
 	newProcess, err := r.StartProcGroup(&StartProcGroupParams{
 		Ctx:            ctx,
-		BuildDir:       build.Dir,
-		BinPath:        build.Exe,
+		Outputs:        build.Outputs,
 		Meta:           parse.Meta,
 		Logger:         r.Mgr,
 		Secrets:        secrets,
-		ServiceConfigs: build.Configs,
+		ServiceConfigs: svcCfg.Configs,
 		Environ:        r.Params.Environ,
 		WorkingDir:     r.Params.WorkingDir,
 		IsReload:       isReload,
@@ -398,6 +425,16 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		tracker.Fail(startOp, err)
 		return err
 	}
+
+	// Close the proc context when the proc exits.
+	go func() {
+		select {
+		case <-procCtx.Done():
+		// Already done
+		case <-newProcess.Done():
+			cancelProcCtx()
+		}
+	}()
 
 	previousProcess := r.proc.Swap(newProcess)
 	if previousProcess != nil {
@@ -423,8 +460,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 
 type StartProcGroupParams struct {
 	Ctx            context.Context
-	BuildDir       string
-	BinPath        string
+	Outputs        []builder.BuildOutput
 	Meta           *meta.Data
 	Secrets        map[string]string
 	ServiceConfigs map[string]string
@@ -440,81 +476,139 @@ const gracefulShutdownTime = 10 * time.Second
 // StartProcGroup starts a single actual OS process for app.
 func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
-	authKey := genAuthKey()
 
-	procListenAddresses, err := GenerateListenAddresses(r.SvcProxy, params.Meta.Svcs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate listen addresses")
-	}
-
-	listenAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
+	daemonProxyAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse listen address: %s", r.ListenAddr)
 	}
+	gatewayBaseURL := fmt.Sprintf("http://%s", daemonProxyAddr)
+	gateways := make(map[string]GatewayConfig)
+	for _, gw := range params.Meta.Gateways {
+		gateways[gw.EncoreName] = GatewayConfig{
+			BaseURL:   gatewayBaseURL,
+			Hostnames: []string{"localhost"},
+		}
+	}
 
-	p = &ProcGroup{
-		ID:  pid,
-		Run: r,
-		EnvGenerator: &RuntimeEnvGenerator{
-			App:                  r.App,
-			InfraManager:         r.ResourceManager,
-			Meta:                 params.Meta,
-			Secrets:              params.Secrets,
-			SvcConfigs:           params.ServiceConfigs,
-			AppID:                option.Some(r.ID),
-			EnvID:                option.Some(pid),
-			TraceEndpoint:        option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
-			AuthKey:              option.Some(authKey),
-			DaemonProxyAddr:      option.Some(listenAddr),
-			GracefulShutdownTime: option.Some(gracefulShutdownTime),
-			ShutdownHooksGrace:   option.Some(4 * time.Second),
-			HandlersGrace:        option.Some(2 * time.Second),
-			ListenAddresses:      procListenAddresses,
+	authKey := genAuthKey()
+	p = newProcGroup(procGroupOptions{
+		ProcID:  pid,
+		Run:     r,
+		AuthKey: authKey,
+		ConfigGen: &RuntimeConfigGenerator{
+			app:            r.App,
+			infraManager:   r.ResourceManager,
+			md:             params.Meta,
+			AppID:          option.Some(r.ID),
+			EnvID:          option.Some(pid),
+			TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
+			AuthKey:        authKey,
+			Gateways:       gateways,
+			DefinedSecrets: params.Secrets,
+			SvcConfigs:     params.ServiceConfigs,
+			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
+			IncludeMetaEnv: true,
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
-		ctx:         params.Ctx,
-		buildDir:    params.BuildDir,
-		workingDir:  params.WorkingDir,
-		logger:      params.Logger,
-		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
-		symParsed:   make(chan struct{}),
-		authKey:     authKey,
-		Services:    make(map[string]*Proc),
-	}
-	p.procCond.L = &p.procMu
-	go p.parseSymTable(params.BinPath)
+		Ctx:         params.Ctx,
+		WorkingDir:  params.WorkingDir,
+		Logger:      params.Logger,
+	})
 
-	newProcParams := &NewProcParams{
-		BinPath: params.BinPath,
-		Environ: params.Environ,
-	}
+	if isSingleProc(params.Outputs) {
+		conf, err := p.ConfigGen.AllInOneProc()
+		if err != nil {
+			return nil, err
+		}
 
-	// If we're testing external calls, start a process for each service.
-	if experiments.LocalMultiProcess.Enabled(params.Experiments) {
-		// create a process for each service
-		for _, s := range params.Meta.Svcs {
-			if err := p.NewProcForService(
-				s,
-				procListenAddresses.Services[s.Name].ListenAddr,
-				newProcParams,
-			); err != nil {
+		entrypoint := params.Outputs[0].GetEntrypoints()[0]
+
+		// Generate the environmental variables for the process
+		procEnv, err := p.ConfigGen.ProcEnvs(conf, entrypoint.UseRuntimeConfigV2)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate environment variables")
+		}
+
+		env := slices.Clone(params.Environ)
+		env = append(env, procEnv...)
+
+		// Otherwise we're running everything inside a single process
+		cmd := entrypoint.Cmd.Expand(params.Outputs[0].GetArtifactDir())
+		if err := p.NewAllInOneProc(cmd, conf.ListenAddr, env); err != nil {
+			return nil, err
+		}
+	} else {
+		var (
+			svcConfs map[string]*ProcConfig
+			gwConfs  map[string]*ProcConfig
+		)
+
+		useRuntimeConfigV2 := false
+	OutputLoop:
+		for _, o := range params.Outputs {
+			for _, ep := range o.GetEntrypoints() {
+				if ep.UseRuntimeConfigV2 {
+					useRuntimeConfigV2 = true
+					break OutputLoop
+				}
+			}
+		}
+
+		if useRuntimeConfigV2 {
+			_, svcConfs, gwConfs, err = p.ConfigGen.ProcPerServiceWithNewRuntimeConfig(r.SvcProxy)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			svcConfs, gwConfs, err = p.ConfigGen.ProcPerService(r.SvcProxy)
+			if err != nil {
 				return nil, err
 			}
 		}
 
-		// create a process for the gateway
-		if err := p.NewProcForGateway(procListenAddresses.Gateway.ListenAddr, newProcParams); err != nil {
-			return nil, err
-		}
-	} else {
-		// If we're not testing external calls, we only need a single process
-		// so no need to pass in the listen addresses.
-		procListenAddresses.Services = nil
+		for _, o := range params.Outputs {
+			for _, ep := range o.GetEntrypoints() {
+				cmd := ep.Cmd.Expand(o.GetArtifactDir())
+				// create a process for each service
+				for _, svcName := range ep.Services {
+					// Generate the environmental variables for the process
+					procConf, ok := svcConfs[svcName]
+					if !ok {
+						return nil, errors.Newf("unknown service %q", svcName)
+					}
+					procEnv, err := p.ConfigGen.ProcEnvs(procConf, ep.UseRuntimeConfigV2)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to generate environment variables")
+					}
 
-		// Otherwise we're running everything inside a single process
-		if err := p.NewAllInOneProc(newProcParams); err != nil {
-			return nil, err
+					env := slices.Clone(params.Environ)
+					env = append(env, procEnv...)
+
+					if err := p.NewProcForService(svcName, procConf.ListenAddr, cmd, env); err != nil {
+						return nil, err
+					}
+				}
+
+				for _, gwName := range ep.Gateways {
+					procConf, ok := gwConfs[gwName]
+					if !ok {
+						return nil, errors.Newf("unknown gateway %q", gwName)
+					}
+
+					procEnv, err := p.ConfigGen.ProcEnvs(procConf, ep.UseRuntimeConfigV2)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to generate environment variables")
+					}
+
+					env := slices.Clone(params.Environ)
+					env = append(env, procEnv...)
+
+					if err := p.NewProcForGateway(gwName, procConf.ListenAddr, cmd, env); err != nil {
+						return nil, err
+					}
+				}
+			}
 		}
 	}
 
@@ -541,7 +635,15 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	// This way we ensure requests are always hitting a running server,
 	// in case a batch job or something is running.
 	if params.IsReload {
-		p.Gateway.pollUntilProcessIsListening(params.Ctx)
+		g, ctx := errgroup.WithContext(params.Ctx)
+		for _, gw := range p.Gateways {
+			gw := gw
+			g.Go(func() error {
+				gw.pollUntilProcessIsListening(ctx)
+				return nil
+			})
+		}
+		_ = g.Wait()
 	}
 
 	return p, nil
@@ -557,7 +659,7 @@ type logWriter struct {
 }
 
 func newLogWriter(run *Run, fn func(*Run, []byte)) *logWriter {
-	const maxLine = 10 * 1024
+	const maxLine = 100 * 1024
 	return &logWriter{
 		run:     run,
 		fn:      fn,
@@ -681,4 +783,15 @@ func (m *Manager) DeleteNamespace(ctx context.Context, app *apps.Instance, ns *n
 	// We don't need to do anything here; we only implement DeletionHandler for
 	// the CanDeleteNamespace check.
 	return nil
+}
+
+func isSingleProc(outputs []builder.BuildOutput) bool {
+	if len(outputs) != 1 {
+		return false
+	}
+	o, ok := outputs[0].(*builder.GoBuildOutput)
+	if !ok {
+		return false
+	}
+	return len(o.Entrypoints) == 1
 }

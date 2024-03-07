@@ -1,0 +1,20 @@
+{{#if auth_handlers}}
+{{#each auth_handlers}}
+import { getAuthData as _getAuthData } from "encore.dev/internal/codegen/auth";
+import { {{name}} as _auth_{{name}} } from {{toJSON import_path}};
+{{/each}}
+
+export type AuthData = {{#each auth_handlers }}{{#unless @first}}
+    | {{/unless}}Awaited<ReturnType<typeof _auth_{{name}}>>{{/each}};
+
+export function getAuthData(): AuthData | null {
+    return _getAuthData()
+}
+{{else}}
+export type AuthData = null;
+
+// getAuthData throws an error until an auth handler is added
+export function getAuthData(): AuthData | null {
+    throw new Error("authData cannot be called when there are no auth handlers.")
+}
+{{/if}}

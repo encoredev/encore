@@ -19,3 +19,12 @@ protoc -I . --go_out=. --go_opt=$GO_OPT \
 
 protoc -I . --go_out=. --go_opt=$GO_OPT --go-grpc_out=. --go-grpc_opt=$GRPC_OPT \
   ./encore/daemon/daemon.proto
+
+protoc -I . --go_out=. --go_opt=$GO_OPT \
+./encore/runtime/v1/infra.proto
+
+protoc -I . --go_out=. --go_opt=$GO_OPT \
+./encore/runtime/v1/runtime.proto
+
+protoc -I . --go_out=. --go_opt=$GO_OPT \
+./encore/runtime/v1/secretdata.proto

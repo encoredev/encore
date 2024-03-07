@@ -14,12 +14,14 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/google/go-cmp/cmp"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
 	"encr.dev/internal/env"
 	"encr.dev/pkg/errinsrc"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
@@ -261,3 +263,9 @@ func (l *PackageList) Collector() func(pkg *pkginfo.Package) {
 		mu.Unlock()
 	}
 }
+
+// ResourceDeepEquals is a quicktest comparator for resource.Resource and resource.Bind
+// that forces the comparison to include unexported fields
+var ResourceDeepEquals = qt.CmpEquals(
+	cmp.AllowUnexported(option.Option[*pkginfo.File]{}),
+)
