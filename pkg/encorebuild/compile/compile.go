@@ -165,7 +165,7 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 func compilerSettings(cfg *buildconf.Config) (cc, cxx string, envs, ldFlags []string) {
 	var zigTarget string
 	var zigArgs string
-	zigBinary := "zig" // pick it up off the path
+	zigBinary := "/usr/local/zig-0.10.1/zig"
 
 	switch cfg.OS {
 	case "darwin":
