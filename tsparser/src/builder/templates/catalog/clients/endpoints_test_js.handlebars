@@ -1,0 +1,11 @@
+import { apiCall } from "encore.dev/internal/codegen/api";
+import { registerTestHandler } from "encore.dev/internal/codegen/appinit";
+
+{{#each endpoints}}
+export async function {{name}}(params) {
+    const handler = (await import({{toJSON (stripExt import_path)}})).{{name}};
+    registerTestHandler({ service: "{{../name}}", name: "{{name}}", handler });
+    return apiCall("{{../name}}", "{{name}}", params);
+}
+
+{{/each}}

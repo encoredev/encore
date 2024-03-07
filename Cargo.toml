@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["runtimes/core", "runtimes/js", "tsparser"]
+
+[profile.release]
+lto = true
+
+[patch.crates-io]
+tokio-postgres = { git = "https://github.com/encoredev/rust-postgres", branch = "proxy" }
+postgres-protocol = { git = "https://github.com/encoredev/rust-postgres", branch = "proxy" }
+swc_ecma_parser = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
+swc_ecma_ast = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
+swc_ecma_transforms_base = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
+swc_atoms = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
+swc_common = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
+swc_ecma_loader = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
+swc_ecma_visit = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }

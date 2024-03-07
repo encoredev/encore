@@ -1,0 +1,33 @@
+[package]
+name = "encore-js-runtime"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2.12.2", default-features = false, features = [
+    "napi8",
+    "tokio_rt",
+    "serde-json",
+    "anyhow",
+    "async",
+] }
+napi-derive = "2.12.2"
+encore-runtime-core = { path = "../core" }
+lazy_static = { version = "1.4.0", features = [] }
+axum = "0.7.3"
+tokio = "1.35.1"
+log = "0.4.20"
+serde = "1.0.194"
+serde_json = { version = "1.0.111", features = [] }
+anyhow = "1.0.76"
+bytes = "1.5.0"
+prost = "0.12.3"
+prost-types = "0.12.3"
+futures = "0.3.30"
+mappable-rc = "0.1.1"
+
+[build-dependencies]
+napi-build = "2.0.1"

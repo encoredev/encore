@@ -1,0 +1,15 @@
+import { registerGateways, run } from "encore.dev/internal/codegen/appinit";
+
+{{#each gateways}}
+import { {{bind_name}} as {{encore_name}}Impl } from {{toJSON import_path}};
+{{/each}}
+
+const gateways = [
+{{#each gateways}}
+    {{encore_name}}Impl,
+{{/each}}
+];
+
+registerGateways(gateways);
+
+await run();

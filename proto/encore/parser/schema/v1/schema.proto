@@ -37,13 +37,13 @@ message TypeParameterRef {
 // concrete when there are zero type parameters assigned.
 //
 // For example the Go Code:
-// ```
+// ```go
 // // Set[A] represents our set type
 // type Set[A any] = map[A]struct{}
 // ```
 //
 // Would become:
-// ```
+// ```go
 // _ = &Decl{
 //     id: 1,
 //     name: "Set",
