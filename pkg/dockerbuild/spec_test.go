@@ -11,11 +11,13 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/pkg/supervisor"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 func TestBuild_Node(t *testing.T) {
 	c := qt.New(t)
 	cfg := DescribeConfig{
+		Meta: &meta.Data{},
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.JSBuildOutput{
 				ArtifactDir: "/host/artifacts",
@@ -37,34 +39,22 @@ func TestBuild_Node(t *testing.T) {
 
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
-		Entrypoint: []string{"/encore/bin/supervisor", "-c", string(defaultSupervisorConfigPath)},
+		Entrypoint: []string{"/artifacts/0/build/entrypoint"},
 		Env:        nil,
 		WorkingDir: "/",
+		BuildInfo:  BuildInfoSpec{InfoPath: defaultBuildInfoPath},
 		CopyData: map[ImagePath]HostPath{
 			"/artifacts/0/build":        "/host/artifacts",
 			"/artifacts/0/package.json": "/host/package.json",
 			"/artifacts/0/node_modules": "/host/node_modules",
 		},
-		MetaPath:     defaultMetaPath,
-		BundleSource: option.Option[BundleSourceSpec]{},
-		Supervisor: option.Some(SupervisorSpec{
-			MountPath:  "/encore/bin/supervisor",
-			ConfigPath: defaultSupervisorConfigPath,
-			Config: &supervisor.Config{
-				Procs: []supervisor.Proc{{
-					ID:       "proc-id",
-					Command:  []string{"/artifacts/0/build/entrypoint"},
-					Services: []string{"bar", "foo"},
-					Gateways: []string{"baz", "qux"},
-				}},
-			},
-		}),
+		BundleSource:    option.Option[BundleSourceSpec]{},
+		Supervisor:      option.None[SupervisorSpec](),
 		BundledServices: []string{"bar", "foo"},
 		BundledGateways: []string{"baz", "qux"},
 		DockerBaseImage: "scratch",
 		FeatureFlags:    map[FeatureFlag]bool{NewRuntimeConfig: true},
 		StargzPrioritizedFiles: []ImagePath{
-			"/encore/bin/supervisor",
 			"/artifacts/0/package.json",
 			"/artifacts/0/build/entrypoint",
 		},
@@ -74,6 +64,7 @@ func TestBuild_Node(t *testing.T) {
 func TestBuild_Go_SingleBinary(t *testing.T) {
 	c := qt.New(t)
 	cfg := DescribeConfig{
+		Meta: &meta.Data{},
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.GoBuildOutput{
 				ArtifactDir: "/host/artifacts",
@@ -98,10 +89,10 @@ func TestBuild_Go_SingleBinary(t *testing.T) {
 		Entrypoint: []string{"/artifacts/0/build/entrypoint"},
 		Env:        nil,
 		WorkingDir: "/",
+		BuildInfo:  BuildInfoSpec{InfoPath: defaultBuildInfoPath},
 		CopyData: map[ImagePath]HostPath{
 			"/artifacts/0/build": "/host/artifacts",
 		},
-		MetaPath:        defaultMetaPath,
 		BundledServices: []string{"bar", "foo"},
 		BundleSource:    option.Option[BundleSourceSpec]{},
 		Supervisor:      option.None[SupervisorSpec](),
@@ -116,6 +107,7 @@ func TestBuild_Go_SingleBinary(t *testing.T) {
 func TestBuild_Go_MultiProc(t *testing.T) {
 	c := qt.New(t)
 	cfg := DescribeConfig{
+		Meta: &meta.Data{},
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.GoBuildOutput{
 				ArtifactDir: "/host/artifacts",
@@ -147,10 +139,10 @@ func TestBuild_Go_MultiProc(t *testing.T) {
 		Entrypoint: []string{"/encore/bin/supervisor", "-c", string(defaultSupervisorConfigPath)},
 		Env:        nil,
 		WorkingDir: "/",
+		BuildInfo:  BuildInfoSpec{InfoPath: defaultBuildInfoPath},
 		CopyData: map[ImagePath]HostPath{
 			"/artifacts/0/build": "/host/artifacts",
 		},
-		MetaPath:        defaultMetaPath,
 		BundledServices: []string{"bar", "foo"},
 		BundleSource:    option.Option[BundleSourceSpec]{},
 		Supervisor: option.Some(SupervisorSpec{

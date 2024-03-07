@@ -12,6 +12,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 func TestBuildImage(t *testing.T) {
@@ -25,6 +26,7 @@ func TestBuildImage(t *testing.T) {
 	})
 
 	cfg := DescribeConfig{
+		Meta: &meta.Data{},
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.JSBuildOutput{
 				ArtifactDir: artifacts,

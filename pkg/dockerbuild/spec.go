@@ -229,7 +229,7 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 
 	// Determine if we should use the supervisor.
 	// We should use it in all cases, except where we have a single Go entrypoint.
-	useSupervisor := false
+	useSupervisor := true
 	if len(cfg.Compile.Outputs) == 1 && len(cfg.Compile.Outputs[0].GetEntrypoints()) == 1 {
 		ep := cfg.Compile.Outputs[0].GetEntrypoints()[0]
 		if out, ok := cfg.Compile.Outputs[0].(*builder.GoBuildOutput); ok {

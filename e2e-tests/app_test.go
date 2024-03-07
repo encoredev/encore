@@ -82,7 +82,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Mgr:             mgr,
 	}
 
-	parse, build := testBuild(c, appRoot, env)
+	parse, build, configs := testBuild(c, appRoot, env)
 
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
 	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
@@ -109,14 +109,14 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		Meta:           parse.Meta,
 		Logger:         logger,
 		Environ:        env,
-		ServiceConfigs: build.Configs,
+		ServiceConfigs: configs.Configs,
 		Experiments:    expSet,
 		Secrets:        secretData.Values,
 	})
 	assertNil(err)
 	c.Cleanup(p.Close)
 	run.StoreProc(p)
-	for serviceName, config := range build.Configs {
+	for serviceName, config := range configs.Configs {
 		env = append(env, fmt.Sprintf("%s=%s", fmt.Sprintf("ENCORE_CFG_%s", strings.ToUpper(serviceName)), base64.RawURLEncoding.EncodeToString([]byte(config))))
 	}
 
@@ -202,7 +202,7 @@ func startProxy(ctx context.Context, ln net.Listener, proxyHandler http.Handler)
 
 // testBuild is a helper that compiles the app situated at appRoot
 // and cleans up the build dir during test cleanup.
-func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult, *builder.CompileResult) {
+func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult, *builder.CompileResult, *builder.ServiceConfigsResult) {
 	expSet, err := experiments.FromAppFileAndEnviron(nil, env)
 	if err != nil {
 		t.Fatal(err)
@@ -249,6 +249,19 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		t.Fatal(err)
 	}
 
+	configs, err := bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+		Parse: parse,
+		CueMeta: &cueutil.Meta{
+			APIBaseURL: "http://what?",
+			EnvName:    "end_to_end_test",
+			EnvType:    cueutil.EnvType_Development,
+			CloudType:  cueutil.CloudType_Local,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	build, err := bld.Compile(ctx, builder.CompileParams{
 		Build:       buildInfo,
 		App:         app,
@@ -256,12 +269,6 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		OpTracker:   nil,
 		Experiments: expSet,
 		WorkingDir:  ".",
-		CueMeta: &cueutil.Meta{
-			APIBaseURL: "http://what?",
-			EnvName:    "end_to_end_test",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
 	})
 
 	if err != nil {
@@ -273,7 +280,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 			_ = os.RemoveAll(output.GetArtifactDir().ToIO())
 		}
 	})
-	return parse, build
+	return parse, build, configs
 }
 
 func runGoModTidy(dir string) error {
