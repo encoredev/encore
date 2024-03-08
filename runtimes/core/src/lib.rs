@@ -365,7 +365,17 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
 fn meta_from_env() -> Result<metapb::Data, ParseError> {
     let cfg = match std::env::var("ENCORE_APP_META") {
         Ok(cfg) => cfg,
-        Err(std::env::VarError::NotPresent) => return Err(ParseError::EnvNotPresent),
+        Err(std::env::VarError::NotPresent) => {
+            // Not present. Check the ENCORE_APP_META_PATH environment variable.
+            match std::env::var("ENCORE_APP_META_PATH") {
+                Ok(path) => {
+                    let path = Path::new(&path);
+                    return parse_meta(path);
+                }
+                Err(std::env::VarError::NotPresent) => return Err(ParseError::EnvNotPresent),
+                Err(e) => return Err(ParseError::EnvVar(e)),
+            }
+        }
         Err(e) => return Err(ParseError::EnvVar(e)),
     };
 

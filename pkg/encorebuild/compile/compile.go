@@ -165,7 +165,7 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 func compilerSettings(cfg *buildconf.Config) (cc, cxx string, envs, ldFlags []string) {
 	var zigTarget string
 	var zigArgs string
-	zigBinary := "/usr/local/zig-0.10.1/zig"
+	zigBinary := "zig"
 
 	switch cfg.OS {
 	case "darwin":
@@ -195,10 +195,10 @@ func compilerSettings(cfg *buildconf.Config) (cc, cxx string, envs, ldFlags []st
 		case "amd64":
 			// Note: we're not targeting a specific glibc version here as we tried before
 			// with 2.35 - but for some reason we still get runtime errors not finding 2.34 or 2.33 on WSL (which had 2.35)
-			zigTarget = "x86_64-linux-gnu"
+			zigTarget = "x86_64-linux-gnu.2.31"
 			zigArgs = " -static -isystem /usr/include"
 		case "arm64":
-			zigTarget = "aarch64-linux-gnu"
+			zigTarget = "aarch64-linux-gnu.2.31"
 			zigArgs = " -static -isystem /usr/include"
 			envs = []string{
 				"PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig",

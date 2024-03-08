@@ -147,10 +147,10 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 		EnvName:        option.Some("test"),
 		EnvType:        option.Some(runtimev1.Environment_TYPE_TEST),
 		DeployID:       option.Some(fmt.Sprintf("clitest_%s", xid.New().String())),
-		IncludeMetaEnv: true,
+		IncludeMetaEnv: bld.NeedsMeta(),
 	}
 
-	env, err := configGen.ForTests(bld.UseNewRuntimeConfig(parse))
+	env, err := configGen.ForTests(bld.UseNewRuntimeConfig())
 	if err != nil {
 		return err
 	}
