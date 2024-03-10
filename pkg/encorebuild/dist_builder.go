@@ -107,14 +107,29 @@ func (d *DistBuilder) buildTSParser() {
 }
 
 func (d *DistBuilder) buildNodePlugin() {
-	BuildJSRuntime(d.Cfg)
+	builder := NewJSRuntimeBuilder(d.Cfg)
+	builder.Build()
 
 	d.Cfg.Log.Info().Msg("copying encore runtime for JS...")
-	cmd := exec.Command("cp", "-r", "runtimes/js/.", join(d.DistBuildDir, "runtimes", "js")+"/")
-	// nosemgrep
-	if out, err := cmd.CombinedOutput(); err != nil {
-		Bailf("failed to copy encore go runtime: %v: %s", err, out)
+	{
+		cmd := exec.Command("cp", "-r", "runtimes/js/.", join(d.DistBuildDir, "runtimes", "js")+"/")
+		cmd.Dir = d.Cfg.RepoDir
+		// nosemgrep
+		if out, err := cmd.CombinedOutput(); err != nil {
+			Bailf("failed to copy encore go runtime: %v: %s", err, out)
+		}
 	}
+
+	{
+		src := builder.nativeModuleOutput()
+		dst := join(d.DistBuildDir, "runtimes", "js", "encore-runtime.node")
+		cmd := exec.Command("cp", src, dst)
+		// nosemgrep
+		if out, err := cmd.CombinedOutput(); err != nil {
+			Bailf("failed to copy encore go runtime: %v: %s", err, out)
+		}
+	}
+
 	d.Cfg.Log.Info().Msg("encore runtime for js copied successfully")
 }
 

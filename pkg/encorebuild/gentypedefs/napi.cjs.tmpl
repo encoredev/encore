@@ -2,7 +2,13 @@
 const version = {{.ModuleVersion | printf "%q"}};
 
 // Load the native module.
-const nativeModule = require("./encore-runtime.node");
+const nativeModulePath = process.env.ENCORE_RUNTIME_LIB;
+if (!nativeModulePath) {
+  throw new Error(
+    "The ENCORE_RUNTIME_LIB environment variable is not set. It must be set to the path of the Encore runtime library ('encore-runtime.node')."
+  );
+}
+const nativeModule = require(nativeModulePath);
 
 // Load the exported objects from the native module.
 const {

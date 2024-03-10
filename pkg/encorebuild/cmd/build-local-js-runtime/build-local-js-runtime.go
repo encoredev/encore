@@ -45,5 +45,7 @@ func main() {
 		MacSDKPath:             option.None[string](),
 		CopyNativeModuleToRepo: true,
 	}
-	encorebuild.BuildJSRuntime(cfg)
+
+	builder := encorebuild.NewJSRuntimeBuilder(cfg)
+	builder.Build()
 }
