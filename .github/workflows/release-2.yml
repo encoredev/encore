@@ -24,10 +24,10 @@ jobs:
 
       - name: Trigger release script
         env:
-          NPM_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
         run: |
           cd ${{ github.workspace }}/encr.dev
-          go run ./pkg/encorebuild/cmd/make-release/ -dst "${{ github.workspace	}}/build" -v "${{ github.event.inputs.version }}"
+          go run ./pkg/encorebuild/cmd/make-release/ -dst "${{ github.workspace	}}/build" -v "${{ github.event.inputs.version }}" -publish-npm=true
 
       - name: Publish artifact (darwin_amd64)
         uses: actions/upload-artifact@v3

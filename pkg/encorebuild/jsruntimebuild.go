@@ -4,12 +4,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/rs/zerolog"
 
 	"encr.dev/pkg/encorebuild/buildconf"
 	. "encr.dev/pkg/encorebuild/buildutil"
 	"encr.dev/pkg/encorebuild/compile"
 	"encr.dev/pkg/encorebuild/gentypedefs"
-	"github.com/rs/zerolog"
 )
 
 func BuildJSRuntime(cfg *buildconf.Config) {
@@ -40,7 +43,10 @@ func (b *jsruntimeBuilder) Build() {
 	b.buildRustModule()
 	b.genTypeDefWrappers()
 	b.makeDistFolder()
-	b.copyNativeModule()
+
+	if b.cfg.CopyNativeModuleToRepo {
+		b.copyNativeModule()
+	}
 }
 
 // buildRustModule builds the Rust module for the JS runtime.
@@ -144,7 +150,7 @@ func (b *jsruntimeBuilder) makeDistFolder() {
 
 func (b *jsruntimeBuilder) copyNativeModule() {
 	b.log.Info().Msg("copying native module")
-	copy := func(src, dst string) {
+	copyFile := func(src, dst string) {
 		cmd := exec.Command("cp", src, dst)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -155,8 +161,8 @@ func (b *jsruntimeBuilder) copyNativeModule() {
 	src := b.nativeModuleOutput()
 	dst1 := filepath.Join(b.npmPackagePath(), napiRelPath, "encore-runtime.node")
 	dst2 := filepath.Join(b.npmPackagePath(), "dist", napiRelPath, "encore-runtime.node")
-	copy(src, dst1)
-	copy(src, dst2)
+	copyFile(src, dst1)
+	copyFile(src, dst2)
 }
 
 func (b *jsruntimeBuilder) nativeModuleOutput() string {
@@ -177,3 +183,56 @@ func (b *jsruntimeBuilder) jsRuntimePath() string {
 
 // napiRelPath is the relative path from the package root to the napi directory.
 var napiRelPath = filepath.Join("internal", "runtime", "napi")
+
+var replacePackageJsonRegexp = regexp.MustCompile(`"version":\s*"([^-"]*)"`)
+
+func PublishNPMPackages(repoDir, version string) {
+	packages := []string{"encore.dev"}
+	npmVersion := strings.TrimPrefix(version[1:], "v")
+
+	npmTag := "latest"
+	switch {
+	case strings.Contains(version, "-beta."):
+		npmTag = "beta"
+	case strings.Contains(version, "-nightly."):
+		npmTag = "nightly"
+	}
+
+	// Configure the auth token
+	{
+		authToken := os.Getenv("NPM_PUBLISH_TOKEN")
+		if authToken == "" {
+			Bailf("NPM_PUBLISH_TOKEN not set")
+		}
+		cmd := exec.Command("npm", "set", "//registry.npmjs.org/:_authToken="+authToken)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		Check(cmd.Run())
+	}
+
+	for _, pkg := range packages {
+		pkgDir := filepath.Join(repoDir, "runtimes", "js", pkg)
+
+		// Run 'npm version'.
+		{
+			cmd := exec.Command("npm", "version", "--no-git-tag-version", "--no-commit-hooks", npmVersion)
+			cmd.Dir = pkgDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			Check(cmd.Run())
+		}
+
+		// Run 'npm publish'.
+		{
+			cmd := exec.Command("npm", "publish",
+				"--tolerate-republish",
+				"--access", "public",
+				"--tag", npmTag,
+			)
+			cmd.Dir = pkgDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			Check(cmd.Run())
+		}
+	}
+}

@@ -78,7 +78,8 @@
     "*.ts",
     "**/*.ts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "!encore-runtime.node"
   ],
   "devDependencies": {
     "@types/node": "^20.11.19",

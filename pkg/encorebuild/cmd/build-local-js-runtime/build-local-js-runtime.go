@@ -35,14 +35,15 @@ func main() {
 	cacheDir := filepath.Join(userCacheDir, "encore-build-cache")
 
 	cfg := &buildconf.Config{
-		Log:        log.Logger,
-		OS:         runtime.GOOS,
-		Arch:       runtime.GOARCH,
-		Release:    false,
-		Version:    version.Version,
-		RepoDir:    root,
-		CacheDir:   cacheDir,
-		MacSDKPath: option.None[string](),
+		Log:                    log.Logger,
+		OS:                     runtime.GOOS,
+		Arch:                   runtime.GOARCH,
+		Release:                false,
+		Version:                version.Version,
+		RepoDir:                root,
+		CacheDir:               cacheDir,
+		MacSDKPath:             option.None[string](),
+		CopyNativeModuleToRepo: true,
 	}
 	encorebuild.BuildJSRuntime(cfg)
 }
