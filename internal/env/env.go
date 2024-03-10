@@ -71,10 +71,23 @@ func encoreRuntimesPath() string {
 func EncoreRuntimeLib() string {
 	if p := os.Getenv("ENCORE_RUNTIME_LIB"); p != "" {
 		return p
-	} else if root, ok := determineRoot(); ok {
-		return filepath.Join(root, "bin", "encore-runtime.node")
+	} else if rt := encoreRuntimesPath(); rt != "" {
+		return filepath.Join(rt, "js", "encore-runtime.node")
 	}
 	return ""
+}
+
+// EncoreDaemonLogPath reports the path to the Encore daemon log file.
+// It can be overridden by setting ENCORE_DAEMON_LOG_PATH.
+func EncoreDaemonLogPath() string {
+	if p := os.Getenv("ENCORE_DAEMON_LOG_PATH"); p != "" {
+		return p
+	}
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to determine user cache directory")
+	}
+	return filepath.Join(cache, "encore", "daemon.log")
 }
 
 func encoreGoRoot() string {
@@ -94,6 +107,8 @@ func List() []string {
 	return []string{
 		"ENCORE_GOROOT=" + encoreGoRoot(),
 		"ENCORE_RUNTIMES_PATH=" + encoreRuntimesPath(),
+		"ENCORE_RUNTIME_LIB=" + EncoreRuntimeLib(),
+		"ENCORE_DAEMON_LOG_PATH=" + EncoreDaemonLogPath(),
 	}
 }
 

@@ -45,6 +45,7 @@ import (
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/daemon/sqldb/external"
 	"encr.dev/internal/conf"
+	"encr.dev/internal/env"
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/watcher"
 	"encr.dev/pkg/xos"
@@ -443,11 +444,7 @@ func handleBailout(err *error) {
 
 // redirectLogOutput redirects the global logger to also write to a file.
 func redirectLogOutput() error {
-	cache, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-	logPath := filepath.Join(cache, "encore", "daemon.log")
+	logPath := env.EncoreDaemonLogPath()
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
 		return err
 	}
