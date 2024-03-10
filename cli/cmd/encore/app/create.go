@@ -296,7 +296,7 @@ func npmInstallEncore(dir string) error {
 	}
 
 	// Then run 'npm install'.
-	cmd = exec.Command("npm install")
+	cmd = exec.Command("npm", "install")
 	cmd.Dir = dir
 	if out2, err2 := cmd.CombinedOutput(); err2 != nil && err == nil {
 		err = fmt.Errorf("'npm install' failed: %v: %s", err2, out2)
