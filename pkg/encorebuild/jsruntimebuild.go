@@ -68,7 +68,7 @@ func (b *JSRuntimeBuilder) buildRustModule() {
 	compile.RustBinary(
 		b.cfg,
 		compiledBinaryName,
-		b.nativeModuleOutput(),
+		b.NativeModuleOutput(),
 		filepath.Join(b.cfg.RepoDir, "runtimes", "js"),
 
 		"TYPE_DEF_TMP_PATH="+b.typeDefPath(),
@@ -155,12 +155,12 @@ func (b *JSRuntimeBuilder) copyNativeModule() {
 		}
 	}
 
-	src := b.nativeModuleOutput()
+	src := b.NativeModuleOutput()
 	dst := filepath.Join(b.jsRuntimePath(), "encore-runtime.node")
 	copyFile(src, dst)
 }
 
-func (b *JSRuntimeBuilder) nativeModuleOutput() string {
+func (b *JSRuntimeBuilder) NativeModuleOutput() string {
 	return filepath.Join(b.workdir, "encore-runtime.node")
 }
 
