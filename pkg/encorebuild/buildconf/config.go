@@ -3,9 +3,10 @@ package buildconf
 import (
 	"runtime"
 
+	"github.com/rs/zerolog"
+
 	"encr.dev/pkg/encorebuild/buildutil"
 	"encr.dev/pkg/option"
-	"github.com/rs/zerolog"
 )
 
 type Config struct {
@@ -30,6 +31,12 @@ type Config struct {
 
 	// The path to the MacOS SDK. Must be set for cross-compiles to macOS.
 	MacSDKPath option.Option[string]
+
+	// Whether or not to publish packages to NPM. Only used if Release is also true.
+	PublishNPMPackages bool
+
+	// Whether to copy the built native module back to the repo dir.
+	CopyNativeModuleToRepo bool
 }
 
 // IsCross reports whether the build is a cross-compile.

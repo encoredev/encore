@@ -253,6 +253,7 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 			b.spec.WorkingDir = "/"
 			b.spec.Entrypoint = cmd.Command
 			b.spec.Env = cmd.Env
+
 			useSupervisor = false
 			// If we have a supervisor, we need to use the new runtime config.
 			b.spec.FeatureFlags[NewRuntimeConfig] = true
@@ -373,15 +374,18 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	// If we have any JS outputs that need the local runtime, copy it into the image.
 	{
 		for _, out := range cfg.Compile.Outputs {
-			if jsOut, ok := out.(*builder.JSBuildOutput); ok {
-				if jsOut.UsesLocalRuntime {
-					// Include the encore.dev package, at the same location.
-					runtimeSrc := cfg.Runtimes.Join("js", "encore.dev")
-					b.spec.CopyData[runtimeSrc.ToImage()] = runtimeSrc
-					// binSrc := cfg.Runtimes.Join("bin")
-					// b.spec.CopyData[binSrc.ToImage()] = binSrc
-					break
-				}
+			if _, ok := out.(*builder.JSBuildOutput); ok {
+				// Include the encore.dev package, at the same location.
+				runtimeSrc := cfg.Runtimes.Join("js", "encore.dev")
+				b.spec.CopyData[runtimeSrc.ToImage()] = runtimeSrc
+
+				// Add the encore-runtime.node file, and set the environment variable to point to it.
+				nativeRuntimeHost := cfg.Runtimes.Join("js", "encore-runtime.node")
+				nativeRuntimeImg := nativeRuntimeHost.ToImage()
+				b.spec.CopyData[nativeRuntimeImg] = nativeRuntimeHost
+				b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
+				b.addPrio(nativeRuntimeImg)
+				break
 			}
 		}
 	}

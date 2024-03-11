@@ -17,7 +17,8 @@ import (
 func TestBuild_Node(t *testing.T) {
 	c := qt.New(t)
 	cfg := DescribeConfig{
-		Meta: &meta.Data{},
+		Meta:     &meta.Data{},
+		Runtimes: "/host/runtimes",
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.JSBuildOutput{
 				ArtifactDir: "/host/artifacts",
@@ -40,13 +41,17 @@ func TestBuild_Node(t *testing.T) {
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
 		Entrypoint: []string{"/artifacts/0/build/entrypoint"},
-		Env:        nil,
+		Env: []string{
+			"ENCORE_RUNTIME_LIB=/host/runtimes/js/encore-runtime.node",
+		},
 		WorkingDir: "/",
 		BuildInfo:  BuildInfoSpec{InfoPath: defaultBuildInfoPath},
 		CopyData: map[ImagePath]HostPath{
-			"/artifacts/0/build":        "/host/artifacts",
-			"/artifacts/0/package.json": "/host/package.json",
-			"/artifacts/0/node_modules": "/host/node_modules",
+			"/artifacts/0/build":                    "/host/artifacts",
+			"/artifacts/0/package.json":             "/host/package.json",
+			"/artifacts/0/node_modules":             "/host/node_modules",
+			"/host/runtimes/js/encore.dev":          "/host/runtimes/js/encore.dev",
+			"/host/runtimes/js/encore-runtime.node": "/host/runtimes/js/encore-runtime.node",
 		},
 		BundleSource:    option.Option[BundleSourceSpec]{},
 		Supervisor:      option.None[SupervisorSpec](),
@@ -57,6 +62,7 @@ func TestBuild_Node(t *testing.T) {
 		StargzPrioritizedFiles: []ImagePath{
 			"/artifacts/0/package.json",
 			"/artifacts/0/build/entrypoint",
+			"/host/runtimes/js/encore-runtime.node",
 		},
 	})
 }

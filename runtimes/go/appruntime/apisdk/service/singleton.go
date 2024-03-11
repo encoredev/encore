@@ -77,11 +77,10 @@ func (g *Decl[T]) InitService() error {
 // Get returns the service initializer with the given name.
 // The declaration is cast to the given type T.
 func Get[T any](name string) (T, error) {
-	fmt.Println("Here for service.Get", name)
 	svc, ok := Singleton.GetService(name)
 	if !ok {
 		var zero T
-		return zero, fmt.Errorf("service.Get(%q): unknown service %s", name)
+		return zero, fmt.Errorf("service.Get(%q): unknown service", name)
 	}
 
 	decl, err := svc.GetDecl()

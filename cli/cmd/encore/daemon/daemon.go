@@ -45,6 +45,7 @@ import (
 	"encr.dev/cli/daemon/sqldb/docker"
 	"encr.dev/cli/daemon/sqldb/external"
 	"encr.dev/internal/conf"
+	"encr.dev/internal/env"
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/watcher"
 	"encr.dev/pkg/xos"
@@ -290,7 +291,17 @@ func (d *Daemon) openDB() *sql.DB {
 	} else if err := os.MkdirAll(dir, 0755); err != nil {
 		fatal(err)
 	}
+
 	dbPath := filepath.Join(dir, "encore.db")
+
+	// Create the database file if it doesn't exist, as
+	// we've observed some failures to open the database file when it doesn't already exist.
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		if f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_WRONLY, 0600); err == nil {
+			_ = f.Close()
+		}
+	}
+
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_journal=wal", dbPath))
 	if err != nil {
 		fatal(err)
@@ -433,11 +444,7 @@ func handleBailout(err *error) {
 
 // redirectLogOutput redirects the global logger to also write to a file.
 func redirectLogOutput() error {
-	cache, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-	logPath := filepath.Join(cache, "encore", "daemon.log")
+	logPath := env.EncoreDaemonLogPath()
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
 		return err
 	}

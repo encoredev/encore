@@ -209,7 +209,11 @@ func (i BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfig
 	}, nil
 }
 
-func (i BuilderImpl) UseNewRuntimeConfig(_ *builder.ParseResult) bool {
+func (i BuilderImpl) UseNewRuntimeConfig() bool {
+	return false
+}
+
+func (i BuilderImpl) NeedsMeta() bool {
 	return false
 }
 

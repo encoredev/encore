@@ -507,7 +507,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			DefinedSecrets: params.Secrets,
 			SvcConfigs:     params.ServiceConfigs,
 			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
-			IncludeMetaEnv: true,
+			IncludeMetaEnv: r.builder.NeedsMeta(),
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
@@ -544,18 +544,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			gwConfs  map[string]*ProcConfig
 		)
 
-		useRuntimeConfigV2 := false
-	OutputLoop:
-		for _, o := range params.Outputs {
-			for _, ep := range o.GetEntrypoints() {
-				if ep.UseRuntimeConfigV2 {
-					useRuntimeConfigV2 = true
-					break OutputLoop
-				}
-			}
-		}
-
-		if useRuntimeConfigV2 {
+		if r.builder.UseNewRuntimeConfig() {
 			_, svcConfs, gwConfs, err = p.ConfigGen.ProcPerServiceWithNewRuntimeConfig(r.SvcProxy)
 			if err != nil {
 				return nil, err

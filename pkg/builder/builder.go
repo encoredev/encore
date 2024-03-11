@@ -242,6 +242,7 @@ type Impl interface {
 	Test(context.Context, TestParams) error
 	ServiceConfigs(context.Context, ServiceConfigsParams) (*ServiceConfigsResult, error)
 	GenUserFacing(context.Context, GenUserFacingParams) error
-	UseNewRuntimeConfig(result *ParseResult) bool
+	UseNewRuntimeConfig() bool
+	NeedsMeta() bool
 	Close() error
 }

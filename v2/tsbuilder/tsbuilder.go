@@ -226,7 +226,11 @@ func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*bu
 	}, nil
 }
 
-func (i *BuilderImpl) UseNewRuntimeConfig(_ *builder.ParseResult) bool {
+func (i *BuilderImpl) UseNewRuntimeConfig() bool {
+	return true
+}
+
+func (i *BuilderImpl) NeedsMeta() bool {
 	return true
 }
 

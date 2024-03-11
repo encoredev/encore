@@ -76,7 +76,7 @@ jobs:
           ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
       - name: Run tests on changed runtime code
-        run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > runtime-test-report.xml
+        run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build ./...
         if: github.event.schedule != '30 2 * * *'
 
       # Each night we want to run all tests multiple times to catch any flaky tests
@@ -84,27 +84,15 @@ jobs:
       # for failures. We will also fail fast so that we don't waste time running tests
       # that are already failing.
       - name: Run all tests multiple times on the CLI
-        run: cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out cli-test-report.xml
+        run: cd encr.dev && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build ./...
         if: github.event.schedule == '30 2 * * *'
         env:
           ENCORE_GOROOT: ${{ github.workspace }}/encore-go
           ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
       - name: Run all tests multiple times on the runtime
-        run: cd encr.dev/runtimes/go && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build 2>&1 ./... | go-junit-report -iocopy -set-exit-code -out runtime-test-report.xml
+        run: cd encr.dev/runtimes/go && go test -v --count=5 -failfast -shuffle=on -timeout=30m -tags=dev_build ./...
         if: github.event.schedule == '30 2 * * *'
-
-      # We upload the test results as artifacts so that in PR's
-      # we can use a separate action to post a comment with the
-      # test results.
-      #
-      # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: Test Results
-          path: encr.dev/**/*-test-report.xml
 
       - name: Report Nightly Failure
         uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
@@ -161,7 +149,7 @@ jobs:
       - name: Run reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Fail the build if there where any static analysis errors within files which where changed
+        # Fail the build if there were any static analysis errors within files which where changed
         # within this PR. Note: we'll ignore changes made on files which where not modified in this PR.
         #
         # If we want to fail on any errors only within the lines modified, change to "-filter-mode=added"
@@ -197,15 +185,3 @@ jobs:
         run: cargo test
       - name: Run rustfmt
         run: cargo fmt --all --check
-
-  # This job is needed for forked repo's
-  # See: https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
-  event_file:
-    name: "Upload Event File"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Upload
-        uses: actions/upload-artifact@v3
-        with:
-          name: Event File
-          path: ${{ github.event_path }}
