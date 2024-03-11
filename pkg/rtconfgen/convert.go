@@ -110,7 +110,9 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 					case *runtimev1.Gateway_CORS_AllowedOrigins:
 						allowOriginsWithCredentials = data.AllowedOrigins.AllowedOrigins
 					case *runtimev1.Gateway_CORS_UnsafeAllowAllOriginsWithCredentials:
-						allowOriginsWithCredentials = []string{config.UnsafeAllOriginWithCredentials}
+						if data.UnsafeAllowAllOriginsWithCredentials {
+							allowOriginsWithCredentials = []string{config.UnsafeAllOriginWithCredentials}
+						}
 					}
 					cfg.CORS = &config.CORS{
 						Debug:                          gw.Cors.Debug,
