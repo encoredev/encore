@@ -19,7 +19,7 @@ use crate::parser::scan::scan;
 use crate::parser::types::TypeChecker;
 use crate::parser::usageparser::{Usage, UsageResolver};
 use crate::parser::FileSet;
-use crate::runtimeresolve::EncoreRuntimeResolver;
+use crate::runtimeresolve::{EncoreRuntimeResolver, TsConfigPathResolver};
 
 pub struct ParseContext<'a> {
     /// Directory roots to parse for Encore resources.
@@ -47,17 +47,17 @@ impl std::fmt::Debug for ParseContext<'_> {
 }
 
 impl<'a> ParseContext<'a> {
-    pub fn new(js_runtime_path: &'a Path) -> Self {
+    pub fn new(app_root: PathBuf, js_runtime_path: &'a Path) -> Result<Self> {
         let resolver = NodeModulesResolver::with_export_conditions(
             TargetEnv::Node,
             Default::default(),
             true,
             vec!["bun".into(), "deno".into(), "types".into()],
         );
-        Self::with_resolver(js_runtime_path, resolver)
+        Self::with_resolver(app_root, js_runtime_path, resolver)
     }
 
-    pub fn with_resolver<R>(js_runtime_path: &'a Path, resolver: R) -> Self
+    pub fn with_resolver<R>(app_root: PathBuf, js_runtime_path: &'a Path, resolver: R) -> Result<Self>
     where
         R: Resolve + 'a,
     {
@@ -69,23 +69,29 @@ impl<'a> ParseContext<'a> {
             Some(cm.clone()),
         ));
 
-        let resolver = Box::new(EncoreRuntimeResolver::new(
-            resolver,
-            js_runtime_path,
-            vec!["types".into()],
-        ));
+        let mut resolver =
+            EncoreRuntimeResolver::new(resolver, js_runtime_path, vec!["types".into()]);
+
+        // Do we have a tsconfig.json file in the app root?
+        {
+            let tsconfig_path = app_root.join("tsconfig.json");
+            if tsconfig_path.exists() {
+                let tsconfig = TsConfigPathResolver::from_file(&tsconfig_path)?;
+                resolver = resolver.with_tsconfig_resolver(tsconfig);
+            }
+        }
 
         let file_set = FileSet::new(cm.clone());
-        let loader = Lrc::new(ModuleLoader::new(errs.clone(), file_set.clone(), resolver));
+        let loader = Lrc::new(ModuleLoader::new(errs.clone(), file_set.clone(), Box::new(resolver)));
         let type_checker = Lrc::new(TypeChecker::new(loader.clone()));
 
-        Self {
-            dir_roots: Vec::new(),
+        Ok(Self {
+            dir_roots: vec![app_root],
             loader,
             type_checker,
             file_set,
             errs,
-        }
+        })
     }
 }
 
