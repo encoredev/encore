@@ -34,7 +34,7 @@ Aside from managing infrastructure, Encore's local development workflow comes wi
 - **Type-aware infrastructure:** With Encore, infrastructure like Pub/Sub queues are type-aware objects in your program. This enables full end-to-end type-safety when building event-driven applications.
 - **Secrets management:** Built-in [secrets management](/docs/primitives/secrets) for all environments.
 - **Tracing:** The [local development dashboard](/docs/observability/dev-dash) provides local tracing to help understand application behavior and find bugs.
-- **Automatic API docs & clients:** Encore generates [API docs](/docs/develop/api-docs) and [API clients](/docs/develop/client-generation[]) in Go, TypeScript, JavaScript, and OpenAPI specification.
+- **Automatic API docs & clients:** Encore generates [API docs](/docs/develop/api-docs) and [API clients](/docs/develop/client-generation) in Go, TypeScript, JavaScript, and OpenAPI specification.
 
 ## Testing
 
