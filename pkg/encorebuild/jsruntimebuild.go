@@ -4,15 +4,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"github.com/rs/zerolog"
 
 	"encr.dev/pkg/encorebuild/buildconf"
 	. "encr.dev/pkg/encorebuild/buildutil"
 	"encr.dev/pkg/encorebuild/compile"
 	"encr.dev/pkg/encorebuild/gentypedefs"
-	"github.com/rs/zerolog"
 )
 
-func BuildJSRuntime(cfg *buildconf.Config) {
+func NewJSRuntimeBuilder(cfg *buildconf.Config) *JSRuntimeBuilder {
 	if cfg.RepoDir == "" {
 		Bailf("repo dir not set")
 	} else if _, err := os.Stat(cfg.RepoDir); err != nil {
@@ -21,30 +23,31 @@ func BuildJSRuntime(cfg *buildconf.Config) {
 
 	workdir := filepath.Join(cfg.CacheDir, "jsruntimebuild", cfg.OS, cfg.Arch)
 	Check(os.MkdirAll(workdir, 0755))
-	w := zerolog.NewConsoleWriter()
-	b := &jsruntimeBuilder{
-		log:     zerolog.New(w),
+	return &JSRuntimeBuilder{
+		log:     cfg.Log,
 		cfg:     cfg,
 		workdir: workdir,
 	}
-	b.Build()
 }
 
-type jsruntimeBuilder struct {
+type JSRuntimeBuilder struct {
 	log     zerolog.Logger
 	cfg     *buildconf.Config
 	workdir string
 }
 
-func (b *jsruntimeBuilder) Build() {
+func (b *JSRuntimeBuilder) Build() {
 	b.buildRustModule()
 	b.genTypeDefWrappers()
 	b.makeDistFolder()
-	b.copyNativeModule()
+
+	if b.cfg.CopyNativeModuleToRepo {
+		b.copyNativeModule()
+	}
 }
 
 // buildRustModule builds the Rust module for the JS runtime.
-func (b *jsruntimeBuilder) buildRustModule() {
+func (b *JSRuntimeBuilder) buildRustModule() {
 	b.log.Info().Msg("building rust module")
 
 	// Figure out the names of the compiled and target binaries.
@@ -75,7 +78,7 @@ func (b *jsruntimeBuilder) buildRustModule() {
 
 // genTypeDefWrappers generates the napi.cjs and napi.d.cts files for
 // use by the JS SDK.
-func (b *jsruntimeBuilder) genTypeDefWrappers() {
+func (b *JSRuntimeBuilder) genTypeDefWrappers() {
 	b.log.Info().Msg("generating napi type definitions")
 	napiPath := filepath.Join(b.npmPackagePath(), napiRelPath)
 	Check(os.MkdirAll(napiPath, 0755))
@@ -91,7 +94,7 @@ func (b *jsruntimeBuilder) genTypeDefWrappers() {
 
 // makeDistFolder creates the dist folder for the JS runtime,
 // and fixes the imports to be ESM-compatible.
-func (b *jsruntimeBuilder) makeDistFolder() {
+func (b *JSRuntimeBuilder) makeDistFolder() {
 	b.log.Info().Msg("creating dist folder")
 	// Sanity-check the runtime dir configuration so we don't delete the wrong thing.
 	base := filepath.Base(b.cfg.RepoDir)
@@ -142,9 +145,9 @@ func (b *jsruntimeBuilder) makeDistFolder() {
 
 }
 
-func (b *jsruntimeBuilder) copyNativeModule() {
+func (b *JSRuntimeBuilder) copyNativeModule() {
 	b.log.Info().Msg("copying native module")
-	copy := func(src, dst string) {
+	copyFile := func(src, dst string) {
 		cmd := exec.Command("cp", src, dst)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -153,27 +156,76 @@ func (b *jsruntimeBuilder) copyNativeModule() {
 	}
 
 	src := b.nativeModuleOutput()
-	dst1 := filepath.Join(b.npmPackagePath(), napiRelPath, "encore-runtime.node")
-	dst2 := filepath.Join(b.npmPackagePath(), "dist", napiRelPath, "encore-runtime.node")
-	copy(src, dst1)
-	copy(src, dst2)
+	dst := filepath.Join(b.jsRuntimePath(), "encore-runtime.node")
+	copyFile(src, dst)
 }
 
-func (b *jsruntimeBuilder) nativeModuleOutput() string {
+func (b *JSRuntimeBuilder) nativeModuleOutput() string {
 	return filepath.Join(b.workdir, "encore-runtime.node")
 }
 
-func (b *jsruntimeBuilder) typeDefPath() string {
+func (b *JSRuntimeBuilder) typeDefPath() string {
 	return filepath.Join(b.workdir, "typedefs.ndjson")
 }
 
-func (b *jsruntimeBuilder) npmPackagePath() string {
+func (b *JSRuntimeBuilder) npmPackagePath() string {
 	return filepath.Join(b.jsRuntimePath(), "encore.dev")
 }
 
-func (b *jsruntimeBuilder) jsRuntimePath() string {
+func (b *JSRuntimeBuilder) jsRuntimePath() string {
 	return filepath.Join(b.cfg.RepoDir, "runtimes", "js")
 }
 
 // napiRelPath is the relative path from the package root to the napi directory.
 var napiRelPath = filepath.Join("internal", "runtime", "napi")
+
+func PublishNPMPackages(repoDir, version string) {
+	packages := []string{"encore.dev"}
+	npmVersion := strings.TrimPrefix(version[1:], "v")
+
+	npmTag := "latest"
+	switch {
+	case strings.Contains(version, "-beta."):
+		npmTag = "beta"
+	case strings.Contains(version, "-nightly."):
+		npmTag = "nightly"
+	}
+
+	// Configure the auth token
+	{
+		authToken := os.Getenv("NPM_PUBLISH_TOKEN")
+		if authToken == "" {
+			Bailf("NPM_PUBLISH_TOKEN not set")
+		}
+		cmd := exec.Command("npm", "set", "//registry.npmjs.org/:_authToken="+authToken)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		Check(cmd.Run())
+	}
+
+	for _, pkg := range packages {
+		pkgDir := filepath.Join(repoDir, "runtimes", "js", pkg)
+
+		// Run 'npm version'.
+		{
+			cmd := exec.Command("npm", "version", "--no-git-tag-version", "--no-commit-hooks", npmVersion)
+			cmd.Dir = pkgDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			Check(cmd.Run())
+		}
+
+		// Run 'npm publish'.
+		{
+			cmd := exec.Command("npm", "publish",
+				"--tolerate-republish",
+				"--access", "public",
+				"--tag", npmTag,
+			)
+			cmd.Dir = pkgDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			Check(cmd.Run())
+		}
+	}
+}

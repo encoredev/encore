@@ -24,9 +24,15 @@ func TestBuildImage(t *testing.T) {
 		"package.json":     `{"name": "package/name"}`,
 		"node_modules/foo": "foo",
 	})
+	runtimes := paths.FS(c.TempDir())
+	writeFiles(c, runtimes, map[string]string{
+		"js/encore-runtime.node":     "node runtime",
+		"js/encore.dev/package.json": `{"name": "encore.dev"}`,
+	})
 
 	cfg := DescribeConfig{
-		Meta: &meta.Data{},
+		Meta:     &meta.Data{},
+		Runtimes: HostPath(runtimes),
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.JSBuildOutput{
 				ArtifactDir: artifacts,

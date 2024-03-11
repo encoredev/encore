@@ -27,6 +27,7 @@ func main() {
 	dst := flag.String("dst", "", "build destination")
 	versionStr := flag.String("v", "", "version number")
 	onlyBuild := flag.String("only", "", "build only the valid target ('darwin-arm64' or 'darwin' or 'arm64' or '' for all)")
+	publishNPM := flag.Bool("publish-npm", false, "publish packages to npm")
 	flag.Parse()
 	if *dst == "" || *versionStr == "" {
 		log.Fatal().Msgf("missing -dst %q or -v %q", *dst, *versionStr)
@@ -91,14 +92,15 @@ func main() {
 
 		b := &encorebuild.DistBuilder{
 			Cfg: &buildconf.Config{
-				Log:        log.With().Str("os", t.OS).Str("arch", t.Arch).Logger(),
-				OS:         t.OS,
-				Arch:       t.Arch,
-				Release:    true,
-				Version:    *versionStr,
-				RepoDir:    root,
-				CacheDir:   cacheDir,
-				MacSDKPath: option.Some("/sdk"),
+				Log:                log.With().Str("os", t.OS).Str("arch", t.Arch).Logger(),
+				OS:                 t.OS,
+				Arch:               t.Arch,
+				Release:            true,
+				Version:            *versionStr,
+				RepoDir:            root,
+				CacheDir:           cacheDir,
+				MacSDKPath:         option.Some("/sdk"),
+				PublishNPMPackages: *publishNPM,
 			},
 			DistBuildDir:     join(*dst, t.OS+"_"+t.Arch),
 			ArtifactsTarFile: join(*dst, "artifacts", "encore-"+*versionStr+"-"+t.OS+"_"+t.Arch+".tar.gz"),
@@ -120,4 +122,9 @@ func main() {
 
 	buildutil.RunParallel(parralelFuncs...)
 	log.Info().Msg("all distributions built successfully")
+
+	if *publishNPM {
+		encorebuild.PublishNPMPackages(root, *versionStr)
+	}
+	log.Info().Msg("successfully published NPM package")
 }
