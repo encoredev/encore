@@ -121,7 +121,7 @@ func (d *DistBuilder) buildNodePlugin() {
 	}
 
 	{
-		src := builder.nativeModuleOutput()
+		src := builder.NativeModuleOutput()
 		dst := join(d.DistBuildDir, "runtimes", "js", "encore-runtime.node")
 		cmd := exec.Command("cp", src, dst)
 		// nosemgrep
