@@ -11,10 +11,7 @@ use crate::api::http_server::HttpServer;
 use crate::api::reqauth::platform;
 use crate::api::schema::encoding::EncodingConfig;
 use crate::api::schema::JSONPayload;
-use crate::api::{
-    auth, encore_routes, endpoints_from_meta, gateway, jsonschema, reqauth, server, APIResult,
-    EndpointMap, IntoResponse,
-};
+use crate::api::{auth, encore_routes, endpoints_from_meta, gateway, jsonschema, reqauth, server, APIResult, EndpointMap, IntoResponse, cors};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
 use crate::trace::Tracer;
@@ -129,9 +126,13 @@ impl ManagerConfig<'_> {
 
             let mut gateways = HashMap::new();
             for gw in &self.meta.gateways {
-                if !hosted_gateways.contains_key(gw.encore_name.as_str()) {
+                let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
                     continue;
-                }
+                };
+                let Some(cors_cfg) = &gw_cfg.cors else {
+                    anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
+                };
+                let cors = cors::layer(cors_cfg).context("failed to parse CORS configuration")?;
 
                 let auth_handler = build_auth_handler(
                     &self.meta,
@@ -149,6 +150,7 @@ impl ManagerConfig<'_> {
                     routes.clone(),
                     auth_handler,
                     self.runtime.clone(),
+                    cors,
                 )
                 .context("unable to create gateway")?;
                 gateways.insert(gw.encore_name.clone().into(), Arc::new(gateway));
