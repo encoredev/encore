@@ -11,6 +11,7 @@ mod manager;
 pub mod reqauth;
 pub mod schema;
 mod server;
+mod cors;
 
 pub use endpoint::*;
 pub use error::*;
