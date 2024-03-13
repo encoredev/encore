@@ -36,10 +36,18 @@ impl Runtime {
                     format!("failed to initialize runtime: {:?}", e),
                 )
             })?;
+        let runtime = Arc::new(runtime);
 
-        Ok(Self {
-            runtime: Arc::new(runtime),
-        })
+        // If we're running tests, there's no specific entrypoint so
+        // start the runtime in the background immediately.
+        if test_mode_enabled {
+            let runtime = runtime.clone();
+            thread::spawn(move || {
+                runtime.run_blocking();
+            });
+        }
+
+        Ok(Self { runtime })
     }
 
     #[napi]
