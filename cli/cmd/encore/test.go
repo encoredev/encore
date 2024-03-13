@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -87,6 +91,43 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 
 	daemon := setupDaemon(ctx)
 
+	// Is this a node package?
+	packageJsonPath := filepath.Join(appRoot, "package.json")
+	if _, err := os.Stat(packageJsonPath); err == nil || prepareOnly {
+		spec, err := daemon.TestSpec(ctx, &daemonpb.TestSpecRequest{
+			AppRoot:    appRoot,
+			WorkingDir: testDir,
+			Args:       args,
+			Environ:    os.Environ(),
+		})
+		if err != nil {
+			fatal(err)
+		}
+
+		if prepareOnly {
+			for _, ln := range spec.Environ {
+				fmt.Println(ln)
+			}
+			return
+		}
+
+		cmd := exec.Command(spec.Command, spec.Args...)
+		cmd.Env = spec.Environ
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+
+		if err := cmd.Run(); err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				os.Exit(exitErr.ExitCode())
+			} else {
+				fatal(err)
+			}
+		}
+		return
+	}
+
 	stream, err := daemon.Test(ctx, &daemonpb.TestRequest{
 		AppRoot:      appRoot,
 		WorkingDir:   testDir,
@@ -94,7 +135,6 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		Environ:      os.Environ(),
 		TraceFile:    nonZeroPtr(traceFile),
 		CodegenDebug: codegenDebug,
-		PrepareOnly:  prepareOnly,
 	})
 	if err != nil {
 		fatal(err)

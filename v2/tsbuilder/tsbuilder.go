@@ -247,7 +247,16 @@ type testInput struct {
 	UseLocalRuntime bool   `json:"use_local_runtime"`
 }
 
-func (i *BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
+func (i *BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) error {
+	cmd := exec.CommandContext(ctx, p.Spec.Command, p.Spec.Args...)
+	cmd.Env = p.Spec.Environ
+	cmd.Dir = p.WorkingDir.ToIO()
+	cmd.Stdout = p.Stdout
+	cmd.Stderr = p.Stderr
+	return cmd.Run()
+}
+
+func (i *BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*builder.TestSpecResult, error) {
 	data := p.Compile.Parse.Data.(*data)
 
 	input, _ := json.Marshal(testInput{
@@ -257,26 +266,26 @@ func (i *BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 
 	_, _ = data.stdin.Write([]byte("test\n"))
 	if _, err := data.stdin.Write(input); err != nil {
-		return fmt.Errorf("unable to write to stdin: %s", err)
+		return nil, fmt.Errorf("unable to write to stdin: %s", err)
 	}
 
 	isSuccess, testResp, err := readResp(data.stdout)
 	if err != nil {
-		return fmt.Errorf("unable to read response: %s", err)
+		return nil, fmt.Errorf("unable to read response: %s", err)
 	} else if !isSuccess {
-		return errors.New(string(testResp))
+		return nil, errors.New(string(testResp))
 	}
 
 	var res struct {
 		Cmd option.Option[*builder.CmdSpec] `json:"cmd"`
 	}
 	if err := json.Unmarshal(testResp, &res); err != nil {
-		return fmt.Errorf("unable to decode response: %s", err)
+		return nil, fmt.Errorf("unable to decode response: %s", err)
 	}
 
 	cmdSpec, ok := res.Cmd.Get()
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("no command spec returned from test command")
 	}
 
 	command := cmdSpec.Command.Expand("")
@@ -284,13 +293,12 @@ func (i *BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 	envs := append(os.Environ(), p.Env...)
 	envs = append(envs, cmdSpec.Env.Expand("")...)
 
-	cmd := exec.CommandContext(ctx, command[0], args...)
-	cmd.Env = envs
-	cmd.Env = append(os.Environ(), cmdSpec.Env.Expand("")...)
-	cmd.Dir = filepath.Join(p.Compile.App.Root(), p.Compile.WorkingDir)
-	cmd.Stdout = p.Stdout
-	cmd.Stderr = p.Stderr
-	return cmd.Run()
+	return &builder.TestSpecResult{
+		Command:     command[0],
+		Args:        args,
+		Environ:     envs,
+		BuilderData: nil,
+	}, nil
 }
 
 func (i *BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingParams) error {
