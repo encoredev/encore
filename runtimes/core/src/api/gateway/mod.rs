@@ -108,33 +108,6 @@ impl Gateway {
     pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
         self.shared.auth.as_ref()
     }
-
-    /// Starts serving the Gateway.
-    pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
-        let router = self
-            .router
-            .lock()
-            .unwrap()
-            .take()
-            .expect("server already started");
-        self.runtime.spawn(async move {
-            // Determine the listen addr.
-            let listen_addr = std::env::var("ENCORE_LISTEN_ADDR")
-                .or_else(|_| -> anyhow::Result<_> {
-                    let port = std::env::var("PORT").context("PORT env var not set")?;
-                    Ok(format!("0.0.0.0:{}", port))
-                })
-                .context("unable to determine listen address")?;
-
-            let listener = tokio::net::TcpListener::bind(listen_addr)
-                .await
-                .context("bind to port")?;
-            axum::serve(listener, router)
-                .await
-                .context("serve gateway")?;
-            Ok(())
-        })
-    }
 }
 
 struct ServiceDirector {
