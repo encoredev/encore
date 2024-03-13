@@ -12,6 +12,7 @@ use swc_common::FileName;
 use swc_ecma_loader::resolve::Resolve;
 
 use crate::runtimeresolve::exports::Exports;
+use crate::runtimeresolve::tsconfig::TsConfigPathResolver;
 
 static PACKAGE: &str = "package.json";
 
@@ -30,6 +31,7 @@ pub struct EncoreRuntimeResolver<'a, R> {
     inner: R,
     js_runtime_path: &'a Path,
     extra_export_conditions: Vec<String>,
+    tsconfig_resolver: Option<TsConfigPathResolver>,
 }
 
 static EXTENSIONS: &[&str] = &["ts", "tsx", "js", "jsx", "json", "node"];
@@ -42,6 +44,14 @@ impl<'a, R> EncoreRuntimeResolver<'a, R> {
             inner,
             js_runtime_path,
             extra_export_conditions,
+            tsconfig_resolver: None,
+        }
+    }
+
+    pub fn with_tsconfig_resolver(self, resolver: TsConfigPathResolver) -> Self {
+        Self {
+            tsconfig_resolver: Some(resolver),
+            ..self
         }
     }
 
@@ -122,6 +132,12 @@ where
     R: Resolve,
 {
     fn resolve(&self, base: &FileName, target: &str) -> Result<FileName, Error> {
+        if let Some(tsconfig) = &self.tsconfig_resolver {
+            if let Some(buf) = tsconfig.resolve(target) {
+                return self.inner.resolve(tsconfig.base(), buf.as_ref());
+            }
+        }
+
         match self.resolve_encore_module(target)? {
             Some(buf) => Ok(FileName::Real(buf.clean())),
             None => self.inner.resolve(base, target),

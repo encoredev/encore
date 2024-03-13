@@ -9,7 +9,7 @@ use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
 /// See https://nodejs.org/api/packages.html#package-entry-points for syntax.
 #[derive(Debug)]
 pub(super) struct Exports {
-    subpaths: indexmap::IndexMap<String, Subpath>,
+    subpaths: IndexMap<String, Subpath>,
 }
 
 impl Exports {

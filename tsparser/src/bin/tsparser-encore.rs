@@ -20,33 +20,54 @@ fn main() -> Result<()> {
         .expect("ENCORE_JS_RUNTIME_PATH not set");
 
     let globals = Globals::new();
-    GLOBALS.set(&globals, || {
+    GLOBALS.set(&globals, || -> Result<()> {
         let builder = Builder::new()?;
         let mut parse: Option<(builder::App, builder::ParseResult)> = None;
 
-        let mut pc = ParseContext::new(&js_runtime_path);
+        let prepare = match parse_cmd()? {
+            Some(Command::Prepare(prepare)) => prepare,
+            Some(_) => anyhow::bail!("expected prepare command"),
+            None => return Ok(()),
+        };
+
+        {
+            let pp = builder::PrepareParams {
+                js_runtime_root: &js_runtime_path,
+                runtime_version: &prepare.runtime_version,
+                app_root: &prepare.app_root,
+                use_local_runtime: prepare.use_local_runtime,
+            };
+
+            match builder.prepare(&pp) {
+                Ok(result) => {
+                    let json = serde_json::to_string(&result)?;
+                    write_result(Ok(json.as_bytes()))?;
+                }
+                Err(err) => {
+                    log::error!("failed to prepare: {:?}", err);
+                    write_result(Err(err))?
+                }
+            }
+        }
+
+        let pc = match ParseContext::new(prepare.app_root, &js_runtime_path) {
+            Ok(pc) => pc,
+            Err(err) => {
+                log::error!("failed to construct parse context: {:?}", err);
+                write_result(Err(err))?;
+                return Ok(());
+            }
+        };
 
         loop {
-            let Some(cmd) = parse_cmd()? else { continue };
+            let cmd = match parse_cmd()? {
+                Some(cmd) => cmd,
+                None => return Ok(()),
+            };
+
             match cmd {
                 Command::Prepare(input) => {
                     log::debug!("got prepare input {:?}", input);
-                    let pp = builder::PrepareParams {
-                        js_runtime_root: &js_runtime_path,
-                        runtime_version: &input.runtime_version,
-                        app_root: &input.app_root,
-                        use_local_runtime: input.use_local_runtime,
-                    };
-                    match builder.prepare(&pp) {
-                        Ok(result) => {
-                            let json = serde_json::to_string(&result)?;
-                            write_result(Ok(json.as_bytes()))?;
-                        }
-                        Err(err) => {
-                            log::error!("failed to prepare: {:?}", err);
-                            write_result(Err(err))?
-                        }
-                    }
                 }
 
                 Command::Parse(input) => {
@@ -60,8 +81,6 @@ fn main() -> Result<()> {
                         platform_id: input.platform_id,
                         local_id: input.local_id,
                     };
-
-                    pc.dir_roots = vec![input.app_root];
                     let pp = builder::ParseParams {
                         app: &app,
                         pc: &pc,
