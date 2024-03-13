@@ -11,7 +11,7 @@ use crate::api::gateway::reverseproxy::{Director, InboundRequest, ProxyRequest, 
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::api::schema::Method;
-use crate::api::{auth, schema, APIResult, IntoResponse};
+use crate::api::{auth, schema, APIResult, IntoResponse, cors};
 use crate::{api, model, EncoreName};
 
 mod reverseproxy;
@@ -41,6 +41,7 @@ impl Gateway {
         service_routes: HashMap<EncoreName, Vec<Route>>,
         auth_handler: Option<auth::Authenticator>,
         runtime: tokio::runtime::Handle,
+        cors: tower_http::cors::CorsLayer,
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
@@ -90,6 +91,8 @@ impl Gateway {
                 router = router.route(&route.path, handler);
             }
         }
+
+        router = router.layer(cors);
 
         Ok(Self {
             shared,
