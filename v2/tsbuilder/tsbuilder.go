@@ -290,7 +290,11 @@ func (i *BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*
 
 	command := cmdSpec.Command.Expand("")
 	args := append(command[1:], p.Args...)
-	envs := append(os.Environ(), p.Env...)
+
+	// Default to the error log level to avoid spamming the logs.
+	envs := append(os.Environ(), "ENCORE_LOG_LEVEL=error")
+
+	envs = append(envs, p.Env...)
 	envs = append(envs, cmdSpec.Env.Expand("")...)
 
 	return &builder.TestSpecResult{
