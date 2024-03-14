@@ -115,7 +115,7 @@ checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 [[package]]
 name = "ast_node"
 version = "0.9.5"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "pmutil",
  "proc-macro2",
@@ -391,7 +391,7 @@ dependencies = [
 [[package]]
 name = "better_scoped_tls"
 version = "0.1.1"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "scoped-tls",
 ]
@@ -1054,7 +1054,7 @@ dependencies = [
 [[package]]
 name = "from_variant"
 version = "0.1.6"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "pmutil",
  "proc-macro2",
@@ -2643,15 +2643,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "psm"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5787f7cda34e3033a72192c018bc5883100330f362ef279a8cbccfce8bb4e874"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "quickcheck"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3322,19 +3313,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 
 [[package]]
-name = "stacker"
-version = "0.1.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c886bd4480155fd3ef527d45e9ac8dd7118a898a46530b7b94c3e21866259fce"
-dependencies = [
- "cc",
- "cfg-if",
- "libc",
- "psm",
- "winapi",
-]
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3357,7 +3335,7 @@ dependencies = [
 [[package]]
 name = "string_enum"
 version = "0.4.1"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "pmutil",
  "proc-macro2",
@@ -3470,7 +3448,7 @@ dependencies = [
 [[package]]
 name = "swc_atoms"
 version = "0.6.4"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "hstr",
  "once_cell",
@@ -3481,7 +3459,7 @@ dependencies = [
 [[package]]
 name = "swc_cached"
 version = "0.3.18"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "ahash",
  "anyhow",
@@ -3494,7 +3472,7 @@ dependencies = [
 [[package]]
 name = "swc_common"
 version = "0.33.8"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "ast_node",
  "atty",
@@ -3521,7 +3499,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ast"
 version = "0.110.9"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "bitflags 2.4.1",
  "is-macro",
@@ -3537,7 +3515,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_loader"
 version = "0.45.9"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "anyhow",
  "dashmap",
@@ -3555,7 +3533,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_parser"
 version = "0.141.21"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "either",
  "new_debug_unreachable",
@@ -3565,7 +3543,6 @@ dependencies = [
  "serde",
  "smallvec",
  "smartstring",
- "stacker",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
@@ -3576,7 +3553,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_base"
 version = "0.134.30"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.4.1",
@@ -3598,7 +3575,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_utils"
 version = "0.124.26"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "indexmap 1.9.3",
  "num_cpus",
@@ -3615,7 +3592,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_visit"
 version = "0.96.9"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "num-bigint",
  "swc_atoms",
@@ -3628,7 +3605,7 @@ dependencies = [
 [[package]]
 name = "swc_eq_ignore_macros"
 version = "0.1.2"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "pmutil",
  "proc-macro2",
@@ -3639,7 +3616,7 @@ dependencies = [
 [[package]]
 name = "swc_macros_common"
 version = "0.3.8"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "pmutil",
  "proc-macro2",
@@ -3650,7 +3627,7 @@ dependencies = [
 [[package]]
 name = "swc_visit"
 version = "0.5.7"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "either",
  "swc_visit_macros",
@@ -3659,7 +3636,7 @@ dependencies = [
 [[package]]
 name = "swc_visit_macros"
 version = "0.5.8"
-source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#6b46199fc5b329cf3f051d26b3e3d7687af0034b"
+source = "git+https://github.com/encoredev/swc?branch=node-resolve-exports#715424ae66a5df5653d5438dda30b4a2541a64cf"
 dependencies = [
  "Inflector",
  "pmutil",

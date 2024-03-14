@@ -9,7 +9,7 @@ name = "tsparser-encore"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-swc_ecma_parser = { version = "0.141.21", features = ["typescript"] }
+swc_ecma_parser = { version = "0.141.21", default-features = false, features = ["typescript"] }
 swc_ecma_ast = "0.110.9"
 swc_ecma_visit = { version = "0.96.9", features = ["path"] }
 swc_ecma_transforms_base = "0.134.30"

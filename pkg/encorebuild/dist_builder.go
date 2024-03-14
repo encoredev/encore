@@ -112,11 +112,17 @@ func (d *DistBuilder) buildNodePlugin() {
 
 	d.Cfg.Log.Info().Msg("copying encore runtime for JS...")
 	{
-		cmd := exec.Command("cp", "-r", "runtimes/js/.", join(d.DistBuildDir, "runtimes", "js")+"/")
+		cmd := exec.Command("rsync",
+			"--delete", "-r",
+			"--exclude", "encore-runtime.node",
+			"--exclude", "node_modules",
+			"runtimes/js",
+			join(d.DistBuildDir, "runtimes", "js"),
+		)
 		cmd.Dir = d.Cfg.RepoDir
 		// nosemgrep
 		if out, err := cmd.CombinedOutput(); err != nil {
-			Bailf("failed to copy encore go runtime: %v: %s", err, out)
+			Bailf("failed to rsync encore js runtime: %v: %s", err, out)
 		}
 	}
 
@@ -126,7 +132,7 @@ func (d *DistBuilder) buildNodePlugin() {
 		cmd := exec.Command("cp", src, dst)
 		// nosemgrep
 		if out, err := cmd.CombinedOutput(); err != nil {
-			Bailf("failed to copy encore go runtime: %v: %s", err, out)
+			Bailf("failed to copy encore js runtime: %v: %s", err, out)
 		}
 	}
 

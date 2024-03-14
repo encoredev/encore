@@ -115,7 +115,7 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	case "windows":
 		switch cfg.Arch {
 		case "amd64":
-			target = "x86_64-pc-windows-gnu"
+			target = "x86_64-pc-windows-msvc"
 		default:
 			Bailf("unsupported architecture for windows: %q", cfg.Arch)
 		}
@@ -130,14 +130,15 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	Check(osPkg.MkdirAll(path, 0755))
 
 	// Build the command
-	cargoArgs := []string{
-		"build",
-		"--target", target + zigTargetSuffix,
-		"--target-dir", path,
+	var cargoArgs []string
+	if cfg.OS == "windows" {
+		cargoArgs = []string{"xwin", "build", "--target", target, "--target-dir", path}
+	} else if useZig {
+		cargoArgs = []string{"zigbuild", "--target", target + zigTargetSuffix, "--target-dir", path}
+	} else {
+		cargoArgs = []string{"build", "--target", target, "--target-dir", path}
 	}
-	if useZig {
-		cargoArgs[0] = "zigbuild"
-	}
+
 	buildMode := "debug"
 	if cfg.Release {
 		cargoArgs = append(cargoArgs, "--release")

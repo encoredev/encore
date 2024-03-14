@@ -14,7 +14,7 @@ quote = "1.0"
 proc-macro2 = "1.0.67"
 anyhow = "1.0"
 litparser = { version = "0.1.0", path = "../litparser" }
-swc_ecma_parser = { version = "0.141.21", features = ["typescript"] }
+swc_ecma_parser = { version = "0.141.21", default-features = false, features = ["typescript"] }
 swc_ecma_ast = "0.110.9"
 swc_ecma_visit = { version = "0.96.9", features = ["path"] }
 swc_ecma_transforms_base = "0.134.30"
