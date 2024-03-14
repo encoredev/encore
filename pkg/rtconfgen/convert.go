@@ -85,12 +85,14 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 			}
 		}
 
-		cfg.GracefulShutdown = &config.GracefulShutdownTimings{
-			Total:         ptr(compute.GracefulShutdown.Total.AsDuration()),
-			ShutdownHooks: ptr(compute.GracefulShutdown.ShutdownHooks.AsDuration()),
-			Handlers:      ptr(compute.GracefulShutdown.Handlers.AsDuration()),
+		if compute.GracefulShutdown != nil {
+			cfg.GracefulShutdown = &config.GracefulShutdownTimings{
+				Total:         ptr(compute.GracefulShutdown.Total.AsDuration()),
+				ShutdownHooks: ptr(compute.GracefulShutdown.ShutdownHooks.AsDuration()),
+				Handlers:      ptr(compute.GracefulShutdown.Handlers.AsDuration()),
+			}
+			cfg.ShutdownTimeout = compute.GracefulShutdown.Total.AsDuration()
 		}
-		cfg.ShutdownTimeout = compute.GracefulShutdown.Total.AsDuration()
 		cfg.DynamicExperiments = compute.DynamicExperiments
 
 		// Set the API Base URL if we have a gateway.
