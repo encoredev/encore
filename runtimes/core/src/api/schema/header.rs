@@ -250,12 +250,22 @@ impl ToResponse for Header {
             });
         };
 
+        let schema = self.schema.root();
         for (key, value) in payload.iter() {
+            let key = key.as_str();
+            let header_name = schema
+                .fields
+                .get(key)
+                .and_then(|f| f.name_override.as_deref())
+                .unwrap_or(key);
+            let header_name =
+                axum::http::header::HeaderName::from_str(header_name).map_err(api::Error::internal)?;
+
             match to_axum_header_value(value)? {
-                AxumHeaders::Single(value) => resp = resp.header(key, value),
+                AxumHeaders::Single(value) => resp = resp.header(header_name, value),
                 AxumHeaders::Multi(values) => {
                     for value in values {
-                        resp = resp.header(key, value);
+                        resp = resp.header(header_name.clone(), value);
                     }
                 }
             }
