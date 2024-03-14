@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	Daemon_Run_FullMethodName             = "/encore.daemon.Daemon/Run"
 	Daemon_Test_FullMethodName            = "/encore.daemon.Daemon/Test"
+	Daemon_TestSpec_FullMethodName        = "/encore.daemon.Daemon/TestSpec"
 	Daemon_ExecScript_FullMethodName      = "/encore.daemon.Daemon/ExecScript"
 	Daemon_Check_FullMethodName           = "/encore.daemon.Daemon/Check"
 	Daemon_Export_FullMethodName          = "/encore.daemon.Daemon/Export"
@@ -47,6 +48,8 @@ type DaemonClient interface {
 	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (Daemon_RunClient, error)
 	// Test runs tests.
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (Daemon_TestClient, error)
+	// TestSpec returns the specification for how to run tests.
+	TestSpec(ctx context.Context, in *TestSpecRequest, opts ...grpc.CallOption) (*TestSpecResponse, error)
 	// ExecScript executes a one-off script.
 	ExecScript(ctx context.Context, in *ExecScriptRequest, opts ...grpc.CallOption) (Daemon_ExecScriptClient, error)
 	// Check checks the app for compilation errors.
@@ -150,6 +153,15 @@ func (x *daemonTestClient) Recv() (*CommandMessage, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func (c *daemonClient) TestSpec(ctx context.Context, in *TestSpecRequest, opts ...grpc.CallOption) (*TestSpecResponse, error) {
+	out := new(TestSpecResponse)
+	err := c.cc.Invoke(ctx, Daemon_TestSpec_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *daemonClient) ExecScript(ctx context.Context, in *ExecScriptRequest, opts ...grpc.CallOption) (Daemon_ExecScriptClient, error) {
@@ -410,6 +422,8 @@ type DaemonServer interface {
 	Run(*RunRequest, Daemon_RunServer) error
 	// Test runs tests.
 	Test(*TestRequest, Daemon_TestServer) error
+	// TestSpec returns the specification for how to run tests.
+	TestSpec(context.Context, *TestSpecRequest) (*TestSpecResponse, error)
 	// ExecScript executes a one-off script.
 	ExecScript(*ExecScriptRequest, Daemon_ExecScriptServer) error
 	// Check checks the app for compilation errors.
@@ -453,6 +467,9 @@ func (UnimplementedDaemonServer) Run(*RunRequest, Daemon_RunServer) error {
 }
 func (UnimplementedDaemonServer) Test(*TestRequest, Daemon_TestServer) error {
 	return status.Errorf(codes.Unimplemented, "method Test not implemented")
+}
+func (UnimplementedDaemonServer) TestSpec(context.Context, *TestSpecRequest) (*TestSpecResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestSpec not implemented")
 }
 func (UnimplementedDaemonServer) ExecScript(*ExecScriptRequest, Daemon_ExecScriptServer) error {
 	return status.Errorf(codes.Unimplemented, "method ExecScript not implemented")
@@ -552,6 +569,24 @@ type daemonTestServer struct {
 
 func (x *daemonTestServer) Send(m *CommandMessage) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _Daemon_TestSpec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TestSpecRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DaemonServer).TestSpec(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Daemon_TestSpec_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DaemonServer).TestSpec(ctx, req.(*TestSpecRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Daemon_ExecScript_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -846,6 +881,10 @@ var Daemon_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "encore.daemon.Daemon",
 	HandlerType: (*DaemonServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "TestSpec",
+			Handler:    _Daemon_TestSpec_Handler,
+		},
 		{
 			MethodName: "DBConnect",
 			Handler:    _Daemon_DBConnect_Handler,

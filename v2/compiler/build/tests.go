@@ -16,11 +16,57 @@ import (
 )
 
 type TestConfig struct {
+	GenerateTestSpecConfig
+	RunTestsConfig
+}
+
+func Test(ctx context.Context, cfg *TestConfig) {
+	b := &builder{
+		ctx:  ctx,
+		cfg:  &cfg.Config,
+		mode: testMode,
+		errs: cfg.Ctx.Errs,
+	}
+	spec := b.GenerateTestSpec(&cfg.GenerateTestSpecConfig)
+	b.RunTests(spec, &cfg.RunTestsConfig)
+}
+
+type TestSpec struct {
+	Command string
+	Args    []string
+	Environ []string
+
+	cfg *Config
+}
+
+type GenerateTestSpecConfig struct {
 	Config
 
 	// Args are additional arguments to "go test".
 	Args []string
+}
 
+func GenerateTestSpec(ctx context.Context, cfg *GenerateTestSpecConfig) *TestSpec {
+	b := &builder{
+		ctx:  ctx,
+		cfg:  &cfg.Config,
+		mode: testMode,
+		errs: cfg.Ctx.Errs,
+	}
+	return b.GenerateTestSpec(cfg)
+}
+
+func RunTests(ctx context.Context, spec *TestSpec, cfg *RunTestsConfig) {
+	b := &builder{
+		ctx:  ctx,
+		cfg:  spec.cfg,
+		mode: testMode,
+		errs: spec.cfg.Ctx.Errs,
+	}
+	b.RunTests(spec, cfg)
+}
+
+type RunTestsConfig struct {
 	// Stdout specifies the stdout to use.
 	Stdout io.Writer
 
@@ -32,18 +78,14 @@ type TestConfig struct {
 	WorkingDir paths.FS
 }
 
-func Test(ctx context.Context, cfg *TestConfig) {
-	b := &builder{
-		ctx:     ctx,
-		cfg:     &cfg.Config,
-		testCfg: cfg,
-		mode:    testMode,
-		errs:    cfg.Ctx.Errs,
+func (b *builder) RunTests(spec *TestSpec, testCfg *RunTestsConfig) {
+	if b.cfg.KeepOutput && b.workdir != "" {
+		_, _ = fmt.Fprintf(testCfg.Stdout, "wrote generated code to: %s\n", b.workdir.ToIO())
 	}
-	b.Test()
+	b.runTests(spec, testCfg)
 }
 
-func (b *builder) Test() {
+func (b *builder) GenerateTestSpec(cfg *GenerateTestSpecConfig) *TestSpec {
 	workdir, tempWorkDir := b.prepareWorkDir()
 	b.workdir = workdir
 
@@ -58,13 +100,8 @@ func (b *builder) Test() {
 		}()
 	}
 
-	if b.cfg.KeepOutput && b.workdir != "" {
-		_, _ = fmt.Fprintf(b.testCfg.Stdout, "wrote generated code to: %s\n", b.workdir.ToIO())
-	}
-
 	for _, fn := range []func(){
 		b.writeModFile,
-		b.runTests,
 	} {
 		fn()
 		// Abort early if we encountered any errors.
@@ -72,65 +109,17 @@ func (b *builder) Test() {
 			break
 		}
 	}
+
+	return b.generateTestSpec(cfg)
 }
 
-func (b *builder) runTests() {
+func (b *builder) runTests(spec *TestSpec, testCfg *RunTestsConfig) {
 	etrace.Sync0(b.ctx, "", "runTests", func(ctx context.Context) {
-		build := b.cfg.Ctx.Build
-		tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
-		args := []string{
-			"test",
-			"-tags=" + strings.Join(tags, ","),
-			"-overlay=" + b.overlayPath.ToIO(),
-			"-vet=off",
-		}
-
-		var ldflags strings.Builder
-		b.writeStaticConfig(&ldflags)
-
-		if b.cfg.Ctx.Build.StaticLink {
-			// Enable external linking if we use cgo.
-			if b.cfg.Ctx.Build.CgoEnabled {
-				ldflags.WriteString(" -linkmode external")
-			}
-
-			ldflags.WriteString(` -extldflags "-static"`)
-		}
-		args = append(args, "-ldflags", ldflags.String())
-
-		if b.cfg.Ctx.Build.Debug {
-			// Disable inlining for better debugging.
-			args = append(args, `-gcflags "all=-N -l"`)
-		}
-
-		args = append(args, b.testCfg.Args...)
-
-		goroot := build.GOROOT
-		cmd := exec.CommandContext(b.cfg.Ctx.Ctx, goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
-
-		// Copy the env before we add additional env vars
-		// to avoid accidentally sharing the same backing array.
-		env := make([]string, len(b.cfg.Env))
-		copy(env, b.cfg.Env)
-
-		env = append(env,
-			"GO111MODULE=on",
-			"GOROOT="+goroot.ToIO(),
-			"GOTOOLCHAIN=local",
-		)
-		if goos := build.GOOS; goos != "" {
-			env = append(env, "GOOS="+goos)
-		}
-		if goarch := build.GOARCH; goarch != "" {
-			env = append(env, "GOARCH="+goarch)
-		}
-		if !build.CgoEnabled {
-			env = append(env, "CGO_ENABLED=0")
-		}
-		cmd.Env = append(os.Environ(), env...)
-		cmd.Dir = b.testCfg.WorkingDir.ToIO()
-		cmd.Stdout = b.testCfg.Stdout
-		cmd.Stderr = b.testCfg.Stderr
+		cmd := exec.CommandContext(b.cfg.Ctx.Ctx, spec.Command, spec.Args...)
+		cmd.Env = spec.Environ
+		cmd.Dir = testCfg.WorkingDir.ToIO()
+		cmd.Stdout = testCfg.Stdout
+		cmd.Stderr = testCfg.Stderr
 
 		err := cmd.Run()
 		if err != nil {
@@ -144,4 +133,64 @@ func (b *builder) runTests() {
 			}
 		}
 	})
+}
+
+func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
+	build := b.cfg.Ctx.Build
+	tags := append([]string{"encore", "encore_internal", "encore_app"}, build.BuildTags...)
+	args := []string{
+		"test",
+		"-tags=" + strings.Join(tags, ","),
+		"-overlay=" + b.overlayPath.ToIO(),
+		"-vet=off",
+	}
+
+	var ldflags strings.Builder
+	b.writeStaticConfig(&ldflags)
+
+	if b.cfg.Ctx.Build.StaticLink {
+		// Enable external linking if we use cgo.
+		if b.cfg.Ctx.Build.CgoEnabled {
+			ldflags.WriteString(" -linkmode external")
+		}
+
+		ldflags.WriteString(` -extldflags "-static"`)
+	}
+	args = append(args, "-ldflags", ldflags.String())
+
+	if b.cfg.Ctx.Build.Debug {
+		// Disable inlining for better debugging.
+		args = append(args, `-gcflags "all=-N -l"`)
+	}
+
+	args = append(args, testCfg.Args...)
+
+	goroot := build.GOROOT
+
+	// Copy the env before we add additional env vars
+	// to avoid accidentally sharing the same backing array.
+	env := make([]string, len(b.cfg.Env))
+	copy(env, b.cfg.Env)
+
+	env = append(env,
+		"GO111MODULE=on",
+		"GOROOT="+goroot.ToIO(),
+		"GOTOOLCHAIN=local",
+	)
+	if goos := build.GOOS; goos != "" {
+		env = append(env, "GOOS="+goos)
+	}
+	if goarch := build.GOARCH; goarch != "" {
+		env = append(env, "GOARCH="+goarch)
+	}
+	if !build.CgoEnabled {
+		env = append(env, "CGO_ENABLED=0")
+	}
+
+	return &TestSpec{
+		Command: goroot.Join("bin", "go"+b.exe()).ToIO(),
+		Args:    args,
+		Environ: append(os.Environ(), env...),
+		cfg:     b.cfg,
+	}
 }

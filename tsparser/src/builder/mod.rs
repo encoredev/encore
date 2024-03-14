@@ -28,7 +28,7 @@ pub struct Builder<'a> {
     catalog_clients_index_js: Template<'a>,
     catalog_clients_index_d_ts: Template<'a>,
     catalog_clients_service_js: Template<'a>,
-    catalog_clients_service_test_js: Template<'a>,
+    catalog_clients_service_testing_js: Template<'a>,
     catalog_clients_service_d_ts: Template<'a>,
     catalog_auth_index_ts: Template<'a>,
     catalog_auth_auth_ts: Template<'a>,
@@ -62,10 +62,10 @@ impl Builder<'_> {
             "catalog_clients_service_js",
             CATALOG_CLIENTS_SERVICE_JS,
         )?;
-        let catalog_clients_service_test_js = Template::new(
+        let catalog_clients_service_testing_js = Template::new(
             &mut reg,
             "catalog_clients_service_test_js",
-            CATALOG_CLIENTS_SERVICE_TEST_JS,
+            CATALOG_CLIENTS_SERVICE_TESTING_JS,
         )?;
         let catalog_clients_service_d_ts = Template::new(
             &mut reg,
@@ -90,7 +90,7 @@ impl Builder<'_> {
             catalog_clients_index_js,
             catalog_clients_index_d_ts,
             catalog_clients_service_js,
-            catalog_clients_service_test_js,
+            catalog_clients_service_testing_js,
             catalog_clients_service_d_ts,
             catalog_auth_index_ts,
             catalog_auth_auth_ts,
@@ -152,8 +152,8 @@ const CATALOG_CLIENTS_INDEX_D_TS: &'static str =
     include_str!("templates/catalog/clients/index_d_ts.handlebars");
 const CATALOG_CLIENTS_SERVICE_JS: &'static str =
     include_str!("templates/catalog/clients/endpoints_js.handlebars");
-const CATALOG_CLIENTS_SERVICE_TEST_JS: &'static str =
-    include_str!("templates/catalog/clients/endpoints_test_js.handlebars");
+const CATALOG_CLIENTS_SERVICE_TESTING_JS: &'static str =
+    include_str!("templates/catalog/clients/endpoints_testing_js.handlebars");
 const CATALOG_CLIENTS_SERVICE_D_TS: &'static str =
     include_str!("templates/catalog/clients/endpoints_d_ts.handlebars");
 const CATALOG_AUTH_INDEX_TS: &'static str =

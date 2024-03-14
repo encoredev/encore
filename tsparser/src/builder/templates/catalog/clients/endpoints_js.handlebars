@@ -2,7 +2,7 @@ import { apiCall } from "encore.dev/internal/codegen/api";
 
 const IS_TEST = process.env.NODE_ENV === "test";
 
-const TEST_ENDPOINTS = IS_TEST ? await import("./endpoints_test.js") : null;
+const TEST_ENDPOINTS = IS_TEST ? await import("./endpoints_testing.js") : null;
 
 {{#each endpoints}}
 export async function {{name}}(params) {
