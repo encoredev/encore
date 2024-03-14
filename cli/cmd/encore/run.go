@@ -67,14 +67,8 @@ func init() {
 
 // runApp runs the app.
 func runApp(appRoot, wd string) {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-interrupt
-		cancel()
-	}()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
 	// Determine listen addr.
 	var listenAddr string

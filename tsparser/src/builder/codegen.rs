@@ -269,16 +269,16 @@ impl Builder<'_> {
                     contents: service_js,
                 });
 
-                let service_test_js = self
-                    .catalog_clients_service_test_js
+                let service_testing_js = self
+                    .catalog_clients_service_testing_js
                     .render(&self.reg, ctx)?;
                 files.push(CodegenFile {
                     path: PathBuf::from("internal")
                         .join("clients")
                         .join(&svc.name)
-                        .join("endpoints_test")
+                        .join("endpoints_testing")
                         .with_extension("js"),
-                    contents: service_test_js,
+                    contents: service_testing_js,
                 });
             }
         }

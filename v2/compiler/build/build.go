@@ -82,10 +82,9 @@ const (
 
 type builder struct {
 	// inputs
-	ctx     context.Context
-	cfg     *Config
-	testCfg *TestConfig
-	mode    mode
+	ctx  context.Context
+	cfg  *Config
+	mode mode
 
 	// internal state
 

@@ -207,7 +207,17 @@ type JSBuildOutput struct {
 func (o *JSBuildOutput) GetArtifactDir() paths.FS     { return o.ArtifactDir }
 func (o *JSBuildOutput) GetEntrypoints() []Entrypoint { return o.Entrypoints }
 
-type TestParams struct {
+type RunTestsParams struct {
+	Spec *TestSpecResult
+
+	// WorkingDir is the directory to invoke the test command from.
+	WorkingDir paths.FS
+
+	// Stdout and Stderr are where to redirect the command output.
+	Stdout, Stderr io.Writer
+}
+
+type TestSpecParams struct {
 	Compile CompileParams
 
 	// Env sets environment variables for "go test".
@@ -215,9 +225,15 @@ type TestParams struct {
 
 	// Args sets extra arguments for "go test".
 	Args []string
+}
 
-	// Stdout and Stderr are where to redirect "go test" output.
-	Stdout, Stderr io.Writer
+type TestSpecResult struct {
+	Command string
+	Args    []string
+	Environ []string
+
+	// For use by the builder when invoking RunTests.
+	BuilderData any
 }
 
 type GenUserFacingParams struct {
@@ -239,7 +255,8 @@ type ServiceConfigsResult struct {
 type Impl interface {
 	Parse(context.Context, ParseParams) (*ParseResult, error)
 	Compile(context.Context, CompileParams) (*CompileResult, error)
-	Test(context.Context, TestParams) error
+	TestSpec(context.Context, TestSpecParams) (*TestSpecResult, error)
+	RunTests(context.Context, RunTestsParams) error
 	ServiceConfigs(context.Context, ServiceConfigsParams) (*ServiceConfigsResult, error)
 	GenUserFacing(context.Context, GenUserFacingParams) error
 	UseNewRuntimeConfig() bool

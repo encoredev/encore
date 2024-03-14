@@ -217,8 +217,44 @@ func (i BuilderImpl) NeedsMeta() bool {
 	return false
 }
 
-func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
+func (i BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
+		defer func() {
+			err, _ = perr.CatchBailoutAndPanic(err, recover())
+		}()
+
+		spec, ok := p.Spec.BuilderData.(*build.TestSpec)
+		if !ok {
+			return errors.Newf("invalid builder data type %T", spec)
+		}
+
+		build.RunTests(ctx, spec, &build.RunTestsConfig{
+			Stdout:     p.Stdout,
+			Stderr:     p.Stderr,
+			WorkingDir: p.WorkingDir,
+		})
+
+		return nil
+	})
+}
+
+func (i BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*builder.TestSpecResult, error) {
+	return etrace.Sync2(ctx, "", "v2builder.TestSpec", func(ctx context.Context) (res *builder.TestSpecResult, err error) {
+		spec, err := i.generateTestSpec(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		return &builder.TestSpecResult{
+			Command:     spec.Command,
+			Args:        spec.Args,
+			Environ:     spec.Environ,
+			BuilderData: spec,
+		}, nil
+	})
+}
+
+func (i BuilderImpl) generateTestSpec(ctx context.Context, p builder.TestSpecParams) (*build.TestSpec, error) {
+	return etrace.Sync2(ctx, "", "v2builder.generateTestSpec", func(ctx context.Context) (res *build.TestSpec, err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
@@ -235,7 +271,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 					testCfg.Packages = append(testCfg.Packages, pkg)
 				}
 			}
-			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p, p.Env)
+			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p.Args, p.Env)
 
 			infragen.Process(gg, pd.appDesc)
 			return apigen.Process(apigen.Params{
@@ -250,7 +286,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 			})
 		})
 
-		build.Test(ctx, &build.TestConfig{
+		spec := build.GenerateTestSpec(ctx, &build.GenerateTestSpecConfig{
 			Config: build.Config{
 				Ctx:          pd.pc,
 				Overlays:     gg.Overlays(),
@@ -258,23 +294,20 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 				Env:          p.Env,
 				StaticConfig: staticConfig,
 			},
-			Args:       p.Args,
-			Stdout:     p.Stdout,
-			Stderr:     p.Stderr,
-			WorkingDir: paths.RootedFSPath(p.Compile.App.Root(), p.Compile.WorkingDir),
+			Args: p.Args,
 		})
 
 		if pd.pc.Errs.Len() > 0 {
-			return pd.pc.Errs.AsError()
+			return nil, pd.pc.Errs.AsError()
 		}
-		return nil
+		return spec, nil
 	})
 }
 
 // testEnvVars takes a list of env vars and filters them down to the ones
 // that should be embedded within the test binary.
-func (i BuilderImpl) testEnvVarsToEmbed(p builder.TestParams, envs []string) map[string]string {
-	if !slices.Contains(p.Args, "-c") {
+func (i BuilderImpl) testEnvVarsToEmbed(args, envs []string) map[string]string {
+	if !slices.Contains(args, "-c") {
 		return nil
 	}
 

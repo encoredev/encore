@@ -11,6 +11,8 @@ service Daemon {
   rpc Run (RunRequest) returns (stream CommandMessage);
   // Test runs tests.
   rpc Test (TestRequest) returns (stream CommandMessage);
+  // TestSpec returns the specification for how to run tests.
+  rpc TestSpec (TestSpecRequest) returns (TestSpecResponse);
   // ExecScript executes a one-off script.
   rpc ExecScript (ExecScriptRequest) returns (stream CommandMessage);
   // Check checks the app for compilation errors.
@@ -120,10 +122,22 @@ message TestRequest {
 
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 7;
+}
 
-  // prepare_only, if true, prepares the test infrastructure and
-  // prints the environment variables to use.
-  bool prepare_only = 8;
+message TestSpecRequest {
+  string app_root = 1;
+  string working_dir = 2;
+  repeated string args = 3;
+
+  // environ is the environment to set for the running command.
+  // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
+  repeated string environ = 4;
+}
+
+message TestSpecResponse {
+  string command = 1;
+  repeated string args = 2;
+  repeated string environ = 3;
 }
 
 message ExecScriptRequest {

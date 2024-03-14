@@ -391,6 +391,10 @@ fn parse_meta(path: &Path) -> Result<metapb::Data, ParseError> {
 }
 
 fn enable_test_mode() -> Result<(), ParseError> {
+    if std::env::var("ENCORE_APP_META").is_ok() {
+        return Ok(());
+    }
+
     let out = cmd!("encore", "test", "--prepare")
         .stdout_capture()
         .stderr_capture()
