@@ -81,6 +81,10 @@ impl Authenticator {
         Self::new(schema, AuthHandlerType::Remote(Arc::new(remote)))
     }
 
+    pub fn schema(&self) -> &Schema {
+        &self.schema
+    }
+
     pub async fn authenticate<R: InboundRequest>(
         &self,
         req: &R,

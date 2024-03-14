@@ -132,7 +132,6 @@ impl ManagerConfig<'_> {
                 let Some(cors_cfg) = &gw_cfg.cors else {
                     anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
                 };
-                let cors = cors::layer(cors_cfg).context("failed to parse CORS configuration")?;
 
                 let auth_handler = build_auth_handler(
                     &self.meta,
@@ -142,6 +141,9 @@ impl ManagerConfig<'_> {
                     self.tracer.clone(),
                 )
                 .context("unable to build authenticator")?;
+
+                let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
+                let cors = cors::layer(cors_cfg, meta_headers).context("failed to parse CORS configuration")?;
 
                 let gateway = Gateway::new(
                     gw.encore_name.clone().into(),
