@@ -10,6 +10,7 @@ use crate::api::jsonschema::de::DecodeValue;
 mod de;
 mod meta;
 mod parse;
+mod ser;
 
 use crate::api::jsonschema::parse::ParseWithSchema;
 use crate::api::APIResult;

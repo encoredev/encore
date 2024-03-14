@@ -1,5 +1,4 @@
 use axum::http::HeaderValue;
-use bytes::{BufMut, BytesMut};
 
 use crate::api;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
@@ -42,7 +41,7 @@ impl ToOutgoingRequest for Body {
         payload: &mut JSONPayload,
         req: &mut reqwest::Request,
     ) -> APIResult<()> {
-        let Some(payload) = payload else {
+        if payload.is_none() {
             return Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: "missing body payload".to_string(),
@@ -51,7 +50,7 @@ impl ToOutgoingRequest for Body {
             });
         };
 
-        let body = serde_json::to_vec(payload).map_err(api::Error::internal)?;
+        let body = self.schema.to_vec(payload).map_err(api::Error::internal)?;
         if !req.headers().contains_key(CONTENT_TYPE) {
             req.headers_mut().insert(
                 CONTENT_TYPE,
@@ -69,15 +68,13 @@ impl Body {
         payload: &JSONPayload,
         resp: axum::http::response::Builder,
     ) -> APIResult<axum::http::Response<axum::body::Body>> {
-        let mut buf = BytesMut::with_capacity(128).writer();
-        serde_json::to_writer(&mut buf, &payload).map_err(|e| api::Error::internal(e))?;
-
+        let buf = self.schema.to_vec(payload).map_err(api::Error::internal)?;
         let resp = resp
             .header(
                 axum::http::header::CONTENT_TYPE,
                 HeaderValue::from_static(mime::APPLICATION_JSON.as_ref()),
             )
-            .body(axum::body::Body::from(buf.into_inner().freeze()))
+            .body(axum::body::Body::from(buf))
             .map_err(|e| api::Error::internal(e))?;
 
         Ok(resp)
