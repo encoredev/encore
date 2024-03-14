@@ -223,19 +223,28 @@ func (i BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) err
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
 
-		spec, ok := p.Spec.BuilderData.(*build.TestSpec)
+		data, ok := p.Spec.BuilderData.(*testBuilderData)
 		if !ok {
-			return errors.Newf("invalid builder data type %T", spec)
+			return errors.Newf("invalid builder data type %T", p.Spec.BuilderData)
 		}
 
-		build.RunTests(ctx, spec, &build.RunTestsConfig{
+		build.RunTests(ctx, data.spec, &build.RunTestsConfig{
 			Stdout:     p.Stdout,
 			Stderr:     p.Stderr,
 			WorkingDir: p.WorkingDir,
 		})
 
+		if data.pc.Errs.Len() > 0 {
+			return data.pc.Errs.AsError()
+		}
+
 		return nil
 	})
+}
+
+type testBuilderData struct {
+	spec *build.TestSpec
+	pc   *parsectx.Context
 }
 
 func (i BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*builder.TestSpecResult, error) {
@@ -244,11 +253,18 @@ func (i BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*b
 		if err != nil {
 			return nil, err
 		}
+
+		pd := p.Compile.Parse.Data.(*parseData)
+		data := &testBuilderData{
+			spec: spec,
+			pc:   pd.pc,
+		}
+
 		return &builder.TestSpecResult{
 			Command:     spec.Command,
 			Args:        spec.Args,
 			Environ:     spec.Environ,
-			BuilderData: spec,
+			BuilderData: data,
 		}, nil
 	})
 }
