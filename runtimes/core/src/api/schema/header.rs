@@ -34,6 +34,14 @@ impl Header {
     pub fn fields(&self) -> impl Iterator<Item = (&String, &jsonschema::Field)> {
         self.schema.root().fields.iter()
     }
+
+    /// Returns an iterator that yields the header names that are expected by the schema.
+    pub fn header_names(&self) -> impl Iterator<Item = axum::http::HeaderName> + '_ {
+        self.schema.root().fields.iter().filter_map(|(name, field)| {
+            let header_name = field.name_override.as_deref().unwrap_or(name.as_str());
+            axum::http::HeaderName::from_str(header_name).ok()
+        })
+    }
 }
 
 pub trait AsStr {
