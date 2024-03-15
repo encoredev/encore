@@ -33,6 +33,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+	github.com/hasura/go-graphql-client v0.12.1
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgproto3/v2 v2.3.2
 	github.com/jackc/pgx/v5 v5.4.3
@@ -105,7 +106,7 @@ require (
 	github.com/golang/glog v1.1.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/uuid v1.5.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -150,6 +151,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
+	nhooyr.io/websocket v1.8.10 // indirect
 )
 
 // The implementation of the `encore.dev` runtime, is in this repo
