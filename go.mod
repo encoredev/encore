@@ -33,6 +33,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+	github.com/hasura/go-graphql-client v0.12.1
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgproto3/v2 v2.3.2
 	github.com/jackc/pgx/v5 v5.4.3
@@ -105,7 +106,7 @@ require (
 	github.com/golang/glog v1.1.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/uuid v1.5.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -135,7 +136,6 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/nsqio/go-diskqueue v1.1.0 // indirect
-	github.com/onsi/gomega v1.30.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
 	github.com/perimeterx/marshmallow v1.1.4 // indirect
@@ -147,11 +147,11 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
+	nhooyr.io/websocket v1.8.10 // indirect
 )
 
 // The implementation of the `encore.dev` runtime, is in this repo
