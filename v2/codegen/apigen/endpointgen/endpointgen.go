@@ -13,6 +13,7 @@ import (
 	"encr.dev/v2/internals/resourcepaths"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/apis/selector"
 )
 
 func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl], svcMiddleware map[*middleware.Middleware]*codegen.VarDecl) map[*api.Endpoint]*codegen.VarDecl {
@@ -87,6 +88,7 @@ func genAPIDesc(
 		Id("RawPath"):        Lit(rawPath(ep.Path)),
 		Id("DefLoc"):         Lit(gen.TraceNodes.Endpoint(ep)),
 		Id("PathParamNames"): pathParamNames(ep.Path),
+		Id("Tags"):           tagNames(ep.Tags),
 		Id("Access"):         access,
 
 		Id("DecodeReq"):      reqDesc.DecodeRequest(),
@@ -183,5 +185,19 @@ func pathParamNames(path *resourcepaths.Path) Code {
 		for _, s := range path.Params() {
 			g.Lit(s.Value)
 		}
+	})
+}
+
+// tagNames yields a []string literal containing the tag names.
+func tagNames(tags selector.Set) Code {
+	if tags.Len() == 0 {
+		return Nil()
+	}
+	return Index().String().ValuesFunc(func(g *Group) {
+		tags.ForEach(func(sel selector.Selector) {
+			if sel.Type == selector.Tag {
+				g.Lit(sel.Value)
+			}
+		})
 	})
 }

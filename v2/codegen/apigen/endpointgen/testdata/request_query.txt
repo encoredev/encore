@@ -136,4 +136,5 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	Service:           "code",
 	ServiceMiddleware: []*__api.Middleware{},
 	SvcNum:            1,
+	Tags:              nil,
 }
