@@ -163,7 +163,7 @@ Code generation commands
 
 Generates an API client for your app. For more information about the generated clients, see [this page](/docs/develop/client-generation).
 
-By default generates the API based on your primary production environment.
+By default generates the API based on your [primary environment](/docs/deploy/environments#primary-environment).
 Use '--env=local' to generate it based on your local development version of the app.
 
 Supported language codes are:

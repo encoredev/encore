@@ -80,3 +80,11 @@ When you create an environment, you decide which process allocation you want for
 Deploying services as separate processes is not yet supported when using AWS Fargate. For multi-process deployments, select AWS EKS or GCP CloudRun / GKE.
 
 </Callout>
+
+## Primary environment
+
+Encore application's have a **primary environment** that is used as the default environment for functionality like viewing API documentation or app insights in the [Cloud Dashboard](https://app.encore.dev), and as the default for CLI functionality like API client generation. It should generally reflect what you consider to be the main 'production' environment.
+
+To configure which environment should be used as the primary environment, open your app in the [Cloud Dashboard](https://app.encore.dev), go to **Settings** > **General** > **Primary Environment**, then select the environment you want from the dropdown and click **Update**.
+
+
