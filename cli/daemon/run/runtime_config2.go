@@ -537,7 +537,7 @@ func (g *RuntimeConfigGenerator) ProcPerServiceWithNewRuntimeConfig(proxy *svcpr
 	return
 }
 
-func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (env []string, err error) {
+func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (envs []string, err error) {
 	if err := g.initialize(); err != nil {
 		return nil, err
 	}
@@ -558,8 +558,6 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (env []string, er
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate runtime config")
 	}
-
-	configEnvs := g.encodeConfigs(fns.Map(g.md.Svcs, func(svc *meta.Service) string { return svc.Name })...)
 
 	var runtimeCfgStr string
 	if newRuntimeConf {
@@ -584,10 +582,13 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (env []string, er
 		runtimeCfgStr = base64.RawURLEncoding.EncodeToString(runtimeCfgBytes)
 	}
 
-	envs := append([]string{
+	envs = append(envs,
 		fmt.Sprintf("%s=%s", appSecretsEnvVar, encodeSecretsEnv(g.DefinedSecrets)),
 		fmt.Sprintf("%s=%s", runtimeCfgEnvVar, runtimeCfgStr),
-	}, configEnvs...)
+	)
+
+	svcNames := fns.Map(g.md.Svcs, func(svc *meta.Service) string { return svc.Name })
+	envs = append(envs, g.encodeConfigs(svcNames...)...)
 
 	if g.IncludeMetaEnv {
 		metaBytes, err := proto.Marshal(g.md)
@@ -599,7 +600,7 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (env []string, er
 	}
 
 	if runtimeLibPath := encoreEnv.EncoreRuntimeLib(); runtimeLibPath != "" {
-		env = append(env, "ENCORE_RUNTIME_LIB="+runtimeLibPath)
+		envs = append(envs, "ENCORE_RUNTIME_LIB="+runtimeLibPath)
 	}
 
 	return envs, nil
