@@ -13,7 +13,7 @@ You can also view the environment in the Cloud Dashboard, where the url will be 
 
 ## Preview Infrastructure
 
-Preview Environments run in Encore's free development cloud, removing the need to manually manage and pay for your own sandbox environments. This gives you a cost-efficient way to validate your changes before they are merged and deployed to the primary environment.
+Preview Environments run in Encore's free development cloud, removing the need to manually manage and pay for your own sandbox environments. This gives you a cost-efficient way to validate your changes before they are merged and deployed to the [primary environment](/docs/deploy/environments#primary-environment).
 
 See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious about exactly how Preview Environments are provisioned.
 
