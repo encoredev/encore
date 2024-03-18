@@ -4,7 +4,7 @@ import { registerGateways, registerHandlers, run, type Handler } from "encore.de
 import { {{bind_name}} as {{encoreNameToIdent encore_name}}GW } from {{toJSON import_path}};
 {{/each}}
 {{#each endpoints}}
-import { {{name}} as {{name}}Impl } from {{toJSON import_path}};
+import { {{name}} as {{service_name}}_{{name}}Impl } from {{toJSON import_path}};
 {{/each}}
 
 
@@ -19,7 +19,7 @@ const handlers: Handler[] = [
     {
         service: {{toJSON service_name}},
         name:    {{toJSON name}},
-        handler: {{name}}Impl,
+        handler: {{service_name}}_{{name}}Impl,
     },
 {{/each}}
 ];
