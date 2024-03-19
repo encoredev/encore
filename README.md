@@ -9,7 +9,9 @@ It consists of a **Microservice Framework** & **Infrastructure SDK**, a **Local 
 
 **🏁 Try Encore:** [Quick Start Guide](https://encore.dev/docs/quick-start)
 
-**💻 See examples:** [Example Apps Repo](https://github.com/encoredev/examples/)
+**💻 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
+
+**🚀 Discover products built with Encore:** [Showcase](https://encore.dev/showcase)
 
 **⭐ Star this repository** to help spread the word.
 
