@@ -21,8 +21,8 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 	slog := &streamLog{stream: stream, buffered: true}
 	stderr := slog.Stderr(false)
 	sendErr := func(err error) {
-		if err := run.AsErrorList(err); err != nil {
-			_ = err.SendToStream(stream)
+		if list := run.AsErrorList(err); list != nil {
+			_ = list.SendToStream(stream)
 		} else {
 			errStr := err.Error()
 			if !strings.HasSuffix(errStr, "\n") {

@@ -196,10 +196,16 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	if err != nil {
 		return err
 	}
+	procEnv, err := configGen.ProcEnvs(procConf, bld.UseNewRuntimeConfig())
+	if err != nil {
+		return errors.Wrap(err, "compute proc envs")
+	}
 
 	env := append(os.Environ(), proc.Env...)
 	env = append(env, p.Environ...)
 	env = append(env, procConf.ExtraEnv...)
+
+	env = append(env, procEnv...)
 	env = append(env, encodeServiceConfigs(cfg.Configs)...)
 	if runtimeLibPath := encoreEnv.EncoreRuntimeLib(); runtimeLibPath != "" {
 		env = append(env, "ENCORE_RUNTIME_LIB="+runtimeLibPath)
