@@ -253,10 +253,11 @@ impl ToResponse for Header {
         let schema = self.schema.root();
         for (key, value) in payload.iter() {
             let key = key.as_str();
-            let header_name = schema
-                .fields
-                .get(key)
-                .and_then(|f| f.name_override.as_deref())
+            let Some(field) = schema.fields.get(key) else {
+                continue; // Not a header.
+            };
+            let header_name =
+                field.name_override.as_deref()
                 .unwrap_or(key);
             let header_name =
                 axum::http::header::HeaderName::from_str(header_name).map_err(api::Error::internal)?;
