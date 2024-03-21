@@ -5,9 +5,9 @@ title: Distributed Tracing
 subtitle: Track requests across your application and infrastructure
 ---
 
-Distributed systems often have many moving parts, making it it difficult to understand what your code is doing and finding the root-cause to bugs. That’s where Tracing comes in. If you haven’t seen it before, it may just about change your life.
+Distributed systems often have many moving parts, making it difficult to understand what your code is doing and finding the root-cause to bugs. That’s where Tracing comes in. If you haven’t seen it before, it may just about change your life.
 
-Tracing is a revolutionary way to gain insight into what your applications is doing. It works by capturing the series of events as they occur during the execution of your code (a “trace”). This works by propagating a trace id between all individual systems, then corralating and joining the information together to present a unified picture of what happened end-to-end.
+Tracing is a revolutionary way to gain insight into what your applications are doing. It works by capturing the series of events as they occur during the execution of your code (a “trace”). This works by propagating a trace id between all individual systems, then correlating and joining the information together to present a unified picture of what happened end-to-end.
 
 As opposed to the labor intensive instrumentation you'd normally need to go through to use tracing, Encore automatically captures traces for your entire application – in all environments. Uniquely, this means you can use tracing even for local development to help debugging and speed up iterations.
 
