@@ -1,11 +1,13 @@
 package ai
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/importer"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"go/types"
 	"os"
@@ -69,7 +71,7 @@ func (f *endpointFile) Func(id string, params, rtnParams []string, body ...strin
 	if len(rtnParams) > 1 {
 		rtnParamsStr = fmt.Sprintf("(%s)", rtnParamsStr)
 	}
-	f.buffer.WriteString(fmt.Sprintf("func %s(%s) %s {\n%s\n}\n", id, paramsStr, rtnParamsStr, strings.Join(body, "\n")))
+	f.buffer.WriteString(fmt.Sprintf("func %s(%s) %s {  \n%s\n}\n", id, paramsStr, rtnParamsStr, strings.Join(body, "\n")))
 }
 
 func (f *endpointFile) Pkg() {
@@ -79,7 +81,7 @@ func (f *endpointFile) Pkg() {
 func (f *endpointFile) Imports(imports ...string) {
 	f.buffer.WriteString("import (\n")
 	for _, i := range imports {
-		f.buffer.WriteString(fmt.Sprintf("\"%s\"\n", i))
+		f.buffer.WriteString(fmt.Sprintf("  \"%s\"\n", i))
 	}
 	f.buffer.WriteString(")\n\n")
 }
@@ -114,10 +116,14 @@ func (f *endpointFile) Handler(e EndpointInput) {
 }
 
 func (f *endpointFile) validate() (*token.FileSet, *ast.File, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", f.buffer.String(), parser.AllErrors|parser.ParseComments)
+	src, err := format.Source([]byte(f.buffer.String()))
 	if err != nil {
 		return nil, nil, err
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, parser.AllErrors|parser.ParseComments)
+	if err != nil {
+		return nil, file, err
 	}
 	// Try to import undefined packages (for now we'll just test for stdlib packages)
 	undefined := map[string]struct{}{}
@@ -128,6 +134,9 @@ func (f *endpointFile) validate() (*token.FileSet, *ast.File, error) {
 		Error: func(err error) {
 			if terr, ok := err.(types.Error); ok {
 				before, after, found := strings.Cut(terr.Msg, ": ")
+				// Try to import undefined packages.
+				// We don't do full app compilation here, so we'll just test for stdlib packages
+				// and ignore the rest.
 				if found && before == "undefined" {
 					if _, err := imp.Import(after); err == nil {
 						undefined[after] = struct{}{}
@@ -135,11 +144,12 @@ func (f *endpointFile) validate() (*token.FileSet, *ast.File, error) {
 					return
 				}
 			}
+			unexpectedErr = err
 		},
 	}
 	_, _ = conf.Check("", fset, []*ast.File{file}, nil)
 	if unexpectedErr != nil {
-		return nil, nil, unexpectedErr
+		return fset, file, unexpectedErr
 	}
 	if len(undefined) > 0 {
 		for i := 0; i < len(file.Decls); i++ {
@@ -156,7 +166,7 @@ func (f *endpointFile) validate() (*token.FileSet, *ast.File, error) {
 		ast.SortImports(fset, file)
 		_, _ = conf.Check("", fset, []*ast.File{file}, nil)
 		if unexpectedErr != nil {
-			return nil, nil, unexpectedErr
+			return fset, file, unexpectedErr
 		}
 	}
 	return fset, file, nil
@@ -244,15 +254,60 @@ func GenerateCode(services []ServiceInput, app *apps.Instance) error {
 	return nil
 }
 
-func ValidateCode(services []ServiceInput, app *apps.Instance) error {
+type ValidationError struct {
+	Message string `json:"message"`
+	Line    *int   `json:"line"`
+	Column  *int   `json:"column"`
+}
+
+type ValidationResult struct {
+	Service  string            `json:"service"`
+	Endpoint string            `json:"endpoint"`
+	Code     string            `json:"code"`
+	Errors   []ValidationError `json:"errors"`
+}
+
+func ValidateCode(services []ServiceInput, app *apps.Instance) ([]ValidationResult, error) {
 	endpointFiles, err := generateCode(services, app)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var results []ValidationResult
 	for _, f := range endpointFiles {
-		if _, _, err := f.validate(); err != nil {
-			return err
+		fset, file, err := f.validate()
+		srcBuf := f.buffer
+		if file != nil {
+			srcBuf = strings.Builder{}
+			_ = format.Node(&srcBuf, fset, file)
 		}
+		res := ValidationResult{
+			Service:  f.svc,
+			Endpoint: f.endpoint,
+			Code:     srcBuf.String(),
+		}
+		if err != nil {
+			var e types.Error
+			var list scanner.ErrorList
+			if errors.As(err, &list) {
+				for _, e := range list {
+					res.Errors = append(res.Errors, ValidationError{
+						Message: e.Msg,
+						Line:    ptr(e.Pos.Line),
+						Column:  ptr(e.Pos.Column),
+					})
+				}
+			} else if errors.As(err, &e) {
+				pos := fset.Position(e.Pos)
+				res.Errors = append(res.Errors, ValidationError{
+					Message: e.Msg,
+					Line:    ptr(pos.Line),
+					Column:  ptr(pos.Column),
+				})
+			} else {
+				res.Errors = append(res.Errors, ValidationError{Message: err.Error()})
+			}
+		}
+		results = append(results, res)
 	}
-	return nil
+	return results, nil
 }
