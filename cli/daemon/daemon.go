@@ -31,6 +31,7 @@ import (
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -102,6 +103,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 
 		// Parse the app to figure out what infrastructure is needed.
 		bld := builderimpl.Resolve(expSet)
+		defer fns.CloseIgnore(bld)
 		parse, err := bld.Parse(ctx, builder.ParseParams{
 			Build:       builder.DefaultBuildInfo(),
 			App:         app,
@@ -113,6 +115,10 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 			return nil, status.Errorf(codes.InvalidArgument, "failed to parse app metadata: %v", err)
 		}
 		md = parse.Meta
+
+		if err := app.CacheMetadata(md); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to cache app metadata: %v", err)
+		}
 	} else {
 		envName := params.EnvName
 		if envName == "" {

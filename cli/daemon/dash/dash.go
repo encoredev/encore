@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -27,7 +28,7 @@ import (
 	"encr.dev/pkg/editors"
 	"encr.dev/pkg/errlist"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
-	v1 "encr.dev/proto/encore/parser/meta/v1"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type handler struct {
@@ -66,36 +67,59 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			ID      string `json:"id"`
 			Name    string `json:"name"`
 			AppRoot string `json:"app_root"`
+			Offline bool   `json:"offline,omitempty"`
 		}
-		runs := h.run.ListRuns()
+
 		apps := []app{} // prevent marshalling as null
-		seen := make(map[string]bool)
-		for _, r := range runs {
-			id := r.App.PlatformOrLocalID()
-			name := r.App.PlatformID()
-			if name == "" {
-				name = filepath.Base(r.App.Root())
-			}
-			if !seen[id] {
-				seen[id] = true
-				apps = append(apps, app{ID: id, Name: name, AppRoot: r.App.Root()})
-			}
+
+		// Load all the apps we know about
+		allApp, err := h.apps.List()
+		if err != nil {
+			return reply(ctx, nil, err)
 		}
+		for _, instance := range allApp {
+			data := app{
+				ID:      instance.PlatformOrLocalID(),
+				Name:    instance.Name(),
+				AppRoot: instance.Root(),
+				Offline: true,
+			}
+
+			if run := h.run.FindRunByAppID(instance.PlatformOrLocalID()); run != nil {
+				data.Offline = false
+			}
+
+			apps = append(apps, data)
+		}
+
+		// Sort the apps by offline status, then by name
+		slices.SortStableFunc(apps, func(a, b app) int {
+			if a.Offline == b.Offline {
+				return strings.Compare(a.Name, b.Name)
+			}
+			if a.Offline {
+				return 1
+			}
+			return -1
+		})
+
 		return reply(ctx, apps, nil)
 
 	case "traces/list":
 		var params struct {
-			AppID     string `json:"app_id"`
-			MessageID string `json:"message_id"`
+			AppID      string `json:"app_id"`
+			MessageID  string `json:"message_id"`
+			TestTraces *bool  `json:"test_traces,omitempty"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
 		}
 
 		query := &trace2.Query{
-			AppID:     params.AppID,
-			MessageID: params.MessageID,
-			Limit:     100,
+			AppID:      params.AppID,
+			TestFilter: params.TestTraces,
+			MessageID:  params.MessageID,
+			Limit:      100,
 		}
 		var list []*tracepb2.SpanSummary
 		iter := func(s *tracepb2.SpanSummary) bool {
@@ -146,44 +170,15 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			}
 		}
 
-		type statusResponse struct {
-			Running     bool                  `json:"running"`
-			AppID       string                `json:"appID"`
-			PID         string                `json:"pid,omitempty"`
-			Meta        json.RawMessage       `json:"meta,omitempty"`
-			Addr        string                `json:"addr,omitempty"`
-			APIEncoding *encoding.APIEncoding `json:"apiEncoding,omitempty"`
-			AppRoot     string                `json:"appRoot"`
-		}
-
 		// Now find the running instance(s)
 		runInstance := h.run.FindRunByAppID(params.AppID)
-		proc := runInstance.ProcGroup()
-		if runInstance == nil || proc == nil {
-			return reply(ctx, statusResponse{
-				Running: false,
-				AppID:   app.PlatformOrLocalID(),
-				AppRoot: app.Root(),
-			}, nil)
-		}
-
-		m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
-		str, err := m.MarshalToString(proc.Meta)
+		status, err := buildAppStatus(app, runInstance)
 		if err != nil {
-			log.Error().Err(err).Msg("dash: could not marshal app metadata")
+			log.Error().Err(err).Msg("dash: could not build app status")
 			return reply(ctx, nil, err)
 		}
 
-		apiEnc := encoding.DescribeAPI(proc.Meta)
-		return reply(ctx, statusResponse{
-			Running:     true,
-			AppID:       app.PlatformOrLocalID(),
-			PID:         runInstance.ID,
-			Meta:        json.RawMessage(str),
-			Addr:        runInstance.ListenAddr,
-			APIEncoding: apiEnc,
-			AppRoot:     app.Root(),
-		}, nil)
+		return reply(ctx, status, nil)
 
 	case "api-call":
 		var params apiCallParams
@@ -257,14 +252,15 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 }
 
 type apiCallParams struct {
-	AppID       string
-	Service     string
-	Endpoint    string
-	Path        string
-	Method      string
-	Payload     []byte
-	AuthPayload []byte `json:"auth_payload,omitempty"`
-	AuthToken   string `json:"auth_token,omitempty"`
+	AppID         string
+	Service       string
+	Endpoint      string
+	Path          string
+	Method        string
+	Payload       []byte
+	AuthPayload   []byte `json:"auth_payload,omitempty"`
+	AuthToken     string `json:"auth_token,omitempty"`
+	CorrelationID string `json:"correlation_id,omitempty"`
 }
 
 func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCallParams) error {
@@ -285,6 +281,10 @@ func (h *handler) apiCall(ctx context.Context, reply jsonrpc2.Replier, p *apiCal
 	if err != nil {
 		log.Error().Err(err).Msg("dash: unable to prepare request")
 		return reply(ctx, nil, err)
+	}
+
+	if p.CorrelationID != "" {
+		req.Header.Set("X-Correlation-ID", p.CorrelationID)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -346,8 +346,9 @@ func (s *Server) listenTraces() {
 		s.notify(&notification{
 			Method: "trace/new",
 			Params: map[string]any{
-				"app_id": sp.AppID,
-				"span":   json.RawMessage(data),
+				"app_id":     sp.AppID,
+				"test_trace": sp.TestTrace,
+				"span":       json.RawMessage(data),
 			},
 		})
 	}
@@ -357,11 +358,9 @@ var _ run.EventListener = (*Server)(nil)
 
 // OnStart notifies active websocket clients about the started run.
 func (s *Server) OnStart(r *run.Run) {
-	m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
-	proc := r.ProcGroup()
-	str, err := m.MarshalToString(proc.Meta)
+	status, err := buildAppStatus(r.App, r)
 	if err != nil {
-		log.Error().Err(err).Msg("dash: could not marshal app meta")
+		log.Error().Err(err).Msg("dash: could not build app status")
 		return
 	}
 
@@ -372,49 +371,52 @@ func (s *Server) OnStart(r *run.Run) {
 		browser.Open(u)
 	}
 
-	apiEnc := encoding.DescribeAPI(proc.Meta)
 	s.notify(&notification{
 		Method: "process/start",
-		Params: map[string]interface{}{
-			"appID":       r.App.PlatformOrLocalID(),
-			"pid":         r.ID,
-			"addr":        r.ListenAddr,
-			"meta":        json.RawMessage(str),
-			"apiEncoding": apiEnc,
-		},
+		Params: status,
+	})
+}
+
+func (s *Server) OnCompileStart(r *run.Run) {
+	status, err := buildAppStatus(r.App, r)
+	if err != nil {
+		log.Error().Err(err).Msg("dash: could not build app status")
+		return
+	}
+
+	status.Compiling = true
+
+	s.notify(&notification{
+		Method: "process/compile-start",
+		Params: status,
 	})
 }
 
 // OnReload notifies active websocket clients about the reloaded run.
 func (s *Server) OnReload(r *run.Run) {
-	m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
-	proc := r.ProcGroup()
-	str, err := m.MarshalToString(proc.Meta)
+	status, err := buildAppStatus(r.App, r)
 	if err != nil {
-		log.Error().Err(err).Msg("dash: could not marshal app meta")
+		log.Error().Err(err).Msg("dash: could not build app status")
 		return
 	}
 
-	apiEnc := encoding.DescribeAPI(proc.Meta)
 	s.notify(&notification{
 		Method: "process/reload",
-		Params: map[string]interface{}{
-			"appID":       r.App.PlatformOrLocalID(),
-			"pid":         r.ID,
-			"meta":        json.RawMessage(str),
-			"apiEncoding": apiEnc,
-		},
+		Params: status,
 	})
 }
 
 // OnStop notifies active websocket clients about the stopped run.
 func (s *Server) OnStop(r *run.Run) {
+	status, err := buildAppStatus(r.App, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("dash: could not build app status")
+		return
+	}
+
 	s.notify(&notification{
 		Method: "process/stop",
-		Params: map[string]interface{}{
-			"appID": r.App.PlatformOrLocalID(),
-			"pid":   r.ID,
-		},
+		Params: status,
 	})
 }
 
@@ -429,9 +431,24 @@ func (s *Server) OnStderr(r *run.Run, out []byte) {
 }
 
 func (s *Server) OnError(r *run.Run, err *errlist.List) {
-	if err != nil {
-		s.onOutput(r, []byte(err.Error()))
+	if err == nil {
+		return
 	}
+
+	status, statusErr := buildAppStatus(r.App, nil)
+	if statusErr != nil {
+		log.Error().Err(statusErr).Msg("dash: could not build app status")
+		return
+	}
+
+	err.MakeRelative(r.App.Root(), "")
+
+	status.CompileError = err.Error()
+
+	s.notify(&notification{
+		Method: "process/compile-error",
+		Params: status,
+	})
 }
 
 func (s *Server) onOutput(r *run.Run, out []byte) {
@@ -450,7 +467,7 @@ func (s *Server) onOutput(r *run.Run, out []byte) {
 
 // findRPC finds the RPC with the given service and endpoint name.
 // If it cannot be found it reports nil.
-func findRPC(md *v1.Data, service, endpoint string) *v1.RPC {
+func findRPC(md *meta.Data, service, endpoint string) *meta.RPC {
 	for _, svc := range md.Svcs {
 		if svc.Name == service {
 			for _, rpc := range svc.Rpcs {
@@ -465,7 +482,7 @@ func findRPC(md *v1.Data, service, endpoint string) *v1.RPC {
 }
 
 // prepareRequest prepares a request for sending based on the given apiCallParams.
-func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCallParams) (*http.Request, error) {
+func prepareRequest(ctx context.Context, baseURL string, md *meta.Data, p *apiCallParams) (*http.Request, error) {
 	reqSpec := newHTTPRequestSpec()
 	rpc := findRPC(md, p.Service, p.Endpoint)
 	if rpc == nil {
@@ -532,7 +549,7 @@ func prepareRequest(ctx context.Context, baseURL string, md *v1.Data, p *apiCall
 	return req, nil
 }
 
-func handleResponse(md *v1.Data, p *apiCallParams, headers http.Header, body []byte) []byte {
+func handleResponse(md *meta.Data, p *apiCallParams, headers http.Header, body []byte) []byte {
 	rpc := findRPC(md, p.Service, p.Endpoint)
 	if rpc == nil {
 		return body
@@ -712,4 +729,69 @@ func makeProtoReplier(rep jsonrpc2.Replier) jsonrpc2.Replier {
 		jsonData, err := protoEncoder.Marshal(result)
 		return rep(ctx, json.RawMessage(jsonData), err)
 	}
+}
+
+// appStatus is the the shared data structure to communicate app status to the client.
+//
+// It is mirrored in the frontend at src/lib/client/dev-dash-client.ts as `AppStatus`.
+type appStatus struct {
+	Running      bool                  `json:"running"`
+	AppID        string                `json:"appID"`
+	PlatformID   string                `json:"platformID,omitempty"`
+	AppRoot      string                `json:"appRoot"`
+	PID          string                `json:"pid,omitempty"`
+	Meta         json.RawMessage       `json:"meta,omitempty"`
+	Addr         string                `json:"addr,omitempty"`
+	APIEncoding  *encoding.APIEncoding `json:"apiEncoding,omitempty"`
+	Compiling    bool                  `json:"compiling"`
+	CompileError string                `json:"compileError,omitempty"`
+}
+
+func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err error) {
+	// Now try and grab latest metadata for the app
+	var md *meta.Data
+	if runInstance != nil {
+		proc := runInstance.ProcGroup()
+		if proc != nil {
+			md = proc.Meta
+		}
+	}
+
+	if md == nil {
+		md, err = app.CachedMetadata()
+		if err != nil {
+			return appStatus{}, err
+		}
+	}
+
+	// Convert the metadata into a format we can send to the client
+	mdStr := "null"
+	var apiEnc *encoding.APIEncoding
+	if md != nil {
+		m := &jsonpb.Marshaler{OrigName: true, EmitDefaults: true}
+
+		mdStr, err = m.MarshalToString(md)
+		if err != nil {
+			return appStatus{}, err
+		}
+
+		apiEnc = encoding.DescribeAPI(md)
+	}
+
+	// Build the response
+	resp := appStatus{
+		Running:     false,
+		AppID:       app.PlatformOrLocalID(),
+		PlatformID:  app.PlatformID(),
+		Meta:        json.RawMessage(mdStr),
+		AppRoot:     app.Root(),
+		APIEncoding: apiEnc,
+	}
+	if runInstance != nil {
+		resp.Running = true
+		resp.PID = runInstance.ID
+		resp.Addr = runInstance.ListenAddr
+	}
+
+	return resp, nil
 }

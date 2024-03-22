@@ -114,6 +114,7 @@ Next, create a `graphql/service.go` file containing:
 
 ```go
 -- graphql/service.go --
+// Service graphql exposes a GraphQL API.
 package graphql
 
 import (

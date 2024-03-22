@@ -2,15 +2,13 @@ package run
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -18,12 +16,15 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
+	encoreEnv "encr.dev/internal/env"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
+	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vcs"
 )
 
@@ -74,6 +75,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	topoOp := tracker.Add("Analyzing service topology", start)
 
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	vcsRevision := vcs.GetRevision(p.App.Root())
 	buildInfo := builder.BuildInfo{
 		BuildTags:          builder.LocalBuildTags,
@@ -99,6 +101,9 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		tracker.Fail(parseOp, err)
 		return err
 	}
+	if err := p.App.CacheMetadata(parse.Meta); err != nil {
+		return errors.Wrap(err, "cache metadata")
+	}
 	tracker.Done(parseOp, 500*time.Millisecond)
 	tracker.Done(topoOp, 300*time.Millisecond)
 
@@ -118,6 +123,18 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	apiBaseURL := fmt.Sprintf("http://localhost:%d", mgr.RuntimePort)
 
+	configProm := promise.New(func() (*builder.ServiceConfigsResult, error) {
+		return bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+			Parse: parse,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: apiBaseURL,
+				EnvName:    "local",
+				EnvType:    cueutil.EnvType_Development,
+				CloudType:  cueutil.CloudType_Local,
+			},
+		})
+	})
+
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
 		build, err = bld.Compile(ctx, builder.CompileParams{
@@ -127,12 +144,6 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 			OpTracker:   tracker,
 			Experiments: expSet,
 			WorkingDir:  p.WorkingDir,
-			CueMeta: &cueutil.Meta{
-				APIBaseURL: apiBaseURL,
-				EnvName:    "local",
-				EnvType:    cueutil.EnvType_Development,
-				CloudType:  cueutil.CloudType_Local,
-			},
 		})
 		if err != nil {
 			return errors.Wrap(err, "compile error on exec")
@@ -144,34 +155,61 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		return err
 	}
 
-	runtimeCfg, err := mgr.generateConfig(generateConfigParams{
-		App:         p.App,
-		RM:          rm,
-		Meta:        parse.Meta,
-		ForTests:    false,
-		AuthKey:     genAuthKey(),
-		APIBaseURL:  apiBaseURL,
-		ConfigAppID: GenID(),
-		ConfigEnvID: GenID(),
-	})
+	gateways := make(map[string]GatewayConfig)
+	for _, gw := range parse.Meta.Gateways {
+		gateways[gw.EncoreName] = GatewayConfig{
+			BaseURL:   apiBaseURL,
+			Hostnames: []string{"localhost"},
+		}
+	}
+
+	outputs := build.Outputs
+	if len(outputs) != 1 {
+		return errors.New("ExecScript currently only supports a single build output")
+	}
+	entrypoints := outputs[0].GetEntrypoints()
+	if len(entrypoints) != 1 {
+		return errors.New("ExecScript currently only supports a single entrypoint")
+	}
+	proc := entrypoints[0].Cmd.Expand(outputs[0].GetArtifactDir())
+
+	cfg, err := configProm.Get(ctx)
 	if err != nil {
 		return err
 	}
-	runtimeJSON, _ := json.Marshal(runtimeCfg)
 
-	env := append(os.Environ(), p.Environ...)
-	env = append(env,
-		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
-		"ENCORE_APP_SECRETS="+encodeSecretsEnv(secrets),
-	)
-	for serviceName, cfgString := range build.Configs {
-		env = append(env, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+	authKey := genAuthKey()
+	configGen := &RuntimeConfigGenerator{
+		app:            p.App,
+		infraManager:   rm,
+		md:             parse.Meta,
+		AppID:          option.Some(GenID()),
+		EnvID:          option.Some(GenID()),
+		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
+		AuthKey:        authKey,
+		Gateways:       gateways,
+		DefinedSecrets: secrets,
+		SvcConfigs:     cfg.Configs,
+		IncludeMetaEnv: bld.NeedsMeta(),
+	}
+	procConf, err := configGen.AllInOneProc()
+	if err != nil {
+		return err
+	}
+
+	env := append(os.Environ(), proc.Env...)
+	env = append(env, p.Environ...)
+	env = append(env, procConf.ExtraEnv...)
+	env = append(env, encodeServiceConfigs(cfg.Configs)...)
+	if runtimeLibPath := encoreEnv.EncoreRuntimeLib(); runtimeLibPath != "" {
+		env = append(env, "ENCORE_RUNTIME_LIB="+runtimeLibPath)
 	}
 
 	tracker.AllDone()
 
+	args := append(slices.Clone(proc.Command[1:]), p.ScriptArgs...)
 	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(ctx, build.Exe, p.ScriptArgs...)
+	cmd := exec.CommandContext(ctx, proc.Command[0], args...)
 	cmd.Dir = filepath.Join(p.App.Root(), p.WorkingDir)
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr

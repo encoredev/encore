@@ -7,6 +7,7 @@ infobox: {
   title: "Middleawre",
   import: "encore.dev/middleware",
 }
+lang: go
 ---
 
 Middleware is a way to write reusable code that runs before or after (or both)

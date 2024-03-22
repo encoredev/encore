@@ -15,7 +15,7 @@ import (
 // ServeHTTP implements http.Handler by forwarding the request to the currently running process.
 func (r *Run) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	proc := r.proc.Load().(*ProcGroup)
-	proc.Gateway.ProxyReq(w, req)
+	proc.ProxyReq(w, req)
 }
 
 func addAuthKeyToRequest(req *http.Request, authKey config.EncoreAuthKey) {

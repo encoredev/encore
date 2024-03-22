@@ -5,6 +5,7 @@ import (
 
 	qt "github.com/frankban/quicktest"
 
+	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser/infra/sqldb"
 	"encr.dev/v2/parser/resource"
 )
@@ -81,8 +82,8 @@ func Test_deduplicateSQLDBResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := qt.New(t)
 			gotRes, gotBinds := deduplicateSQLDBResources(tt.res, tt.binds)
-			c.Assert(gotRes, qt.DeepEquals, tt.wantRes)
-			c.Assert(gotBinds, qt.DeepEquals, tt.wantBinds)
+			c.Assert(gotRes, testutil.ResourceDeepEquals, tt.wantRes)
+			c.Assert(gotBinds, testutil.ResourceDeepEquals, tt.wantBinds)
 		})
 	}
 }

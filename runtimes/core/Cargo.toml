@@ -1,0 +1,88 @@
+[package]
+name = "encore-runtime-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.76"
+base64 = "0.21.5"
+gjson = "0.8.1"
+prost = "0.12.3"
+prost-types = "0.12.3"
+serde = "1.0.193"
+serde_json = "1.0.108"
+tokio = { version = "1.35.1", features = ["sync"] }
+tokio-nsq = "0.14.0"
+xid = "1.0.3"
+log = { version = "0.4.20", features = ["kv_unstable", "kv_unstable_serde"] }
+bytes = { version = "1.5.0", features = [] }
+postgres-protocol = "0.6.6"
+tokio-postgres = { version = "0.7.10", features = [
+    "array-impls",
+    "with-serde_json-1",
+    "with-geo-types-0_7",
+    "with-uuid-1",
+    "with-chrono-0_4",
+] }
+fallible-iterator = "0.2.0"
+tokio-util = "0.7.10"
+byteorder = "1.5.0"
+memchr = "2.6.4"
+futures-util = "0.3.30"
+socket2 = "0.5.5"
+rand = "0.8.5"
+percent-encoding = { version = "2.3.1", features = [] }
+env_logger = "0.10.1"
+google-cloud-pubsub = "0.22.1"
+google-cloud-googleapis = "0.12.0"
+hyper = { version = "1.1.0", features = ["server", "http1", "http2", "client"] }
+http-body-util = "0.1.0"
+matchit = "0.7.3"
+axum = "0.7.2"
+axum-extra = { version = "0.9.1", features = ["cookie"] }
+chrono = { version = "0.4.31", features = ["serde"] }
+once_cell = "1.19.0"
+colored = "2.1.0"
+backtrace = "0.3.69"
+serde_with = "3.4.0"
+self_cell = "1.0.3"
+mime = "0.3.17"
+futures = "0.3.30"
+native-tls = "0.2.11"
+postgres-native-tls = "0.5.0"
+reqwest = { version = "0.11.23", features = ["stream"] }
+url = "2.5.0"
+futures-core = { version = "0.3.30", features = [] }
+serde_urlencoded = "0.7.1"
+form_urlencoded = "1.2.1"
+ring = "0.17.7"
+httpdate = "1.0.3"
+hmac = "0.12.1"
+sha2 = "0.10.8"
+sha3 = "0.10.8"
+generic-array = { version = "1.0.0", features = ["alloc"] }
+hex = "0.4.3"
+subtle = "2.5.0"
+radix_fmt = "1.0.0"
+indexmap = { version = "2.2.1", features = ["serde"] }
+sync_wrapper = { version = "0.1.2", features = ["futures"] }
+tower-service = "0.3.2"
+duct = "0.13.7"
+base32 = "0.4.0"
+
+# We need to vendor openssl to allow cross-compilation on our build systems
+openssl = { version = "0.10.57", features = ["vendored"] }
+bb8 = "0.8.3"
+bb8-postgres = "0.8.1"
+geo-types = "0.7.12"
+uuid = "1.7.0"
+openssl-probe = "0.1.5"
+jsonwebtoken = "9.2.0"
+tower-http = { version = "0.5.2", features = ["cors"] }
+
+[build-dependencies]
+prost-build = "0.12.3"
+
+[dev-dependencies]
+assert_matches = "1.5.0"
+quickcheck = "1.0.3"

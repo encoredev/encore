@@ -1,0 +1,31 @@
+use crate::parser::types::{Ctx, Interface, Type};
+
+pub(super) fn strip_path_params(ctx: &Ctx, typ: &mut Interface) {
+    // Drop any fields whose type is Path.
+    typ.fields.retain(|f| {
+        if let Type::Named(named) = &f.typ {
+            let obj = &named.obj;
+            if obj.name.as_deref() == Some("Path")
+                && ctx.is_module_path(obj.module_id, "encore.dev/api")
+            {
+                return false;
+            }
+        }
+        true
+    });
+}
+
+pub(super) fn add_type_hints(ctx: &Ctx, typ: &mut Interface) {
+    // Drop any fields whose type is Path.
+    typ.fields.retain(|f| {
+        if let Type::Named(named) = &f.typ {
+            let obj = &named.obj;
+            if obj.name.as_deref() == Some("Path")
+                && ctx.is_module_path(obj.module_id, "encore.dev/api")
+            {
+                return false;
+            }
+        }
+        true
+    });
+}

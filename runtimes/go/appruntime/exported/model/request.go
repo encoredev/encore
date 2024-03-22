@@ -117,6 +117,9 @@ type RPCData struct {
 	// ServiceToServiceCall is true if the request was a service-to-service call.
 	// otherwise it is false if the request originates from outside the Encore application.
 	ServiceToServiceCall bool
+
+	// Mocked is true if the request was handled by a mock.
+	Mocked bool
 }
 
 type PubSubMsgData struct {
@@ -138,6 +141,9 @@ type TestData struct {
 	Parent  *Request           // The parent request (if we're looking at sub-tests)
 	Service string             // the service being tested, if any
 	Config  *TestConfig        // The test config (should always be set) and managed by the testsupport Manager
+
+	TestFile string // The file the test is in
+	TestLine uint32 // The line the test is on
 
 	// UserID and AuthData are the test-level auth information,
 	// if overridden.

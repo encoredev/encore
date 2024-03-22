@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"runtime/debug"
-	"strconv"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -24,8 +23,9 @@ type ReleaseChannel string
 
 const (
 	GA       ReleaseChannel = "ga"      // A general availability release of Encore in Semver: v1.10.0
-	Nightly  ReleaseChannel = "nightly" // A nightly build of Encore with the date of the build: nightly-20221231
-	DevBuild ReleaseChannel = "devel"   // A development build of Encore with the commit of the build: devel-0140ab0f78fd10d52673a961e900993b64b7b9e3
+	Beta     ReleaseChannel = "beta"    // A beta build of an upcoming Encore release: v1.10.0-beta.1
+	Nightly  ReleaseChannel = "nightly" // A nightly build of Encore with the date of the build: v1.10.0-nightly.20221231
+	DevBuild ReleaseChannel = "develop" // A development build of Encore with the commit of the build: v0.0.0-develop+0140ab0f78fd10d52673a961e900993b64b7b9e3
 	unknown  ReleaseChannel = "unknown" // An unknown release stream (not exported as it should be an error case)
 )
 
@@ -49,7 +49,7 @@ func init() {
 	// If version is already set via a compiler link flag, then we don't need to do anything
 	if Version == "" {
 		// Otherwise, we want to read the information from this built binary
-		Version = "devel"
+		Version = "v0.0.0-develop"
 
 		info, ok := debug.ReadBuildInfo()
 		if !ok {
@@ -70,23 +70,26 @@ func init() {
 			}
 		}
 		if vcsVersion != "" {
-			Version += "-" + vcsVersion + vcsModified
+			Version += "+" + vcsVersion + vcsModified
 		}
 	}
-	Channel = channelFor(Version)
+	Channel = ChannelFor(Version)
 }
 
-func channelFor(version string) ReleaseChannel {
+func ChannelFor(version string) ReleaseChannel {
+	if !strings.HasPrefix(version, "v") {
+		return unknown
+	}
 	// Now work out the release channel
 	switch {
-	case strings.HasPrefix(version, "v"):
-		return GA
-	case strings.HasPrefix(version, "nightly-"):
+	case strings.Contains(version, "-beta."):
+		return Beta
+	case strings.Contains(version, "-nightly."):
 		return Nightly
-	case strings.HasPrefix(version, "devel-") || version == "devel":
+	case strings.HasSuffix(version, "-develop") || strings.Contains(version, "-develop+"):
 		return DevBuild
 	default:
-		return unknown
+		return GA
 	}
 }
 
@@ -100,7 +103,7 @@ func channelFor(version string) ReleaseChannel {
 //
 // If the releases are from different channels, it always returns 1.
 func Compare(againstVersion string) int {
-	againstChannel := channelFor(againstVersion)
+	againstChannel := ChannelFor(againstVersion)
 
 	if Channel != againstChannel {
 		// If the channels are different, this "version" is always newer
@@ -108,14 +111,10 @@ func Compare(againstVersion string) int {
 	}
 
 	switch Channel {
-	case GA:
+	case GA, Beta, Nightly:
 		return semver.Compare(Version, againstVersion)
-	case Nightly:
-		this, _ := strconv.Atoi(strings.TrimPrefix(Version, "nightly-"))
-		that, _ := strconv.Atoi(strings.TrimPrefix(againstVersion, "nightly-"))
-		return this - that
 	case DevBuild:
-		return 0 // always same version
+		return 0 // devel versions are always the same
 	default:
 		return 0 // never newer if we can't test
 	}

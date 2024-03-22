@@ -1,81 +1,154 @@
 <p align="center" dir="auto">
 <a href="https://encore.dev"><img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="160px" alt="encore icon"></img></a><br/><br/>
-<b>Encore – Backend Development Platform</b><br/>
+<b>Encore – Backend Development Platform</b><br/><br/>
 </p>
-Encore is a backend development platform that automatically provisions infrastructure — from developing locally to scaling on AWS/GCP.
-It's designed to help you build your product without platform distractions, removes boilerplate, and comes with built-in tools for observability and collaboration.
-</br></br>
-Start building today and unlock your creative potential, free from cloud complexity.
-</br></br>
 
-**🏁 Try Encore:** [Quick Start Guide](https://encore.dev/docs/quick-start) / [Example Applications](https://github.com/encoredev/examples/)
+Encore provides a purpose-built workflow to help you create **event-driven and distributed systems** — from local development to your cloud on **AWS & GCP**.
+
+It consists of a **Microservice Framework** & **Infrastructure SDK**, a **Local Development Environment** with tools like tracing, and a **Cloud Platform** for automating CI/CD and cloud infrastructure provisioning.
+
+**🏁 Try Encore:** [Quick Start Guide](https://encore.dev/docs/quick-start)
+
+**💻 See examples:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
 **⭐ Star this repository** to help spread the word.
+
+**🍿 Intro video:** [Watch this video](https://youtu.be/LN8mQWho0Jc) for an introduction to Encore concepts & features
 
 **👋 Have questions?** Join the friendly developer community on [Slack](https://encore.dev/slack).
 
 **📞 See if Encore fits your project:** [Book a 1:1 demo](https://encore.dev/book).
-</br></br>
 
-## How Encore works
-![Encore Overview](https://github.com/encoredev/encore/assets/78424526/34d25cb5-56cd-4dbf-b63a-12aece789dcc)
+## Introduction to Encore
 
-Most backend applications use a small set of common building blocks: services, APIs, databases, queues, caches, and cron jobs. The real complexity lies in provisioning and managing the underlying infrastructure, and the endless boilerplate that's required to tie it all together in your application.
+Cloud services enable us to build highly scalable applications, but often lead to a poor developer experience — forcing developers to manage significant complexity during development and do a lot of repetitive manual work.
 
-Encore simplifies backend development by providing an [Infrastructure SDK](https://encore.dev/docs/primitives) that lets you declare and use these common building blocks as objects directly in your code.
-It currently supports **Go** and **TypeScript** (Beta).
+Encore is purpose-built to solve this problem and provides a complete toolset for backend development — from local development and testing, to cloud infrastructure management and DevOps.
 
-Encore parses your application and builds a graph of both its logical architecture and its infrastructure requirements. It then automatically provisions the necessary infrastructure, instruments your application with logs and traces, and much more.
+<p align="center">
+<img width="589" alt="Encore Overview" src="https://github.com/encoredev/encore/assets/78424526/ecb65a20-866c-449c-bf0e-e6d99c78430b">
+</p>
 
-It works the same way for local development, preview and test environments, and in production using your cloud account.
+### How it works
 
-This completely removes the need for infrastructure configuration files, increases standardization in both your codebase and infrastructure, and makes your application portable across cloud providers by default.
+Encore's functionality is enabled by the Open Source [declarative Infrastructure SDK](https://encore.dev/docs/primitives/overview), available for **Go** and **TypeScript** (Beta), which lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
-**Learn more about using Encore's building blocks in the docs:**
+With the SDK you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore parses your application and builds a graph of both its logical architecture and its infrastructure requirements, it then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
+
+This completely removes the need for separate infrastructure configuration like Terraform, increases standardization in both your codebase and infrastructure, and makes your application portable across cloud providers by default.
+
+When your application is deployed to your cloud, there are **no runtime dependencies on Encore** and there is **no proprietary code running in your cloud**.
+
+#### Example: Using Pub/Sub
+
+If you want a Pub/Sub Topic, you declare it directly in your application code, like so:
+
+```go
+import "encore.dev/pubsub"
+ 
+type User struct { /* fields... */ }
+ 
+var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
+  DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+ 
+// Publish messages by calling a method
+Signup.Publish(ctx, &User{...})
+```
+
+Encore will automatically provision the infrastructure and generate the boilerplate code necessary for each environment:
+- **NSQ** for local development
+- **GCP Pub/Sub** for environments on GCP
+- **SNS/SQS** for environments on AWS
+
+### Learn more in the docs
+
+See how to use the Infrastructure SDK in the docs:
+
 - [Services and APIs](https://encore.dev/docs/primitives/services-and-apis)
 - [Databases](https://encore.dev/docs/primitives/databases)
 - [Cron Jobs](https://encore.dev/docs/primitives/cron-jobs)
 - [PubSub](https://encore.dev/docs/primitives/pubsub)
 - [Caching](https://encore.dev/docs/primitives/caching)
 
-## Key features
+## Using Encore: An end-to-end workflow from local to cloud
 
-- **[Microservices without complexity](https://encore.dev/docs/develop/services-and-apis):** Define services and API endpoints without boilerplate, and make API calls using regular function calls.
+Encore provides purpose-built tooling for each step in the development process, from local development and testing, to cloud DevOps. Here we'll cover the key features for each part of the process.
 
-- **[Develop as if the infrastructure is already in place](https://encore.dev/docs/deploy/infra):** Encore's Infrastructure SDK lets you define databases, queues, caches, and scheduled tasks, as objects in your code.
+### Local Development
 
-- **[Built-in DevOps](https://encore.dev/docs/introduction#a-developer-experience-designed-to-help-you-stay-in-the-flow):** Run `git push encore` to build, test, provision the necessary cloud infrastructure, and deploy.
+<p align="center">
+<img width="578" alt="Local Development" src="https://github.com/encoredev/encore/assets/78424526/6bf682bb-f57e-4a02-9c92-ff83f7fb59d2">
+</p>
 
-- **Automated IAM Management:** Principle of least privilege security is implemented by default.
+When you run your app locally using the [Encore CLI](https://encore.dev/docs/install), Encore parses your code and automatically sets up the necessary local infrastructure on the fly. _No more messing around with Docker Compose!_
 
-- **[Provision environments automatically](https://encore.dev/docs/deploy/environments):** Deploy to unlimited dev/preview/cloud environments in without code changes. Encore provisions the necessary infrastructure and ensures environments stay in sync.
+You also get built-in tools for an efficient workflow when creating distributed systems and event-driven applications:
 
-- **[Deploy to your own cloud](https://encore.dev/docs/deploy/infra):** Encore deploys your application to your cloud in AWS or GCP, using best practices like least-privileges security.
+- **Local environment matches cloud:** Encore automatically handles the semantics of service communication and interfacing with different types of infrastructure services, so that the local environment is a 1:1 representation of your cloud environment.
+- **Cross-service type-safety:** When building microservices applications with Encore, you get type-safety and auto-complete in your IDE when making cross-service API calls.
+- **Type-aware infrastructure:** With Encore, infrastructure like Pub/Sub queues are type-aware objects in your program. This enables full end-to-end type-safety when building event-driven applications.
+- **Secrets management:** Built-in [secrets management](https://encore.dev/docs/primitives/secrets) for all environments.
+- **Tracing:** The [local development dashboard](https://encore.dev/docs/observability/dev-dash) provides local tracing to help understand application behavior and find bugs.
+- **Automatic API docs & clients:** Encore generates [API docs](https://encore.dev/docs/develop/api-docs) and [API clients](https://encore.dev/docs/develop/client-generation) in Go, TypeScript, JavaScript, and OpenAPI specification.
 
-- **[Preview environments](https://encore.dev/docs/deploy/preview-environments):** Integrate with GitHub to get an ephemeral preview environment for every Pull Request.
+_Here's a video showing the local development dashboard:_
 
-- **[Distributed Tracing](https://encore.dev/docs/observability/tracing):** Your application is automatically instrumented to capture information about API calls, HTTP requests, database queries, and more.
- 
-- **[Intelligent architecture diagrams](https://encore.dev/docs/develop/encore-flow):** Visualise your system in with automated and interactive architecture diagrams.
+https://github.com/encoredev/encore/assets/78424526/4d066c76-9e6c-4c0e-b4c7-6b2ba6161dc8
 
-- **[Metrics](https://encore.dev/docs/observability/metrics):** Encore comes with built-in metrics and dashboards, and provides simple integrations with your favorite observability tools.
-  
-- **[Secrets management](https://encore.dev/docs/develop/secrets):** Define secrets in code, like any other variable, and use the built-in secrets manager to store them securely.
+### Testing
 
-- **[Service Catalog & Automatic API docs](https://encore.dev/docs/develop/api-docs):** Encore parses your source code to understand the request/response
-  schemas for all your APIs and automatically generates a Service Catalog and high-quality API Documentation.
+<p align="center">
+<img width="573" alt="testing" src="https://github.com/encoredev/encore/assets/78424526/516a043c-66ac-464e-a4ca-f8ecd5642d54">
+</p>
 
-- **[Generated Frontend Clients](https://encore.dev/docs/how-to/integrate-frontend):** Automatically generate type-safe API clients to integrate with your frontend.
+Encore comes with several built-in tools to help with testing:
 
-- **Extensible:** Extend your system with any infrastructure services you need, integration is simple because all infrastructure lives in your own cloud account.
+- **Built-in service/API mocking:** Encore provides built-in support for [mocking API calls](https://encore.dev/docs/develop/testing/mocking), and interfaces for automatically generating mock objects for your services.
+- **Local test infra:** When running tests locally, Encore automatically provides dedicated [test infrastructure](https://encore.dev/docs/develop/testing#test-only-infrastructure) to isolate individual tests.
+- **Local test tracing:** The [local dev dashboard](https://encore.dev/docs/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
+- **Preview Environments:** Encore automatically provisions a [Preview Environment](https://encore.dev/docs/deploy/preview-environments) for each Pull Request, an effective tool when doing end-to-end testing.
 
-## Why choose Encore?
+### DevOps
+
+<p align="center">
+<img width="573" alt="DevOps" src="https://github.com/encoredev/encore/assets/78424526/e00d3e92-3301-4f3a-89cc-575c4a520aae">
+</p>
+
+With Encore you can focus your engineering effort on your product and avoid investing time in building a developer platform.
+
+A core feature Encore provides is **automatic infrastructure provisioning** in your cloud. Because your application code is the source of truth for the application's infrastructure requirements, instead of writing Terraform, YAML, or clicking in cloud consoles, you [connect your cloud account](https://encore.dev/docs/deploy/own-cloud) and deploy. This approach also lets you swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
+
+When you deploy, Encore automatically provisions [infrastructure](https://encore.dev/docs/deploy/infra) using battle-tested cloud services on AWS and GCP, such as:
+- **Compute:** GCP Cloud Run, AWS Fargate, Kubernetes (GKE and EKS)
+- **Databases:** GCP Cloud SQL, AWS RDS
+- **Pub/Sub:** GCP Pub/Sub, AWS SQS/SNS
+- **Caches:** GCP Memorystore,	Amazon ElastiCache
+- **Secrets:**	GCP Secret Manager,	AWS Secrets Manager
+- Etc.
+
+Encore also provides built-in DevOps tools to help automate >90% of the day-to-day DevOps work:
+
+- **Automatic least-privilege IAM:** Encore parses your application code and sets up last-privilege IAM to match the requirements of the application.
+- **Infra tracking & approvals workflow:** Encore keeps track of all the [infrastructure](https://encore.dev/docs/deploy/infra) it provisions and provides an approval workflow as part of the deployment process, so Admins can verify and approve all infra changes.
+- **Cloud config 2-way sync:** Encore provides [a simple UI to make configuration changes](https://encore.dev/docs/deploy/infra#configurability), and also supports syncing changes you make in your cloud console in AWS/GCP.
+- **Cost analytics:** A simple overview to monitor costs for all infrastructure provisioned by Encore in your cloud.
+- **Logging & Metrics:** Encore automatically provides [logging](https://encore.dev/docs/observability/logging), [metrics](https://encore.dev/docs/observability/metrics), and [integrates with 3rd party tools](https://encore.dev/docs/observability/metrics#integrations-with-third-party-observability-services) like Datadog and Grafana.
+- **Service Catalog:**  Encore automatically generates a service catalog with complete [API documentation](https://encore.dev/docs/develop/api-docs).
+- **Architecture diagrams:** To help with onboarding and collaboration, Encore generates [architecture diagrams](https://encore.dev/docs/observability/encore-flow) for your application, including infrastructure dependencies.
+- **Extensible through Encore's Terraform Provider:** Extend your system with any infrastructure services you need, integration is simple because all infrastructure is provisioned in your cloud. Encore also has a [Terraform Provider](https://encore.dev/docs/deploy/terraform) to simplify this process.
+
+_Here's a video showing the Cloud Platform Dashboard:_
+
+https://github.com/encoredev/encore/assets/78424526/8116b387-d4d4-4e54-8768-3686ba0245f5
+
+## Why use Encore?
 
 - **Faster Development**: Encore streamlines the development process with its infrastructure SDK, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
-- **Reduced Costs**: Encore's infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload, allowing you to work more efficiently.
-- **Scalability & Performance**: Encore simplifies building microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
-- **Control & Standardization**: Built-in tools like automated architecture diagrams, infrastructure overviews, and approval workflows make it easy for teams and leaders to get an overview of the entire application.
-- **Security & Compliance**: Encore helps ensure your application and data is secure and compliant by enforcing standards and provisioning infrastructure according to best practises for each cloud provider.
+- **Reduced Costs**: Encore's automatic infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload, allowing you to work more efficiently.
+- **Scalability & Performance**: Encore simplifies building large-scale microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
+- **Control & Standardization**: Built-in tools like automated architecture diagrams, infrastructure tracking and approval workflows, make it easy for teams and leaders to get an overview of the entire application.
+- **Security & Compliance**: Encore helps ensure your application is secure and compliant by enforcing security standards and provisioning infrastructure according to best practices for each cloud provider.
 
 ## Common use cases
 
@@ -91,14 +164,16 @@ Encore is designed to give teams a productive and less complex experience when s
 
 - **1.** [Sign up and install the Encore CLI](https://encore.dev/signup)
 - **2.** [Follow a tutorial and start building](https://encore.dev/docs/tutorials/)
-- **3.** Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up to date
+- **3.** Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
 - **4.** Explore the [Documentation](https://encore.dev/docs) to learn more about Encore's features
 - **5.** [Book a 1:1](https://encore.dev/book) or [join Slack](https://encore.dev/slack) to discuss your use case or how to begin adopting Encore
 
 ## Open Source
 
-The Encore infrastructure SDK, parser, compiler, and CLI are all Open Source.
-A free Encore account is needed to unlock features like distributed tracing, secrets management, and deploying to cloud environments, as this functionality is orchestrated by the Encore Platform.
+The Encore infrastructure SDK, parser, compiler, and CLI are all Open Source — this includes all code needed for local development and everything that runs in your cloud.
+A free Encore account is needed to use features like distributed tracing, secrets management, and deploying to cloud environments, as this functionality is orchestrated by Encore's Cloud Platform.
+
+The Open Source CLI also provides a mechanism to generate a standalone Docker image for your application, so you can deploy it without using the Cloud Platform. [Learn more in the docs](https://encore.dev/docs/how-to/migrate-away#ejecting-your-app-as-a-docker-image).
 
 ## Join the most pioneering developer community
 
@@ -114,11 +189,11 @@ Here's how you can contribute:
 - Leave feedback on the [Public Roadmap](https://encore.dev/roadmap).
 - Send a pull request here on GitHub with your contribution.
 
-## Demo video
+## Videos
 
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">![demo video](https://user-images.githubusercontent.com/78424526/205661341-086c2813-455c-4af4-9517-b0398def6364.gif)</a>
-</br>
-<a href="https://www.youtube.com/watch?v=IwplIbwJtD0" alt="Encore Demo Video" target="_blank">Play full video on YouTube</a>
+- <a href="https://youtu.be/LN8mQWho0Jc" alt="Intro video: Encore concepts & features" target="_blank">Intro: Encore concepts & features</a>
+- <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service" target="_blank">Demo: Building and deploying a simple service</a>
+- <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system</a>
 
 ## Visuals
 
@@ -152,11 +227,11 @@ Encore grew out of these experiences and is a solution to the frustrations that 
 
 ### Who is Encore for?
 
-For individual developers building for the cloud, Encore provides a radically improved experience. With Encore you’re able to stay in the flow state and experience the joy and creativity of building.
+**For individual developers** building for the cloud, Encore provides a radically improved experience. With Encore you’re able to stay in the flow state and experience the joy and creativity of building.
 
-For startup teams who need to build a scalable backend to support the growth of their product, Encore lets them get up and running in the cloud within minutes. It lets them focus on solving the needs of their users, instead of spending most of their time re-solving the everyday challenges of building distributed systems in the cloud.
+**For startup teams** who need to build a scalable backend to support the growth of their product, Encore lets them get up and running in the cloud within minutes. It lets them focus on solving the needs of their users, instead of spending most of their time re-solving the everyday challenges of building distributed systems in the cloud.
 
-For teams in mature organizations that want to focus on innovating and building new features, Encore lets them stop spending time on operations and onboarding new team members. Using Encore for new feature development is easy, just spin up a new backend service in a few minutes.
+**For individual teams in large organizations** that want to focus on innovating and building new features, Encore lets them stop spending time on operations and onboarding new team members. Using Encore for new feature development is easy, just spin up a new backend service in a few minutes.
 
 ### How is Encore different?
 
@@ -172,7 +247,7 @@ We've found that to meaningfully improve the developer experience, you have to o
 
 Encore has been designed to let you go outside of the SDK when you want to, and easily drop down in abstraction level when you need to, so you never need to run into any dead-ends.
 
-Should you want to migrate away, it's straightforward and does not require a big re-write. 95% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the Infrastructure SDK.
+Should you want to migrate away, it's straightforward and does not require a big rewrite. 95% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the Infrastructure SDK.
 
 Encore has built-in support for [ejecting](https://encore.dev/docs/how-to/migrate-away#ejecting) your application as a way of removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be deployed anywhere you'd like, and can help facilitate the migration away according to the process above.
 

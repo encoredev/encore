@@ -9,6 +9,9 @@ import (
 	"os/exec"
 	"os/user"
 	"syscall"
+
+	"github.com/cockroachdb/errors"
+	"github.com/google/renameio/v2"
 )
 
 func CreateNewProcessGroup() *syscall.SysProcAttr {
@@ -36,4 +39,13 @@ func IsAdminUser() (bool, error) {
 		return false, err
 	}
 	return usr.Gid == "0", nil
+}
+
+// WriteFile writes the given file with the given data and permissions.
+//
+// Where possible (i.e. not on windows) it will use an atomic write process
+// which removes the possibility of a partial file being written during a crash
+// or error.
+func WriteFile(filename string, data []byte, perm os.FileMode) error {
+	return errors.WithStack(renameio.WriteFile(filename, data, perm))
 }

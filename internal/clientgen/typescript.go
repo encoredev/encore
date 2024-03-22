@@ -169,8 +169,8 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		ts.WriteByte('\n')
 
 		// Doc string
-		if rpc.Doc != "" {
-			scanner := bufio.NewScanner(strings.NewReader(rpc.Doc))
+		if rpc.Doc != nil && *rpc.Doc != "" {
+			scanner := bufio.NewScanner(strings.NewReader(*rpc.Doc))
 			indent()
 			ts.WriteString("/**\n")
 			for scanner.Scan() {
@@ -671,9 +671,14 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
 	if ts.hasAuth {
 		ts.WriteString(`
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () => (`)
+export type AuthDataGenerator = () =>
+  | `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
-		ts.WriteString(` | undefined)`)
+		ts.WriteString(`
+  | Promise<`)
+		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.WriteString(` | undefined>
+  | undefined;`)
 	}
 
 	ts.WriteString(`
@@ -699,8 +704,14 @@ class BaseClient {
         this.baseURL = baseURL
         this.headers = {
             "Content-Type": "application/json",
-            "User-Agent":   "` + userAgent + `",
         }
+
+        // Add User-Agent header if the script is running in the server
+        // because browsers do not allow setting User-Agent headers to requests
+        if (typeof window === "undefined") {
+            this.headers["User-Agent"] = "` + userAgent + `";
+        }
+
         this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
@@ -719,7 +730,7 @@ class BaseClient {
             if (typeof auth === "function") {
                 this.authGenerator = auth
             } else {
-                this.authGenerator = () => auth                
+                this.authGenerator = () => auth
             }
         }
 `)
@@ -750,7 +761,12 @@ let authData: `)
 		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
 		w.WriteString(" | undefined\n")
 		w.WriteString(`if (this.authGenerator) {
-    authData = this.authGenerator()
+    const mayBePromise = this.authGenerator()
+    if (mayBePromise instanceof Promise) {
+        authData = await mayBePromise
+    } else {
+        authData = mayBePromise
+    }
 }
 
 // If we now have authentication data, add it to the request

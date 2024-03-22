@@ -1,0 +1,1 @@
+export {getAuthData} from "../auth/mod";

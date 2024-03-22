@@ -73,6 +73,7 @@ $ touch booking/slots.go
 
 ```go
 -- booking/slots.go --
+// Service booking keeps track of bookable slots in the calendar.
 package booking
 
 import (
@@ -151,7 +152,7 @@ func bookableSlotsForDay(date time.Time) ([]BookableSlot, error) {
 The availability is currently hardcoded to be 09:00 - 17:00 for each day. Later we'll add the functionality to set it for each day of the week.
 We are also returning time slots that have already passed. Don't worry, we'll come back and fix it later on.
 
-🥐 Let's try it! Open up the Local Development Dashboard running at <http://localhost:9400> and try calling
+🥐 Let's try it! Open up the Local Development Dashboard running at [http://localhost:9400](http://localhost:9400) and try calling
 the `booking.GetBookableSlots` endpoint, passing in `2024-12-01`.
 
 If you prefer to use the terminal instead run `curl http://localhost:4000/slots/2024-12-01` in
@@ -213,7 +214,7 @@ CREATE TABLE booking (
 🥐 Next, install the sqlc library:
 
 ```shell
-$ go get github.com/sqlc-dev/sqlc/cmd/sqlc
+$ go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 ```
 
 🥐 Next, we need to configure sqlc. Add the following contents to `sqlc.yaml`:
@@ -363,6 +364,7 @@ $ touch user/auth.go
 
 ```go
 -- user/auth.go --
+// Service user authenticates users.
 package user
 
 import (
@@ -550,7 +552,7 @@ func SetAvailability(ctx context.Context, params SetAvailabilityParams) error {
 
 This file contains two endpoints, a setter and a getter. The `SetAvailability` endpoint is protected by the `auth` middleware which means that the user must be authenticated in order to call it. The `GetAvailability` endpoint is public and can be called without authentication.
 
-🥐 Let's set the availability for each day of the week. Open the Development Dashboard at <http://localhost:9400> and select the `booking.SetAvailability` endpoint in the API Explorer. For the request body, paste the following:
+🥐 Let's set the availability for each day of the week. Open the Development Dashboard at [http://localhost:9400](http://localhost:9400) and select the `booking.SetAvailability` endpoint in the API Explorer. For the request body, paste the following:
 
 ```json
 {
@@ -834,7 +836,7 @@ While you're developing, you are going to want to run this command quite often (
 
 For this frontend we use the request client together with [TanStack Query](https://tanstack.com/query/latest). When building something a bit more complex, you will likely need to deal with caching, refetching, and data going stale. [TanStack Query](https://tanstack.com/query/latest) is a popular library that was built to solve exactly these problems and works great with the Encore request client. 
 
-See our the docs page about [integrating with a web frontend](docs/how-to/integrate-frontend) to learn more. 
+See our the docs page about [integrating with a web frontend](/docs/how-to/integrate-frontend) to learn more. 
 
 ## 8. Deploy to Encore's development cloud
 

@@ -76,6 +76,7 @@ on [Enabling interactivity with Slash Commands](https://api.slack.com/interactiv
 🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.go` with the following contents:
 
 ```go
+// Service slack implements a cowsaw Slack bot.
 package slack
 
 import (
@@ -154,9 +155,9 @@ var secrets struct {
 
 🥐 Head over to the configuration section for your Slack app (go to [Your Apps](https://api.slack.com/apps) &rarr; select your app &rarr; Basic Information).
 
-🥐 Copy the **Signing Secret** and then run `encore secret set --prod SlackSigningSecret` and paste the secret.
+🥐 Copy the **Signing Secret** and then run `encore secret set --type prod SlackSigningSecret` and paste the secret.
 
-🥐 For local development you will also want to set `encore secret set --dev SlackSigningSecret`.
+🥐 For development you will also want to set `encore secret set --type dev,local,pr SlackSigningSecret`.
 You can use the same secret value or a placeholder value.
 
 ### Compute the HMAC

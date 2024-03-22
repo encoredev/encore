@@ -97,9 +97,39 @@ Show the current logged in user
 $ encore auth whoami
 ```
 
+## Daemon
+
+Encore CLI daemon commands
+
+#### Restart
+
+If you experience unexpected behavior, try restarting the daemon using:
+
+```shell
+$ encore daemon
+```
+
+#### Env
+
+Outputs Encore environment information
+
+```shell
+$ encore daemon env
+```
+
 ## Database Management
 
 Database management commands
+
+#### Connect to database via shell
+
+Connects to the database via psql shell
+
+Defaults to connecting to your local environment. Specify --env to connect to another environment.
+
+```shell
+$ encore db shell [service-name] [--env=local]
+```
 
 #### Connection URI
 
@@ -125,16 +155,6 @@ Resets the databases for the given services. Use --all to reset all databases.
 $ encore db reset [service-names...] [flags]
 ```
 
-#### Shell
-
-Connects to the database via psql shell
-
-Defaults to connecting to your local environment. Specify --env to connect to another environment.
-
-```shell
-$ encore db shell [service-name] [--env=local]
-```
-
 ## Code Generation
 
 Code generation commands
@@ -143,7 +163,7 @@ Code generation commands
 
 Generates an API client for your app. For more information about the generated clients, see [this page](/docs/develop/client-generation).
 
-By default generates the API based on your primary production environment.
+By default generates the API based on your [primary environment](/docs/deploy/environments#primary-environment).
 Use '--env=local' to generate it based on your local development version of the app.
 
 Supported language codes are:
@@ -173,22 +193,24 @@ Secret management commands
 Sets a secret value
 
 ```shell
-$ encore secret set --dev|prod <key>
+$ encore secret set --type <types> <secret-name>
 ```
+
+Where `<types>` defines which environment types the secret value applies to. Use a comma-separated list of `production`, `development`, `preview`, and `local`. Shorthands: `prod`, `dev`, `pr`.
 
 **Examples**
 
 
 Entering a secret directly in terminal:
 
-	$ encore secret set --dev MySecret
+	$ encore secret set --type dev MySecret
 	Enter secret value: ...
-	Successfully created development secret MySecret.
+	Successfully created secret value for MySecret.
 
 Piping a secret from a file:
 
-	$ encore secret set --dev MySecret < my-secret.txt
-	Successfully created development secret MySecret.
+	$ encore secret set --type dev,local MySecret < my-secret.txt
+	Successfully created secret value for MySecret.
 
 Note that this strips trailing newlines from the secret value.
 

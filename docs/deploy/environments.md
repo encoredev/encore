@@ -29,31 +29,30 @@ Click `Create` and you're done!
 
 ## Environment Types
 
-Encore has two primary types of environments: `Production` and `Development`.
+Encore has four types of environments:
+- `production`
+- `development`
+- `preview`
+- `local`
 
-`Development` environments include local, preview, and all environments created with the `Development` type.
-
-
-They differ in the type of infrastructure that is provisioned:
-- Production environments are provisioned for maximum reliability, availability, and scalability.
-- Development environments are optimized to be cost-efficient and fast to provision.
-
-Learn more about how different environments are provisioned in the [infrastructure documentation](/docs/deploy/infra).
+Some environment types differ in how infrastructure is provisioned:
+- `preview` environments are provisioned in Encore Cloud and are optimized to be cost-efficient and fast to provision.
+- `local` is provisioned by Encore's CLI using local versions of infrastructure.
 
 Aside from determining infrastructure, environment type is also used for [Secrets management](/docs/develop/secrets).
 
-## Local environment
+### Local environment
 
 When you've installed the [Encore CLI](/docs/install), you start your local environment by simply running `encore run`.
 This builds and tests your application, and provisions all the necessary infrastructure to run your application locally (see the [infra docs](/docs/deploy/infra#local-development) to learn exactly how local infrastructure is provisioned).
 
 By default, the local environment runs on `http://localhost:4000`.
 
-## Preview environments
+### Preview environments
 
 When you [connect your application to GitHub](/docs/how-to/github), Encore will automatically provision ephemeral Preview Environments for each Pull Request. See the [Preview Environments documentation](/docs/deploy/preview-environments) to learn more.
 
-### Frontend Collaboration
+#### Frontend Collaboration
 
 Preview Environments make it really easy to collaborate and test changes with your frontend.
 Just update your frontend API client to point to the `pr:#` environment.
@@ -62,16 +61,30 @@ This is a one-line change since your API client always specifies the environment
 If your pull request makes changes to the API, you can [generate a new API client](/docs/develop/client-generation)
 for the new backend API using `encore gen client --env=pr:72 --lang=typescript my-app`
 
-## Cloud environments
+### Cloud environments
 
-Encore makes it simple to create multiple cloud environments using different cloud providers, by [connecting your cloud account](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
+Encore makes it simple to create multiple cloud environments in different cloud providers by [connecting your cloud account(s)](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
 
-## Process Allocation
+#### Process Allocation
 
 Just because you want to deploy each service separately in some environments, doesn't mean you want to do it in all environments.
 
-Handily, Encore lets you decide how you want to deploy your services for each environment. You don't need to change a single line of code.
+Handily, Encore lets you decide how you want to deploy your services for cloud environments. You don't need to change a single line of code.
 
-When you create an environment, you can decide which process allocation you want for that environment.
+When you create an environment, you decide which process allocation you want for that environment.
 
 <img src="/assets/docs/microservices-process-allocation.png" title="Microservices - Process Allocation" />
+
+<Callout type="info">
+
+Deploying services as separate processes is not yet supported when using AWS Fargate. For multi-process deployments, select AWS EKS or GCP CloudRun / GKE.
+
+</Callout>
+
+## Primary environment
+
+Encore application's have a **primary environment** that is used as the default environment for functionality like viewing API documentation or app insights in the [Cloud Dashboard](https://app.encore.dev), and as the default for CLI functionality like API client generation. It should generally reflect what you consider to be the main 'production' environment.
+
+To configure which environment should be used as the primary environment, open your app in the [Cloud Dashboard](https://app.encore.dev), go to **Settings** > **General** > **Primary Environment**, then select the environment you want from the dropdown and click **Update**.
+
+

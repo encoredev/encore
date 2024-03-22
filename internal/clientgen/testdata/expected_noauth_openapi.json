@@ -59,6 +59,9 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "Message"
+                ],
                 "type": "object"
               }
             }

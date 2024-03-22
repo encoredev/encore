@@ -7,6 +7,7 @@ infobox: {
   title: "Metadata API",
   import: "encore.dev",
 }
+lang: go
 ---
 
 While Encore tries to provide a cloud-agnostic environment, sometimes it's helpful to know more about the environment

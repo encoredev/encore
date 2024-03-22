@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "include": ["**/*.ts", "**/*.cts"],
+  "exclude": ["dist/**", "**/*.test.ts"],
+  "compilerOptions": {
+    /* Basic Options */
+    "lib": ["ES2022"],
+    "target": "ES2022",
+    "module": "ES2022",
+
+    "outDir": "./dist",
+    "rootDir": ".",
+
+    /* Workspace Settings */
+    "composite": true,
+
+    /* Strict Type-Checking Options */
+    "strict": true,
+
+    /* Module Resolution Options */
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true, // This is required to ensure we don't write code which results in runtime issues if transpiled file by file
+    "sourceMap": true,
+
+    "declaration": true,
+
+    /* Advanced Options */
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "types": ["node"]
+  }
+}

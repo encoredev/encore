@@ -7,6 +7,7 @@ infobox: {
   title: "Authentication",
   import: "encore.dev/beta/auth",
 }
+lang: go
 ---
 Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
@@ -43,7 +44,7 @@ tells Encore to run the function whenever an incoming API call contains authenti
 The auth handler is responsible for validating the incoming authentication data
 and returning an `auth.UID` (a string type representing a **user id**). The `auth.UID`
 can be whatever you wish, but in practice it usually maps directly to the primary key
-stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
+stored in a user table (either defined in the Encore service or in an external service like [Firebase](/docs/how-to/firebase-auth) or [Auth0](/docs/how-to/auth0-auth)).
 
 ### With custom user data
 
@@ -149,7 +150,7 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here.
 
 Whenever possible we recommend using a third-party auth provider.<br/>
-See [Using Firebase Authentication](/docs/how-to/firebase-auth) for an example of how to do that.
+See the guides for using [Firebase Authentication](/docs/how-to/firebase-auth) or [Auth0](/docs/how-to/auth0-auth) for examples of how to do that.
 
 </Callout>
 

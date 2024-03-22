@@ -233,7 +233,7 @@
 									file: "how-to/change-db-schema"
 								}, {
 									kind: "basic"
-									text: "Connect to an existing database"
+									text: "Integrate with existing databases"
 									path: "/how-to/connect-existing-db"
 									file: "how-to/connect-existing-db"
 								}, {
@@ -310,11 +310,6 @@
 									file: "develop/cors"
 								}, {
 									kind: "basic"
-									text: "Infra Namespaces"
-									path: "/develop/infra-namespaces"
-									file: "develop/infra-namespaces"
-								}, {
-									kind: "basic"
 									text: "Metadata"
 									path: "/develop/metadata"
 									file: "develop/metadata"
@@ -381,6 +376,16 @@
 									file: "how-to/dependency-injection"
 								}, {
 									kind: "basic"
+									text: "Use Auth0 Authentication"
+									path: "/how-to/auth0-auth"
+									file: "how-to/auth0-auth"
+								}, {
+									kind: "basic"
+									text: "Use Clerk Authentication"
+									path: "/how-to/clerk-auth"
+									file: "how-to/clerk-auth"
+								}, {
+									kind: "basic"
 									text: "Use Firebase Authentication"
 									path: "/how-to/firebase-auth"
 									file: "how-to/firebase-auth"
@@ -428,6 +433,11 @@
 					text: "Client Generation"
 					path: "/develop/client-generation"
 					file: "develop/client-generation"
+				}, {
+					kind: "basic"
+					text: "Infra Namespaces"
+					path: "/develop/infra-namespaces"
+					file: "develop/infra-namespaces"
 				}]
 		},
 		{
@@ -435,8 +445,8 @@
 			text: "Platform"
 			items: [
 				{
-					kind:            "accordion"
-					text:            "Deploy"
+					kind: "accordion"
+					text: "Deploy"
 					defaultExpanded: true
 					accordion: [{
 						kind: "basic"
@@ -468,6 +478,12 @@
 						text: "Kubernetes deployment"
 						path: "/deploy/kubernetes"
 						file: "deploy/kubernetes"
+						inline_menu: [{
+							kind: "basic"
+							text: "Configure kubectl"
+							path: "/deploy/kubernetes/kubectl"
+							file: "deploy/configure-kubectl"
+						}]
 					}, {
 						kind: "basic"
 						text: "Import your Kubernetes cluster"
@@ -488,6 +504,11 @@
 						text: "Webhooks"
 						path: "/deploy/webhooks"
 						file: "deploy/webhooks"
+					}, {
+						kind: "basic"
+						text: "Integrating with Terraform"
+						path: "/deploy/terraform"
+						file: "deploy/terraform"
 					}]
 				},
 				{

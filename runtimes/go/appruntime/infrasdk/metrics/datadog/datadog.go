@@ -1,3 +1,5 @@
+//go:build !encore_no_datadog
+
 package datadog
 
 import (

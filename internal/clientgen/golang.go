@@ -318,13 +318,13 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 		}
 
 		// Add the documentation for the API to the interface method
-		if rpc.Doc != "" {
+		if rpc.Doc != nil {
 			// Add a newline if this is not the first method
 			if len(interfaceMethods) > 0 {
 				interfaceMethods = append(interfaceMethods, Line())
 			}
 
-			for _, line := range strings.Split(strings.TrimSpace(rpc.Doc), "\n") {
+			for _, line := range strings.Split(strings.TrimSpace(*rpc.Doc), "\n") {
 				interfaceMethods = append(interfaceMethods, Comment(line))
 			}
 		}
@@ -349,9 +349,11 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 			continue
 		}
 
-		for _, line := range strings.Split(strings.TrimSpace(rpc.Doc), "\n") {
-			if line != "" {
-				file.Comment(line)
+		if rpc.Doc != nil && *rpc.Doc != "" {
+			for _, line := range strings.Split(strings.TrimSpace(*rpc.Doc), "\n") {
+				if line != "" {
+					file.Comment(line)
+				}
 			}
 		}
 

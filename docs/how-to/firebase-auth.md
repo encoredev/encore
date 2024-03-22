@@ -2,6 +2,7 @@
 seotitle: How to use Firebase Auth for your backend application
 seodesc: Learn how to use Firebase Auth for user authentication in your backend application. In this guide we show you how to integrate your Go backend with Firebase Auth.
 title: Use Firebase Auth with your app
+lang: go
 ---
 
 Encore's [authentication support](/docs/concepts/auth) provides a simple yet powerful
@@ -11,6 +12,8 @@ way of dealing with various authentication scenarios.
 {" "}is a common solution for quickly setting up a user store and simplifying social logins.
 
 Encore makes it really easy to integrate with Firebase Authentication on the backend.
+
+For all the code and instructions of how to clone and run this example locally, see the [Firebase Auth Example](https://github.com/encoredev/examples/tree/main/firebase-auth) in our examples repo.
 
 ## Set up auth handler
 
@@ -132,7 +135,7 @@ Next, store the private key as your firebase secret.
 From your terminal (inside your Encore app directory), run:
 
 ```shell
-$ encore secret set --prod FirebasePrivateKey < /path/to/firebase-private-key.json
+$ encore secret set --type prod FirebasePrivateKey < /path/to/firebase-private-key.json
 Successfully updated production secret FirebasePrivateKey
 ```
 
@@ -145,9 +148,16 @@ but we recommend generating a new private key for development in that case.
 Once you have a private key for development, set it similarly to before:
 
 ```shell
-$ encore secret set --dev FirebasePrivateKey < /path/to/firebase-private-key.json
+$ encore secret set --type dev,local,pr FirebasePrivateKey < /path/to/firebase-private-key.json
 Successfully updated development secret FirebasePrivateKey
 ```
 
 That's it! You can now call your Encore application and pass in Firebase tokens.
 Encore will run your auth handler and validate the token against Firebase Auth.
+
+## Frontend
+
+Firebase offers a [npm package](https://www.npmjs.com/package/firebase) for your web frontend which makes it really simple to create 
+a login/signup flow inside your web app as well as getting the token required to communicate with your Encore backend. 
+
+For a fully working backend + frontend example see the [Firebase Auth Example](https://github.com/encoredev/examples/tree/main/firebase-auth) in our examples repo.

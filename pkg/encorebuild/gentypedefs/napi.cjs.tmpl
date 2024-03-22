@@ -1,0 +1,34 @@
+// The version of the runtime this JS bundle was generated for.
+const version = {{.ModuleVersion | printf "%q"}};
+
+// Load the native module.
+const nativeModulePath = process.env.ENCORE_RUNTIME_LIB;
+if (!nativeModulePath) {
+  throw new Error(
+    "The ENCORE_RUNTIME_LIB environment variable is not set. It must be set to the path of the Encore runtime library ('encore-runtime.node')."
+  );
+}
+const nativeModule = require(nativeModulePath);
+
+// Load the exported objects from the native module.
+const {
+{{- range .Exports}}
+  {{.}},
+  {{- end}}
+} = nativeModule;
+
+// Export the objects from the native module.
+module.exports = {
+{{- range .Exports}}
+  {{.}},
+  {{- end}}
+};
+
+
+// Sanity check incase the JS bundle was built for a different version of the runtime.
+if (version !== Runtime.version()) {
+  console.warn(`⚠️ WARNING: The version of the Encore runtime this JS bundle was built for (${version}) does not match the version of the Encore runtime it is running in (${Runtime.version()}).
+This may cause unexpected behaviour in your application.
+
+To resolve this, try update your Encore CLI using "encore version update" and then update the dependencies in your package.json file using "npm install encore.dev@latest".`);
+}

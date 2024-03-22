@@ -16,6 +16,7 @@ import (
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/pgproxy"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -36,7 +37,7 @@ func (s *Server) DBConnect(ctx context.Context, req *daemonpb.DBConnectRequest) 
 	if err != nil {
 		return nil, err
 	}
-	dsn := fmt.Sprintf("postgresql://encore:%s@localhost:%d/%s?sslmode=disable", passwd, port, req.DbName)
+	dsn := fmt.Sprintf("postgresql://encore:%s@127.0.0.1:%d/%s?sslmode=disable", passwd, port, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
 
@@ -53,6 +54,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 
 	// Parse the app to figure out what infrastructure is needed.
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       builder.DefaultBuildInfo(),
 		App:         app,
@@ -123,7 +125,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	}
 	log.Info().Msg("created database cluster")
 
-	dsn := fmt.Sprintf("postgresql://%s:%s@localhost:%d/%s?sslmode=disable",
+	dsn := fmt.Sprintf("postgresql://%s:%s@127.0.0.1:%d/%s?sslmode=disable",
 		app.PlatformOrLocalID(), passwd, s.mgr.DBProxyPort, req.DbName)
 	return &daemonpb.DBConnectResponse{Dsn: dsn}, nil
 }
@@ -175,6 +177,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 
 		// Parse the app to figure out what infrastructure is needed.
 		bld := builderimpl.Resolve(expSet)
+		defer fns.CloseIgnore(bld)
 		parse, err := bld.Parse(ctx, builder.ParseParams{
 			Build:       builder.DefaultBuildInfo(),
 			App:         app,
@@ -272,6 +275,7 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 
 	// Parse the app to figure out what infrastructure is needed.
 	bld := builderimpl.Resolve(expSet)
+	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(stream.Context(), builder.ParseParams{
 		Build:       builder.DefaultBuildInfo(),
 		App:         app,

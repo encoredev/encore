@@ -64,6 +64,12 @@ func (b *builder) Build() *meta.Data {
 	}
 	md := b.md
 
+	for _, gw := range b.app.Gateways {
+		b.md.Gateways = append(b.md.Gateways, &meta.Gateway{
+			EncoreName: gw.EncoreName,
+		})
+	}
+
 	svcByName := make(map[string]*meta.Service, len(b.app.Services))
 	for _, svc := range b.app.Services {
 		out := &meta.Service{
@@ -77,7 +83,7 @@ func (b *builder) Build() *meta.Data {
 			for _, ep := range fw.Endpoints {
 				rpc := &meta.RPC{
 					Name:           ep.Name,
-					Doc:            ep.Doc,
+					Doc:            zeroNil(ep.Doc),
 					ServiceName:    svc.Name,
 					RequestSchema:  b.schemaTypeUnwrapPointer(ep.Request),
 					ResponseSchema: b.schemaTypeUnwrapPointer(ep.Response),
@@ -87,6 +93,7 @@ func (b *builder) Build() *meta.Data {
 					HttpMethods:    ep.HTTPMethods,
 					Tags:           ep.Tags.ToProto(),
 					Sensitive:      ep.Sensitive,
+					Expose:         make(map[string]*meta.RPC_ExposeOptions),
 				}
 				if ep.Raw {
 					rpc.Proto = meta.RPC_RAW
@@ -95,10 +102,14 @@ func (b *builder) Build() *meta.Data {
 				switch ep.Access {
 				case api.Public:
 					rpc.AccessType = meta.RPC_PUBLIC
-				case api.Private:
-					rpc.AccessType = meta.RPC_PRIVATE
+					rpc.Expose["api-gateway"] = &meta.RPC_ExposeOptions{}
+					rpc.AllowUnauthenticated = true
 				case api.Auth:
 					rpc.AccessType = meta.RPC_AUTH
+					rpc.Expose["api-gateway"] = &meta.RPC_ExposeOptions{}
+				case api.Private:
+					rpc.AccessType = meta.RPC_PRIVATE
+					rpc.AllowUnauthenticated = true
 				default:
 					b.errs.Addf(ep.Decl.AST.Pos(), "internal error: unknown API access type %v", ep.Access)
 				}
@@ -198,7 +209,7 @@ func (b *builder) Build() *meta.Data {
 			cj := &meta.CronJob{
 				Id:       r.Name,
 				Title:    r.Title,
-				Doc:      r.Doc,
+				Doc:      zeroNil(r.Doc),
 				Schedule: r.Schedule,
 				Endpoint: nil,
 			}
@@ -214,28 +225,30 @@ func (b *builder) Build() *meta.Data {
 			}
 
 		case *authhandler.AuthHandler:
-			ah := &meta.AuthHandler{
-				Name:    r.Name,
-				Doc:     r.Doc,
-				PkgPath: r.Package().ImportPath.String(),
-				PkgName: r.Package().Name,
-				Loc:     b.schemaLoc(r.Decl.File, r.Decl.AST),
-				Params:  b.schemaTypeUnwrapPointer(r.Param),
-			}
-			if data, ok := r.AuthData.Get(); ok {
-				ah.AuthData = b.typeDeclRefUnwrapPointer(data)
-			}
-			md.AuthHandler = ah
-
 			if svc, ok := b.app.ServiceForPath(r.Decl.File.FSPath); ok {
+				ah := &meta.AuthHandler{
+					Name:        r.Name,
+					Doc:         r.Doc,
+					PkgPath:     r.Package().ImportPath.String(),
+					PkgName:     r.Package().Name,
+					Loc:         b.schemaLoc(r.Decl.File, r.Decl.AST),
+					Params:      b.schemaTypeUnwrapPointer(r.Param),
+					ServiceName: svc.Name,
+				}
+				if data, ok := r.AuthData.Get(); ok {
+					ah.AuthData = b.typeDeclRefUnwrapPointer(data)
+				}
+				md.AuthHandler = ah
 				b.nodes.addAuthHandler(r, svc.Name)
+			} else {
+				b.errs.Addf(r.Decl.AST.Pos(), "auth handler %q must be defined within a service", r.Name)
 			}
 
 		case *sqldb.Database:
 			db := &meta.SQLDatabase{
 				Name:             r.Name,
-				Doc:              r.Doc,
-				MigrationRelPath: r.MigrationDir.String(),
+				Doc:              zeroNil(r.Doc),
+				MigrationRelPath: zeroNil(r.MigrationDir.String()),
 				Migrations:       fns.Map(r.Migrations, transformMigration),
 			}
 			md.SqlDatabases = append(md.SqlDatabases, db)
@@ -243,7 +256,7 @@ func (b *builder) Build() *meta.Data {
 		case *pubsub.Topic:
 			topic := &meta.PubSubTopic{
 				Name:          r.Name,
-				Doc:           r.Doc,
+				Doc:           zeroNil(r.Doc),
 				MessageType:   b.typeDeclRefUnwrapPointer(r.MessageType),
 				OrderingKey:   r.OrderingAttribute,
 				Publishers:    nil,
@@ -465,6 +478,23 @@ func (b *builder) Build() *meta.Data {
 		pkg.TraceNodes = b.nodes.forPkg(pkgPath)
 	}
 
+	// If we have an auth handler, consider that an explicit gateway.
+	if md.AuthHandler != nil && len(md.Gateways) == 0 {
+		md.Gateways = append(md.Gateways, &meta.Gateway{
+			EncoreName: "api-gateway",
+			Explicit: &meta.Gateway_Explicit{
+				ServiceName: md.AuthHandler.ServiceName,
+				AuthHandler: md.AuthHandler,
+			},
+		})
+	} else if len(md.Gateways) == 0 {
+		// Otherwise, add a default gateway.
+		md.Gateways = append(md.Gateways, &meta.Gateway{
+			EncoreName: "api-gateway",
+			Explicit:   nil,
+		})
+	}
+
 	return md
 }
 
@@ -559,4 +589,12 @@ func (b *builder) relPath(pkg paths.Pkg) string {
 		panic("cannot compute relative path to package outside main module: " + pkg.String())
 	}
 	return rel.String()
+}
+
+func zeroNil[T comparable](val T) *T {
+	var zero T
+	if val == zero {
+		return nil
+	}
+	return &val
 }

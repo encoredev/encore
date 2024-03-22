@@ -32,6 +32,7 @@ Now let's create a new `url` service.
 🥐 In your application's root folder, create a new folder `url` and create a new file `url.go` that looks like this:
 
 ```go
+// Service url takes URLs, generates random short IDs, and stores the URLs in a database.
 package url
 
 import (
@@ -76,18 +77,20 @@ This sets up the `POST /url` endpoint (see the `//encore:api` annotation on the 
 You should see this:
 
 ```bash
-API Base URL:      http://localhost:4000
-Dev Dashboard URL: http://localhost:9400/hello-world-cgu2
+Your API is running at:     http://localhost:4000
+Development Dashboard URL:  http://localhost:9400
 4:19PM INF registered endpoint path=/url service=url endpoint=Shorten
 ```
 
 🥐 Next, call your endpoint:
 
+Either do this from the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) or from the terminal:
+
 ```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
-You should see this:
+You should see this (and in the Local Development Dashboard you can see a trace):
 
 ```bash
 {
@@ -180,7 +183,7 @@ Before running your application, make sure you have [Docker](https://www.docker.
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
-🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory (or you can look at the trace in the local dev dashboard at [localhost:9400](http://localhost:9400)):
+🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory, or you can look at the trace in the local dev dashboard at [localhost:9400](http://localhost:9400).
 
 ```shell
 $ encore db shell url
@@ -233,7 +236,7 @@ You should now see this:
 
 And there you have it! That's how you build REST APIs and use PostgreSQL databases in Encore.
 
-## 4. Add a test and deploy
+## 4. Add a test
 
 Before deployment, it is good practice to have tests to assure that
 the service works properly. Such tests including database access
@@ -278,7 +281,11 @@ func TestShortenAndRetrieve(t *testing.T) {
 
 🥐 Now run `encore test ./...` to verify that it's working.
 
-A final step before you deploy is to commit all changes to the project repo.
+If you use the local development dashboard ([localhost:9400](http://localhost:9400)), you can even see traces for tests.
+
+## 5. Deploy to the cloud
+
+The final step before you deploy is to commit all changes to the project repo.
 
 🥐 Commit the new files to the project's git repo and trigger a deploy to Encore's free development cloud by running:
 

@@ -3,7 +3,6 @@ package v2builder
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"go/token"
 	"io/fs"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
@@ -21,9 +21,9 @@ import (
 	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/cueutil"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
-	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vfs"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/legacymeta"
@@ -42,6 +42,8 @@ import (
 
 type BuilderImpl struct{}
 
+func (BuilderImpl) Close() error { return nil }
+
 func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
 		defer func() {
@@ -49,6 +51,8 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 		}()
 		fset := token.NewFileSet()
 		errs := perr.NewList(ctx, fset)
+
+		runtimesDir := p.Build.EncoreRuntimes.GetOrElseF(func() paths.FS { return paths.FS(env.EncoreRuntimesPath()) })
 		pc := &parsectx.Context{
 			AppID: option.Some(p.App.PlatformOrLocalID()),
 			Ctx:   ctx,
@@ -61,9 +65,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 				GOROOT: p.Build.GoRoot.GetOrElseF(func() paths.FS {
 					return paths.RootedFSPath(env.EncoreGoRoot(), ".")
 				}),
-				EncoreRuntime: p.Build.EncoreRuntime.GetOrElseF(func() paths.FS {
-					return paths.RootedFSPath(filepath.Join(env.EncoreRuntimesPath(), "go"), ".")
-				}),
+				EncoreRuntime: runtimesDir.Join("go"),
 
 				GOARCH:             p.Build.GOARCH,
 				GOOS:               p.Build.GOOS,
@@ -142,16 +144,6 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		}
 		p.OpTracker.Done(codegenOp, 450*time.Millisecond)
 
-		configProm := promise.New(func() (res configResult, err error) {
-			defer func() {
-				if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
-					err = l.AsError()
-				}
-			}()
-
-			return computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta), nil
-		})
-
 		compileOp := p.OpTracker.Add("Compiling application source code", time.Now())
 		buildResult := build.Build(ctx, &build.Config{
 			Ctx:          pd.pc,
@@ -161,23 +153,34 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			StaticConfig: staticConfig,
 		})
 
+		output := &builder.GoBuildOutput{ArtifactDir: buildResult.Dir}
 		res = &builder.CompileResult{
-			Dir: buildResult.Dir.ToIO(),
-			Exe: buildResult.Exe.ToIO(),
+			Outputs: []builder.BuildOutput{output},
 		}
+
+		// Set the built binaries according to the multi-proc build setting.
+		relExe, err := filepath.Rel(output.ArtifactDir.ToIO(), buildResult.Exe.ToIO())
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to compute relative path to executable")
+		}
+
+		exeFile := builder.ArtifactString("${ARTIFACT_DIR}").Join(relExe)
+		spec := builder.CmdSpec{
+			Command:          builder.ArtifactStrings{exeFile},
+			PrioritizedFiles: builder.ArtifactStrings{exeFile},
+		}
+		output.Entrypoints = []builder.Entrypoint{{
+			Cmd:      spec,
+			Services: fns.Map(pd.appDesc.Services, func(svc *app.Service) string { return svc.Name }),
+			Gateways: fns.Map(pd.appDesc.Gateways, func(gw *app.Gateway) string { return gw.EncoreName }),
+		}}
+
 		// Check if the compile result caused errors and if it did return
 		if pd.pc.Errs.Len() > 0 {
 			p.OpTracker.Fail(compileOp, pd.pc.Errs.AsError())
 			return res, pd.pc.Errs.AsError()
 		}
 		p.OpTracker.Done(compileOp, 450*time.Millisecond)
-
-		config, err := configProm.Get(pd.pc.Ctx)
-		if err != nil {
-			return res, err
-		}
-		res.Configs = config.configs
-		res.ConfigFiles = config.files
 
 		// Then check if the config generation caused an error
 		if pd.pc.Errs.Len() > 0 {
@@ -188,21 +191,91 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 	})
 }
 
-func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
+func (i BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfigsParams) (res *builder.ServiceConfigsResult, err error) {
+	defer func() {
+		if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
+			err = l.AsError()
+		}
+	}()
+
+	pd := p.Parse.Data.(*parseData)
+	cfg := computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta)
+	if err != nil {
+		return nil, err
+	}
+	return &builder.ServiceConfigsResult{
+		Configs:     cfg.configs,
+		ConfigFiles: cfg.files,
+	}, nil
+}
+
+func (i BuilderImpl) UseNewRuntimeConfig() bool {
+	return false
+}
+
+func (i BuilderImpl) NeedsMeta() bool {
+	return false
+}
+
+func (i BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
 		}()
 
-		pd := p.Compile.Parse.Data.(*parseData)
-
-		configs := computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.Compile.CueMeta)
-
-		envs := make([]string, 0, len(p.Env)+len(configs.configs))
-		envs = append(envs, p.Env...)
-		for serviceName, cfgString := range configs.configs {
-			envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
+		data, ok := p.Spec.BuilderData.(*testBuilderData)
+		if !ok {
+			return errors.Newf("invalid builder data type %T", p.Spec.BuilderData)
 		}
+
+		build.RunTests(ctx, data.spec, &build.RunTestsConfig{
+			Stdout:     p.Stdout,
+			Stderr:     p.Stderr,
+			WorkingDir: p.WorkingDir,
+		})
+
+		if data.pc.Errs.Len() > 0 {
+			return data.pc.Errs.AsError()
+		}
+
+		return nil
+	})
+}
+
+type testBuilderData struct {
+	spec *build.TestSpec
+	pc   *parsectx.Context
+}
+
+func (i BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*builder.TestSpecResult, error) {
+	return etrace.Sync2(ctx, "", "v2builder.TestSpec", func(ctx context.Context) (res *builder.TestSpecResult, err error) {
+		spec, err := i.generateTestSpec(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+
+		pd := p.Compile.Parse.Data.(*parseData)
+		data := &testBuilderData{
+			spec: spec,
+			pc:   pd.pc,
+		}
+
+		return &builder.TestSpecResult{
+			Command:     spec.Command,
+			Args:        spec.Args,
+			Environ:     spec.Environ,
+			BuilderData: data,
+		}, nil
+	})
+}
+
+func (i BuilderImpl) generateTestSpec(ctx context.Context, p builder.TestSpecParams) (*build.TestSpec, error) {
+	return etrace.Sync2(ctx, "", "v2builder.generateTestSpec", func(ctx context.Context) (res *build.TestSpec, err error) {
+		defer func() {
+			err, _ = perr.CatchBailoutAndPanic(err, recover())
+		}()
+
+		pd := p.Compile.Parse.Data.(*parseData)
 
 		gg := codegen.New(pd.pc, pd.traceNodes)
 		staticConfig := etrace.Sync1(ctx, "", "codegen", func(ctx context.Context) *config.Static {
@@ -214,7 +287,7 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 					testCfg.Packages = append(testCfg.Packages, pkg)
 				}
 			}
-			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p, envs)
+			testCfg.EnvsToEmbed = i.testEnvVarsToEmbed(p.Args, p.Env)
 
 			infragen.Process(gg, pd.appDesc)
 			return apigen.Process(apigen.Params{
@@ -229,31 +302,28 @@ func (i BuilderImpl) Test(ctx context.Context, p builder.TestParams) error {
 			})
 		})
 
-		build.Test(ctx, &build.TestConfig{
+		spec := build.GenerateTestSpec(ctx, &build.GenerateTestSpecConfig{
 			Config: build.Config{
 				Ctx:          pd.pc,
 				Overlays:     gg.Overlays(),
 				KeepOutput:   p.Compile.Build.KeepOutput,
-				Env:          envs,
+				Env:          p.Env,
 				StaticConfig: staticConfig,
 			},
-			Args:       p.Args,
-			Stdout:     p.Stdout,
-			Stderr:     p.Stderr,
-			WorkingDir: paths.RootedFSPath(p.Compile.App.Root(), p.Compile.WorkingDir),
+			Args: p.Args,
 		})
 
 		if pd.pc.Errs.Len() > 0 {
-			return pd.pc.Errs.AsError()
+			return nil, pd.pc.Errs.AsError()
 		}
-		return nil
+		return spec, nil
 	})
 }
 
 // testEnvVars takes a list of env vars and filters them down to the ones
 // that should be embedded within the test binary.
-func (i BuilderImpl) testEnvVarsToEmbed(p builder.TestParams, envs []string) map[string]string {
-	if !slices.Contains(p.Args, "-c") {
+func (i BuilderImpl) testEnvVarsToEmbed(args, envs []string) map[string]string {
+	if !slices.Contains(args, "-c") {
 		return nil
 	}
 
@@ -303,6 +373,8 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 			errs.AddStdNode(err, resourceNode)
 			continue
 		}
+		// Convert the path since io/fs operates on forward slashes.
+		rel = filepath.ToSlash(rel)
 		cfg, err := cueutil.LoadFromFS(files, rel, cueMeta)
 		if err != nil {
 			errs.AddStdNode(err, resourceNode)
@@ -320,19 +392,32 @@ func computeConfigs(errs *perr.List, desc *app.Desc, mainModule *pkginfo.Module,
 }
 
 func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
-	// Create a virtual filesystem for the config files
-	configFiles, err := vfs.FromDir(mainModule.RootDir.ToIO(), func(path string, info fs.DirEntry) bool {
-		// any CUE files
-		if filepath.Ext(path) == ".cue" {
-			return true
+	inCueModFolder := func(path string, info fs.DirEntry) bool {
+		// If it's not a directory, get the parent directory
+		if !info.IsDir() {
+			path = filepath.Dir(path)
 		}
 
-		// Pickup any files within a CUE module folder (either at the root of the app or in a subfolder)
-		if strings.Contains(path, "/cue.mod/") || strings.HasPrefix(path, "cue.mod/") {
-			return true
+		for i := 0; i < 30; i++ {
+			base := filepath.Base(path)
+			if strings.ToLower(base) == "cue.mod" {
+				return true
+			}
+
+			parent := filepath.Dir(path)
+			if parent == path {
+				break
+			}
+			path = parent
 		}
 		return false
+	}
+
+	// Create a virtual filesystem for the config files
+	configFiles, err := vfs.FromDir(mainModule.RootDir.ToIO(), func(path string, info fs.DirEntry) bool {
+		return filepath.Ext(path) == ".cue" || inCueModFolder(path, info)
 	})
+
 	if err != nil {
 		errs.AssertStd(fmt.Errorf("unable to package configuration files: %w", err))
 	}

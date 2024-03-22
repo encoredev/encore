@@ -235,6 +235,7 @@ This is a synthetic file describing the generated static config:
 		"bar": "testing_path:bar",
 		"foo": "testing_path:foo"
 	},
+	"TestAppRootPath": "testing_path:main",
 	"PrettyPrintLogs": false,
 	"BundledServices": [
 		"bar",

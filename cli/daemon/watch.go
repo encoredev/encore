@@ -17,6 +17,7 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/pkg/watcher"
+	"encr.dev/pkg/xos"
 )
 
 func (s *Server) watchApps() {
@@ -110,7 +111,7 @@ func (s *Server) updateGitIgnore(i *apps.Instance) error {
 	}
 
 	// Find which directives are already present
-	directives := []string{"encore.gen.go", "encore.gen.cue", "/.encore"}
+	directives := []string{"encore.gen.go", "encore.gen.cue", "/.encore", "/encore.gen"}
 	found := make([]bool, len(directives))
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
@@ -136,7 +137,7 @@ func (s *Server) updateGitIgnore(i *apps.Instance) error {
 
 	// Write the file back if there were any changes
 	if updated {
-		return os.WriteFile(dst, data, 0644)
+		return xos.WriteFile(dst, data, 0644)
 	}
 	return nil
 }

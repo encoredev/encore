@@ -3,6 +3,7 @@ seotitle: How to use dependency injection to test your microservices app
 seodesc: Learn how to use dependency injection in your Go based microservices backend application using Encore.
 title: Dependency Injection
 subtitle: Simplifying testing
+lang: go
 ---
 
 Dependency Injection is a fancy name for a simple concept: when you depend on some

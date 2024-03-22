@@ -87,8 +87,8 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 	}
 }
 
-func (t *RequestTracker) FinishRequest() {
-	t.finishReq()
+func (t *RequestTracker) FinishRequest(blockOnTraceSend bool) {
+	t.finishReq(blockOnTraceSend)
 }
 
 type Current struct {

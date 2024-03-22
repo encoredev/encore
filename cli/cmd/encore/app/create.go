@@ -25,6 +25,7 @@ import (
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/github"
+	"encr.dev/pkg/xos"
 )
 
 var (
@@ -118,11 +119,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		_, _ = gray.Printf("Downloaded template %s.\n", ex.Name())
 	} else {
 		// Set up files that we need when we don't have an example
-		if err := os.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
+		if err := xos.WriteFile(filepath.Join(name, ".gitignore"), []byte("/.encore\n"), 0644); err != nil {
 			cmdutil.Fatal(err)
 		}
 		encoreModData := []byte("module encore.app\n")
-		if err := os.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
+		if err := xos.WriteFile(filepath.Join(name, "go.mod"), encoreModData, 0644); err != nil {
 			cmdutil.Fatal(err)
 		}
 	}
@@ -167,7 +168,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "write encore.app file")
 	}
-	if err := os.WriteFile(encoreAppPath, appData, 0644); err != nil {
+	if err := xos.WriteFile(encoreAppPath, appData, 0644); err != nil {
 		return errors.Wrap(err, "write encore.app file")
 	}
 
@@ -286,12 +287,22 @@ func npmInstallEncore(dir string) error {
 		verToInstall = "latest"
 	}
 
-	cmd := exec.Command("npm", "install", fmt.Sprintf("encore.dev@%s", verToInstall), fmt.Sprintf("encore.app@%s", verToInstall), fmt.Sprintf("@encore.dev/node-runtime@%s", verToInstall))
+	// First install the 'encore.dev' package.
+	cmd := exec.Command("npm", "install", fmt.Sprintf("encore.dev@%s", verToInstall))
 	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.New(string(out))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("'npm install encore.dev@%s' failed: %v: %s", verToInstall, err, out)
 	}
-	return nil
+
+	// Then run 'npm install'.
+	cmd = exec.Command("npm", "install")
+	cmd.Dir = dir
+	if out2, err2 := cmd.CombinedOutput(); err2 != nil && err == nil {
+		err = fmt.Errorf("'npm install' failed: %v: %s", err2, out2)
+	}
+
+	return err
 }
 
 func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
@@ -449,7 +460,7 @@ func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error 
 	}
 
 	if replaced {
-		return os.WriteFile(path, data, info.Type().Perm())
+		return xos.WriteFile(path, data, info.Type().Perm())
 	}
 	return nil
 }

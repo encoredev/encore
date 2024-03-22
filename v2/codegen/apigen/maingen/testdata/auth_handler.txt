@@ -182,6 +182,7 @@ This is a synthetic file describing the generated static config:
 	"TestServiceMap": {
 		"code": "testing_path:code"
 	},
+	"TestAppRootPath": "testing_path:main",
 	"PrettyPrintLogs": false,
 	"BundledServices": [
 		"code"

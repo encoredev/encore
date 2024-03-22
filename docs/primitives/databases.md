@@ -8,6 +8,7 @@ infobox: {
   import: "encore.dev/storage/sqldb",
   example_link: "/docs/tutorials/uptime"
 }
+lang: go
 ---
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
@@ -247,3 +248,11 @@ This means Encore was not able to create the database. Often this is due to a pr
 - Check if you have permission to access Docker by running `docker images`.
 - Set the correct permissions with `sudo usermod -aG docker $USER` (Learn more in the [Docker documentation](https://docs.docker.com/engine/install/linux-postinstall/))
 - Then log out and log back in so that your group membership is refreshed.
+
+** Error: unable to add CA to cert pool **
+
+This error is commonly caused by the presence of the file `$HOME/.postgresql/root.crt` on the filesystem.
+When this file is present the PostgreSQL client library will assume the database server has that root certificate,
+which will cause the above error.
+
+- Remove or rename the file, then try `encore run` again.

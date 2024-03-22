@@ -499,8 +499,15 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 	})
 
 	c.Run("go_generated_client", func(c *qt.C) {
-		cmd := exec.Command("go", "run", ".", app.Addr)
+		encoreGoroot := os.Getenv("ENCORE_GOROOT")
+		c.Assert(encoreGoroot, qt.Not(qt.Equals), "")
+		goPath := filepath.Join(encoreGoroot, "bin", "go")
+		cmd := exec.Command(goPath, "run", ".", app.Addr)
 		cmd.Dir = filepath.Join("testdata", "echo_client")
+		cmd.Env = append(os.Environ(),
+			"GOROOT="+encoreGoroot,
+			"PATH="+fmt.Sprintf("%s%s%s", filepath.Join(encoreGoroot, "/bin"), string(filepath.ListSeparator), os.Getenv("PATH")),
+		)
 
 		out, err := cmd.CombinedOutput()
 		c.Assert(err, qt.IsNil, qt.Commentf("Got error running generated Go client: %s", out))
@@ -566,7 +573,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	rm := infra.NewResourceManager(app, nil, ns, nil, 0, false)
 	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212", SvcProxy: svcProxy}
 
-	parse, build := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
+	parse, build, _ := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
 	run.ResourceManager.StartRequiredServices(jobs, parse.Meta)
 	defer run.Close()
@@ -574,12 +581,11 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	c.Assert(jobs.Wait(), qt.IsNil)
 
 	p, err := run.StartProcGroup(&StartProcGroupParams{
-		Ctx:      ctx,
-		BuildDir: build.Dir,
-		BinPath:  build.Exe,
-		Meta:     parse.Meta,
-		Logger:   testRunLogger{t},
-		Environ:  os.Environ(),
+		Ctx:     ctx,
+		Outputs: build.Outputs,
+		Meta:    parse.Meta,
+		Logger:  testRunLogger{t},
+		Environ: os.Environ(),
 	})
 	c.Assert(err, qt.IsNil)
 	cancel()

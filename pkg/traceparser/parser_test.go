@@ -667,7 +667,7 @@ func TestParse(t *testing.T) {
 			tt.Emit(log)
 			data, _ := log.GetAndClear()
 			ta := trace2.NewTimeAnchor(0, now)
-			got, err := ParseEvent(bufio.NewReader(bytes.NewReader(data)), ta)
+			got, err := ParseEvent(bufio.NewReader(bytes.NewReader(data)), ta, 99)
 			if err != nil {
 				t.Fatal(err)
 			}

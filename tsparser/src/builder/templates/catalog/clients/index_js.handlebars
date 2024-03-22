@@ -1,0 +1,3 @@
+{{#each services}}
+export * as {{name}} from "../internal/clients/{{ name }}/endpoints.js";
+{{/each}}

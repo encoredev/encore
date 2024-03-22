@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -24,6 +28,8 @@ var testCmd = &cobra.Command{
 		var (
 			traceFile    string
 			codegenDebug bool
+			prepareOnly  bool
+			noColor      bool
 		)
 		// Support specific args but otherwise let all args be passed on to "go test"
 		for i := 0; i < len(args); i++ {
@@ -52,15 +58,23 @@ var testCmd = &cobra.Command{
 				codegenDebug = true
 				args = slices.Delete(args, i, i+1)
 				i--
+			} else if arg == "--prepare" {
+				prepareOnly = true
+				args = slices.Delete(args, i, i+1)
+				i--
+			} else if arg == "--no-color" {
+				noColor = true
+				args = slices.Delete(args, i, i+1)
+				i--
 			}
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args, traceFile, codegenDebug)
+		runTests(appRoot, relPath, args, traceFile, codegenDebug, prepareOnly, noColor)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug bool) {
+func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug, prepareOnly, noColor bool) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -70,12 +84,49 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		cancel()
 	}()
 
-	converter := convertJSONLogs()
+	converter := convertJSONLogs(colorize(!noColor))
 	if slices.Contains(args, "-json") {
 		converter = convertTestEventOutputOnly(converter)
 	}
 
 	daemon := setupDaemon(ctx)
+
+	// Is this a node package?
+	packageJsonPath := filepath.Join(appRoot, "package.json")
+	if _, err := os.Stat(packageJsonPath); err == nil || prepareOnly {
+		spec, err := daemon.TestSpec(ctx, &daemonpb.TestSpecRequest{
+			AppRoot:    appRoot,
+			WorkingDir: testDir,
+			Args:       args,
+			Environ:    os.Environ(),
+		})
+		if err != nil {
+			fatal(err)
+		}
+
+		if prepareOnly {
+			for _, ln := range spec.Environ {
+				fmt.Println(ln)
+			}
+			return
+		}
+
+		cmd := exec.Command(spec.Command, spec.Args...)
+		cmd.Env = spec.Environ
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+
+		if err := cmd.Run(); err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				os.Exit(exitErr.ExitCode())
+			} else {
+				fatal(err)
+			}
+		}
+		return
+	}
 
 	stream, err := daemon.Test(ctx, &daemonpb.TestRequest{
 		AppRoot:      appRoot,
@@ -98,7 +149,9 @@ func init() {
 	// Even though we've disabled flag parsing, we still need to define the flags
 	// so that the help text is correct.
 	testCmd.Flags().Bool("codegen-debug", false, "Dump generated code (for debugging Encore's code generation)")
+	testCmd.Flags().Bool("prepare", false, "Prepare for running tests (without running them)")
 	testCmd.Flags().String("trace", "", "Specifies a trace file to write trace information about the parse and compilation process to.")
+	testCmd.Flags().Bool("no-color", false, "Disable colorized output")
 
 }
 

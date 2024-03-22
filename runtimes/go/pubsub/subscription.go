@@ -227,7 +227,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 				Resp: resp,
 			})
 		}
-		mgr.rt.FinishRequest()
+		mgr.rt.FinishRequest(false)
 
 		return err
 	})

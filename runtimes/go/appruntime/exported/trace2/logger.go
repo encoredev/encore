@@ -26,6 +26,8 @@ type Logger interface {
 	AuthSpanEnd(params AuthSpanEndParams)
 	PubsubMessageSpanStart(req *model.Request, goid uint32)
 	PubsubMessageSpanEnd(params PubsubMessageSpanEndParams)
+	TestSpanStart(req *model.Request, goid uint32)
+	TestSpanEnd(params TestSpanEndParams)
 	RPCCallStart(call *model.APICall, goid uint32) EventID
 	RPCCallEnd(call *model.APICall, goid uint32, err error)
 	DBQueryStart(p DBQueryStartParams) EventID
