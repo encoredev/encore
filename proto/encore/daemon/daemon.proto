@@ -348,3 +348,133 @@ message DumpMetaRequest {
 message DumpMetaResponse {
   bytes meta = 1;
 }
+
+
+
+// The following messages are used for sqlc plugin integration.
+message SQLCPlugin {
+  message File {
+    string name = 1 [json_name = "name"];
+    bytes contents = 2 [json_name = "contents"];
+  }
+
+  message Settings {
+    // Rename message was field 5
+    // Overides message was field 6
+    // PythonCode message was field 8
+    // KotlinCode message was field 9
+    // GoCode message was field 10;
+    // JSONCode message was field 11;
+    reserved 5, 8, 9, 10, 11;
+
+    string version = 1 [json_name = "version"];
+    string engine = 2 [json_name = "engine"];
+    repeated string schema = 3 [json_name = "schema"];
+    repeated string queries = 4 [json_name = "queries"];
+    Codegen codegen = 12 [json_name = "codegen"];
+  }
+
+  message Codegen {
+    message Process {
+      string cmd = 1;
+    }
+    message WASM {
+      string url = 1;
+      string sha256 = 2;
+    }
+    string out = 1 [json_name = "out"];
+    string plugin = 2 [json_name = "plugin"];
+    bytes options = 3 [json_name = "options"];
+    repeated string env = 4 [json_name = "env"];
+    Process process = 5 [json_name = "process"];
+    WASM wasm = 6 [json_name = "wasm"];
+  }
+
+  message Catalog {
+    string comment = 1;
+    string default_schema = 2;
+    string name = 3;
+    repeated Schema schemas = 4;
+  }
+
+  message Schema {
+    string comment = 1;
+    string name = 2;
+    repeated Table tables = 3;
+    repeated Enum enums = 4;
+    repeated CompositeType composite_types = 5;
+  }
+
+  message CompositeType {
+    string name = 1;
+    string comment = 2;
+  }
+
+  message Enum {
+    string name = 1;
+    repeated string vals = 2;
+    string comment = 3;
+  }
+
+  message Table {
+    Identifier rel = 1;
+    repeated Column columns = 2;
+    string comment = 3;
+  }
+
+  message Identifier {
+    string catalog = 1;
+    string schema = 2;
+    string name = 3;
+  }
+
+  message Column {
+    string name = 1;
+    bool not_null = 3;
+    bool is_array = 4;
+    string comment = 5;
+    int32 length = 6;
+    bool is_named_param = 7;
+    bool is_func_call = 8;
+
+    // XXX: Figure out what PostgreSQL calls `foo.id`
+    string scope = 9;
+    Identifier table = 10;
+    string table_alias = 11;
+    Identifier type = 12;
+    bool is_sqlc_slice = 13;
+    Identifier embed_table = 14;
+    string original_name = 15;
+    bool unsigned = 16;
+    int32 array_dims = 17;
+  }
+
+  message Query {
+    string text = 1 [json_name = "text"];
+    string name = 2 [json_name = "name"];
+    string cmd = 3 [json_name = "cmd"];
+    repeated Column columns = 4 [json_name = "columns"];
+    repeated Parameter params = 5 [json_name = "parameters"];
+    repeated string comments = 6 [json_name = "comments"];
+    string filename = 7 [json_name = "filename"];
+    Identifier insert_into_table = 8 [json_name = "insert_into_table"];
+  }
+
+  message Parameter {
+    int32 number = 1 [json_name = "number"];
+    Column column = 2 [json_name = "column"];
+  }
+
+  message GenerateRequest {
+    Settings settings = 1 [json_name = "settings"];
+    Catalog catalog = 2 [json_name = "catalog"];
+    repeated Query queries = 3 [json_name = "queries"];
+    string sqlc_version = 4 [json_name = "sqlc_version"];
+    bytes plugin_options = 5 [json_name = "plugin_options"];
+    bytes global_options = 6 [json_name = "global_options"];
+  }
+
+  message GenerateResponse {
+    repeated File files = 1 [json_name = "files"];
+  }
+}
