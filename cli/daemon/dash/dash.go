@@ -283,8 +283,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		err = ai.ValidateCode(params.Services, app)
-		return reply(ctx, true, err)
+		results, err := ai.ValidateCode(params.Services, app)
+		return reply(ctx, results, err)
 	case "ai/modify-system-design":
 		var params struct {
 			AppID          string            `json:"app_id"`
@@ -303,6 +303,28 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)
+	case "ai/parse-sql-schema":
+		var params struct {
+			AppID string `json:"app_id"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		md, err := h.GetMeta(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		for _, db := range md.SqlDatabases {
+			err := ai.ParseSQLSchema(app, *db.MigrationRelPath)
+			if err != nil {
+				return reply(ctx, nil, err)
+			}
+		}
+		return reply(ctx, true, err)
 	case "editors/open":
 		var params struct {
 			AppID     string             `json:"app_id"`
