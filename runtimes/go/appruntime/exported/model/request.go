@@ -168,14 +168,20 @@ type TestConfig struct {
 	// Lock for the below fields
 	Mu sync.RWMutex
 
-	ServiceMocks     map[string]any // The service mocks we want to use
+	ServiceMocks     map[string]ServiceMock
 	APIMocks         map[string]map[string]ApiMock
 	IsolatedServices *bool // Whether to isolate services for this test
 }
 
+type ServiceMock struct {
+	Service       any
+	RunMiddleware bool
+}
+
 type ApiMock struct {
-	ID       uint64
-	Function any
+	ID            uint64
+	Function      any
+	RunMiddleware bool
 }
 
 type Response struct {

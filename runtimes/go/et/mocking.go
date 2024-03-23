@@ -7,6 +7,21 @@ import (
 	"reflect"
 )
 
+// MockOption is a function that can be passed to MockEndpoint or MockService to configure the mocking behavior.
+type MockOption func(*mockOptions)
+
+type mockOptions struct {
+	runMiddleware bool
+}
+
+// RunMiddleware is a MockOption that sets whether to run the middleware chain
+// prior to invoking the mock.
+func RunMiddleware(enabled bool) MockOption {
+	return func(options *mockOptions) {
+		options.runMiddleware = enabled
+	}
+}
+
 // MockEndpoint allows you to mock out an endpoint in your tests; Any calls made to the endpoint
 // during this test or any of its sub-tests will be routed to the mock you provide.
 //
@@ -33,7 +48,12 @@ import (
 // an endpoint on that service, the endpoint mock will take precedence over the service mock.
 //
 // Setting the mock to nil will remove the endpoint mock.
-func MockEndpoint[T any](originalEndpoint T, mock T) {
+func MockEndpoint[T any](originalEndpoint T, mock T, opts ...MockOption) {
+	options := &mockOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	handler := Singleton.server.HandlerForFunc(originalEndpoint)
 	if handler == nil {
 		panic(fmt.Sprintf("the function %T does not appear to be labelled as an Encore API.", originalEndpoint))
@@ -47,7 +67,7 @@ func MockEndpoint[T any](originalEndpoint T, mock T) {
 		mockFunctionAsAny = mock
 	}
 
-	Singleton.testMgr.SetAPIMock(handler.ServiceName(), handler.EndpointName(), mockFunctionAsAny)
+	Singleton.testMgr.SetAPIMock(handler.ServiceName(), handler.EndpointName(), mockFunctionAsAny, options.runMiddleware)
 }
 
 // MockService allows you to mock out a service in your tests; Any calls made to the service
@@ -73,11 +93,16 @@ func MockEndpoint[T any](originalEndpoint T, mock T) {
 //		SomeFuncInThisPackageWhichUltimatelyCallsServiceB()
 //	}
 //
-// Setting the mock to nil will remove the service mock
-func MockService[T any](serviceName string, mock T) {
+// Setting the mock to nil will remove the service mock.
+func MockService[T any](serviceName string, mock T, opts ...MockOption) {
+	options := &mockOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	if !Singleton.server.ServiceExists(serviceName) {
 		panic(fmt.Sprintf("cannot mock service %s: service does not exist", serviceName))
 	}
 
-	Singleton.testMgr.SetServiceMock(serviceName, mock)
+	Singleton.testMgr.SetServiceMock(serviceName, mock, options.runMiddleware)
 }
