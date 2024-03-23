@@ -124,7 +124,7 @@ where
                     axum::http::HeaderName::from_str(k.as_str()).map_err(api::Error::internal)?;
                 let v = axum::http::HeaderValue::from_bytes(v.as_bytes())
                     .map_err(api::Error::internal)?;
-                headers.insert(k, v);
+                headers.append(k, v);
             }
         }
 
