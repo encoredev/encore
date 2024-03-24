@@ -78,8 +78,9 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	}
 
 	envs := append(extraEnvVars, osPkg.Environ()...)
+	useZig := cfg.IsCross() || cfg.Release
 
-	var target string
+	var target, zigTargetSuffix string
 	switch cfg.OS {
 	case "darwin":
 		switch cfg.Arch {
@@ -106,6 +107,11 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 			Bailf("unsupported architecture for linux: %q", cfg.Arch)
 		}
 
+		// If we're using zig, specify the glibc version we want.
+		if useZig {
+			zigTargetSuffix = ".2.31"
+		}
+
 	case "windows":
 		switch cfg.Arch {
 		case "amd64":
@@ -126,10 +132,10 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	// Build the command
 	cargoArgs := []string{
 		"build",
-		"--target", target,
+		"--target", target + zigTargetSuffix,
 		"--target-dir", path,
 	}
-	if cfg.IsCross() {
+	if useZig {
 		cargoArgs[0] = "zigbuild"
 	}
 	buildMode := "debug"
