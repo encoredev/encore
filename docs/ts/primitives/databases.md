@@ -8,28 +8,27 @@ infobox: {
   import: "encore.dev/storage/sqldb",
   example_link: "/docs/tutorials/uptime"
 }
-lang: go
+lang: ts
 ---
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
 
 ## Creating a database
 
-To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
-Databases must be created from within an [Encore service](/docs/primitives/services-and-apis).
+To create a database, import `encore.dev/storage/sqldb` and call `new SQLDatabase`, assigning the result to a top-level variable.
 
 For example:
 
-```
--- todo/db.go --
-package todo
+```typescript
+-- todo/todo.ts --
+import { SQLDatabase } from "encore.dev/storage/sqldb";
 
-// Create the todo database and assign it to the "tododb" variable
-var tododb = sqldb.NewDatabase("todo", sqldb.DatabaseConfig{
-	Migrations: "./migrations",
-})
+// Create the todo database and assign it to the "todoDB" variable
+const db = new SQLDatabase("todo", {
+  migrations: "./migrations",
+});
 
-// Then, query the database using db.QueryRow, db.Exec, etc.
+// Then, query the database using db.query, db.exec, etc.
 -- todo/migrations/1_create_table.up.sql --
 CREATE TABLE todo_item (
   id BIGSERIAL PRIMARY KEY,
@@ -39,8 +38,9 @@ CREATE TABLE todo_item (
 );
 ```
 
-As seen above, the `sqldb.DatabaseConfig` specifies the directory containing the database migration files,
-which is how you define the database schema.
+As seen above, the `new SQLDatabase()` call takes two parameters: the name of the database, and a configuration object.
+The configuration object specifies the directory containing the database migration files, which is how you define the database schema.
+
 See the [Defining the database schema](#defining-the-database-schema) section below for more details.
 
 With this code in place Encore will automatically create the database when starting `encore run` (locally)
@@ -60,19 +60,29 @@ On disk it might look like this:
 /my-app
 ├── encore.app                       // ... and other top-level project files
 │
-└── todo                             // todo service (a Go package)
-    ├── migrations                   // todo service db migrations (directory)
-    │   ├── 1_create_table.up.sql    // todo service db migration
-    │   └── 2_add_field.up.sql       // todo service db migration
-    ├── todo.go                      // todo service code
-    └── todo_test.go                 // tests for todo service
+└── todo                             // todo service
+    ├── migrations                   // database migrations (directory)
+    │   ├── 1_create_table.up.sql    // database migration file
+    │   └── 2_add_field.up.sql       // database migration file
+    ├── todo.ts                      // todo service code
+    └── todo.test.ts                 // tests for todo service
 ```
 
 Each migration runs in order and expresses the change in the database schema
 from the previous migration.
 
-**The file name format is important.** Migration files must be sequentially named, starting with `1_` and counting up for each migration.
+**The file name format is important.** Migration files must start with a number followed by `_`, and increasing for each migration.
 Each file name must also end with `.up.sql`.
+
+The simplest naming convention is to start from `1` and counting up:
+
+* `1_first_migration.up.sql`
+* `2_second.up.sql`
+* `3_migration_name_goes_here.up.sql`
+* ... and so on.
+
+It's also possible to prefix the migration files with leading zeroes to have them ordered nicer
+in the editor (like `0001_migration.up.sql`).
 
 The first migration usually defines the initial table structure. For example,
 a `todo` service might start out by creating `todo/migrations/1_create_table.up.sql` with
@@ -102,68 +112,48 @@ In the cloud, it depends on the [environment type](/docs/deploy/environments#env
 
 See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
 
-## Inserting data into databases
+## Using databases
 
-Once you have created the database using `var mydb = sqldb.NewDatabase(...)` you can start inserting data into the database
-by calling methods on the `mydb` variable.
+Once you have created the database using `const db = new SQLDatabase(...)` you can start querying and inserting data into the database by calling methods on the `db` variable.
 
-The interface is similar to that of the Go standard library's `database/sql` package.
-Learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
+### Querying data
 
-One way of inserting data is with a helper function that uses the package function `sqldb.Exec`.
-For example, to insert a single todo item using the example schema above, we can use the following helper function `insert`:
+To query data, use the `db.query` or `db.queryRow` methods. `db.query` returns
+an asynchronous iterator, yielding rows one by one as they are streamed from the database. `queryRow` returns a single row, or `null` if the query yields no rows.
 
-```
--- todo/insert.go --
-// insert inserts a todo item into the database.
-func insert(ctx context.Context, id, title string, done bool) error {
-	_, err := tododb.Exec(ctx, `
-		INSERT INTO todo_item (id, title, done)
-		VALUES ($1, $2, $3)
-	`, id, title, done)
-	return err
+Both APIs operate using JavaScript template strings, allowing easy use of
+placeholder parameters while preventing the possibility of SQL Injection vulnerabilities.
+
+Typical usage looks like this:
+
+```ts
+const allTodos = await db.query`SELECT * FROM todo_item`;
+for await (const todo of allTodos) {
+  // Process each todo
 }
--- todo/db.go --
-package todo
-
-// Create the todo database and assign it to the "tododb" variable
-var tododb = sqldb.NewDatabase("todo", sqldb.DatabaseConfig{
-  Migrations: "./migrations",
-})
-
-// Then, query the database using db.QueryRow, db.Exec, etc.
--- todo/migrations/1_create_table.up.sql --
-CREATE TABLE todo_item (
-  id BIGSERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  done BOOLEAN NOT NULL DEFAULT false
-  -- etc...
-);
 ```
 
-## Querying databases
+Or to query a single todo item by id:
 
-To query a database in your application, you similarly need to import `encore.dev/storage/sqldb` in your service package or sub-package.
-
-For example, to read a single todo item in the example schema above, we can use `sqldb.QueryRow`:
-
-```go
-var item struct {
-    ID int64
-    Title string
-    Done bool
+```ts
+async function getTodoTitle(id: number): string | undefined {
+  const row = await db.query`SELECT title FROM todo_item WHERE id = ${id}`;
+  return row?.title;
 }
-err := tododb.QueryRow(ctx, `
-    SELECT id, title, done
-    FROM todo_item
-    LIMIT 1
-`).Scan(&item.ID, &item.Title, &item.Done)
 ```
 
-If `QueryRow` does not find a matching row, it reports an error that can be checked against
-by importing the standard library `errors` package and calling `errors.Is(err, sqldb.ErrNoRows)`.
+### Inserting data
 
-Learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
+To insert data, or to make database queryies that don't return any rows, use `db.exec`.
+
+For example:
+
+```ts
+await db.exec`
+  INSERT INTO todo_item (title, done)
+  VALUES (${title}, false)
+`;
+```
 
 ## Connecting to databases
 
