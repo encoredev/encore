@@ -454,11 +454,6 @@
 									text: "Secrets"
 									path: "/ts/primitives/secrets"
 									file: "ts/primitives/secrets"
-								}, {
-									kind: "basic"
-									text: "Code Snippets"
-									path: "/ts/primitives/code-snippets"
-									file: "ts/primitives/code-snippets"
 								}]
 							},
 							{
