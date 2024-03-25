@@ -55,12 +55,12 @@ Our goal is that when you use Encore, you can focus your engineering effort on y
 
 To achieve this, the headline feature Encore provides is automatic infrastructure provisioning in your cloud. Instead of writing Terraform, YAML, or clicking in cloud consoles, you [connect your cloud account](/docs/deploy/own-cloud) and hit deploy. At deployment Encore automatically provisions [infrastructure](/docs/deploy/infra) using battle-tested cloud services on AWS or GCP. Such as Cloud Run, Fargate, Kubernetes, CloudSQL, RDS, Pub/Sub, Redis, Cron Jobs, and more.
 
-This is enabled by Enciore's Open-Source [Infrastructure SDK](/docs/primitives/overview), which lets you declare infrastructure semantics in application code. This approach lets you modify and swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
+This is enabled by Encore's Open-Source [Infrastructure SDK](/docs/primitives/overview), which lets you declare infrastructure semantics in application code. This approach lets you modify and swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
 
 Here are some of the other benefits and DevOps tools provided by Encore:
 
 - **No IaC or YAML needed:** Encore removes the need for manual infrastructure configuration, the application code is the source of truth for both business logic and infrastructure semantics.
-- **Automatic least-privilege IAM:** Encore parses your application code and sets up last-privilege IAM to match the requirements of the application.
+- **Automatic least-privilege IAM:** Encore parses your application code and sets up least-privilege IAM to match the requirements of the application.
 - **Infra tracking & approvals workflow:** Encore keeps track of all the [infrastructure](/docs/deploy/infra) it provisions and provides an approval workflow as part of the deployment process, so Admins can verify and approve all infra changes.
 - **Cloud config 2-way sync:** Encore provides [a simple UI to make configuration changes](/docs/deploy/infra#configurability), and also supports syncing changes you make in your cloud console in AWS/GCP.
 - **Cost analytics:** A simple overview to monitor costs for all infrastructure provisioned by Encore in your cloud.
