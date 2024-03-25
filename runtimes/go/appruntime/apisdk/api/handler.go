@@ -70,6 +70,9 @@ type Desc[Req, Resp any] struct {
 	// PathParamNames are the names of the path params, in order.
 	PathParamNames []string
 
+	// Tags are the tags for this API, excluding the "tag:" prefix.
+	Tags []string
+
 	// Access describes the access type for this API.
 	Access Access
 
