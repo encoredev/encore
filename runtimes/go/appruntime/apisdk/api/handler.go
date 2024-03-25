@@ -506,7 +506,7 @@ func (d *Desc[Req, Resp]) getMockMethod(svcMock model.ServiceMock) (reflectedAPI
 		// nosemgrep
 		methodVal := val.MethodByName(d.Endpoint)
 		if !methodVal.IsValid() {
-			return nil, errs.B().Code(errs.Internal).Msgf("method %s not found on object %T", d.Endpoint, svcMock).Err()
+			return nil, errs.B().Code(errs.Internal).Msgf("method %s not found on object %T", d.Endpoint, svcMock.Service).Err()
 		}
 
 		m, err := createReflectionCaller[Req, Resp](methodVal)
