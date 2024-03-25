@@ -269,28 +269,31 @@ func (mgr *Manager) GetIsolatedServices() bool {
 }
 
 // SetServiceMock allows us to set a mock for a service for the current test
-func (mgr *Manager) SetServiceMock(service string, mock any) {
+func (mgr *Manager) SetServiceMock(service string, mock any, runMiddleware bool) {
 	service = strings.TrimSpace(strings.ToLower(service))
 
 	cfg := mgr.currentConfig()
 	cfg.Mu.Lock()
 	defer cfg.Mu.Unlock()
-	cfg.ServiceMocks[service] = mock
+	cfg.ServiceMocks[service] = model.ServiceMock{
+		Service:       mock,
+		RunMiddleware: runMiddleware,
+	}
 }
 
 // GetServiceMock allows us to get a mock for a service for the current test
 // or any parent tests - returning the lowest level mock available.
-func (mgr *Manager) GetServiceMock(service string) (any, bool) {
+func (mgr *Manager) GetServiceMock(service string) (model.ServiceMock, bool) {
 	service = strings.TrimSpace(strings.ToLower(service))
 
-	return walkConfig(mgr.currentConfig(), func(cfg *TestConfig) (value any, found bool) {
+	return walkConfig(mgr.currentConfig(), func(cfg *TestConfig) (value model.ServiceMock, found bool) {
 		value, found = cfg.ServiceMocks[service]
 		return
 	})
 }
 
 // SetAPIMock allows us to set a mock for an API for the current test
-func (mgr *Manager) SetAPIMock(service string, api string, mock any) {
+func (mgr *Manager) SetAPIMock(service string, api string, mock any, runMiddleware bool) {
 	service = strings.TrimSpace(strings.ToLower(service))
 	api = strings.TrimSpace(strings.ToLower(api))
 
@@ -302,8 +305,9 @@ func (mgr *Manager) SetAPIMock(service string, api string, mock any) {
 		cfg.APIMocks[service] = make(map[string]model.ApiMock)
 	}
 	cfg.APIMocks[service][api] = model.ApiMock{
-		ID:       nextApiMockID.Add(1),
-		Function: mock,
+		ID:            nextApiMockID.Add(1),
+		Function:      mock,
+		RunMiddleware: runMiddleware,
 	}
 }
 

@@ -15,7 +15,7 @@ var (
 func newTestConfig(parent *model.TestConfig) *model.TestConfig {
 	return &model.TestConfig{
 		Parent:       parent,
-		ServiceMocks: make(map[string]any),
+		ServiceMocks: make(map[string]model.ServiceMock),
 		APIMocks:     make(map[string]map[string]model.ApiMock),
 	}
 }
