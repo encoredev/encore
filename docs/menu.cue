@@ -192,104 +192,105 @@
 							text: "Back to Main Menu"
 							path: "/docs"
 						}
-						items: [{
-							kind: "section"
-							text: "Infrastructure"
-							items: [{
-								kind: "basic"
-								text: "Services and APIs"
-								path: "/primitives/services-and-apis"
-								file: "primitives/services-and-apis"
-								inline_menu: [{
+						items: [
+							{
+								kind: "section"
+								text: "Infrastructure"
+								items: [{
 									kind: "basic"
-									text: "App Structure"
-									path: "/develop/app-structure"
-									file: "develop/app-structure"
+									text: "Services and APIs"
+									path: "/primitives/services-and-apis"
+									file: "primitives/services-and-apis"
+									inline_menu: [{
+										kind: "basic"
+										text: "App Structure"
+										path: "/develop/app-structure"
+										file: "develop/app-structure"
+									}, {
+										kind: "basic"
+										text: "API Schemas"
+										path: "/develop/api-schemas"
+										file: "develop/api-schemas"
+									}, {
+										kind: "basic"
+										text: "API Errors"
+										path: "/develop/errors"
+										file: "develop/errors"
+									}, {
+										kind: "basic"
+										text: "Service Structs"
+										path: "/primitives/services-and-apis/service-structs"
+										file: "primitives/service-structs"
+									}]
 								}, {
 									kind: "basic"
-									text: "API Schemas"
-									path: "/develop/api-schemas"
-									file: "develop/api-schemas"
+									text: "Databases"
+									path: "/primitives/databases"
+									file: "primitives/databases"
+									inline_menu: [{
+										kind: "basic"
+										text: "Change SQL database schema"
+										path: "/how-to/change-db-schema"
+										file: "how-to/change-db-schema"
+									}, {
+										kind: "basic"
+										text: "Integrate with existing databases"
+										path: "/how-to/connect-existing-db"
+										file: "how-to/connect-existing-db"
+									}, {
+										kind: "basic"
+										text: "Insert test data in a database"
+										path: "/how-to/insert-test-data-db"
+										file: "how-to/insert-test-data-db"
+									}, {
+										kind: "basic"
+										text: "Share SQL databases between services"
+										path: "/how-to/share-db-between-services"
+										file: "how-to/share-db-between-services"
+									}, {
+										kind: "basic"
+										text: "Managing database user credentials"
+										path: "/how-to/manage-db-users"
+										file: "how-to/manage-db-users"
+									}, {
+										kind: "basic"
+										text: "PostgreSQL Extensions"
+										path: "/primitives/databases/extensions"
+										file: "primitives/database-extensions"
+									}]
 								}, {
 									kind: "basic"
-									text: "API Errors"
-									path: "/develop/errors"
-									file: "develop/errors"
+									text: "Cron Jobs"
+									path: "/primitives/cron-jobs"
+									file: "primitives/cron-jobs"
 								}, {
 									kind: "basic"
-									text: "Service Structs"
-									path: "/primitives/services-and-apis/service-structs"
-									file: "primitives/service-structs"
+									text: "Pub/Sub"
+									path: "/primitives/pubsub"
+									file: "primitives/pubsub"
+									inline_menu: [{
+										kind: "basic"
+										text: "Transactional outbox"
+										path: "/primitives/pubsub/outbox"
+										file: "primitives/pubsub-outbox"
+									}]
+								}, {
+									kind: "basic"
+									text: "Caching"
+									path: "/primitives/caching"
+									file: "primitives/caching"
+								}, {
+									kind: "basic"
+									text: "Secrets"
+									path: "/primitives/secrets"
+									file: "primitives/secrets"
+								}, {
+									kind: "basic"
+									text: "Code Snippets"
+									path: "/primitives/code-snippets"
+									file: "primitives/code-snippets"
 								}]
-							}, {
-								kind: "basic"
-								text: "Databases"
-								path: "/primitives/databases"
-								file: "primitives/databases"
-								inline_menu: [{
-									kind: "basic"
-									text: "Change SQL database schema"
-									path: "/how-to/change-db-schema"
-									file: "how-to/change-db-schema"
-								}, {
-									kind: "basic"
-									text: "Integrate with existing databases"
-									path: "/how-to/connect-existing-db"
-									file: "how-to/connect-existing-db"
-								}, {
-									kind: "basic"
-									text: "Insert test data in a database"
-									path: "/how-to/insert-test-data-db"
-									file: "how-to/insert-test-data-db"
-								}, {
-									kind: "basic"
-									text: "Share SQL databases between services"
-									path: "/how-to/share-db-between-services"
-									file: "how-to/share-db-between-services"
-								}, {
-									kind: "basic"
-									text: "Managing database user credentials"
-									path: "/how-to/manage-db-users"
-									file: "how-to/manage-db-users"
-								}, {
-									kind: "basic"
-									text: "PostgreSQL Extensions"
-									path: "/primitives/databases/extensions"
-									file: "primitives/database-extensions"
-								}]
-							}, {
-								kind: "basic"
-								text: "Cron Jobs"
-								path: "/primitives/cron-jobs"
-								file: "primitives/cron-jobs"
-							}, {
-								kind: "basic"
-								text: "Pub/Sub"
-								path: "/primitives/pubsub"
-								file: "primitives/pubsub"
-								inline_menu: [{
-									kind: "basic"
-									text: "Transactional outbox"
-									path: "/primitives/pubsub/outbox"
-									file: "primitives/pubsub-outbox"
-								}]
-							}, {
-								kind: "basic"
-								text: "Caching"
-								path: "/primitives/caching"
-								file: "primitives/caching"
-							}, {
-								kind: "basic"
-								text: "Secrets"
-								path: "/primitives/secrets"
-								file: "primitives/secrets"
-							}, {
-								kind: "basic"
-								text: "Code Snippets"
-								path: "/primitives/code-snippets"
-								file: "primitives/code-snippets"
-							}]
-						},
+							},
 							{
 								kind: "section"
 								text: "Develop"
@@ -390,7 +391,8 @@
 									path: "/how-to/firebase-auth"
 									file: "how-to/firebase-auth"
 								}]
-							}]
+							},
+						]
 					}
 				},
 				{
@@ -407,21 +409,79 @@
 							text: "Back to Main Menu"
 							path: "/docs"
 						}
-						items: [{
-							kind: "section"
-							text: "Docs"
-							items: [{
-								kind: "basic"
-								text: "TypeScript Preview"
-								path: "/other/typescript-preview"
-								file: "other/typescript-preview"
-							}, {
-								kind: "basic"
-								text: "Services and APIs"
-								path: "/ts/primitives/services-and-apis"
-								file: "primitives/services-and-apis-ts"
-							}]
-						}]
+						items: [
+							{
+								kind: "section"
+								text: "Infrastructure"
+								items: [{
+									kind: "basic"
+									text: "Services and APIs"
+									path: "/ts/primitives/services-and-apis"
+									file: "ts/primitives/services-and-apis"
+									inline_menu: [{
+										kind: "basic"
+										text: "App Structure"
+										path: "/ts/develop/app-structure"
+										file: "ts/develop/app-structure"
+									}, {
+										kind: "basic"
+										text: "API Schemas"
+										path: "/ts/develop/api-schemas"
+										file: "ts/develop/api-schemas"
+									}, {
+										kind: "basic"
+										text: "API Errors"
+										path: "/ts/develop/errors"
+										file: "ts/develop/errors"
+									}]
+								}, {
+									kind: "basic"
+									text: "Databases"
+									path: "/ts/primitives/databases"
+									file: "ts/primitives/databases"
+								}, {
+									kind: "basic"
+									text: "Cron Jobs"
+									path: "/ts/primitives/cron-jobs"
+									file: "ts/primitives/cron-jobs"
+								}, {
+									kind: "basic"
+									text: "Pub/Sub"
+									path: "/ts/primitives/pubsub"
+									file: "ts/primitives/pubsub"
+								}, {
+									kind: "basic"
+									text: "Secrets"
+									path: "/ts/primitives/secrets"
+									file: "ts/primitives/secrets"
+								}, {
+									kind: "basic"
+									text: "Code Snippets"
+									path: "/ts/primitives/code-snippets"
+									file: "ts/primitives/code-snippets"
+								}]
+							},
+							{
+								kind: "section"
+								text: "Develop"
+								items: [{
+									kind: "basic"
+									text: "Authentication"
+									path: "/ts/develop/auth"
+									file: "ts/develop/auth"
+								}, {
+									kind: "basic"
+									text: "CORS"
+									path: "/develop/cors"
+									file: "develop/cors"
+								}, {
+									kind: "basic"
+									text: "Testing"
+									path: "/ts/develop/testing"
+									file: "ts/develop/testing"
+								}]
+							},
+						]
 					}
 				}, {
 					kind: "basic"
