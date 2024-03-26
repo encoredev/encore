@@ -100,6 +100,10 @@ func (l *Loader) init() {
 	}
 
 	updateGoPath(b)
+	overlay := map[string][]byte{}
+	for key, value := range l.c.Overlay {
+		overlay[l.MainModule().RootDir.Join(key).ToIO()] = value
+	}
 	l.packagesConfig = &packages.Config{
 		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedModule,
 		Context: l.c.Ctx,
@@ -113,7 +117,7 @@ func (l *Loader) init() {
 		),
 		Fset:    l.c.FS,
 		Tests:   l.c.ParseTests,
-		Overlay: nil,
+		Overlay: overlay,
 		Logf: func(format string, args ...any) {
 			l.c.Log.Debug().Str("component", "pkgload").Msgf("go/packages: "+format, args...)
 		},

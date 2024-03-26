@@ -269,12 +269,13 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		err = ai.GenerateCode(params.Services, app)
-		return reply(ctx, true, err)
-	case "ai/validate-code":
+		result, err := ai.GenerateCode(params.Services, app)
+		return reply(ctx, result, err)
+	case "ai/sync-endpoints":
 		var params struct {
-			AppID    string            `json:"app_id"`
-			Services []ai.ServiceInput `json:"services"`
+			AppID      string            `json:"app_id"`
+			Services   []ai.ServiceInput `json:"services"`
+			FromSource bool              `json:"from_source"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -283,7 +284,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		results, err := ai.ValidateCode(params.Services, app)
+		results, err := ai.SyncEndpoints(ctx, params.Services, app, params.FromSource)
 		return reply(ctx, results, err)
 	case "ai/modify-system-design":
 		var params struct {
