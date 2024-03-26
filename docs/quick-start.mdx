@@ -106,7 +106,7 @@ Encore takes care of setting up all the necessary infrastructure for your applic
 
 🥐 While you keep the app running, open a separate terminal and call your API endpoint:
 
-```terminal
+```shell
 $ curl http://localhost:4000/hello/world
 {"Message": "Hello, world!"}
 ```
@@ -160,7 +160,7 @@ INF listening for incoming HTTP requests
 
 🥐 Test your change by calling your API in a separate terminal:
 
-```terminal
+```shell
 $ curl http://localhost:4000/hello/world
 {"Message": "Howdy, world!"}
 ```
@@ -178,7 +178,7 @@ account](/docs/deploy/own-cloud) with GCP and AWS.
 
 🥐 Now push your changes and deploy your application by running:
 
-```terminal
+```shell
 $ git add -A .
 $ git commit -m 'Initial commit'
 $ git push encore
@@ -211,7 +211,7 @@ Your API Base URL will be something like: `https://staging-$APP_ID.encr.app`
 
 🥐 When the deploy is finished, call your API from the terminal (replacing `$APP_ID` with your own App ID):
 
-```terminal
+```shell
 $ curl https://staging-$APP_ID.encr.app/hello/world
 {"Message": "Howdy, world!"}
 ```
@@ -241,7 +241,7 @@ To develop with Encore, you need the Encore CLI. It provisions your local enviro
 ## 2. Create your app
 🥐 Create your app by running:
 
-```terminal
+```shell
 $ encore app create --example=hello-world-ts <my app name>
 ```
 
@@ -288,7 +288,7 @@ Encore's [Infrastructure SDK](/docs/ts) provides several declarative ways of usi
 
 🥐 Now let's run your app locally:
 
-```terminal
+```shell
 $ cd your-app-name # replace with the app name you picked
 $ encore-beta run
 ```
@@ -304,7 +304,7 @@ Encore takes care of setting up all the necessary infrastructure for your applic
 
 🥐 While you keep the app running, open a separate terminal and call your API endpoint:
 
-```terminal
+```shell
 $ curl http://localhost:4000/hello/world
 {"message": "Hello, world!"}
 ```
@@ -352,7 +352,7 @@ INF listening for incoming HTTP requests
 
 🥐 Test your change by calling your API in a separate terminal:
 
-```terminal
+```shell
 $ curl http://localhost:4000/hello/world
 {"message": "Howdy, world!"}
 ```
@@ -368,7 +368,7 @@ Later, when you are ready to create a production environment you can [deploy to 
 
 🥐 Now push your changes and deploy your application by running:
 
-```terminal
+```shell
 $ git add -A .
 $ git commit -m 'Initial commit'
 $ git push encore
@@ -398,7 +398,7 @@ Your API Base URL will be something like: `https://staging-$APP_ID.encr.app`
 
 🥐 When the deploy is finished, call your API from the terminal (replacing `$APP_ID` with your own App ID):
 
-```terminal
+```shell
 $ curl https://staging-$APP_ID.encr.app/hello/world
 {"Message": "Howdy, world!"}
 ```
