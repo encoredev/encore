@@ -9,7 +9,9 @@ import (
 	"github.com/hasura/go-graphql-client/pkg/jsonutil"
 
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/parser/apis/api/apienc"
 )
 
 type Manager struct {
@@ -125,21 +127,21 @@ func query[T any](ctx context.Context, c *LazyClient, params map[string]interfac
 type UpdateQuery struct {
 	Type string `graphql:"__typename"`
 
-	ServiceUpdate     `graphql:"... on ServiceUpdate"`
-	StructUpdate      `graphql:"... on StructUpdate"`
-	StructFieldUpdate `graphql:"... on StructFieldUpdate"`
-	ErrorUpdate       `graphql:"... on ErrorUpdate"`
-	EndpointUpdate    `graphql:"... on EndpointUpdate"`
+	ServiceUpdate   `graphql:"... on ServiceUpdate"`
+	TypeUpdate      `graphql:"... on TypeUpdate"`
+	TypeFieldUpdate `graphql:"... on TypeFieldUpdate"`
+	ErrorUpdate     `graphql:"... on ErrorUpdate"`
+	EndpointUpdate  `graphql:"... on EndpointUpdate"`
 }
 
 func (u *UpdateQuery) GetValue() AIUpdateType {
 	switch u.Type {
 	case "ServiceUpdate":
 		return u.ServiceUpdate
-	case "StructUpdate":
-		return u.StructUpdate
-	case "StructFieldUpdate":
-		return u.StructFieldUpdate
+	case "TypeUpdate":
+		return u.TypeUpdate
+	case "TypeFieldUpdate":
+		return u.TypeFieldUpdate
 	case "ErrorUpdate":
 		return u.ErrorUpdate
 	case "EndpointUpdate":
@@ -164,22 +166,24 @@ type WSNotification struct {
 type AINotifier func(context.Context, *WSNotification) error
 
 type endpointStructs struct {
-	service  string
-	endpoint string
-	structs  []*StructInput
+	service    string
+	endpoint   string
+	defaultLoc apienc.WireLoc
+	structs    []*TypeInput
 }
 
 func (e *endpointStructs) Notification() EndpointStructs {
-	codes := fns.Map(e.structs, (*StructInput).Render)
+	codes := fns.Map(e.structs, (*TypeInput).Render)
 	return EndpointStructs{
 		Service:  e.service,
 		Type:     "EndpointStructs",
 		Endpoint: e.endpoint,
+		Types:    e.structs,
 		Code:     strings.Join(codes, "\n"),
 	}
 }
 
-func (e *endpointStructs) upsertStruct(name, doc string) *StructInput {
+func (e *endpointStructs) upsertStruct(name, doc string) *TypeInput {
 	for _, s := range e.structs {
 		if s.Name == name {
 			if doc != "" {
@@ -188,41 +192,77 @@ func (e *endpointStructs) upsertStruct(name, doc string) *StructInput {
 			return s
 		}
 	}
-	si := &StructInput{Name: name, Doc: doc}
+	si := &TypeInput{Name: name, Doc: doc}
 	e.structs = append(e.structs, si)
 	return si
 }
 
-func (e *endpointStructs) upsertField(service, field, typ, doc string) *StructInput {
-	s := e.upsertStruct(service, "")
+func (e *endpointStructs) upsertField(up TypeFieldUpdate) *TypeInput {
+	s := e.upsertStruct(up.Struct, "")
 	for _, f := range s.Fields {
-		if f.Name == field {
-			if doc != "" {
-				f.Doc = doc
+		if f.Name == up.Name {
+			if up.Doc != "" {
+				f.Doc = up.Doc
 			}
-			if typ != "" {
-				f.Type = typ
+			if up.Type != "" {
+				f.Type = up.Type
 			}
 			return s
 		}
 	}
-	fi := &StructFieldInput{Name: field, Doc: doc, Type: typ}
+	fi := &TypeFieldInput{
+		Name:     up.Name,
+		Doc:      up.Doc,
+		Type:     up.Type,
+		Location: e.defaultLoc,
+		WireName: idents.Convert(up.Name, idents.CamelCase),
+	}
 	s.Fields = append(s.Fields, fi)
 	return s
 }
 
-type endpointCache map[string]*endpointStructs
+type endpointCache struct {
+	eps      map[string]*endpointStructs
+	proposed []ServiceInput
+}
 
 func (s *endpointCache) endpoint(service, endpoint string) *endpointStructs {
 	key := service + "." + endpoint
-	if _, ok := (*s)[key]; !ok {
-		(*s)[key] = &endpointStructs{service: service, endpoint: endpoint}
+	if _, ok := s.eps[key]; !ok {
+		for _, svc := range s.proposed {
+			if svc.Name != service {
+				continue
+			}
+			for _, ep := range svc.Endpoints {
+				if ep.Name != endpoint {
+					continue
+				}
+				defaultLoc := apienc.Body
+				switch ep.Method {
+				case "GET", "HEAD", "DELETE":
+					defaultLoc = apienc.Query
+				}
+				s.eps[key] = &endpointStructs{
+					service:    service,
+					endpoint:   endpoint,
+					defaultLoc: defaultLoc,
+				}
+				break
+			}
+			break
+		}
+		if s.eps[key] == nil {
+			panic("endpoint not found")
+		}
 	}
-	return (*s)[key]
+	return s.eps[key]
 }
 
 func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, md *meta.Data, proposed []ServiceInput, notifier AINotifier) (string, error) {
-	epCache := endpointCache{}
+	epCache := &endpointCache{
+		eps:      make(map[string]*endpointStructs),
+		proposed: proposed,
+	}
 	return query[struct {
 		StreamUpdate *StreamUpdate `graphql:"result: defineEndpoints(appSlug: $appSlug, prompt: $prompt, current: $current, proposedDesign: $proposedDesign)"`
 	}](ctx, m.client, map[string]interface{}{
@@ -232,13 +272,13 @@ func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, m
 		"proposedDesign": proposed,
 	}, func(ctx context.Context, msg *WSNotification) error {
 		switch val := msg.Value.(type) {
-		case StructUpdate:
+		case TypeUpdate:
 			ep := epCache.endpoint(val.Service, val.Endpoint)
 			ep.upsertStruct(val.Name, val.Doc)
 			msg.Value = ep.Notification()
-		case StructFieldUpdate:
+		case TypeFieldUpdate:
 			ep := epCache.endpoint(val.Service, val.Endpoint)
-			ep.upsertField(val.Struct, val.Name, val.Type, val.Doc)
+			ep.upsertField(val)
 			msg.Value = ep.Notification()
 		}
 		return notifier(ctx, msg)
@@ -261,7 +301,7 @@ func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug, originalPromp
 	}](ctx, m.client, map[string]interface{}{
 		"appSlug":        appSlug,
 		"originalPrompt": originalPrompt,
-		"proposedDesign": proposed,
+		"proposedDesign": fns.Map(proposed, ServiceInput.GraphQL),
 		"current":        currentService(md),
 		"newPrompt":      newPrompt,
 	}, replier)
@@ -274,7 +314,7 @@ func currentService(md *meta.Data) []ServiceInput {
 			Name: metaSvc.Name,
 		}
 		for _, rpc := range metaSvc.Rpcs {
-			ep := EndpointInput{
+			ep := &EndpointInput{
 				Name:       rpc.Name,
 				Method:     rpc.HttpMethods[0],
 				Visibility: accessTypeToVisibility(rpc.AccessType),

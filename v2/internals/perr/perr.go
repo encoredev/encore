@@ -277,6 +277,10 @@ func (b bailout) GoString() string {
 	return fmt.Sprintf("perr.bailout: %s", b.l.FormatErrors())
 }
 
+func (b bailout) String() string {
+	return fmt.Sprintf("perr.bailout: %s", b.l.FormatErrors())
+}
+
 // CatchBailout catches a bailout panic and reports whether there was one.
 // If true it also returns the error list that caused the bailout.
 // Intended usage is:

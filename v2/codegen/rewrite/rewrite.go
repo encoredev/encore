@@ -33,6 +33,18 @@ func (r *Rewriter) ReplaceNode(node ast.Node, data []byte) {
 	r.Replace(node.Pos(), node.End(), data)
 }
 
+func (r *Rewriter) Append(data []byte) {
+	start := 0
+	if len(r.segs) > 0 {
+		start = r.segs[len(r.segs)-1].end
+	}
+	r.segs = append(r.segs, segment{
+		start: int(start),
+		end:   int(start) + len(data),
+		data:  data,
+	})
+}
+
 func (r *Rewriter) Insert(start token.Pos, data []byte) {
 	// If the pos is at the very end of the file, insert a new segment directly,
 	// since calling r.seg(start) would panic.

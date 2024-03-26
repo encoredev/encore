@@ -3,6 +3,8 @@ package ai
 import (
 	"fmt"
 	"strings"
+
+	"encr.dev/v2/parser/apis/api/apienc"
 )
 
 type VisibilityType string
@@ -74,15 +76,59 @@ func (p PathSegment) String() string {
 }
 
 type EndpointInput struct {
-	Name         string         `json:"name,omitempty"`
-	Doc          string         `json:"doc,omitempty"`
-	Method       string         `json:"method,omitempty"`
-	Visibility   VisibilityType `json:"visibility,omitempty"`
-	Path         []PathSegment  `json:"path,omitempty"`
-	RequestType  string         `json:"requestType,omitempty"`
-	ResponseType string         `json:"responseType,omitempty"`
-	Errors       []ErrorInput   `json:"errors,omitempty"`
-	Structs      string         `json:"structs,omitempty"`
+	Name           string         `json:"name,omitempty"`
+	Doc            string         `json:"doc,omitempty"`
+	Method         string         `json:"method,omitempty"`
+	Visibility     VisibilityType `json:"visibility,omitempty"`
+	Path           []PathSegment  `json:"path,omitempty"`
+	RequestType    string         `json:"requestType,omitempty"`
+	ResponseType   string         `json:"responseType,omitempty"`
+	Errors         []ErrorInput   `json:"errors,omitempty"`
+	Types          []TypeInput    `json:"types,omitempty"`
+	Language       string         `json:"language,omitempty"`
+	TypeSource     string         `json:"typeSource,omitempty"`
+	EndpointSource string         `json:"endpointSource,omitempty"`
+}
+
+func (s *EndpointInput) GraphQL() *EndpointInput {
+	s.EndpointSource = ""
+	s.Types = nil
+	s.Language = ""
+	return s
+}
+
+func (e *EndpointInput) Render() string {
+	buf := strings.Builder{}
+	if e.Doc != "" {
+		for _, line := range strings.Split(e.Doc, "\n") {
+			buf.WriteString(fmt.Sprintf("// %s\n", line))
+		}
+	}
+	for i, err := range e.Errors {
+		if i == 0 {
+			buf.WriteString("// Errors:\n")
+		}
+		buf.WriteString(fmt.Sprintf("//  %s: %s\n", err.Code, err.Doc))
+	}
+	params := []string{"ctx context.Context"}
+	path, pathParams := formatPath(e.Path)
+	params = append(params, pathParams...)
+	if e.RequestType != "" {
+		params = append(params, "req *"+e.RequestType)
+	}
+	var rtnParams []string
+	if e.ResponseType != "" {
+		rtnParams = append(rtnParams, "*"+e.ResponseType)
+	}
+	rtnParams = append(rtnParams, "error")
+	buf.WriteString(fmt.Sprintf("// encore:api %s method=%s path=%s\n", e.Visibility, e.Method, path))
+	paramsStr := strings.Join(params, ", ")
+	rtnParamsStr := strings.Join(rtnParams, ", ")
+	if len(rtnParams) > 1 {
+		rtnParamsStr = fmt.Sprintf("(%s)", rtnParamsStr)
+	}
+	buf.WriteString(fmt.Sprintf("func %s(%s) %s", e.Name, paramsStr, rtnParamsStr))
+	return buf.String()
 }
 
 type EndpointUpdate struct {
@@ -105,12 +151,19 @@ type ServiceUpdate struct {
 }
 
 type ServiceInput struct {
-	Name      string          `json:"name,omitempty"`
-	Doc       string          `json:"doc,omitempty"`
-	Endpoints []EndpointInput `json:"endpoints,omitempty"`
+	Name      string           `json:"name,omitempty"`
+	Doc       string           `json:"doc,omitempty"`
+	Endpoints []*EndpointInput `json:"endpoints,omitempty"`
 }
 
-type StructUpdate struct {
+func (s ServiceInput) GraphQL() ServiceInput {
+	for _, e := range s.Endpoints {
+		e.GraphQL()
+	}
+	return s
+}
+
+type TypeUpdate struct {
 	BaseAIUpdateType
 	Service  string `json:"service,omitempty"`
 	Endpoint string `json:"endpoint,omitempty"`
@@ -118,44 +171,57 @@ type StructUpdate struct {
 	Doc      string `graphql:"mdoc: doc" json:"doc,omitempty"`
 }
 
-type StructInput struct {
-	Name   string              `json:"name,omitempty"`
-	Doc    string              `json:"doc,omitempty"`
-	Fields []*StructFieldInput `json:"fields,omitempty"`
+type TypeInput struct {
+	Name   string            `json:"name,omitempty"`
+	Doc    string            `json:"doc,omitempty"`
+	Fields []*TypeFieldInput `json:"fields,omitempty"`
 }
 
-func (s *StructInput) Render() string {
+func (s *TypeInput) Render() string {
 	rtn := strings.Builder{}
 	if s.Doc != "" {
-		rtn.WriteString(fmt.Sprintf("// %s\n", s.Doc))
+		rtn.WriteString(fmt.Sprintf("// %s\n", strings.TrimSpace(s.Doc)))
 	}
 	rtn.WriteString(fmt.Sprintf("type %s struct {\n", s.Name))
-	for _, f := range s.Fields {
-		rtn.WriteString("\n")
+	for i, f := range s.Fields {
+		if i > 0 {
+			rtn.WriteString("\n")
+		}
 		if f.Doc != "" {
 			rtn.WriteString(fmt.Sprintf("  // %s", f.Doc))
 		}
-		rtn.WriteString("\n")
-		rtn.WriteString(fmt.Sprintf("  %s %s\n", f.Name, f.Type))
+		tags := ""
+		switch f.Location {
+		case apienc.Body:
+			tags = fmt.Sprintf(" `json:\"%s\"`", f.WireName)
+		case apienc.Query:
+			tags = fmt.Sprintf(" `query:\"%s\"`", f.WireName)
+		case apienc.Header:
+			tags = fmt.Sprintf(" `header:\"%s\"`", f.WireName)
+		}
+		rtn.WriteString(fmt.Sprintf("  %s %s%s\n", f.Name, f.Type, tags))
 	}
-	rtn.WriteString("\n}\n")
+	rtn.WriteString("}\n")
 	return rtn.String()
 }
 
 type EndpointStructs struct {
-	Type     string `json:"type,omitempty"`
-	Service  string `json:"service,omitempty"`
-	Endpoint string `json:"endpoint,omitempty"`
-	Code     string `json:"code,omitempty"`
+	Type     string       `json:"type,omitempty"`
+	Service  string       `json:"service,omitempty"`
+	Endpoint string       `json:"endpoint,omitempty"`
+	Code     string       `json:"code,omitempty"`
+	Types    []*TypeInput `json:"types,omitempty"`
 }
 
-type StructFieldInput struct {
-	Name string `json:"name,omitempty"`
-	Type string `json:"type,omitempty"`
-	Doc  string `json:"doc,omitempty"`
+type TypeFieldInput struct {
+	Name     string         `json:"name,omitempty"`
+	WireName string         `json:"wireName,omitempty"`
+	Type     string         `json:"type,omitempty"`
+	Location apienc.WireLoc `json:"location,omitempty"`
+	Doc      string         `json:"doc,omitempty"`
 }
 
-type StructFieldUpdate struct {
+type TypeFieldUpdate struct {
 	BaseAIUpdateType
 	Service  string `json:"service,omitempty"`
 	Endpoint string `json:"endpoint,omitempty"`
