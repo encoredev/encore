@@ -44,11 +44,6 @@
       "bun": "./cron/mod.ts",
       "default": "./dist/cron/mod.js"
     },
-    "./errs": {
-      "types": "./errs/mod.ts",
-      "bun": "./errs/mod.ts",
-      "default": "./dist/errs/mod.js"
-    },
     "./log": {
       "types": "./log/mod.ts",
       "bun": "./log/mod.ts",

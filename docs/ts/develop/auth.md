@@ -78,7 +78,7 @@ the credentials are not valid, throw an `APIError` with code `Unauthenticated`.
 For example:
 
 ```ts
-import { APIError } from "encore.dev/auth";
+import { APIError } from "encore.dev/api";
 
 export const auth = authHandler<AuthParams, AuthData>(
     async (params) => {
