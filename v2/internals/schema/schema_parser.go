@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/fatih/structtag"
+	"golang.org/x/exp/maps"
 
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
@@ -34,6 +35,12 @@ type Parser struct {
 
 	declsMu sync.Mutex
 	decls   map[declKey]Decl // pkg/path.Name -> decl
+}
+
+func (p *Parser) ParsedDecls() []Decl {
+	p.declsMu.Lock()
+	defer p.declsMu.Unlock()
+	return maps.Values(p.decls)
 }
 
 // ParseType parses the schema from a type expression.
