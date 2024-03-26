@@ -89,7 +89,7 @@ Development Dashboard URL:  http://localhost:9400
 
 Either do this from the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) or from the terminal:
 
-```terminal
+```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
@@ -182,13 +182,13 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 🥐 Now let's call the API again:
 
-```terminal
+```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
 🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory, or you can look at the trace in the local dev dashboard at [localhost:9400](http://localhost:9400).
 
-```terminal
+```shell
 $ encore db shell url
 psql (13.1, server 11.12)
 Type "help" for help.
@@ -224,7 +224,7 @@ Encore uses the `path=/url/:id` syntax to represent a path with a parameter. The
 
 🥐 Let’s make sure it works by calling it (remember to change the `id` below to the one you found in the last step):
 
-```terminal
+```shell
 $ curl http://localhost:4000/url/zr6RmZc4
 ```
 
@@ -292,7 +292,7 @@ The final step before you deploy is to commit all changes to the project repo.
 
 🥐 Commit the new files to the project's git repo and trigger a deploy to Encore's free development cloud by running:
 
-```terminal
+```shell
 $ git add -A .
 $ git commit -m 'Initial commit'
 $ git push encore
@@ -390,7 +390,7 @@ Development Dashboard URL:  http://localhost:9400/5g288
 
 🥐 Next, call your endpoint:
 
-```terminal
+```shell
 $ curl http://localhost:4000/url -d '{"url": "https://encore.dev"}'
 ```
 
@@ -463,13 +463,13 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 🥐 Now let's call the API again:
 
-```terminal
+```shell
 $ curl http://localhost:4000/url -d '{"url": "https://encore.dev"}'
 ```
 
 🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory:
 
-```terminal
+```shell
 $ encore db shell url
 psql (13.1, server 11.12)
 Type "help" for help.
@@ -507,7 +507,7 @@ Encore uses the `/url/:id` syntax to represent a path with a parameter. The `id`
 
 🥐 Let’s make sure it works by calling it (remember to change the `id` below to the one you found in the last step):
 
-```terminal
+```shell
 $ curl http://localhost:4000/url/zr6RmZc4
 ```
 
@@ -528,7 +528,7 @@ The final step before you deploy is to commit all changes to the project repo.
 
 🥐 Commit the new files to the project's git repo and trigger a deploy to Encore's free development cloud by running:
 
-```terminal
+```shell
 $ git add -A .
 $ git commit -m 'Initial commit'
 $ git push encore
