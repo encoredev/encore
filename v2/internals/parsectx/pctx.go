@@ -43,6 +43,9 @@ type Context struct {
 
 	// Errs contains encountered errors.
 	Errs *perr.List
+
+	// Overlay is a map of file paths to their contents.
+	Overlay map[string][]byte
 }
 
 // BuildInfo represents the information needed to parse and build an Encore application.

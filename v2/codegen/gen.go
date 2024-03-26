@@ -9,7 +9,7 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen/internal/genutil"
-	"encr.dev/v2/codegen/internal/rewrite"
+	"encr.dev/v2/codegen/rewrite"
 	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/pkginfo"
