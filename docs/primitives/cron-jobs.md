@@ -78,6 +78,8 @@ the `Every` field is not expressive enough.
 For these use cases, Encore provides full support for [Cron expressions](https://en.wikipedia.org/wiki/Cron) by using the `Schedule` field
 instead of the `Every` field.
 
+Cron expressions allow you to define precise schedules for your tasks, including specific days of the week, specific hours of the day, and more. Note that all times are expressed in UTC.
+
 For example:
 
 ```go
