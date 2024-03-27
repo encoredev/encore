@@ -644,7 +644,7 @@ func newHTTPRequestSpec() *httpRequestSpec {
 // directly to the request object itself.
 func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string][]*encoding.ParameterEncoding) error {
 	if len(rawPayload) > 0 {
-		req.Body = make(map[string]json.RawMessage, 0)
+		req.Body = make(map[string]json.RawMessage)
 	}
 
 	payload, err := hujson.Parse(rawPayload)
