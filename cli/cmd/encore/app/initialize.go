@@ -64,7 +64,7 @@ func initializeApp(name string) error {
 	}
 
 	if name == "" {
-		name, _ = selectTemplate("", "empty")
+		name, _, _ = selectTemplate("", "empty", true)
 	}
 	if err := validateName(name); err != nil {
 		return err
@@ -99,11 +99,16 @@ func initializeApp(name string) error {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
-		if err := gogetEncore(name); err != nil {
+		if err := gogetEncore("."); err != nil {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
 	}
+
+	green := color.New(color.FgGreen)
+	_, _ = green.Fprint(os.Stdout, "Successfully initialized application on Encore Cloud!\n")
+	_, _ = fmt.Fprintf(os.Stdout, "- App ID:          %s\n", cyan.Sprint(app.Slug))
+	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprintf("https://app.encore.dev/%s", app.Slug))
 
 	return nil
 }

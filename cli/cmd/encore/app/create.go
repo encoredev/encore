@@ -70,7 +70,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	}
 
 	if name == "" || template == "" {
-		name, template = selectTemplate(name, template)
+		name, template, _ = selectTemplate(name, template, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
@@ -149,6 +149,9 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		if ok {
 			_ = os.Remove(exampleJSONPath(name))
 		}
+	} else {
+		// Remove the example config file since we're not creating the app on the platform.
+		_ = os.Remove(exampleJSONPath(name))
 	}
 
 	encoreAppPath := filepath.Join(name, "encore.app")
@@ -276,7 +279,7 @@ func gogetEncore(dir string) error {
 	cmd := exec.Command(goBinPath, "get", "encore.dev@latest")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.New(string(out))
+		return errors.Newf("go get failed: %v: %s", err, out)
 	}
 	return nil
 }
