@@ -240,52 +240,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)
-	case "ai/define-endpoints":
-		var params struct {
-			AppID    string            `json:"app_id"`
-			Prompt   string            `json:"prompt"`
-			Proposed []ai.ServiceInput `json:"proposed"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		md, err := h.GetMeta(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.WSNotification) error {
-			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
-		})
-		return reply(ctx, subID, err)
-	case "ai/generate-code":
-		var params struct {
-			AppID    string            `json:"app_id"`
-			Services []ai.ServiceInput `json:"services"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		result, err := ai.GenerateCode(params.Services, app)
-		return reply(ctx, result, err)
-	case "ai/sync-endpoints":
-		var params struct {
-			AppID      string            `json:"app_id"`
-			Services   []ai.ServiceInput `json:"services"`
-			FromSource bool              `json:"from_source"`
-		}
-		if err := unmarshal(&params); err != nil {
-			return reply(ctx, nil, err)
-		}
-		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
-		if err != nil {
-			return reply(ctx, nil, err)
-		}
-		results, err := ai.SyncEndpoints(ctx, params.Services, app, params.FromSource)
-		return reply(ctx, results, err)
 	case "ai/modify-system-design":
 		var params struct {
 			AppID          string            `json:"app_id"`
@@ -304,6 +258,80 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)
+	case "ai/define-endpoints":
+		var params struct {
+			AppID    string            `json:"app_id"`
+			Prompt   string            `json:"prompt"`
+			Proposed []ai.ServiceInput `json:"proposed"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		md, err := h.GetMeta(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.WSNotification) error {
+			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
+		})
+		return reply(ctx, subID, err)
+	case "ai/parse-code":
+		var params struct {
+			AppID    string            `json:"app_id"`
+			Services []ai.ServiceInput `json:"services"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		results, err := ai.ParseCode(ctx, params.Services, app)
+		return reply(ctx, results, err)
+	case "ai/update-code":
+		var params struct {
+			AppID     string            `json:"app_id"`
+			Services  []ai.ServiceInput `json:"services"`
+			Overwrite bool              `json:"overwrite"` // Ovwerwrite any existing endpoint code
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		results, err := ai.UpdateCode(ctx, params.Services, app, params.Overwrite)
+		return reply(ctx, results, err)
+	case "ai/preview-files":
+		var params struct {
+			AppID    string            `json:"app_id"`
+			Services []ai.ServiceInput `json:"services"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		result, err := ai.PreviewFiles(ctx, params.Services, app)
+		return reply(ctx, result, err)
+	case "ai/write-files":
+		var params struct {
+			AppID    string            `json:"app_id"`
+			Services []ai.ServiceInput `json:"services"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		result, err := ai.WriteFiles(ctx, params.Services, app)
+		return reply(ctx, result, err)
 	case "ai/parse-sql-schema":
 		var params struct {
 			AppID string `json:"app_id"`

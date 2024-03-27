@@ -12,6 +12,16 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 	return dst
 }
 
+// TransformMapKeys creates a new map with the same values as m, but with
+// the keys transformed by fn.
+func TransformMapKeys[K1, K2 comparable, V any](m map[K1]V, fn func(K1) K2) map[K2]V {
+	dst := make(map[K2]V, len(m))
+	for k, v := range m {
+		dst[fn(k)] = v
+	}
+	return dst
+}
+
 // FlatMap applies fn on all elements in src, producing a new slice
 // with the results, in order.
 func FlatMap[A, B any](src []A, fn func(A) []B) []B {
@@ -55,6 +65,16 @@ func ToMap[K comparable, V any](src []V, key func(V) K) map[K]V {
 		dst[key(v)] = v
 	}
 	return dst
+}
+
+// TransformMapToSlice creates a new slice with the results of applying fn to each
+// key-value pair in m.
+func TransformMapToSlice[K comparable, V any, R any](m map[K]V, fn func(K, V) R) []R {
+	r := make([]R, 0, len(m))
+	for k, v := range m {
+		r = append(r, fn(k, v))
+	}
+	return r
 }
 
 // MapKeys returns the keys of the map m.

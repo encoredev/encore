@@ -6,7 +6,7 @@ import (
 
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/authhandler"
-	"encr.dev/v2/parser/apis/internal/directive"
+	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/servicestruct"
 	"encr.dev/v2/parser/resource/resourceparser"

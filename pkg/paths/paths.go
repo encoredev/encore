@@ -61,6 +61,10 @@ func (fs FS) Join(elem ...string) FS {
 	return FS(filepath.Join(parts...))
 }
 
+func (fs FS) JoinSlash(rel RelSlash) FS {
+	return fs.Join(filepath.FromSlash(rel.ToIO()))
+}
+
 // Base returns the filepath.Base of the path.
 func (fs FS) Base() string {
 	fs.checkValid()
@@ -240,6 +244,14 @@ func (m Mod) RelativePathToPkg(p Pkg) (relative RelSlash, ok bool) {
 	return RelSlash(suffix), true
 }
 
+func (m Mod) Pkg(rel RelSlash) Pkg {
+	m.checkValid()
+	if m == stdModule {
+		return Pkg(rel)
+	}
+	return Pkg(path.Join(string(m), string(rel)))
+}
+
 func (m Mod) checkValid() {
 	if m == "" {
 		panic("invalid Module path")
@@ -258,6 +270,12 @@ type RelSlash string
 // using filepath.FromSlash.
 func (p RelSlash) ToIO() string {
 	return filepath.FromSlash(string(p))
+}
+
+// Join joins the path with the given elems, according to path.Join.
+func (rel RelSlash) Join(elem ...string) RelSlash {
+	parts := append([]string{string(rel)}, elem...)
+	return RelSlash(path.Join(parts...))
 }
 
 func (p RelSlash) String() string {

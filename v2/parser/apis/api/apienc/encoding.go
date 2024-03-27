@@ -13,7 +13,7 @@ import (
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/authhandler"
-	"encr.dev/v2/parser/apis/internal/directive"
+	"encr.dev/v2/parser/apis/directive"
 )
 
 // WireLoc is the location of a parameter in the HTTP request/response.
