@@ -643,6 +643,10 @@ func newHTTPRequestSpec() *httpRequestSpec {
 // The body argument is where body parameters are added; other parameter locations are added
 // directly to the request object itself.
 func addToRequest(req *httpRequestSpec, rawPayload []byte, params map[string][]*encoding.ParameterEncoding) error {
+	if len(rawPayload) > 0 {
+		req.Body = make(map[string]json.RawMessage, 0)
+	}
+
 	payload, err := hujson.Parse(rawPayload)
 	if err != nil {
 		return fmt.Errorf("invalid payload: %v", err)
