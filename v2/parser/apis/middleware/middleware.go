@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-
 	"slices"
 
 	"encr.dev/pkg/errors"
@@ -14,7 +13,7 @@ import (
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
-	"encr.dev/v2/parser/apis/internal/directive"
+	"encr.dev/v2/parser/apis/directive"
 	"encr.dev/v2/parser/apis/selector"
 	"encr.dev/v2/parser/internal/utils"
 	"encr.dev/v2/parser/resource"

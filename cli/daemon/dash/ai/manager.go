@@ -2,14 +2,16 @@ package ai
 
 import (
 	"context"
-	"strings"
 	"sync"
 
 	"github.com/hasura/go-graphql-client"
 	"github.com/hasura/go-graphql-client/pkg/jsonutil"
+	"golang.org/x/exp/slices"
 
+	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/idents"
+	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/parser/apis/api/apienc"
 )
@@ -165,26 +167,32 @@ type WSNotification struct {
 
 type AINotifier func(context.Context, *WSNotification) error
 
-type endpointStructs struct {
-	service    string
-	endpoint   string
-	defaultLoc apienc.WireLoc
-	structs    []*TypeInput
+type cachedEndpoint struct {
+	service  string
+	endpoint *EndpointInput
 }
 
-func (e *endpointStructs) Notification() EndpointStructs {
-	codes := fns.Map(e.structs, (*TypeInput).Render)
-	return EndpointStructs{
+func (e *cachedEndpoint) notification() LocalEndpointUpdate {
+	e.endpoint.EndpointSource = e.endpoint.Render()
+	e.endpoint.TypeSource = ""
+	for i, s := range e.endpoint.Types {
+		if i > 0 {
+			e.endpoint.TypeSource += "\n"
+		}
+		e.endpoint.TypeSource += s.Render()
+	}
+	return LocalEndpointUpdate{
 		Service:  e.service,
-		Type:     "EndpointStructs",
 		Endpoint: e.endpoint,
-		Types:    e.structs,
-		Code:     strings.Join(codes, "\n"),
+		Type:     "EndpointUpdate",
 	}
 }
 
-func (e *endpointStructs) upsertStruct(name, doc string) *TypeInput {
-	for _, s := range e.structs {
+func (e *cachedEndpoint) upsertType(name, doc string) *TypeInput {
+	if name == "" {
+		return nil
+	}
+	for _, s := range e.endpoint.Types {
 		if s.Name == name {
 			if doc != "" {
 				s.Doc = doc
@@ -193,12 +201,29 @@ func (e *endpointStructs) upsertStruct(name, doc string) *TypeInput {
 		}
 	}
 	si := &TypeInput{Name: name, Doc: doc}
-	e.structs = append(e.structs, si)
+	e.endpoint.Types = append(e.endpoint.Types, si)
 	return si
 }
 
-func (e *endpointStructs) upsertField(up TypeFieldUpdate) *TypeInput {
-	s := e.upsertStruct(up.Struct, "")
+func (e *cachedEndpoint) upsertError(err ErrorUpdate) *ErrorInput {
+	for _, s := range e.endpoint.Errors {
+		if s.Code == err.Code {
+			if err.Doc != "" {
+				s.Doc = err.Doc
+			}
+			return s
+		}
+	}
+	si := &ErrorInput{Code: err.Code, Doc: err.Doc}
+	e.endpoint.Errors = append(e.endpoint.Errors, si)
+	return si
+}
+
+func (e *cachedEndpoint) upsertField(up TypeFieldUpdate) *TypeInput {
+	if up.Struct == "" {
+		return nil
+	}
+	s := e.upsertType(up.Struct, "")
 	for _, f := range s.Fields {
 		if f.Name == up.Name {
 			if up.Doc != "" {
@@ -210,11 +235,15 @@ func (e *endpointStructs) upsertField(up TypeFieldUpdate) *TypeInput {
 			return s
 		}
 	}
+	defaultLoc := apienc.Body
+	if slices.Contains([]string{"GET", "HEAD", "DELETE"}, e.endpoint.Method) {
+		defaultLoc = apienc.Query
+	}
 	fi := &TypeFieldInput{
 		Name:     up.Name,
 		Doc:      up.Doc,
 		Type:     up.Type,
-		Location: e.defaultLoc,
+		Location: defaultLoc,
 		WireName: idents.Convert(up.Name, idents.CamelCase),
 	}
 	s.Fields = append(s.Fields, fi)
@@ -222,14 +251,57 @@ func (e *endpointStructs) upsertField(up TypeFieldUpdate) *TypeInput {
 }
 
 type endpointCache struct {
-	eps      map[string]*endpointStructs
-	proposed []ServiceInput
+	eps      map[string]*cachedEndpoint
+	existing []ServiceInput
 }
 
-func (s *endpointCache) endpoint(service, endpoint string) *endpointStructs {
+func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
+	for _, ep := range s.eps {
+		if ep.service != e.Service || ep.endpoint.Name != e.Name {
+			continue
+		}
+		ep.endpoint.Doc = e.Doc
+		ep.endpoint.Method = e.Method
+		ep.endpoint.Visibility = e.Visibility
+		ep.endpoint.Path = e.Path
+		ep.endpoint.RequestType = e.RequestType
+		ep.endpoint.ResponseType = e.ResponseType
+		ep.endpoint.Errors = fns.Map(e.Errors, func(e string) *ErrorInput {
+			return &ErrorInput{Code: e}
+		})
+		ep.upsertType(e.RequestType, "")
+		ep.upsertType(e.ResponseType, "")
+		return ep
+	}
+	ep := &cachedEndpoint{
+		service: e.Service,
+		endpoint: &EndpointInput{
+			Name:         e.Name,
+			Doc:          e.Doc,
+			Method:       e.Method,
+			Visibility:   e.Visibility,
+			Path:         e.Path,
+			RequestType:  e.RequestType,
+			ResponseType: e.ResponseType,
+			Errors: fns.Map(e.Errors, func(e string) *ErrorInput {
+				return &ErrorInput{Code: e}
+			}),
+			Language: "GO",
+		},
+	}
+	for _, t := range []string{e.RequestType, e.ResponseType} {
+		if t == "" {
+			continue
+		}
+		ep.endpoint.Types = append(ep.endpoint.Types, &TypeInput{Name: t})
+	}
+	return ep
+}
+
+func (s *endpointCache) endpoint(service, endpoint string) *cachedEndpoint {
 	key := service + "." + endpoint
 	if _, ok := s.eps[key]; !ok {
-		for _, svc := range s.proposed {
+		for _, svc := range s.existing {
 			if svc.Name != service {
 				continue
 			}
@@ -237,15 +309,9 @@ func (s *endpointCache) endpoint(service, endpoint string) *endpointStructs {
 				if ep.Name != endpoint {
 					continue
 				}
-				defaultLoc := apienc.Body
-				switch ep.Method {
-				case "GET", "HEAD", "DELETE":
-					defaultLoc = apienc.Query
-				}
-				s.eps[key] = &endpointStructs{
-					service:    service,
-					endpoint:   endpoint,
-					defaultLoc: defaultLoc,
+				s.eps[key] = &cachedEndpoint{
+					service:  service,
+					endpoint: ep,
 				}
 				break
 			}
@@ -258,11 +324,33 @@ func (s *endpointCache) endpoint(service, endpoint string) *endpointStructs {
 	return s.eps[key]
 }
 
-func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, md *meta.Data, proposed []ServiceInput, notifier AINotifier) (string, error) {
+func createUpdateHandler(existing []ServiceInput, notifier AINotifier) AINotifier {
 	epCache := &endpointCache{
-		eps:      make(map[string]*endpointStructs),
-		proposed: proposed,
+		eps:      make(map[string]*cachedEndpoint),
+		existing: existing,
 	}
+	return func(ctx context.Context, msg *WSNotification) error {
+		switch val := msg.Value.(type) {
+		case TypeUpdate:
+			ep := epCache.endpoint(val.Service, val.Endpoint)
+			ep.upsertType(val.Name, val.Doc)
+			msg.Value = ep.notification()
+		case TypeFieldUpdate:
+			ep := epCache.endpoint(val.Service, val.Endpoint)
+			ep.upsertField(val)
+			msg.Value = ep.notification()
+		case EndpointUpdate:
+			msg.Value = epCache.upsertEndpoint(val).notification()
+		case ErrorUpdate:
+			ep := epCache.endpoint(val.Service, val.Endpoint)
+			ep.upsertError(val)
+			msg.Value = ep.notification()
+		}
+		return notifier(ctx, msg)
+	}
+}
+
+func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, md *meta.Data, proposed []ServiceInput, notifier AINotifier) (string, error) {
 	return query[struct {
 		StreamUpdate *StreamUpdate `graphql:"result: defineEndpoints(appSlug: $appSlug, prompt: $prompt, current: $current, proposedDesign: $proposedDesign)"`
 	}](ctx, m.client, map[string]interface{}{
@@ -270,32 +358,20 @@ func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, m
 		"prompt":         prompt,
 		"current":        currentService(md),
 		"proposedDesign": proposed,
-	}, func(ctx context.Context, msg *WSNotification) error {
-		switch val := msg.Value.(type) {
-		case TypeUpdate:
-			ep := epCache.endpoint(val.Service, val.Endpoint)
-			ep.upsertStruct(val.Name, val.Doc)
-			msg.Value = ep.Notification()
-		case TypeFieldUpdate:
-			ep := epCache.endpoint(val.Service, val.Endpoint)
-			ep.upsertField(val)
-			msg.Value = ep.Notification()
-		}
-		return notifier(ctx, msg)
-	})
+	}, createUpdateHandler(proposed, notifier))
 }
 
-func (m *Manager) ProposeSystemDesign(ctx context.Context, appSlug, prompt string, md *meta.Data, replier AINotifier) (string, error) {
+func (m *Manager) ProposeSystemDesign(ctx context.Context, appSlug, prompt string, md *meta.Data, notifier AINotifier) (string, error) {
 	return query[struct {
 		StreamUpdate *StreamUpdate `graphql:"result: proposeSystemDesign(appSlug: $appSlug, prompt: $prompt, current: $current)"`
 	}](ctx, m.client, map[string]interface{}{
 		"appSlug": appSlug,
 		"prompt":  prompt,
 		"current": currentService(md),
-	}, replier)
+	}, createUpdateHandler(nil, notifier))
 }
 
-func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug, originalPrompt string, proposed []ServiceInput, newPrompt string, md *meta.Data, replier AINotifier) (string, error) {
+func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug, originalPrompt string, proposed []ServiceInput, newPrompt string, md *meta.Data, notifier AINotifier) (string, error) {
 	return query[struct {
 		StreamUpdate *StreamUpdate `graphql:"result: modifySystemDesign(appSlug: $appSlug, originalPrompt: $originalPrompt, proposedDesign: $proposedDesign, newPrompt: $newPrompt, current: $current)"`
 	}](ctx, m.client, map[string]interface{}{
@@ -304,7 +380,40 @@ func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug, originalPromp
 		"proposedDesign": fns.Map(proposed, ServiceInput.GraphQL),
 		"current":        currentService(md),
 		"newPrompt":      newPrompt,
-	}, replier)
+	}, createUpdateHandler(proposed, notifier))
+}
+
+func ParseCode(ctx context.Context, services []ServiceInput, app *apps.Instance) (*SyncResult, error) {
+	return parseCode(ctx, app, services)
+}
+
+func UpdateCode(ctx context.Context, services []ServiceInput, app *apps.Instance, overwrite bool) (*SyncResult, error) {
+	return updateCode(ctx, services, app, overwrite)
+}
+
+type WriteFilesResponse struct {
+	FilesPaths []paths.RelSlash `json:"paths"`
+}
+
+func WriteFiles(ctx context.Context, services []ServiceInput, app *apps.Instance) (*WriteFilesResponse, error) {
+	files, err := writeFiles(services, app)
+	return &WriteFilesResponse{FilesPaths: files}, err
+}
+
+type PreviewFile struct {
+	Path    paths.RelSlash `json:"path"`
+	Content string         `json:"content"`
+}
+
+type PreviewFilesResponse struct {
+	Files []PreviewFile `json:"files"`
+}
+
+func PreviewFiles(ctx context.Context, services []ServiceInput, app *apps.Instance) (*PreviewFilesResponse, error) {
+	files, err := generateSrcFiles(services, app)
+	return &PreviewFilesResponse{Files: fns.TransformMapToSlice(files, func(k paths.RelSlash, v string) PreviewFile {
+		return PreviewFile{Path: k, Content: v}
+	})}, err
 }
 
 func currentService(md *meta.Data) []ServiceInput {
@@ -331,58 +440,4 @@ func currentService(md *meta.Data) []ServiceInput {
 		services = append(services, svc)
 	}
 	return services
-}
-
-func metaPathToPathSegments(metaPath *meta.Path) []PathSegment {
-	var segments []PathSegment
-	for _, seg := range metaPath.Segments {
-		segments = append(segments, PathSegment{
-			Type:      toSegmentType(seg.Type),
-			Value:     ptr(seg.Value),
-			ValueType: ptr(toSegmentValueType(seg.ValueType)),
-		})
-	}
-	return segments
-}
-
-func toSegmentValueType(valueType meta.PathSegment_ParamType) SegmentValueType {
-	switch valueType {
-	case meta.PathSegment_STRING, meta.PathSegment_UUID:
-		return SegmentValueTypeString
-	case meta.PathSegment_BOOL:
-		return SegmentValueTypeBool
-	case meta.PathSegment_INT, meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64,
-		meta.PathSegment_UINT, meta.PathSegment_UINT8, meta.PathSegment_UINT16, meta.PathSegment_UINT32, meta.PathSegment_UINT64:
-		return SegmentValueTypeInt
-	default:
-		panic("unknown segment value type")
-	}
-}
-
-func toSegmentType(segmentType meta.PathSegment_SegmentType) SegmentType {
-	switch segmentType {
-	case meta.PathSegment_LITERAL:
-		return SegmentTypeLiteral
-	case meta.PathSegment_PARAM:
-		return SegmentTypeParam
-	case meta.PathSegment_WILDCARD:
-		return SegmentTypeWildcard
-	case meta.PathSegment_FALLBACK:
-		return SegmentTypeFallback
-	default:
-		panic("unknown segment type")
-	}
-}
-
-func accessTypeToVisibility(accessType meta.RPC_AccessType) VisibilityType {
-	switch accessType {
-	case meta.RPC_PUBLIC:
-		return VisibilityTypePublic
-	case meta.RPC_PRIVATE:
-		return VisibilityTypePrivate
-	case meta.RPC_AUTH:
-		return ""
-	default:
-		panic("unknown access type")
-	}
 }

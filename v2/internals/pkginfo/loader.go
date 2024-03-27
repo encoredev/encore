@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
@@ -98,12 +99,7 @@ func (l *Loader) init() {
 	if b.CgoEnabled {
 		cgoEnabled = "1"
 	}
-
 	updateGoPath(b)
-	overlay := map[string][]byte{}
-	for key, value := range l.c.Overlay {
-		overlay[l.MainModule().RootDir.Join(key).ToIO()] = value
-	}
 	l.packagesConfig = &packages.Config{
 		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedModule,
 		Context: l.c.Ctx,
@@ -117,7 +113,7 @@ func (l *Loader) init() {
 		),
 		Fset:    l.c.FS,
 		Tests:   l.c.ParseTests,
-		Overlay: overlay,
+		Overlay: fns.TransformMapKeys(l.c.Overlay, paths.FS.ToIO),
 		Logf: func(format string, args ...any) {
 			l.c.Log.Debug().Str("component", "pkgload").Msgf("go/packages: "+format, args...)
 		},

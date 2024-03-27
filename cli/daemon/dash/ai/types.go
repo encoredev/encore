@@ -2,8 +2,17 @@ package ai
 
 import (
 	"fmt"
+	"go/token"
+	"os"
+	"path"
 	"strings"
 
+	"golang.org/x/exp/maps"
+
+	"encr.dev/cli/daemon/apps"
+	"encr.dev/pkg/fns"
+	"encr.dev/pkg/paths"
+	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/parser/apis/api/apienc"
 )
 
@@ -83,8 +92,8 @@ type EndpointInput struct {
 	Path           []PathSegment  `json:"path,omitempty"`
 	RequestType    string         `json:"requestType,omitempty"`
 	ResponseType   string         `json:"responseType,omitempty"`
-	Errors         []ErrorInput   `json:"errors,omitempty"`
-	Types          []TypeInput    `json:"types,omitempty"`
+	Errors         []*ErrorInput  `json:"errors,omitempty"`
+	Types          []*TypeInput   `json:"types,omitempty"`
 	Language       string         `json:"language,omitempty"`
 	TypeSource     string         `json:"typeSource,omitempty"`
 	EndpointSource string         `json:"endpointSource,omitempty"`
@@ -106,9 +115,9 @@ func (e *EndpointInput) Render() string {
 	}
 	for i, err := range e.Errors {
 		if i == 0 {
-			buf.WriteString("// Errors:\n")
+			buf.WriteString("//\n// Errors:\n")
 		}
-		buf.WriteString(fmt.Sprintf("//  %s: %s\n", err.Code, err.Doc))
+		buf.WriteString(fmt.Sprintf("// - %s: %s\n", err.Code, err.Doc))
 	}
 	params := []string{"ctx context.Context"}
 	path, pathParams := formatPath(e.Path)
@@ -121,7 +130,10 @@ func (e *EndpointInput) Render() string {
 		rtnParams = append(rtnParams, "*"+e.ResponseType)
 	}
 	rtnParams = append(rtnParams, "error")
-	buf.WriteString(fmt.Sprintf("// encore:api %s method=%s path=%s\n", e.Visibility, e.Method, path))
+	if buf.Len() > 0 {
+		buf.WriteString("//\n")
+	}
+	buf.WriteString(fmt.Sprintf("//encore:api %s method=%s path=%s\n", e.Visibility, e.Method, path))
 	paramsStr := strings.Join(params, ", ")
 	rtnParamsStr := strings.Join(rtnParams, ", ")
 	if len(rtnParams) > 1 {
@@ -188,7 +200,7 @@ func (s *TypeInput) Render() string {
 			rtn.WriteString("\n")
 		}
 		if f.Doc != "" {
-			rtn.WriteString(fmt.Sprintf("  // %s", f.Doc))
+			rtn.WriteString(fmt.Sprintf("  // %s\n", f.Doc))
 		}
 		tags := ""
 		switch f.Location {
@@ -205,12 +217,10 @@ func (s *TypeInput) Render() string {
 	return rtn.String()
 }
 
-type EndpointStructs struct {
-	Type     string       `json:"type,omitempty"`
-	Service  string       `json:"service,omitempty"`
-	Endpoint string       `json:"endpoint,omitempty"`
-	Code     string       `json:"code,omitempty"`
-	Types    []*TypeInput `json:"types,omitempty"`
+type LocalEndpointUpdate struct {
+	Type     string         `json:"type,omitempty"`
+	Service  string         `json:"service,omitempty"`
+	Endpoint *EndpointInput `json:"endpoint,omitempty"`
 }
 
 type TypeFieldInput struct {
@@ -246,4 +256,188 @@ type ErrorUpdate struct {
 	Doc      string `json:"doc,omitempty"`
 	Service  string `json:"service,omitempty"`
 	Endpoint string `json:"endpoint,omitempty"`
+}
+
+func formatPath(segs []PathSegment) (string, []string) {
+	var params []string
+	return "/" + path.Join(fns.Map(segs, func(s PathSegment) string {
+		switch s.Type {
+		case SegmentTypeLiteral:
+			return *s.Value
+		case SegmentTypeParam:
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, valueTypeToGoType(s.ValueType)))
+			return fmt.Sprintf(":%s", *s.Value)
+		case SegmentTypeWildcard:
+			return "*"
+		case SegmentTypeFallback:
+			return "!fallback"
+		default:
+			panic(fmt.Sprintf("unknown path segment type: %s", s.Type))
+		}
+	})...), params
+}
+
+type servicePaths struct {
+	relPaths map[string]paths.RelSlash
+	root     paths.FS
+	module   paths.Mod
+}
+
+func (s *servicePaths) Add(key string, path paths.RelSlash) *servicePaths {
+	s.relPaths[key] = path
+	return s
+}
+
+func (s *servicePaths) PkgPath(svc string) paths.Pkg {
+	rel := s.RelPath(svc)
+	return s.module.Pkg(rel)
+}
+
+func (s *servicePaths) FullPath(svc string) paths.FS {
+	rel := s.RelPath(svc)
+	return s.root.JoinSlash(rel)
+}
+
+func (s *servicePaths) RelPath(svc string) paths.RelSlash {
+	pkgName, ok := s.relPaths[svc]
+	if !ok {
+		pkgName = paths.RelSlash(strings.ToLower(svc))
+	}
+	return pkgName
+}
+
+func (s *servicePaths) FileName(svc, endpoint string) (paths.FS, error) {
+	relPath, err := s.RelFileName(svc, endpoint)
+	if err != nil {
+		return "", err
+	}
+	return s.root.JoinSlash(relPath), nil
+}
+
+func (s *servicePaths) RelFileName(svc, endpoint string) (paths.RelSlash, error) {
+	pkgPath := s.FullPath(svc)
+	endpoint = strings.ToLower(endpoint)
+	fileName := endpoint + ".go"
+	var i int
+	for {
+		fspath := pkgPath.Join(fileName)
+		if _, err := os.Stat(fspath.ToIO()); os.IsNotExist(err) {
+			return s.RelPath(svc).Join(fileName), nil
+		} else if err != nil {
+			return "", err
+		}
+		i++
+		fileName = fmt.Sprintf("%s_%d.go", endpoint, i)
+	}
+}
+
+func newServicePaths(app *apps.Instance) (*servicePaths, error) {
+	md, err := app.CachedMetadata()
+	if err != nil {
+		return nil, err
+	}
+	pkgRelPath := fns.ToMap(md.Pkgs, func(p *meta.Package) string { return p.RelPath })
+	svcPaths := &servicePaths{
+		relPaths: map[string]paths.RelSlash{},
+		root:     paths.FS(app.Root()),
+		module:   paths.Mod(md.ModulePath),
+	}
+	for _, svc := range md.Svcs {
+		if pkgRelPath[svc.RelPath] != nil {
+			svcPaths.Add(svc.Name, paths.RelSlash(pkgRelPath[svc.RelPath].RelPath))
+		}
+	}
+	return svcPaths, nil
+}
+
+type overlay struct {
+	endpoint     *EndpointInput
+	service      *ServiceInput
+	codeType     CodeType
+	content      []byte
+	headerOffset token.Position
+}
+
+func newOverlays(app *apps.Instance, overwrite bool, services ...ServiceInput) (*overlays, error) {
+	svcPaths, err := newServicePaths(app)
+	if err != nil {
+		return nil, err
+	}
+	o := &overlays{
+		list:  map[paths.FS]*overlay{},
+		paths: svcPaths,
+	}
+	for _, s := range services {
+		for _, e := range s.Endpoints {
+			if overwrite {
+				e.TypeSource = ""
+				e.EndpointSource = ""
+			}
+			if err := o.add(s, e); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return o, nil
+}
+
+type overlays struct {
+	list  map[paths.FS]*overlay
+	paths *servicePaths
+}
+
+func (o *overlays) pkgPaths() []paths.Pkg {
+	pkgs := map[paths.Pkg]struct{}{}
+	for _, info := range o.list {
+		pkgs[o.paths.PkgPath(info.service.Name)] = struct{}{}
+	}
+	return maps.Keys(pkgs)
+}
+
+func (o *overlays) get(p paths.FS) (*overlay, bool) {
+	rtn, ok := o.list[p]
+	return rtn, ok
+}
+
+func (o *overlays) add(s ServiceInput, e *EndpointInput) error {
+	p, err := o.paths.FileName(s.Name, e.Name+"_func")
+	if err != nil {
+		return err
+	}
+	offset, content := toSrcFile(p, s.Name, e.EndpointSource)
+	e.EndpointSource = string(content[offset.Offset:])
+	o.list[p] = &overlay{
+		endpoint:     e,
+		service:      &s,
+		codeType:     CodeTypeEndpoint,
+		content:      content,
+		headerOffset: offset,
+	}
+	p, err = o.paths.FileName(s.Name, e.Name+"_types")
+	if err != nil {
+		return err
+	}
+	offset, content = toSrcFile(p, s.Name, e.TypeSource)
+	e.TypeSource = string(content[offset.Offset:])
+	o.list[p] = &overlay{
+		endpoint:     e,
+		service:      &s,
+		codeType:     CodeTypeTypes,
+		content:      content,
+		headerOffset: offset,
+	}
+	return nil
+}
+
+func (p *overlays) files() map[paths.FS][]byte {
+	files := map[paths.FS][]byte{}
+	for f, info := range p.list {
+		files[f] = info.content
+	}
+	return files
+}
+
+type SyncResult struct {
+	Services []ServiceInput    `json:"services"`
+	Errors   []ValidationError `json:"errors"`
 }

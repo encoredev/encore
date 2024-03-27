@@ -174,7 +174,7 @@ func Parse(errs *perr.List, cg *ast.CommentGroup) (dir *Directive, doc string, o
 			for _, c := range cg.List {
 				idx := bytes.Index([]byte(c.Text), []byte(line))
 				if idx >= 0 {
-					pos += c.Pos() + token.Pos(idx)
+					pos = c.Pos() + token.Pos(idx)
 					break
 				}
 			}

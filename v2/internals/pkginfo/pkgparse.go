@@ -139,11 +139,9 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			infos = append(infos, fileInfo{path: path, ioPath: ioPath, baseName: baseName})
 		}
 	}
-	for k, v := range l.packagesConfig.Overlay {
-		p, n := filepath.Split(k)
-		p = strings.TrimSuffix(p, "/")
-		if p == s.dir.ToIO() {
-			infos = append(infos, fileInfo{path: s.dir.Join(n), ioPath: k, baseName: n, contents: v})
+	for k, v := range l.c.Overlay {
+		if k.Dir() == s.dir {
+			infos = append(infos, fileInfo{path: k, ioPath: k.ToIO(), baseName: k.Base(), contents: v})
 		}
 	}
 
