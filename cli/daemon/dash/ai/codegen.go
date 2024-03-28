@@ -21,6 +21,14 @@ import (
 	"encr.dev/v2/parser/apis/directive"
 )
 
+func fmtComment(comment string, before, after int) string {
+	if comment == "" {
+		return ""
+	}
+	prefix := fmt.Sprintf("%s//%s", strings.Repeat(" ", before), strings.Repeat(" ", after))
+	return prefix + strings.ReplaceAll(comment, "\n", "\n"+prefix)
+}
+
 func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.RelSlash]string, error) {
 	svcPaths, err := newServicePaths(app)
 	if err != nil {
@@ -28,8 +36,8 @@ func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.Re
 	}
 	files := map[paths.RelSlash]string{}
 	for _, s := range services {
-		for _, e := range s.Endpoints {
-			relFile, err := svcPaths.RelFileName(s.Name, e.Name)
+		if svcPaths.IsNew(s.Name) {
+			relFile, err := svcPaths.RelFileName(s.Name, s.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -38,6 +46,14 @@ func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.Re
 			if err != nil {
 				return nil, err
 			}
+			files[relFile] = fmt.Sprintf("%s\npackage %s\n", fmtComment(s.Doc, 0, 1), strings.ToLower(s.Name))
+		}
+		for _, e := range s.Endpoints {
+			relFile, err := svcPaths.RelFileName(s.Name, e.Name)
+			if err != nil {
+				return nil, err
+			}
+			file := paths.FS(app.Root()).JoinSlash(relFile)
 			_, content := toSrcFile(file, s.Name, e.EndpointSource, e.TypeSource)
 			files[relFile] = string(content)
 		}
@@ -155,19 +171,23 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 					}
 				}
 			}
-			sig := ep.endpoint.Render()
 			if funcDecl != nil {
 				start := funcDecl.Pos()
 				if funcDecl.Doc != nil {
 					start = funcDecl.Doc.Pos()
 				}
-				rewriter.Replace(start, funcDecl.Body.Lbrace, []byte(sig))
+				end := funcDecl.End()
+				withBody := true
+				if funcDecl.Body != nil {
+					withBody = false
+					end = funcDecl.Body.Lbrace
+				}
+				rewriter.Replace(start, end, []byte(ep.endpoint.Render(withBody)))
 			} else {
 				if len(funcByName) > 0 {
 					rewriter.Append([]byte("\n"))
 				}
-				sig = sig + " {\n  panic(\"not implemented\"\n}\n"
-				rewriter.Append([]byte(sig))
+				rewriter.Append([]byte(ep.endpoint.Render(true)))
 			}
 			content := string(rewriter.Data()[ep.headerOffset.Offset:])
 			ep.endpoint.EndpointSource = strings.TrimSpace(content)

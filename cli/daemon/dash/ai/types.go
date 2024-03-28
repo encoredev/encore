@@ -106,7 +106,7 @@ func (s *EndpointInput) GraphQL() *EndpointInput {
 	return s
 }
 
-func (e *EndpointInput) Render() string {
+func (e *EndpointInput) Render(withBody bool) string {
 	buf := strings.Builder{}
 	if e.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(e.Doc), "\n") {
@@ -148,6 +148,11 @@ func (e *EndpointInput) Render() string {
 		rtnParamsStr = fmt.Sprintf("(%s)", rtnParamsStr)
 	}
 	buf.WriteString(fmt.Sprintf("func %s(%s) %s", e.Name, paramsStr, rtnParamsStr))
+	if withBody {
+		buf.WriteString(" {\n")
+		buf.WriteString("  panic(\"not implemented\")\n")
+		buf.WriteString("}\n")
+	}
 	return buf.String()
 }
 
@@ -295,8 +300,13 @@ type servicePaths struct {
 	module   paths.Mod
 }
 
-func (s *servicePaths) Add(key string, path paths.RelSlash) *servicePaths {
-	s.relPaths[key] = path
+func (s *servicePaths) IsNew(svc string) bool {
+	_, ok := s.relPaths[svc]
+	return !ok
+}
+
+func (s *servicePaths) Add(svc string, path paths.RelSlash) *servicePaths {
+	s.relPaths[svc] = path
 	return s
 }
 
@@ -318,18 +328,18 @@ func (s *servicePaths) RelPath(svc string) paths.RelSlash {
 	return pkgName
 }
 
-func (s *servicePaths) FileName(svc, endpoint string) (paths.FS, error) {
-	relPath, err := s.RelFileName(svc, endpoint)
+func (s *servicePaths) FileName(svc, name string) (paths.FS, error) {
+	relPath, err := s.RelFileName(svc, name)
 	if err != nil {
 		return "", err
 	}
 	return s.root.JoinSlash(relPath), nil
 }
 
-func (s *servicePaths) RelFileName(svc, endpoint string) (paths.RelSlash, error) {
+func (s *servicePaths) RelFileName(svc, name string) (paths.RelSlash, error) {
 	pkgPath := s.FullPath(svc)
-	endpoint = strings.ToLower(endpoint)
-	fileName := endpoint + ".go"
+	name = strings.ToLower(name)
+	fileName := name + ".go"
 	var i int
 	for {
 		fspath := pkgPath.Join(fileName)
@@ -339,7 +349,7 @@ func (s *servicePaths) RelFileName(svc, endpoint string) (paths.RelSlash, error)
 			return "", err
 		}
 		i++
-		fileName = fmt.Sprintf("%s_%d.go", endpoint, i)
+		fileName = fmt.Sprintf("%s_%d.go", name, i)
 	}
 }
 
