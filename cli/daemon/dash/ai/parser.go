@@ -74,7 +74,7 @@ func parseErrorDoc(doc string) (string, []*ErrorInput) {
 				Code: errID,
 				Doc:  strings.TrimSpace(doc),
 			})
-		} else if len(errs) > 0 {
+		} else if len(errs) > 0 && line != "" {
 			errs[len(errs)-1].Doc += "\n" + line
 		}
 	}
@@ -152,14 +152,14 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					e.RequestType = r.Request.String()
 					e.Types = append(e.Types, &TypeInput{
 						Name: r.Request.String(),
-						Doc:  nr.DeclInfo.Doc,
+						Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
 						Fields: fns.Map(r.RequestEncoding()[0].AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
 							return &TypeFieldInput{
 								Name:     f.SrcName,
 								WireName: f.WireName,
 								Location: f.Location,
 								Type:     f.Type.String(),
-								Doc:      f.Doc,
+								Doc:      strings.TrimSpace(f.Doc),
 							}
 						}),
 					})
@@ -168,14 +168,14 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					e.ResponseType = r.Response.String()
 					e.Types = append(e.Types, &TypeInput{
 						Name: r.Response.String(),
-						Doc:  nr.DeclInfo.Doc,
+						Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
 						Fields: fns.Map(r.ResponseEncoding().AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
 							return &TypeFieldInput{
 								Name:     f.SrcName,
 								WireName: f.WireName,
 								Location: f.Location,
 								Type:     f.Type.String(),
-								Doc:      f.Doc,
+								Doc:      strings.TrimSpace(f.Doc),
 							}
 						}),
 					})
@@ -200,12 +200,12 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				}
 				e.Types = append(e.Types, &TypeInput{
 					Name: d.Name,
-					Doc:  d.Info.Doc,
+					Doc:  strings.TrimSpace(d.Info.Doc),
 					Fields: fns.Map(schemaType.Fields, func(f schema.StructField) *TypeFieldInput {
 						return &TypeFieldInput{
 							Name: f.Name.String(),
 							Type: f.Type.String(),
-							Doc:  f.Doc,
+							Doc:  strings.TrimSpace(f.Doc),
 						}
 					}),
 				})
