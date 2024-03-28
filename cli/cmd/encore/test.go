@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -100,7 +102,9 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 			Args:       args,
 			Environ:    os.Environ(),
 		})
-		if err != nil {
+		if status.Code(err) == codes.NotFound {
+			fatal("application does not define any tests.\nNote: Add a 'test' script command to package.json to run tests.")
+		} else if err != nil {
 			fatal(err)
 		}
 

@@ -285,7 +285,7 @@ func (i *BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*
 
 	cmdSpec, ok := res.Cmd.Get()
 	if !ok {
-		return nil, fmt.Errorf("no command spec returned from test command")
+		return nil, builder.ErrNoTests
 	}
 
 	command := cmdSpec.Command.Expand("")
