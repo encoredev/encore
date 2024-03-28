@@ -2,6 +2,7 @@ package builder
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -226,6 +227,9 @@ type TestSpecParams struct {
 	// Args sets extra arguments for "go test".
 	Args []string
 }
+
+// ErrNoTests is reported by TestSpec when there aren't any tests to run.
+var ErrNoTests = errors.New("no tests found")
 
 type TestSpecResult struct {
 	Command string
