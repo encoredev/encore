@@ -33,7 +33,7 @@ Encore is purpose-built to solve this problem and provides a complete toolset fo
 
 ### How it works
 
-Encore's functionality is enabled by the Open Source [declarative Infrastructure SDK](https://encore.dev/docs/primitives/overview), available for **Go** and **TypeScript** (Beta), which lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
+Encore's Open Source declarative Infrastructure SDK, available for [Go](https://encore.dev/docs/primitives/overview) and [TypeScript](https://encore.dev/docs/ts) (Beta), lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
 With the SDK you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore parses your application and builds a graph of both its logical architecture and its infrastructure requirements, it then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
 
@@ -43,7 +43,12 @@ When your application is deployed to your cloud, there are **no runtime dependen
 
 #### Example: Using Pub/Sub
 
-If you want a Pub/Sub Topic, you declare it directly in your application code, like so:
+If you want a Pub/Sub Topic, you declare it directly in your application code and Encore will automatically provision the infrastructure and generate the boilerplate code necessary for each environment:
+- **NSQ** for local development
+- **GCP Pub/Sub** for environments on GCP
+- **SNS/SQS** for environments on AWS
+
+Using the Go SDK, it looks like so:
 
 ```go
 import "encore.dev/pubsub"
@@ -58,20 +63,29 @@ var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
 Signup.Publish(ctx, &User{...})
 ```
 
-Encore will automatically provision the infrastructure and generate the boilerplate code necessary for each environment:
-- **NSQ** for local development
-- **GCP Pub/Sub** for environments on GCP
-- **SNS/SQS** for environments on AWS
+Using the TypeScript SDK, it looks like so:
+
+```typescript
+import { Topic } "encore.dev/pubsub"
+
+export interface SignupEvent {
+    userID: string;
+}
+
+export const signups = new Topic<SignupEvent>("signups", {
+    deliveryGuarantee: "at-least-once",
+});
+```
 
 ### Learn more in the docs
 
 See how to use the Infrastructure SDK in the docs:
 
-- [Services and APIs](https://encore.dev/docs/primitives/services-and-apis)
-- [Databases](https://encore.dev/docs/primitives/databases)
-- [Cron Jobs](https://encore.dev/docs/primitives/cron-jobs)
-- [PubSub](https://encore.dev/docs/primitives/pubsub)
-- [Caching](https://encore.dev/docs/primitives/caching)
+- **Services and APIs:** [Go](https://encore.dev/docs/primitives/services-and-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/services-and-apis)
+- **Databases:** [Go](https://encore.dev/docs/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
+- **Cron Jobs:** [Go](https://encore.dev/docs/primitives/cron-jobs) / [TypeScript](https://encore.dev/docs/ts/primitives/cron-jobs)
+- **Pub/Sub:** [Go](https://encore.dev/docs/primitives/pubsub) / [TypeScript](https://encore.dev/docs/ts/primitives/pubsub)
+- **Caching:** [Go](https://encore.dev/docs/primitives/caching) / TypeScript (Coming soon)
 
 ## Using Encore: An end-to-end workflow from local to cloud
 
@@ -172,7 +186,7 @@ Encore is designed to give teams a productive and less complex experience when s
 
 ## Open Source
 
-The Encore infrastructure SDK, parser, compiler, and CLI are all Open Source — this includes all code needed for local development and everything that runs in your cloud.
+Encore's Infrastructure SDK, parser, compiler, and CLI are all Open Source — this includes all code needed for local development and everything that runs in your cloud.
 A free Encore account is needed to use features like distributed tracing, secrets management, and deploying to cloud environments, as this functionality is orchestrated by Encore's Cloud Platform.
 
 The Open Source CLI also provides a mechanism to generate a standalone Docker image for your application, so you can deploy it without using the Cloud Platform. [Learn more in the docs](https://encore.dev/docs/how-to/migrate-away#ejecting-your-app-as-a-docker-image).
