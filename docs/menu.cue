@@ -84,6 +84,7 @@
 #Presentation: {
 	// Icon to display next to the menu item.
 	icon?: string
+	style: "card" | *"basic"
 }
 
 #AccordionMenuItem: {
@@ -480,6 +481,10 @@
 		path: "/go"
 		file: "go/overview"
 		submenu: #GoSDK
+		presentation: {
+			icon: "golang"
+			style: "card"
+		}
 	},
 	{
 		kind: "nav"
@@ -487,6 +492,10 @@
 		path: "/ts"
 		file: "ts/overview"
 		submenu: #TypeScriptSDK
+		presentation: {
+			icon: "typescript"
+			style: "card"
+		}
 	}, {
 		kind: "basic"
 		text: "CLI Reference"
@@ -570,21 +579,24 @@
 		path: "/deploy/own-cloud"
 		file: "deploy/own-cloud"
 	}, {
-		kind: "basic"
+		kind: "accordion"
 		text: "Kubernetes deployment"
-		path: "/deploy/kubernetes"
-		file: "deploy/kubernetes"
-		inline_menu: [{
+		accordion: [{
+			kind: "basic"
+			text: "Deploying to a new cluster"
+			path: "/deploy/kubernetes"
+			file: "deploy/kubernetes"
+		}, {
+			kind: "basic"
+			text: "Import an existing cluster"
+			path: "/how-to/import-kubernetes-cluster"
+			file: "how-to/import-kubernetes-cluster"
+		}, {
 			kind: "basic"
 			text: "Configure kubectl"
 			path: "/deploy/kubernetes/kubectl"
 			file: "deploy/configure-kubectl"
 		}]
-	}, {
-		kind: "basic"
-		text: "Import your Kubernetes cluster"
-		path: "/how-to/import-kubernetes-cluster"
-		file: "how-to/import-kubernetes-cluster"
 	}, {
 		kind: "basic"
 		text: "Custom Domains"
