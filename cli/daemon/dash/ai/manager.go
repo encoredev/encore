@@ -174,7 +174,7 @@ type cachedEndpoint struct {
 }
 
 func (e *cachedEndpoint) notification() LocalEndpointUpdate {
-	e.endpoint.EndpointSource = e.endpoint.Render()
+	e.endpoint.EndpointSource = e.endpoint.Render(true)
 	e.endpoint.TypeSource = ""
 	for i, s := range e.endpoint.Types {
 		if i > 0 {
@@ -289,17 +289,31 @@ func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
 		if ep.service != e.Service || ep.endpoint.Name != e.Name {
 			continue
 		}
-		ep.endpoint.Doc = wrapDoc(e.Doc, 77)
-		ep.endpoint.Method = e.Method
-		ep.endpoint.Visibility = e.Visibility
-		ep.endpoint.Path = e.Path
-		ep.endpoint.RequestType = e.RequestType
-		ep.endpoint.ResponseType = e.ResponseType
-		ep.endpoint.Errors = fns.Map(e.Errors, func(e string) *ErrorInput {
-			return &ErrorInput{Code: e}
-		})
-		ep.upsertType(e.RequestType, "")
-		ep.upsertType(e.ResponseType, "")
+		if e.Doc != "" {
+			ep.endpoint.Doc = wrapDoc(e.Doc, 77)
+		}
+		if e.Method != "" {
+			ep.endpoint.Method = e.Method
+		}
+		if e.Visibility != "" {
+			ep.endpoint.Visibility = e.Visibility
+		}
+		if e.Path != nil {
+			ep.endpoint.Path = e.Path
+		}
+		if e.RequestType != "" {
+			ep.endpoint.RequestType = e.RequestType
+			ep.upsertType(e.RequestType, "")
+		}
+		if e.ResponseType != "" {
+			ep.endpoint.ResponseType = e.ResponseType
+			ep.upsertType(e.ResponseType, "")
+		}
+		if e.Errors != nil {
+			ep.endpoint.Errors = fns.Map(e.Errors, func(e string) *ErrorInput {
+				return &ErrorInput{Code: e}
+			})
+		}
 		return ep
 	}
 	ep := &cachedEndpoint{
@@ -386,7 +400,7 @@ func createUpdateHandler(existing []ServiceInput, notifier AINotifier) AINotifie
 					Service  string `json:"service"`
 					Endpoint string `json:"endpoint"`
 				}{"EndpointComplete", lastEp.service, lastEp.endpoint.Name}
-				if err := notifier(ctx, msg); err != nil {
+				if err := notifier(ctx, msg); err != nil || msg.Finished {
 					return err
 				}
 			}

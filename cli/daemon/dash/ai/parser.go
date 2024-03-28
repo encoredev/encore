@@ -81,6 +81,16 @@ func parseErrorDoc(doc string) (string, []*ErrorInput) {
 	return strings.Join(lines[:errStart], "\n"), errs
 }
 
+func deref(p schema.Type) schema.Type {
+	for {
+		if pt, ok := p.(schema.PointerType); ok {
+			p = pt.Elem
+		} else {
+			return p
+		}
+	}
+}
+
 func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput) (rtn *SyncResult, err error) {
 	overlays, err := newOverlays(app, false, services...)
 	if err != nil {
@@ -148,10 +158,10 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				e.Language = "GO"
 				e.Path = toPathSegments(r.Path)
 				e.Types = []*TypeInput{}
-				if nr, ok := r.Request.(schema.NamedType); ok {
-					e.RequestType = r.Request.String()
+				if nr, ok := deref(r.Request).(schema.NamedType); ok {
+					e.RequestType = nr.String()
 					e.Types = append(e.Types, &TypeInput{
-						Name: r.Request.String(),
+						Name: nr.String(),
 						Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
 						Fields: fns.Map(r.RequestEncoding()[0].AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
 							return &TypeFieldInput{
@@ -164,10 +174,10 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 						}),
 					})
 				}
-				if nr, ok := r.Response.(schema.NamedType); ok {
-					e.ResponseType = r.Response.String()
+				if nr, ok := deref(r.Response).(schema.NamedType); ok {
+					e.ResponseType = nr.String()
 					e.Types = append(e.Types, &TypeInput{
-						Name: r.Response.String(),
+						Name: nr.String(),
 						Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
 						Fields: fns.Map(r.ResponseEncoding().AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
 							return &TypeFieldInput{
