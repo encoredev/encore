@@ -222,7 +222,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	_, _ = cyan.Printf("    encore run\n")
 	fmt.Print("        Run your app locally\n\n")
 
-	_, _ = cyan.Printf("    encore test ./...\n")
+	if detectLang(name) == languageGo {
+		_, _ = cyan.Printf("    encore test ./...\n")
+	} else {
+		_, _ = cyan.Printf("    encore test\n")
+	}
 	fmt.Print("        Run tests\n\n")
 
 	if app != nil {
@@ -234,6 +238,17 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	fmt.Printf("Get started now: %s\n", greenBoldF("cd %s && encore run", name))
 
 	return nil
+}
+
+// detectLang attempts to detect the application language for an Encore application
+// situated at appRoot.
+func detectLang(appRoot string) language {
+	if _, err := os.Stat(filepath.Join(appRoot, "go.mod")); err == nil {
+		return languageGo
+	} else if _, err := os.Stat(filepath.Join(appRoot, "package.json")); err == nil {
+		return languageTS
+	}
+	return languageGo
 }
 
 func validateName(name string) error {
