@@ -235,7 +235,7 @@ fn databases_from_cfg(
             let tls = postgres_native_tls::MakeTlsConnector::new(tls);
 
             let proxy_conn_string = format!(
-                "postgresql://encore:password@localhost:{}/{}?sslmode=disable",
+                "postgresql://encore:password@127.0.0.1:{}/{}?sslmode=disable",
                 proxy_port, db.encore_name
             );
 
