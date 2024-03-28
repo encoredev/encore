@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/hasura/go-graphql-client"
@@ -195,26 +196,54 @@ func (e *cachedEndpoint) upsertType(name, doc string) *TypeInput {
 	for _, s := range e.endpoint.Types {
 		if s.Name == name {
 			if doc != "" {
-				s.Doc = doc
+				s.Doc = wrapDoc(doc, 77)
 			}
 			return s
 		}
 	}
-	si := &TypeInput{Name: name, Doc: doc}
+	si := &TypeInput{Name: name, Doc: wrapDoc(doc, 77)}
 	e.endpoint.Types = append(e.endpoint.Types, si)
 	return si
+}
+
+func wrapDoc(doc string, width int) string {
+	doc = strings.ReplaceAll(doc, "\n", " ")
+	doc = strings.TrimSpace(doc)
+	bytes := []byte(doc)
+	i := 0
+	for {
+		start := i
+		if start+width >= len(bytes) {
+			break
+		}
+		i += width
+		for i > start && bytes[i] != ' ' {
+			i--
+		}
+		if i > start {
+			bytes[i] = '\n'
+		} else {
+			for i < len(bytes) && bytes[i] != ' ' {
+				i++
+			}
+			if i < len(bytes) {
+				bytes[i] = '\n'
+			}
+		}
+	}
+	return string(bytes)
 }
 
 func (e *cachedEndpoint) upsertError(err ErrorUpdate) *ErrorInput {
 	for _, s := range e.endpoint.Errors {
 		if s.Code == err.Code {
 			if err.Doc != "" {
-				s.Doc = err.Doc
+				s.Doc = wrapDoc(err.Doc, 60)
 			}
 			return s
 		}
 	}
-	si := &ErrorInput{Code: err.Code, Doc: err.Doc}
+	si := &ErrorInput{Code: err.Code, Doc: wrapDoc(err.Doc, 60)}
 	e.endpoint.Errors = append(e.endpoint.Errors, si)
 	return si
 }
@@ -227,7 +256,7 @@ func (e *cachedEndpoint) upsertField(up TypeFieldUpdate) *TypeInput {
 	for _, f := range s.Fields {
 		if f.Name == up.Name {
 			if up.Doc != "" {
-				f.Doc = up.Doc
+				f.Doc = wrapDoc(up.Doc, 73)
 			}
 			if up.Type != "" {
 				f.Type = up.Type
@@ -241,7 +270,7 @@ func (e *cachedEndpoint) upsertField(up TypeFieldUpdate) *TypeInput {
 	}
 	fi := &TypeFieldInput{
 		Name:     up.Name,
-		Doc:      up.Doc,
+		Doc:      wrapDoc(up.Doc, 73),
 		Type:     up.Type,
 		Location: defaultLoc,
 		WireName: idents.Convert(up.Name, idents.CamelCase),
@@ -260,7 +289,7 @@ func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
 		if ep.service != e.Service || ep.endpoint.Name != e.Name {
 			continue
 		}
-		ep.endpoint.Doc = e.Doc
+		ep.endpoint.Doc = wrapDoc(e.Doc, 77)
 		ep.endpoint.Method = e.Method
 		ep.endpoint.Visibility = e.Visibility
 		ep.endpoint.Path = e.Path
@@ -277,7 +306,7 @@ func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
 		service: e.Service,
 		endpoint: &EndpointInput{
 			Name:         e.Name,
-			Doc:          e.Doc,
+			Doc:          wrapDoc(e.Doc, 77),
 			Method:       e.Method,
 			Visibility:   e.Visibility,
 			Path:         e.Path,
@@ -329,23 +358,41 @@ func createUpdateHandler(existing []ServiceInput, notifier AINotifier) AINotifie
 		eps:      make(map[string]*cachedEndpoint),
 		existing: existing,
 	}
+	var lastEp *cachedEndpoint
 	return func(ctx context.Context, msg *WSNotification) error {
+		var ep *cachedEndpoint
+		msgVal := msg.Value
 		switch val := msg.Value.(type) {
 		case TypeUpdate:
-			ep := epCache.endpoint(val.Service, val.Endpoint)
+			ep = epCache.endpoint(val.Service, val.Endpoint)
 			ep.upsertType(val.Name, val.Doc)
-			msg.Value = ep.notification()
+			msgVal = ep.notification()
 		case TypeFieldUpdate:
-			ep := epCache.endpoint(val.Service, val.Endpoint)
+			ep = epCache.endpoint(val.Service, val.Endpoint)
 			ep.upsertField(val)
-			msg.Value = ep.notification()
+			msgVal = ep.notification()
 		case EndpointUpdate:
-			msg.Value = epCache.upsertEndpoint(val).notification()
+			ep = epCache.upsertEndpoint(val)
+			msgVal = ep.notification()
 		case ErrorUpdate:
-			ep := epCache.endpoint(val.Service, val.Endpoint)
+			ep = epCache.endpoint(val.Service, val.Endpoint)
 			ep.upsertError(val)
-			msg.Value = ep.notification()
+			msgVal = ep.notification()
 		}
+		if lastEp != ep {
+			if lastEp != nil {
+				msg.Value = struct {
+					Type     string `json:"type"`
+					Service  string `json:"service"`
+					Endpoint string `json:"endpoint"`
+				}{"EndpointComplete", lastEp.service, lastEp.endpoint.Name}
+				if err := notifier(ctx, msg); err != nil {
+					return err
+				}
+			}
+			lastEp = ep
+		}
+		msg.Value = msgVal
 		return notifier(ctx, msg)
 	}
 }
@@ -357,7 +404,7 @@ func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, m
 		"appSlug":        appSlug,
 		"prompt":         prompt,
 		"current":        currentService(md),
-		"proposedDesign": proposed,
+		"proposedDesign": fns.Map(proposed, ServiceInput.GraphQL),
 	}, createUpdateHandler(proposed, notifier))
 }
 

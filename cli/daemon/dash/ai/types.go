@@ -109,7 +109,7 @@ func (s *EndpointInput) GraphQL() *EndpointInput {
 func (e *EndpointInput) Render() string {
 	buf := strings.Builder{}
 	if e.Doc != "" {
-		for _, line := range strings.Split(e.Doc, "\n") {
+		for _, line := range strings.Split(strings.TrimSpace(e.Doc), "\n") {
 			buf.WriteString(fmt.Sprintf("// %s\n", line))
 		}
 	}
@@ -117,7 +117,15 @@ func (e *EndpointInput) Render() string {
 		if i == 0 {
 			buf.WriteString("//\n// Errors:\n")
 		}
-		buf.WriteString(fmt.Sprintf("// - %s: %s\n", err.Code, err.Doc))
+		errHeader := fmt.Sprintf(" - %s: ", err.Code)
+		buf.WriteString("//" + errHeader)
+		for i, line := range strings.Split(strings.TrimSpace(err.Doc), "\n") {
+			indent := ""
+			if i > 0 {
+				indent = "//" + strings.Repeat(" ", len(errHeader))
+			}
+			buf.WriteString(fmt.Sprintf("%s%s\n", indent, line))
+		}
 	}
 	params := []string{"ctx context.Context"}
 	path, pathParams := formatPath(e.Path)
@@ -192,7 +200,9 @@ type TypeInput struct {
 func (s *TypeInput) Render() string {
 	rtn := strings.Builder{}
 	if s.Doc != "" {
-		rtn.WriteString(fmt.Sprintf("// %s\n", strings.TrimSpace(s.Doc)))
+		for _, line := range strings.Split(strings.TrimSpace(s.Doc), "\n") {
+			rtn.WriteString(fmt.Sprintf("// %s\n", line))
+		}
 	}
 	rtn.WriteString(fmt.Sprintf("type %s struct {\n", s.Name))
 	for i, f := range s.Fields {
@@ -200,7 +210,9 @@ func (s *TypeInput) Render() string {
 			rtn.WriteString("\n")
 		}
 		if f.Doc != "" {
-			rtn.WriteString(fmt.Sprintf("  // %s\n", f.Doc))
+			for _, line := range strings.Split(strings.TrimSpace(f.Doc), "\n") {
+				rtn.WriteString(fmt.Sprintf("  // %s\n", line))
+			}
 		}
 		tags := ""
 		switch f.Location {
