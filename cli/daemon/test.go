@@ -7,8 +7,11 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon/run"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -131,7 +134,9 @@ func (s *Server) TestSpec(ctx context.Context, req *daemonpb.TestSpecRequest) (r
 		Args:       req.Args,
 		Secrets:    secrets,
 	})
-	if err != nil {
+	if errors.Is(err, builder.ErrNoTests) {
+		return nil, status.Error(codes.NotFound, "no tests defined")
+	} else if err != nil {
 		return nil, err
 	}
 
