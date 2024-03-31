@@ -1,4 +1,4 @@
-use std::str::FromStr;
+
 
 use anyhow::Result;
 use swc_common::sync::Lrc;
@@ -14,7 +14,7 @@ use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
-use crate::parser::types::Type;
+
 use crate::parser::{FilePath, Range};
 
 #[derive(Debug, Clone)]

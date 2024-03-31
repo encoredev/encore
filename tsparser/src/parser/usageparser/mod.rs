@@ -444,7 +444,7 @@ mod tests {
         EndpointEncoding, RequestEncoding, ResponseEncoding,
     };
     use crate::parser::resources::Resource;
-    use crate::parser::respath::{ParseOptions, Path};
+    use crate::parser::respath::{Path};
     use crate::testutil::testresolve::TestResolver;
     use crate::testutil::JS_RUNTIME_PATH;
 
@@ -467,7 +467,7 @@ export const Bar = 5;
             let resolver = Box::new(TestResolver::new(&base, &ar));
             let tmp = TempDir::new().unwrap();
             let app_root = tmp.child("app_root").to_path_buf();
-            let mut pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
+            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -538,7 +538,7 @@ export const Bar = 5;
             let resolver = Box::new(TestResolver::new(&base, &ar));
             let tmp = TempDir::new().unwrap();
             let app_root = tmp.child("app_root").to_path_buf();
-            let mut pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
+            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();

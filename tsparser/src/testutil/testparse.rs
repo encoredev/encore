@@ -7,6 +7,6 @@ use assert_fs::TempDir;
 
 pub fn test_parse(src: &str) -> Lrc<Module> {
     let root = TempDir::new().unwrap();
-    let mut pc = ParseContext::new(root.to_path_buf(), JS_RUNTIME_PATH.as_path()).unwrap();
+    let pc = ParseContext::new(root.to_path_buf(), JS_RUNTIME_PATH.as_path()).unwrap();
     pc.loader.inject_file("test.ts".into(), src).unwrap()
 }

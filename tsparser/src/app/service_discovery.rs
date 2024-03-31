@@ -166,7 +166,7 @@ mod tests {
             ar.materialize(tmp_dir)?;
 
             let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-            let mut pc = ParseContext::with_resolver(
+            let pc = ParseContext::with_resolver(
                 tmp_dir.to_path_buf(),
                 JS_RUNTIME_PATH.as_path(),
                 resolver,

@@ -18,8 +18,10 @@ static PACKAGE: &str = "package.json";
 
 #[derive(Deserialize)]
 struct PackageJson {
+    #[allow(dead_code)]
     #[serde(default)]
     main: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     module: Option<String>,
     #[serde(default)]
@@ -33,8 +35,6 @@ pub struct EncoreRuntimeResolver<'a, R> {
     extra_export_conditions: Vec<String>,
     tsconfig_resolver: Option<TsConfigPathResolver>,
 }
-
-static EXTENSIONS: &[&str] = &["ts", "tsx", "js", "jsx", "json", "node"];
 
 static DEFAULT_CONDITIONS: &[&str] = &["node-addons", "node", "import", "require", "default"];
 

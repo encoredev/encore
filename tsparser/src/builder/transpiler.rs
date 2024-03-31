@@ -2,17 +2,17 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use itertools::Itertools;
 
-use crate::app::Service;
 use crate::builder::compile::{CmdSpec, Entrypoint};
 
+#[allow(dead_code)]
 pub enum ExternalPackages<'a> {
     All,
     Some(&'a [&'a str]),
     None,
 }
 
+#[allow(dead_code)]
 pub enum InputKind {
     Combined(Vec<String>, Vec<String>),
     Service(String),
@@ -60,9 +60,9 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
     fn transpile(&self, p: TranspileParams) -> Result<TranspileResult> {
         let bundle = move |inputs: Vec<Input>, name_prefix| -> Result<Vec<Entrypoint>> {
             // let program = self.node_modules_dir.join(".bin").join("esbuild");
-            let tsbundler_path = std::env::var("ENCORE_TSBUNDLER_PATH").ok().unwrap_or(
-                "tsbundler-encore".into()
-            );
+            let tsbundler_path = std::env::var("ENCORE_TSBUNDLER_PATH")
+                .ok()
+                .unwrap_or("tsbundler-encore".into());
 
             let mut cmd = std::process::Command::new(tsbundler_path);
             cmd.current_dir(&p.cwd);
@@ -166,7 +166,7 @@ pub struct BunBuildCompiler<'a> {
 
 impl OutputTranspiler for BunBuildCompiler<'_> {
     fn transpile(&self, p: TranspileParams) -> Result<TranspileResult> {
-        let mut bundle = move |inputs: Vec<Input>, name_prefix| -> Result<Vec<Entrypoint>> {
+        let bundle = move |inputs: Vec<Input>, name_prefix| -> Result<Vec<Entrypoint>> {
             let mut cmd = std::process::Command::new("bun");
             cmd.current_dir(&p.cwd);
             cmd.arg("build")

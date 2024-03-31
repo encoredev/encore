@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use super::{App, Builder};
+use super::{Builder};
 
 #[derive(Debug, Clone)]
 pub struct PrepareParams<'a> {

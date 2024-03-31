@@ -87,11 +87,11 @@ impl<'a> ResourceParserRegistry<'a> {
 
 #[cfg(test)]
 mod tests {
-    use swc_common::sync::Lrc;
+    
 
-    use crate::parser::parser::ParseContext;
+    
     use crate::parser::resources::apis::api::ENDPOINT_PARSER;
-    use crate::parser::FilePath;
+    
     use crate::testutil::testparse::test_parse;
 
     use super::*;
