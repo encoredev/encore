@@ -587,6 +587,7 @@ fn new_meta() -> v1::Data {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use swc_common::{Globals, GLOBALS};
     use tempdir::TempDir;
 
@@ -595,6 +596,7 @@ mod tests {
     use crate::parser::parser::Parser;
     use crate::parser::resourceparser::PassOneParser;
     use crate::testutil::testresolve::TestResolver;
+    use crate::testutil::JS_RUNTIME_PATH;
 
     use super::*;
 
@@ -605,10 +607,10 @@ mod tests {
             ar.materialize(tmp_dir)?;
 
             let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-            let mut pc = ParseContext::with_resolver(resolver);
-
-            pc.dir_roots.push(tmp_dir.to_path_buf());
-            pc.loader.load_archive(tmp_dir, &ar)?;
+            let mut pc =
+                ParseContext::with_resolver(tmp_dir.to_path_buf(), &JS_RUNTIME_PATH, resolver)
+                    .unwrap();
+            let mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
 
             let pass1 = PassOneParser::new(
                 pc.file_set.clone(),

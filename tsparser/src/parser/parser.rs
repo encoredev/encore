@@ -57,7 +57,11 @@ impl<'a> ParseContext<'a> {
         Self::with_resolver(app_root, js_runtime_path, resolver)
     }
 
-    pub fn with_resolver<R>(app_root: PathBuf, js_runtime_path: &'a Path, resolver: R) -> Result<Self>
+    pub fn with_resolver<R>(
+        app_root: PathBuf,
+        js_runtime_path: &'a Path,
+        resolver: R,
+    ) -> Result<Self>
     where
         R: Resolve + 'a,
     {
@@ -82,7 +86,11 @@ impl<'a> ParseContext<'a> {
         }
 
         let file_set = FileSet::new(cm.clone());
-        let loader = Lrc::new(ModuleLoader::new(errs.clone(), file_set.clone(), Box::new(resolver)));
+        let loader = Lrc::new(ModuleLoader::new(
+            errs.clone(),
+            file_set.clone(),
+            Box::new(resolver),
+        ));
         let type_checker = Lrc::new(TypeChecker::new(loader.clone()));
 
         Ok(Self {
