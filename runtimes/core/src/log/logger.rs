@@ -416,6 +416,7 @@ where
 
 #[inline]
 #[track_caller]
+#[allow(dead_code)]
 fn get_rust_caller() -> Option<String> {
     let location = std::panic::Location::caller();
     Some(format!("{}:{}", location.file(), location.line()))

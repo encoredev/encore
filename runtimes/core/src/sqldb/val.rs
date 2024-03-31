@@ -339,11 +339,3 @@ impl<'a> FromSql<'a> for RowValue {
         }
     }
 }
-
-fn downcast(len: usize) -> Result<i32, Box<dyn Error + Sync + Send>> {
-    if len > i32::max_value() as usize {
-        Err("value too large to transmit".into())
-    } else {
-        Ok(len as i32)
-    }
-}

@@ -1,8 +1,8 @@
 use crate::api;
 use crate::api::jsonschema::{Basic, BasicOrValue, JSONSchema, Registry, Struct, Value};
 use crate::api::{schema, APIResult};
-use schema::{AsStr, ToHeaderStr};
-use std::collections::HashMap;
+use schema::ToHeaderStr;
+
 use std::str::FromStr;
 
 use serde_json::Value as JSON;
@@ -45,7 +45,7 @@ where
                     }
                     BasicOrValue::Value(idx) => {
                         // Determine the type of the value(s).
-                        let mut basic_val = Value::Basic(Basic::Null); // for borrowing below
+                        let basic_val: Value; // for borrowing below
                         let (value_type, is_array) = match reg.get(*idx) {
                             Value::Array(bov) => (
                                 match bov {
@@ -61,7 +61,7 @@ where
                         };
 
                         if is_array {
-                            let mut values = std::iter::once(header_value).chain(values);
+                            let values = std::iter::once(header_value).chain(values);
                             let mut arr = Vec::new();
                             for header_value in values {
                                 let value = parse_header_value(header_value, reg, value_type)?;
@@ -230,15 +230,6 @@ fn unexpected_json(reg: &Registry, schema: &Value, value: &JSON) -> APIResult<JS
             schema.expecting(reg),
             describe_json(value),
         )),
-        stack: None,
-    })
-}
-
-fn unexpected_str(reg: &Registry, schema: &Value, value: &str) -> APIResult<JSON> {
-    Err(api::Error {
-        code: api::ErrCode::InvalidArgument,
-        message: "invalid value".to_string(),
-        internal_message: Some(format!("expected {}, got {}", schema.expecting(reg), value,)),
         stack: None,
     })
 }

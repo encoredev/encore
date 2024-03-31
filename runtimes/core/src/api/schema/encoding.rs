@@ -175,6 +175,7 @@ impl EncodingConfig<'_, '_> {
         })
     }
 
+    #[allow(dead_code)]
     fn resolve_struct<'b>(
         &'b self,
         typ: &'b schema::Type,
@@ -306,10 +307,6 @@ impl<'a> TypeArgResolver<'a> {
                 anyhow::bail!("config types are not supported")
             }
         }
-    }
-
-    fn resolve_typs(&self, types: &'a [Typ]) -> anyhow::Result<Vec<Cow<'a, Typ>>> {
-        types.iter().map(|typ| self.resolve(typ)).collect()
     }
 
     fn resolve_types(&self, types: &'a [schema::Type]) -> anyhow::Result<Vec<Cow<'a, Typ>>> {

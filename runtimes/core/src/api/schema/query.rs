@@ -1,5 +1,5 @@
 use crate::api;
-use crate::api::schema::{HTTPHeaders, JSONPayload, ToOutgoingRequest};
+use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{jsonschema, APIResult};
 use serde::de::DeserializeSeed;
 use serde::Serialize;

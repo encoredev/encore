@@ -2,7 +2,11 @@ use std::cmp::min;
 
 #[derive(Copy, Clone)]
 pub enum Alphabet {
-    RFC4648 { padding: bool },
+    #[allow(dead_code)]
+    RFC4648 {
+        padding: bool,
+    },
+    #[allow(dead_code)]
     Crockford,
     Encore,
 }
