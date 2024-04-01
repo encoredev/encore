@@ -10,6 +10,7 @@ pub mod encore {
                 include!(concat!(env!("OUT_DIR"), "/encore.parser.meta.v1.rs"));
             }
         }
+
         pub mod schema {
             pub mod v1 {
                 include!(concat!(env!("OUT_DIR"), "/encore.parser.schema.v1.rs"));
@@ -18,7 +19,6 @@ pub mod encore {
     }
 }
 
-mod codegen;
 mod runtimeresolve;
 #[cfg(test)]
 pub mod testutil;

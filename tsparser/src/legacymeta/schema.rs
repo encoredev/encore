@@ -9,7 +9,7 @@ use crate::encore::parser::schema::v1 as schema;
 use crate::encore::parser::schema::v1::r#type as styp;
 use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
-use crate::parser::resources::apis::encoding::FieldMap;
+
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
     drop_empty_or_void, Basic, Interface, Literal, Named, ObjectId, Type, TypeResolver,

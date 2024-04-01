@@ -99,7 +99,9 @@ impl<'a> ServiceDiscoverer<'a> {
             .file_name()
             .and_then(|x| x.to_str())
             .map(|x| x.to_string());
-        let Some(service_name) = dir_name else { return };
+        let Some(service_name) = dir_name else {
+            return;
+        };
 
         if strong {
             // Always mark the root as a strong root, even if it is already marked as a service.
@@ -153,6 +155,7 @@ mod tests {
     use crate::parser::parser::{ParseContext, Parser};
     use crate::parser::resourceparser::PassOneParser;
     use crate::testutil::testresolve::TestResolver;
+    use crate::testutil::JS_RUNTIME_PATH;
 
     use super::*;
 
@@ -162,11 +165,14 @@ mod tests {
             let ar = txtar::from_str(src);
             ar.materialize(tmp_dir)?;
 
-            let base = PathBuf::from("/dummy");
-            let resolver = Box::new(TestResolver::new(&base, &ar));
-            let mut pc = ParseContext::with_resolver(resolver);
-            pc.dir_roots.push(tmp_dir.to_path_buf());
-            pc.loader.load_archive(&base, &ar)?;
+            let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
+            let pc = ParseContext::with_resolver(
+                tmp_dir.to_path_buf(),
+                JS_RUNTIME_PATH.as_path(),
+                resolver,
+            )
+            .unwrap();
+            pc.loader.load_archive(tmp_dir, &ar)?;
 
             let pass1 = PassOneParser::new(
                 pc.file_set.clone(),
@@ -180,8 +186,8 @@ mod tests {
     }
 
     #[test]
-    fn test_api_endpoints() -> Result<()> {
-        let tmp_dir = TempDir::new("tsparser-test")?;
+    fn test_api_endpoints() {
+        let tmp_dir = TempDir::new("tsparser-test").unwrap();
         let svcs = parse(
             tmp_dir.path(),
             r#"
@@ -209,16 +215,22 @@ export const bar = api(
   async (): Promise<void> => {}
 );
 "#,
-        )?;
+        );
 
-        let tmp_root = tmp_dir.path();
-        assert_eq!(svcs.len(), 3);
-        assert_eq!(svcs[0].name, "svc1");
-        assert_eq!(svcs[1].name, "svc2");
-        assert_eq!(svcs[2].name, "svc3");
-        assert_eq!(svcs[0].root, tmp_root.join("systemA/svc1"));
-        assert_eq!(svcs[1].root, tmp_root.join("systemA/svc2"));
-        assert_eq!(svcs[2].root, tmp_root.join("svc3"));
-        Ok(())
+        match svcs {
+            Err(err) => {
+                panic!("{:#?}", err);
+            }
+            Ok(svcs) => {
+                let tmp_root = tmp_dir.path();
+                assert_eq!(svcs.len(), 3);
+                assert_eq!(svcs[0].name, "svc1");
+                assert_eq!(svcs[1].name, "svc2");
+                assert_eq!(svcs[2].name, "svc3");
+                assert_eq!(svcs[0].root, tmp_root.join("systemA/svc1"));
+                assert_eq!(svcs[1].root, tmp_root.join("systemA/svc2"));
+                assert_eq!(svcs[2].root, tmp_root.join("svc3"));
+            }
+        }
     }
 }

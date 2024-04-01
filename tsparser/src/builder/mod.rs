@@ -72,16 +72,10 @@ impl Builder<'_> {
             "catalog_clients_service_d_ts",
             CATALOG_CLIENTS_SERVICE_D_TS,
         )?;
-        let catalog_auth_index_ts = Template::new(
-            &mut reg,
-            "catalog_auth_index_ts",
-            CATALOG_AUTH_INDEX_TS,
-        )?;
-        let catalog_auth_auth_ts = Template::new(
-            &mut reg,
-            "catalog_auth_auth_ts",
-            CATALOG_AUTH_AUTH_TS,
-        )?;
+        let catalog_auth_index_ts =
+            Template::new(&mut reg, "catalog_auth_index_ts", CATALOG_AUTH_INDEX_TS)?;
+        let catalog_auth_auth_ts =
+            Template::new(&mut reg, "catalog_auth_auth_ts", CATALOG_AUTH_AUTH_TS)?;
         Ok(Self {
             reg,
             entrypoint_service_main,
@@ -160,7 +154,6 @@ const CATALOG_AUTH_INDEX_TS: &'static str =
     include_str!("templates/catalog/auth/index_ts.handlebars");
 const CATALOG_AUTH_AUTH_TS: &'static str =
     include_str!("templates/catalog/auth/auth_ts.handlebars");
-
 
 handlebars_helper!(strip_ext: |v: String| v.rsplit_once(".").map(|(a, _)| a.to_string()).unwrap_or(v));
 handlebars_helper!(to_pascal_case: |v: String| v.to_case(Case::Pascal));

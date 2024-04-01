@@ -253,8 +253,6 @@ impl EncoreAuth {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::schema::AsStr;
-
     use super::*;
 
     fn metas<R: MetaMap>(req: &R) -> Vec<(MetaKey, Vec<String>)> {
@@ -309,7 +307,7 @@ mod tests {
                     MetaKey::SvcAuthEncoreAuthDate,
                     vec!["Fri, 13 Feb 2009 23:31:30 GMT".to_string()]
                 ),
-                (MetaKey::SvcAuthEncoreAuthHash, vec![r#"ENCORE1-HMAC-SHA3-256 cred="20090213/app/env/123", op=f3c70a419394ce9d56efafad2208154b92c8596d7396b3a2b4ea7fd925d28dc2, sig=fc0c88b47c13d999353ecc8681d91d9c03209a1f05583b92d84e429fedfe387a"#.to_string()])
+                (MetaKey::SvcAuthEncoreAuthHash, vec![r#"ENCORE1-HMAC-SHA3-256 cred="20090213/app/env/123", op=f3c70a419394ce9d56efafad2208154b92c8596d7396b3a2b4ea7fd925d28dc2, sig=fc0c88b47c13d999353ecc8681d91d9c03209a1f05583b92d84e429fedfe387a"#.to_string()]),
             ]
         );
 

@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::pin::Pin;
 
-use anyhow::Context;
 use bb8::{ErrorSink, PooledConnection, RunError};
 use bb8_postgres::PostgresConnectionManager;
 use futures_util::StreamExt;
-use tokio::sync::Mutex;
+
 use tokio_postgres::types::BorrowToSql;
 
 use crate::sqldb::val::RowValue;
@@ -139,8 +138,10 @@ impl Row {
 }
 
 pub struct Connection {
+    #[allow(dead_code)]
     conn:
         PooledConnection<'static, PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>>,
+    #[allow(dead_code)]
     tracer: Tracer,
 }
 
@@ -158,6 +159,7 @@ pub struct Connection {
 
 pub struct Transaction<'a> {
     transaction: Option<tokio_postgres::Transaction<'a>>,
+    #[allow(dead_code)]
     tracer: Tracer,
 }
 

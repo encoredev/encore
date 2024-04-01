@@ -107,6 +107,7 @@ impl pubsub::PushRequestHandler for PushHandler {
 #[derive(Debug, Deserialize)]
 struct PushPayload {
     message: PushMessage,
+    #[allow(dead_code)]
     subscription: String,
     #[serde(rename = "deliveryAttempt")]
     delivery_attempt: Option<u32>,
@@ -248,7 +249,7 @@ impl GoogleJWTValidator {
                 return Err(anyhow::anyhow!(
                     "unexpected algorithm: {:?}",
                     token_header.alg
-                ))
+                ));
             }
         };
 
@@ -273,16 +274,20 @@ impl GoogleJWTValidator {
 }
 
 mod base64 {
+    use base64::engine::{general_purpose::STANDARD, Engine};
     use serde::{Deserialize, Serialize};
     use serde::{Deserializer, Serializer};
 
+    #[allow(dead_code)]
     pub fn serialize<S: Serializer>(v: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
-        let base64 = base64::encode(v);
+        let base64 = STANDARD.encode(v);
         String::serialize(&base64, s)
     }
 
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
         let base64 = String::deserialize(d)?;
-        base64::decode(base64.as_bytes()).map_err(|e| serde::de::Error::custom(e))
+        STANDARD
+            .decode(base64.as_bytes())
+            .map_err(|e| serde::de::Error::custom(e))
     }
 }

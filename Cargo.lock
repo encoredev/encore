@@ -884,6 +884,7 @@ name = "encore-tsparser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "assert_fs",
  "assert_matches",
  "bytes",
  "chrono",
@@ -894,6 +895,7 @@ dependencies = [
  "env_logger 0.10.1",
  "handlebars",
  "indexmap 2.2.1",
+ "insta",
  "itertools 0.12.1",
  "litparser",
  "litparser-derive",
@@ -1717,6 +1719,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "insta"
+version = "1.38.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3eab73f58e59ca6526037208f0e98851159ec1633cf17b6cd2e1f2c3fd5d53cc"
+dependencies = [
+ "console",
+ "lazy_static",
+ "linked-hash-map",
+ "serde",
+ "similar",
+]
+
+[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1852,6 +1867,12 @@ name = "libm"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
+
+[[package]]
+name = "linked-hash-map"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "linux-raw-sys"

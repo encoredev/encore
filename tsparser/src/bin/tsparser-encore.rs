@@ -152,7 +152,7 @@ fn main() -> Result<()> {
                     }
                 },
 
-                Command::GenUserFacing(input) => match &parse {
+                Command::GenUserFacing(_input) => match &parse {
                     None => anyhow::bail!("no parse!"),
                     Some((app, parse)) => {
                         let cp = builder::CodegenParams {

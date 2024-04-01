@@ -7,7 +7,7 @@ use encore_runtime_core::api;
 use encore_runtime_core::api::schema;
 use encore_runtime_core::model::RequestData;
 use napi::bindgen_prelude::spawn;
-use napi::{Env, JsFunction, JsNull, JsUnknown, NapiRaw};
+use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
 use std::pin::Pin;
@@ -65,7 +65,9 @@ impl PromiseHandler for APIPromiseHandler {
     type Output = Result<schema::JSONPayload, api::Error>;
 
     fn resolve(&self, env: Env, val: Option<napi::JsUnknown>) -> Self::Output {
-        let Some(val) = val else { return Ok(None) };
+        let Some(val) = val else {
+            return Ok(None);
+        };
         match env.from_js_value(val) {
             Ok(val) => Ok(val),
             Err(err) => self.error(env, err),

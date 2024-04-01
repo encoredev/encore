@@ -149,7 +149,7 @@ fn type_lit(ctx: &Ctx, type_lit: &ast::TsTypeLit) -> Result<Type> {
     Ok(Type::Interface(Interface { fields }))
 }
 
-fn lit_type(ctx: &Ctx, lit_type: &ast::TsLitType) -> Result<Type> {
+fn lit_type(_ctx: &Ctx, lit_type: &ast::TsLitType) -> Result<Type> {
     Ok(Type::Literal(match &lit_type.lit {
         ast::TsLit::Str(val) => Literal::String(val.value.to_string()),
         ast::TsLit::Number(val) => Literal::Number(val.value),

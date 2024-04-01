@@ -4,9 +4,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::api::httputil::{convert_headers, convert_method, join_request_url};
-use crate::api::reqauth::CallMeta;
+
+use crate::api;
 use crate::api::{auth, APIResult, IntoResponse};
-use crate::{api, model};
 
 #[derive(Debug)]
 pub struct ReverseProxy<D> {
@@ -52,10 +52,6 @@ pub struct ProxyRequest {
 }
 
 impl InboundRequest {
-    pub fn set_query(&mut self, query: String) {
-        self.modified_query = Some(query);
-    }
-
     pub fn build<U>(self, target: U) -> APIResult<ProxyRequest>
     where
         U: reqwest::IntoUrl,

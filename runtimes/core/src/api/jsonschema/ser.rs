@@ -1,21 +1,20 @@
-use serde::{Serializer, Serialize, ser::SerializeMap};
 use crate::api::jsonschema::{JSONSchema, Struct};
 use crate::api::schema::JSONPayload;
+use serde::{ser::SerializeMap, Serialize, Serializer};
 
-struct SchemaSerializeWrapper<'a>
-{
+struct SchemaSerializeWrapper<'a> {
     schema: &'a Struct,
     payload: &'a JSONPayload,
 }
 
-impl<'a> Serialize for SchemaSerializeWrapper<'a>
-{
+impl<'a> Serialize for SchemaSerializeWrapper<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         let mut map = serializer.serialize_map(None)?;
         if let Some(payload) = self.payload {
-            for (key, value) in self.schema.fields.iter() {
+            for (key, _value) in self.schema.fields.iter() {
                 if let Some(value) = payload.get(key) {
                     map.serialize_entry(key, value)?;
                 }

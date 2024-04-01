@@ -8,7 +8,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_nsq::{NSQEvent, NSQProducerConfig, NSQTopic};
 
 use crate::encore::runtime::v1 as pb;
-use crate::pubsub::{Message, MessageData, MessageId, Topic};
+use crate::pubsub::{MessageData, MessageId, Topic};
 
 struct PublishRequest {
     msg: MessageData,

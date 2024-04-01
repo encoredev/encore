@@ -407,7 +407,6 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path) -> Result<Path> {
             Type::Basic(Basic::String) => ValueType::String,
             Type::Basic(Basic::Boolean) => ValueType::Bool,
             Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
-            Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
             typ => anyhow::bail!("unsupported path param type: {:?}", typ),
         })
     };

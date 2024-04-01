@@ -9,7 +9,7 @@ use crate::encore::parser::meta::v1;
 use crate::legacymeta::schema::{loc_from_range, SchemaBuilder};
 use crate::parser::parser::{ParseContext, ParseResult};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
-use crate::parser::resources::apis::{api, authhandler, gateway};
+use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::{cron, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
@@ -595,6 +595,7 @@ mod tests {
     use crate::parser::parser::Parser;
     use crate::parser::resourceparser::PassOneParser;
     use crate::testutil::testresolve::TestResolver;
+    use crate::testutil::JS_RUNTIME_PATH;
 
     use super::*;
 
@@ -605,10 +606,9 @@ mod tests {
             ar.materialize(tmp_dir)?;
 
             let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-            let mut pc = ParseContext::with_resolver(resolver);
-
-            pc.dir_roots.push(tmp_dir.to_path_buf());
-            pc.loader.load_archive(tmp_dir, &ar)?;
+            let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), &JS_RUNTIME_PATH, resolver)
+                .unwrap();
+            let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
 
             let pass1 = PassOneParser::new(
                 pc.file_set.clone(),
@@ -639,7 +639,7 @@ export const Bar = 5;
     }
 }
 
-fn parse_app_revision(dir: &Path) -> anyhow::Result<String> {
+fn _parse_app_revision(dir: &Path) -> anyhow::Result<String> {
     duct::cmd!(
         "git",
         "-c",

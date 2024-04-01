@@ -8,28 +8,28 @@ pub struct TypeArgId(usize);
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Type {
-    Basic(Basic),         // string
-    Array(Box<Type>),     // string[]
-    Interface(Interface), // { foo: string }
-    Union(Vec<Type>),     // a | b | c
-    Tuple(Vec<Type>),     // [string, number]
-    Literal(Literal),     // "foo"
-    Class(ClassType),     // class Foo {}
+    Basic(Basic),
+    // string
+    Array(Box<Type>),
+    // string[]
+    Interface(Interface),
+    // { foo: string }
+    Union(Vec<Type>),
+    // a | b | c
+    Tuple(Vec<Type>),
+    // [string, number]
+    Literal(Literal),
+    // "foo"
+    Class(ClassType),
+    // class Foo {}
     Named(Named),
-    Signature(Signature), // something callable
-    Optional(Box<Type>),  // e.g. "string?" in tuples
-    This, // "this", see https://www.typescriptlang.org/docs/handbook/advanced-types.html#polymorphic-this-types
+    Signature(Signature),
+    // something callable
+    Optional(Box<Type>),
+    // e.g. "string?" in tuples
+    This,
+    // "this", see https://www.typescriptlang.org/docs/handbook/advanced-types.html#polymorphic-this-types
     TypeArgument(TypeArgId),
-}
-
-pub struct Branded {
-    pub underlying: Type,
-    pub brand: Brand,
-}
-
-pub enum Brand {
-    Header(Option<String>),
-    Query(Option<String>),
 }
 
 impl Type {
