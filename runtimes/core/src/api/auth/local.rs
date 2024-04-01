@@ -1,6 +1,6 @@
 use crate::api::auth::{AuthHandler, AuthPayload, AuthRequest, AuthResponse};
 use crate::api::schema::encoding::Schema;
-use crate::api::schema::{JSONPayload};
+use crate::api::schema::JSONPayload;
 use crate::api::APIResult;
 use crate::log::LogFromRust;
 use crate::model::{AuthRequestData, RequestData};

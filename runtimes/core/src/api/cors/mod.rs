@@ -1,13 +1,13 @@
-use std::collections::HashSet;
-use std::str::FromStr;
-use anyhow::Context;
-use axum::http::{HeaderName, HeaderValue};
-use tower_http::cors;
 use crate::api::{auth, EndpointMap};
 use crate::encore::runtime::v1 as pb;
+use anyhow::Context;
+use axum::http::{HeaderName, HeaderValue};
+use std::collections::HashSet;
+use std::str::FromStr;
+use tower_http::cors;
 
 /// The default set of allowed headers.
-const ALWAYS_ALLOWED_HEADERS : [HeaderName; 8] = [
+const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("accept"),
     HeaderName::from_static("authorization"),
     HeaderName::from_static("content-type"),
@@ -25,14 +25,20 @@ pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
 ];
 
 pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors::CorsLayer> {
-    let mut allowed_headers = cfg.extra_allowed_headers.iter()
-        .map(|s| HeaderName::from_str(&s)).collect::<Result<Vec<_>, _>>()
+    let mut allowed_headers = cfg
+        .extra_allowed_headers
+        .iter()
+        .map(|s| HeaderName::from_str(&s))
+        .collect::<Result<Vec<_>, _>>()
         .context("failed to parse extra allowed headers")?;
     allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
     allowed_headers.extend(meta.allow_headers);
 
-    let mut exposed_headers = cfg.extra_exposed_headers.iter()
-        .map(|s| HeaderName::from_str(&s)).collect::<Result<Vec<_>, _>>()
+    let mut exposed_headers = cfg
+        .extra_exposed_headers
+        .iter()
+        .map(|s| HeaderName::from_str(&s))
+        .collect::<Result<Vec<_>, _>>()
         .context("failed to parse extra exposed headers")?;
     exposed_headers.extend_from_slice(&ALWAYS_EXPOSED_HEADERS);
     exposed_headers.extend(meta.expose_headers);
@@ -41,18 +47,29 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
     let allow_origin = {
         use pb::gateway::cors::AllowedOriginsWithCredentials;
         let with_creds = match &cfg.allowed_origins_with_credentials {
-            Some(AllowedOriginsWithCredentials::UnsafeAllowAllOriginsWithCredentials(true)) => OriginSet::All,
-            Some(AllowedOriginsWithCredentials::AllowedOrigins(list)) => OriginSet::new(list.allowed_origins.clone()),
+            Some(AllowedOriginsWithCredentials::UnsafeAllowAllOriginsWithCredentials(true)) => {
+                OriginSet::All
+            }
+            Some(AllowedOriginsWithCredentials::AllowedOrigins(list)) => {
+                OriginSet::new(list.allowed_origins.clone())
+            }
             _ => OriginSet::Some(vec![]),
         };
-        let without_creds = OriginSet::new(cfg.allowed_origins_without_credentials.clone().unwrap_or_default().allowed_origins);
+        let without_creds = OriginSet::new(
+            cfg.allowed_origins_without_credentials
+                .clone()
+                .unwrap_or_default()
+                .allowed_origins,
+        );
 
         let pred = move |origin: &HeaderValue, req: &axum::http::request::Parts| {
             let Ok(origin) = origin.to_str() else {
                 return false;
             };
             let headers = &req.headers;
-            if headers.contains_key(axum::http::header::AUTHORIZATION) || headers.contains_key(axum::http::header::COOKIE) {
+            if headers.contains_key(axum::http::header::AUTHORIZATION)
+                || headers.contains_key(axum::http::header::COOKIE)
+            {
                 with_creds.allows(origin)
             } else {
                 without_creds.allows(origin)
@@ -67,14 +84,13 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
         .expose_headers(cors::ExposeHeaders::list(exposed_headers))
         .allow_credentials(!cfg.disable_credentials)
         .allow_methods(cors::AllowMethods::mirror_request())
-        .allow_origin(cors::AllowOrigin::predicate(allow_origin))
-        ;
+        .allow_origin(cors::AllowOrigin::predicate(allow_origin));
     Ok(layer)
 }
 
 enum OriginSet {
     All,
-    Some(Vec<Origin>)
+    Some(Vec<Origin>),
 }
 
 impl OriginSet {
@@ -100,10 +116,7 @@ impl OriginSet {
 
 enum Origin {
     Exact(String),
-    Wildcard {
-        prefix: String,
-        suffix: String,
-    }
+    Wildcard { prefix: String, suffix: String },
 }
 
 impl Origin {
@@ -123,10 +136,10 @@ impl Origin {
             Self::Wildcard { prefix, suffix } => {
                 // Length must be greater than the prefix and suffix combined,
                 // to ensure the wildcard matches at least one character.
-                origin.len() > (prefix.len()+suffix.len()) &&
-                    origin.starts_with(prefix) &&
-                    origin.ends_with(suffix)
-            },
+                origin.len() > (prefix.len() + suffix.len())
+                    && origin.starts_with(prefix)
+                    && origin.ends_with(suffix)
+            }
         }
     }
 }

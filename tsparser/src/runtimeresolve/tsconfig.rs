@@ -1,7 +1,6 @@
-use std::borrow::Cow;
 use anyhow::Context;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -55,7 +54,11 @@ impl TsConfigPathResolver {
 
         let base_filename = FileName::Real(base.clone());
 
-        Ok(Self { base, base_filename, paths })
+        Ok(Self {
+            base,
+            base_filename,
+            paths,
+        })
     }
 
     pub fn base(&self) -> &FileName {
@@ -83,7 +86,9 @@ impl TsConfigPathResolver {
                     for val in &entry.values {
                         match val {
                             PathVal::Wildcard { prefix, suffix } => {
-                                let mut rel_path = String::with_capacity(prefix.len() + suffix.len() + wildcard.len() + 2);
+                                let mut rel_path = String::with_capacity(
+                                    prefix.len() + suffix.len() + wildcard.len() + 2,
+                                );
                                 rel_path.push_str(prefix);
                                 rel_path.push_str(wildcard);
                                 rel_path.push_str(suffix);

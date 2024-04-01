@@ -87,11 +87,9 @@ impl<'a> ResourceParserRegistry<'a> {
 
 #[cfg(test)]
 mod tests {
-    
 
-    
     use crate::parser::resources::apis::api::ENDPOINT_PARSER;
-    
+
     use crate::testutil::testparse::test_parse;
 
     use super::*;

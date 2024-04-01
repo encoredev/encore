@@ -1,4 +1,3 @@
-
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -9,11 +8,7 @@ use crate::api::reqauth::CallMeta;
 use crate::api::APIResult;
 use crate::{api, EndpointName};
 
-
-
-
-
-use crate::api::schema::encoding::{Schema};
+use crate::api::schema::encoding::Schema;
 pub use local::LocalAuthHandler;
 pub use remote::RemoteAuthHandler;
 

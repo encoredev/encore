@@ -161,7 +161,10 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo
+      - uses: taiki-e/install-action@nextest
       - name: Run test
-        run: cargo test
+        run: cargo nextest run
+        env:
+          CARGO_TERM_COLOR: always
       - name: Run rustfmt
         run: cargo fmt --all --check

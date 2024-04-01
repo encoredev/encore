@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod call;
+mod cors;
 mod encore_routes;
 mod endpoint;
 mod error;
@@ -11,7 +12,6 @@ mod manager;
 pub mod reqauth;
 pub mod schema;
 mod server;
-mod cors;
 
 pub use endpoint::*;
 pub use error::*;

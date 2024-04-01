@@ -1,5 +1,3 @@
-
-
 use anyhow::Result;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;

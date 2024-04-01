@@ -1,4 +1,3 @@
-
 /// Fields control the names of the fields that are used in the log output.
 #[derive(Debug)]
 pub struct FieldConfig {

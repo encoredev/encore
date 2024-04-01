@@ -444,7 +444,7 @@ mod tests {
         EndpointEncoding, RequestEncoding, ResponseEncoding,
     };
     use crate::parser::resources::Resource;
-    use crate::parser::respath::{Path};
+    use crate::parser::respath::Path;
     use crate::testutil::testresolve::TestResolver;
     use crate::testutil::JS_RUNTIME_PATH;
 

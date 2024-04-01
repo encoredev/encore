@@ -1,5 +1,3 @@
-
-
 use once_cell::sync::OnceCell;
 
 mod consolewriter;
