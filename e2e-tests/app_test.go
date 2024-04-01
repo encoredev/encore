@@ -36,6 +36,7 @@ import (
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/v2builder"
 )
 
 type RunAppData struct {
@@ -80,6 +81,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		App:             app,
 		ResourceManager: rm,
 		Mgr:             mgr,
+		Builder:         v2builder.BuilderImpl{},
 	}
 
 	parse, build, configs := testBuild(c, appRoot, env)

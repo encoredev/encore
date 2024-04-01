@@ -26,6 +26,7 @@ import (
 	. "encr.dev/internal/optracker"
 	"encr.dev/pkg/golden"
 	"encr.dev/pkg/svcproxy"
+	"encr.dev/v2/v2builder"
 )
 
 type Data[K any, V any] struct {
@@ -571,7 +572,15 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 	mgr := &Manager{}
 	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
 	rm := infra.NewResourceManager(app, nil, ns, nil, 0, false)
-	run := &Run{ID: GenID(), App: app, Mgr: mgr, ResourceManager: rm, ListenAddr: "127.0.0.1:34212", SvcProxy: svcProxy}
+	run := &Run{
+		ID:              GenID(),
+		App:             app,
+		Mgr:             mgr,
+		ResourceManager: rm,
+		ListenAddr:      "127.0.0.1:34212",
+		SvcProxy:        svcProxy,
+		Builder:         v2builder.BuilderImpl{},
+	}
 
 	parse, build, _ := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))
 	jobs := NewAsyncBuildJobs(ctx, app.PlatformOrLocalID(), nil)
