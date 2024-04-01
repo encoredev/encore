@@ -165,12 +165,14 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 	// since we use a persistent working directory based on the app id.
 	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
 	err := mgr.Test(ctx, TestParams{
-		App:        app,
-		WorkingDir: ".",
-		Args:       []string{"./..."},
-		Environ:    environ,
-		Stdout:     stdout,
-		Stderr:     stderr,
+		TestSpecParams: &TestSpecParams{
+			App:        app,
+			WorkingDir: ".",
+			Args:       []string{"./..."},
+			Environ:    environ,
+		},
+		Stdout: stdout,
+		Stderr: stderr,
 	})
 	return err
 }
