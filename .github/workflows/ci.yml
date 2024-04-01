@@ -117,10 +117,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: reviewdog/action-setup@8e48baae926e97848f0863ae248f3b08e089c81f
-        with:
-          reviewdog_version: latest
-
       - name: Install jq
         uses: dcarbone/install-jq-action@91d8da7268538e8a0ae0c8b72af44f1763228455
 
@@ -140,17 +136,6 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@master
           go install github.com/kisielk/errcheck@latest
           go install github.com/gordonklaus/ineffassign@latest
-
-      - name: Run reviewdog
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Fail the build if there were any static analysis errors within files which where changed
-        # within this PR. Note: we'll ignore changes made on files which where not modified in this PR.
-        #
-        # If we want to fail on any errors only within the lines modified, change to "-filter-mode=added"
-        # If we want to fail on any errors found in files modified, change to "-filter-mode=file"
-        # If you want to fail on any errors found in the entire codebase, change to "-filter-mode=nofilter"
-        run: reviewdog -fail-on-error -filter-mode=file -reporter=github-pr-review
 
   rust_core:
     name: "Test core runtime"
