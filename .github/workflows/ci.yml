@@ -64,14 +64,14 @@ jobs:
 
       # If we're not running on a schedule, we only want to run tests on changed code
       - name: Run tests on changed code on the CLI
-        run: cd encr.dev && go test -v -short -tags=dev_build 2>&1 ./...
+        run: cd encr.dev && go test -short -tags=dev_build 2>&1 ./...
         if: github.event.schedule != '30 2 * * *'
         env:
           ENCORE_GOROOT: ${{ github.workspace }}/encore-go
           ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
       - name: Run tests on changed runtime code
-        run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build ./...
+        run: cd encr.dev/runtimes/go && go test -short -tags=dev_build ./...
         if: github.event.schedule != '30 2 * * *'
 
       # Each night we want to run all tests multiple times to catch any flaky tests
