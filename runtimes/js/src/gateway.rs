@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 #[napi]
 pub struct Gateway {
+    #[allow(dead_code)]
     gateway: Option<Arc<api::gateway::Gateway>>,
 }
 

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::api;
 
 use bytes::{BufMut, Bytes, BytesMut};

@@ -30,6 +30,7 @@ type RPCDesc struct {
 	Raw          bool
 	RequestType  reflect.Type // nil if no payload
 	ResponseType reflect.Type // nil if no payload
+	Tags         []string
 }
 
 type PathParams []PathParam

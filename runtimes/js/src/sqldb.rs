@@ -1,16 +1,10 @@
 use crate::api::Request;
 use encore_runtime_core::sqldb;
-use futures::TryFutureExt;
 use mappable_rc::Marc;
-use napi::bindgen_prelude::{Buffer, Reference, SharedReference};
-use napi::{Env, JsBufferValue, JsUnknown, Ref};
+use napi::{Env, JsUnknown};
 use napi_derive::napi;
 use std::collections::HashMap;
-use std::future::Future;
-use std::ops::DerefMut;
-use std::pin::Pin;
 use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
 
 #[napi]
 pub struct SQLDatabase {
@@ -45,7 +39,7 @@ impl QueryArgs {
                                     return Err(napi::Error::new(
                                         napi::Status::GenericFailure,
                                         "failed to convert float to json number".to_string(),
-                                    ))
+                                    ));
                                 }
                             }
                         }
@@ -72,13 +66,13 @@ impl QueryArgs {
                         return Err(napi::Error::new(
                             napi::Status::GenericFailure,
                             "unsupported value type".to_string(),
-                        ))
+                        ));
                     }
                     _ => {
                         return Err(napi::Error::new(
                             napi::Status::GenericFailure,
                             "unsupported value type".to_string(),
-                        ))
+                        ));
                     }
                 })
             })
@@ -265,7 +259,3 @@ impl Cursor {
 //         )
 //     }
 // }
-
-fn to_napi_err<E: std::fmt::Debug>(e: E) -> napi::Error {
-    napi::Error::new(napi::Status::GenericFailure, format!("{:#?}", e))
-}

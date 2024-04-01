@@ -11,10 +11,10 @@ use serde_json::{json, Value};
 
 use crate::builder::package_mgmt::resolve_package_manager;
 use crate::parser::parser::ParseContext;
+use crate::parser::resourceparser::bind::BindKind::Create;
 use crate::parser::resources::apis::api::Methods;
 use crate::parser::resources::Resource;
 use crate::parser::FilePath;
-use crate::parser::resourceparser::bind::BindKind::Create;
 
 use super::parse::ParseResult;
 use super::{App, Builder};
@@ -114,7 +114,7 @@ impl Builder<'_> {
 
             let svc_rel_path = params.app.rel_path_string(&svc.root)?;
             let node_modules_to_svc = node_modules_to_app_root.join(&svc_rel_path);
-            let gen_root = params.app.root.join("encore.gen");
+            let _gen_root = params.app.root.join("encore.gen");
 
             // Add the auth handlers to the auth context.
             for ah in &auth_handlers {
@@ -286,8 +286,8 @@ impl Builder<'_> {
         // Catalog Auth
         {
             let ctx = &json!({
-                "auth_handlers": auth_ctx,
-             });
+               "auth_handlers": auth_ctx,
+            });
 
             let index_d_ts = self.catalog_auth_index_ts.render(&self.reg, ctx)?;
             files.push(CodegenFile {
@@ -331,7 +331,7 @@ impl Builder<'_> {
 
                 let svc_rel_path = params.app.rel_path_string(&svc.root)?;
                 let node_modules_to_svc = node_modules_to_app_root.join(&svc_rel_path);
-                let gen_root = params.app.root.join("encore.gen");
+                let _gen_root = params.app.root.join("encore.gen");
 
                 // Service Main
                 for rpc in &endpoints {
@@ -357,7 +357,7 @@ impl Builder<'_> {
 
                 // Gateway Main
                 for (gw, bind_name) in &gateways {
-                    let name = &gw.name;
+                    let _name = &gw.name;
 
                     // Compute the import path for the endpoint.
                     // HACK: Find a better way to do this.
@@ -431,7 +431,7 @@ impl Builder<'_> {
         Ok(files)
     }
 
-    fn symlink_packages(&self, runtime_root: &Path, node_modules_dir: &Path) -> Result<()> {
+    fn _symlink_packages(&self, runtime_root: &Path, node_modules_dir: &Path) -> Result<()> {
         // Figure out the dirs to symlink.
         let dirs_to_symlink: Vec<(Option<&str>, String)> = {
             let dir_names = &["encore.dev"];
@@ -474,6 +474,7 @@ impl Builder<'_> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn symlink_package(
         &self,
         source_dir: &Path,
@@ -548,7 +549,7 @@ impl Builder<'_> {
     }
 }
 
-fn http_methods(methods: &Methods) -> Value {
+fn _http_methods(methods: &Methods) -> Value {
     match methods {
         Methods::All => json!("*"),
         Methods::Some(methods) => {
@@ -560,10 +561,12 @@ fn http_methods(methods: &Methods) -> Value {
 
 #[derive(Debug)]
 pub struct CodegenFile {
-    pub path: PathBuf, // relative to the node_modules/.encoredev folder
+    pub path: PathBuf,
+    // relative to the node_modules/.encoredev folder
     pub contents: String,
 }
 
+#[allow(dead_code)]
 fn write_gen_encore_app_package(node_modules_dir: &Path, files: &[CodegenFile]) -> Result<()> {
     let base_dir = node_modules_dir.join("gen_encore.app");
     for f in files {
@@ -653,56 +656,6 @@ fn find_ancestor(base: &Path, predicate: fn(&Path) -> bool) -> Option<(PathBuf, 
     }
 }
 
-static TSCONFIG_JSON: &'static str = r#"{
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "include": ["**/*.ts"],
-  "exclude": ["dist/**"],
-
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "./dist",
-
-    /* Basic Options */
-    "lib": ["ES2022"],
-    "target": "ES2022",
-    "module": "ES2022",
-
-    /* Workspace Settings */
-    "composite": true,
-
-    /* Strict Type-Checking Options */
-    "strict": true,
-
-    /* Module Resolution Options */
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "isolatedModules": true,
-    "sourceMap": true,
-
-    "declaration": true,
-
-    /* Advanced Options */
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-
-    "types": []
-  }
-}"#;
-
-static PACKAGE_JSON: &'static str = r#"{
-  "author": "Encore",
-  "description": "Generated boilerplate for Encore application",
-  "name": "gen_encore.app",
-  "type": "module",
-  "exports": {
-    "./*": {
-      "types": "./*.d.ts",
-      "test": "./*_test.js",
-      "default": "./*.js"
-    }
-  }
-}"#;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -719,7 +672,7 @@ mod tests {
         }
 
         {
-            let pred = |p: &Path| true;
+            let pred = |_p: &Path| true;
             let base = Path::new("/foo/bar/baz");
 
             let (ancestor, return_path) = find_ancestor(base, pred).unwrap();

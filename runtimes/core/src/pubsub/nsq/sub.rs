@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -13,7 +12,7 @@ use crate::names::CloudName;
 use crate::pubsub;
 use crate::pubsub::manager::SubHandler;
 use crate::pubsub::nsq::topic::EncodedMessage;
-use crate::pubsub::{Subscription, SubscriptionHandler};
+use crate::pubsub::Subscription;
 
 #[derive(Debug)]
 pub struct NsqSubscription {

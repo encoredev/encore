@@ -1,4 +1,4 @@
-use crate::api::{to_handler, APIRoute, JSHandler, Request};
+use crate::api::{to_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};

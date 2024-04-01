@@ -62,18 +62,7 @@ impl AppError {
     /// Trims the stack trace to remove any frames from before
     /// the given file and line number.
     ///
-    /// This is useful for removing frames caused by a conversion into an AppError
-    ///
-    /// Example use:
-    ///
-    /// ```
-    /// use futures_util::future::lazy;
-    /// use encore_runtime_core::error::AppError;
-    /// let some_error = "this is my error as a str";
-    ///
-    /// let app_error: AppError = some_error.into().trim_stack(file!(), line!());
-    /// ```
-    ///
+    /// This is useful for removing frames caused by a conversion into an AppError.
     /// If the given file and line number are not found in the stack trace, then the original
     /// stack trace is returned.
     pub fn trim_stack(self, file: &str, line: u32, drop_extra: usize) -> Self {

@@ -11,7 +11,7 @@ use crate::api::gateway::reverseproxy::{Director, InboundRequest, ProxyRequest, 
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::api::schema::Method;
-use crate::api::{auth, schema, APIResult, IntoResponse, cors};
+use crate::api::{auth, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
 
 mod reverseproxy;
@@ -19,7 +19,6 @@ mod reverseproxy;
 pub struct Gateway {
     shared: Arc<SharedGatewayData>,
     router: Mutex<Option<axum::Router>>,
-    runtime: tokio::runtime::Handle,
 }
 
 #[derive(Debug, Clone)]
@@ -40,7 +39,6 @@ impl Gateway {
         service_registry: Arc<ServiceRegistry>,
         service_routes: HashMap<EncoreName, Vec<Route>>,
         auth_handler: Option<auth::Authenticator>,
-        runtime: tokio::runtime::Handle,
         cors: tower_http::cors::CorsLayer,
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
@@ -97,7 +95,6 @@ impl Gateway {
         Ok(Self {
             shared,
             router: Mutex::new(Some(router)),
-            runtime,
         })
     }
 
@@ -119,7 +116,7 @@ struct ServiceDirector {
 impl Director for Arc<ServiceDirector> {
     type Future = Pin<Box<dyn Future<Output = APIResult<ProxyRequest>> + Send + 'static>>;
 
-    fn direct(self, mut req: InboundRequest) -> Self::Future {
+    fn direct(self, req: InboundRequest) -> Self::Future {
         Box::pin(async move {
             let mut call_meta = CallMeta::parse_without_caller(&req.headers)?;
             if call_meta.parent_span_id.is_none() {

@@ -181,7 +181,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		app:            params.App,
 		infraManager:   rm,
 		md:             parse.Meta,
-		AppID:          option.Some("test"),
+		AppID:          option.Some(params.App.PlatformOrLocalID()),
 		EnvID:          option.Some("test"),
 		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
 		AuthKey:        authKey,

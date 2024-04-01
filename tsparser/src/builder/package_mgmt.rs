@@ -45,8 +45,6 @@ pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn Pack
     }
 }
 
-pub(super) struct Package<'a>(pub &'a str, pub &'a str);
-
 pub(super) trait PackageManager {
     fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()>;
 
@@ -92,7 +90,9 @@ impl PackageManager for NpmPackageManager {
     fn run_tests(&self) -> Result<CmdSpec> {
         Ok(CmdSpec {
             command: vec![
-                "npm".to_string(), "run".to_string(), "test".to_string(),
+                "npm".to_string(),
+                "run".to_string(),
+                "test".to_string(),
                 // Specify '--' so that additional arguments added from the test runner
                 // aren't interpreted by npm.
                 "--".to_string(),
