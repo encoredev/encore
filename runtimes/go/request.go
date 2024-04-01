@@ -173,6 +173,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 			RequestType:  desc.RequestType,
 			ResponseType: desc.ResponseType,
 			Raw:          desc.Raw,
+			Tags:         data.Desc.Tags,
 		}
 
 		if data.FromEncorePlatform {

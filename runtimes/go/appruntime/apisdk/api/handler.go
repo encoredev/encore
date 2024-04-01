@@ -871,6 +871,7 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 			Endpoint:    d.Endpoint,
 			Raw:         d.Raw,
 			RequestType: reflect.TypeOf(reqTyp),
+			Tags:        d.Tags,
 		}
 
 		if !isVoid[Resp]() {
