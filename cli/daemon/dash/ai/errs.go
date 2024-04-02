@@ -9,7 +9,6 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"encr.dev/pkg/fns"
-	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
 )
 
@@ -20,13 +19,18 @@ const (
 	CodeTypeTypes    CodeType = "types"
 )
 
+type Pos struct {
+	Line   int `json:"line"`
+	Column int `json:"column"`
+}
+
 type ValidationError struct {
 	Service  string   `json:"service"`
 	Endpoint string   `json:"endpoint"`
 	CodeType CodeType `json:"codeType"`
 	Message  string   `json:"message"`
-	Line     *int     `json:"line"`
-	Column   *int     `json:"column"`
+	Start    *Pos     `json:"start,omitempty"`
+	End      *Pos     `json:"end,omitempty"`
 }
 
 func formatSrcErrList(overlays *overlays, list *perr.List) ([]ValidationError, error) {
@@ -36,23 +40,7 @@ func formatSrcErrList(overlays *overlays, list *perr.List) ([]ValidationError, e
 		if err.Params.Locations == nil {
 			return nil, err
 		}
-		for _, loc := range err.Params.Locations {
-			if loc.File == nil {
-				continue
-			}
-			overlay, ok := overlays.get(paths.FS(loc.File.FullPath))
-			if !ok {
-				continue
-			}
-			rtn = append(rtn, ValidationError{
-				Service:  overlay.service.Name,
-				Endpoint: overlay.endpoint.Name,
-				CodeType: overlay.codeType,
-				Message:  err.Params.Summary,
-				Line:     ptr(loc.Start.Line - overlay.headerOffset.Line),
-				Column:   ptr(loc.Start.Col - overlay.headerOffset.Column),
-			})
-		}
+		rtn = append(rtn, overlays.validationError(err)...)
 	}
 	return rtn, nil
 }
@@ -70,8 +58,10 @@ func formatError(info *overlay, err error) []ValidationError {
 				Endpoint: info.endpoint.Name,
 				CodeType: info.codeType,
 				Message:  e.Msg,
-				Line:     ptr(e.Pos.Line - info.headerOffset.Line),
-				Column:   ptr(e.Pos.Column - info.headerOffset.Column),
+				Start: &Pos{
+					Line:   e.Pos.Line - info.headerOffset.Line,
+					Column: e.Pos.Column - info.headerOffset.Column,
+				},
 			}
 		})
 	} else if errors.As(err, &pkgErr) {
@@ -89,8 +79,10 @@ func formatError(info *overlay, err error) []ValidationError {
 			Endpoint: info.endpoint.Name,
 			CodeType: info.codeType,
 			Message:  pkgErr.Msg,
-			Line:     ptr(line - info.headerOffset.Line),
-			Column:   ptr(col - info.headerOffset.Column),
+			Start: &Pos{
+				Line:   line - info.headerOffset.Line,
+				Column: col - info.headerOffset.Column,
+			},
 		}}
 
 	} else {
