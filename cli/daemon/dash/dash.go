@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/rs/zerolog/log"
@@ -236,13 +237,30 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
+		suCh := make(chan ai.SessionUpdate)
 		subID, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.WSNotification) error {
+			if msg, ok := msg.Value.(ai.SessionUpdate); ok {
+				suCh <- msg
+				return nil
+			}
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
-		return reply(ctx, subID, err)
+		select {
+		case su := <-suCh:
+			return reply(ctx, map[string]string{
+				"session_id":      string(su.Id),
+				"subscription_id": subID,
+			}, err)
+		case <-ctx.Done():
+			return reply(ctx, nil, ctx.Err())
+		case <-time.NewTimer(10 * time.Second).C:
+			return reply(ctx, nil, errors.New("timed out waiting for response"))
+		}
+
 	case "ai/modify-system-design":
 		var params struct {
 			AppID          string            `json:"app_id"`
+			SessionID      ai.AISessionID    `json:"session_id"`
 			OriginalPrompt string            `json:"original_prompt"`
 			Prompt         string            `json:"prompt"`
 			Proposed       []ai.ServiceInput `json:"proposed"`
@@ -254,15 +272,16 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		subID, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.WSNotification) error {
+		subID, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.SessionID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.WSNotification) error {
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)
 	case "ai/define-endpoints":
 		var params struct {
-			AppID    string            `json:"app_id"`
-			Prompt   string            `json:"prompt"`
-			Proposed []ai.ServiceInput `json:"proposed"`
+			AppID     string            `json:"app_id"`
+			SessionID ai.AISessionID    `json:"session_id"`
+			Prompt    string            `json:"prompt"`
+			Proposed  []ai.ServiceInput `json:"proposed"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -271,7 +290,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.WSNotification) error {
+		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.SessionID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.WSNotification) error {
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)

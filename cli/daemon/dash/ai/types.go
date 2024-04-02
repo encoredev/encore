@@ -84,6 +84,18 @@ func (p PathSegment) String() string {
 	}
 }
 
+type AISessionID string
+
+type SessionUpdate struct {
+	BaseAIUpdateType
+	Id AISessionID
+}
+
+type TitleUpdate struct {
+	BaseAIUpdateType
+	Title string
+}
+
 type EndpointInput struct {
 	Name           string         `json:"name,omitempty"`
 	Doc            string         `json:"doc,omitempty"`
