@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"os"
 	"strings"
@@ -53,12 +54,35 @@ func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.Re
 			if err != nil {
 				return nil, err
 			}
-			file := paths.FS(app.Root()).JoinSlash(relFile)
-			_, content := toSrcFile(file, s.Name, e.EndpointSource, e.TypeSource)
-			files[relFile] = string(content)
+			filePath := paths.FS(app.Root()).JoinSlash(relFile)
+			_, content := toSrcFile(filePath, s.Name, e.EndpointSource, e.TypeSource)
+			files[relFile], err = addMissingFuncBodies(content)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return files, nil
+}
+
+func addMissingFuncBodies(content []byte) (string, error) {
+	set := token.NewFileSet()
+	rewriter := rewrite.New(content, 0)
+	file, err := parser.ParseFile(set, "", content, parser.ParseComments|parser.AllErrors)
+	if err != nil {
+		return "", err
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.FuncDecl:
+			if n.Body != nil {
+				break
+			}
+			rewriter.Insert(n.End()-1, []byte("{\n    panic(\"not implemented yet\")\n}\n"))
+		}
+		return true
+	})
+	return string(rewriter.Data()), err
 }
 
 func writeFiles(services []ServiceInput, app *apps.Instance) ([]paths.RelSlash, error) {
@@ -177,17 +201,15 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 					start = funcDecl.Doc.Pos()
 				}
 				end := funcDecl.End()
-				withBody := true
 				if funcDecl.Body != nil {
-					withBody = false
 					end = funcDecl.Body.Lbrace
 				}
-				rewriter.Replace(start, end, []byte(ep.endpoint.Render(withBody)))
+				rewriter.Replace(start, end, []byte(ep.endpoint.Render()))
 			} else {
 				if len(funcByName) > 0 {
 					rewriter.Append([]byte("\n"))
 				}
-				rewriter.Append([]byte(ep.endpoint.Render(true)))
+				rewriter.Append([]byte(ep.endpoint.Render()))
 			}
 			content := string(rewriter.Data()[ep.headerOffset.Offset:])
 			ep.endpoint.EndpointSource = strings.TrimSpace(content)
