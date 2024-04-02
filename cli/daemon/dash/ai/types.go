@@ -118,7 +118,7 @@ func (s *EndpointInput) GraphQL() *EndpointInput {
 	return s
 }
 
-func (e *EndpointInput) Render(withBody bool) string {
+func (e *EndpointInput) Render() string {
 	buf := strings.Builder{}
 	if e.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(e.Doc), "\n") {
@@ -160,11 +160,6 @@ func (e *EndpointInput) Render(withBody bool) string {
 		rtnParamsStr = fmt.Sprintf("(%s)", rtnParamsStr)
 	}
 	buf.WriteString(fmt.Sprintf("func %s(%s) %s", e.Name, paramsStr, rtnParamsStr))
-	if withBody {
-		buf.WriteString(" {\n")
-		buf.WriteString("  panic(\"not implemented\")\n")
-		buf.WriteString("}\n")
-	}
 	return buf.String()
 }
 
