@@ -160,35 +160,39 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				e.Types = []*TypeInput{}
 				if nr, ok := deref(r.Request).(schema.NamedType); ok {
 					e.RequestType = nr.String()
-					e.Types = append(e.Types, &TypeInput{
-						Name: nr.String(),
-						Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
-						Fields: fns.Map(r.RequestEncoding()[0].AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
-							return &TypeFieldInput{
-								Name:     f.SrcName,
-								WireName: f.WireName,
-								Location: f.Location,
-								Type:     f.Type.String(),
-								Doc:      strings.TrimSpace(f.Doc),
-							}
-						}),
-					})
+					if len(r.RequestEncoding()) > 0 {
+						e.Types = append(e.Types, &TypeInput{
+							Name: nr.String(),
+							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
+							Fields: fns.Map(r.RequestEncoding()[0].AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
+								return &TypeFieldInput{
+									Name:     f.SrcName,
+									WireName: f.WireName,
+									Location: f.Location,
+									Type:     f.Type.String(),
+									Doc:      strings.TrimSpace(f.Doc),
+								}
+							}),
+						})
+					}
 				}
 				if nr, ok := deref(r.Response).(schema.NamedType); ok {
 					e.ResponseType = nr.String()
-					e.Types = append(e.Types, &TypeInput{
-						Name: nr.String(),
-						Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
-						Fields: fns.Map(r.ResponseEncoding().AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
-							return &TypeFieldInput{
-								Name:     f.SrcName,
-								WireName: f.WireName,
-								Location: f.Location,
-								Type:     f.Type.String(),
-								Doc:      strings.TrimSpace(f.Doc),
-							}
-						}),
-					})
+					if r.ResponseEncoding() != nil {
+						e.Types = append(e.Types, &TypeInput{
+							Name: nr.String(),
+							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
+							Fields: fns.Map(r.ResponseEncoding().AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
+								return &TypeFieldInput{
+									Name:     f.SrcName,
+									WireName: f.WireName,
+									Location: f.Location,
+									Type:     f.Type.String(),
+									Doc:      strings.TrimSpace(f.Doc),
+								}
+							}),
+						})
+					}
 				}
 			}
 

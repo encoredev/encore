@@ -180,7 +180,7 @@ type cachedEndpoint struct {
 }
 
 func (e *cachedEndpoint) notification() LocalEndpointUpdate {
-	e.endpoint.EndpointSource = e.endpoint.Render(true)
+	e.endpoint.EndpointSource = e.endpoint.Render()
 	e.endpoint.TypeSource = ""
 	for i, s := range e.endpoint.Types {
 		if i > 0 {
