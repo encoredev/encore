@@ -45,7 +45,22 @@ type Context struct {
 	Errs *perr.List
 
 	// Overlay is a map of file paths to their contents.
-	Overlay map[paths.FS][]byte
+	Overlay FileOverlay
+}
+
+type FileOverlay map[paths.FS][]byte
+
+func (o FileOverlay) ReadDir(dir paths.FS) map[paths.FS][]byte {
+	if len(o) == 0 {
+		return nil
+	}
+	rtn := make(map[paths.FS][]byte)
+	for k, v := range o {
+		if k.Dir() == dir {
+			rtn[k] = v
+		}
+	}
+	return rtn
 }
 
 // BuildInfo represents the information needed to parse and build an Encore application.

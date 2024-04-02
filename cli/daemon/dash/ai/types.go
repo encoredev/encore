@@ -10,6 +10,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -426,6 +427,31 @@ func (o *overlays) pkgPaths() []paths.Pkg {
 func (o *overlays) get(p paths.FS) (*overlay, bool) {
 	rtn, ok := o.list[p]
 	return rtn, ok
+}
+
+func (o *overlays) validationError(err *errinsrc.ErrInSrc) []ValidationError {
+	var rtn []ValidationError
+	for _, loc := range err.Params.Locations {
+		o, ok := o.get(paths.FS(loc.File.FullPath))
+		if !ok {
+			return nil
+		}
+		rtn = append(rtn, ValidationError{
+			Service:  o.service.Name,
+			Endpoint: o.endpoint.Name,
+			CodeType: o.codeType,
+			Message:  err.Params.Summary,
+			Start: &Pos{
+				Line:   loc.Start.Line - o.headerOffset.Line,
+				Column: loc.Start.Col - o.headerOffset.Column,
+			},
+			End: &Pos{
+				Line:   loc.End.Line - o.headerOffset.Line,
+				Column: loc.End.Col - o.headerOffset.Column,
+			},
+		})
+	}
+	return rtn
 }
 
 func (o *overlays) add(s ServiceInput, e *EndpointInput) error {

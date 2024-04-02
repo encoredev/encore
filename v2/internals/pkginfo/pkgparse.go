@@ -101,8 +101,18 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 // parseAST is like go/parser.ParseDir but it constructs *File objects instead.
 func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 	dir := s.dir.ToIO()
+	type fileInfo struct {
+		path     paths.FS
+		ioPath   string
+		baseName string
+		contents []byte
+	}
+	infos := make([]fileInfo, 0)
+	for k, v := range l.c.Overlay.ReadDir(s.dir) {
+		infos = append(infos, fileInfo{path: k, ioPath: k.ToIO(), baseName: k.Base(), contents: v})
+	}
 	entries, err := os.ReadDir(dir)
-	if err != nil {
+	if err != nil && len(infos) == 0 {
 		l.c.Errs.Addf(s.cause, "parse package %q: %v", s.path, err)
 		return nil, nil
 	}
@@ -122,26 +132,12 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			return true
 		}
 	}
-
-	type fileInfo struct {
-		path     paths.FS
-		ioPath   string
-		baseName string
-		contents []byte
-	}
-
-	infos := make([]fileInfo, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() && shouldParseFile(e) {
 			baseName := e.Name()
 			ioPath := filepath.Join(dir, baseName)
 			path := s.dir.Join(baseName)
 			infos = append(infos, fileInfo{path: path, ioPath: ioPath, baseName: baseName})
-		}
-	}
-	for k, v := range l.c.Overlay {
-		if k.Dir() == s.dir {
-			infos = append(infos, fileInfo{path: k, ioPath: k.ToIO(), baseName: k.Base(), contents: v})
 		}
 	}
 
