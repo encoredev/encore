@@ -135,6 +135,8 @@ type UpdateQuery struct {
 	TypeFieldUpdate `graphql:"... on TypeFieldUpdate"`
 	ErrorUpdate     `graphql:"... on ErrorUpdate"`
 	EndpointUpdate  `graphql:"... on EndpointUpdate"`
+	SessionUpdate   `graphql:"... on SessionUpdate"`
+	TitleUpdate     `graphql:"... on TitleUpdate"`
 }
 
 func (u *UpdateQuery) GetValue() AIUpdateType {
@@ -149,6 +151,10 @@ func (u *UpdateQuery) GetValue() AIUpdateType {
 		return u.ErrorUpdate
 	case "EndpointUpdate":
 		return u.EndpointUpdate
+	case "SessionUpdate":
+		return u.SessionUpdate
+	case "TitleUpdate":
+		return u.TitleUpdate
 	}
 	return nil
 }
@@ -411,14 +417,15 @@ func createUpdateHandler(existing []ServiceInput, notifier AINotifier) AINotifie
 	}
 }
 
-func (m *Manager) DefineEndpoints(ctx context.Context, appSlug, prompt string, md *meta.Data, proposed []ServiceInput, notifier AINotifier) (string, error) {
+func (m *Manager) DefineEndpoints(ctx context.Context, appSlug string, sessionID AISessionID, prompt string, md *meta.Data, proposed []ServiceInput, notifier AINotifier) (string, error) {
 	return query[struct {
-		StreamUpdate *StreamUpdate `graphql:"result: defineEndpoints(appSlug: $appSlug, prompt: $prompt, current: $current, proposedDesign: $proposedDesign)"`
+		StreamUpdate *StreamUpdate `graphql:"result: defineEndpoints(appSlug: $appSlug, sessionID: $sessionID, prompt: $prompt, current: $current, proposedDesign: $proposedDesign)"`
 	}](ctx, m.client, map[string]interface{}{
 		"appSlug":        appSlug,
 		"prompt":         prompt,
 		"current":        currentService(md),
 		"proposedDesign": fns.Map(proposed, ServiceInput.GraphQL),
+		"sessionID":      sessionID,
 	}, createUpdateHandler(proposed, notifier))
 }
 
@@ -432,15 +439,16 @@ func (m *Manager) ProposeSystemDesign(ctx context.Context, appSlug, prompt strin
 	}, createUpdateHandler(nil, notifier))
 }
 
-func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug, originalPrompt string, proposed []ServiceInput, newPrompt string, md *meta.Data, notifier AINotifier) (string, error) {
+func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug string, sessionID AISessionID, originalPrompt string, proposed []ServiceInput, newPrompt string, md *meta.Data, notifier AINotifier) (string, error) {
 	return query[struct {
-		StreamUpdate *StreamUpdate `graphql:"result: modifySystemDesign(appSlug: $appSlug, originalPrompt: $originalPrompt, proposedDesign: $proposedDesign, newPrompt: $newPrompt, current: $current)"`
+		StreamUpdate *StreamUpdate `graphql:"result: modifySystemDesign(appSlug: $appSlug, sessionID: $sessionID, originalPrompt: $originalPrompt, proposedDesign: $proposedDesign, newPrompt: $newPrompt, current: $current)"`
 	}](ctx, m.client, map[string]interface{}{
 		"appSlug":        appSlug,
 		"originalPrompt": originalPrompt,
 		"proposedDesign": fns.Map(proposed, ServiceInput.GraphQL),
 		"current":        currentService(md),
 		"newPrompt":      newPrompt,
+		"sessionID":      sessionID,
 	}, createUpdateHandler(proposed, notifier))
 }
 
