@@ -18,6 +18,7 @@ import (
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/errors"
+	"encr.dev/pkg/paths"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -25,15 +26,16 @@ import (
 //
 // It takes a ctx to add an error on context cancellation
 // since code often uses ctx cancellation to cause a bailout.
-func NewList(ctx context.Context, fset *token.FileSet) *List {
-	return &List{ctx: ctx, fset: fset}
+func NewList(ctx context.Context, fset *token.FileSet, fileReaders ...paths.FileReader) *List {
+	return &List{ctx: ctx, fset: fset, fileReaders: fileReaders}
 }
 
 // List is a list of errors.
 // The same instance is shared between different components.
 type List struct {
-	ctx  context.Context
-	fset *token.FileSet
+	ctx         context.Context
+	fset        *token.FileSet
+	fileReaders []paths.FileReader
 
 	mu   sync.Mutex
 	errs errinsrc.List
@@ -51,12 +53,12 @@ func (l *List) AsError() error {
 
 // Add adds a templated error
 func (l *List) Add(template errors.Template) {
-	l.add(errinsrc.FromTemplate(template, l.fset))
+	l.add(errinsrc.FromTemplate(template, l.fset, l.fileReaders...))
 }
 
 // Add adds an error at the given pos.
 func (l *List) AddPos(pos token.Pos, msg string) {
-	l.add(srcerrors.GenericError(l.fset.Position(pos), msg))
+	l.add(srcerrors.GenericError(l.fset.Position(pos), msg, l.fileReaders...))
 }
 
 // Addf is equivalent to l.Add(pos, fmt.Sprintf(format, args...))
@@ -81,15 +83,15 @@ func (l *List) AddStd(err error) {
 		}
 
 	case *scanner.Error:
-		l.add(srcerrors.GenericGoParserError(err))
+		l.add(srcerrors.GenericGoParserError(err, l.fileReaders...))
 
 	case scanner.ErrorList:
 		for _, e := range err {
-			l.add(srcerrors.GenericGoParserError(e))
+			l.add(srcerrors.GenericGoParserError(e, l.fileReaders...))
 		}
 
 	case packages.Error:
-		l.add(srcerrors.GenericGoPackageError(err))
+		l.add(srcerrors.GenericGoPackageError(err, l.fileReaders...))
 
 	default:
 		l.add(srcerrors.StandardLibraryError(err))
@@ -102,7 +104,7 @@ func (l *List) AddStdNode(err error, node ast.Node) {
 	}
 
 	add := func(err *errinsrc.ErrInSrc) {
-		err.WithGoNode(l.fset, node)
+		err.WithGoNode(l.fset, node, l.fileReaders...)
 		l.add(err)
 	}
 
@@ -116,15 +118,15 @@ func (l *List) AddStdNode(err error, node ast.Node) {
 		}
 
 	case *scanner.Error:
-		add(srcerrors.GenericGoParserError(err))
+		add(srcerrors.GenericGoParserError(err, l.fileReaders...))
 
 	case scanner.ErrorList:
 		for _, e := range err {
-			add(srcerrors.GenericGoParserError(e))
+			add(srcerrors.GenericGoParserError(e, l.fileReaders...))
 		}
 
 	case packages.Error:
-		add(srcerrors.GenericGoPackageError(err))
+		add(srcerrors.GenericGoPackageError(err, l.fileReaders...))
 
 	default:
 		add(srcerrors.StandardLibraryError(err))

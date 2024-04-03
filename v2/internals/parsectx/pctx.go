@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"io"
+	"io/fs"
+	"os"
 	"runtime/trace"
 	"strings"
 	"time"
@@ -12,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/experiments"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
@@ -45,22 +49,61 @@ type Context struct {
 	Errs *perr.List
 
 	// Overlay is a map of file paths to their contents.
-	Overlay FileOverlay
+	Overlay OverlayFS
 }
 
-type FileOverlay map[paths.FS][]byte
+func (c *Context) ReadFile(dir string) ([]byte, error) {
+	if c.Overlay == nil {
+		return os.ReadFile(dir)
+	}
+	return c.Overlay.ReadFile(dir)
+}
 
-func (o FileOverlay) ReadDir(dir paths.FS) map[paths.FS][]byte {
-	if len(o) == 0 {
+func (c *Context) ReadDir(dir string) ([]fs.DirEntry, error) {
+	if c.Overlay == nil {
+		return os.ReadDir(dir)
+	}
+	return c.Overlay.ReadDir(dir)
+}
+
+func (c *Context) ReadFileInfo(dir string) ([]fs.FileInfo, error) {
+	entries, err := c.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	return fns.MapErr(entries, func(entry fs.DirEntry) (fs.FileInfo, error) {
+		return entry.Info()
+	})
+}
+
+func (c *Context) IsDir(path string) bool {
+	stat := os.Stat
+	if c.Overlay != nil {
+		stat = c.Overlay.Stat
+	}
+	fi, err := stat(path)
+	return err == nil && fi.IsDir()
+}
+
+func (c *Context) OpenFile(file string) (io.ReadCloser, error) {
+	if c.Overlay == nil {
+		return os.Open(file)
+	}
+	return c.Overlay.Open(file)
+}
+
+func (c *Context) PkgOverlay() map[string][]byte {
+	if c.Overlay == nil {
 		return nil
 	}
-	rtn := make(map[paths.FS][]byte)
-	for k, v := range o {
-		if k.Dir() == dir {
-			rtn[k] = v
-		}
-	}
-	return rtn
+	return c.Overlay.PkgOverlay()
+}
+
+type OverlayFS interface {
+	fs.ReadDirFS
+	fs.ReadFileFS
+	fs.StatFS
+	PkgOverlay() map[string][]byte
 }
 
 // BuildInfo represents the information needed to parse and build an Encore application.
