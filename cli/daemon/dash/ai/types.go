@@ -72,6 +72,7 @@ type PathSegment struct {
 	Type      SegmentType       `json:"type,omitempty"`
 	Value     *string           `json:"value,omitempty"`
 	ValueType *SegmentValueType `json:"valueType,omitempty"`
+	Doc       string            `json:"doc,omitempty"`
 }
 
 func (p PathSegment) String() string {
@@ -83,7 +84,7 @@ func (p PathSegment) String() string {
 	case SegmentTypeWildcard:
 		return "*"
 	case SegmentTypeFallback:
-		return "**"
+		return "!"
 	default:
 		panic(fmt.Sprintf("unknown path segment type: %s", p.Type))
 	}
@@ -545,7 +546,9 @@ func (o *overlays) validationErrors(list *perr.List) []ValidationError {
 	for i := 0; i < list.Len(); i++ {
 		err := list.At(i)
 		if err.Params.Locations == nil {
-			continue
+			rtn = append(rtn, ValidationError{
+				Message: err.Params.Summary,
+			})
 		}
 		rtn = append(rtn, o.validationError(err)...)
 	}
@@ -557,7 +560,10 @@ func (o *overlays) validationError(err *errinsrc.ErrInSrc) []ValidationError {
 	for _, loc := range err.Params.Locations {
 		o, ok := o.get(paths.FS(loc.File.FullPath))
 		if !ok {
-			return nil
+			rtn = append(rtn, ValidationError{
+				Message: err.Params.Summary,
+			})
+			continue
 		}
 		rtn = append(rtn, ValidationError{
 			Service:  o.service.Name,
