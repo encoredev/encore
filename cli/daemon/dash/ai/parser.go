@@ -43,17 +43,39 @@ var errIDToCode = map[string]int{
 	"Unauthenticated":    401,
 }
 
+type DocEntry struct {
+	Key string
+	Doc string
+}
+
 func parseErrorDoc(doc string) (string, []*ErrorInput) {
-	var errs []*ErrorInput
+	doc, errs := parseDocSection(doc, "Errors")
+	return doc, fns.Map(errs, func(e DocEntry) *ErrorInput {
+		return &ErrorInput{
+			Code: e.Key,
+			Doc:  e.Doc,
+		}
+	})
+}
+
+func parseDocSection(doc, section string) (string, []DocEntry) {
+	var errs []DocEntry
 	lines := strings.Split(doc, "\n")
 	errStart := -1
 	errEnd := -1
 	for i, line := range lines {
 		errEnd = i
-		if strings.HasPrefix(strings.TrimSpace(line), "Errors:") {
+		if strings.HasPrefix(strings.TrimSpace(line), section+":") {
 			errStart = i
 		} else if errStart == -1 {
 			continue
+		}
+		if len(line) > 2 {
+			switch strings.TrimSpace(line[:2]) {
+			case "-", "":
+			default:
+				errEnd = i - 1
+			}
 		}
 		lines[i] = strings.TrimSpace(line)
 		if line == "" && lines[i-1] == "" {
@@ -69,9 +91,9 @@ func parseErrorDoc(doc string) (string, []*ErrorInput) {
 		errID = strings.TrimPrefix(errID, "-")
 		errID = strings.TrimSpace(errID)
 		if ok && errIDToCode[errID] != 0 {
-			errs = append(errs, &ErrorInput{
-				Code: errID,
-				Doc:  strings.TrimSpace(doc),
+			errs = append(errs, DocEntry{
+				Key: errID,
+				Doc: strings.TrimSpace(doc),
 			})
 		} else if len(errs) > 0 && line != "" {
 			errs[len(errs)-1].Doc += "\n" + line
@@ -96,7 +118,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		return nil, err
 	}
 	fs := token.NewFileSet()
-	errs := perr.NewList(ctx, fs, overlays.ReadFile)
+	errs := perr.NewList(ctx, fs, overlays.ReadFile).SetIgnoreBailouts(true)
 	rootDir := paths.RootedFSPath(app.Root(), ".")
 	pc := &parsectx.Context{
 		Ctx: ctx,
@@ -115,10 +137,8 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 	}
 	defer func() {
 		perr.CatchBailout(recover())
-		if rtn == nil {
-			rtn = &SyncResult{
-				Services: services,
-			}
+		if err != nil {
+			return
 		}
 		rtn.Errors = overlays.validationErrors(errs)
 	}()
@@ -127,11 +147,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 
 	pkgs := map[paths.Pkg]*pkginfo.Package{}
 	for _, pkg := range overlays.pkgPaths() {
-		var ok bool
-		pkgs[pkg], ok = loader.LoadPkg(token.NoPos, pkg)
-		if !ok {
-			return nil, nil
-		}
+		pkgs[pkg], _ = loader.LoadPkg(token.NoPos, pkg)
 	}
 	schemaParser := schema.NewParser(pc, loader)
 	for _, pkg := range pkgs {
@@ -140,7 +156,10 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 			SchemaParser: schemaParser,
 			Pkg:          pkg,
 		}
-		apis.Parser.Run(pass)
+		func() {
+			defer func() { perr.CatchBailout(recover()) }()
+			apis.Parser.Run(pass)
+		}()
 		for _, r := range pass.Resources() {
 			switch r := r.(type) {
 			case *api.Endpoint:
@@ -149,13 +168,14 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					continue
 				}
 				e := overlay.endpoint
+				var pathDocs []DocEntry
 				e.Doc, e.Errors = parseErrorDoc(r.Doc)
+				e.Doc, pathDocs = parseDocSection(e.Doc, "Path Parameters")
 				e.Name = r.Name
 				e.Method = r.HTTPMethods[0]
-				e.Path = toPathSegments(r.Path)
 				e.Visibility = VisibilityType(r.Access)
 				e.Language = "GO"
-				e.Path = toPathSegments(r.Path)
+				e.Path = toPathSegments(r.Path, pathDocs)
 				e.Types = []*TypeInput{}
 				if nr, ok := deref(r.Request).(schema.NamedType); ok {
 					e.RequestType = nr.String()
