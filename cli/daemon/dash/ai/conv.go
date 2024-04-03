@@ -7,14 +7,19 @@ import (
 	"encr.dev/v2/internals/resourcepaths"
 )
 
-func toPathSegments(p *resourcepaths.Path) []PathSegment {
+func toPathSegments(p *resourcepaths.Path, docs []DocEntry) []PathSegment {
+	//docByKey := fns.ToMap(docs, func(d DocEntry) string { return d.Key })
 	rtn := make([]PathSegment, 0, len(p.Segments))
 	for _, s := range p.Segments {
 		switch s.Type {
 		case resourcepaths.Literal:
 			rtn = append(rtn, PathSegment{Type: SegmentTypeLiteral, Value: ptr(s.Value)})
 		case resourcepaths.Param:
-			rtn = append(rtn, PathSegment{Type: SegmentTypeParam, Value: ptr(s.Value), ValueType: ptr(SegmentValueType(s.ValueType.String()))})
+			rtn = append(rtn, PathSegment{
+				Type:      SegmentTypeParam,
+				Value:     ptr(s.Value),
+				ValueType: ptr(SegmentValueType(s.ValueType.String())),
+			})
 		case resourcepaths.Wildcard:
 			rtn = append(rtn, PathSegment{Type: SegmentTypeWildcard})
 		case resourcepaths.Fallback:
