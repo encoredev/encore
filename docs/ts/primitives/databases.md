@@ -164,12 +164,11 @@ For example for scripts, ad-hoc querying, or dumping data for analysis.
 
 Encore's CLI comes with built-in support for connecting to databases:
 
-* `encore db shell [--env=<name>] <database-name>` opens a [psql](https://www.postgresql.org/docs/current/app-psql.html)
+* `encore db shell <database-name> [--env=<name>]` opens a [psql](https://www.postgresql.org/docs/current/app-psql.html)
   shell to the database named `<database-name>` in the given environment. Leaving out `--env` defaults to the local development environment.
 
-* `encore db conn-uri [--env=<name>] <database-name>` outputs a connection string for the database named `<database-name>`.
+* `encore db conn-uri <database-name> [--env=<name>]` outputs a connection string for the database named `<database-name>`.
   When specifying a cloud environment, the connection string is temporary. Leaving out `--env` defaults to the local development environment.
-
 
 * `encore db proxy [--env=<name>]` sets up a local proxy that forwards any incoming connection
   to the databases in the specified environment.
