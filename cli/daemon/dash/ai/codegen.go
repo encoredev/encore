@@ -128,7 +128,7 @@ func toSrcFile(filePath paths.FS, svc string, srcs ...string) (offset token.Posi
 }
 
 // updateCode updates the source code fields of the EndpointInputs in the given services.
-// if overwrite is set, the code will be regeneratad from scratch and replace the existing code,
+// if overwrite is set, the code will be regenerated from scratch and replace the existing code,
 // otherwise, we'll modify the code in place
 func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance, overwrite bool) (*SyncResult, error) {
 	overlays, err := newOverlays(app, overwrite, services...)
@@ -144,23 +144,19 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 		return nil, err
 	}
 	pathToAst := map[paths.FS]*ast.File{}
-	var errs []ValidationError
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
 			fPos := pkg.Fset.Position(f.Pos())
 			pathToAst[paths.FS(fPos.Filename)] = f
 		}
 		for _, e := range pkg.Errors {
-			file, _, _ := strings.Cut(e.Pos, ":")
-			if info, ok := overlays.get(paths.FS(file)); ok {
-				errs = append(errs, formatError(info, e)...)
-			}
+			perrs.AddStd(e)
 		}
 	}
 
-	if len(errs) > 0 {
+	if perrs.Len() > 0 {
 		return &SyncResult{
-			Errors:   errs,
+			Errors:   overlays.validationErrors(perrs),
 			Services: services,
 		}, nil
 	}

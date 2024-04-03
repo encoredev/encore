@@ -12,6 +12,7 @@ import (
 
 	"encr.dev/pkg/errinsrc"
 	. "encr.dev/pkg/errinsrc/internal"
+	"encr.dev/pkg/paths"
 )
 
 // UnhandledPanic is an error we use to wrap a panic that was not handled
@@ -40,9 +41,9 @@ func UnhandledPanic(recovered any) error {
 // GenericGoParserError reports an error was that was reported from the Go parser.
 // It should not be returned by any errors caused by Encore's own parser as they
 // should have specific errors listed below
-func GenericGoParserError(err *scanner.Error) *errinsrc.ErrInSrc {
+func GenericGoParserError(err *scanner.Error, fileReaders ...paths.FileReader) *errinsrc.ErrInSrc {
 	locs := SrcLocations{}
-	if pos, ok := FromGoTokenPositions(err.Pos, err.Pos).Get(); ok {
+	if pos, ok := FromGoTokenPositions(err.Pos, err.Pos, fileReaders...).Get(); ok {
 		locs = SrcLocations{pos}
 	}
 
@@ -58,7 +59,7 @@ func GenericGoParserError(err *scanner.Error) *errinsrc.ErrInSrc {
 // GenericGoPackageError reports an error was that was reported from the Go package loader.
 // It should not be returned by any errors caused by Encore's own parser as they
 // should have specific errors listed below
-func GenericGoPackageError(err packages.Error) *errinsrc.ErrInSrc {
+func GenericGoPackageError(err packages.Error, fileReaders ...paths.FileReader) *errinsrc.ErrInSrc {
 	var locations SrcLocations
 
 	// Extract the position from the error
@@ -76,7 +77,7 @@ func GenericGoPackageError(err packages.Error) *errinsrc.ErrInSrc {
 		}
 	}
 	if pos.Filename != "" && pos.Line > 0 {
-		locations = NewSrcLocations(FromGoTokenPositions(pos, pos))
+		locations = NewSrcLocations(FromGoTokenPositions(pos, pos, fileReaders...))
 	}
 
 	return errinsrc.New(ErrParams{
@@ -91,7 +92,7 @@ func GenericGoPackageError(err packages.Error) *errinsrc.ErrInSrc {
 // GenericGoCompilerError reports an error was that was reported from the Go compiler.
 // It should not be returned by any errors caused by Encore's own compiler as they
 // should have specific errors listed below.
-func GenericGoCompilerError(fileName string, lineNumber int, column int, error string) error {
+func GenericGoCompilerError(fileName string, lineNumber int, column int, error string, fileReaders ...paths.FileReader) error {
 	errLocation := token.Position{
 		Filename: fileName,
 		Offset:   0,
@@ -103,7 +104,7 @@ func GenericGoCompilerError(fileName string, lineNumber int, column int, error s
 		Code:      3,
 		Title:     "Go Compilation Error",
 		Summary:   strings.TrimSpace(error),
-		Locations: NewSrcLocations(FromGoTokenPositions(errLocation, errLocation)),
+		Locations: NewSrcLocations(FromGoTokenPositions(errLocation, errLocation, fileReaders...)),
 	}, false)
 }
 
@@ -120,12 +121,12 @@ func StandardLibraryError(err error) *errinsrc.ErrInSrc {
 }
 
 // GenericError is a place holder for errors reported through perr.Add or perr.Addf
-func GenericError(pos token.Position, msg string) *errinsrc.ErrInSrc {
+func GenericError(pos token.Position, msg string, fileReaders ...paths.FileReader) *errinsrc.ErrInSrc {
 	return errinsrc.New(ErrParams{
 		Code:      3,
 		Title:     "Error",
 		Summary:   msg,
-		Locations: NewSrcLocations(FromGoTokenPositions(pos, pos)),
+		Locations: NewSrcLocations(FromGoTokenPositions(pos, pos, fileReaders...)),
 	}, false)
 }
 
@@ -153,7 +154,7 @@ func CUEEvaluationFailed(err error, pathPrefix string) error {
 	})
 }
 
-func ResourceNameReserved(fileset *token.FileSet, node ast.Node, resourceType string, paramName string, name, reservedPrefix string, isSnakeCase bool) error {
+func ResourceNameReserved(fileset *token.FileSet, node ast.Node, resourceType string, paramName string, name, reservedPrefix string, isSnakeCase bool, fileReaders ...paths.FileReader) error {
 	suggestion := ""
 	if strings.HasPrefix(name, reservedPrefix) { // should always be the case, but better to be safe
 		suggestion = fmt.Sprintf("try %q?", name[len(reservedPrefix):])
@@ -172,6 +173,6 @@ func ResourceNameReserved(fileset *token.FileSet, node ast.Node, resourceType st
 		// The metrics.NewCounter metric name "e_blah" uses the reserved prefix "e_".
 		Summary:   fmt.Sprintf("The %s %s %q uses the reserved prefix %q", resourceType, paramName, name, reservedPrefix),
 		Detail:    detail,
-		Locations: NewSrcLocations(FromGoASTNodeWithTypeAndText(fileset, node, LocError, suggestion)),
+		Locations: NewSrcLocations(FromGoASTNodeWithTypeAndText(fileset, node, LocError, suggestion, fileReaders...)),
 	}, false)
 }

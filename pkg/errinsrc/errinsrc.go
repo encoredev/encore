@@ -10,6 +10,7 @@ import (
 
 	encerrors "encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 
 	. "encr.dev/pkg/errinsrc/internal"
 )
@@ -59,7 +60,7 @@ func New(params ErrParams, alwaysIncludeStack bool) *ErrInSrc {
 }
 
 // FromTemplate returns a new ErrInSrc using the [errs.Template] as a template
-func FromTemplate(template encerrors.Template, fileset *token.FileSet) *ErrInSrc {
+func FromTemplate(template encerrors.Template, fileset *token.FileSet, fileReaders ...paths.FileReader) *ErrInSrc {
 	// Setup the parameters
 	params := ErrParams{
 		Code:    template.Code,
@@ -77,11 +78,11 @@ func FromTemplate(template encerrors.Template, fileset *token.FileSet) *ErrInSrc
 			params.Summary += "\n\nIn file: " + tmplLoc.Filepath
 			continue
 		case encerrors.LocGoNode:
-			location = FromGoASTNode(fileset, tmplLoc.GoNode)
+			location = FromGoASTNode(fileset, tmplLoc.GoNode, fileReaders...)
 		case encerrors.LocGoPos:
-			location = FromGoTokenPos(fileset, tmplLoc.GoStartPos, tmplLoc.GoEndPos)
+			location = FromGoTokenPos(fileset, tmplLoc.GoStartPos, tmplLoc.GoEndPos, fileReaders...)
 		case encerrors.LocGoPositions:
-			location = FromGoTokenPositions(tmplLoc.GoStartPosition, tmplLoc.GoEndPosition)
+			location = FromGoTokenPositions(tmplLoc.GoStartPosition, tmplLoc.GoEndPosition, fileReaders...)
 		default:
 			panic(fmt.Sprintf("unknown location kind: %v", tmplLoc.Kind))
 		}
@@ -220,8 +221,8 @@ func (e *ErrInSrc) OnSameLine(other *ErrInSrc) bool {
 }
 
 // WithGoNode adds a Go AST node to the error
-func (e *ErrInSrc) WithGoNode(fileset *token.FileSet, node ast.Node) {
-	if val, ok := FromGoASTNode(fileset, node).Get(); ok {
+func (e *ErrInSrc) WithGoNode(fileset *token.FileSet, node ast.Node, fileReaders ...paths.FileReader) {
+	if val, ok := FromGoASTNode(fileset, node, fileReaders...).Get(); ok {
 		e.Params.Locations = append(e.Params.Locations, val)
 	}
 }

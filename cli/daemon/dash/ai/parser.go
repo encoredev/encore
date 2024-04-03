@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"errors"
 	"go/token"
 	"runtime"
 	"slices"
@@ -97,7 +96,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		return nil, err
 	}
 	fs := token.NewFileSet()
-	errs := perr.NewList(ctx, fs)
+	errs := perr.NewList(ctx, fs, overlays.ReadFile)
 	rootDir := paths.RootedFSPath(app.Root(), ".")
 	pc := &parsectx.Context{
 		Ctx: ctx,
@@ -112,7 +111,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		FS:            fs,
 		ParseTests:    false,
 		Errs:          errs,
-		Overlay:       overlays.files(),
+		Overlay:       overlays,
 	}
 	defer func() {
 		perr.CatchBailout(recover())
@@ -121,7 +120,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				Services: services,
 			}
 		}
-		rtn.Errors, err = formatSrcErrList(overlays, errs)
+		rtn.Errors = overlays.validationErrors(errs)
 	}()
 
 	loader := pkginfo.New(pc)
@@ -131,7 +130,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		var ok bool
 		pkgs[pkg], ok = loader.LoadPkg(token.NoPos, pkg)
 		if !ok {
-			return nil, errors.New("failed to load package")
+			return nil, nil
 		}
 	}
 	schemaParser := schema.NewParser(pc, loader)

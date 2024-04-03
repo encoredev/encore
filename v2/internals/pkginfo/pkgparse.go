@@ -6,9 +6,7 @@ import (
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
-	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -101,18 +99,8 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 // parseAST is like go/parser.ParseDir but it constructs *File objects instead.
 func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 	dir := s.dir.ToIO()
-	type fileInfo struct {
-		path     paths.FS
-		ioPath   string
-		baseName string
-		contents []byte
-	}
-	infos := make([]fileInfo, 0)
-	for k, v := range l.c.Overlay.ReadDir(s.dir) {
-		infos = append(infos, fileInfo{path: k, ioPath: k.ToIO(), baseName: k.Base(), contents: v})
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil && len(infos) == 0 {
+	entries, err := l.c.ReadDir(dir)
+	if err != nil {
 		l.c.Errs.Addf(s.cause, "parse package %q: %v", s.path, err)
 		return nil, nil
 	}
@@ -132,6 +120,14 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			return true
 		}
 	}
+
+	type fileInfo struct {
+		path     paths.FS
+		ioPath   string
+		baseName string
+	}
+
+	infos := make([]fileInfo, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() && shouldParseFile(e) {
 			baseName := e.Name()
@@ -147,9 +143,8 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 
 	for _, d := range infos {
 		// Check if this file should be part of the build
-		if d.contents != nil {
-			// If the file is in the overlay, it's always included.
-		} else if matched, err := l.buildCtx.MatchFile(dir, d.baseName); err != nil {
+		matched, err := l.buildCtx.MatchFile(dir, d.baseName)
+		if err != nil {
 			l.c.Errs.Add(errMatchingFile.InFile(d.ioPath).Wrapping(err))
 			continue
 		} else if !matched {
@@ -158,22 +153,17 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			continue
 		}
 
-		var src any = d.contents
-		if d.contents == nil {
-			src, err = os.Open(d.ioPath)
-			if err != nil {
-				l.c.Errs.Add(errReadingFile.InFile(d.ioPath).Wrapping(err))
-				continue
-			}
+		reader, err := l.c.OpenFile(d.ioPath)
+		if err != nil {
+			l.c.Errs.Add(errReadingFile.InFile(d.ioPath).Wrapping(err))
+			continue
 		}
 
 		// Parse the package and imports only so code can consult that.
 		// We parse the full AST on-demand later.
 		mode := goparser.ParseComments | goparser.ImportsOnly
-		astFile, err := goparser.ParseFile(l.c.FS, d.ioPath, src, mode)
-		if closer, ok := src.(io.Closer); ok {
-			_ = closer.Close()
-		}
+		astFile, err := goparser.ParseFile(l.c.FS, d.ioPath, reader, mode)
+		_ = reader.Close()
 		if err != nil {
 			l.c.Errs.AddStd(err)
 			continue
@@ -193,7 +183,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 		pkg.Files[d.ioPath] = astFile
 
 		isTestFile := strings.HasSuffix(d.baseName, "_test.go") || strings.HasSuffix(pkgName, "_test")
-		file := &File{
+		files = append(files, &File{
 			l:        l,
 			Name:     d.baseName,
 			FSPath:   d.path,
@@ -202,13 +192,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			TestFile: isTestFile,
 
 			initialAST: astFile,
-		}
-		if d.contents != nil {
-			file.contentsOnce.Do(func() {
-				file.cachedContents = d.contents
-			})
-		}
-		files = append(files, file)
+		})
 	}
 
 	return pkgs, files
