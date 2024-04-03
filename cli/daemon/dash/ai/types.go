@@ -75,6 +75,10 @@ type PathSegment struct {
 	Doc       string            `json:"doc,omitempty"`
 }
 
+func (p PathSegment) DocItem() (string, string) {
+	return *p.Value, p.Doc
+}
+
 func (p PathSegment) String() string {
 	switch p.Type {
 	case SegmentTypeLiteral:
@@ -124,29 +128,65 @@ func (s *EndpointInput) GraphQL() *EndpointInput {
 	return s
 }
 
+const (
+	PathDocPrefix = "Path Parameters"
+	ErrDocPrefix  = "Errors"
+)
+
+func indentItem(header, comment string) string {
+	buf := strings.Builder{}
+	buf.WriteString(header)
+	for i, line := range strings.Split(strings.TrimSpace(comment), "\n") {
+		indent := ""
+		if i > 0 {
+			indent = strings.Repeat(" ", len(header))
+		}
+		buf.WriteString(fmt.Sprintf("%s%s\n", indent, line))
+	}
+	return buf.String()
+}
+
+func renderDocList[T interface{ DocItem() (string, string) }](header string, items []T) string {
+	maxLen := 0
+	items = fns.Filter(items, func(p T) bool {
+		key, val := p.DocItem()
+		if val == "" {
+			return false
+		}
+		maxLen = max(maxLen, len(key))
+		return true
+	})
+	buf := strings.Builder{}
+	for i, item := range items {
+		if i == 0 {
+			buf.WriteString(header)
+			buf.WriteString(":\n")
+		}
+		key, value := item.DocItem()
+		spacing := strings.Repeat(" ", maxLen-len(key))
+		itemHeader := fmt.Sprintf(" - %s: %s", key, spacing)
+		buf.WriteString(indentItem(itemHeader, value))
+	}
+	return comment(buf.String())
+}
+
+func comment(txt string) string {
+	buf := strings.Builder{}
+	for _, line := range strings.Split(txt, "\n") {
+		buf.WriteString(fmt.Sprintf("// %s\n", line))
+	}
+	return buf.String()
+}
+
 func (e *EndpointInput) Render() string {
 	buf := strings.Builder{}
 	if e.Doc != "" {
-		for _, line := range strings.Split(strings.TrimSpace(e.Doc), "\n") {
-			buf.WriteString(fmt.Sprintf("// %s\n", line))
-		}
+		buf.WriteString(comment(strings.TrimSpace(e.Doc) + "\n"))
 	}
-	for i, err := range e.Errors {
-		if i == 0 {
-			buf.WriteString("//\n// Errors:\n")
-		}
-		errHeader := fmt.Sprintf(" - %s: ", err.Code)
-		buf.WriteString("//" + errHeader)
-		for i, line := range strings.Split(strings.TrimSpace(err.Doc), "\n") {
-			indent := ""
-			if i > 0 {
-				indent = "//" + strings.Repeat(" ", len(errHeader))
-			}
-			buf.WriteString(fmt.Sprintf("%s%s\n", indent, line))
-		}
-	}
+	buf.WriteString(renderDocList(PathDocPrefix, e.Path))
+	buf.WriteString(renderDocList(ErrDocPrefix, e.Errors))
+	pathStr, pathParams := formatPath(e.Path)
 	params := []string{"ctx context.Context"}
-	path, pathParams := formatPath(e.Path)
 	params = append(params, pathParams...)
 	if e.RequestType != "" {
 		params = append(params, "req *"+e.RequestType)
@@ -156,10 +196,7 @@ func (e *EndpointInput) Render() string {
 		rtnParams = append(rtnParams, "*"+e.ResponseType)
 	}
 	rtnParams = append(rtnParams, "error")
-	if buf.Len() > 0 {
-		buf.WriteString("//\n")
-	}
-	buf.WriteString(fmt.Sprintf("//encore:api %s method=%s path=%s\n", e.Visibility, e.Method, path))
+	buf.WriteString(fmt.Sprintf("//encore:api %s method=%s path=%s\n", e.Visibility, e.Method, pathStr))
 	paramsStr := strings.Join(params, ", ")
 	rtnParamsStr := strings.Join(rtnParams, ", ")
 	if len(rtnParams) > 1 {
@@ -276,6 +313,10 @@ type ErrorInput struct {
 	Doc  string `json:"doc,omitempty"`
 }
 
+func (e ErrorInput) DocItem() (string, string) {
+	return e.Code, e.Doc
+}
+
 func (e ErrorInput) String() string {
 	return e.Code
 }
@@ -288,7 +329,7 @@ type ErrorUpdate struct {
 	Endpoint string `json:"endpoint,omitempty"`
 }
 
-func formatPath(segs []PathSegment) (string, []string) {
+func formatPath(segs []PathSegment) (docPath string, goParams []string) {
 	var params []string
 	return "/" + path.Join(fns.Map(segs, func(s PathSegment) string {
 		switch s.Type {
@@ -298,7 +339,7 @@ func formatPath(segs []PathSegment) (string, []string) {
 			params = append(params, fmt.Sprintf("%s %s", *s.Value, valueTypeToGoType(s.ValueType)))
 			return fmt.Sprintf(":%s", *s.Value)
 		case SegmentTypeWildcard:
-			return "*"
+			return fmt.Sprintf("*%s", *s.Value)
 		case SegmentTypeFallback:
 			return "!fallback"
 		default:
