@@ -49,7 +49,7 @@ type DocEntry struct {
 }
 
 func parseErrorDoc(doc string) (string, []*ErrorInput) {
-	doc, errs := parseDocSection(doc, "Errors")
+	doc, errs := parseDocSection(doc, ErrDocPrefix)
 	return doc, fns.Map(errs, func(e DocEntry) *ErrorInput {
 		return &ErrorInput{
 			Code: e.Key,
@@ -58,23 +58,33 @@ func parseErrorDoc(doc string) (string, []*ErrorInput) {
 	})
 }
 
+func parsePathDoc(doc string) (string, map[string]string) {
+	doc, docs := parseDocSection(doc, PathDocPrefix)
+	rtn := map[string]string{}
+	for _, d := range docs {
+		rtn[d.Key] = d.Doc
+	}
+	return doc, rtn
+}
+
 func parseDocSection(doc, section string) (string, []DocEntry) {
 	var errs []DocEntry
 	lines := strings.Split(doc, "\n")
-	errStart := -1
-	errEnd := -1
+	start := -1
+	end := -1
 	for i, line := range lines {
-		errEnd = i
+		end = i
 		if strings.HasPrefix(strings.TrimSpace(line), section+":") {
-			errStart = i
-		} else if errStart == -1 {
+			start = i
+
+		} else if start == -1 {
 			continue
-		}
-		if len(line) > 2 {
+		} else if len(line) > 2 {
 			switch strings.TrimSpace(line[:2]) {
 			case "-", "":
 			default:
-				errEnd = i - 1
+				end = i - 1
+				break
 			}
 		}
 		lines[i] = strings.TrimSpace(line)
@@ -82,24 +92,24 @@ func parseDocSection(doc, section string) (string, []DocEntry) {
 			break
 		}
 	}
-	if errStart == -1 {
+	if start == -1 {
 		return doc, errs
 	}
 
-	for _, line := range lines[errStart+1 : errEnd+1] {
-		errID, doc, ok := strings.Cut(line, ":")
-		errID = strings.TrimPrefix(errID, "-")
-		errID = strings.TrimSpace(errID)
-		if ok && errIDToCode[errID] != 0 {
+	for _, line := range lines[start+1 : end+1] {
+		key, doc, ok := strings.Cut(line, ":")
+		key = strings.TrimPrefix(key, "-")
+		key = strings.TrimSpace(key)
+		if ok {
 			errs = append(errs, DocEntry{
-				Key: errID,
+				Key: key,
 				Doc: strings.TrimSpace(doc),
 			})
 		} else if len(errs) > 0 && line != "" {
 			errs[len(errs)-1].Doc += "\n" + line
 		}
 	}
-	return strings.Join(lines[:errStart], "\n"), errs
+	return strings.Join(lines[:start], "\n"), errs
 }
 
 func deref(p schema.Type) schema.Type {
@@ -168,9 +178,9 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					continue
 				}
 				e := overlay.endpoint
-				var pathDocs []DocEntry
+				pathDocs := map[string]string{}
 				e.Doc, e.Errors = parseErrorDoc(r.Doc)
-				e.Doc, pathDocs = parseDocSection(e.Doc, "Path Parameters")
+				e.Doc, pathDocs = parsePathDoc(e.Doc)
 				e.Name = r.Name
 				e.Method = r.HTTPMethods[0]
 				e.Visibility = VisibilityType(r.Access)
