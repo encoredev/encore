@@ -128,20 +128,20 @@ Connects to the database via psql shell
 Defaults to connecting to your local environment. Specify --env to connect to another environment.
 
 ```shell
-$ encore db shell [service-name] [--env=local]
+$ encore db shell [--env=<name>] <database-name>
 ```
 
 #### Connection URI
 
-Outputs the database connection string
+Outputs a database connection string for `<database-name>`. Defaults to connecting to your local environment. Specify --env to connect to another environment.
 
 ```shell
-$ encore db conn-uri [servicename] [flags]
+$ encore db conn-uri [--env=<name>] <database-name> [flags]
 ```
 
 #### Proxy
 
-Sets up a proxy tunnel to the database
+Sets up local proxy that forwards any incoming connection to the databases in the specified environment.
 
 ```shell
 $ encore db proxy [--env=<name>] [flags]

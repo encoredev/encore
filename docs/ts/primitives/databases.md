@@ -160,17 +160,28 @@ await db.exec`
 It's often useful to be able to connect to the database from outside the backend application.
 For example for scripts, ad-hoc querying, or dumping data for analysis.
 
-The Encore CLI comes with built-in support for this:
+### Using the Encore CLI
 
-* Use `encore db shell [--env=<name>] <database-name>` to open a [psql](https://www.postgresql.org/docs/current/app-psql.html)
-  shell to the database named `<database-name>` in the given environment.
-  Leaving out `--env` defaults to the local development environment.
+Encore's CLI comes with built-in support for connecting to databases:
 
-* Use `encore db proxy [--env=<name>]` to create a local proxy that forwards any incoming connection
-  to the database in the given environment.
+* `encore db shell [--env=<name>] <database-name>` opens a [psql](https://www.postgresql.org/docs/current/app-psql.html)
+  shell to the database named `<database-name>` in the given environment. Leaving out `--env` defaults to the local development environment.
+
+* `encore db conn-uri [--env=<name>] <database-name>` outputs a connection string for the database named `<database-name>`.
+  When specifying a cloud environment, the connection string is temporary. Leaving out `--env` defaults to the local development environment.
+
+
+* `encore db proxy [--env=<name>]` sets up a local proxy that forwards any incoming connection
+  to the databases in the specified environment.
   Leaving out `--env` defaults to the local development environment.
 
 See `encore help db` for more information on database management commands.
+
+### Using database user credentials
+
+For cloud environments you can view database user credentials (created by Encore when provisioning databases) via the Cloud Dashboard:
+
+* Open your app in the [Cloud Dashboard](https://app.encore.dev), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
 
 ## Handling migration errors
 
