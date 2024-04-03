@@ -12,6 +12,22 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 	return dst
 }
 
+// MapErr applies fn on all elements in src, producing a new slice
+// with the results, in order. If fn returns an error, MapErr
+// returns that error and the resulting slice is nil.
+func MapErr[A, B any](src []A, fn func(A) (B, error)) ([]B, error) {
+	dst := make([]B, len(src))
+	for i, v := range src {
+		var err error
+		dst[i], err = fn(v)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return dst, nil
+
+}
+
 // TransformMapKeys creates a new map with the same values as m, but with
 // the keys transformed by fn.
 func TransformMapKeys[K1, K2 comparable, V any](m map[K1]V, fn func(K1) K2) map[K2]V {

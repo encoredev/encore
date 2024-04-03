@@ -8,6 +8,8 @@ import (
 	"encr.dev/pkg/fns"
 )
 
+type FileReader func(string) ([]byte, error)
+
 // RootedFSPath returns a new FS path.
 // It should typically not be used except for at parser initialization.
 // Use FS.Join, FS.New, or FS.Resolve instead to preserve the working dir.

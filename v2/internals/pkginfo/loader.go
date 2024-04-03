@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
@@ -92,6 +91,9 @@ func (l *Loader) init() {
 		BuildTags:   append(slices.Clone(d.BuildTags), b.BuildTags...),
 		ToolTags:    slices.Clone(d.ToolTags),
 		ReleaseTags: slices.Clone(d.ReleaseTags),
+		OpenFile:    l.c.OpenFile,
+		ReadDir:     l.c.ReadFileInfo,
+		IsDir:       l.c.IsDir,
 	}
 
 	// Set up the go/packages configuration for resolving modules.
@@ -113,7 +115,7 @@ func (l *Loader) init() {
 		),
 		Fset:    l.c.FS,
 		Tests:   l.c.ParseTests,
-		Overlay: fns.TransformMapKeys(l.c.Overlay, paths.FS.ToIO),
+		Overlay: l.c.PkgOverlay(),
 		Logf: func(format string, args ...any) {
 			l.c.Log.Debug().Str("component", "pkgload").Msgf("go/packages: "+format, args...)
 		},
