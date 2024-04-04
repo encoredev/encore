@@ -6,7 +6,7 @@ subtitle: Provisioning, migrating, querying
 infobox: {
   title: "SQL Databases",
   import: "encore.dev/storage/sqldb",
-  example_link: "/docs/tutorials/uptime"
+  example_link: "/docs/tutorials/rest-api"
 }
 lang: ts
 ---
@@ -232,7 +232,7 @@ When you run your application locally with `encore run`, Encore will parse and c
 
 This error is often caused by a problem with the initial migration file, such as incorrect naming or location.
 
-- Verify that you've [created the migration file](/docs/develop/databases#defining-a-database-schema) correctly, then try `encore run` again.
+- Verify that you've [created the migration file](/docs/ts/primitives/databases#defining-the-database-schema) correctly, then try `encore run` again.
 
 ** Error: could not connect to the database **
 
