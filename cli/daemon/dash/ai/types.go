@@ -101,6 +101,7 @@ type TitleUpdate struct {
 }
 
 type EndpointInput struct {
+	ID             string         `json:"id,omitempty"`
 	Name           string         `json:"name,omitempty"`
 	Doc            string         `json:"doc,omitempty"`
 	Method         string         `json:"method,omitempty"`
@@ -116,6 +117,7 @@ type EndpointInput struct {
 }
 
 func (s *EndpointInput) GraphQL() *EndpointInput {
+	s.ID = ""
 	s.EndpointSource = ""
 	s.Types = nil
 	s.Language = ""
