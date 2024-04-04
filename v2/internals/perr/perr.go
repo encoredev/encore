@@ -33,18 +33,12 @@ func NewList(ctx context.Context, fset *token.FileSet, fileReaders ...paths.File
 // List is a list of errors.
 // The same instance is shared between different components.
 type List struct {
-	ctx            context.Context
-	fset           *token.FileSet
-	fileReaders    []paths.FileReader
-	ignoreBailouts bool
+	ctx         context.Context
+	fset        *token.FileSet
+	fileReaders []paths.FileReader
 
 	mu   sync.Mutex
 	errs errinsrc.List
-}
-
-func (l *List) SetIgnoreBailouts(val bool) *List {
-	l.ignoreBailouts = val
-	return l
 }
 
 // AsError returns this list an error if there are
@@ -276,9 +270,6 @@ func (l *List) BailoutOnErrors(fn func()) {
 }
 
 func (l *List) Bailout() {
-	if l.ignoreBailouts {
-		return
-	}
 	panic(bailout{l})
 }
 

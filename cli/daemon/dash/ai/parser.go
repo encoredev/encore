@@ -128,7 +128,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		return nil, err
 	}
 	fs := token.NewFileSet()
-	errs := perr.NewList(ctx, fs, overlays.ReadFile).SetIgnoreBailouts(true)
+	errs := perr.NewList(ctx, fs, overlays.ReadFile)
 	rootDir := paths.RootedFSPath(app.Root(), ".")
 	pc := &parsectx.Context{
 		Ctx: ctx,
@@ -147,8 +147,10 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 	}
 	defer func() {
 		perr.CatchBailout(recover())
-		if err != nil {
-			return
+		if rtn == nil {
+			rtn = &SyncResult{
+				Services: services,
+			}
 		}
 		rtn.Errors = overlays.validationErrors(errs)
 	}()
@@ -166,10 +168,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 			SchemaParser: schemaParser,
 			Pkg:          pkg,
 		}
-		func() {
-			defer func() { perr.CatchBailout(recover()) }()
-			apis.Parser.Run(pass)
-		}()
+		apis.Parser.Run(pass)
 		for _, r := range pass.Resources() {
 			switch r := r.(type) {
 			case *api.Endpoint:

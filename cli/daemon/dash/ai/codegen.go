@@ -139,8 +139,10 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 	perrs := perr.NewList(ctx, fset, overlays.ReadFile)
 	defer func() {
 		perr.CatchBailout(recover())
-		if err != nil {
-			return
+		if rtn == nil {
+			rtn = &SyncResult{
+				Services: services,
+			}
 		}
 		rtn.Errors = overlays.validationErrors(perrs)
 	}()
