@@ -17,14 +17,14 @@ func toPathSegments(p *resourcepaths.Path, docs map[string]string) []PathSegment
 			rtn = append(rtn, PathSegment{
 				Type:      SegmentTypeParam,
 				Value:     ptr(s.Value),
-				ValueType: ptr(SegmentValueType(s.ValueType.String())),
+				ValueType: ptr(SegmentValueType(strings.ToLower(s.ValueType.String()))),
 				Doc:       docs[s.Value],
 			})
 		case resourcepaths.Wildcard:
 			rtn = append(rtn, PathSegment{
 				Type:      SegmentTypeWildcard,
 				Value:     ptr(s.Value),
-				ValueType: ptr(SegmentValueType(s.ValueType.String())),
+				ValueType: ptr(SegmentValueType(strings.ToLower(s.ValueType.String()))),
 				Doc:       docs[s.Value],
 			})
 		case resourcepaths.Fallback:

@@ -333,9 +333,10 @@ func formatPath(segs []PathSegment) (docPath string, goParams []string) {
 		case SegmentTypeLiteral:
 			return *s.Value
 		case SegmentTypeParam:
-			params = append(params, fmt.Sprintf("%s %s", *s.Value, s.ValueType))
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, *s.ValueType))
 			return fmt.Sprintf(":%s", *s.Value)
 		case SegmentTypeWildcard:
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, *s.ValueType))
 			return fmt.Sprintf("*%s", *s.Value)
 		case SegmentTypeFallback:
 			return "!fallback"
