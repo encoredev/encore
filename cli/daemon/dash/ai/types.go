@@ -40,12 +40,6 @@ const (
 
 type SegmentValueType string
 
-const (
-	SegmentValueTypeString SegmentValueType = "str"
-	SegmentValueTypeInt    SegmentValueType = "int"
-	SegmentValueTypeBool   SegmentValueType = "bool"
-)
-
 type BaseAIUpdateType struct {
 	Type string `graphql:"__typename" json:"type"`
 }
@@ -336,7 +330,7 @@ func formatPath(segs []PathSegment) (docPath string, goParams []string) {
 		case SegmentTypeLiteral:
 			return *s.Value
 		case SegmentTypeParam:
-			params = append(params, fmt.Sprintf("%s %s", *s.Value, valueTypeToGoType(s.ValueType)))
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, s.ValueType))
 			return fmt.Sprintf(":%s", *s.Value)
 		case SegmentTypeWildcard:
 			return fmt.Sprintf("*%s", *s.Value)

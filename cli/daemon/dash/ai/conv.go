@@ -1,7 +1,7 @@
 package ai
 
 import (
-	"fmt"
+	"strings"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/internals/resourcepaths"
@@ -48,28 +48,10 @@ func metaPathToPathSegments(metaPath *meta.Path) []PathSegment {
 
 func toSegmentValueType(valueType meta.PathSegment_ParamType) SegmentValueType {
 	switch valueType {
-	case meta.PathSegment_STRING, meta.PathSegment_UUID:
-		return SegmentValueTypeString
-	case meta.PathSegment_BOOL:
-		return SegmentValueTypeBool
-	case meta.PathSegment_INT, meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64,
-		meta.PathSegment_UINT, meta.PathSegment_UINT8, meta.PathSegment_UINT16, meta.PathSegment_UINT32, meta.PathSegment_UINT64:
-		return SegmentValueTypeInt
-	default:
-		panic("unknown segment value type")
-	}
-}
-
-func valueTypeToGoType(t *SegmentValueType) string {
-	switch *t {
-	case SegmentValueTypeString:
+	case meta.PathSegment_UUID:
 		return "string"
-	case SegmentValueTypeInt:
-		return "int"
-	case SegmentValueTypeBool:
-		return "bool"
 	default:
-		panic(fmt.Sprintf("unknown segment value type: %s", *t))
+		return SegmentValueType(strings.ToLower(valueType.String()))
 	}
 }
 
