@@ -168,6 +168,9 @@ func renderDocList[T interface{ DocItem() (string, string) }](header string, ite
 }
 
 func comment(txt string) string {
+	if txt == "" {
+		return ""
+	}
 	buf := strings.Builder{}
 	for _, line := range strings.Split(txt, "\n") {
 		buf.WriteString(fmt.Sprintf("// %s\n", line))
