@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"go/ast"
 	"go/token"
 	"runtime"
 	"slices"
@@ -162,6 +163,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		pkgs[pkg], _ = loader.LoadPkg(token.NoPos, pkg)
 	}
 	schemaParser := schema.NewParser(pc, loader)
+
 	for _, pkg := range pkgs {
 		pass := &resourceparser.Pass{
 			Context:      pc,
@@ -223,38 +225,64 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					}
 				}
 			}
-
 		}
-		for _, d := range schemaParser.ParsedDecls() {
-			switch d := d.(type) {
-			case *schema.TypeDecl:
-				schemaType, ok := d.Type.(schema.StructType)
-				if !ok {
-					continue
-				}
-				overlay, ok := overlays.get(d.File.FSPath)
-				if !ok {
-					continue
-				}
-				e := overlay.endpoint
-				if slices.ContainsFunc(e.Types, func(t *TypeInput) bool { return t.Name == d.Name }) {
-					continue
-				}
-				e.Types = append(e.Types, &TypeInput{
-					Name: d.Name,
-					Doc:  strings.TrimSpace(d.Info.Doc),
-					Fields: fns.Map(schemaType.Fields, func(f schema.StructField) *TypeFieldInput {
-						return &TypeFieldInput{
-							Name: f.Name.String(),
-							Type: f.Type.String(),
-							Doc:  strings.TrimSpace(f.Doc),
+		for _, file := range pkg.Files {
+			ast.Inspect(file.AST(), func(node ast.Node) bool {
+				switch node := node.(type) {
+				case *ast.GenDecl:
+					if node.Tok != token.TYPE {
+						return true
+					}
+					for _, spec := range node.Specs {
+						d := spec.(*ast.TypeSpec)
+						s, ok := schemaParser.ParseType(file, d.Type).(schema.StructType)
+						if !ok {
+							continue
 						}
-					}),
-				})
-			}
+						overlay, ok := overlays.get(file.FSPath)
+						if !ok {
+							continue
+						}
+						e := overlay.endpoint
+						if slices.ContainsFunc(e.Types, func(t *TypeInput) bool { return t.Name == d.Name.Name }) {
+							continue
+						}
+						e.Types = append(e.Types, &TypeInput{
+							Name:   d.Name.Name,
+							Doc:    docText(node.Doc),
+							Fields: fns.MapAndFilter(s.Fields, parseTypeField),
+						})
+					}
+				}
+				return true
+			})
 		}
 	}
 	return &SyncResult{
 		Services: services,
 	}, nil
+}
+
+func parseTypeField(f schema.StructField) (*TypeFieldInput, bool) {
+	name, ok := f.Name.Get()
+	if !ok {
+		return nil, false
+	}
+	wirename := ""
+	if tag, err := f.Tag.Get("json"); err == nil {
+		wirename = tag.Name
+	}
+	return &TypeFieldInput{
+		Name:     name,
+		Type:     f.Type.String(),
+		Doc:      f.Doc,
+		WireName: wirename,
+	}, true
+}
+
+func docText(c *ast.CommentGroup) string {
+	if c == nil {
+		return ""
+	}
+	return strings.TrimSpace(c.Text())
 }

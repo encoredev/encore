@@ -228,12 +228,14 @@ type ServiceUpdate struct {
 }
 
 type ServiceInput struct {
+	ID        string           `json:"id,omitempty"`
 	Name      string           `json:"name,omitempty"`
 	Doc       string           `json:"doc,omitempty"`
 	Endpoints []*EndpointInput `json:"endpoints,omitempty"`
 }
 
 func (s ServiceInput) GraphQL() ServiceInput {
+	s.ID = ""
 	for _, e := range s.Endpoints {
 		e.GraphQL()
 	}

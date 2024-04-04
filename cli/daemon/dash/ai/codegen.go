@@ -120,7 +120,9 @@ func toSrcFile(filePath paths.FS, svc string, srcs ...string) (offset token.Posi
 		src = importedSrc
 	}
 	codeOffset := bytes.Index(src, []byte(divider))
-	src = append(src[:codeOffset], src[codeOffset+len(divider):]...)
+	// Remove the divider and any formatting made by the imports tool
+	src = append(src[:codeOffset], strings.Join(srcs, "\n")...)
+	// Compute offset of the user defined code
 	lines := strings.Split(string(src[:codeOffset]), "\n")
 	return token.Position{
 		Filename: filePath.ToIO(),

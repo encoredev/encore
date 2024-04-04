@@ -12,6 +12,20 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 	return dst
 }
 
+// MapAndFilter applies fn on all elements in src, producing a new slice
+// with the results, in order. If fn returns false, the element is
+// not included in the result.
+func MapAndFilter[A, B any](src []A, fn func(A) (B, bool)) []B {
+	var dst []B
+	for _, v := range src {
+		if r, ok := fn(v); ok {
+			dst = append(dst, r)
+		}
+	}
+	return dst
+
+}
+
 // MapErr applies fn on all elements in src, producing a new slice
 // with the results, in order. If fn returns an error, MapErr
 // returns that error and the resulting slice is nil.
