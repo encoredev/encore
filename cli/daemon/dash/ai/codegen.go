@@ -169,7 +169,7 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 			pathToAst[paths.FS(fPos.Filename)] = f
 		}
 		for _, e := range pkg.Errors {
-			if strings.HasSuffix(e.Error(), "missing function body") {
+			if e.Kind == packages.ListError {
 				continue
 			}
 			perrs.AddStd(e)
