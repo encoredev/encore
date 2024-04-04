@@ -115,7 +115,11 @@ func convertSingleGoPositionToRange(filename string, fileBody []byte, start toke
 
 	if err != nil || file == nil {
 		fileBodyStr := string(fileBody)
-		return fs.Position(token.Pos(GuessEndColumn(fileBodyStr, start.Offset)))
+		f := fs.File(1)
+		lineStart := int(f.LineStart(start.Line)) - 1
+		offset := lineStart + start.Column - 1
+		pos := token.Pos(GuessEndColumn(fileBodyStr, offset) - 1)
+		return fs.Position(pos)
 	}
 
 	var match ast.Node
