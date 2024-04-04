@@ -137,6 +137,7 @@ type UpdateQuery struct {
 	EndpointUpdate  `graphql:"... on EndpointUpdate"`
 	SessionUpdate   `graphql:"... on SessionUpdate"`
 	TitleUpdate     `graphql:"... on TitleUpdate"`
+	PathParamUpdate `graphql:"... on PathParamUpdate"`
 }
 
 func (u *UpdateQuery) GetValue() AIUpdateType {
@@ -155,6 +156,8 @@ func (u *UpdateQuery) GetValue() AIUpdateType {
 		return u.SessionUpdate
 	case "TitleUpdate":
 		return u.TitleUpdate
+	case "PathParamUpdate":
+		return u.PathParamUpdate
 	}
 	return nil
 }
@@ -252,6 +255,25 @@ func (e *cachedEndpoint) upsertError(err ErrorUpdate) *ErrorInput {
 	si := &ErrorInput{Code: err.Code, Doc: wrapDoc(err.Doc, 60)}
 	e.endpoint.Errors = append(e.endpoint.Errors, si)
 	return si
+}
+
+func (e *cachedEndpoint) upsertPathParam(up PathParamUpdate) PathSegment {
+	for i, s := range e.endpoint.Path {
+		if s.Value != nil && *s.Value == up.Param {
+			if up.Doc != "" {
+				e.endpoint.Path[i].Doc = wrapDoc(up.Doc, 73)
+			}
+			return s
+		}
+	}
+	seg := PathSegment{
+		Type:      SegmentTypeParam,
+		ValueType: ptr[SegmentValueType]("string"),
+		Value:     &up.Param,
+		Doc:       wrapDoc(up.Doc, 73),
+	}
+	e.endpoint.Path = append(e.endpoint.Path, seg)
+	return seg
 }
 
 func (e *cachedEndpoint) upsertField(up TypeFieldUpdate) *TypeInput {
@@ -397,6 +419,10 @@ func createUpdateHandler(existing []ServiceInput, notifier AINotifier) AINotifie
 		case ErrorUpdate:
 			ep = epCache.endpoint(val.Service, val.Endpoint)
 			ep.upsertError(val)
+			msgVal = ep.notification()
+		case PathParamUpdate:
+			ep = epCache.endpoint(val.Service, val.Endpoint)
+			ep.upsertPathParam(val)
 			msgVal = ep.notification()
 		}
 		if lastEp != ep {
