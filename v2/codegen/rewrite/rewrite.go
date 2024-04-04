@@ -112,7 +112,7 @@ func (r *Rewriter) replace(si, so, ei, eo int, data []byte) {
 func (r *Rewriter) seg(pos token.Pos) (idx int, offset int) {
 	p := int(pos)
 	for i, seg := range r.segs {
-		if seg.start <= p && p < seg.end {
+		if seg.start <= p && p <= seg.end {
 			return i, int(p - seg.start)
 		}
 	}
