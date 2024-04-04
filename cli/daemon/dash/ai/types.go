@@ -333,6 +333,14 @@ type ErrorUpdate struct {
 	Endpoint string `json:"endpoint,omitempty"`
 }
 
+type PathParamUpdate struct {
+	BaseAIUpdateType
+	Service  string `json:"service,omitempty"`
+	Endpoint string `json:"endpoint,omitempty"`
+	Param    string `json:"param,omitempty"`
+	Doc      string `json:"doc,omitempty"`
+}
+
 func formatPath(segs []PathSegment) (docPath string, goParams []string) {
 	var params []string
 	return "/" + path.Join(fns.Map(segs, func(s PathSegment) string {
