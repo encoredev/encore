@@ -8,6 +8,8 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"golang.org/x/exp/maps"
@@ -15,6 +17,7 @@ import (
 	"golang.org/x/tools/imports"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/internal/env"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/codegen/rewrite"
@@ -141,11 +144,18 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 		}
 		rtn.Errors = overlays.validationErrors(perrs)
 	}()
+	goRoot := paths.RootedFSPath(env.EncoreGoRoot(), ".")
 	pkgs, err := packages.Load(&packages.Config{
-		Mode:    packages.NeedTypes | packages.NeedSyntax,
-		Dir:     app.Root(),
+		Mode: packages.NeedTypes | packages.NeedSyntax,
+		Dir:  app.Root(),
+		Env: append(os.Environ(),
+			"GOOS="+runtime.GOOS,
+			"GOARCH="+runtime.GOARCH,
+			"GOROOT="+goRoot.ToIO(),
+			"PATH="+goRoot.Join("bin").ToIO()+string(filepath.ListSeparator)+os.Getenv("PATH"),
+		),
 		Fset:    fset,
-		Overlay: fns.TransformMapKeys(overlays.files(), paths.FS.ToIO),
+		Overlay: overlays.PkgOverlay(),
 	}, fns.Map(overlays.pkgPaths(), paths.Pkg.String)...)
 	if err != nil {
 		return nil, err
@@ -157,18 +167,18 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 			pathToAst[paths.FS(fPos.Filename)] = f
 		}
 		for _, e := range pkg.Errors {
+			if strings.HasSuffix(e.Error(), "missing function body") {
+				continue
+			}
 			perrs.AddStd(e)
 		}
 	}
 
-	if perrs.Len() > 0 {
-		return &SyncResult{
-			Services: services,
-		}, nil
-	}
-
 	for p, ep := range overlays.list {
-		astFile := pathToAst[p]
+		astFile, ok := pathToAst[p]
+		if !ok {
+			continue
+		}
 		rewriter := rewrite.New(ep.content, int(astFile.FileStart))
 		typeByName := map[string]*ast.GenDecl{}
 		funcByName := map[string]*ast.FuncDecl{}
