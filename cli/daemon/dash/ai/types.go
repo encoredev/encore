@@ -656,14 +656,6 @@ func (o *overlays) add(s ServiceInput, e *EndpointInput) error {
 	return nil
 }
 
-func (p *overlays) files() map[paths.FS][]byte {
-	files := map[paths.FS][]byte{}
-	for f, info := range p.list {
-		files[f] = info.content
-	}
-	return files
-}
-
 var (
 	_ fs.ReadFileFS = (*overlays)(nil)
 	_ fs.ReadDirFS  = (*overlays)(nil)
