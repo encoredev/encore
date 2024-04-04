@@ -66,7 +66,7 @@ type PathSegment struct {
 	Type      SegmentType       `json:"type,omitempty"`
 	Value     *string           `json:"value,omitempty"`
 	ValueType *SegmentValueType `json:"valueType,omitempty"`
-	Doc       string            `json:"doc,omitempty"`
+	Doc       string            `graphql:"-" json:"doc,omitempty"`
 }
 
 func (p PathSegment) DocItem() (string, string) {
@@ -119,6 +119,9 @@ func (s *EndpointInput) GraphQL() *EndpointInput {
 	s.EndpointSource = ""
 	s.Types = nil
 	s.Language = ""
+	for _, p := range s.Path {
+		p.Doc = ""
+	}
 	return s
 }
 
