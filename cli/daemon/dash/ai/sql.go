@@ -11,16 +11,18 @@ import (
 	"encr.dev/proto/encore/daemon"
 )
 
-func ParseSQLSchema(app *apps.Instance, schema string) error {
+// ParseSQLSchema uses SQLC to parse the migration files for an encore database and returns
+// the parsed catalog
+func ParseSQLSchema(app *apps.Instance, schema string) (*daemon.SQLCPlugin_GenerateRequest, error) {
 	schemaPath := filepath.Join(app.Root(), schema)
 	cmd := exec.Command(os.Args[0], "generate-sql-schema", "--proto", schemaPath)
 	output, err := cmd.Output()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var req daemon.SQLCPlugin_GenerateRequest
 	if err := proto.Unmarshal(output, &req); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &req, nil
 }

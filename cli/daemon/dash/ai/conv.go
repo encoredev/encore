@@ -88,10 +88,10 @@ func toVisibility(accessType meta.RPC_AccessType) VisibilityType {
 	}
 }
 
-func parseServicesFromMetadata(md *meta.Data) []Service {
-	var services []Service
+func parseServicesFromMetadata(md *meta.Data) []ServiceInput {
+	var services []ServiceInput
 	for _, metaSvc := range md.Svcs {
-		svc := Service{
+		svc := ServiceInput{
 			Name: metaSvc.Name,
 		}
 		for _, rpc := range metaSvc.Rpcs {

@@ -40,7 +40,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 		log.Fatal().Err(err).Msg("could not create graphql proxy")
 	}
 
-	client := graphql.NewSubscriptionClient(conf.WSBaseURL + "/graphql").
+	aiClient := graphql.NewSubscriptionClient(conf.WSBaseURL + "/graphql").
 		WithRetryTimeout(5 * time.Second).
 		WithRetryDelay(2 * time.Second).
 		WithRetryStatusCodes("500-599").
@@ -48,7 +48,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 			graphql.WebsocketOptions{
 				HTTPClient: conf.AuthClient,
 			}).WithSyncMode(true)
-	aiMgr := ai.NewAIManager(client)
+	aiMgr := ai.NewAIManager(aiClient)
 
 	s := &Server{
 		proxy:    proxy,

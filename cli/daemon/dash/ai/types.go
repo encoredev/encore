@@ -240,14 +240,14 @@ type ServiceUpdate struct {
 	Doc  string `json:"doc,omitempty"`
 }
 
-type Service struct {
+type ServiceInput struct {
 	ID        string      `json:"id,omitempty"`
 	Name      string      `json:"name,omitempty"`
 	Doc       string      `json:"doc,omitempty"`
 	Endpoints []*Endpoint `json:"endpoints,omitempty"`
 }
 
-func (s Service) GraphQL() Service {
+func (s ServiceInput) GraphQL() ServiceInput {
 	s.ID = ""
 	for _, e := range s.Endpoints {
 		e.GraphQL()
@@ -355,6 +355,27 @@ type PathParamUpdate struct {
 }
 
 type SyncResult struct {
-	Services []Service         `json:"services"`
+	Services []ServiceInput    `json:"services"`
 	Errors   []ValidationError `json:"errors"`
+}
+
+type CodeType string
+
+const (
+	CodeTypeEndpoint CodeType = "endpoint"
+	CodeTypeTypes    CodeType = "types"
+)
+
+type Pos struct {
+	Line   int `json:"line"`
+	Column int `json:"column"`
+}
+
+type ValidationError struct {
+	Service  string   `json:"service"`
+	Endpoint string   `json:"endpoint"`
+	CodeType CodeType `json:"codeType"`
+	Message  string   `json:"message"`
+	Start    *Pos     `json:"start,omitempty"`
+	End      *Pos     `json:"end,omitempty"`
 }

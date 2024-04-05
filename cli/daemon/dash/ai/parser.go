@@ -24,34 +24,10 @@ import (
 	"encr.dev/v2/parser/resource/resourceparser"
 )
 
-var errIDToCode = map[string]int{
-	"OK":                 200,
-	"Canceled":           499,
-	"Unknown":            500,
-	"InvalidArgument":    400,
-	"DeadlineExceeded":   504,
-	"NotFound":           404,
-	"AlreadyExists":      409,
-	"PermissionDenied":   403,
-	"ResourceExhausted":  429,
-	"FailedPrecondition": 400,
-	"Aborted":            409,
-	"OutOfRange":         400,
-	"Unimplemented":      501,
-	"Internal":           500,
-	"Unavailable":        503,
-	"DataLoss":           500,
-	"Unauthenticated":    401,
-}
-
-type DocEntry struct {
-	Key string
-	Doc string
-}
-
-func parseErrorDoc(doc string) (string, []*Error) {
-	doc, errs := parseDocSection(doc, ErrDocPrefix)
-	return doc, fns.Map(errs, func(e DocEntry) *Error {
+// parseErrorList parses a list of errors docs from a doc string.
+func parseErrorList(doc string) (string, []*Error) {
+	doc, errs := parseDocList(doc, ErrDocPrefix)
+	return doc, fns.Map(errs, func(e docListItem) *Error {
 		return &Error{
 			Code: e.Key,
 			Doc:  e.Doc,
@@ -59,8 +35,9 @@ func parseErrorDoc(doc string) (string, []*Error) {
 	})
 }
 
-func parsePathDoc(doc string) (string, map[string]string) {
-	doc, docs := parseDocSection(doc, PathDocPrefix)
+// parsePathList parses a list of path docs from a doc string.
+func parsePathList(doc string) (string, map[string]string) {
+	doc, docs := parseDocList(doc, PathDocPrefix)
 	rtn := map[string]string{}
 	for _, d := range docs {
 		rtn[d.Key] = d.Doc
@@ -68,8 +45,14 @@ func parsePathDoc(doc string) (string, map[string]string) {
 	return doc, rtn
 }
 
-func parseDocSection(doc, section string) (string, []DocEntry) {
-	var errs []DocEntry
+// parseDocList parses a list of key-value pairs from a doc string.
+// e.g.
+//
+// Errors:
+//   - NotFound: The requested resource was not found.
+//   - InvalidArgument: The request had invalid arguments.
+func parseDocList(doc, section string) (string, []docListItem) {
+	var errs []docListItem
 	lines := strings.Split(doc, "\n")
 	start := -1
 	end := -1
@@ -102,7 +85,7 @@ func parseDocSection(doc, section string) (string, []DocEntry) {
 		key = strings.TrimPrefix(key, "-")
 		key = strings.TrimSpace(key)
 		if ok {
-			errs = append(errs, DocEntry{
+			errs = append(errs, docListItem{
 				Key: key,
 				Doc: strings.TrimSpace(doc),
 			})
@@ -113,6 +96,13 @@ func parseDocSection(doc, section string) (string, []DocEntry) {
 	return strings.Join(lines[:start], "\n"), errs
 }
 
+// docListItem represents a key-value pair in a doc list.
+type docListItem struct {
+	Key string
+	Doc string
+}
+
+// deref returns the underlying type of a pointer type.
 func deref(p schema.Type) schema.Type {
 	for {
 		if pt, ok := p.(schema.PointerType); ok {
@@ -123,7 +113,8 @@ func deref(p schema.Type) schema.Type {
 	}
 }
 
-func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn *SyncResult, err error) {
+// parseCode
+func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput) (rtn *SyncResult, err error) {
 	overlays, err := newOverlays(app, false, services...)
 	if err != nil {
 		return nil, err
@@ -180,8 +171,8 @@ func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn
 				}
 				e := overlay.endpoint
 				pathDocs := map[string]string{}
-				e.Doc, e.Errors = parseErrorDoc(r.Doc)
-				e.Doc, pathDocs = parsePathDoc(e.Doc)
+				e.Doc, e.Errors = parseErrorList(r.Doc)
+				e.Doc, pathDocs = parsePathList(e.Doc)
 				e.Name = r.Name
 				e.Method = r.HTTPMethods[0]
 				e.Visibility = VisibilityType(r.Access)
@@ -270,15 +261,15 @@ func parseTypeField(f schema.StructField) (*TypeField, bool) {
 	if !ok {
 		return nil, false
 	}
-	wirename := ""
+	wireName := ""
 	if tag, err := f.Tag.Get("json"); err == nil {
-		wirename = tag.Name
+		wireName = tag.Name
 	}
 	return &TypeField{
 		Name:     name,
 		Type:     f.Type.String(),
 		Doc:      f.Doc,
-		WireName: wirename,
+		WireName: wireName,
 	}, true
 }
 
