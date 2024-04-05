@@ -108,6 +108,7 @@
 		#PlatformSection,
 		#ResourcesSection,
 		#CommunitySection,
+		#OtherSection,
 	]
 }
 
