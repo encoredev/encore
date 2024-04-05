@@ -20,7 +20,7 @@ func (e *partialEndpoint) notification() LocalEndpointUpdate {
 	e.endpoint.TypeSource = ""
 	for i, s := range e.endpoint.Types {
 		if i > 0 {
-			e.endpoint.TypeSource += "\n"
+			e.endpoint.TypeSource += "\n\n"
 		}
 		e.endpoint.TypeSource += s.Render()
 	}
