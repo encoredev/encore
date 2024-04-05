@@ -210,7 +210,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn
 				if nr, ok := deref(r.Response).(schema.NamedType); ok {
 					e.ResponseType = nr.String()
 					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
-					if r.ResponseEncoding() != nil {
+					if r.ResponseEncoding() != nil && e != nil {
 						e.Types = append(e.Types, &Type{
 							Name: nr.String(),
 							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
