@@ -238,7 +238,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 		suCh := make(chan ai.SessionUpdate)
-		subID, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.WSNotification) error {
+		subID, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
 			if msg, ok := msg.Value.(ai.SessionUpdate); ok {
 				suCh <- msg
 				return nil
@@ -259,11 +259,11 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "ai/modify-system-design":
 		var params struct {
-			AppID          string         `json:"app_id"`
-			SessionID      ai.AISessionID `json:"session_id"`
-			OriginalPrompt string         `json:"original_prompt"`
-			Prompt         string         `json:"prompt"`
-			Proposed       []ai.Service   `json:"proposed"`
+			AppID          string            `json:"app_id"`
+			SessionID      ai.AISessionID    `json:"session_id"`
+			OriginalPrompt string            `json:"original_prompt"`
+			Prompt         string            `json:"prompt"`
+			Proposed       []ai.ServiceInput `json:"proposed"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -272,16 +272,16 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		subID, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.SessionID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.WSNotification) error {
+		subID, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.SessionID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)
 	case "ai/define-endpoints":
 		var params struct {
-			AppID     string         `json:"app_id"`
-			SessionID ai.AISessionID `json:"session_id"`
-			Prompt    string         `json:"prompt"`
-			Proposed  []ai.Service   `json:"proposed"`
+			AppID     string            `json:"app_id"`
+			SessionID ai.AISessionID    `json:"session_id"`
+			Prompt    string            `json:"prompt"`
+			Proposed  []ai.ServiceInput `json:"proposed"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -290,14 +290,14 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.SessionID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.WSNotification) error {
+		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.SessionID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.AINotification) error {
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		return reply(ctx, subID, err)
 	case "ai/parse-code":
 		var params struct {
-			AppID    string       `json:"app_id"`
-			Services []ai.Service `json:"services"`
+			AppID    string            `json:"app_id"`
+			Services []ai.ServiceInput `json:"services"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -310,9 +310,9 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, results, err)
 	case "ai/update-code":
 		var params struct {
-			AppID     string       `json:"app_id"`
-			Services  []ai.Service `json:"services"`
-			Overwrite bool         `json:"overwrite"` // Ovwerwrite any existing endpoint code
+			AppID     string            `json:"app_id"`
+			Services  []ai.ServiceInput `json:"services"`
+			Overwrite bool              `json:"overwrite"` // Ovwerwrite any existing endpoint code
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -325,8 +325,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, results, err)
 	case "ai/preview-files":
 		var params struct {
-			AppID    string       `json:"app_id"`
-			Services []ai.Service `json:"services"`
+			AppID    string            `json:"app_id"`
+			Services []ai.ServiceInput `json:"services"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -339,8 +339,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, result, err)
 	case "ai/write-files":
 		var params struct {
-			AppID    string       `json:"app_id"`
-			Services []ai.Service `json:"services"`
+			AppID    string            `json:"app_id"`
+			Services []ai.ServiceInput `json:"services"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -367,7 +367,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 		for _, db := range md.SqlDatabases {
-			err := ai.ParseSQLSchema(app, *db.MigrationRelPath)
+			_, err := ai.ParseSQLSchema(app, *db.MigrationRelPath)
 			if err != nil {
 				return reply(ctx, nil, err)
 			}

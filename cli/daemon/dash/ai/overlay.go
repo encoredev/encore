@@ -100,7 +100,7 @@ func newServicePaths(app *apps.Instance) (*servicePaths, error) {
 type overlay struct {
 	path         paths.FS
 	endpoint     *Endpoint
-	service      *Service
+	service      *ServiceInput
 	codeType     CodeType
 	content      []byte
 	headerOffset token.Position
@@ -159,7 +159,7 @@ var (
 	_ fs.DirEntry = (*overlay)(nil)
 )
 
-func newOverlays(app *apps.Instance, overwrite bool, services ...Service) (*overlays, error) {
+func newOverlays(app *apps.Instance, overwrite bool, services ...ServiceInput) (*overlays, error) {
 	svcPaths, err := newServicePaths(app)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (o *overlays) validationError(err *errinsrc.ErrInSrc) []ValidationError {
 	return rtn
 }
 
-func (o *overlays) add(s Service, e *Endpoint) error {
+func (o *overlays) add(s ServiceInput, e *Endpoint) error {
 	p, err := o.paths.FileName(s.Name, e.Name+"_func")
 	if err != nil {
 		return err
