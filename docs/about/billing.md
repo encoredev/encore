@@ -37,7 +37,9 @@ For production use or other use cases where database reliability is important, y
 
 ### What is the price of the paid plans?
 
-The **Team** plan has a fixed price per team member and month. See the [pricing page](https://encore.dev/pricing) for more details.
+The **Pro** plan is $39/month per member. If you use Encore for DevOps automation in your cloud, the price is $99/month per environment in AWS/GCP + $1.7/month per resource in AWS/GCP. ([Learn more](https://encore.dev/pricing))
+
+See the [pricing page](https://encore.dev/pricing) for more details.
 
 The **Enterprise** plan is intended for larger organizations with specific needs, please [contact us](mailto:hello@encore.dev) for pricing.
 
