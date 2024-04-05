@@ -284,7 +284,7 @@ func (s *TypeInput) Render() string {
 		}
 		rtn.WriteString(fmt.Sprintf("  %s %s%s\n", f.Name, f.Type, tags))
 	}
-	rtn.WriteString("}\n")
+	rtn.WriteString("}")
 	return rtn.String()
 }
 
@@ -595,6 +595,14 @@ func (o *overlays) get(p paths.FS) (*overlay, bool) {
 	return rtn, ok
 }
 
+func (o *overlays) endpoint(p paths.FS) *EndpointInput {
+	ov, ok := o.get(p)
+	if !ok {
+		return nil
+	}
+	return ov.endpoint
+}
+
 func (o *overlays) validationErrors(list *perr.List) []ValidationError {
 	var rtn []ValidationError
 	for i := 0; i < list.Len(); i++ {
@@ -620,8 +628,8 @@ func (o *overlays) validationError(err *errinsrc.ErrInSrc) []ValidationError {
 			continue
 		}
 		rtn = append(rtn, ValidationError{
-			Service:  o.service.Name,
-			Endpoint: o.endpoint.Name,
+			Service:  o.service.ID,
+			Endpoint: o.endpoint.ID,
 			CodeType: o.codeType,
 			Message:  err.Params.Summary,
 			Start: &Pos{
