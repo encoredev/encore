@@ -240,7 +240,7 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 					}
 					rewriter.Replace(start, typeSpec.End(), []byte(code))
 				} else {
-					rewriter.Append([]byte(code))
+					rewriter.Append([]byte("\n\n" + code))
 				}
 			}
 			content := string(rewriter.Data()[ep.headerOffset.Offset:])

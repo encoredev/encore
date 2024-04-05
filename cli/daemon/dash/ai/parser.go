@@ -190,7 +190,8 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				e.Types = []*TypeInput{}
 				if nr, ok := deref(r.Request).(schema.NamedType); ok {
 					e.RequestType = nr.String()
-					if len(r.RequestEncoding()) > 0 {
+					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
+					if len(r.RequestEncoding()) > 0 && e != nil {
 						e.Types = append(e.Types, &TypeInput{
 							Name: nr.String(),
 							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
@@ -208,6 +209,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				}
 				if nr, ok := deref(r.Response).(schema.NamedType); ok {
 					e.ResponseType = nr.String()
+					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
 					if r.ResponseEncoding() != nil {
 						e.Types = append(e.Types, &TypeInput{
 							Name: nr.String(),
