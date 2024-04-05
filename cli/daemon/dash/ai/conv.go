@@ -75,7 +75,7 @@ func toSegmentType(segmentType meta.PathSegment_SegmentType) SegmentType {
 	}
 }
 
-func accessTypeToVisibility(accessType meta.RPC_AccessType) VisibilityType {
+func toVisibility(accessType meta.RPC_AccessType) VisibilityType {
 	switch accessType {
 	case meta.RPC_PUBLIC:
 		return VisibilityTypePublic
@@ -86,4 +86,30 @@ func accessTypeToVisibility(accessType meta.RPC_AccessType) VisibilityType {
 	default:
 		panic("unknown access type")
 	}
+}
+
+func parseServicesFromMetadata(md *meta.Data) []Service {
+	var services []Service
+	for _, metaSvc := range md.Svcs {
+		svc := Service{
+			Name: metaSvc.Name,
+		}
+		for _, rpc := range metaSvc.Rpcs {
+			ep := &Endpoint{
+				Name:       rpc.Name,
+				Method:     rpc.HttpMethods[0],
+				Visibility: toVisibility(rpc.AccessType),
+				Path:       metaPathToPathSegments(rpc.Path),
+			}
+			if rpc.RequestSchema != nil {
+				ep.RequestType = md.Decls[rpc.RequestSchema.GetNamed().Id].Name
+			}
+			if rpc.ResponseSchema != nil {
+				ep.ResponseType = md.Decls[rpc.ResponseSchema.GetNamed().Id].Name
+			}
+			svc.Endpoints = append(svc.Endpoints, ep)
+		}
+		services = append(services, svc)
+	}
+	return services
 }

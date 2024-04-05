@@ -49,10 +49,10 @@ type DocEntry struct {
 	Doc string
 }
 
-func parseErrorDoc(doc string) (string, []*ErrorInput) {
+func parseErrorDoc(doc string) (string, []*Error) {
 	doc, errs := parseDocSection(doc, ErrDocPrefix)
-	return doc, fns.Map(errs, func(e DocEntry) *ErrorInput {
-		return &ErrorInput{
+	return doc, fns.Map(errs, func(e DocEntry) *Error {
+		return &Error{
 			Code: e.Key,
 			Doc:  e.Doc,
 		}
@@ -123,7 +123,7 @@ func deref(p schema.Type) schema.Type {
 	}
 }
 
-func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput) (rtn *SyncResult, err error) {
+func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn *SyncResult, err error) {
 	overlays, err := newOverlays(app, false, services...)
 	if err != nil {
 		return nil, err
@@ -187,16 +187,16 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				e.Visibility = VisibilityType(r.Access)
 				e.Language = "GO"
 				e.Path = toPathSegments(r.Path, pathDocs)
-				e.Types = []*TypeInput{}
+				e.Types = []*Type{}
 				if nr, ok := deref(r.Request).(schema.NamedType); ok {
 					e.RequestType = nr.String()
 					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
 					if len(r.RequestEncoding()) > 0 && e != nil {
-						e.Types = append(e.Types, &TypeInput{
+						e.Types = append(e.Types, &Type{
 							Name: nr.String(),
 							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
-							Fields: fns.Map(r.RequestEncoding()[0].AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
-								return &TypeFieldInput{
+							Fields: fns.Map(r.RequestEncoding()[0].AllParameters(), func(f *apienc.ParameterEncoding) *TypeField {
+								return &TypeField{
 									Name:     f.SrcName,
 									WireName: f.WireName,
 									Location: f.Location,
@@ -211,11 +211,11 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					e.ResponseType = nr.String()
 					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
 					if r.ResponseEncoding() != nil {
-						e.Types = append(e.Types, &TypeInput{
+						e.Types = append(e.Types, &Type{
 							Name: nr.String(),
 							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
-							Fields: fns.Map(r.ResponseEncoding().AllParameters(), func(f *apienc.ParameterEncoding) *TypeFieldInput {
-								return &TypeFieldInput{
+							Fields: fns.Map(r.ResponseEncoding().AllParameters(), func(f *apienc.ParameterEncoding) *TypeField {
+								return &TypeField{
 									Name:     f.SrcName,
 									WireName: f.WireName,
 									Location: f.Location,
@@ -237,19 +237,19 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 					}
 					for _, spec := range node.Specs {
 						d := spec.(*ast.TypeSpec)
-						s, ok := schemaParser.ParseType(file, d.Type).(schema.StructType)
-						if !ok {
-							continue
-						}
 						overlay, ok := overlays.get(file.FSPath)
 						if !ok {
 							continue
 						}
-						e := overlay.endpoint
-						if slices.ContainsFunc(e.Types, func(t *TypeInput) bool { return t.Name == d.Name.Name }) {
+						s, ok := schemaParser.ParseType(file, d.Type).(schema.StructType)
+						if !ok {
 							continue
 						}
-						e.Types = append(e.Types, &TypeInput{
+						e := overlay.endpoint
+						if slices.ContainsFunc(e.Types, func(t *Type) bool { return t.Name == d.Name.Name }) {
+							continue
+						}
+						e.Types = append(e.Types, &Type{
 							Name:   d.Name.Name,
 							Doc:    docText(node.Doc),
 							Fields: fns.MapAndFilter(s.Fields, parseTypeField),
@@ -265,7 +265,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 	}, nil
 }
 
-func parseTypeField(f schema.StructField) (*TypeFieldInput, bool) {
+func parseTypeField(f schema.StructField) (*TypeField, bool) {
 	name, ok := f.Name.Get()
 	if !ok {
 		return nil, false
@@ -274,7 +274,7 @@ func parseTypeField(f schema.StructField) (*TypeFieldInput, bool) {
 	if tag, err := f.Tag.Get("json"); err == nil {
 		wirename = tag.Name
 	}
-	return &TypeFieldInput{
+	return &TypeField{
 		Name:     name,
 		Type:     f.Type.String(),
 		Doc:      f.Doc,
