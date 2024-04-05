@@ -70,6 +70,9 @@ func generateSrcFiles(services []Service, app *apps.Instance) (map[paths.RelSlas
 	return files, nil
 }
 
+// addMissingFuncBodies adds a panic statement to functions that are missing a body.
+// This is used to generate a valid Go source file when the user has not implemented
+// the body of the endpoint functions.
 func addMissingFuncBodies(content []byte) (string, error) {
 	set := token.NewFileSet()
 	rewriter := rewrite.New(content, 0)
@@ -90,6 +93,7 @@ func addMissingFuncBodies(content []byte) (string, error) {
 	return string(rewriter.Data()), err
 }
 
+// writeFiles writes the generated source files to disk.
 func writeFiles(services []Service, app *apps.Instance) ([]paths.RelSlash, error) {
 	files, err := generateSrcFiles(services, app)
 	if err != nil {
