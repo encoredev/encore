@@ -259,11 +259,11 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 
 	case "ai/modify-system-design":
 		var params struct {
-			AppID          string            `json:"app_id"`
-			SessionID      ai.AISessionID    `json:"session_id"`
-			OriginalPrompt string            `json:"original_prompt"`
-			Prompt         string            `json:"prompt"`
-			Proposed       []ai.ServiceInput `json:"proposed"`
+			AppID          string         `json:"app_id"`
+			SessionID      ai.AISessionID `json:"session_id"`
+			OriginalPrompt string         `json:"original_prompt"`
+			Prompt         string         `json:"prompt"`
+			Proposed       []ai.Service   `json:"proposed"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -278,10 +278,10 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, subID, err)
 	case "ai/define-endpoints":
 		var params struct {
-			AppID     string            `json:"app_id"`
-			SessionID ai.AISessionID    `json:"session_id"`
-			Prompt    string            `json:"prompt"`
-			Proposed  []ai.ServiceInput `json:"proposed"`
+			AppID     string         `json:"app_id"`
+			SessionID ai.AISessionID `json:"session_id"`
+			Prompt    string         `json:"prompt"`
+			Proposed  []ai.Service   `json:"proposed"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -296,8 +296,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, subID, err)
 	case "ai/parse-code":
 		var params struct {
-			AppID    string            `json:"app_id"`
-			Services []ai.ServiceInput `json:"services"`
+			AppID    string       `json:"app_id"`
+			Services []ai.Service `json:"services"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -310,9 +310,9 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, results, err)
 	case "ai/update-code":
 		var params struct {
-			AppID     string            `json:"app_id"`
-			Services  []ai.ServiceInput `json:"services"`
-			Overwrite bool              `json:"overwrite"` // Ovwerwrite any existing endpoint code
+			AppID     string       `json:"app_id"`
+			Services  []ai.Service `json:"services"`
+			Overwrite bool         `json:"overwrite"` // Ovwerwrite any existing endpoint code
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -325,8 +325,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, results, err)
 	case "ai/preview-files":
 		var params struct {
-			AppID    string            `json:"app_id"`
-			Services []ai.ServiceInput `json:"services"`
+			AppID    string       `json:"app_id"`
+			Services []ai.Service `json:"services"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -339,8 +339,8 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, result, err)
 	case "ai/write-files":
 		var params struct {
-			AppID    string            `json:"app_id"`
-			Services []ai.ServiceInput `json:"services"`
+			AppID    string       `json:"app_id"`
+			Services []ai.Service `json:"services"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)

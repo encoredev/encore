@@ -25,6 +25,7 @@ import (
 	"encr.dev/v2/parser/apis/directive"
 )
 
+// fmtComment prepends '//' to each line of the given comment and indents it with the given number of spaces.
 func fmtComment(comment string, before, after int) string {
 	if comment == "" {
 		return ""
@@ -33,7 +34,8 @@ func fmtComment(comment string, before, after int) string {
 	return prefix + strings.ReplaceAll(comment, "\n", "\n"+prefix)
 }
 
-func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.RelSlash]string, error) {
+// generateSrcFiles generates source files for the given services.
+func generateSrcFiles(services []Service, app *apps.Instance) (map[paths.RelSlash]string, error) {
 	svcPaths, err := newServicePaths(app)
 	if err != nil {
 		return nil, err
@@ -88,7 +90,7 @@ func addMissingFuncBodies(content []byte) (string, error) {
 	return string(rewriter.Data()), err
 }
 
-func writeFiles(services []ServiceInput, app *apps.Instance) ([]paths.RelSlash, error) {
+func writeFiles(services []Service, app *apps.Instance) ([]paths.RelSlash, error) {
 	files, err := generateSrcFiles(services, app)
 	if err != nil {
 		return nil, err
@@ -135,7 +137,7 @@ func toSrcFile(filePath paths.FS, svc string, srcs ...string) (offset token.Posi
 // updateCode updates the source code fields of the EndpointInputs in the given services.
 // if overwrite is set, the code will be regenerated from scratch and replace the existing code,
 // otherwise, we'll modify the code in place
-func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance, overwrite bool) (rtn *SyncResult, err error) {
+func updateCode(ctx context.Context, services []Service, app *apps.Instance, overwrite bool) (rtn *SyncResult, err error) {
 	overlays, err := newOverlays(app, overwrite, services...)
 	fset := token.NewFileSet()
 	perrs := perr.NewList(ctx, fset, overlays.ReadFile)
