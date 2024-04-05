@@ -55,7 +55,7 @@ Cron Job executions across all your environments via the `Cron Jobs` menu item:
 A few important things to know:
 
 - Cron Jobs do not run when developing locally or in [Preview Environments](/docs/deploy/preview-environments); but you can always call the API manually to test the behavior.
-- Cron Jobs execution in Encore Cloud is capped at **once every hour** for users on the Free Tier; [deploy to your own cloud](/docs/deploy/own-cloud) or upgrade to the [Team plan](/pricing) to use more frequent executions.
+- Cron Jobs execution in Encore Cloud is capped at **once every hour** for users on the Free Tier; [deploy to your own cloud](/docs/deploy/own-cloud) or upgrade to the [Pro plan](/pricing) to use more frequent executions.
 - Cron Jobs support both public and private APIs.
 - The API endpoints used in Cron Jobs should always be idempotent. It's possible they're called multiple times in some network conditions.
 - The API endpoints used in Cron Jobs must not take any request parameters.
