@@ -10,12 +10,12 @@ import (
 	"encr.dev/v2/parser/apis/api/apienc"
 )
 
-type cachedEndpoint struct {
+type partialEndpoint struct {
 	service  string
 	endpoint *Endpoint
 }
 
-func (e *cachedEndpoint) notification() LocalEndpointUpdate {
+func (e *partialEndpoint) notification() LocalEndpointUpdate {
 	e.endpoint.EndpointSource = e.endpoint.Render()
 	e.endpoint.TypeSource = ""
 	for i, s := range e.endpoint.Types {
@@ -31,7 +31,7 @@ func (e *cachedEndpoint) notification() LocalEndpointUpdate {
 	}
 }
 
-func (e *cachedEndpoint) upsertType(name, doc string) *Type {
+func (e *partialEndpoint) upsertType(name, doc string) *Type {
 	if name == "" {
 		return nil
 	}
@@ -76,7 +76,7 @@ func wrapDoc(doc string, width int) string {
 	return string(bytes)
 }
 
-func (e *cachedEndpoint) upsertError(err ErrorUpdate) *Error {
+func (e *partialEndpoint) upsertError(err ErrorUpdate) *Error {
 	for _, s := range e.endpoint.Errors {
 		if s.Code == err.Code {
 			if err.Doc != "" {
@@ -90,7 +90,7 @@ func (e *cachedEndpoint) upsertError(err ErrorUpdate) *Error {
 	return si
 }
 
-func (e *cachedEndpoint) upsertPathParam(up PathParamUpdate) PathSegment {
+func (e *partialEndpoint) upsertPathParam(up PathParamUpdate) PathSegment {
 	for i, s := range e.endpoint.Path {
 		if s.Value != nil && *s.Value == up.Param {
 			if up.Doc != "" {
@@ -109,7 +109,7 @@ func (e *cachedEndpoint) upsertPathParam(up PathParamUpdate) PathSegment {
 	return seg
 }
 
-func (e *cachedEndpoint) upsertField(up TypeFieldUpdate) *Type {
+func (e *partialEndpoint) upsertField(up TypeFieldUpdate) *Type {
 	if up.Struct == "" {
 		return nil
 	}
@@ -141,12 +141,15 @@ func (e *cachedEndpoint) upsertField(up TypeFieldUpdate) *Type {
 	return s
 }
 
-type endpointCache struct {
-	eps      map[string]*cachedEndpoint
-	existing []Service
+// The endpointsAssembler is a helper struct that is used to assemble the endpoint
+// from the incoming websocket updates. It keeps track of the existing endpoints and services
+// and updates them accordingly.
+type endpointsAssembler struct {
+	eps      map[string]*partialEndpoint
+	existing []ServiceInput
 }
 
-func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
+func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
 	for _, ep := range s.eps {
 		if ep.service != e.Service || ep.endpoint.Name != e.Name {
 			continue
@@ -178,7 +181,7 @@ func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
 		}
 		return ep
 	}
-	ep := &cachedEndpoint{
+	ep := &partialEndpoint{
 		service: e.Service,
 		endpoint: &Endpoint{
 			Name:         e.Name,
@@ -203,7 +206,7 @@ func (s *endpointCache) upsertEndpoint(e EndpointUpdate) *cachedEndpoint {
 	return ep
 }
 
-func (s *endpointCache) endpoint(service, endpoint string) *cachedEndpoint {
+func (s *endpointsAssembler) endpoint(service, endpoint string) *partialEndpoint {
 	key := service + "." + endpoint
 	if _, ok := s.eps[key]; !ok {
 		for _, svc := range s.existing {
@@ -214,7 +217,7 @@ func (s *endpointCache) endpoint(service, endpoint string) *cachedEndpoint {
 				if ep.Name != endpoint {
 					continue
 				}
-				s.eps[key] = &cachedEndpoint{
+				s.eps[key] = &partialEndpoint{
 					service:  service,
 					endpoint: ep,
 				}
@@ -229,14 +232,14 @@ func (s *endpointCache) endpoint(service, endpoint string) *cachedEndpoint {
 	return s.eps[key]
 }
 
-func createUpdateHandler(existing []Service, notifier AINotifier) AINotifier {
-	epCache := &endpointCache{
-		eps:      make(map[string]*cachedEndpoint),
+func newEndpointAssemblerHandler(existing []ServiceInput, notifier AINotifier) AINotifier {
+	epCache := &endpointsAssembler{
+		eps:      make(map[string]*partialEndpoint),
 		existing: existing,
 	}
-	var lastEp *cachedEndpoint
-	return func(ctx context.Context, msg *WSNotification) error {
-		var ep *cachedEndpoint
+	var lastEp *partialEndpoint
+	return func(ctx context.Context, msg *AINotification) error {
+		var ep *partialEndpoint
 		msgVal := msg.Value
 		switch val := msg.Value.(type) {
 		case TypeUpdate:

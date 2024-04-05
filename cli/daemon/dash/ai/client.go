@@ -6,9 +6,12 @@ import (
 
 	"github.com/hasura/go-graphql-client"
 	"github.com/hasura/go-graphql-client/pkg/jsonutil"
+
+	"encr.dev/pkg/fns"
 )
 
-func newLazyClient(client *graphql.SubscriptionClient) *LazySubClient {
+// newLazySubClient wraps a graphql.SubscriptionClient and starts it when the first subscription is made.
+func newLazySubClient(client *graphql.SubscriptionClient) *LazySubClient {
 	lazy := &LazySubClient{
 		SubscriptionClient: client,
 		notifiers:          make(map[string]func([]byte, error) error),
@@ -41,12 +44,13 @@ type LazySubClient struct {
 	notifiers map[string]func([]byte, error) error
 }
 
+// Subscribe subscribes to a query and calls notify with the result.
 func (l *LazySubClient) Subscribe(query interface{}, variables map[string]interface{}, notify func([]byte, error) error) (string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if !l.running {
 		go func() {
-			defer l.Close()
+			defer fns.CloseIgnore(l)
 			err := l.Run()
 			l.mu.Lock()
 			defer l.mu.Unlock()
@@ -67,48 +71,7 @@ func (l *LazySubClient) Subscribe(query interface{}, variables map[string]interf
 	return subID, nil
 }
 
-func query[T any](ctx context.Context, c *LazySubClient, params map[string]interface{}, notifier AINotifier) (string, error) {
-	var subId string
-	var errStrReply = func(error string) error {
-		_ = notifier(ctx, &WSNotification{
-			SubscriptionID: subId,
-			Error:          error,
-			Finished:       true,
-		})
-		return graphql.ErrSubscriptionStopped
-	}
-	var errReply = func(err error) error {
-		return errStrReply(err.Error())
-	}
-	var query T
-	subId, err := c.Subscribe(&query, params, func(message []byte, err error) error {
-		if err != nil {
-			return errReply(err)
-		}
-		var result genericQuery
-		err = jsonutil.UnmarshalGraphQL(message, &result)
-		if err != nil {
-			return errReply(err)
-		}
-		if result.StreamUpdate.Error != "" {
-			return errStrReply(result.StreamUpdate.Error)
-		}
-		err = notifier(ctx, &WSNotification{
-			SubscriptionID: subId,
-			Value:          result.StreamUpdate.Value.GetValue(),
-			Finished:       result.StreamUpdate.Finished,
-		})
-		if err != nil {
-			return errReply(err)
-		}
-
-		return nil
-	})
-	c.GetSubscription(subId).GetKey()
-	return subId, err
-}
-
-type UpdateQuery struct {
+type TaskMessage struct {
 	Type string `graphql:"__typename"`
 
 	ServiceUpdate   `graphql:"... on ServiceUpdate"`
@@ -121,7 +84,7 @@ type UpdateQuery struct {
 	PathParamUpdate `graphql:"... on PathParamUpdate"`
 }
 
-func (u *UpdateQuery) GetValue() AIUpdateType {
+func (u *TaskMessage) GetValue() AIUpdateType {
 	switch u.Type {
 	case "ServiceUpdate":
 		return u.ServiceUpdate
@@ -143,21 +106,60 @@ func (u *UpdateQuery) GetValue() AIUpdateType {
 	return nil
 }
 
-type StreamUpdate struct {
-	Value    UpdateQuery
+type AIStreamMessage struct {
+	Value    TaskMessage
 	Error    string
 	Finished bool
 }
 
-type genericQuery struct {
-	StreamUpdate *StreamUpdate `graphql:"result"`
+type aiTask struct {
+	Message *AIStreamMessage `graphql:"result"`
 }
 
-type WSNotification struct {
+func startAITask[T any](ctx context.Context, c *LazySubClient, params map[string]interface{}, notifier AINotifier) (string, error) {
+	var subId string
+	var errStrReply = func(error string) error {
+		_ = notifier(ctx, &AINotification{
+			SubscriptionID: subId,
+			Error:          error,
+			Finished:       true,
+		})
+		return graphql.ErrSubscriptionStopped
+	}
+	var errReply = func(err error) error {
+		return errStrReply(err.Error())
+	}
+	var query T
+	subId, err := c.Subscribe(&query, params, func(message []byte, err error) error {
+		if err != nil {
+			return errReply(err)
+		}
+		var result aiTask
+		err = jsonutil.UnmarshalGraphQL(message, &result)
+		if err != nil {
+			return errReply(err)
+		}
+		if result.Message.Error != "" {
+			return errStrReply(result.Message.Error)
+		}
+		err = notifier(ctx, &AINotification{
+			SubscriptionID: subId,
+			Value:          result.Message.Value.GetValue(),
+			Finished:       result.Message.Finished,
+		})
+		if err != nil {
+			return errReply(err)
+		}
+		return nil
+	})
+	return subId, err
+}
+
+type AINotification struct {
 	SubscriptionID string `json:"subscriptionId,omitempty"`
 	Value          any    `json:"value,omitempty"`
 	Error          string `json:"error,omitempty"`
 	Finished       bool   `json:"finished,omitempty"`
 }
 
-type AINotifier func(context.Context, *WSNotification) error
+type AINotifier func(context.Context, *AINotification) error
