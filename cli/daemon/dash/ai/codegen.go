@@ -81,7 +81,7 @@ func addMissingFuncBodies(content []byte) (string, error) {
 			if n.Body != nil {
 				break
 			}
-			rewriter.Insert(n.End()-1, []byte("{\n    panic(\"not implemented yet\")\n}\n"))
+			rewriter.Insert(n.End()-1, []byte("{\n    panic(\"not yet implemented\")\n}\n"))
 		}
 		return true
 	})
@@ -148,42 +148,12 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 		}
 		rtn.Errors = overlays.validationErrors(perrs)
 	}()
-	goRoot := paths.RootedFSPath(env.EncoreGoRoot(), ".")
-	pkgs, err := packages.Load(&packages.Config{
-		Mode: packages.NeedTypes | packages.NeedSyntax,
-		Dir:  app.Root(),
-		Env: append(os.Environ(),
-			"GOOS="+runtime.GOOS,
-			"GOARCH="+runtime.GOARCH,
-			"GOROOT="+goRoot.ToIO(),
-			"PATH="+goRoot.Join("bin").ToIO()+string(filepath.ListSeparator)+os.Getenv("PATH"),
-		),
-		Fset:    fset,
-		Overlay: overlays.PkgOverlay(),
-	}, fns.Map(overlays.pkgPaths(), paths.Pkg.String)...)
-	if err != nil {
-		return nil, err
-	}
-	pathToAst := map[paths.FS]*ast.File{}
-	for _, pkg := range pkgs {
-		for _, f := range pkg.Syntax {
-			fPos := pkg.Fset.Position(f.Pos())
-			pathToAst[paths.FS(fPos.Filename)] = f
+	for p, olay := range overlays.list {
+		astFile, err := parser.ParseFile(fset, p.ToIO(), olay.content, parser.ParseComments|parser.AllErrors)
+		if err != nil {
+			perrs.AddStd(err)
 		}
-		for _, e := range pkg.Errors {
-			if e.Kind == packages.ListError {
-				continue
-			}
-			perrs.AddStd(e)
-		}
-	}
-
-	for p, ep := range overlays.list {
-		astFile, ok := pathToAst[p]
-		if !ok {
-			continue
-		}
-		rewriter := rewrite.New(ep.content, int(astFile.FileStart))
+		rewriter := rewrite.New(olay.content, int(astFile.FileStart))
 		typeByName := map[string]*ast.GenDecl{}
 		funcByName := map[string]*ast.FuncDecl{}
 		for _, decl := range astFile.Decls {
@@ -200,8 +170,8 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 				funcByName[decl.Name.Name] = decl
 			}
 		}
-		if ep.codeType == CodeTypeEndpoint {
-			funcDecl, ok := funcByName[ep.endpoint.Name]
+		if olay.codeType == CodeTypeEndpoint {
+			funcDecl, ok := funcByName[olay.endpoint.Name]
 			if !ok {
 				for _, f := range funcByName {
 					dir, _, _ := directive.Parse(perrs, f.Doc)
@@ -220,17 +190,18 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 				if funcDecl.Body != nil {
 					end = funcDecl.Body.Lbrace
 				}
-				rewriter.Replace(start, end, []byte(ep.endpoint.Render()))
+				rewriter.Replace(start, end, []byte(olay.endpoint.Render()))
 			} else {
 				if len(funcByName) > 0 {
 					rewriter.Append([]byte("\n"))
 				}
-				rewriter.Append([]byte(ep.endpoint.Render()))
+				rewriter.Append([]byte(olay.endpoint.Render()))
 			}
-			content := string(rewriter.Data()[ep.headerOffset.Offset:])
-			ep.endpoint.EndpointSource = strings.TrimSpace(content)
+			olay.content = rewriter.Data()
+			content := string(olay.content[olay.headerOffset.Offset:])
+			olay.endpoint.EndpointSource = strings.TrimSpace(content)
 		} else {
-			for _, typ := range ep.endpoint.Types {
+			for _, typ := range olay.endpoint.Types {
 				typeSpec := typeByName[typ.Name]
 				code := typ.Render()
 				if typeSpec != nil {
@@ -243,8 +214,30 @@ func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance
 					rewriter.Append([]byte("\n\n" + code))
 				}
 			}
-			content := string(rewriter.Data()[ep.headerOffset.Offset:])
-			ep.endpoint.TypeSource = strings.TrimSpace(content)
+			olay.content = rewriter.Data()
+			content := string(olay.content[olay.headerOffset.Offset:])
+			olay.endpoint.TypeSource = strings.TrimSpace(content)
+		}
+	}
+	goRoot := paths.RootedFSPath(env.EncoreGoRoot(), ".")
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedTypes | packages.NeedSyntax,
+		Dir:  app.Root(),
+		Env: append(os.Environ(),
+			"GOOS="+runtime.GOOS,
+			"GOARCH="+runtime.GOARCH,
+			"GOROOT="+goRoot.ToIO(),
+			"PATH="+goRoot.Join("bin").ToIO()+string(filepath.ListSeparator)+os.Getenv("PATH"),
+		),
+		Fset:    fset,
+		Overlay: overlays.PkgOverlay(),
+	}, fns.Map(overlays.pkgPaths(), paths.Pkg.String)...)
+	if err != nil {
+		return nil, err
+	}
+	for _, pkg := range pkgs {
+		for _, err := range pkg.Errors {
+			perrs.AddStd(err)
 		}
 	}
 	return &SyncResult{
