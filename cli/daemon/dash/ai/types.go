@@ -40,6 +40,8 @@ const (
 
 type SegmentValueType string
 
+const SegmentValueTypeString SegmentValueType = "string"
+
 type BaseAIUpdateType struct {
 	Type string `graphql:"__typename" json:"type"`
 }
@@ -102,11 +104,11 @@ type TitleUpdate struct {
 
 type EndpointInput struct {
 	ID             string         `json:"id,omitempty"`
-	Name           string         `json:"name,omitempty"`
-	Doc            string         `json:"doc,omitempty"`
-	Method         string         `json:"method,omitempty"`
-	Visibility     VisibilityType `json:"visibility,omitempty"`
-	Path           []PathSegment  `json:"path,omitempty"`
+	Name           string         `json:"name"`
+	Doc            string         `json:"doc"`
+	Method         string         `json:"method"`
+	Visibility     VisibilityType `json:"visibility"`
+	Path           []PathSegment  `json:"path"`
 	RequestType    string         `json:"requestType,omitempty"`
 	ResponseType   string         `json:"responseType,omitempty"`
 	Errors         []*ErrorInput  `json:"errors,omitempty"`
@@ -351,10 +353,11 @@ func formatPath(segs []PathSegment) (docPath string, goParams []string) {
 			params = append(params, fmt.Sprintf("%s %s", *s.Value, *s.ValueType))
 			return fmt.Sprintf(":%s", *s.Value)
 		case SegmentTypeWildcard:
-			params = append(params, fmt.Sprintf("%s %s", *s.Value, *s.ValueType))
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, SegmentValueTypeString))
 			return fmt.Sprintf("*%s", *s.Value)
 		case SegmentTypeFallback:
-			return "!fallback"
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, SegmentValueTypeString))
+			return fmt.Sprintf("!%s", *s.Value)
 		default:
 			panic(fmt.Sprintf("unknown path segment type: %s", s.Type))
 		}

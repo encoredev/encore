@@ -28,7 +28,12 @@ func toPathSegments(p *resourcepaths.Path, docs map[string]string) []PathSegment
 				Doc:       docs[s.Value],
 			})
 		case resourcepaths.Fallback:
-			rtn = append(rtn, PathSegment{Type: SegmentTypeFallback})
+			rtn = append(rtn, PathSegment{
+				Type:      SegmentTypeFallback,
+				Value:     ptr(s.Value),
+				ValueType: ptr(SegmentValueType(strings.ToLower(s.ValueType.String()))),
+				Doc:       docs[s.Value],
+			})
 		}
 	}
 	return rtn
