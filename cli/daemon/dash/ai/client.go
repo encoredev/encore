@@ -116,7 +116,9 @@ type aiTask struct {
 	Message *AIStreamMessage `graphql:"result"`
 }
 
-func startAITask[T any](ctx context.Context, c *LazySubClient, params map[string]interface{}, notifier AINotifier) (string, error) {
+// startAITask is a helper function to intitiate an AI query to the encore platform. The query
+// should be assembled to stream a 'result' graphql field that is a AIStreamMessage.
+func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[string]interface{}, notifier AINotifier) (string, error) {
 	var subId string
 	var errStrReply = func(error string) error {
 		_ = notifier(ctx, &AINotification{
@@ -129,7 +131,7 @@ func startAITask[T any](ctx context.Context, c *LazySubClient, params map[string
 	var errReply = func(err error) error {
 		return errStrReply(err.Error())
 	}
-	var query T
+	var query Query
 	subId, err := c.Subscribe(&query, params, func(message []byte, err error) error {
 		if err != nil {
 			return errReply(err)
@@ -155,6 +157,7 @@ func startAITask[T any](ctx context.Context, c *LazySubClient, params map[string
 	return subId, err
 }
 
+// AINotification is a wrapper around messages and errors from the encore platform ai service
 type AINotification struct {
 	SubscriptionID string `json:"subscriptionId,omitempty"`
 	Value          any    `json:"value,omitempty"`

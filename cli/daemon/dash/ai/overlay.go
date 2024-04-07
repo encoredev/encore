@@ -14,11 +14,14 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/idents"
 	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	"encr.dev/v2/internals/perr"
 )
 
+// servicePaths is a helper struct to manage mapping between service names, pkg paths and filepaths
+// It's created by parsing the metadata of the app
 type servicePaths struct {
 	relPaths map[string]paths.RelSlash
 	root     paths.FS
@@ -63,7 +66,7 @@ func (s *servicePaths) FileName(svc, name string) (paths.FS, error) {
 
 func (s *servicePaths) RelFileName(svc, name string) (paths.RelSlash, error) {
 	pkgPath := s.FullPath(svc)
-	name = strings.ToLower(name)
+	name = idents.Convert(name, idents.SnakeCase)
 	fileName := name + ".go"
 	var i int
 	for {
@@ -97,10 +100,13 @@ func newServicePaths(app *apps.Instance) (*servicePaths, error) {
 	return svcPaths, nil
 }
 
+// An overlay is a virtual file that is used to store the source code of an endpoint or types
+// It automatically generates a header with pkg name and imports.
+// It implements fs.FileInfo and fs.DirEntry interfaces
 type overlay struct {
 	path         paths.FS
 	endpoint     *Endpoint
-	service      *ServiceInput
+	service      *Service
 	codeType     CodeType
 	content      []byte
 	headerOffset token.Position
@@ -147,6 +153,7 @@ func (o *overlay) File() fs.File {
 	return &overlayFile{o, bytes.NewReader(o.content)}
 }
 
+// overlayFile is a wrapper which implements the fs.File interface
 type overlayFile struct {
 	*overlay
 	*bytes.Reader
@@ -159,7 +166,7 @@ var (
 	_ fs.DirEntry = (*overlay)(nil)
 )
 
-func newOverlays(app *apps.Instance, overwrite bool, services ...ServiceInput) (*overlays, error) {
+func newOverlays(app *apps.Instance, overwrite bool, services ...Service) (*overlays, error) {
 	svcPaths, err := newServicePaths(app)
 	if err != nil {
 		return nil, err
@@ -182,6 +189,9 @@ func newOverlays(app *apps.Instance, overwrite bool, services ...ServiceInput) (
 	return o, nil
 }
 
+// overlays is a collection of virtual files that are used to store the source code of endpoints and types
+// in memory. It's modelled as a filesystem and implements the fs.ReadFileFS, fs.ReadDirFS and fs.StatFS interfaces.
+// It's used as an overlay for the Go and Encore parsers to include our in-progress code in the parsing process.
 type overlays struct {
 	list  map[paths.FS]*overlay
 	paths *servicePaths
@@ -253,29 +263,24 @@ func (o *overlays) get(p paths.FS) (*overlay, bool) {
 	return rtn, ok
 }
 
-func (o *overlays) endpoint(p paths.FS) *Endpoint {
-	ov, ok := o.get(p)
-	if !ok {
-		return nil
-	}
-	return ov.endpoint
-}
-
+// validationErrors converts a perr.List into a slice of ValidationErrors
 func (o *overlays) validationErrors(list *perr.List) []ValidationError {
 	var rtn []ValidationError
 	for i := 0; i < list.Len(); i++ {
 		err := list.At(i)
-		if err.Params.Locations == nil {
-			rtn = append(rtn, ValidationError{
-				Message: err.Params.Summary,
-			})
-		}
 		rtn = append(rtn, o.validationError(err)...)
 	}
 	return rtn
 }
 
+// validationError translates errinsrc.ErrInSrc into a ValidationError which is a simplified error
+// used for displaying errors in the dashboard
 func (o *overlays) validationError(err *errinsrc.ErrInSrc) []ValidationError {
+	if err.Params.Locations == nil {
+		return []ValidationError{{
+			Message: err.Params.Summary,
+		}}
+	}
 	var rtn []ValidationError
 	for _, loc := range err.Params.Locations {
 		o, ok := o.get(paths.FS(loc.File.FullPath))
@@ -303,7 +308,9 @@ func (o *overlays) validationError(err *errinsrc.ErrInSrc) []ValidationError {
 	return rtn
 }
 
-func (o *overlays) add(s ServiceInput, e *Endpoint) error {
+// add creates new overlays for an endpoint and its types.
+// We create separate overlays for each endpoint and its types to allow for easier parsing and code generation.
+func (o *overlays) add(s Service, e *Endpoint) error {
 	p, err := o.paths.FileName(s.Name, e.Name+"_func")
 	if err != nil {
 		return err

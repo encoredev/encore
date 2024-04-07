@@ -24,8 +24,8 @@ type Rewriter struct {
 }
 
 func (r *Rewriter) Replace(start, end token.Pos, data []byte) {
-	si, so := r.seg(start)
-	ei, eo := r.seg(end)
+	si, so := r.seg(start, false)
+	ei, eo := r.seg(end, true)
 	r.replace(si, so, ei, eo, data)
 }
 
@@ -57,13 +57,13 @@ func (r *Rewriter) Insert(start token.Pos, data []byte) {
 		return
 	}
 
-	si, so := r.seg(start)
+	si, so := r.seg(start, false)
 	r.replace(si, so, si, so, data)
 }
 
 func (r *Rewriter) Delete(start, end token.Pos) {
-	si, so := r.seg(start)
-	ei, eo := r.seg(end)
+	si, so := r.seg(start, false)
+	ei, eo := r.seg(end, true)
 	r.replace(si, so, ei, eo, nil)
 }
 
@@ -109,11 +109,19 @@ func (r *Rewriter) replace(si, so, ei, eo int, data []byte) {
 	}
 }
 
-func (r *Rewriter) seg(pos token.Pos) (idx int, offset int) {
+func (r *Rewriter) seg(pos token.Pos, isEnd bool) (idx int, offset int) {
 	p := int(pos)
-	for i, seg := range r.segs {
-		if seg.start <= p && p <= seg.end {
-			return i, int(p - seg.start)
+	if isEnd {
+		for i, seg := range r.segs {
+			if seg.start < p && p <= seg.end {
+				return i, min(int(p-seg.start), len(seg.data))
+			}
+		}
+	} else {
+		for i, seg := range r.segs {
+			if seg.start <= p && p < seg.end {
+				return i, min(int(p-seg.start), len(seg.data))
+			}
 		}
 	}
 

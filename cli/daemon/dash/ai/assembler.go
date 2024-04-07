@@ -10,11 +10,14 @@ import (
 	"encr.dev/v2/parser/apis/api/apienc"
 )
 
+// partialEndpoint is a helper struct that is used to assemble the endpoint
+// from the incoming websocket updates.
 type partialEndpoint struct {
 	service  string
 	endpoint *Endpoint
 }
 
+// notification generates a partially assembled endpoint structure to return to the client
 func (e *partialEndpoint) notification() LocalEndpointUpdate {
 	e.endpoint.EndpointSource = e.endpoint.Render()
 	e.endpoint.TypeSource = ""
@@ -146,7 +149,7 @@ func (e *partialEndpoint) upsertField(up TypeFieldUpdate) *Type {
 // and updates them accordingly.
 type endpointsAssembler struct {
 	eps      map[string]*partialEndpoint
-	existing []ServiceInput
+	existing []Service
 }
 
 func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
@@ -163,7 +166,7 @@ func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
 		if e.Visibility != "" {
 			ep.endpoint.Visibility = e.Visibility
 		}
-		if e.Path != nil {
+		if len(e.Path) > 0 {
 			ep.endpoint.Path = e.Path
 		}
 		if e.RequestType != "" {
@@ -197,12 +200,7 @@ func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
 			Language: "GO",
 		},
 	}
-	for _, t := range []string{e.RequestType, e.ResponseType} {
-		if t == "" {
-			continue
-		}
-		ep.endpoint.Types = append(ep.endpoint.Types, &Type{Name: t})
-	}
+	s.eps[e.Service+"."+e.Name] = ep
 	return ep
 }
 
@@ -232,7 +230,7 @@ func (s *endpointsAssembler) endpoint(service, endpoint string) *partialEndpoint
 	return s.eps[key]
 }
 
-func newEndpointAssemblerHandler(existing []ServiceInput, notifier AINotifier) AINotifier {
+func newEndpointAssemblerHandler(existing []Service, notifier AINotifier, epComplete bool) AINotifier {
 	epCache := &endpointsAssembler{
 		eps:      make(map[string]*partialEndpoint),
 		existing: existing,
@@ -262,7 +260,7 @@ func newEndpointAssemblerHandler(existing []ServiceInput, notifier AINotifier) A
 			ep.upsertPathParam(val)
 			msgVal = ep.notification()
 		}
-		if lastEp != ep {
+		if epComplete && lastEp != ep {
 			if lastEp != nil {
 				msg.Value = struct {
 					Type     string `json:"type"`
