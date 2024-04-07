@@ -13,7 +13,7 @@ import (
 
 // ParseSQLSchema uses SQLC to parse the migration files for an encore database and returns
 // the parsed catalog
-func ParseSQLSchema(app *apps.Instance, schema string) (*daemon.SQLCPlugin_GenerateRequest, error) {
+func ParseSQLSchema(app *apps.Instance, schema string) (*daemon.SQLCPlugin_Catalog, error) {
 	schemaPath := filepath.Join(app.Root(), schema)
 	cmd := exec.Command(os.Args[0], "generate-sql-schema", "--proto", schemaPath)
 	output, err := cmd.Output()
@@ -24,5 +24,5 @@ func ParseSQLSchema(app *apps.Instance, schema string) (*daemon.SQLCPlugin_Gener
 	if err := proto.Unmarshal(output, &req); err != nil {
 		return nil, err
 	}
-	return &req, nil
+	return req.Catalog, nil
 }

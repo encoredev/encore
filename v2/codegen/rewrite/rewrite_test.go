@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+func TestReplaceEnd(t *testing.T) {
+	rw := New([]byte("test"), 1)
+	rw.Replace(4, 5, []byte("ting"))
+	if got, want := rw.Data(), []byte("testing"); !bytes.Equal(got, want) {
+		t.Errorf("got data %s, want %s", got, want)
+	}
+
+}
+
 func TestSplit(t *testing.T) {
 	rw := New([]byte("test"), 1)
 	rw.Replace(2, 4, []byte("ou"))  // "tout"

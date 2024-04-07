@@ -113,12 +113,15 @@ func deref(p schema.Type) schema.Type {
 	}
 }
 
-// parseCode
-func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput) (rtn *SyncResult, err error) {
+// parseCode updates the structured EndpointInput data based on the code in
+// EndpointInput.TypeSource and EndpointInput.EndpointSource fields.
+func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn *SyncResult, err error) {
+	// assamble an overlay with all our newly defined endpoints
 	overlays, err := newOverlays(app, false, services...)
 	if err != nil {
 		return nil, err
 	}
+
 	fs := token.NewFileSet()
 	errs := perr.NewList(ctx, fs, overlays.ReadFile)
 	rootDir := paths.RootedFSPath(app.Root(), ".")
@@ -137,6 +140,8 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		Errs:          errs,
 		Overlay:       overlays,
 	}
+
+	// Catch parser bailouts and convert them to ValidationErrors
 	defer func() {
 		perr.CatchBailout(recover())
 		if rtn == nil {
@@ -147,15 +152,18 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		rtn.Errors = overlays.validationErrors(errs)
 	}()
 
+	// Load overlay packages using the encore loader
 	loader := pkginfo.New(pc)
-
 	pkgs := map[paths.Pkg]*pkginfo.Package{}
 	for _, pkg := range overlays.pkgPaths() {
 		pkgs[pkg], _ = loader.LoadPkg(token.NoPos, pkg)
 	}
+
+	// Create a schema parser to help us parse the types
 	schemaParser := schema.NewParser(pc, loader)
 
 	for _, pkg := range pkgs {
+		// Use the API parser to parser the endpoints for each overlaid package
 		pass := &resourceparser.Pass{
 			Context:      pc,
 			SchemaParser: schemaParser,
@@ -165,11 +173,13 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 		for _, r := range pass.Resources() {
 			switch r := r.(type) {
 			case *api.Endpoint:
+				// We're only interested in endpoints that are in our overlays
 				overlay, ok := overlays.get(r.File.FSPath)
 				if !ok {
 					continue
 				}
 				e := overlay.endpoint
+
 				pathDocs := map[string]string{}
 				e.Doc, e.Errors = parseErrorList(r.Doc)
 				e.Doc, pathDocs = parsePathList(e.Doc)
@@ -178,11 +188,16 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				e.Visibility = VisibilityType(r.Access)
 				e.Language = "GO"
 				e.Path = toPathSegments(r.Path, pathDocs)
+
+				// Clear the types as we will reparse them
 				e.Types = []*Type{}
 				if nr, ok := deref(r.Request).(schema.NamedType); ok {
 					e.RequestType = nr.String()
-					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
-					if len(r.RequestEncoding()) > 0 && e != nil {
+					// If the request type is in the overlays, we should parse it and
+					// add it to the endpoint associated with the overlay
+					ov, ok := overlays.get(nr.DeclInfo.File.FSPath)
+					if len(r.RequestEncoding()) > 0 && ok {
+						e = ov.endpoint
 						e.Types = append(e.Types, &Type{
 							Name: nr.String(),
 							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
@@ -200,8 +215,11 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				}
 				if nr, ok := deref(r.Response).(schema.NamedType); ok {
 					e.ResponseType = nr.String()
-					e := overlays.endpoint(nr.DeclInfo.File.FSPath)
-					if r.ResponseEncoding() != nil && e != nil {
+					// If the response type is in the overlays, we should parse it and
+					// add it to the endpoint associated with the overlay
+					ov, ok := overlays.get(nr.DeclInfo.File.FSPath)
+					if r.ResponseEncoding() != nil && ok {
+						e = ov.endpoint
 						e.Types = append(e.Types, &Type{
 							Name: nr.String(),
 							Doc:  strings.TrimSpace(nr.DeclInfo.Doc),
@@ -219,27 +237,36 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 				}
 			}
 		}
+		// Parse types which are in the overlays but not used in request/response
 		for _, file := range pkg.Files {
 			ast.Inspect(file.AST(), func(node ast.Node) bool {
 				switch node := node.(type) {
 				case *ast.GenDecl:
+					// We're only interested in type declarations
 					if node.Tok != token.TYPE {
 						return true
 					}
 					for _, spec := range node.Specs {
 						d := spec.(*ast.TypeSpec)
-						overlay, ok := overlays.get(file.FSPath)
+						// If the type is not defined in our overlays, skip it.
+						olay, ok := overlays.get(file.FSPath)
 						if !ok {
 							continue
 						}
+
+						// If it's not a struct type, skip it.
 						s, ok := schemaParser.ParseType(file, d.Type).(schema.StructType)
 						if !ok {
 							continue
 						}
-						e := overlay.endpoint
+
+						e := olay.endpoint
+						// If the type has already been parsed, skip it.
 						if slices.ContainsFunc(e.Types, func(t *Type) bool { return t.Name == d.Name.Name }) {
 							continue
 						}
+
+						// Otherwise we should add it
 						e.Types = append(e.Types, &Type{
 							Name:   d.Name.Name,
 							Doc:    docText(node.Doc),
@@ -256,12 +283,15 @@ func parseCode(ctx context.Context, app *apps.Instance, services []ServiceInput)
 	}, nil
 }
 
+// parserTypeField is a helper function to parse a schema field into a TypeField.
 func parseTypeField(f schema.StructField) (*TypeField, bool) {
 	name, ok := f.Name.Get()
 	if !ok {
 		return nil, false
 	}
-	wireName := ""
+	// Fields which are parsed by this functions are not a request or response type,
+	// so we can assume the wire name is the json tag name.
+	wireName := name
 	if tag, err := f.Tag.Get("json"); err == nil {
 		wireName = tag.Name
 	}
@@ -273,6 +303,7 @@ func parseTypeField(f schema.StructField) (*TypeField, bool) {
 	}, true
 }
 
+// helper function to extract the text from a comment node or "" if nil
 func docText(c *ast.CommentGroup) string {
 	if c == nil {
 		return ""
