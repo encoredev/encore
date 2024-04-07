@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -22,20 +23,141 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/codegen/rewrite"
 	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/directive"
 )
 
+const (
+	PathDocPrefix = "Path Parameters"
+	ErrDocPrefix  = "Errors"
+)
+
+func (p PathSegments) Render() (docPath string, goParams []string) {
+	var params []string
+	return "/" + path.Join(fns.Map(p, func(s PathSegment) string {
+		switch s.Type {
+		case SegmentTypeLiteral:
+			return *s.Value
+		case SegmentTypeParam:
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, *s.ValueType))
+			return fmt.Sprintf(":%s", *s.Value)
+		case SegmentTypeWildcard:
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, SegmentValueTypeString))
+			return fmt.Sprintf("*%s", *s.Value)
+		case SegmentTypeFallback:
+			params = append(params, fmt.Sprintf("%s %s", *s.Value, SegmentValueTypeString))
+			return fmt.Sprintf("!%s", *s.Value)
+		default:
+			panic(fmt.Sprintf("unknown path segment type: %s", s.Type))
+		}
+	})...), params
+}
+
+func (s *Type) Render() string {
+	rtn := strings.Builder{}
+	if s.Doc != "" {
+		rtn.WriteString(fmtComment(strings.TrimSpace(s.Doc), 0, 1))
+	}
+	rtn.WriteString(fmt.Sprintf("type %s struct {\n", s.Name))
+	for i, f := range s.Fields {
+		if i > 0 {
+			rtn.WriteString("\n")
+		}
+		if f.Doc != "" {
+			rtn.WriteString(fmtComment(strings.TrimSpace(f.Doc), 2, 1))
+		}
+		tags := ""
+		switch f.Location {
+		case apienc.Body:
+			tags = fmt.Sprintf(" `json:\"%s\"`", f.WireName)
+		case apienc.Query:
+			tags = fmt.Sprintf(" `query:\"%s\"`", f.WireName)
+		case apienc.Header:
+			tags = fmt.Sprintf(" `header:\"%s\"`", f.WireName)
+		}
+		rtn.WriteString(fmt.Sprintf("  %s %s%s\n", f.Name, f.Type, tags))
+	}
+	rtn.WriteString("}")
+	return rtn.String()
+}
+
+func (e *Endpoint) Render() string {
+	buf := strings.Builder{}
+	if e.Doc != "" {
+		buf.WriteString(fmtComment(strings.TrimSpace(e.Doc)+"\n", 0, 1))
+	}
+	buf.WriteString(renderDocList(PathDocPrefix, e.Path))
+	buf.WriteString(renderDocList(ErrDocPrefix, e.Errors))
+	pathStr, pathParams := e.Path.Render()
+	params := []string{"ctx context.Context"}
+	params = append(params, pathParams...)
+	if e.RequestType != "" {
+		params = append(params, "req *"+e.RequestType)
+	}
+	var rtnParams []string
+	if e.ResponseType != "" {
+		rtnParams = append(rtnParams, "*"+e.ResponseType)
+	}
+	rtnParams = append(rtnParams, "error")
+	buf.WriteString(fmtComment("encore:api %s method=%s path=%s", 0, 0, e.Visibility, e.Method, pathStr))
+	paramsStr := strings.Join(params, ", ")
+	rtnParamsStr := strings.Join(rtnParams, ", ")
+	if len(rtnParams) > 1 {
+		rtnParamsStr = fmt.Sprintf("(%s)", rtnParamsStr)
+	}
+	buf.WriteString(fmt.Sprintf("func %s(%s) %s", e.Name, paramsStr, rtnParamsStr))
+	return buf.String()
+}
+
+func indentItem(header, comment string) string {
+	buf := strings.Builder{}
+	buf.WriteString(header)
+	for i, line := range strings.Split(strings.TrimSpace(comment), "\n") {
+		indent := ""
+		if i > 0 {
+			indent = strings.Repeat(" ", len(header))
+		}
+		buf.WriteString(fmt.Sprintf("%s%s\n", indent, line))
+	}
+	return buf.String()
+}
+
+func renderDocList[T interface{ DocItem() (string, string) }](header string, items []T) string {
+	maxLen := 0
+	items = fns.Filter(items, func(p T) bool {
+		key, val := p.DocItem()
+		if val == "" {
+			return false
+		}
+		maxLen = max(maxLen, len(key))
+		return true
+	})
+	buf := strings.Builder{}
+	for i, item := range items {
+		if i == 0 {
+			buf.WriteString(header)
+			buf.WriteString(":\n")
+		}
+		key, value := item.DocItem()
+		spacing := strings.Repeat(" ", maxLen-len(key))
+		itemHeader := fmt.Sprintf(" - %s: %s", key, spacing)
+		buf.WriteString(indentItem(itemHeader, value))
+	}
+	return fmtComment(buf.String(), 0, 1)
+}
+
 // fmtComment prepends '//' to each line of the given comment and indents it with the given number of spaces.
-func fmtComment(comment string, before, after int) string {
+func fmtComment(comment string, before, after int, args ...any) string {
 	if comment == "" {
 		return ""
 	}
 	prefix := fmt.Sprintf("%s//%s", strings.Repeat(" ", before), strings.Repeat(" ", after))
-	return prefix + strings.ReplaceAll(comment, "\n", "\n"+prefix)
+	result := prefix + strings.ReplaceAll(comment, "\n", "\n"+prefix)
+	return fmt.Sprintf(result, args...) + "\n"
 }
 
 // generateSrcFiles generates source files for the given services.
-func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.RelSlash]string, error) {
+func generateSrcFiles(services []Service, app *apps.Instance) (map[paths.RelSlash]string, error) {
 	svcPaths, err := newServicePaths(app)
 	if err != nil {
 		return nil, err
@@ -52,7 +174,7 @@ func generateSrcFiles(services []ServiceInput, app *apps.Instance) (map[paths.Re
 			if err != nil {
 				return nil, err
 			}
-			files[relFile] = fmt.Sprintf("%s\npackage %s\n", fmtComment(s.Doc, 0, 1), strings.ToLower(s.Name))
+			files[relFile] = fmt.Sprintf("%spackage %s\n", fmtComment(s.Doc, 0, 1), strings.ToLower(s.Name))
 		}
 		for _, e := range s.Endpoints {
 			relFile, err := svcPaths.RelFileName(s.Name, e.Name)
@@ -94,7 +216,7 @@ func addMissingFuncBodies(content []byte) (string, error) {
 }
 
 // writeFiles writes the generated source files to disk.
-func writeFiles(services []ServiceInput, app *apps.Instance) ([]paths.RelSlash, error) {
+func writeFiles(services []Service, app *apps.Instance) ([]paths.RelSlash, error) {
 	files, err := generateSrcFiles(services, app)
 	if err != nil {
 		return nil, err
@@ -141,7 +263,7 @@ func toSrcFile(filePath paths.FS, svc string, srcs ...string) (offset token.Posi
 // updateCode updates the source code fields of the EndpointInputs in the given services.
 // if overwrite is set, the code will be regenerated from scratch and replace the existing code,
 // otherwise, we'll modify the code in place
-func updateCode(ctx context.Context, services []ServiceInput, app *apps.Instance, overwrite bool) (rtn *SyncResult, err error) {
+func updateCode(ctx context.Context, services []Service, app *apps.Instance, overwrite bool) (rtn *SyncResult, err error) {
 	overlays, err := newOverlays(app, overwrite, services...)
 	fset := token.NewFileSet()
 	perrs := perr.NewList(ctx, fset, overlays.ReadFile)
