@@ -52,6 +52,16 @@ func TransformMapKeys[K1, K2 comparable, V any](m map[K1]V, fn func(K1) K2) map[
 	return dst
 }
 
+// Any returns true if any element in src satisfies the predicate.
+func Any[A any](src []A, pred func(A) bool) bool {
+	for _, v := range src {
+		if pred(v) {
+			return true
+		}
+	}
+	return false
+}
+
 // FlatMap applies fn on all elements in src, producing a new slice
 // with the results, in order.
 func FlatMap[A, B any](src []A, fn func(A) []B) []B {

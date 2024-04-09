@@ -27,6 +27,23 @@ import (
 	"encr.dev/v2/parser/apis/directive"
 )
 
+const defAuthHandler = `package auth
+
+import (
+	"context"
+
+	"encore.dev/beta/auth"
+)
+
+type Data struct {
+    Username string
+}
+
+//encore:authhandler
+func AuthHandler(ctx context.Context, token string) (auth.UID, *Data, error) {
+    panic("not yet implemented")
+}`
+
 const (
 	PathDocPrefix = "Path Parameters"
 	ErrDocPrefix  = "Errors"
@@ -162,7 +179,26 @@ func generateSrcFiles(services []Service, app *apps.Instance) (map[paths.RelSlas
 	if err != nil {
 		return nil, err
 	}
+	needAuth := fns.Any(fns.FlatMap(services, Service.GetEndpoints), (*Endpoint).Auth)
 	files := map[paths.RelSlash]string{}
+	if needAuth {
+		md, err := app.CachedMetadata()
+		if err != nil {
+			return nil, err
+		}
+		if md.AuthHandler == nil {
+			relFile, err := svcPaths.RelFileName("auth", "handler")
+			if err != nil {
+				return nil, err
+			}
+			file := paths.FS(app.Root()).JoinSlash(relFile)
+			err = os.MkdirAll(file.Dir().ToIO(), 0755)
+			if err != nil {
+				return nil, err
+			}
+			files[relFile] = string(defAuthHandler)
+		}
+	}
 	for _, s := range services {
 		if svcPaths.IsNew(s.Name) {
 			relFile, err := svcPaths.RelFileName(s.Name, s.Name)
