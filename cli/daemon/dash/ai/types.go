@@ -54,6 +54,10 @@ type Endpoint struct {
 	EndpointSource string         `json:"endpointSource,omitempty"`
 }
 
+func (s *Endpoint) Auth() bool {
+	return s.Visibility == VisibilityTypeAuth
+}
+
 // GraphQL scrubs data that is not needed for the graphql client
 func (s *Endpoint) GraphQL() *Endpoint {
 	s.ID = ""
@@ -77,6 +81,10 @@ type Service struct {
 	Name      string      `json:"name,omitempty"`
 	Doc       string      `json:"doc,omitempty"`
 	Endpoints []*Endpoint `json:"endpoints,omitempty"`
+}
+
+func (s Service) GetEndpoints() []*Endpoint {
+	return s.Endpoints
 }
 
 // ServiceInput is the graphql input type for our queries
