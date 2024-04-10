@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"io/fs"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -17,6 +17,7 @@ import (
 	"encr.dev/pkg/idents"
 	"encr.dev/pkg/paths"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/internals/parsectx"
 	"encr.dev/v2/internals/perr"
 )
 
@@ -102,7 +103,7 @@ func newServicePaths(app *apps.Instance) (*servicePaths, error) {
 
 // An overlay is a virtual file that is used to store the source code of an endpoint or types
 // It automatically generates a header with pkg name and imports.
-// It implements fs.FileInfo and fs.DirEntry interfaces
+// It implements os.FileInfo and os.DirEntry interfaces
 type overlay struct {
 	path         paths.FS
 	endpoint     *Endpoint
@@ -112,11 +113,11 @@ type overlay struct {
 	headerOffset token.Position
 }
 
-func (o *overlay) Type() fs.FileMode {
+func (o *overlay) Type() os.FileMode {
 	return o.Mode()
 }
 
-func (o *overlay) Info() (fs.FileInfo, error) {
+func (o *overlay) Info() (os.FileInfo, error) {
 	return o, nil
 }
 
@@ -128,8 +129,8 @@ func (o *overlay) Size() int64 {
 	return int64(len(o.content))
 }
 
-func (o *overlay) Mode() fs.FileMode {
-	return fs.ModePerm
+func (o *overlay) Mode() os.FileMode {
+	return os.ModePerm
 }
 
 func (o *overlay) ModTime() time.Time {
@@ -145,25 +146,25 @@ func (o *overlay) Sys() any {
 	panic("implement me")
 }
 
-func (o *overlay) Stat() (fs.FileInfo, error) {
+func (o *overlay) Stat() (os.FileInfo, error) {
 	return o, nil
 }
 
-func (o *overlay) File() fs.File {
-	return &overlayFile{o, bytes.NewReader(o.content)}
+func (o *overlay) Reader() io.ReadCloser {
+	return &overlayReader{o, bytes.NewReader(o.content)}
 }
 
-// overlayFile is a wrapper which implements the fs.File interface
-type overlayFile struct {
+// overlayReader is a wrapper around the overlay to implement io.ReadCloser
+type overlayReader struct {
 	*overlay
 	*bytes.Reader
 }
 
-func (o *overlayFile) Close() error { return nil }
+func (o *overlayReader) Close() error { return nil }
 
 var (
-	_ fs.FileInfo = (*overlay)(nil)
-	_ fs.DirEntry = (*overlay)(nil)
+	_ os.FileInfo = (*overlay)(nil)
+	_ os.DirEntry = (*overlay)(nil)
 )
 
 func newOverlays(app *apps.Instance, overwrite bool, services ...Service) (*overlays, error) {
@@ -172,7 +173,7 @@ func newOverlays(app *apps.Instance, overwrite bool, services ...Service) (*over
 		return nil, err
 	}
 	o := &overlays{
-		list:  map[paths.FS]*overlay{},
+		items: map[paths.FS]*overlay{},
 		paths: svcPaths,
 	}
 	for _, s := range services {
@@ -190,15 +191,14 @@ func newOverlays(app *apps.Instance, overwrite bool, services ...Service) (*over
 }
 
 // overlays is a collection of virtual files that are used to store the source code of endpoints and types
-// in memory. It's modelled as a filesystem and implements the fs.ReadFileFS, fs.ReadDirFS and fs.StatFS interfaces.
-// It's used as an overlay for the Go and Encore parsers to include our in-progress code in the parsing process.
+// in memory. It's modelled as a replacement for the os package.
 type overlays struct {
-	list  map[paths.FS]*overlay
+	items map[paths.FS]*overlay
 	paths *servicePaths
 }
 
-func (o *overlays) Stat(name string) (fs.FileInfo, error) {
-	f, ok := o.list[paths.FS(name)]
+func (o *overlays) Stat(name string) (os.FileInfo, error) {
+	f, ok := o.items[paths.FS(name)]
 	if !ok {
 		// else return the filesystem file
 		return os.Stat(name)
@@ -206,14 +206,14 @@ func (o *overlays) Stat(name string) (fs.FileInfo, error) {
 	return f, nil
 }
 
-func (o *overlays) ReadDir(name string) ([]fs.DirEntry, error) {
-	entries := map[string]fs.DirEntry{}
+func (o *overlays) ReadDir(name string) ([]os.DirEntry, error) {
+	entries := map[string]os.DirEntry{}
 	osFiles, err := os.ReadDir(name)
 	for _, f := range osFiles {
 		entries[f.Name()] = f
 	}
 	dir := paths.FS(name)
-	for _, info := range o.list {
+	for _, info := range o.items {
 		if dir == info.path.Dir() {
 			entries[info.path.Base()] = info
 		}
@@ -226,14 +226,14 @@ func (o *overlays) ReadDir(name string) ([]fs.DirEntry, error) {
 
 func (o *overlays) PkgOverlay() map[string][]byte {
 	files := map[string][]byte{}
-	for f, info := range o.list {
+	for f, info := range o.items {
 		files[f.ToIO()] = info.content
 	}
 	return files
 }
 
 func (o *overlays) ReadFile(name string) ([]byte, error) {
-	f, ok := o.list[paths.FS(name)]
+	f, ok := o.items[paths.FS(name)]
 	if !ok {
 		// else return the filesystem file
 		return os.ReadFile(name)
@@ -241,25 +241,25 @@ func (o *overlays) ReadFile(name string) ([]byte, error) {
 	return f.content, nil
 }
 
-func (o *overlays) Open(name string) (fs.File, error) {
-	f, ok := o.list[paths.FS(name)]
+func (o *overlays) Open(name string) (io.ReadCloser, error) {
+	f, ok := o.items[paths.FS(name)]
 	if !ok {
 		// else return the filesystem file
 		return os.Open(name)
 	}
-	return f.File(), nil
+	return f.Reader(), nil
 }
 
 func (o *overlays) pkgPaths() []paths.Pkg {
 	pkgs := map[paths.Pkg]struct{}{}
-	for _, info := range o.list {
+	for _, info := range o.items {
 		pkgs[o.paths.PkgPath(info.service.Name)] = struct{}{}
 	}
 	return maps.Keys(pkgs)
 }
 
 func (o *overlays) get(p paths.FS) (*overlay, bool) {
-	rtn, ok := o.list[p]
+	rtn, ok := o.items[p]
 	return rtn, ok
 }
 
@@ -317,7 +317,7 @@ func (o *overlays) add(s Service, e *Endpoint) error {
 	}
 	offset, content := toSrcFile(p, s.Name, e.EndpointSource)
 	e.EndpointSource = string(content[offset.Offset:])
-	o.list[p] = &overlay{
+	o.items[p] = &overlay{
 		path:         p,
 		endpoint:     e,
 		service:      &s,
@@ -331,7 +331,7 @@ func (o *overlays) add(s Service, e *Endpoint) error {
 	}
 	offset, content = toSrcFile(p, s.Name, e.TypeSource)
 	e.TypeSource = string(content[offset.Offset:])
-	o.list[p] = &overlay{
+	o.items[p] = &overlay{
 		path:         p,
 		endpoint:     e,
 		service:      &s,
@@ -343,7 +343,5 @@ func (o *overlays) add(s Service, e *Endpoint) error {
 }
 
 var (
-	_ fs.ReadFileFS = (*overlays)(nil)
-	_ fs.ReadDirFS  = (*overlays)(nil)
-	_ fs.StatFS     = (*overlays)(nil)
+	_ parsectx.OverlaidOSFS = (*overlays)(nil)
 )
