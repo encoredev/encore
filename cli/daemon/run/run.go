@@ -778,9 +778,5 @@ func isSingleProc(outputs []builder.BuildOutput) bool {
 	if len(outputs) != 1 {
 		return false
 	}
-	o, ok := outputs[0].(*builder.GoBuildOutput)
-	if !ok {
-		return false
-	}
-	return len(o.Entrypoints) == 1
+	return len(outputs[0].GetEntrypoints()) == 1
 }
