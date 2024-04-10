@@ -37,7 +37,7 @@ Use GitHub to report bugs, feedback on proposals, or contribute your ideas.
 		<path fill="#111111" d="M77.7,97.2c7.1,0,12.9,5.8,12.9,12.9c0,7.1-5.8,12.9-12.9,12.9c-7.1,0-12.9-5.8-12.9-12.9V97.2H77.7z"/>
 		<path fill="#111111" d="M77.7,90.6c-7.1,0-12.9-5.8-12.9-12.9c0-7.1,5.8-12.9,12.9-12.9h32.4c7.1,0,12.9,5.8,12.9,12.9 c0,7.1-5.8,12.9-12.9,12.9H77.7z"/>
     </svg>
-    <a href="https://encore.dev/slack">Share your story on Slack</a>
+    <a href="https://encore.dev/discord">Share your story on Discord</a>
 </p>
 
 Connect with fellow Encore developers, ask questions, or just hang out!

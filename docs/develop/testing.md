@@ -76,6 +76,6 @@ It lets you run unit tests directly from within your IDE with support for debug 
 
 ### Visual Studio Code (VS Code)
 
-There's no official VS Code plugin available yet, but we are happy to include your contribution if you  build one. Reach out on [Slack](/slack) if you need help to get started.
+There's no official VS Code plugin available yet, but we are happy to include your contribution if you  build one. Reach out on [Discord](/discord) if you need help to get started.
 
 For advice on debugging when using VS Code, see the [Debugging docs](/docs/how-to/debug).

@@ -18,7 +18,7 @@ Encore currently supports generating the following clients:
 - **OpenAPI** - Using the OpenAPI Specification's language-agnostic interface to HTTP APIs. (Experimental)
 
 If there's a language you think should be added, please submit a pull request or create a feature
-request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Slack](/slack).
+request on [GitHub](https://github.com/encoredev/encore/issues/new), or [reach out on Discord](/discord).
 
 <Callout type="important">
 
