@@ -307,6 +307,10 @@ message PubSubTopic {
     int64  ack_deadline      = 3; // How long has a consumer got to process and ack a message in nanoseconds
     int64  message_retention = 4; // How long is an undelivered message kept in nanoseconds
     RetryPolicy retry_policy = 5; // The retry policy for the subscription
+    
+    // How many messages each instance can process concurrently.
+    // If not set, the default is provider-specific.
+    optional int32 max_concurrency = 6;
   }
 
   message RetryPolicy {

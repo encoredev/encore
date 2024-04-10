@@ -28,6 +28,7 @@ pub struct SubscriptionConfig {
     pub min_retry_backoff: std::time::Duration,
     pub max_retry_backoff: std::time::Duration,
     pub max_retries: u32,
+    pub max_concurrency: Option<u32>,
 }
 
 #[allow(non_snake_case)]
@@ -111,6 +112,7 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                         .as_ref()
                         .and_then(|p| p.maxRetries)
                         .unwrap_or(100),
+                    max_concurrency: r.config.maxConcurrency,
                 },
             }));
             pass.add_resource(resource.clone());

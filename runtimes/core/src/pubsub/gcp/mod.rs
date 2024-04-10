@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use google_cloud_pubsub as gcp;
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub;
 use crate::pubsub::gcp::sub::Subscription;
@@ -32,6 +33,7 @@ impl pubsub::Cluster for Cluster {
     fn subscription(
         &self,
         cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
     ) -> Arc<dyn pubsub::Subscription + 'static> {
         // If this is a push-based subscription, return that implementation.
         if let Some(pb::pub_sub_subscription::ProviderConfig::GcpConfig(gcp_cfg)) =
@@ -42,7 +44,7 @@ impl pubsub::Cluster for Cluster {
             }
         }
 
-        Arc::new(Subscription::new(self.client.clone(), &cfg))
+        Arc::new(Subscription::new(self.client.clone(), cfg, meta))
     }
 }
 
