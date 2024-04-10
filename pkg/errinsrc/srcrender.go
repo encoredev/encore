@@ -198,7 +198,7 @@ linePrintLoop:
 				// Try and guess the atom where the error is
 				// if the currentCause.Start()/currentCause.End() point is the same position
 				if endCol <= startCol {
-					endCol = GuessEndColumn(sc.Text(), startCol)
+					endCol = GuessEndColumn(sc.Bytes(), startCol)
 				}
 
 				// Work out how long the indicator is

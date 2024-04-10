@@ -48,8 +48,9 @@ type Context struct {
 	// Errs contains encountered errors.
 	Errs *perr.List
 
-	// Overlay is a map of file paths to their contents.
-	Overlay OverlayFS
+	// Overlay is an optional replacement for reading files using the os pkg.
+	// If unset, os is used instead.
+	Overlay OverlaidOSFS
 }
 
 func (c *Context) ReadFile(dir string) ([]byte, error) {
@@ -99,10 +100,14 @@ func (c *Context) PkgOverlay() map[string][]byte {
 	return c.Overlay.PkgOverlay()
 }
 
-type OverlayFS interface {
-	fs.ReadDirFS
-	fs.ReadFileFS
-	fs.StatFS
+// OverlaidOSFS is an interface that allows overlaying the os package with custom implementations.
+// This is used to allow for e.g. in-memory files. The name parameters are os paths, like the
+// corresponding methods in the os package.
+type OverlaidOSFS interface {
+	ReadDir(name string) ([]os.DirEntry, error)
+	ReadFile(name string) ([]byte, error)
+	Stat(name string) (os.FileInfo, error)
+	Open(name string) (io.ReadCloser, error)
 	PkgOverlay() map[string][]byte
 }
 

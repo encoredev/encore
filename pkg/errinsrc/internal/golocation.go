@@ -112,14 +112,17 @@ func FromGoTokenPositions(start token.Position, end token.Position, fileReaders 
 func convertSingleGoPositionToRange(filename string, fileBody []byte, start token.Position) (end token.Position) {
 	fs := token.NewFileSet()
 	file, err := parser.ParseFile(fs, filename, fileBody, parser.ParseComments)
-
 	if err != nil || file == nil {
-		fileBodyStr := string(fileBody)
-		f := fs.File(1)
-		lineStart := int(f.LineStart(start.Line)) - 1
-		offset := lineStart + start.Column - 1
-		pos := token.Pos(GuessEndColumn(fileBodyStr, offset) - 1)
-		return fs.Position(pos)
+		end = start
+		// If the file is not parsable for some reason (e.g. syntax error), we can't determine the end position
+		// based on ast.Nodes. If so, we can fall back on guessing the end position by looking for common delimiters
+		offset, ok := findPositionOffset(start, fileBody)
+		if !ok {
+			return end
+		}
+		endOffset := GuessEndColumn(fileBody, offset)
+		end.Column += endOffset - offset
+		return end
 	}
 
 	var match ast.Node
@@ -143,12 +146,30 @@ func convertSingleGoPositionToRange(filename string, fileBody []byte, start toke
 	return start
 }
 
-func GuessEndColumn(line string, startColumn int) int {
+func findPositionOffset(pos token.Position, data []byte) (int, bool) {
+	line, col := 1, 1
+	for i, c := range data {
+		if line == pos.Line && col == pos.Column {
+			return i, true
+		} else if line > pos.Line {
+			return -1, false
+		}
+		if c == '\n' {
+			line++
+			col = 1
+		} else {
+			col++
+		}
+	}
+	return -1, false
+}
+
+func GuessEndColumn(data []byte, offset int) int {
 	var params, brackets, braces int
 	inBackticks := false
 
-	for i := startColumn; i < len(line); i++ {
-		switch line[i] {
+	for i := offset; i < len(data); i++ {
+		switch data[i] {
 		case '(':
 			params++
 		case '[':
@@ -183,5 +204,5 @@ func GuessEndColumn(line string, startColumn int) int {
 		}
 	}
 
-	return len(line) + 1
+	return len(data) + 1
 }

@@ -312,7 +312,7 @@ func updateCode(ctx context.Context, services []Service, app *apps.Instance, ove
 		}
 		rtn.Errors = overlays.validationErrors(perrs)
 	}()
-	for p, olay := range overlays.list {
+	for p, olay := range overlays.items {
 		astFile, err := parser.ParseFile(fset, p.ToIO(), olay.content, parser.ParseComments|parser.AllErrors)
 		if err != nil {
 			perrs.AddStd(err)
