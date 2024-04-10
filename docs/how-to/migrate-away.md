@@ -31,7 +31,7 @@ If you want to migrate away, we want to ensure this is as smooth as possible! He
 
 Building with Encore doesn't require writing your application in an Encore-specific way. Encore applications are normal programs where less than 5% of the code is specific to Encore.
 
-This means that the changes required to migrate away will be almost exactly the same work you would have needed to do if you hadn't used Encore in the first placem, e.g. writing infrastructure boilerplate. There's no added migration cost.
+This means that the changes required to migrate away will be almost exactly the same work you would have needed to do if you hadn't used Encore in the first place, e.g. writing infrastructure boilerplate. There's no added migration cost.
 
 In practise, the code specific to Encore is limited to the use of Encore's Infrastructure SDK. So if you wish to stop using Encore, you need to rework these interfaces to function in a traditional way. This normally means adding boilerplate that isn't necessary when using Encore.
 
