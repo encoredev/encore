@@ -79,6 +79,7 @@ uuid = "1.7.0"
 openssl-probe = "0.1.5"
 jsonwebtoken = "9.2.0"
 tower-http = { version = "0.5.2", features = ["cors"] }
+google-cloud-gax = "0.17.0"
 
 [build-dependencies]
 prost-build = "0.12.3"

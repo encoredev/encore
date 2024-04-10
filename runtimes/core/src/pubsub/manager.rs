@@ -217,7 +217,7 @@ impl Manager {
 
         let sub = {
             if let Some((cluster, sub_cfg, meta_sub)) = self.sub_cfg.get(&name) {
-                let inner = cluster.subscription(sub_cfg);
+                let inner = cluster.subscription(sub_cfg, meta_sub);
 
                 // If we have a push handler, register it.
                 if let Some((sub_id, push_handler)) = inner.push_handler() {
