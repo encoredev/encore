@@ -40,7 +40,7 @@ func (r *Rewriter) Append(data []byte) {
 	}
 	r.segs = append(r.segs, segment{
 		start: int(start),
-		end:   int(start) + len(data),
+		end:   int(start),
 		data:  data,
 	})
 }
