@@ -12,7 +12,7 @@ use crate::model::{PubSubRequestData, RequestData, ResponseData, SpanId, SpanKey
 use crate::names::EncoreName;
 use crate::pubsub::noop::NoopCluster;
 use crate::pubsub::{
-    gcp, noop, nsq, Cluster, Message, MessageData, MessageId, SubName, Subscription,
+    gcp, noop, nsq, sqs_sns, Cluster, Message, MessageData, MessageId, SubName, Subscription,
     SubscriptionHandler, Topic,
 };
 use crate::trace::{protocol, Tracer};
@@ -327,11 +327,9 @@ fn new_cluster(cluster: &pb::PubSubCluster) -> Arc<dyn Cluster> {
         pb::pub_sub_cluster::Provider::Nsq(cfg) => {
             return Arc::new(nsq::Cluster::new(cfg.hosts[0].clone()))
         }
+        pb::pub_sub_cluster::Provider::Aws(_) => return Arc::new(sqs_sns::Cluster::new()),
         pb::pub_sub_cluster::Provider::Encore(_) => {
             log::error!("Encore Cloud Pub/Sub not yet supported: {}", cluster.rid);
-        }
-        pb::pub_sub_cluster::Provider::Aws(_) => {
-            log::error!("AWS Pub/Sub not yet supported: {}", cluster.rid);
         }
         pb::pub_sub_cluster::Provider::Azure(_) => {
             log::error!("Azure Pub/Sub not yet supported: {}", cluster.rid);

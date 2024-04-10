@@ -88,6 +88,12 @@ impl From<String> for CloudName {
     }
 }
 
+impl Into<String> for CloudName {
+    fn into(self) -> String {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EndpointName {
     /// The full name ("service.endpoint")
