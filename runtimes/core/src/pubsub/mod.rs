@@ -18,6 +18,7 @@ mod manager;
 mod noop;
 mod nsq;
 mod push_registry;
+mod sqs_sns;
 
 pub type MessageId = String;
 
@@ -30,7 +31,8 @@ pub struct MessageData {
 pub struct Message {
     pub id: MessageId,
     pub publish_time: Option<chrono::DateTime<chrono::Utc>>,
-    pub attempt: u32, // starts at 1
+    /// starts at 1
+    pub attempt: u32,
     pub data: MessageData,
 }
 
