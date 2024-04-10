@@ -87,3 +87,7 @@ func (m *Manager) PreviewFiles(ctx context.Context, services []Service, app *app
 		return PreviewFile{Path: k, Content: v}
 	})}, err
 }
+
+func (m *Manager) Unsubscribe(id string) error {
+	return m.aiClient.Unsubscribe(id)
+}

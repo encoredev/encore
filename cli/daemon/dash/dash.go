@@ -257,6 +257,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		case <-ctx.Done():
 			return reply(ctx, nil, ctx.Err())
 		case <-time.NewTimer(10 * time.Second).C:
+			_ = h.ai.Unsubscribe(subID)
 			return reply(ctx, nil, errors.New("timed out waiting for response"))
 		}
 
