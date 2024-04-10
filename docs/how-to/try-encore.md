@@ -76,7 +76,7 @@ Each approach has different benefits and is relevant in different scenarios. Whi
 
 Whether it’s expanding your horizons with **Extend**, revitalizing existing structures through **Refactor**, or starting afresh with **Rebuild**, we’re available to support as you explore Encore to unlock improved productivity and developer experience.
 
-We're happy to chat through your use case in a call. You can also [join Slack](https://encore.dev/slack) to ask questions and meet fellow Encore developers.
+We're happy to chat through your use case in a call. You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
 <a href="/book">
     <Button className="mt-4" kind="primary" section="white">Book call</Button>
 </a>

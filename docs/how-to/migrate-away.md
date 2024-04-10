@@ -65,4 +65,4 @@ We're engineers ourselves and we understand the importance of not being constrai
 We're working every single day on making it even easier to start, <i>and stop</i>, using Encore.
 If you have specific concerns, questions, or requirements, we'd love to hear from you!
 
-Please reach out on [Slack](https://encore.dev/slack) or [send an email](mailto:hello@encore.dev) with your thoughts.
+Please reach out on [Discord](https://encore.dev/discord) or [send an email](mailto:hello@encore.dev) with your thoughts.

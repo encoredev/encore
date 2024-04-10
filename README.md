@@ -17,7 +17,7 @@ It consists of a **Microservice Framework** & **Infrastructure SDK**, a **Local 
 
 **🍿 Intro video:** [Watch this video](https://youtu.be/LN8mQWho0Jc) for an introduction to Encore concepts & features
 
-**👋 Have questions?** Join the friendly developer community on [Slack](https://encore.dev/slack).
+**👋 Have questions?** Join the friendly developer community on [Discord](https://encore.dev/discord).
 
 **📞 See if Encore fits your project:** [Book a 1:1 demo](https://encore.dev/book).
 
@@ -182,7 +182,7 @@ Encore is designed to give teams a productive and less complex experience when s
 - **2.** [Follow a tutorial and start building](https://encore.dev/docs/tutorials/)
 - **3.** Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
 - **4.** Explore the [Documentation](https://encore.dev/docs) to learn more about Encore's features
-- **5.** [Book a 1:1](https://encore.dev/book) or [join Slack](https://encore.dev/slack) to discuss your use case or how to begin adopting Encore
+- **5.** [Book a 1:1](https://encore.dev/book) or [join Discord](https://encore.dev/discord) to discuss your use case or how to begin adopting Encore
 
 ## Open Source
 
@@ -193,13 +193,13 @@ The Open Source CLI also provides a mechanism to generate a standalone Docker im
 
 ## Join the most pioneering developer community
 
-Developers building with Encore are forward-thinkers who want to focus on creative programming and building great software to solve meaningful problems. It's a friendly place, great for exchanging ideas and learning new things! **Join the conversation on [Slack](https://encore.dev/slack).**
+Developers building with Encore are forward-thinkers who want to focus on creative programming and building great software to solve meaningful problems. It's a friendly place, great for exchanging ideas and learning new things! **Join the conversation on [Discord](https://encore.dev/discord).**
 
 We rely on your contributions and feedback to improve Encore for everyone who is using it.
 Here's how you can contribute:
 
 - ⭐ **Star and watch this repository to help spread the word and stay up to date.**
-- Meet fellow Encore developers and chat on [Slack](https://encore.dev/slack).
+- Meet fellow Encore developers and chat on [Discord](https://encore.dev/discord).
 - Follow Encore on [Twitter](https://twitter.com/encoredotdev).
 - Share feedback or ask questions via [email](mailto:hello@encore.dev).
 - Leave feedback on the [Public Roadmap](https://encore.dev/roadmap).
