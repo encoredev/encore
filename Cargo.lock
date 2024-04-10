@@ -830,6 +830,7 @@ dependencies = [
  "generic-array 1.0.0",
  "geo-types",
  "gjson",
+ "google-cloud-gax",
  "google-cloud-googleapis",
  "google-cloud-pubsub",
  "hex",

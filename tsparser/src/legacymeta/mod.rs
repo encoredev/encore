@@ -463,6 +463,7 @@ impl<'a> MetaBuilder<'a> {
             service_name,
             ack_deadline: sub.config.ack_deadline.as_nanos() as i64,
             message_retention: sub.config.message_retention.as_nanos() as i64,
+            max_concurrency: sub.config.max_concurrency.map(|v| v as i32),
             retry_policy: Some(v1::pub_sub_topic::RetryPolicy {
                 min_backoff: sub.config.min_retry_backoff.as_nanos() as i64,
                 max_backoff: sub.config.max_retry_backoff.as_nanos() as i64,

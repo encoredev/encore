@@ -1,35 +1,64 @@
+use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use tokio_nsq::{
     NSQChannel, NSQConsumerConfig, NSQConsumerConfigSources, NSQMessage, NSQRequeueDelay, NSQTopic,
 };
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
-use crate::names::CloudName;
 use crate::pubsub;
 use crate::pubsub::manager::SubHandler;
 use crate::pubsub::nsq::topic::EncodedMessage;
 use crate::pubsub::Subscription;
 
-#[derive(Debug)]
 pub struct NsqSubscription {
     addr: String,
-    topic_name: CloudName,
-    sub_name: CloudName,
+    config: NSQConsumerConfig,
+}
+
+impl Debug for NsqSubscription {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NsqSubscription")
+            .field("addr", &self.addr)
+            .finish()
+    }
 }
 
 impl NsqSubscription {
-    pub(super) fn new(addr: String, cfg: &pb::PubSubSubscription) -> Self {
-        let topic_name = cfg.topic_cloud_name.clone().into();
-        let sub_name = cfg.subscription_cloud_name.clone().into();
-        NsqSubscription {
-            addr,
-            topic_name,
-            sub_name,
+    pub(super) fn new(
+        addr: String,
+        cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
+    ) -> Self {
+        let topic = NSQTopic::new(cfg.topic_cloud_name.clone()).unwrap();
+        let channel = NSQChannel::new(cfg.subscription_cloud_name.clone()).unwrap();
+
+        let mut config = NSQConsumerConfig::new(topic, channel)
+            .set_sources(NSQConsumerConfigSources::Daemons(vec![addr.clone()]))
+            .set_max_in_flight(meta.max_concurrency.map_or(100, |v| v as u32));
+
+        if let Some(retry) = &meta.retry_policy {
+            let min_backoff = Duration::from_nanos(retry.min_backoff.max(0) as u64);
+            config = config.set_base_requeue_interval(clamp(
+                min_backoff,
+                Duration::from_secs(0),
+                Duration::from_secs(60 * 60),
+            ));
+
+            let max_backoff = Duration::from_nanos(retry.max_backoff.max(0) as u64);
+            config = config.set_max_requeue_interval(clamp(
+                max_backoff,
+                Duration::from_secs(0),
+                Duration::from_secs(60 * 60),
+            ));
         }
+
+        NsqSubscription { addr, config }
     }
 }
 
@@ -38,13 +67,7 @@ impl Subscription for NsqSubscription {
         &self,
         handler: Arc<SubHandler>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
-        let topic = NSQTopic::new(self.topic_name.to_string()).unwrap();
-        let channel = NSQChannel::new(self.sub_name.to_string()).unwrap();
-
-        let mut consumer = NSQConsumerConfig::new(topic, channel)
-            .set_max_in_flight(15)
-            .set_sources(NSQConsumerConfigSources::Daemons(vec![self.addr.clone()]))
-            .build();
+        let mut consumer = self.config.clone().build();
 
         Box::pin(async move {
             loop {
@@ -65,7 +88,6 @@ async fn process_message(mut msg: NSQMessage, handler: Arc<SubHandler>) {
     match result {
         Ok(()) => msg.finish().await,
         Err(err) => {
-            // TODO customize requeue strategy
             log::info!("message handler failed, requeueing message: {:?}", err);
             msg.requeue(NSQRequeueDelay::DefaultDelay).await;
         }
@@ -109,4 +131,14 @@ fn nano_timestamp(mut nsec: u64) -> Option<chrono::DateTime<chrono::Utc>> {
         nsec -= n * 1_000_000_000;
     }
     chrono::DateTime::from_timestamp(sec, nsec as u32)
+}
+
+fn clamp<T: PartialOrd>(val: T, min: T, max: T) -> T {
+    if val < min {
+        min
+    } else if val > max {
+        max
+    } else {
+        val
+    }
 }

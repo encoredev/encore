@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub;
 use crate::pubsub::manager::SubHandler;
@@ -21,7 +22,11 @@ impl pubsub::Cluster for NoopCluster {
         Arc::new(NoopTopic)
     }
 
-    fn subscription(&self, _cfg: &pb::PubSubSubscription) -> Arc<dyn pubsub::Subscription> {
+    fn subscription(
+        &self,
+        _cfg: &pb::PubSubSubscription,
+        _meta: &meta::pub_sub_topic::Subscription,
+    ) -> Arc<dyn pubsub::Subscription> {
         Arc::new(NoopSubscription)
     }
 }

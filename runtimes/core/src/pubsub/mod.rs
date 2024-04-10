@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub use manager::{Manager, SubscriptionObj, TopicObj};
 pub use push_registry::PushHandlerRegistry;
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
 use crate::pubsub::manager::SubHandler;
@@ -35,7 +36,11 @@ pub struct Message {
 
 trait Cluster: Debug + Send + Sync {
     fn topic(&self, cfg: &pb::PubSubTopic) -> Arc<dyn Topic + 'static>;
-    fn subscription(&self, cfg: &pb::PubSubSubscription) -> Arc<dyn Subscription + 'static>;
+    fn subscription(
+        &self,
+        cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
+    ) -> Arc<dyn Subscription + 'static>;
 }
 
 trait Topic: Debug + Send + Sync {
