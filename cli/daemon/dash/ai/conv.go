@@ -111,7 +111,7 @@ func renderTypesFromMetadata(md *meta.Data, svcs ...string) string {
 }
 
 func parseServicesFromMetadata(md *meta.Data, svcs ...string) []ServiceInput {
-	var services []ServiceInput
+	services := []ServiceInput{}
 	for _, metaSvc := range md.Svcs {
 		if len(svcs) > 0 && !slices.Contains(svcs, metaSvc.Name) {
 			continue
