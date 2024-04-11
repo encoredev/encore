@@ -153,6 +153,7 @@ type endpointsAssembler struct {
 }
 
 func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
+	s.endpoint(e.Service, e.Name)
 	for _, ep := range s.eps {
 		if ep.service != e.Service || ep.endpoint.Name != e.Name {
 			continue
