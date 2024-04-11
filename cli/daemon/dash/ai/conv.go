@@ -1,9 +1,12 @@
 package ai
 
 import (
+	"slices"
 	"strings"
 
+	"encr.dev/internal/clientgen"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	schema "encr.dev/proto/encore/parser/schema/v1"
 	"encr.dev/v2/internals/resourcepaths"
 )
 
@@ -88,9 +91,31 @@ func toVisibility(accessType meta.RPC_AccessType) VisibilityType {
 	}
 }
 
-func parseServicesFromMetadata(md *meta.Data) []ServiceInput {
+func renderTypesFromMetadata(md *meta.Data, svcs ...string) string {
+	var types []*schema.Decl
+	for _, metaSvc := range md.Svcs {
+		if len(svcs) > 0 && !slices.Contains(svcs, metaSvc.Name) {
+			continue
+		}
+		for _, rpc := range metaSvc.Rpcs {
+			if rpc.RequestSchema != nil {
+				types = append(types, md.Decls[rpc.RequestSchema.GetNamed().Id])
+			}
+			if rpc.ResponseSchema != nil {
+				types = append(types, md.Decls[rpc.ResponseSchema.GetNamed().Id])
+			}
+		}
+	}
+	src, _ := clientgen.GenTypes(md, types...)
+	return string(src)
+}
+
+func parseServicesFromMetadata(md *meta.Data, svcs ...string) []ServiceInput {
 	var services []ServiceInput
 	for _, metaSvc := range md.Svcs {
+		if len(svcs) > 0 && !slices.Contains(svcs, metaSvc.Name) {
+			continue
+		}
 		svc := ServiceInput{
 			Name: metaSvc.Name,
 		}
@@ -102,10 +127,12 @@ func parseServicesFromMetadata(md *meta.Data) []ServiceInput {
 				Path:       metaPathToPathSegments(rpc.Path),
 			}
 			if rpc.RequestSchema != nil {
-				ep.RequestType = md.Decls[rpc.RequestSchema.GetNamed().Id].Name
+				decl := md.Decls[rpc.RequestSchema.GetNamed().Id]
+				ep.RequestType = decl.Name
 			}
 			if rpc.ResponseSchema != nil {
-				ep.ResponseType = md.Decls[rpc.ResponseSchema.GetNamed().Id].Name
+				decl := md.Decls[rpc.ResponseSchema.GetNamed().Id]
+				ep.ResponseType = decl.Name
 			}
 			svc.Endpoints = append(svc.Endpoints, ep)
 		}

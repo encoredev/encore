@@ -1,6 +1,7 @@
 package clientgen
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strings"
@@ -35,11 +36,28 @@ const (
 const goGenLatestVersion = GoExperimental - 1
 
 type golang struct {
-	md               *meta.Data
-	enc              *gocodegen.MarshallingCodeGenerator
-	generatorVersion goGenVersion
+	md                *meta.Data
+	enc               *gocodegen.MarshallingCodeGenerator
+	generatorVersion  goGenVersion
+	skipDocs          bool
+	skipPkgTypePrefix bool
 
 	seenSlicePath bool
+}
+
+func GenTypes(md *meta.Data, typs ...*schema.Decl) ([]byte, error) {
+	g := &golang{
+		generatorVersion:  goGenLatestVersion,
+		md:                md,
+		enc:               gocodegen.NewMarshallingCodeGenerator(gocodegen.UnknownPkgPath, "serde", true),
+		skipDocs:          true,
+		skipPkgTypePrefix: true,
+	}
+	rtn := &bytes.Buffer{}
+	stmt := Add()
+	g.generateTypeDefinitions(stmt, typs)
+	err := stmt.Render(rtn)
+	return rtn.Bytes(), err
 }
 
 func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
@@ -59,7 +77,7 @@ func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
 	seenNs := make(map[string]bool)
 	for _, service := range p.Meta.Svcs {
 		nsName := service.Name
-		g.generateTypeDefinitions(file, namedTypes.Decls(nsName))
+		g.generateTypeDefinitions(file.Add(), namedTypes.Decls(nsName))
 		seenNs[nsName] = true
 
 		if hasPublicRPC(service) && p.Services.Has(service.Name) {
@@ -70,7 +88,7 @@ func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
 	}
 	for _, ns := range namedTypes.Namespaces() {
 		if !seenNs[ns] {
-			g.generateTypeDefinitions(file, namedTypes.Decls(ns))
+			g.generateTypeDefinitions(file.Add(), namedTypes.Decls(ns))
 		}
 	}
 
@@ -318,7 +336,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 		}
 
 		// Add the documentation for the API to the interface method
-		if rpc.Doc != nil {
+		if rpc.Doc != nil && !g.skipDocs {
 			// Add a newline if this is not the first method
 			if len(interfaceMethods) > 0 {
 				interfaceMethods = append(interfaceMethods, Line())
@@ -349,7 +367,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 			continue
 		}
 
-		if rpc.Doc != nil && *rpc.Doc != "" {
+		if rpc.Doc != nil && *rpc.Doc != "" && !g.skipDocs {
 			for _, line := range strings.Split(strings.TrimSpace(*rpc.Doc), "\n") {
 				if line != "" {
 					file.Comment(line)
@@ -741,7 +759,11 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 }
 
 func (g *golang) declToID(decl *schema.Decl) *Statement {
-	return Id(fmt.Sprintf("%s%s", strings.Title(decl.Loc.PkgName), strings.Title(decl.Name)))
+	if g.skipPkgTypePrefix {
+		return Id(strings.Title(decl.Name))
+	} else {
+		return Id(fmt.Sprintf("%s%s", strings.Title(decl.Loc.PkgName), strings.Title(decl.Name)))
+	}
 }
 
 func (g *golang) getType(typ *schema.Type) Code {
@@ -845,7 +867,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 			}
 
 			// Add the docs for the field
-			if field.Doc != "" {
+			if field.Doc != "" && !g.skipDocs {
 				lines := strings.Split(strings.TrimSpace(field.Doc), "\n")
 
 				if len(lines) == 1 {
@@ -932,23 +954,23 @@ func (g *golang) createApiPath(rpc *meta.RPC, withQueryString bool) (urlPath *St
 	return urlPath
 }
 
-func (g *golang) generateTypeDefinitions(file *File, decls []*schema.Decl) {
+func (g *golang) generateTypeDefinitions(stmt *Statement, decls []*schema.Decl) {
 	sort.Slice(decls, func(i, j int) bool {
 		return decls[i].Name < decls[j].Name
 	})
 
 	for _, decl := range decls {
 		// Write the docs
-		if decl.Doc != "" {
+		if decl.Doc != "" && !g.skipDocs {
 			for _, line := range strings.Split(strings.TrimSpace(decl.Doc), "\n") {
-				file.Comment(line)
+				stmt.Comment(line)
 			}
 		} else {
-			file.Line()
+			stmt.Line()
 		}
 
 		// Create the base type definition; `type X[T]`
-		typ := file.Type().Add(g.declToID(decl))
+		typ := stmt.Type().Add(g.declToID(decl))
 		if len(decl.TypeParams) > 0 {
 			types := make([]Code, len(decl.TypeParams))
 
