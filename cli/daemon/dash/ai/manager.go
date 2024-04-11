@@ -21,14 +21,16 @@ func NewAIManager(client *graphql.SubscriptionClient) *Manager {
 }
 
 func (m *Manager) DefineEndpoints(ctx context.Context, appSlug string, sessionID AISessionID, prompt string, md *meta.Data, proposed []Service, notifier AINotifier) (string, error) {
+	svcs := fns.Map(proposed, Service.GetName)
 	return startAITask[struct {
-		Message *AIStreamMessage `graphql:"result: defineEndpoints(appSlug: $appSlug, sessionID: $sessionID, prompt: $prompt, current: $current, proposedDesign: $proposedDesign)"`
+		Message *AIStreamMessage `graphql:"result: defineEndpoints(appSlug: $appSlug, sessionID: $sessionID, prompt: $prompt, current: $current, proposedDesign: $proposedDesign, existingTypes: $existingTypes)"`
 	}](ctx, m.aiClient, map[string]interface{}{
 		"appSlug":        appSlug,
 		"prompt":         prompt,
-		"current":        parseServicesFromMetadata(md),
+		"current":        parseServicesFromMetadata(md, svcs...),
 		"proposedDesign": fns.Map(proposed, Service.GraphQL),
 		"sessionID":      sessionID,
+		"existingTypes":  renderTypesFromMetadata(md, svcs...),
 	}, newEndpointAssemblerHandler(proposed, notifier, true))
 }
 

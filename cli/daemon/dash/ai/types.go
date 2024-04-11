@@ -62,6 +62,7 @@ func (s *Endpoint) Auth() bool {
 func (s *Endpoint) GraphQL() *Endpoint {
 	s.ID = ""
 	s.EndpointSource = ""
+	s.TypeSource = ""
 	s.Types = nil
 	s.Language = ""
 	for i, _ := range s.Path {
@@ -81,6 +82,10 @@ type Service struct {
 	Name      string      `json:"name,omitempty"`
 	Doc       string      `json:"doc,omitempty"`
 	Endpoints []*Endpoint `json:"endpoints,omitempty"`
+}
+
+func (s Service) GetName() string {
+	return s.Name
 }
 
 func (s Service) GetEndpoints() []*Endpoint {
