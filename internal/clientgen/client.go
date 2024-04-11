@@ -52,7 +52,7 @@ func Detect(path string) (lang Lang, ok bool) {
 // Client generates an API client based on the given app metadata.
 // ServiceNames are the services to include in the output.
 // If it's nil, all services are included.
-func Client(lang Lang, appSlug string, md *meta.Data, serviceNames []string) (code []byte, err error) {
+func Client(lang Lang, appSlug string, md *meta.Data, services clientgentypes.ServiceSet) (code []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = srcerrors.UnhandledPanic(e)
@@ -75,17 +75,11 @@ func Client(lang Lang, appSlug string, md *meta.Data, serviceNames []string) (co
 
 	var buf bytes.Buffer
 	params := clientgentypes.GenerateParams{
-		Buf:     &buf,
-		AppSlug: appSlug,
-		Meta:    md,
+		Buf:      &buf,
+		AppSlug:  appSlug,
+		Meta:     md,
+		Services: services,
 	}
-	if serviceNames == nil {
-		serviceNames = make([]string, 0, len(md.Svcs))
-		for _, svc := range md.Svcs {
-			serviceNames = append(serviceNames, svc.Name)
-		}
-	}
-	params.Services = clientgentypes.NewServiceSet(serviceNames...)
 
 	if err := gen.Generate(params); err != nil {
 		return nil, fmt.Errorf("genclient.Generate %s %s: %v", lang, appSlug, err)
