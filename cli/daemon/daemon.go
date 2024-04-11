@@ -138,15 +138,36 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	}
 
 	lang := clientgen.Lang(params.Lang)
-	serviceNames := params.Services
-	if slices.Contains(serviceNames, "*") {
-		serviceNames = nil
-	}
-	code, err := clientgen.Client(lang, params.AppId, md, serviceNames)
+
+	servicesToGenerate := includedServices(md, params.Services, params.ExcludedServices)
+	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	return &daemonpb.GenClientResponse{Code: code}, nil
+}
+
+func includedServices(md *meta.Data, included, excluded []string) []string {
+	serviceNameSet := make(map[string]struct{})
+	for _, svc := range included {
+		serviceNameSet[svc] = struct{}{}
+	}
+
+	if slices.Contains(included, "*") {
+		for _, svc := range md.Svcs {
+			serviceNameSet[svc.Name] = struct{}{}
+		}
+	}
+
+	for _, svc := range excluded {
+		delete(serviceNameSet, svc)
+	}
+
+	finalServices := []string{}
+	for key := range serviceNameSet {
+		finalServices = append(finalServices, key)
+	}
+	return finalServices
 }
 
 func (s *Server) SecretsRefresh(ctx context.Context, req *daemonpb.SecretsRefreshRequest) (*daemonpb.SecretsRefreshResponse, error) {

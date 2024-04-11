@@ -80,10 +80,7 @@ func Client(lang Lang, appSlug string, md *meta.Data, serviceNames []string) (co
 		Meta:    md,
 	}
 	if serviceNames == nil {
-		serviceNames = make([]string, 0, len(md.Svcs))
-		for _, svc := range md.Svcs {
-			serviceNames = append(serviceNames, svc.Name)
-		}
+		return nil, errors.New("serviceNames must not be empty")
 	}
 	params.Services = clientgentypes.NewServiceSet(serviceNames...)
 

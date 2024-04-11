@@ -264,6 +264,10 @@ message GenClientRequest {
   // Services to include in the output.
   // If the string "*" is present all services are included.
   repeated string services = 5;
+
+  // Services to exclude from the output.
+  // If specified in conjunction with '*' above, these services are excluded.
+  repeated string excluded_services = 6;
 }
 
 message GenClientResponse {
