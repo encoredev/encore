@@ -21,6 +21,7 @@ pub mod api;
 mod base32;
 pub mod error;
 pub mod log;
+pub mod meta;
 pub mod model;
 mod names;
 pub mod pubsub;
@@ -34,12 +35,14 @@ pub mod encore {
             include!(concat!(env!("OUT_DIR"), "/encore.runtime.v1.rs"));
         }
     }
+
     pub mod parser {
         pub mod meta {
             pub mod v1 {
                 include!(concat!(env!("OUT_DIR"), "/encore.parser.meta.v1.rs"));
             }
         }
+
         pub mod schema {
             pub mod v1 {
                 include!(concat!(env!("OUT_DIR"), "/encore.parser.schema.v1.rs"));
@@ -160,6 +163,7 @@ pub struct Runtime {
     secrets: secrets::Manager,
     sqldb: sqldb::Manager,
     api: api::Manager,
+    app_meta: meta::AppMeta,
     runtime: tokio::runtime::Runtime,
 }
 
@@ -181,6 +185,7 @@ impl Runtime {
             .build()
             .context("failed to build tokio runtime")?;
 
+        let app_meta = meta::AppMeta::new(&cfg, &md);
         let environment = cfg.environment.take().unwrap_or_default();
         let mut infra = cfg.infra.take().unwrap_or_default();
         let resources = infra.resources.take().unwrap_or_default();
@@ -279,6 +284,7 @@ impl Runtime {
             secrets,
             sqldb,
             api,
+            app_meta,
             runtime: tokio_rt,
         })
     }
@@ -323,6 +329,11 @@ impl Runtime {
                 ::log::error!("failed to start serving: {:?}", err);
             }
         });
+    }
+
+    #[inline]
+    pub fn app_meta(&self) -> &meta::AppMeta {
+        &self.app_meta
     }
 }
 

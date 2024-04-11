@@ -4,6 +4,7 @@ pub mod api;
 mod async_context;
 mod gateway;
 mod log;
+mod meta;
 mod napi_util;
 pub mod pubsub;
 pub mod runtime;
