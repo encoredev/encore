@@ -1,6 +1,7 @@
 use crate::api::{to_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
+use crate::meta;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
@@ -189,5 +190,11 @@ impl Runtime {
     #[napi]
     pub fn build_commit() -> String {
         encore_runtime_core::build_commit().to_string()
+    }
+
+    #[napi]
+    pub fn app_meta(&self, env: Env) -> meta::AppMeta {
+        let md = self.runtime.app_meta();
+        md.clone().into()
     }
 }
