@@ -77,7 +77,7 @@ func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
 	seenNs := make(map[string]bool)
 	for _, service := range p.Meta.Svcs {
 		nsName := service.Name
-		g.generateTypeDefinitions(file.Add(), namedTypes.Decls(nsName))
+		g.generateTypeDefinitions(file, namedTypes.Decls(nsName))
 		seenNs[nsName] = true
 
 		if hasPublicRPC(service) && p.Services.Has(service.Name) {
@@ -88,7 +88,7 @@ func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
 	}
 	for _, ns := range namedTypes.Namespaces() {
 		if !seenNs[ns] {
-			g.generateTypeDefinitions(file.Add(), namedTypes.Decls(ns))
+			g.generateTypeDefinitions(file, namedTypes.Decls(ns))
 		}
 	}
 
@@ -954,7 +954,14 @@ func (g *golang) createApiPath(rpc *meta.RPC, withQueryString bool) (urlPath *St
 	return urlPath
 }
 
-func (g *golang) generateTypeDefinitions(stmt *Statement, decls []*schema.Decl) {
+// FileStatement is an interface implemented by both jen.File and jen.Statement
+type FileStatement interface {
+	Comment(string) *Statement
+	Line() *Statement
+	Type() *Statement
+}
+
+func (g *golang) generateTypeDefinitions(stmt FileStatement, decls []*schema.Decl) {
 	sort.Slice(decls, func(i, j int) bool {
 		return decls[i].Name < decls[j].Name
 	})

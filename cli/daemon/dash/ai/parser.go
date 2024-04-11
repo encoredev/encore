@@ -155,8 +155,11 @@ func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn
 	// Load overlay packages using the encore loader
 	loader := pkginfo.New(pc)
 	pkgs := map[paths.Pkg]*pkginfo.Package{}
-	for _, pkg := range overlays.pkgPaths() {
-		pkgs[pkg], _ = loader.LoadPkg(token.NoPos, pkg)
+	for _, pkgPath := range overlays.pkgPaths() {
+		pkg, ok := loader.LoadPkg(token.NoPos, pkgPath)
+		if ok {
+			pkgs[pkgPath] = pkg
+		}
 	}
 
 	// Create a schema parser to help us parse the types
