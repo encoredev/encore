@@ -466,6 +466,11 @@
 			file: "develop/cors"
 		}, {
 			kind: "basic"
+			text: "Metadata"
+			path: "/ts/develop/metadata"
+			file: "ts/develop/metadata"
+		}, {
+			kind: "basic"
 			text: "Testing"
 			path: "/ts/develop/testing"
 			file: "ts/develop/testing"
