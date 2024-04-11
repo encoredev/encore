@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,6 +26,7 @@ import (
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
 	"encr.dev/internal/clientgen"
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -138,11 +138,9 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	}
 
 	lang := clientgen.Lang(params.Lang)
-	serviceNames := params.Services
-	if slices.Contains(serviceNames, "*") {
-		serviceNames = nil
-	}
-	code, err := clientgen.Client(lang, params.AppId, md, serviceNames)
+
+	servicesToGenerate := clientgentypes.NewServiceSet(md, params.Services, params.ExcludedServices)
+	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
