@@ -11,7 +11,7 @@ use crate::api::gateway::reverseproxy::{Director, InboundRequest, ProxyRequest, 
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::api::schema::Method;
-use crate::api::{auth, schema, APIResult, IntoResponse};
+use crate::api::{auth, path_supports_tsr, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
 
 mod reverseproxy;
@@ -86,6 +86,13 @@ impl Gateway {
                     continue;
                 };
                 let handler = axum::routing::on(filter, proxy.clone());
+
+                if path_supports_tsr(&route.path) {
+                    // Register the same route with a trailing slash as well.
+                    let tsr_path = format!("{}/", route.path);
+                    router = router.route(&tsr_path, handler.clone());
+                }
+
                 router = router.route(&route.path, handler);
             }
         }

@@ -9,7 +9,7 @@ use anyhow::Context;
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::reqauth::svcauth;
-use crate::api::{reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
+use crate::api::{path_supports_tsr, reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
 use crate::names::EndpointName;
 use crate::trace;
 
@@ -72,6 +72,13 @@ impl Server {
                 Some(filter) => {
                     let server_handler = ServerHandler::default();
                     let handler = axum::routing::on(filter, server_handler.clone());
+
+                    if path_supports_tsr(&ep.path) {
+                        // Register the same route with a trailing slash as well.
+                        let tsr_path = format!("{}/", ep.path);
+                        router = router.route(&tsr_path, handler.clone());
+                    }
+
                     router = router.route(&ep.path, handler);
                     handler_map.insert(key, server_handler);
                 }
