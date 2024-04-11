@@ -11,6 +11,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/golden"
 	"encr.dev/v2/v2builder"
@@ -69,7 +70,8 @@ func TestClientCodeGeneration(t *testing.T) {
 						}
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
-						generatedClient, err := Client(language, "app", res.Meta, nil)
+						services := clientgentypes.AllServices(res.Meta)
+						generatedClient, err := Client(language, "app", res.Meta, services)
 						c.Assert(err, qt.IsNil)
 
 						golden.TestAgainst(c, file.Name(), string(generatedClient))

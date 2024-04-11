@@ -23,6 +23,7 @@ import (
 	. "encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/internal/clientgen"
+	"encr.dev/internal/clientgen/clientgentypes"
 	. "encr.dev/internal/optracker"
 	"encr.dev/pkg/golden"
 	"encr.dev/pkg/svcproxy"
@@ -95,7 +96,8 @@ func doTestEndToEndWithApp(t *testing.T, env []string) {
 		clientgen.LangTypeScript: "ts/client.ts",
 		clientgen.LangJavascript: "js/client.js",
 	} {
-		client, err := clientgen.Client(lang, "slug", app.Meta, nil)
+		services := clientgentypes.AllServices(app.Meta)
+		client, err := clientgen.Client(lang, "slug", app.Meta, services)
 		if err != nil {
 			fmt.Println(err.Error())
 			c.FailNow()
