@@ -148,12 +148,26 @@ func (e *partialEndpoint) upsertField(up TypeFieldUpdate) *Type {
 // from the incoming websocket updates. It keeps track of the existing endpoints and services
 // and updates them accordingly.
 type endpointsAssembler struct {
-	eps      map[string]*partialEndpoint
-	existing []Service
+	eps map[string]*partialEndpoint
+}
+
+func newEndpointAssembler(existing []Service) *endpointsAssembler {
+	eas := &endpointsAssembler{
+		eps: make(map[string]*partialEndpoint),
+	}
+	for _, svc := range existing {
+		for _, ep := range svc.Endpoints {
+			key := svc.Name + "." + ep.Name
+			eas.eps[key] = &partialEndpoint{
+				service:  svc.Name,
+				endpoint: ep,
+			}
+		}
+	}
+	return eas
 }
 
 func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
-	s.endpoint(e.Service, e.Name)
 	for _, ep := range s.eps {
 		if ep.service != e.Service || ep.endpoint.Name != e.Name {
 			continue
@@ -207,35 +221,19 @@ func (s *endpointsAssembler) upsertEndpoint(e EndpointUpdate) *partialEndpoint {
 
 func (s *endpointsAssembler) endpoint(service, endpoint string) *partialEndpoint {
 	key := service + "." + endpoint
-	if _, ok := s.eps[key]; !ok {
-		for _, svc := range s.existing {
-			if svc.Name != service {
-				continue
-			}
-			for _, ep := range svc.Endpoints {
-				if ep.Name != endpoint {
-					continue
-				}
-				s.eps[key] = &partialEndpoint{
-					service:  service,
-					endpoint: ep,
-				}
-				break
-			}
-			break
+	ep, ok := s.eps[key]
+	if !ok {
+		ep := &partialEndpoint{
+			service:  service,
+			endpoint: &Endpoint{Name: endpoint},
 		}
-		if s.eps[key] == nil {
-			panic("endpoint not found")
-		}
+		s.eps[key] = ep
 	}
-	return s.eps[key]
+	return ep
 }
 
 func newEndpointAssemblerHandler(existing []Service, notifier AINotifier, epComplete bool) AINotifier {
-	epCache := &endpointsAssembler{
-		eps:      make(map[string]*partialEndpoint),
-		existing: existing,
-	}
+	epCache := newEndpointAssembler(existing)
 	var lastEp *partialEndpoint
 	return func(ctx context.Context, msg *AINotification) error {
 		var ep *partialEndpoint

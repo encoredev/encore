@@ -244,7 +244,7 @@ func addMissingFuncBodies(content []byte) (string, error) {
 			if n.Body != nil {
 				break
 			}
-			rewriter.Insert(n.End()-1, []byte("{\n    panic(\"not yet implemented\")\n}\n"))
+			rewriter.Insert(n.End()-1, []byte(" {\n    panic(\"not yet implemented\")\n}\n"))
 		}
 		return true
 	})
