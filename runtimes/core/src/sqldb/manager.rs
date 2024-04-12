@@ -1,4 +1,5 @@
 use anyhow::Context;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::proxy;
@@ -223,9 +224,14 @@ fn databases_from_cfg(
                     .context("client certificate has no key")?;
                 let client_key = secrets.load(client_key.clone());
                 let client_key = client_key.get().context("failed to resolve client key")?;
-                let identity =
-                    native_tls::Identity::from_pkcs8(client_cert.cert.as_bytes(), client_key)
-                        .context("failed to parse client certificate")?;
+
+                let client_key = convert_client_key_if_necessary(client_key)
+                    .context("failed to convert client key to PKCS#8")?;
+                let identity = native_tls::Identity::from_pkcs8(
+                    client_cert.cert.as_bytes(),
+                    client_key.as_ref(),
+                )
+                .context("failed to parse client certificate")?;
                 tls_builder.identity(identity);
             }
 
@@ -254,4 +260,25 @@ fn databases_from_cfg(
     }
 
     Ok(databases)
+}
+
+/// Converts the client key from PKCS#1 to PKCS#8 if necessary.
+fn convert_client_key_if_necessary(pem: &[u8]) -> anyhow::Result<Cow<'_, [u8]>> {
+    let Ok(pem_str) = std::str::from_utf8(pem) else {
+        // Assume the key is already in PKCS#8 format.
+        return Ok(Cow::Borrowed(pem));
+    };
+    if !pem_str.starts_with("-----BEGIN RSA PRIVATE KEY-----") {
+        // Key is not in PKCS#1 format, assume it's already in PKCS#8 format.
+        return Ok(Cow::Borrowed(pem));
+    }
+
+    use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::EncodePrivateKey};
+
+    let pkey = rsa::RsaPrivateKey::from_pkcs1_pem(pem_str)
+        .context("failed to parse PKCS#1 private key")?;
+    let pkcs8 = pkey
+        .to_pkcs8_pem(rsa::pkcs8::LineEnding::LF)
+        .context("failed to convert PKCS#1 private key to PKCS#8")?;
+    Ok(Cow::Owned(pkcs8.as_bytes().to_owned()))
 }
