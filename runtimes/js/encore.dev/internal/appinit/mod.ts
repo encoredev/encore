@@ -1,6 +1,7 @@
-import * as runtime from "../runtime/mod";
-import { setCurrentRequest } from "../reqtrack/mod";
 import { Gateway } from "../../api/gateway";
+import { RawRequest, RawResponse } from "../api/node_http";
+import { setCurrentRequest } from "../reqtrack/mod";
+import * as runtime from "../runtime/mod";
 
 export type Handler = runtime.ApiRoute;
 
@@ -22,6 +23,21 @@ export async function run() {
 }
 
 function transformHandler(h: Handler): Handler {
+  if (h.raw) {
+    return {
+      ...h,
+      handler: (
+        req: runtime.Request,
+        resp: runtime.ResponseWriter,
+        body: runtime.BodyReader
+      ) => {
+        setCurrentRequest(req);
+        const rawReq = new RawRequest(req, body);
+        const rawResp = new RawResponse(rawReq, resp);
+        h.handler(rawReq, rawResp);
+      },
+    };
+  }
   return {
     ...h,
     handler: (req: runtime.Request) => {

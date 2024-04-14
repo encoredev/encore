@@ -1,4 +1,4 @@
-use crate::api::{to_handler, APIRoute, Request};
+use crate::api::{new_api_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
 use crate::meta;
@@ -120,7 +120,7 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
-        let handler = to_handler(env, route.handler)?;
+        let handler = new_api_handler(env, route.handler, route.raw)?;
 
         // If we're not hosting an API server, this is a no-op.
         let Some(srv) = self.runtime.api().server() else {
