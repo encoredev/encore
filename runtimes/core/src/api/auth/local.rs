@@ -13,12 +13,12 @@ use std::sync::{Arc, RwLock};
 pub struct LocalAuthHandler {
     pub name: EndpointName,
     pub schema: Schema,
-    pub handler: RwLock<Option<Arc<dyn api::BoxedHandler>>>,
+    pub handler: RwLock<Option<Arc<dyn api::TypedHandler>>>,
     pub tracer: Tracer,
 }
 
 impl LocalAuthHandler {
-    pub fn set_handler(&self, handler: Option<Arc<dyn api::BoxedHandler>>) {
+    pub fn set_handler(&self, handler: Option<Arc<dyn api::TypedHandler>>) {
         let mut guard = self.handler.write().unwrap();
         *guard = handler;
     }

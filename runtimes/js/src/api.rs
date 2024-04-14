@@ -1,5 +1,6 @@
 use crate::log::parse_js_stack;
 use crate::napi_util::{await_promise, PromiseHandler};
+use crate::raw_api;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
@@ -17,19 +18,26 @@ use std::sync::Arc;
 pub struct APIRoute {
     pub service: String,
     pub name: String,
+    pub raw: bool,
     pub handler: JsFunction,
 }
 
-pub fn to_handler(env: Env, handler: JsFunction) -> napi::Result<Arc<JSHandler>> {
-    let tsfn = ThreadsafeFunction::create(
+pub fn new_api_handler(
+    env: Env,
+    func: JsFunction,
+    raw: bool,
+) -> napi::Result<Arc<dyn api::BoxedHandler>> {
+    if raw {
+        return raw_api::new_handler(env, func);
+    }
+    let handler = ThreadsafeFunction::create(
         env.raw(),
         // SAFETY: `handler` is a valid JS function.
-        unsafe { handler.raw() },
+        unsafe { func.raw() },
         0,
-        resolve_on_js_thread,
+        typed_resolve_on_js_thread,
     )?;
-
-    Ok(Arc::new(JSHandler { handler: tsfn }))
+    Ok(Arc::new(JSTypedHandler { handler }))
 }
 
 #[napi]
@@ -54,6 +62,24 @@ impl Request {
         match &self.inner.data {
             RPC(data) => env.to_js_value(&data.auth_data),
             Auth(_) | PubSub(_) => env.get_null().map(|val| val.into_unknown()),
+        }
+    }
+
+    #[napi]
+    pub fn method(&self) -> Option<&'static str> {
+        match &self.inner.data {
+            RequestData::RPC(data) => Some(data.method.as_str()),
+            RequestData::Auth(_) => None,
+            RequestData::PubSub(_) => None,
+        }
+    }
+
+    #[napi]
+    pub fn path(&self) -> Option<String> {
+        match &self.inner.data {
+            RequestData::RPC(data) => Some(data.path.clone()),
+            RequestData::Auth(_) => None,
+            RequestData::PubSub(_) => None,
         }
     }
 }
@@ -136,20 +162,20 @@ impl PromiseHandler for APIPromiseHandler {
     }
 }
 
-struct RequestMessage {
+struct TypedRequestMessage {
     req: Request,
     tx: tokio::sync::mpsc::Sender<Result<schema::JSONPayload, api::Error>>,
 }
 
-pub struct JSHandler {
-    handler: ThreadsafeFunction<RequestMessage>,
+pub struct JSTypedHandler {
+    handler: ThreadsafeFunction<TypedRequestMessage>,
 }
 
-impl api::BoxedHandler for JSHandler {
+impl api::BoxedHandler for JSTypedHandler {
     fn call(
         self: Arc<Self>,
         req: api::HandlerRequest,
-    ) -> Pin<Box<dyn Future<Output = api::HandlerResponse> + Send + 'static>> {
+    ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
             let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -157,23 +183,25 @@ impl api::BoxedHandler for JSHandler {
             // Call the handler.
             let req = Request { inner: req };
             self.handler.call(
-                RequestMessage { tx, req },
+                TypedRequestMessage { tx, req },
                 ThreadsafeFunctionCallMode::Blocking,
             );
 
             // Wait for a response.
-            match rx.recv().await {
+            let resp = match rx.recv().await {
                 Some(Ok(resp)) => Ok(resp),
                 Some(Err(err)) => Err(err),
                 None => Err(api::Error::internal(anyhow::anyhow!(
                     "handler did not respond",
                 ))),
-            }
+            };
+
+            api::ResponseData::Typed(resp)
         })
     }
 }
 
-fn resolve_on_js_thread(ctx: ThreadSafeCallContext<RequestMessage>) -> napi::Result<()> {
+fn typed_resolve_on_js_thread(ctx: ThreadSafeCallContext<TypedRequestMessage>) -> napi::Result<()> {
     let req = ctx.value.req.into_instance(ctx.env)?;
     let handler = APIPromiseHandler;
     match ctx.callback.unwrap().call(None, &[req]) {

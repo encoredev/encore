@@ -20,6 +20,7 @@ const handlers: Handler[] = [
         service: {{toJSON service_name}},
         name:    {{toJSON name}},
         handler: {{service_name}}_{{name}}Impl,
+        raw:     {{toJSON raw}},
     },
 {{/each}}
 ];

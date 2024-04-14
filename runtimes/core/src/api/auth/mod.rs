@@ -53,7 +53,7 @@ pub enum AuthHandlerType {
 }
 
 impl AuthHandlerType {
-    fn set_local_handler(&self, handler: Option<Arc<dyn api::BoxedHandler>>) {
+    fn set_local_handler(&self, handler: Option<Arc<dyn api::TypedHandler>>) {
         if let Self::Local(local) = self {
             local.set_handler(handler);
         }
@@ -103,7 +103,7 @@ impl Authenticator {
         }
     }
 
-    pub fn set_local_handler_impl(&self, handler: Option<Arc<dyn api::BoxedHandler>>) {
+    pub fn set_local_handler_impl(&self, handler: Option<Arc<dyn api::TypedHandler>>) {
         self.auth_handler.set_local_handler(handler);
     }
 

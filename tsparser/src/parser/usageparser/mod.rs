@@ -479,6 +479,7 @@ export const Bar = 5;
                 name: "Bar".into(),
                 doc: None,
                 expose: true,
+                raw: false,
                 require_auth: false,
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
@@ -550,6 +551,7 @@ export const Bar = 5;
                 service_name: "svc".to_string(),
                 doc: None,
                 expose: true,
+                raw: false,
                 require_auth: false,
                 encoding: EndpointEncoding {
                     default_method: Method::Post,

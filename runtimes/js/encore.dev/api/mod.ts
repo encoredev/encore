@@ -1,5 +1,7 @@
 /* eslint-disable */
 
+import type { IncomingMessage, ServerResponse } from "http";
+
 export type Method =
   | "GET"
   | "POST"
@@ -26,10 +28,6 @@ export interface APIOptions {
   path?: string;
   expose?: boolean;
   auth?: boolean;
-
-  // access?: "public" | "auth" | "private";
-  // tags?: string[];
-  // raw?: boolean;
 }
 
 export type Handler<
@@ -48,6 +46,12 @@ export function api<
 ): Handler<Params, Response> {
   return fn;
 }
+
+export type RawHandler = (req: IncomingMessage, resp: ServerResponse) => void;
+
+api.raw = function raw(options: APIOptions, fn: RawHandler) {
+  return fn;
+};
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";

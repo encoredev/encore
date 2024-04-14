@@ -564,7 +564,7 @@ dependencies = [
  "pin-project-lite",
  "rustversion",
  "serde",
- "sync_wrapper",
+ "sync_wrapper 0.1.2",
  "tower",
  "tower-layer",
  "tower-service",
@@ -572,12 +572,12 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.3"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d09dbe0e490df5da9d69b36dca48a76635288a82f92eca90024883a56202026d"
+checksum = "3a6c9af12842a67734c9a2e355436e5d03b22383ed60cf13cd0c18fbfe3dcbcf"
 dependencies = [
  "async-trait",
- "axum-core 0.4.2",
+ "axum-core 0.4.3",
  "bytes",
  "futures-util",
  "http 1.0.0",
@@ -596,7 +596,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
- "sync_wrapper",
+ "sync_wrapper 1.0.1",
  "tokio",
  "tower",
  "tower-layer",
@@ -623,9 +623,9 @@ dependencies = [
 
 [[package]]
 name = "axum-core"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e87c8503f93e6d144ee5690907ba22db7ba79ab001a932ab99034f0fe836b3df"
+checksum = "a15c63fd72d41492dc4f497196f5da1fb04fb7529e631d73630d1b491e47a2e3"
 dependencies = [
  "async-trait",
  "bytes",
@@ -636,7 +636,7 @@ dependencies = [
  "mime",
  "pin-project-lite",
  "rustversion",
- "sync_wrapper",
+ "sync_wrapper 0.1.2",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -648,8 +648,8 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "881348a37b079994894b6e5e46edcc4b8a60e1c0333669a65b810abeed780598"
 dependencies = [
- "axum 0.7.3",
- "axum-core 0.4.2",
+ "axum 0.7.5",
+ "axum-core 0.4.3",
  "bytes",
  "cookie",
  "futures-util",
@@ -1174,7 +1174,7 @@ name = "encore-js-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum 0.7.3",
+ "axum 0.7.5",
  "bytes",
  "encore-runtime-core",
  "futures",
@@ -1189,6 +1189,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -1200,7 +1201,7 @@ dependencies = [
  "aws-config",
  "aws-sdk-sns",
  "aws-sdk-sqs",
- "axum 0.7.3",
+ "axum 0.7.5",
  "axum-extra",
  "backtrace",
  "base32",
@@ -1260,7 +1261,7 @@ dependencies = [
  "sha3",
  "socket2",
  "subtle",
- "sync_wrapper",
+ "sync_wrapper 0.1.2",
  "tokio",
  "tokio-nsq",
  "tokio-postgres",
@@ -2035,12 +2036,11 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdea9aac0dbe5a9240d68cfd9501e2db94222c6dc06843e06640b9e07f0fdc67"
+checksum = "ca38ef113da30126bbff9cd1705f9273e15d45498615d138b0c20279ac7a76aa"
 dependencies = [
  "bytes",
- "futures-channel",
  "futures-util",
  "http 1.0.0",
  "http-body 1.0.0",
@@ -2048,7 +2048,6 @@ dependencies = [
  "pin-project-lite",
  "socket2",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -4270,6 +4269,12 @@ checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 dependencies = [
  "futures-core",
 ]
+
+[[package]]
+name = "sync_wrapper"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
 
 [[package]]
 name = "sysctl"
