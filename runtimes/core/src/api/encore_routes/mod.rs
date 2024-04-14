@@ -1,8 +1,8 @@
-pub mod healthz;
-
 use axum::routing;
 
 use crate::pubsub;
+
+pub mod healthz;
 
 pub struct Desc {
     pub healthz: healthz::Handler,

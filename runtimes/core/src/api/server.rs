@@ -119,20 +119,9 @@ impl Server {
             Some(h) => {
                 let endpoint = self.endpoints.get(&endpoint_name).unwrap().to_owned();
 
-                let req_schemas = Arc::new({
-                    let mut req_schemas = HashMap::new();
-                    for req in &endpoint.request {
-                        for m in &req.methods {
-                            req_schemas.insert((*m).into(), req.clone());
-                        }
-                    }
-                    req_schemas
-                });
-
                 let handler = EndpointHandler {
                     endpoint,
                     handler,
-                    req_schemas,
                     shared: self.shared.clone(),
                 };
 

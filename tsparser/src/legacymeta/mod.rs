@@ -140,7 +140,11 @@ impl<'a> MetaBuilder<'a> {
                         access_type,
                         request_schema,
                         response_schema,
-                        proto: v1::rpc::Protocol::Regular as i32,
+                        proto: if ep.raw {
+                            v1::rpc::Protocol::Raw
+                        } else {
+                            v1::rpc::Protocol::Regular
+                        } as i32,
                         path: Some(ep.encoding.path.to_meta()),
                         http_methods: ep.encoding.methods.to_vec(),
                         tags: vec![],
