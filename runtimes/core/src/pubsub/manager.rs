@@ -130,6 +130,7 @@ impl SubHandler {
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
 
             let start = tokio::time::Instant::now();
+            let start_time = std::time::SystemTime::now();
             let req = Arc::new(model::Request {
                 span,
                 parent_trace: parent_trace_id,
@@ -139,6 +140,7 @@ impl SubHandler {
                 is_platform_request: false,
                 internal_caller: None,
                 start,
+                start_time,
                 data: RequestData::PubSub(PubSubRequestData {
                     service: self.obj.service.clone(),
                     topic: self.obj.topic.clone(),
@@ -325,7 +327,7 @@ fn new_cluster(cluster: &pb::PubSubCluster) -> Arc<dyn Cluster> {
     match provider {
         pb::pub_sub_cluster::Provider::Gcp(_) => return Arc::new(gcp::Cluster::new()),
         pb::pub_sub_cluster::Provider::Nsq(cfg) => {
-            return Arc::new(nsq::Cluster::new(cfg.hosts[0].clone()))
+            return Arc::new(nsq::Cluster::new(cfg.hosts[0].clone()));
         }
         pb::pub_sub_cluster::Provider::Aws(_) => return Arc::new(sqs_sns::Cluster::new()),
         pb::pub_sub_cluster::Provider::Encore(_) => {

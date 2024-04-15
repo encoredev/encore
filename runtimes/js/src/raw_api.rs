@@ -3,23 +3,18 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use anyhow::Context;
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
-use bytes::{BufMut, Bytes};
-use futures::{FutureExt, StreamExt};
-use napi::bindgen_prelude::Buffer;
-use napi::threadsafe_function::ErrorStrategy::ErrorStrategy;
-use napi::{Env, JsFunction, JsUnknown, NapiRaw, NapiValue};
+use bytes::Bytes;
+use napi::bindgen_prelude::{Buffer, Either3};
+use napi::{Either, Env, JsFunction, NapiRaw};
 use napi_derive::napi;
-use tokio::io::AsyncRead;
 use tokio::sync::oneshot::Sender;
 
 use encore_runtime_core::api;
 use encore_runtime_core::api::IntoResponse;
 
 use crate::api::Request;
-use crate::napi_util::PromiseHandler;
 use crate::stream;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -66,7 +61,7 @@ impl ResponseWriterState {
     pub fn set_head(
         self,
         status: u16,
-        headers: NodeHeaders,
+        headers: axum::http::HeaderMap,
     ) -> Result<Self, (Self, anyhow::Error)> {
         let status = match StatusCode::from_u16(status) {
             Ok(status) => status,
@@ -77,8 +72,8 @@ impl ResponseWriterState {
             Self::Initial { mut resp, sender } => {
                 resp = resp.status(status);
                 for (k, v) in headers {
-                    for v in v {
-                        resp = resp.header(k.clone(), v);
+                    if let Some(k) = k {
+                        resp = resp.header(k, v);
                     }
                 }
                 Ok(Self::Initial { resp, sender })
@@ -211,7 +206,11 @@ pub struct ResponseWriter {
 #[napi]
 impl ResponseWriter {
     #[napi]
-    pub fn write_head(&mut self, env: Env, status: u16, headers: JsUnknown) -> napi::Result<()> {
+    pub fn write_head(
+        &mut self,
+        status: u16,
+        headers: Either<Vec<String>, HashMap<String, Either3<String, i32, Vec<String>>>>,
+    ) -> napi::Result<()> {
         let Some(state) = self.state.take() else {
             return Err(napi::Error::new(
                 napi::Status::GenericFailure,
@@ -219,7 +218,7 @@ impl ResponseWriter {
             ));
         };
 
-        let headers = parse_headers(env, headers)?;
+        let headers = parse_headers(headers)?;
 
         let (state, result) = match state.set_head(status, headers) {
             Ok(state) => (state, Ok(())),
@@ -329,7 +328,7 @@ impl BodyReader {
 impl api::BoxedHandler for JSRawHandler {
     fn call(
         self: Arc<Self>,
-        mut req: api::HandlerRequest,
+        req: api::HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
@@ -341,7 +340,7 @@ impl api::BoxedHandler for JSRawHandler {
             };
 
             // Call the handler.
-            let req = Request { inner: req };
+            let req = Request::new(req);
             let resp = ResponseWriter {
                 state: Some(ResponseWriterState::new(tx)),
             };
@@ -374,17 +373,51 @@ fn raw_resolve_on_js_thread(ctx: ThreadSafeCallContext<RawRequestMessage>) -> na
     Ok(())
 }
 
-struct NodeHeaders;
-
-impl IntoIterator for NodeHeaders {
-    type Item = (String, Vec<String>);
-    type IntoIter = std::collections::hash_map::IntoIter<String, Vec<String>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        HashMap::new().into_iter()
+fn parse_headers(
+    headers: Either<Vec<String>, HashMap<String, Either3<String, i32, Vec<String>>>>,
+) -> napi::Result<axum::http::HeaderMap> {
+    fn key_err(err: axum::http::header::InvalidHeaderName) -> napi::Error {
+        napi::Error::new(napi::Status::GenericFailure, err.to_string())
     }
-}
+    fn val_err(err: axum::http::header::InvalidHeaderValue) -> napi::Error {
+        napi::Error::new(napi::Status::GenericFailure, err.to_string())
+    }
 
-fn parse_headers(env: Env, headers: JsUnknown) -> napi::Result<NodeHeaders> {
-    Ok(NodeHeaders)
+    let mut map = axum::http::HeaderMap::new();
+    match headers {
+        Either::A(headers) => {
+            for i in (0..headers.len()).step_by(2) {
+                let key = &headers[i];
+                let key: axum::http::HeaderName = headers[i].parse().map_err(key_err)?;
+                let value = &headers[i + 1];
+                let value: axum::http::HeaderValue = value.parse().map_err(val_err)?;
+                map.append(key, value);
+            }
+        }
+
+        Either::B(headers) => {
+            for (key, value) in headers {
+                let key: axum::http::HeaderName = key.parse().map_err(key_err)?;
+                match value {
+                    Either3::A(value) => {
+                        let value: axum::http::HeaderValue = value.parse().map_err(val_err)?;
+                        map.append(key, value);
+                    }
+                    Either3::B(value) => {
+                        let value: axum::http::HeaderValue =
+                            value.to_string().parse().map_err(val_err)?;
+                        map.append(key, value);
+                    }
+                    Either3::C(values) => {
+                        for value in values {
+                            let value: axum::http::HeaderValue = value.parse().map_err(val_err)?;
+                            map.append(key.clone(), value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(map)
 }

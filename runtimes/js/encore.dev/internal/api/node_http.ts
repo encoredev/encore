@@ -9,43 +9,88 @@ import * as runtime from "../runtime/mod";
 
 export class RawRequest extends stream.Readable {
   complete: boolean;
-  headers: IncomingHttpHeaders;
-  headersDistinct: NodeJS.Dict<string[]>;
-  rawHeaders: string[];
 
   trailers: NodeJS.Dict<string>;
   trailersDistinct: NodeJS.Dict<string[]>;
   rawTrailers: string[];
 
-  method: string;
-  url: string;
-
   private body: runtime.BodyReader;
+  private req: runtime.Request;
 
   constructor(req: runtime.Request, body: runtime.BodyReader) {
-    super({}); // TODO?
+    super({});
+    this.req = req;
     this.complete = false;
-    this.headers = {};
-    this.headersDistinct = {};
-    this.rawHeaders = [];
+
     this.trailers = {};
     this.trailersDistinct = {};
     this.rawTrailers = [];
 
-    // TODO
-    this.method = req.method()!;
-    this.url = req.path()!;
     this.body = body;
     this.body.start(this.push.bind(this), this.destroy.bind(this));
   }
 
-  setTimeout(msecs: number, callback?: () => void): this {
-    // TODO
-    return this;
+  get method(): string {
+    return this.meta.apiCall!.method;
+  }
+
+  _url: string | undefined;
+  get url(): string {
+    if (!this._url) {
+      this._url = this.meta.apiCall!.pathAndQuery;
+    }
+    return this._url;
+  }
+  set url(value: string) {
+    this._url = value;
+  }
+
+  get headers(): IncomingHttpHeaders {
+    return this.meta.apiCall!.headers;
+  }
+
+  _headersDistinct: NodeJS.Dict<string[]> | undefined;
+  get headersDistinct(): NodeJS.Dict<string[]> {
+    if (this._headersDistinct) {
+      return this._headersDistinct;
+    }
+
+    const headers: NodeJS.Dict<string[]> = {};
+    for (const [key, value] of Object.entries(this.headers)) {
+      if (value !== undefined) {
+        const val: string[] = Array.isArray(value) ? value : [value];
+        headers[key] = val;
+      }
+    }
+    this._headersDistinct = headers;
+    return headers;
+  }
+
+  _rawHeaders: string[] | undefined;
+  get rawHeaders(): string[] {
+    if (this._rawHeaders) {
+      return this._rawHeaders;
+    }
+
+    this._rawHeaders = Object.keys(this.headers);
+    return this._rawHeaders;
+  }
+
+  private _meta: runtime.RequestMeta | undefined;
+  private get meta(): runtime.RequestMeta {
+    if (this._meta === undefined) {
+      this._meta = this.req.meta();
+    }
+    return this._meta;
   }
 
   _read(size: number): void {
     this.body.read();
+  }
+
+  setTimeout(msecs: number, callback?: () => void): this {
+    // Not yet implemented.
+    return this;
   }
 }
 
@@ -116,8 +161,10 @@ export class RawResponse extends stream.Writable {
 
   _writeHeaderIfNeeded() {
     if (!this.headersSent) {
-      // TODO headers
-      this.w.writeHead(this.statusCode, {});
+      this.w.writeHead(
+        this.statusCode,
+        this.headers as Record<string, string | number | string[]>
+      );
       this.headersSent = true;
     }
   }
@@ -147,7 +194,7 @@ export class RawResponse extends stream.Writable {
   }
 
   setTimeout(msecs: number, callback?: () => void): this {
-    // TODO? Implement
+    // Not implemented yet.
     return this;
   }
 
@@ -195,7 +242,7 @@ export class RawResponse extends stream.Writable {
   addTrailers(
     headers: OutgoingHttpHeaders | readonly [string, string][]
   ): void {
-    // NYI
+    // Not implemented yet.
   }
 
   flushHeaders(): void {
@@ -219,8 +266,7 @@ export class RawResponse extends stream.Writable {
       | OutgoingHttpHeader[],
     headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]
   ): this {
-    // TODO set headers
-    this.w.writeHead(statusCode, {});
+    this.w.writeHead(statusCode, (headers ?? []) as any);
     return this;
   }
 

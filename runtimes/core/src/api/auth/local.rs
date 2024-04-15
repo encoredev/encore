@@ -70,6 +70,7 @@ impl AuthHandler for LocalAuthHandler {
                 is_platform_request: false, // TODO
                 internal_caller: None,      // TODO
                 start: tokio::time::Instant::now(),
+                start_time: std::time::SystemTime::now(),
                 data: RequestData::Auth(AuthRequestData {
                     auth_handler: this.name().clone(),
                     parsed_payload: AuthPayload { query, header },

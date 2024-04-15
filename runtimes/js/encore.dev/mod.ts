@@ -1,4 +1,4 @@
-export { appMeta } from "./meta";
+export { appMeta } from "./app_meta";
 export type {
   AppMeta,
   BuildMeta,
@@ -6,4 +6,14 @@ export type {
   DeployMeta,
   EnvironmentMeta,
   EnvironmentType,
-} from "./meta";
+} from "./app_meta";
+
+export { currentRequest } from "./req_meta";
+export type {
+  APICallMeta,
+  APIDesc,
+  Method,
+  PubSubMessageMeta,
+  RequestMeta,
+  TraceData,
+} from "./req_meta";

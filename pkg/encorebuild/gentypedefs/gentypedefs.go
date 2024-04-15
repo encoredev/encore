@@ -106,6 +106,10 @@ func prettyPrint(line *TypeDefLine, constEnum bool, indent int) string {
 		}
 		s += "}"
 
+		if line.OriginalName != "" && line.OriginalName != line.Name {
+			s += "\nexport type " + line.OriginalName + " = " + line.Name
+		}
+
 	case TypeDefKindEnum:
 		enumName := "enum"
 		if constEnum {

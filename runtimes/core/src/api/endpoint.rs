@@ -158,7 +158,7 @@ pub struct RequestPayload {
     #[serde(flatten)]
     pub header: Option<serde_json::Map<String, serde_json::Value>>,
 
-    #[serde(flatten)]
+    #[serde(flatten, skip_serializing_if = "Body::is_raw")]
     pub body: Body,
 }
 
@@ -168,6 +168,12 @@ pub enum Body {
     Typed(Option<serde_json::Map<String, serde_json::Value>>),
     #[serde(skip)]
     Raw(Arc<std::sync::Mutex<Option<axum::body::Body>>>),
+}
+
+impl Body {
+    pub fn is_raw(&self) -> bool {
+        matches!(self, Body::Raw(_))
+    }
 }
 
 pub type EndpointMap = HashMap<EndpointName, Arc<Endpoint>>;
@@ -373,12 +379,18 @@ impl EndpointHandler {
             caller_event_id: meta.parent_event_id,
             ext_correlation_id: meta.ext_correlation_id,
             start: tokio::time::Instant::now(),
+            start_time: std::time::SystemTime::now(),
             is_platform_request: platform_seal_of_approval.is_some(),
             internal_caller,
             data: model::RequestData::RPC(model::RPCRequestData {
                 endpoint: self.endpoint.clone(),
                 method: api_method,
                 path: parts.uri.path().to_string(),
+                path_and_query: parts
+                    .uri
+                    .path_and_query()
+                    .map(|q| q.to_string())
+                    .unwrap_or_default(),
                 path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
                 req_headers: parts.headers,
                 auth_user_id,
