@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use rand::RngCore;
 use tokio::time::Instant;
@@ -143,6 +144,7 @@ pub struct Request {
 
     /// When the request started.
     pub start: Instant,
+    pub start_time: SystemTime,
 
     /// Type-specific data.
     pub data: RequestData,
@@ -196,6 +198,7 @@ pub struct RPCRequestData {
 
     /// The request path.
     pub path: String,
+    pub path_and_query: String,
 
     /// The request path params, if any.
     pub path_params: Option<IndexMap<String, serde_json::Value>>,

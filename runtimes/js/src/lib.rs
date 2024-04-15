@@ -8,6 +8,7 @@ mod meta;
 mod napi_util;
 pub mod pubsub;
 mod raw_api;
+mod request_meta;
 pub mod runtime;
 mod secret;
 mod sqldb;

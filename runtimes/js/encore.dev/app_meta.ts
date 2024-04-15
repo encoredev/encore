@@ -4,7 +4,7 @@ import * as runtime from "./internal/runtime/mod";
 export interface AppMeta {
   // The Encore application ID. If the application is not linked to the Encore platform this will be an empty string.
   // To link to the Encore platform run `encore app link` from your terminal in the root directory of the Encore app.
-  appID: string;
+  appId: string;
 
   // The base URL which can be used to call the API of this running application.
   //
@@ -12,7 +12,7 @@ export interface AppMeta {
   //
   // If a custom domain is used for this environment it is returned here, but note that
   // changes only take effect at the time of deployment while custom domains can be updated at any time.
-  apiBaseURL: string;
+  apiBaseUrl: string;
 
   // Information about the environment the app is running in.
   environment: EnvironmentMeta;
@@ -82,8 +82,8 @@ export function appMeta(): AppMeta {
   if (cached === null) {
     let rt = runtime.RT.appMeta();
     cached = {
-      appID: rt.appId,
-      apiBaseURL: rt.apiBaseUrl,
+      appId: rt.appId,
+      apiBaseUrl: rt.apiBaseUrl,
       environment: {
         name: rt.environment.name,
         type: envType(rt.environment.type),
