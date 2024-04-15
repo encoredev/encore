@@ -62,7 +62,7 @@ To integrate ent with Encore, we need to do three things:
 
 ### Create the Encore database
 
-Create the database using [`sqldb.NewDatabase`](/docs/primitives/sql-database) in `user/user.go`:
+Create the database using [`sqldb.NewDatabase`](/docs/primitives/databases) in `user/user.go`:
 
 ```
 -- user/user.go --
