@@ -5,33 +5,36 @@ title: Plans & Billing
 subtitle: 
 ---
 
-Encore comes with a free-forever **Idea** plan for prototyping, hobby projects, and small-scale use.
-When you have a more ambitious project, there are paid **Team** and **Enterprise** plans available to support your use case.
+Encore comes with a free-forever **Hobby** plan for prototyping, hobby projects, and small-scale use.
+When you have a more ambitious project, there are paid **Pro** and **Enterprise** plans available to support your use case.
 
 See the [pricing page](https://encore.dev/pricing) for a feature comparison between each plan.
 
 ## When do I need to upgrade to a paid plan?
 
-The free plan comes with certain limitations, and should your needs exceed one or more of them, you may wish to upgrade to a paid plan:
+The free Hobby plan comes with certain limitations, and should your needs exceed one or more of them, you may wish to upgrade to a paid plan:
 
 - When you have more than 2 team members
+- When you need more than 2 environments
+- When you want to automate DevOps for environments in your cloud on AWS/GCP
 - When you want to use a Custom Domain
 - When you need multiple concurrent builds
 - When you need guaranteed logs & tracing retention
 - When you want access to private support & onboarding assistance
 - When you want to customize performance characteristics for preview and development environments hosted on Encore Cloud.
 
-Currently, there are no hard paywalls and you can access all Encore features without creating a paid plan.
-This is a good way to try out Encore and learn if it's for you. When you've decided to use Encore,
-[contact us](mailto:hello@encore.dev) to upgrade your account.
+There is a free 14-day trial of the Pro plan, available to all new Encore users. It's a great way to try out all the features, to learn if the Pro plan suits your needs.
+You can activate your trial from the [pricing page](https://encore.dev/pricing).
 
 ## Do I need to pay for hosting?
 
 All plans come with free use of Encore Cloud, subject to [Fair Use limits](/docs/about/usage).
-Encore Cloud is intended for [Preview Environments](/docs/deploy/preview-environments), development, and non-business-critical use.
+Encore Cloud is intended for [Preview Environments](/docs/deploy/preview-environments), development environment, and non-business-critical use.
 
-For production use or other use cases where database reliability is important, you should always [use your own cloud account](/docs/deploy/own-cloud). When you connect your own cloud account, you will pay for any usage directly to your cloud provider.
-(This means Encore has no incentive to increase your usage, and can instead build tools to help you reduce your cloud bill.)
+For production use, you can [connect your own cloud account](/docs/deploy/own-cloud) and use Encore deploy there, including provisioning infrastructure and managing IAM.
+When you connect your own cloud account, you will pay for any usage directly to your cloud provider.
+
+If you wish, you can also export your application as a standalone Docker image and deploy in any way you prefer. ([Learn more](/docs/how-to/migrate-away#ejecting-your-app-as-a-docker-image))
 
 ## Payments & Billing FAQ
 
