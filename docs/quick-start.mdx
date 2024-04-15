@@ -75,20 +75,18 @@ One such element is the API annotation:
 //encore:api public path=/hello/:name
 ```
 
-This annotation is all that's needed for Encore to understand that this Go package is a service, `hello`, and
-that
-the `World` function is a public API endpoint.
+This annotation is all that's needed for Encore to understand that the Go package `hello` is a service, and
+the `World` function is a public API endpoint. 
 
-If you want to create more services and endpoints, you simply create new Go packages and define endpoints using
-the `//encore:api` annotation. _If you're curious, you can read more about [defining services and
-APIs](/docs/primitives/services-and-apis)._
+To create more services and endpoints, you simply create new Go packages and define endpoints using
+the `//encore:api` annotation. _If you're curious, you can read more about [defining services and APIs](/docs/primitives/services-and-apis)._
 
-Encore's [Infrastructure SDK](/docs/primitives/overview) provides several declarative ways of using backend
-primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
+Encore's [Infrastructure SDK](/docs/primitives/overview) provides several other declarative ways of using backend
+primitives, such as databases, Pub/Sub, and scheduled tasks. All defined in your application code.
 
-## 3. Start your app & Explore Local Development Dashboard
+## 3. Start your app & Explore the Local Development Dashboard
 
-🥐 Now let's run your app locally:
+🥐 Run your app locally:
 
 ```shell
 $ cd your-app-name # replace with the app name you picked
@@ -102,18 +100,7 @@ You should see this:
 </video>
 
 That means your local development environment is up and running!
-Encore takes care of setting up all the necessary infrastructure for your applications, including databases.
-
-🥐 While you keep the app running, open a separate terminal and call your API endpoint:
-
-```shell
-$ curl http://localhost:4000/hello/world
-{"Message": "Hello, world!"}
-```
-
-If you see this JSON response, you've successfully made an API call to your very first Encore application.
-
-_Well done, you're on your way!_
+Encore takes care of setting up all the necessary infrastructure for your applications, even including databases and Pub/Sub.
 
 ### Open the Local Development Dashboard
 
@@ -121,24 +108,47 @@ You can now start using your [Local Development Dashboard](/docs/observability/d
 
 🥐 Open [http://localhost:9400](http://localhost:9400) in your browser to access it.
 
-The Local Development Dashboard is a powerful tool to help you move faster when you're developing new features.
-
-It comes with an API explorer with automatically generated documentation, and powerful oberservability features
-like [distributed tracing](/docs/observability/tracing). _Did we mention Encore automatically instruments your
-entire application with logs and tracing?_
-
-Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow) which
-is
-a visual representation
-of your microservice architecture that updates in real-time as you develop your application.
-
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/localdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
 </video>
 
+The Local Development Dashboard is a powerful tool to help you move faster when you're developing new features.
+
+It comes with an API explorer, a Service Catalog with automatically generated documentation, and powerful oberservability features
+like [distributed tracing](/docs/observability/tracing).
+
+Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow), 
+a visual representation of your microservice architecture that updates in real-time as you develop your application.
+
+### Call your API
+
+🥐 While you keep the app running, call your API from the API Explorer:
+
+<img className="mx-auto d:w-3/4" src="/assets/docs/qs_call.png" title="Call API from Local Dashboard" />
+
+You can also open a separate terminal to call your API endpoint:
+
+```shell
+$ curl http://localhost:4000/hello/world
+{"Message": "Hello, world!"}
+```
+
+If you see this JSON response, you've successfully made an API call to your very first Encore application. Well done, you're on your way!
+
+### Review a trace of the request
+
+You can now take a look at the trace for the request you just made by clicking on it in the right column in the local dashboard.
+
+<img className="mx-auto d:w-3/4" src="/assets/docs/qs_trace.png" title="Tracing in the Local Dashboard" />
+
+With such a simple API, there's not much to it, just a simple request and response.
+
+However, just imagine how powerful it is to have tracing when you're developing a more complex system with multiple services, Pub/Sub, and databases.
+(Learn more about Encore's tracing capabilities in the [tracing docs](/docs/observability/tracing).)
+
 ## 4. Push a code change and deploy
 
-Let's put our mark on this API and make our first code change.
+Now let's put our mark on this app by making our first code change.
 
 🥐 Head back to your code editor and look at the `hello.go` file again.
 If you can't come up a creative change yourself, why not simply change the "Hello" message to a more sassy
@@ -158,23 +168,24 @@ INF registered endpoint endpoint=World path=/hello/:name service=hello
 INF listening for incoming HTTP requests
 ```
 
-🥐 Test your change by calling your API in a separate terminal:
+🥐 Test your change by calling your API again.
 
 ```shell
 $ curl http://localhost:4000/hello/world
 {"Message": "Howdy, world!"}
 ```
 
-Great job, you're now ready to head to the cloud!
+Great job, you made a change and your app was compiled and reloaded automatically.
+
+Now you're ready to head to the cloud!
 
 ### Deploy your app to the cloud
 
-The first time you deploy, Encore will by default create a staging [environment](/docs/deploy/environments) in
-Encore's free development cloud (Encore Cloud).
+The first time you deploy an app, Encore will by default create a staging [environment](/docs/deploy/environments) in
+Encore's free development cloud (Encore Cloud). (Learn about the [usage limits](/docs/about/usage).)
 
-Later, when you are ready to create a production environment you can [deploy to your own cloud
-account](/docs/deploy/own-cloud) with GCP and AWS.
-(Or even all of them, Encore makes it seamless to deploy to multiple cloud environments all at once.)
+Later, when you are ready to create a production environment, you can connect your AWS or GCP account and Encore will [deploy to your own cloud](/docs/deploy/own-cloud).
+(Or even both of them, Encore makes it seamless to deploy to multiple cloud environments.)
 
 🥐 Now push your changes and deploy your application by running:
 
@@ -209,14 +220,18 @@ account of your choice](/docs/deploy/own-cloud), [integrate with GitHub](/docs/h
 Now that you've created your staging environment, you're ready to call your API running in the cloud.
 Your API Base URL will be something like: `https://staging-$APP_ID.encr.app`
 
-🥐 When the deploy is finished, call your API from the terminal (replacing `$APP_ID` with your own App ID):
+🥐 When the deploy is finished, call your API from the Service Catalog in the Cloud Dashboard.
+
+<img className="mx-auto d:w-3/4" src="/assets/docs/qs_service_catalog.png" title="Call API from Service Catalog" />
+
+Or you can call it from the terminal (replacing `$APP_ID` with your own App ID):
 
 ```shell
 $ curl https://staging-$APP_ID.encr.app/hello/world
 {"Message": "Howdy, world!"}
 ```
 
-If you see this you've successfully made an API call to your very first Encore app running in the cloud.
+If you see this, you've successfully made an API call to your very first Encore app running in the cloud.
 
 _Congratulations, you're well on your way to escaping the maze of cloud complexity!_
 
@@ -300,18 +315,7 @@ You should see this:
 </video>
 
 That means your local development environment is up and running!
-Encore takes care of setting up all the necessary infrastructure for your applications, including databases.
-
-🥐 While you keep the app running, open a separate terminal and call your API endpoint:
-
-```shell
-$ curl http://localhost:4000/hello/world
-{"message": "Hello, world!"}
-```
-
-If you see this JSON response, you've successfully made an API call to your very first Encore application.
-
-_Well done, you're on your way!_
+Encore takes care of setting up all the necessary infrastructure for your applications, even including databases and Pub/Sub.
 
 ### Open the Local Development Dashboard
 
@@ -319,16 +323,43 @@ You can now start using your [Local Development Dashboard](/docs/observability/d
 
 🥐 Open [http://localhost:9400](http://localhost:9400) in your browser to access it.
 
-The Local Development Dashboard is a powerful tool to help you move faster when you're developing new features.
-
-It comes with an API explorer with automatically generated documentation, and powerful oberservability features like [distributed tracing](/docs/observability/tracing). _Did we mention Encore automatically instruments your entire application with logs and tracing?_
-
-Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow) which is a visual representation
-of your microservice architecture that updates in real-time as you develop your application.
-
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/localdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
 </video>
+
+The Local Development Dashboard is a powerful tool to help you move faster when you're developing new features.
+
+It comes with an API explorer, a Service Catalog with automatically generated documentation, and powerful oberservability features
+like [distributed tracing](/docs/observability/tracing).
+
+Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow), 
+a visual representation of your microservice architecture that updates in real-time as you develop your application.
+
+### Call your API
+
+🥐 While you keep the app running, call your API from the API Explorer:
+
+<img className="mx-auto d:w-3/4" src="/assets/docs/qs_call.png" title="Call API from Local Dashboard" />
+
+You can also open a separate terminal to call your API endpoint:
+
+```shell
+$ curl http://localhost:4000/hello/world
+{"Message": "Hello, world!"}
+```
+
+If you see this JSON response, you've successfully made an API call to your very first Encore application. Well done, you're on your way!
+
+### Review a trace of the request
+
+You can now take a look at the trace for the request you just made by clicking on it in the right column in the local dashboard.
+
+<img className="mx-auto d:w-3/4" src="/assets/docs/qs_trace.png" title="Tracing in the Local Dashboard" />
+
+With such a simple API, there's not much to it, just a simple request and response.
+
+However, just imagine how powerful it is to have tracing when you're developing a more complex system with multiple services, Pub/Sub, and databases.
+(Learn more about Encore's tracing capabilities in the [tracing docs](/docs/observability/tracing).)
 
 ## 4. Push a code change and deploy
 
@@ -350,21 +381,24 @@ INF registered endpoint endpoint=World path=/hello/:name service=hello
 INF listening for incoming HTTP requests
 ```
 
-🥐 Test your change by calling your API in a separate terminal:
+🥐 Test your change by calling your API again.
 
 ```shell
 $ curl http://localhost:4000/hello/world
-{"message": "Howdy, world!"}
+{"Message": "Howdy, world!"}
 ```
 
-Great job, you're now ready to head to the cloud!
+Great job, you made a change and your app was reloaded automatically.
+
+Now you're ready to head to the cloud!
 
 ### Deploy your app to the cloud
 
-The first time you deploy, Encore will by default create a staging [environment](/docs/deploy/environments) in Encore's free development cloud (Encore Cloud).
+The first time you deploy an app, Encore will by default create a staging [environment](/docs/deploy/environments) in
+Encore's free development cloud (Encore Cloud). (Learn about the [usage limits](/docs/about/usage).)
 
-Later, when you are ready to create a production environment you can [deploy to your own cloud account](/docs/deploy/own-cloud) with GCP and AWS.
-(Or even all of them, Encore makes it seamless to deploy to multiple cloud environments all at once.)
+Later, when you are ready to create a production environment, you can connect your AWS or GCP account and Encore will [deploy to your own cloud](/docs/deploy/own-cloud).
+(Or even both of them, Encore makes it seamless to deploy to multiple cloud environments.)
 
 🥐 Now push your changes and deploy your application by running:
 
@@ -385,7 +419,7 @@ It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
 
 🥐 Open the URL to access the Cloud Dashboard and check the progress of your deployment.
 
-You can now use the Cloud Dashboard to view production [logs](/docs/observability/logging) and [traces](/docs/observability/tracing), create new [environments](/docs/deploy/environments), connect the [cloud account of your choice](/docs/deploy/own-cloud), [integrate with GitHub](/docs/how-to/github), and much more.
+You can now use the Cloud Dashboard to view production [logs](/docs/observability/logging) and [traces](/docs/observability/tracing), create new [environments](/docs/deploy/environments), [connect your cloud account](/docs/deploy/own-cloud), [integrate with GitHub](/docs/how-to/github), and much more.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/webdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
@@ -396,14 +430,18 @@ You can now use the Cloud Dashboard to view production [logs](/docs/observabilit
 Now that you've created your staging environment, you're ready to call your API running in the cloud.
 Your API Base URL will be something like: `https://staging-$APP_ID.encr.app`
 
-🥐 When the deploy is finished, call your API from the terminal (replacing `$APP_ID` with your own App ID):
+🥐 When the deploy is finished, call your API from the Cloud Dashboard using the API Explorer in the Service Catalog.
+
+<img className="mx-auto d:w-3/4" src="/assets/docs/qs_service_catalog.png" title="Call API from Service Catalog" />
+
+Or you can call it from the terminal (replacing `$APP_ID` with your own App ID):
 
 ```shell
 $ curl https://staging-$APP_ID.encr.app/hello/world
 {"Message": "Howdy, world!"}
 ```
 
-If you see this you've successfully made an API call to your very first Encore app running in the cloud.
+If you see this, you've successfully made an API call to your very first Encore app running in the cloud.
 
 _Congratulations, you're well on your way to escaping the maze of cloud complexity!_
 
