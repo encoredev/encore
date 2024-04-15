@@ -70,7 +70,7 @@ impl api::TypedHandler for JSAuthHandler {
             let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
             // Call the handler.
-            let req = Request { inner: req };
+            let req = Request::new(req);
             self.handler.call(
                 AuthMessage { tx, req },
                 ThreadsafeFunctionCallMode::Blocking,

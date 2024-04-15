@@ -123,7 +123,7 @@ impl pubsub::SubscriptionHandler for JSSubscriptionHandler {
         let handler = self.handler.clone();
         Box::pin(async move {
             let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-            let req = Request { inner: msg };
+            let req = Request::new(msg);
             handler.call(
                 PubSubMessageRequest { req, tx },
                 crate::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,

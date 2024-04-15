@@ -193,7 +193,7 @@ impl Runtime {
     }
 
     #[napi]
-    pub fn app_meta(&self, env: Env) -> meta::AppMeta {
+    pub fn app_meta(&self) -> meta::AppMeta {
         let md = self.runtime.app_meta();
         md.clone().into()
     }
