@@ -145,7 +145,7 @@ When you deploy, Encore automatically provisions [infrastructure](https://encore
 
 Encore also provides built-in DevOps tools to help automate >90% of the day-to-day DevOps work:
 
-- **Automatic least-privilege IAM:** Encore parses your application code and sets up last-privilege IAM to match the requirements of the application.
+- **Automatic least-privilege IAM:** Encore parses your application code and sets up least-privilege IAM to match the requirements of the application.
 - **Infra tracking & approvals workflow:** Encore keeps track of all the [infrastructure](https://encore.dev/docs/deploy/infra) it provisions and provides an approval workflow as part of the deployment process, so Admins can verify and approve all infra changes.
 - **Cloud config 2-way sync:** Encore provides [a simple UI to make configuration changes](https://encore.dev/docs/deploy/infra#configurability), and also supports syncing changes you make in your cloud console in AWS/GCP.
 - **Cost analytics:** A simple overview to monitor costs for all infrastructure provisioned by Encore in your cloud.
