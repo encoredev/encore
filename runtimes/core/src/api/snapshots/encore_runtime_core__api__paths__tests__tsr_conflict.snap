@@ -1,0 +1,14 @@
+---
+source: runtimes/core/src/api/paths.rs
+expression: paths
+---
+main:
+  a:
+    - endpoint: one
+      routes:
+        - /foo/
+  b:
+    - endpoint: two
+      routes:
+        - /foo
+fallback: {}

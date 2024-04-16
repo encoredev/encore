@@ -57,6 +57,7 @@ where
             read_requests: rx,
             push,
             destroy,
+            did_destroy: false,
         };
         tokio::spawn(machine.run());
         Ok(())
@@ -86,6 +87,7 @@ struct StateMachine<S> {
     read_requests: tokio::sync::mpsc::UnboundedReceiver<()>,
     push: ThreadsafeFunction<PushRequest>,
     destroy: ThreadsafeFunction<DestroyRequest>,
+    did_destroy: bool,
 }
 
 impl<S, E> StateMachine<S>
@@ -98,31 +100,54 @@ where
             // Wait for a read request.
             let Some(()) = self.read_requests.recv().await else {
                 // The sender was dropped.
+                self.notify_close();
                 return;
             };
 
             // Read repeatedly until push() returns false.
             'PushLoop: loop {
                 match self.stream.next().await.transpose() {
-                    Ok(data) => match self.push(data).await {
-                        Ok(true) => continue 'PushLoop,
-                        Ok(false) => continue 'ReadRequestLoop,
-                        Err(err) => {
-                            _ = self.notify_err(err);
+                    Ok(data) => {
+                        let is_none = data.is_none();
+                        let push_result = self.push(data).await;
+                        if is_none {
+                            self.notify_close();
                             return;
+                        }
+
+                        match push_result {
+                            Ok(true) => continue 'PushLoop,
+                            Ok(false) => continue 'ReadRequestLoop,
+                            Err(err) => {
+                                _ = self.notify_err(err);
+                                return;
+                            }
                         }
                     },
                     Err(err) => {
                         _ = self.notify_err(err);
-                        break;
+                        return;
                     }
                 }
             }
         }
     }
 
-    fn notify_err<Err: std::error::Error + 'static>(&self, err: Err) {
-        let req = DestroyRequest { err: Box::new(err) };
+    fn notify_err<Err: std::error::Error + 'static>(&mut self, err: Err) {
+        if self.did_destroy {
+            return;
+        }
+        self.did_destroy = true;
+        let req = DestroyRequest { err: Some(Box::new(err)) };
+        self.destroy.call(req, ThreadsafeFunctionCallMode::Blocking);
+    }
+
+    fn notify_close(&mut self) {
+        if self.did_destroy {
+            return;
+        }
+        self.did_destroy = true;
+        let req = DestroyRequest { err: None };
         self.destroy.call(req, ThreadsafeFunctionCallMode::Blocking);
     }
 
@@ -183,13 +208,15 @@ fn execute_push(ctx: ThreadSafeCallContext<PushRequest>) -> napi::Result<()> {
 }
 
 struct DestroyRequest {
-    err: Box<dyn std::error::Error>,
+    err: Option<Box<dyn std::error::Error>>,
 }
 
 fn execute_destroy(ctx: ThreadSafeCallContext<DestroyRequest>) -> napi::Result<()> {
-    let err = ctx
-        .env
-        .create_error(napi::Error::new(Status::GenericFailure, ctx.value.err))?;
-    ctx.callback.unwrap().call(None, &[err])?;
+    if let Some(err) = ctx.value.err {
+        let err = ctx.env.create_error(napi::Error::new(Status::GenericFailure, err.to_string()))?;
+        ctx.callback.unwrap().call(None, &[err.into_unknown()])?;
+    } else {
+        ctx.callback.unwrap().call_without_args(None)?;
+    }
     Ok(())
 }

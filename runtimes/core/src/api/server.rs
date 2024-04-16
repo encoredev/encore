@@ -8,8 +8,10 @@ use anyhow::Context;
 
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
+use crate::api::paths::{path_to_str, Pather};
 use crate::api::reqauth::svcauth;
-use crate::api::{path_supports_tsr, reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
+use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
+use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
 use crate::trace;
 
@@ -50,7 +52,7 @@ impl Server {
         // set the request handler when registered.
         let mut router = axum::Router::new();
 
-        async fn fallback(
+        async fn not_found_handler(
             req: axum::http::Request<axum::body::Body>,
         ) -> axum::response::Response<axum::body::Body> {
             api::Error {
@@ -62,31 +64,42 @@ impl Server {
             .into_response()
         }
 
-        // Register our fallback route.
-        router = router.fallback(fallback);
+        let mut fallback_router = axum::Router::new();
+        fallback_router = fallback_router.fallback(not_found_handler);
 
         let mut handler_map = HashMap::with_capacity(hosted_endpoints.len());
-        for key in hosted_endpoints {
-            let ep = endpoints.get(&key).unwrap().to_owned();
-            match schema::method_filter(ep.methods()) {
-                Some(filter) => {
-                    let server_handler = ServerHandler::default();
-                    let handler = axum::routing::on(filter, server_handler.clone());
+        let path_set = paths::compute(hosted_endpoints.iter().map(|ep| EndpointPathResolver {
+            ep: endpoints.get(ep).unwrap().to_owned(),
+        }));
 
-                    if path_supports_tsr(&ep.path) {
-                        // Register the same route with a trailing slash as well.
-                        let tsr_path = format!("{}/", ep.path);
-                        router = router.route(&tsr_path, handler.clone());
+        let mut register = |paths: &[(Arc<api::Endpoint>, Vec<String>)], mut router: axum::Router| -> axum::Router {
+            for (ep, paths) in paths {
+                match schema::method_filter(ep.methods()) {
+                    Some(filter) => {
+                        let server_handler = ServerHandler::default();
+                        let handler = axum::routing::on(filter, server_handler.clone());
+                        for path in paths {
+                            router = router.route(path, handler.clone());
+                        }
+                        handler_map.insert(ep.name.clone(), server_handler);
                     }
-
-                    router = router.route(&ep.path, handler);
-                    handler_map.insert(key, server_handler);
-                }
-                None => {
-                    log::warn!("no methods for endpoint {}, skipping", ep.name,);
+                    None => {
+                        log::warn!("no methods for endpoint {}, skipping", ep.name,);
+                    }
                 }
             }
+            router
+        };
+
+        if let Some(main_paths) = path_set.main.get(&()) {
+            router = register(main_paths, router);
         }
+        if let Some(fallback_paths) = path_set.fallback.get(&()) {
+            fallback_router = register(fallback_paths, fallback_router);
+        }
+
+        // Register our fallback route.
+        router = router.fallback_service(fallback_router);
 
         let shared = Arc::new(SharedEndpointData {
             tracer,
@@ -154,6 +167,27 @@ impl Server {
             axum::serve(listener, router).await.context("serve api")?;
             Ok(())
         })
+    }
+}
+
+struct EndpointPathResolver {
+    ep: Arc<api::Endpoint>,
+}
+
+impl Pather for EndpointPathResolver {
+    type Key = ();
+    type Value = Arc<api::Endpoint>;
+
+    fn key(&self) -> () {
+        ()
+    }
+
+    fn value(&self) -> Self::Value {
+        self.ep.clone()
+    }
+
+    fn path(&self) -> &meta::Path {
+        &self.ep.path
     }
 }
 

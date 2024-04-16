@@ -91,4 +91,5 @@ prost-build = "0.12.3"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
+insta = { version = "1.38.0", features = ["yaml"] }
 quickcheck = "1.0.3"

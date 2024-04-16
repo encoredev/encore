@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -127,7 +128,7 @@ pub enum ResponseData {
 #[derive(Debug)]
 pub struct Endpoint {
     pub name: EndpointName,
-    pub path: String,
+    pub path: meta::Path,
     pub raw: bool,
     pub request: Vec<Arc<schema::Request>>,
     pub response: Arc<schema::Response>,
@@ -189,7 +190,6 @@ pub fn endpoints_from_meta(
     struct EndpointUnderConstruction<'a> {
         svc: &'a meta::Service,
         ep: &'a meta::Rpc,
-        path: String,
         request_schemas: Vec<ReqSchemaUnderConstruction>,
         response_schema: SchemaUnderConstruction,
     }
@@ -211,7 +211,6 @@ pub fn endpoints_from_meta(
             endpoints.push(EndpointUnderConstruction {
                 svc,
                 ep,
-                path: path_to_str(&ep)?,
                 request_schemas,
                 response_schema,
             });
@@ -251,7 +250,16 @@ pub fn endpoints_from_meta(
 
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
-            path: ep.path,
+            path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
+                r#type: meta::path::Type::Url as i32,
+                segments: vec![
+                    meta::PathSegment {
+                        r#type: meta::path_segment::SegmentType::Literal as i32,
+                        value_type: meta::path_segment::ParamType::String as i32,
+                        value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                    },
+                ]
+            }),
             exposed,
             raw,
             requires_auth: !ep.ep.allow_unauthenticated,
@@ -271,31 +279,6 @@ pub fn endpoints_from_meta(
     Ok((Arc::new(endpoint_map), hosted_endpoints))
 }
 
-fn path_to_str(ep: &meta::Rpc) -> anyhow::Result<String> {
-    let Some(path) = &ep.path else {
-        return Ok(format!("/{}.{}", ep.service_name, ep.name));
-    };
-
-    let mut result = String::new();
-    for seg in &path.segments {
-        result.push('/');
-
-        use meta::path_segment::SegmentType;
-        match SegmentType::try_from(seg.r#type).context("invalid path segment")? {
-            SegmentType::Literal => result.push_str(&seg.value),
-            SegmentType::Param => {
-                result.push(':');
-                result.push_str(&seg.value)
-            }
-            SegmentType::Wildcard | SegmentType::Fallback => {
-                result.push('*');
-                result.push_str(&seg.value)
-            }
-        }
-    }
-
-    Ok(result)
-}
 
 pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,

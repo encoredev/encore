@@ -1233,6 +1233,7 @@ dependencies = [
  "httpdate",
  "hyper 1.1.0",
  "indexmap 2.2.6",
+ "insta",
  "jsonwebtoken 9.2.0",
  "log",
  "matchit",
