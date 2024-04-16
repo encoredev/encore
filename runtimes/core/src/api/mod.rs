@@ -12,6 +12,7 @@ mod manager;
 pub mod reqauth;
 pub mod schema;
 mod server;
+mod paths;
 
 pub use endpoint::*;
 pub use error::*;

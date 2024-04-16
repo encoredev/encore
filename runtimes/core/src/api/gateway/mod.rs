@@ -13,6 +13,7 @@ use crate::api::reqauth::{svcauth, CallMeta};
 use crate::api::schema::Method;
 use crate::api::{auth, path_supports_tsr, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
+use crate::api::paths::PathSet;
 
 mod reverseproxy;
 
@@ -37,7 +38,7 @@ impl Gateway {
         name: EncoreName,
         http_client: reqwest::Client,
         service_registry: Arc<ServiceRegistry>,
-        service_routes: HashMap<EncoreName, Vec<Route>>,
+        service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors: tower_http::cors::CorsLayer,
     ) -> anyhow::Result<Self> {
@@ -45,7 +46,7 @@ impl Gateway {
         // set the request handler when registered.
         let mut router = axum::Router::new();
 
-        async fn fallback(
+        async fn not_found_handler(
             req: axum::http::Request<axum::body::Body>,
         ) -> axum::response::Response<axum::body::Body> {
             api::Error {
@@ -56,48 +57,49 @@ impl Gateway {
             }
             .into_response()
         }
-
-        // Register our fallback route.
-        router = router.fallback(fallback);
+        let mut fallback_router = axum::Router::new();
+        fallback_router = fallback_router.fallback(not_found_handler);
 
         let shared = Arc::new(SharedGatewayData {
             name,
             auth: auth_handler,
         });
 
-        for (svc, routes) in service_routes {
-            let dest_base_url = service_registry
-                .service_base_url(&svc)
-                .with_context(|| format!("service {} not found", svc))?
-                .parse()
-                .context("invalid service base url")?;
+        let mut register_routes = |paths: HashMap<EncoreName, Vec<(Arc<api::Endpoint>, Vec<String>)>>, mut router: axum::Router| -> anyhow::Result<axum::Router> {
+            for (svc, service_routes) in paths {
+                let dest_base_url = service_registry
+                    .service_base_url(&svc)
+                    .with_context(|| format!("service {} not found", svc))?
+                    .parse()
+                    .context("invalid service base url")?;
 
-            let director = Arc::new(ServiceDirector {
-                shared: shared.clone(),
-                dest_base_url,
-                svc_auth_method: service_registry
-                    .service_auth_method(&svc)
-                    .unwrap_or_else(|| Arc::new(svcauth::Noop)),
-            });
-            let proxy = ReverseProxy::new(director, http_client.clone());
-            for route in routes {
-                let Some(filter) = schema::method_filter(route.methods.into_iter()) else {
-                    // No routes registered; skip.
-                    continue;
-                };
-                let handler = axum::routing::on(filter, proxy.clone());
-
-                if path_supports_tsr(&route.path) {
-                    // Register the same route with a trailing slash as well.
-                    let tsr_path = format!("{}/", route.path);
-                    router = router.route(&tsr_path, handler.clone());
+                let director = Arc::new(ServiceDirector {
+                    shared: shared.clone(),
+                    dest_base_url,
+                    svc_auth_method: service_registry
+                        .service_auth_method(&svc)
+                        .unwrap_or_else(|| Arc::new(svcauth::Noop)),
+                });
+                let proxy = ReverseProxy::new(director, http_client.clone());
+                for (endpoint, routes) in service_routes {
+                    let Some(filter) = schema::method_filter(endpoint.methods()) else {
+                        // No routes registered; skip.
+                        continue;
+                    };
+                    let handler = axum::routing::on(filter, proxy.clone());
+                    for route in routes {
+                        router = router.route(&route, handler.clone());
+                    }
                 }
-
-                router = router.route(&route.path, handler);
             }
-        }
+            Ok(router)
+        };
 
-        router = router.layer(cors);
+        router = register_routes(service_routes.main, router)?;
+        fallback_router = register_routes(service_routes.fallback, fallback_router)?;
+
+        router = router.fallback_service(fallback_router);
+        router = router.layer(cors.clone());
 
         Ok(Self {
             shared,
