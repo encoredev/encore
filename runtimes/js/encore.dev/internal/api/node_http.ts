@@ -114,7 +114,7 @@ export class RawResponse extends stream.Writable {
   private headers: OutgoingHttpHeaders;
 
   constructor(req: RawRequest, w: runtime.ResponseWriter) {
-    super({}); // TODO?
+    super({ highWaterMark: 1024 * 1024 }); // TODO?
     this.req = req;
     this.chunkedEncoding = false; // TODO
     this.shouldKeepAlive = true;
@@ -131,27 +131,19 @@ export class RawResponse extends stream.Writable {
     this.w = w;
   }
 
-  end(cb?: (() => void) | undefined): this;
-  end(chunk: any, cb?: (() => void) | undefined): this;
-  end(
+  write(
+    chunk: any,
+    callback?: ((error: Error | null | undefined) => void) | undefined
+  ): boolean;
+  write(
     chunk: any,
     encoding: BufferEncoding,
-    cb?: (() => void) | undefined
-  ): this;
-  end(chunk?: unknown, encoding?: unknown, cb?: unknown): this {
-    let buffer: Buffer =
-      chunk instanceof Buffer
-        ? chunk
-        : chunk instanceof Uint8Array
-        ? Buffer.from(chunk)
-        : Buffer.from(
-            (chunk as string | undefined) ?? "",
-            encoding as BufferEncoding
-          );
-
-    this._writeHeaderIfNeeded();
-    this.w.close(buffer, cb as any);
-    return this;
+    callback?: ((error: Error | null | undefined) => void) | undefined
+  ): boolean;
+  write(chunk: unknown, encoding?: unknown, callback?: unknown): boolean {
+    const res = super.write(chunk, encoding as any, callback as any);
+    // HACK: Work around pipe deadlock in Node.js when writing a large response.
+    return true;
   }
 
   // Needed for Next.js compatibility.
@@ -185,11 +177,11 @@ export class RawResponse extends stream.Writable {
     this._writeHeaderIfNeeded();
     this.w.writeBodyMulti(
       chunks.map((ch) => ch.chunk),
-      callback
+      callback,
     );
   }
 
-  _final(callback: (error?: Error | null | undefined) => void) {
+  _final(callback: (error?: Error | null | undefined) => void): void {
     this.w.close(undefined, callback);
   }
 
@@ -266,14 +258,11 @@ export class RawResponse extends stream.Writable {
       | OutgoingHttpHeader[],
     headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]
   ): this {
-    this.w.writeHead(statusCode, (headers ?? []) as any);
+    // TODO implement properly
+    this.statusCode = statusCode;
+    this._writeHeaderIfNeeded();
+
+    // this.w.writeHead(statusCode, (headers ?? []) as any);
     return this;
   }
-
-  // writeContinue(callback?: () => void): void;
-  // writeEarlyHints(
-  //   hints: Record<string, string | string[]>,
-  //   callback?: () => void
-  // ): void;
-  // writeProcessing(): void;
 }

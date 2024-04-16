@@ -352,7 +352,7 @@ impl api::BoxedHandler for JSRawHandler {
 
             let resp = match rx.await {
                 Ok(resp) => resp,
-                Err(_) => api::Error::internal(anyhow::anyhow!("handler did not respond",))
+                Err(_) => api::Error::internal(anyhow::anyhow!("handler did not respond"))
                     .into_response(),
             };
 

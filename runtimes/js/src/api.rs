@@ -44,15 +44,14 @@ pub fn new_api_handler(
 #[napi]
 pub struct Request {
     pub(crate) inner: Arc<encore_runtime_core::model::Request>,
-    pub(crate) cached_meta: Option<napi::Ref<()>>,
 }
+
 
 #[napi]
 impl Request {
     pub fn new(inner: Arc<encore_runtime_core::model::Request>) -> Self {
         Self {
             inner,
-            cached_meta: None,
         }
     }
 
@@ -65,21 +64,9 @@ impl Request {
         }
     }
 
-    #[napi(ts_return_type = "RequestMeta")]
-    pub fn meta(&mut self, env: Env) -> napi::Result<JsUnknown> {
-        use napi::bindgen_prelude::ToNapiValue;
-
-        if let Some(ref cached_meta) = self.cached_meta {
-            let meta: JsUnknown = env.get_reference_value(cached_meta)?;
-            return Ok(meta);
-        }
-
-        let meta = request_meta::meta(&self.inner).map_err(|err| napi::Error::from(err))?;
-        let meta = unsafe { RequestMeta::to_napi_value(env.raw(), meta) }?;
-        let meta = unsafe { JsUnknown::from_raw(env.raw(), meta) }?;
-
-        self.cached_meta = Some(env.create_reference(&meta)?);
-        Ok(meta)
+    #[napi]
+    pub fn meta(&self) -> napi::Result<RequestMeta> {
+        request_meta::meta(&self.inner).map_err(|err| napi::Error::from(err))
     }
 
     #[napi]
