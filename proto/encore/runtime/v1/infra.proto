@@ -44,6 +44,16 @@ enum ServerKind {
   SERVER_KIND_READ_REPLICA = 3;
 }
 
+message TLSConfig {
+  // Server CA Cert PEM to use for verifying the server's certificate.
+  optional string server_ca_cert = 1;
+
+  // If true, skips hostname verification when connecting.
+  // If invalid hostnames are trusted, *any* valid certificate for *any* site will be trusted for use.
+  // This introduces significant vulnerabilities, and should only be used as a last resort.
+  bool disable_tls_hostname_verification = 2;
+}
+
 message SQLServer {
   // The unique resource id for this server.
   string rid = 1;
@@ -53,7 +63,8 @@ message SQLServer {
   string host = 2;
   ServerKind kind = 3;
 
-  optional string server_ca_cert = 4;
+  // TLS configuration to use when connecting.
+  optional TLSConfig tls_config = 4;
 }
 
 message ClientCert {
@@ -118,12 +129,9 @@ message RedisServer {
   string host = 2;
   ServerKind kind = 3;
 
-  // Whether or not to use TLS to connect.
-  // If server_ca_cert or client_cert are set, TLS is always used
-  // regardless of this value.
-  bool enable_tls = 4;
-
-  optional string server_ca_cert = 5;
+  // TLS configuration to use when connecting.
+  // If nil, TLS is not used.
+  optional TLSConfig tls_config = 4;
 }
 
 message RedisConnectionPool {
