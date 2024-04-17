@@ -351,6 +351,14 @@ func (i *Instance) Experiments(environ []string) (*experiments.Set, error) {
 	return experiments.FromAppFileAndEnviron(exp, environ)
 }
 
+func (i *Instance) Lang() appfile.Lang {
+	appFile, err := appfile.ParseFile(filepath.Join(i.root, appfile.Name))
+	if err != nil {
+		return appfile.LangGo
+	}
+	return appFile.Lang
+}
+
 // GlobalCORS returns the CORS configuration for the app which
 // will be applied against all API gateways into the app
 func (i *Instance) GlobalCORS() (appfile.CORS, error) {

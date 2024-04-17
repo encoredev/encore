@@ -43,7 +43,7 @@ func (s *Server) DumpMeta(ctx context.Context, req *daemonpb.DumpMetaRequest) (*
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve(app.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,

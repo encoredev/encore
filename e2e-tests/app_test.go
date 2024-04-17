@@ -212,7 +212,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		t.Fatal(err)
 	}
 
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve("", expSet)
 	defer fns.CloseIgnore(bld)
 	ctx := context.Background()
 
