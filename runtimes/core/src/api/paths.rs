@@ -126,7 +126,9 @@ mod tests {
         ];
 
         let paths = compute(endpoints.into_iter());
-        insta::assert_yaml_snapshot!(paths);
+        insta::with_settings!({sort_maps => true}, {
+            insta::assert_yaml_snapshot!(paths);
+        });
     }
 
     #[test]
@@ -137,7 +139,9 @@ mod tests {
         ];
 
         let paths = compute(endpoints.into_iter());
-        insta::assert_yaml_snapshot!(paths);
+        insta::with_settings!({sort_maps => true}, {
+            insta::assert_yaml_snapshot!(paths);
+        });
     }
 
     #[test]
@@ -145,7 +149,9 @@ mod tests {
         let endpoints = vec![ep("one", "a", &[wildcard("foo")])];
 
         let paths = compute(endpoints.into_iter());
-        insta::assert_yaml_snapshot!(paths);
+        insta::with_settings!({sort_maps => true}, {
+            insta::assert_yaml_snapshot!(paths);
+        });
     }
 
     #[test]
@@ -153,7 +159,9 @@ mod tests {
         let endpoints = vec![ep("one", "a", &[fallback("foo")])];
 
         let paths = compute(endpoints.into_iter());
-        insta::assert_yaml_snapshot!(paths);
+        insta::with_settings!({sort_maps => true}, {
+            insta::assert_yaml_snapshot!(paths);
+        });
     }
 
     fn path(segs: &[meta::PathSegment]) -> meta::Path {
@@ -230,26 +238,26 @@ mod tests {
             &self.path
         }
     }
-}
 
-pub fn path_to_str(path: &meta::Path) -> String {
-    let mut result = String::new();
-    for seg in &path.segments {
-        result.push('/');
+    fn path_to_str(path: &meta::Path) -> String {
+        let mut result = String::new();
+        for seg in &path.segments {
+            result.push('/');
 
-        use meta::path_segment::SegmentType;
-        match SegmentType::try_from(seg.r#type).unwrap() {
-            SegmentType::Literal => result.push_str(&seg.value),
-            SegmentType::Param => {
-                result.push(':');
-                result.push_str(&seg.value)
-            }
-            SegmentType::Wildcard | SegmentType::Fallback => {
-                result.push('*');
-                result.push_str(&seg.value)
+            use meta::path_segment::SegmentType;
+            match SegmentType::try_from(seg.r#type).unwrap() {
+                SegmentType::Literal => result.push_str(&seg.value),
+                SegmentType::Param => {
+                    result.push(':');
+                    result.push_str(&seg.value)
+                }
+                SegmentType::Wildcard | SegmentType::Fallback => {
+                    result.push('*');
+                    result.push_str(&seg.value)
+                }
             }
         }
-    }
 
-    result
+        result
+    }
 }

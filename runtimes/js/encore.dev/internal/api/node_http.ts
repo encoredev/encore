@@ -177,7 +177,7 @@ export class RawResponse extends stream.Writable {
     this._writeHeaderIfNeeded();
     this.w.writeBodyMulti(
       chunks.map((ch) => ch.chunk),
-      callback,
+      callback
     );
   }
 
@@ -258,11 +258,32 @@ export class RawResponse extends stream.Writable {
       | OutgoingHttpHeader[],
     headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]
   ): this {
-    // TODO implement properly
     this.statusCode = statusCode;
-    this._writeHeaderIfNeeded();
 
-    // this.w.writeHead(statusCode, (headers ?? []) as any);
+    const headersIn =
+      typeof statusMessageOrHeaders === "string"
+        ? headers
+        : statusMessageOrHeaders;
+
+    // Merge headers, if provided.
+    if (headersIn) {
+      if (Array.isArray(headersIn)) {
+        for (let i = 0; i < headersIn.length; i += 2) {
+          const key = headersIn[i];
+          const value = headersIn[i + 1];
+          if (typeof key === "string" && typeof value === "string") {
+            this.headers[key] = value;
+          }
+        }
+      } else {
+        for (const key in headersIn) {
+          const value = headersIn[key];
+          this.headers[key] = value;
+        }
+      }
+    }
+
+    this._writeHeaderIfNeeded();
     return this;
   }
 }

@@ -8,7 +8,7 @@ use anyhow::Context;
 
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
-use crate::api::paths::{path_to_str, Pather};
+use crate::api::paths::Pather;
 use crate::api::reqauth::svcauth;
 use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
 use crate::encore::parser::meta::v1 as meta;
@@ -72,7 +72,9 @@ impl Server {
             ep: endpoints.get(ep).unwrap().to_owned(),
         }));
 
-        let mut register = |paths: &[(Arc<api::Endpoint>, Vec<String>)], mut router: axum::Router| -> axum::Router {
+        let mut register = |paths: &[(Arc<api::Endpoint>, Vec<String>)],
+                            mut router: axum::Router|
+         -> axum::Router {
             for (ep, paths) in paths {
                 match schema::method_filter(ep.methods()) {
                     Some(filter) => {
