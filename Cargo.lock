@@ -2973,7 +2973,7 @@ dependencies = [
 [[package]]
 name = "postgres-protocol"
 version = "0.6.6"
-source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#86cdee1e3fb86cd8f55117334dd5391d2af1733f"
+source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#08c0f981e1aa1d21c3f21ed50a19cdce8d21c873"
 dependencies = [
  "base64 0.21.5",
  "byteorder",
@@ -2991,7 +2991,7 @@ dependencies = [
 [[package]]
 name = "postgres-types"
 version = "0.2.6"
-source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#86cdee1e3fb86cd8f55117334dd5391d2af1733f"
+source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#08c0f981e1aa1d21c3f21ed50a19cdce8d21c873"
 dependencies = [
  "array-init",
  "bytes",
@@ -4497,7 +4497,7 @@ dependencies = [
 [[package]]
 name = "tokio-postgres"
 version = "0.7.10"
-source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#86cdee1e3fb86cd8f55117334dd5391d2af1733f"
+source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#08c0f981e1aa1d21c3f21ed50a19cdce8d21c873"
 dependencies = [
  "async-trait",
  "byteorder",
