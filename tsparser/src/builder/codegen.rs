@@ -241,6 +241,7 @@ impl Builder<'_> {
 
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
+                        "raw": rpc.raw,
                         "import_path": import_path,
                     }));
                 }
