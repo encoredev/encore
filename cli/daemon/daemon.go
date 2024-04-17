@@ -102,7 +102,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		}
 
 		// Parse the app to figure out what infrastructure is needed.
-		bld := builderimpl.Resolve(expSet)
+		bld := builderimpl.Resolve(app.Lang(), expSet)
 		defer fns.CloseIgnore(bld)
 		parse, err := bld.Parse(ctx, builder.ParseParams{
 			Build:       builder.DefaultBuildInfo(),

@@ -50,7 +50,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve(app.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,

@@ -57,7 +57,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
 
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve(p.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
