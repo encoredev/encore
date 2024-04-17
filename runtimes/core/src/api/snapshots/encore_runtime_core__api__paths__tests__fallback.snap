@@ -5,7 +5,6 @@ expression: paths
 main: {}
 fallback:
   a:
-    - endpoint: one
-      routes:
-        - /
+    - - one
+      - - /
         - /*foo

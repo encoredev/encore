@@ -252,13 +252,11 @@ pub fn endpoints_from_meta(
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
             path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
                 r#type: meta::path::Type::Url as i32,
-                segments: vec![
-                    meta::PathSegment {
-                        r#type: meta::path_segment::SegmentType::Literal as i32,
-                        value_type: meta::path_segment::ParamType::String as i32,
-                        value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
-                    },
-                ]
+                segments: vec![meta::PathSegment {
+                    r#type: meta::path_segment::SegmentType::Literal as i32,
+                    value_type: meta::path_segment::ParamType::String as i32,
+                    value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                }],
             }),
             exposed,
             raw,
@@ -278,7 +276,6 @@ pub fn endpoints_from_meta(
 
     Ok((Arc::new(endpoint_map), hosted_endpoints))
 }
-
 
 pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,

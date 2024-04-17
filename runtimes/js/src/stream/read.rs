@@ -123,7 +123,7 @@ where
                                 return;
                             }
                         }
-                    },
+                    }
                     Err(err) => {
                         _ = self.notify_err(err);
                         return;
@@ -138,7 +138,9 @@ where
             return;
         }
         self.did_destroy = true;
-        let req = DestroyRequest { err: Some(Box::new(err)) };
+        let req = DestroyRequest {
+            err: Some(Box::new(err)),
+        };
         self.destroy.call(req, ThreadsafeFunctionCallMode::Blocking);
     }
 
@@ -213,7 +215,9 @@ struct DestroyRequest {
 
 fn execute_destroy(ctx: ThreadSafeCallContext<DestroyRequest>) -> napi::Result<()> {
     if let Some(err) = ctx.value.err {
-        let err = ctx.env.create_error(napi::Error::new(Status::GenericFailure, err.to_string()))?;
+        let err = ctx
+            .env
+            .create_error(napi::Error::new(Status::GenericFailure, err.to_string()))?;
         ctx.callback.unwrap().call(None, &[err.into_unknown()])?;
     } else {
         ctx.callback.unwrap().call_without_args(None)?;

@@ -46,13 +46,10 @@ pub struct Request {
     pub(crate) inner: Arc<encore_runtime_core::model::Request>,
 }
 
-
 #[napi]
 impl Request {
     pub fn new(inner: Arc<encore_runtime_core::model::Request>) -> Self {
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 
     #[napi]
