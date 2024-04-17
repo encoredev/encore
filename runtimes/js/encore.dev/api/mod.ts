@@ -24,7 +24,7 @@ export type Query<
 > = TypeOrName extends string ? string : TypeOrName;
 
 export interface APIOptions {
-  method?: Method | Method[];
+  method?: Method | Method[] | "*";
   path?: string;
   expose?: boolean;
   auth?: boolean;
