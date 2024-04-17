@@ -4,19 +4,22 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 
-use crate::{api, EncoreName, EndpointName, Hosted, model, pubsub, secrets};
-use crate::api::{APIResult, auth, cors, encore_routes, Endpoint, endpoints_from_meta, gateway, IntoResponse, jsonschema, paths, reqauth, server};
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
 use crate::api::gateway::{Gateway, Route};
 use crate::api::http_server::HttpServer;
-use crate::api::paths::{path_to_str, Pather};
+use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
 use crate::api::schema::encoding::EncodingConfig;
 use crate::api::schema::JSONPayload;
+use crate::api::{
+    auth, cors, encore_routes, endpoints_from_meta, gateway, jsonschema, paths, reqauth, server,
+    APIResult, Endpoint, IntoResponse,
+};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
 use crate::trace::Tracer;
+use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
 pub struct ManagerConfig<'a> {
     pub meta: &'a meta::Data,
@@ -115,7 +118,11 @@ impl ManagerConfig<'_> {
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
         let gateways = {
-            let routes = paths::compute(endpoints.iter().map(|(_, ep)| RoutePerService(ep.to_owned())));
+            let routes = paths::compute(
+                endpoints
+                    .iter()
+                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
+            );
             let mut gateways = HashMap::new();
             for gw in &self.meta.gateways {
                 let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {

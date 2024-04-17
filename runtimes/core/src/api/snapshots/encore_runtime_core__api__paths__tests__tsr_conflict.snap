@@ -4,11 +4,9 @@ expression: paths
 ---
 main:
   a:
-    - endpoint: one
-      routes:
-        - /foo/
+    - - one
+      - - /foo/
   b:
-    - endpoint: two
-      routes:
-        - /foo
+    - - two
+      - - /foo
 fallback: {}

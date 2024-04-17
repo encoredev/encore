@@ -9,10 +9,10 @@ mod http_server;
 mod httputil;
 pub mod jsonschema;
 mod manager;
+mod paths;
 pub mod reqauth;
 pub mod schema;
 mod server;
-mod paths;
 
 pub use endpoint::*;
 pub use error::*;

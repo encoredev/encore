@@ -8,12 +8,12 @@ use anyhow::Context;
 
 use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::gateway::reverseproxy::{Director, InboundRequest, ProxyRequest, ReverseProxy};
+use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::api::schema::Method;
 use crate::api::{auth, path_supports_tsr, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
-use crate::api::paths::PathSet;
 
 mod reverseproxy;
 
@@ -65,35 +65,38 @@ impl Gateway {
             auth: auth_handler,
         });
 
-        let mut register_routes = |paths: HashMap<EncoreName, Vec<(Arc<api::Endpoint>, Vec<String>)>>, mut router: axum::Router| -> anyhow::Result<axum::Router> {
-            for (svc, service_routes) in paths {
-                let dest_base_url = service_registry
-                    .service_base_url(&svc)
-                    .with_context(|| format!("service {} not found", svc))?
-                    .parse()
-                    .context("invalid service base url")?;
+        let mut register_routes =
+            |paths: HashMap<EncoreName, Vec<(Arc<api::Endpoint>, Vec<String>)>>,
+             mut router: axum::Router|
+             -> anyhow::Result<axum::Router> {
+                for (svc, service_routes) in paths {
+                    let dest_base_url = service_registry
+                        .service_base_url(&svc)
+                        .with_context(|| format!("service {} not found", svc))?
+                        .parse()
+                        .context("invalid service base url")?;
 
-                let director = Arc::new(ServiceDirector {
-                    shared: shared.clone(),
-                    dest_base_url,
-                    svc_auth_method: service_registry
-                        .service_auth_method(&svc)
-                        .unwrap_or_else(|| Arc::new(svcauth::Noop)),
-                });
-                let proxy = ReverseProxy::new(director, http_client.clone());
-                for (endpoint, routes) in service_routes {
-                    let Some(filter) = schema::method_filter(endpoint.methods()) else {
-                        // No routes registered; skip.
-                        continue;
-                    };
-                    let handler = axum::routing::on(filter, proxy.clone());
-                    for route in routes {
-                        router = router.route(&route, handler.clone());
+                    let director = Arc::new(ServiceDirector {
+                        shared: shared.clone(),
+                        dest_base_url,
+                        svc_auth_method: service_registry
+                            .service_auth_method(&svc)
+                            .unwrap_or_else(|| Arc::new(svcauth::Noop)),
+                    });
+                    let proxy = ReverseProxy::new(director, http_client.clone());
+                    for (endpoint, routes) in service_routes {
+                        let Some(filter) = schema::method_filter(endpoint.methods()) else {
+                            // No routes registered; skip.
+                            continue;
+                        };
+                        let handler = axum::routing::on(filter, proxy.clone());
+                        for route in routes {
+                            router = router.route(&route, handler.clone());
+                        }
                     }
                 }
-            }
-            Ok(router)
-        };
+                Ok(router)
+            };
 
         router = register_routes(service_routes.main, router)?;
         fallback_router = register_routes(service_routes.fallback, fallback_router)?;
