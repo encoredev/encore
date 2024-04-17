@@ -13,21 +13,20 @@ This can be a great way of getting off the ground quickly. But as many developer
 
 Let's take a look at how Encore compares to BaaS platforms like Supabase and Firebase:
 
-|                                                     | Encore                                                                                                                                        | Supabase             | Firebase             |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------- |
-| **Approach?**                                       | Backend Development Platform                                                                                                                  | Backend as a Service | Backend as a Service |
-| **Native PostgreSQL support?**                      | ✅︎ Yes                                                                                                                                         | ✅︎ Yes                | ❌ No                 |
-| **Support pgvector for AI use cases?**              | ✅︎ Yes                                                                                                                                         | ✅︎ Yes                | ❌ No                 |
-| **Supports major cloud providers like AWS/GCP?**    | ✅︎ Yes                                                                                                                                         | ❌ No                 | ✅︎ Yes (GCP only)     |
-| **Supports Microservices?**                         | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Supports Event-Driven systems?**                  | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Supports Kubernetes and custom infra?**           | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Infrastructure is Type-Safe?**                    | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Built-in local dev environment?**                 | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Built-in Preview Environments per Pull Request?** | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Built-in Distributed Tracing?**                   | ✅︎ Yes                                                                                                                                         | ❌ No                 | ❌ No                 |
-| **Charges for hosting?**                            | No                                                                                                                                            | Yes                  | Yes                  |
-| **Pricing?**                                        | $39/month per developer, $99/month per environment in AWS/GCP + $1.7/month per resource in AWS/GCP ([Learn more](https://encore.dev/pricing)) | Variable (complex)   | Variable (complex)   |
+|                                                     | Encore                       | Supabase             | Firebase             |
+| --------------------------------------------------- | ---------------------------- | -------------------- | -------------------- |
+| **Approach?**                                       | Backend Development Platform | Backend as a Service | Backend as a Service |
+| **Native PostgreSQL support?**                      | ✅︎ Yes                        | ✅︎ Yes                | ❌ No                 |
+| **Support pgvector for AI use cases?**              | ✅︎ Yes                        | ✅︎ Yes                | ❌ No                 |
+| **Supports major cloud providers like AWS/GCP?**    | ✅︎ Yes                        | ❌ No                 | ✅︎ Yes (GCP only)     |
+| **Supports Microservices?**                         | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Supports Event-Driven systems?**                  | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Supports Kubernetes and custom infra?**           | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Infrastructure is Type-Safe?**                    | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Built-in local dev environment?**                 | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Built-in Preview Environments per Pull Request?** | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Built-in Distributed Tracing?**                   | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Charges for hosting?**                            | No                           | Yes                  | Yes                  |
 
 ## Encore is the simplest way of accessing the full power and flexibility of the major cloud providers
 

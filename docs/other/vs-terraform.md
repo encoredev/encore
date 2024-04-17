@@ -9,20 +9,19 @@ There are many tools designed to overcome the challenges of cloud infrastructure
 
 Let's take a look at how Encore compares to IaC tools like Terraform and Pulumi:
 
-|                                                                     | Encore                                                                                                                                        | Terraform              | Pulumi                 |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------- |
-| **Approach?**                                                       | Infrastructure from Code                                                                                                                      | Infrastructure as Code | Infrastructure as Code |
-| **Supports major cloud providers like AWS/GCP?**                    | ✅︎ Yes                                                                                                                                         | ✅︎ Yes                  | ✅︎ Yes                  |
-| **Supports Kubernetes and custom infra configuration?**             | ✅︎ Yes                                                                                                                                         | ✅︎ Yes                  | ✅︎ Yes                  |
-| **Avoid learning a DSL?**                                           | ✅︎ Yes                                                                                                                                         | ❌ No                   | ✅︎ Yes                  |
-| **Infrastructure is Type-Safe?**                                    | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Built-in local dev environment?**                                 | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Built-in Preview Environments per Pull Request?**                 | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Built-in Distributed Tracing?**                                   | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Avoid manually writing infra config files?**                      | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Avoid manual maintenance of separate codebase for infra config?** | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Avoid manual effort to keep environments in sync?**               | ✅︎ Yes                                                                                                                                         | ❌ No                   | ❌ No                   |
-| **Pricing?**                                                        | $39/month per developer, $99/month per environment in AWS/GCP + $1.7/month per resource in AWS/GCP ([Learn more](https://encore.dev/pricing)) |
+|                                                                     | Encore                   | Terraform              | Pulumi                 |
+| ------------------------------------------------------------------- | ------------------------ | ---------------------- | ---------------------- |
+| **Approach?**                                                       | Infrastructure from Code | Infrastructure as Code | Infrastructure as Code |
+| **Supports major cloud providers like AWS/GCP?**                    | ✅︎ Yes                    | ✅︎ Yes                  | ✅︎ Yes                  |
+| **Supports Kubernetes and custom infra configuration?**             | ✅︎ Yes                    | ✅︎ Yes                  | ✅︎ Yes                  |
+| **Avoid learning a DSL?**                                           | ✅︎ Yes                    | ❌ No                   | ✅︎ Yes                  |
+| **Infrastructure is Type-Safe?**                                    | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
+| **Built-in local dev environment?**                                 | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
+| **Built-in Preview Environments per Pull Request?**                 | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
+| **Built-in Distributed Tracing?**                                   | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
+| **Avoid manually writing infra config files?**                      | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
+| **Avoid manual maintenance of separate codebase for infra config?** | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
+| **Avoid manual effort to keep environments in sync?**               | ✅︎ Yes                    | ❌ No                   | ❌ No                   |
 
 ## Encore removes manual effort and maintenance required with IaC
 
