@@ -67,12 +67,14 @@ Preview Environments are named after the pull request, so PR #72 will create an 
 ### Encore Cloud
 
 Encore Cloud is a simple, zero-configuration hosting solution provided by Encore.
-It's perfect for development environments and small-scale hobby use.
-It's also a great way to evaluate Encore without having to connect your cloud account.
+It's perfect for development environments and small-scale use that do not require any specific SLAs.
+It's also a great way to evaluate Encore without needing to connect your cloud account.
 
-Encore Cloud is not designed for production use and does not offer reliability guarantees for persistent storage
+Encore Cloud is not designed for business-critical use and does not offer reliability guarantees for persistent storage
 like SQL Databases. Other infrastructure primitives like [Pub/Sub](/docs/primitives/pubsub) and [Caching](/docs/primitives/caching)
 are provisioned with small-scale use in mind.
+
+[Learn more about the usage limitations](/docs/about/usage)
 
 ## Production Infrastructure
 
