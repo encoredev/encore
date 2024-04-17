@@ -5,6 +5,7 @@ title: API Schemas
 subtitle: How to design schemas for your APIs
 lang: ts
 ---
+
 APIs in Encore for TypeScript are `async` functions with request and response data types.
 
 These request and response data types are TypeScript interfaces, which Encore uses to encode API requests to HTTP messages.
@@ -16,30 +17,30 @@ This can be customized on a per-field basis, allowing individual fields to be pa
 and HTTP headers with ease.
 
 For example:
+
 ```typescript
 import { api, Header, Query } from "encore.dev/api";
 
-
 interface Data {
-	header: Header<"X-Header">; // this field will be read from the http header
-	query: Query<string>;       // this will be parsed from the '?query=...' parameter in the request url
-	body:  string;              // this will be sent as part of the JSON body
- 
-    // These will also sent as part of the JSON body:
-	nested: {
-        body2: string;
-	    header2: Header<"X-Other-Header">; // Header has no effect inside nested fields
-	    query2: Query<string>;             // Query has no effect inside nested fields
-    };                           
+  header: Header<"X-Header">; // this field will be read from the http header
+  query: Query<string>; // this will be parsed from the '?query=...' parameter in the request url
+  body: string; // this will be sent as part of the JSON body
+
+  // These will also sent as part of the JSON body:
+  nested: {
+    body2: string;
+    header2: Header<"X-Other-Header">; // Header has no effect inside nested fields
+    query2: Query<string>; // Query has no effect inside nested fields
+  };
 }
 
 // A simple API endpoint that echoes the data back.
 export const echo = api(
-    {method: "POST", path: "/echo"},
-    async (params: Data): Promise<Data> => {
-        return params;  // echo the data back
-    },
-)
+  { method: "POST", path: "/echo" },
+  async (params: Data): Promise<Data> => {
+    return params; // echo the data back
+  },
+);
 ```
 
 This API endpoint expects incoming requests to look like this:
@@ -100,7 +101,7 @@ X-Header: this is a header
 
 ## Path parameters
 
-Path parameters are specified by the `path` field in the API Options in `api` call. 
+Path parameters are specified by the `path` field in the API Options in `api` call.
 To specify a placeholder variable, use `:name` and add a function parameter with the same name to the function signature.
 Encore parses the incoming request URL and makes sure it matches the type of the parameter. The last segment of the path
 can be parsed as a wildcard parameter by using `*name` with a matching function parameter.
@@ -131,8 +132,8 @@ In the example below, the `Language` field of `ListBlogPost` will be fetched fro
 import { Header } from "encore.dev/api";
 
 interface ListBlogPost {
-    language: Header<"Accept-Language">; // parsed from header
-    author: string; // not a header
+  language: Header<"Accept-Language">; // parsed from header
+  author: string; // not a header
 }
 ```
 
@@ -152,8 +153,8 @@ the request is `GET`, `HEAD` or `DELETE` (and otherwise from the HTTP request bo
 
 ```ts
 interface ListBlogPost {
-    limit: Query<number>; // always a query parameter
-    author: string        // query if GET, HEAD or DELETE, otherwise body parameter
+  limit: Query<number>; // always a query parameter
+  author: string; // query if GET, HEAD or DELETE, otherwise body parameter
 }
 ```
 
@@ -170,6 +171,4 @@ This often requires you to parse custom HTTP headers and do other low-level thin
 
 For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
 
-Raw endpoints are coming soon to Encore for TypeScript.
-
-{/* TODO: Add info about raw endpoints when they are available. */}
+Learn more in the [raw endpoints documentation](/docs/ts/primitives/services-and-apis#raw-endpoints).
