@@ -61,6 +61,7 @@ func (b *builder) Build() *meta.Data {
 		AppRevision:        b.app.BuildInfo.Revision,
 		UncommittedChanges: b.app.BuildInfo.UncommittedChanges,
 		Experiments:        b.app.BuildInfo.Experiments.StringList(),
+		Language:           meta.Lang_GO,
 	}
 	md := b.md
 

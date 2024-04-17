@@ -19,6 +19,13 @@ import (
 // (which is usually the Git repository root).
 const Name = "encore.app"
 
+type Lang string
+
+const (
+	LangGo Lang = "go"
+	LangTS Lang = "typescript"
+)
+
 // File is a parsed encore.app file.
 type File struct {
 	// ID is the encore.dev app id for the app.
@@ -31,6 +38,10 @@ type File struct {
 	//
 	// Do not use these features in production without consulting the Encore team.
 	Experiments []experiments.Name `json:"experiments,omitempty"`
+
+	// Lang is the language the app is written in.
+	// If empty it defaults to Go.
+	Lang Lang `json:"lang"`
 
 	// Configure global CORS settings for the application which
 	// will be applied to all API gateways into the application.
@@ -109,6 +120,15 @@ func Parse(data []byte) (*File, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("appfile.Parse: %v", err)
+	}
+
+	switch f.Lang {
+	case LangGo, LangTS:
+	// Do nothing
+	case "":
+		f.Lang = LangGo
+	default:
+		return nil, fmt.Errorf("appfile.Parse: invalid lang %q", f.Lang)
 	}
 
 	// Parse deprecated fields into the new Build struct.

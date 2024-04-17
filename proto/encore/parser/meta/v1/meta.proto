@@ -23,6 +23,14 @@ message Data {
   repeated Metric         metrics             = 13;
   repeated SQLDatabase    sql_databases       = 14;
   repeated Gateway        gateways            = 15;
+  Lang                    language            = 16;
+}
+
+// Lang describes the language an application is written in.
+// Defaults to Go if not set.
+enum Lang {
+  GO = 0;
+  TYPESCRIPT = 1;
 }
 
 // QualifiedName is a name of an object in a specific package.

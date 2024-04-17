@@ -587,6 +587,7 @@ fn new_meta() -> v1::Data {
         metrics: vec![],
         sql_databases: vec![],
         gateways: vec![],
+        language: v1::Lang::Typescript as i32,
     }
 }
 
