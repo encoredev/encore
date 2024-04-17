@@ -17,7 +17,7 @@ On disk it might look like this:
 ```
 /my-app
 ├── encore.app          // ... and other top-level project files
-├── package.json  
+├── package.json
 │
 ├── hello               // hello service (a folder)
 │   ├── hello.ts        // hello service code
@@ -26,7 +26,6 @@ On disk it might look like this:
 └── world               // world service (a folder)
     └── world.ts        // world service code
 ```
-
 
 This means building a microservices architecture is as simple as creating multiple directories within your application.
 
@@ -46,13 +45,13 @@ In the example below, we define the API endpoint `ping` which accepts `POST` req
 
 ```typescript
 // inside the hello.ts file
-import { api } from "encore.dev/api"
+import { api } from "encore.dev/api";
 
 export const ping = api(
   { method: "POST" },
   async (p: PingParams): Promise<PingResponse> => {
     return { message: `Hello ${p.name}!` };
-  }
+  },
 );
 ```
 
@@ -62,7 +61,7 @@ In the example above we defined an API that uses request and response schemas. T
 
 ```typescript
 // inside the hello.ts file
-import { api } from "encore.dev/api"
+import { api } from "encore.dev/api";
 
 // PingParams is the request data for the Ping endpoint.
 interface PingParams {
@@ -80,19 +79,19 @@ export const hello = api(
   { method: "POST", path: "/hello" },
   async (p: PingParams): Promise<PingResponse> => {
     return { message: `Hello ${p.name}!` };
-  }
+  },
 );
 ```
 
 Request and response schemas are both optional in case you don't need them.
 That means there are four different ways of defining an API:
 
-* `api({ ... }, async (params: Params): Promise<Response> => {});` &ndash; when you need both.
-* `api({ ... }, async (): Promise<Response> => {});` &ndash; when you only return a response.
-* `api({ ... }, async (params: Params): Promise<void> => {});` &ndash; when you only respond with success/fail.
-* `api({ ... }, async (): Promise<void> => {});` &ndash; when you need neither request nor response data.
+- `api({ ... }, async (params: Params): Promise<Response> => {});` &ndash; when you need both.
+- `api({ ... }, async (): Promise<Response> => {});` &ndash; when you only return a response.
+- `api({ ... }, async (params: Params): Promise<void> => {});` &ndash; when you only respond with success/fail.
+- `api({ ... }, async (): Promise<void> => {});` &ndash; when you need neither request nor response data.
 
-The `api` function is a generic function. 
+The `api` function is a generic function.
 
 You can also pass the type arguments for the request and response objects to the `api` function which looks like this: `api<Params, Response>(async (params) => {});`
 
@@ -107,8 +106,8 @@ by other APIs within the same Encore application.
 To expose an API to the internet, add the `expose: true` field to the `APIOptions` object passed in
 as the first argument to `api`.
 
-* `{ expose: false }` &ndash; defines a private API that is never accessible to the outside world. It can only be called from other services in your app and via cron jobs. This is default value if the `expose` field isn't set.
-* `{ expose: true }` &ndash; defines a public API that anybody on the internet can call (this is the default value if no access field is set).
+- `{ expose: false }` &ndash; defines a private API that is never accessible to the outside world. It can only be called from other services in your app and via cron jobs. This is default value if the `expose` field isn't set.
+- `{ expose: true }` &ndash; defines a public API that anybody on the internet can call (this is the default value if no access field is set).
 
 ### Requiring authentication data
 
@@ -124,6 +123,7 @@ Finally, even if an API endpoint does not specify `auth: true`, it will still re
 For more information on defining APIs that require authentication, see the [authentication guide](/docs/ts/develop/auth).
 
 ### REST APIs
+
 Encore has support for RESTful APIs and lets you easily define resource-oriented API URLs, parse parameters out of them, and more.
 
 To create a REST API, start by defining an endpoint and specify the `method` and `path` fields in the `APIOptions` object.
@@ -133,13 +133,11 @@ To specify a placeholder variable, use `:name` and add a function parameter with
 For example, if you want to have a `getBlogPost` endpoint that takes a numeric id as a parameter:
 
 ```typescript
-
-
 // getBlogPost retrieves a blog post by id.
 export const getBlogPost = api(
   { method: "GET", path: "/blog/:id" },
-  async ({ id }: { id: number }): Promise<BlogPost> => { 
-	  // Use id to query database...
+  async ({ id }: { id: number }): Promise<BlogPost> => {
+    // Use id to query database...
   },
 );
 ```
@@ -155,8 +153,8 @@ interface Params {
 // updateBlogPost updates an existing blog post by id.
 export const updateBlogPost = api(
   { method: "PUT", path: "/blog/:id" },
-  async ({ id, post }: Params): Promise<BlogPost> => { 
-	  // Use id to query database...
+  async ({ id, post }: Params): Promise<BlogPost> => {
+    // Use id to query database...
   },
 );
 ```
@@ -180,21 +178,44 @@ interface SearchResponse {
 // Search for blog posts matching the filter.
 export const search = api<SearchParams, SearchResponse>(
   { path: "/blog/search" },
-  async ({ filter }) => { 
-	  // Use filter to query database...
+  async ({ filter }) => {
+    // Use filter to query database...
   },
 );
 ```
 
 ### Raw endpoints
 
-In case you need to operate at a lower abstraction level, Encore will support defining raw endpoints that let you access the underlying HTTP request. This is often useful for things like accepting webhooks.
+In case you need to operate at a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request. This is often useful for things like accepting webhooks.
 
-Raw endpoints are coming soon to Encore for TypeScript.
+To define a raw endpoint, use the `api.raw` function. It works similarly to
+`api`, but does not accept a request and response schema. Instead, it works like
+the Node.js `http` module and `Express.js`, where the function receives two
+parameters: a request object and a response writer.
 
-{/* TODO: Add info about raw endpoints when they are available. */}
+It looks like this:
+
+```ts
+import { api } from "encore.dev/api";
+
+export const myRawEndpoint = api.raw(
+  { expose: true, path: "/raw", method: "GET" },
+  async (req, resp) => {
+    resp.writeHead(200, { "Content-Type": "text/plain" });
+    resp.end("Hello, raw world!");
+  },
+);
+```
+
+It can be called like so:
+
+```shell
+$ curl http://localhost:4000/raw
+Hello, raw world!
+```
 
 ## Calling APIs
+
 Calling an API endpoint looks like a regular function call with Encore. To call an endpoint you first need to import the service from `encore.app/clients` and then call the API endpoint like a regular function.
 When compiling your application, Encore uses [static analysis](/docs/introduction#meet-the-encore-application-model) to parse all APIs and make then available through the `encore.app/clients` module for internal calls.
 
@@ -204,13 +225,12 @@ In the example below, we import the service `hello` and call the `ping` endpoint
 import { hello } from "~encore/clients"; // import 'hello' service
 
 export const myOtherAPI = api({}, async (): Promise<void> => {
-    const resp = await hello.ping({ name: "World" });
-    console.log(resp.message); // "Hello World!"
-  }
-);
+  const resp = await hello.ping({ name: "World" });
+  console.log(resp.message); // "Hello World!"
+});
 ```
 
 This means your development workflow is as simple as building a monolith, even if you use multiple services.
 You get all the benefits of function calls, like compile-time checking of all the parameters and auto-completion in your editor, while still allowing the division of code into logical components, services, and systems.
 
-{/* TODO: Add info about the current request meta data when available. */}
+{/_ TODO: Add info about the current request meta data when available. _/}
