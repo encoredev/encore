@@ -110,7 +110,8 @@ impl Method {
             Self::Head,
             Self::Options,
             Self::Trace,
-            Self::Connect,
+            // Skip connect for now, since axum doesn't support it.
+            // Self::Connect,
         ]
     }
 }
