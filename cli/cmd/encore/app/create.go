@@ -60,12 +60,31 @@ func init() {
 func createApp(ctx context.Context, name, template string) (err error) {
 	cyan := color.New(color.FgCyan)
 	green := color.New(color.FgGreen)
+	red := color.New(color.FgRed)
 
+	// Prompt the user for creating an account if they're not logged in.
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) && createAppOnPlatform {
-		_, _ = cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
-		_, _ = fmt.Scanln()
-		if err := auth.DoLogin(auth.AutoFlow); err != nil {
-			cmdutil.Fatal(err)
+	PromptLoop:
+		for {
+			_, _ = cyan.Fprint(os.Stderr, "Create a free Encore account to enable Cloud Deployments, Secrets Management, and more? (Y/n): ")
+			var input string
+			_, _ = fmt.Scanln(&input)
+			input = strings.TrimSpace(input)
+			switch input {
+			case "Y", "y", "yes", "":
+				if err := auth.DoLogin(auth.AutoFlow); err != nil {
+					cmdutil.Fatal(err)
+				}
+			case "N", "n", "no":
+				// Continue without creating an account.
+			case "q", "quit", "exit":
+				os.Exit(1)
+			default:
+				// Try again.
+				_, _ = red.Fprintln(os.Stderr, "Unexpected answer, please enter 'y' or 'n'.")
+				continue PromptLoop
+			}
+			break
 		}
 	}
 

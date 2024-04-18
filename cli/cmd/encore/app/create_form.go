@@ -285,7 +285,7 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		case tea.KeyCtrlC, tea.KeyEsc, 'q':
 			m.aborted = true
 			return m, tea.Quit
 		}
@@ -308,7 +308,13 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.templates.UpdateFilter(msg.lang)
 
 	case templateSelectDone:
-		m.step = 2
+		if m.appName.predefined != "" {
+			// We're done.
+			m.step = 3
+			cmds = append(cmds, tea.Quit)
+		} else {
+			m.step = 2
+		}
 
 	case appNameDone:
 		cmds = append(cmds, tea.Quit)
@@ -395,8 +401,9 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 		return templateItem{}, false
 	}
 	idx := m.list.Index()
-	if idx >= 0 {
-		return m.list.Items()[idx].(templateItem), true
+	items := m.list.Items()
+	if idx >= 0 && len(items) > idx {
+		return items[idx].(templateItem), true
 	}
 	return templateItem{}, false
 }
@@ -528,11 +535,7 @@ type langItem struct {
 }
 
 func (i langItem) FilterValue() string {
-	val := i.lang.Display()
-	if i.lang == languageTS {
-		val += " (Beta)"
-	}
-	return val
+	return i.lang.Display()
 }
 func (i langItem) Title() string {
 	return i.FilterValue()
