@@ -178,11 +178,14 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 
 					clientCert, clientKey := getClientCert(role.ClientCertRid)
 					candidateServer := &config.SQLServer{
-						Host:         primary.Host,
-						ServerCACert: primary.GetServerCaCert(),
-						ClientCert:   clientCert,
-						ClientKey:    clientKey,
+						Host:       primary.Host,
+						ClientCert: clientCert,
+						ClientKey:  clientKey,
 					}
+					if primary.TlsConfig != nil {
+						candidateServer.ServerCACert = primary.TlsConfig.GetServerCaCert()
+					}
+
 					serverIdx := slices.IndexFunc(cfg.SQLServers, func(s *config.SQLServer) bool {
 						return s.Host == candidateServer.Host &&
 							s.ServerCACert == candidateServer.ServerCACert &&
@@ -250,13 +253,15 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 
 					clientCert, clientKey := getClientCert(role.ClientCertRid)
 					candidateServer := &config.RedisServer{
-						Host:         primary.Host,
-						EnableTLS:    primary.EnableTls,
-						ServerCACert: primary.GetServerCaCert(),
-						ClientCert:   clientCert,
-						ClientKey:    clientKey,
-						User:         user,
-						Password:     password,
+						Host:       primary.Host,
+						ClientCert: clientCert,
+						ClientKey:  clientKey,
+						User:       user,
+						Password:   password,
+					}
+					if primary.TlsConfig != nil {
+						candidateServer.EnableTLS = true
+						candidateServer.ServerCACert = primary.TlsConfig.GetServerCaCert()
 					}
 
 					serverIdx := slices.IndexFunc(cfg.RedisServers, func(s *config.RedisServer) bool {

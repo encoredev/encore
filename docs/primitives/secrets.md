@@ -78,3 +78,19 @@ When you store a secret Encore stores it encrypted using Google Cloud Platform's
 - **Production / Your own cloud:** When you deploy to production using your own cloud account on GCP or AWS, Encore provisions a secrets manager in your account (using either KMS or AWS Secrets Manager) and replicates your secrets to it. The secrets are then injected into the container using secret environment variables.
 - **Local:** For local secrets Encore automatically replicates them to developers' machines when running `encore run`.
 - **Development / Encore Cloud:** Environments on Encore's development cloud (running on GCP under the hood) work the same as self-hosted GCP environments, using GCP Secrets Manager.
+ 
+### Overriding local secrets
+
+When setting secrets via the `encore secret set` command, they are automatically synced to all developers
+working on the same application, courtesy of the Encore Platform.
+
+In some cases, however, you want to override a secret only for your local machine.
+This can be done by creating a file named `.secrets.local.cue` in the root of your Encore application,
+next to the `encore.app` file.
+
+The file contains key-value pairs of secret names to secret values. For example:
+
+```cue
+GitHubAPIToken: "my-local-override-token"
+SSHPrivateKey: "custom-ssh-private-key"
+```
