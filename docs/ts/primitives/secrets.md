@@ -23,6 +23,8 @@ import { secret } from "encore.dev/config";
 
 // Personal access token for deployments
 const githubToken = secret("GitHubAPIToken");
+
+// Then, resolve the secret value by calling `githubToken()`.
 ```
 
 When you've defined a secret in your program, the Encore compiler will check that they are set before running or deploying your application.
@@ -31,17 +33,18 @@ When running your application locally, if a secret is not set, you will get a wa
 
 When deploying to a cloud environment, all secrets must be defined, otherwise the deploy will fail.
 
-Once you've provided values for all secrets, you can just use them in your application like a regular variable. For example:
+Once you've provided values for all secrets, call the secret as a function.
+For example:
 
 ```ts
 async function callGitHub() {
-    const resp = await fetch("https:///api.github.com/user", {
-        credentials: "include",
-        headers: {
-            Authorization: `token ${githubToken}`,
-        }
-    });
-    // ... handle resp
+  const resp = await fetch("https:///api.github.com/user", {
+    credentials: "include",
+    headers: {
+      Authorization: `token ${githubToken()}`,
+    },
+  });
+  // ... handle resp
 }
 ```
 
@@ -79,14 +82,6 @@ Each secret can only have one secret value for each environment type. For exampl
 
 <img src="/assets/docs/secretoverride.png" title="Overriding a secret in Encore's Secrets Manager"/>
 
-## How it works: Where secrets are stored
-
-When you store a secret Encore stores it encrypted using Google Cloud Platform's [Key Management Service](https://cloud.google.com/security-key-management) (KMS).
-
-- **Production / Your own cloud:** When you deploy to production using your own cloud account on GCP or AWS, Encore provisions a secrets manager in your account (using either KMS or AWS Secrets Manager) and replicates your secrets to it. The secrets are then injected into the container using secret environment variables.
-- **Local:** For local secrets Encore automatically replicates them to developers' machines when running `encore run`.
-- **Development / Encore Cloud:** Environments on Encore's development cloud (running on GCP under the hood) work the same as self-hosted GCP environments, using GCP Secrets Manager.
-
 ### Overriding local secrets
 
 When setting secrets via the `encore secret set` command, they are automatically synced to all developers
@@ -102,3 +97,11 @@ The file contains key-value pairs of secret names to secret values. For example:
 GitHubAPIToken: "my-local-override-token"
 SSHPrivateKey: "custom-ssh-private-key"
 ```
+
+## How it works: Where secrets are stored
+
+When you store a secret Encore stores it encrypted using Google Cloud Platform's [Key Management Service](https://cloud.google.com/security-key-management) (KMS).
+
+- **Production / Your own cloud:** When you deploy to production using your own cloud account on GCP or AWS, Encore provisions a secrets manager in your account (using either KMS or AWS Secrets Manager) and replicates your secrets to it. The secrets are then injected into the container using secret environment variables.
+- **Local:** For local secrets Encore automatically replicates them to developers' machines when running `encore run`.
+- **Development / Encore Cloud:** Environments on Encore's development cloud (running on GCP under the hood) work the same as self-hosted GCP environments, using GCP Secrets Manager.
