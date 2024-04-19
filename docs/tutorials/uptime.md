@@ -591,7 +591,7 @@ import "encore.dev/storage/sqldb"
 // getPreviousMeasurement reports whether the given site was
 // up or down in the previous measurement.
 func getPreviousMeasurement(ctx context.Context, siteID int) (up bool, err error) {
-	err = sqldb.QueryRow(ctx, `
+	err = db.QueryRow(ctx, `
 		SELECT up FROM checks
 		WHERE site_id = $1
 		ORDER BY checked_at DESC
