@@ -1,5 +1,5 @@
-import * as runtime from "../internal/runtime/mod";
 import { getCurrentRequest } from "../internal/reqtrack/mod";
+import * as runtime from "../internal/runtime/mod";
 
 export type { Logger };
 
@@ -110,7 +110,7 @@ class Logger {
     level: runtime.LogLevel,
     errOrMsg: unknown,
     msgOrFields?: unknown,
-    possibleFields?: unknown,
+    possibleFields?: unknown
   ) {
     let err: Error | undefined;
     let msg: string;
@@ -122,10 +122,6 @@ class Logger {
       err = undefined;
       msg = errOrMsg;
       fields = msgOrFields as FieldsObject | undefined;
-
-      // if (possibleFields) {
-      //   throw new Error("Invalid arguments to log");
-      // }
     } else if (typeof msgOrFields === "string") {
       // log(err, msg, fields?)
       if (errOrMsg) {
@@ -157,11 +153,10 @@ class Logger {
 
     const req = getCurrentRequest();
 
-    this.impl.log(req, level, msg, err, fields);
+    this.impl.log(req, level, msg, err, undefined, fields);
   }
 }
 
-// TODO make this resolve to the current request logger instead.
 const log = new Logger(runtime.RT.logger());
 
 /**
@@ -197,20 +192,20 @@ export function warn(err: Error | unknown, fields?: FieldsObject): void;
 export function warn(
   err: Error | unknown,
   msg: string,
-  fields?: FieldsObject,
+  fields?: FieldsObject
 ): void;
 export function warn(msg: string, fields?: FieldsObject): void;
 export function warn(
   errOrMsg: unknown,
   msgOrFields: unknown,
-  fields?: unknown,
+  fields?: unknown
 ) {
   // the type cast here is just for TSC to be happy - the underlying method uses the same overloads so
   // will type check the arguments correctly
   log.warn(
     errOrMsg as Error,
     msgOrFields as string,
-    fields as FieldsObject | undefined,
+    fields as FieldsObject | undefined
   );
 }
 
@@ -221,20 +216,20 @@ export function error(err: Error | unknown, fields?: FieldsObject): void;
 export function error(
   err: Error | unknown,
   msg: string,
-  fields?: FieldsObject,
+  fields?: FieldsObject
 ): void;
 export function error(msg: string, fields?: FieldsObject): void;
 export function error(
   errOrMsg: unknown,
   msgOrFields: unknown,
-  fields?: unknown,
+  fields?: unknown
 ) {
   // the type cast here is just for TSC to be happy - the underlying method uses the same overloads so
   // will type check the arguments correctly
   log.error(
     errOrMsg as Error,
     msgOrFields as string,
-    fields as FieldsObject | undefined,
+    fields as FieldsObject | undefined
   );
 }
 
@@ -245,19 +240,19 @@ export function fatal(err: Error | unknown, fields?: FieldsObject): void;
 export function fatal(
   err: Error | unknown,
   msg: string,
-  fields?: FieldsObject,
+  fields?: FieldsObject
 ): void;
 export function fatal(msg: string, fields?: FieldsObject): void;
 export function fatal(
   errOrMsg: unknown,
   msgOrFields: unknown,
-  fields?: unknown,
+  fields?: unknown
 ) {
   // the type cast here is just for TSC to be happy - the underlying method uses the same overloads so
   // will type check the arguments correctly
   log.fatal(
     errOrMsg as Error,
     msgOrFields as string,
-    fields as FieldsObject | undefined,
+    fields as FieldsObject | undefined
   );
 }
