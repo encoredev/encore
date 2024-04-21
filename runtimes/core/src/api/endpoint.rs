@@ -422,16 +422,17 @@ impl EndpointHandler {
             let duration = tokio::time::Instant::now().duration_since(request.start);
 
             // If we had a request failure, log that separately.
-            // if let Err(err) = &resp {
-            //     logger.error(Some(&request), "request failed", Some(err), {
-            //         let mut fields = crate::log::Fields::new();
-            //         fields.insert(
-            //             "code".into(),
-            //             serde_json::Value::String(err.code.to_string()),
-            //         );
-            //         Some(fields)
-            //     });
-            // }
+
+            if let ResponseData::Typed(Err(err)) = &resp {
+                logger.error(Some(&request), "request failed", Some(err), {
+                    let mut fields = crate::log::Fields::new();
+                    fields.insert(
+                        "code".into(),
+                        serde_json::Value::String(err.code.to_string()),
+                    );
+                    Some(fields)
+                });
+            }
 
             logger.info(Some(&request), "request completed", {
                 let mut fields = crate::log::Fields::new();
@@ -447,13 +448,14 @@ impl EndpointHandler {
                         },
                     )),
                 );
-                // fields.insert(
-                //     "code".into(),
-                //     serde_json::Value::String(match &resp {
-                //         Ok(_) => "ok".to_string(),
-                //         Err(err) => err.code.to_string(),
-                //     }),
-                // );
+
+                let code = match &resp {
+                    ResponseData::Typed(Ok(_)) => "ok".to_string(),
+                    ResponseData::Typed(Err(err)) => err.code.to_string(),
+                    ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
+                };
+
+                fields.insert("code".into(), serde_json::Value::String(code));
                 Some(fields)
             });
 
