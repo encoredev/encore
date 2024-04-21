@@ -57,15 +57,24 @@ impl Error {
 
 impl Into<AppError> for Error {
     fn into(self) -> AppError {
-        AppError::new(self.message)
+        let message = match self.internal_message {
+            Some(ref internal_msg) => format!("{}: {}", self.message, internal_msg),
+            None => self.message,
+        };
+        AppError::new(message)
     }
 }
 
 impl Into<AppError> for &Error {
     fn into(self) -> AppError {
+        let message = match self.internal_message {
+            Some(ref internal_msg) => format!("{}: {}", self.message, internal_msg),
+            None => self.message.clone(),
+        };
+
         // TODO: capture the JS stack trace for this error
         AppError {
-            message: self.message.clone(),
+            message,
             stack: vec![],
             cause: None,
         }
@@ -346,5 +355,24 @@ impl FromStr for ErrCode {
 impl Into<axum::http::status::StatusCode> for ErrCode {
     fn into(self) -> axum::http::status::StatusCode {
         self.status_code()
+    }
+}
+
+impl From<axum::http::status::StatusCode> for ErrCode {
+    fn from(status: axum::http::status::StatusCode) -> Self {
+        match status.as_u16() {
+            400 => ErrCode::InvalidArgument,
+            401 => ErrCode::Unauthenticated,
+            403 => ErrCode::PermissionDenied,
+            404 => ErrCode::NotFound,
+            409 => ErrCode::AlreadyExists,
+            429 => ErrCode::ResourceExhausted,
+            499 => ErrCode::Canceled,
+            500 => ErrCode::Internal,
+            501 => ErrCode::Unimplemented,
+            503 => ErrCode::Unavailable,
+            504 => ErrCode::DeadlineExceeded,
+            _ => ErrCode::Unknown,
+        }
     }
 }
