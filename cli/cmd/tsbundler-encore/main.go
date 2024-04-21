@@ -106,6 +106,7 @@ func main() {
 		Plugins:   []api.Plugin{
 			// rewritePlugin,
 		},
+		TreeShaking: api.TreeShakingTrue,
 
 		// Set our build target
 		Platform: api.PlatformNode,
@@ -127,6 +128,9 @@ func main() {
 		Write:       true, // Write to outdir
 		OutExtension: map[string]string{
 			".js": ".mjs",
+		},
+		Define: map[string]string{
+			"ENCORE_DROP_TESTS": "true",
 		},
 	})
 
