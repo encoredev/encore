@@ -34,7 +34,7 @@ function transformHandler(h: Handler): Handler {
         setCurrentRequest(req);
         const rawReq = new RawRequest(req, body);
         const rawResp = new RawResponse(rawReq, resp);
-        h.handler(rawReq, rawResp);
+        return h.handler(rawReq, rawResp);
       },
     };
   }
