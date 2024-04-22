@@ -45,8 +45,9 @@ impl Query {
         }
 
         let parsed = form_urlencoded::parse(query);
-        for (key, _) in parsed {
-            if schema.contains_name(key.as_ref()) {
+        for (key, val) in parsed {
+            // Only consider non-empty values to be present.
+            if !val.is_empty() && schema.contains_name(key.as_ref()) {
                 return true;
             }
         }
