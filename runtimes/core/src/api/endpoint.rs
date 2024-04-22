@@ -321,17 +321,7 @@ impl EndpointHandler {
         // Authenticate the request from the platform, if applicable.
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {
             Ok(seal) => seal,
-            Err(err) => {
-                return Err(Error {
-                    code: ErrCode::Unauthenticated,
-                    message: "invalid platform request".to_owned(),
-                    internal_message: Some(format!(
-                        "the X-Encore-Auth header was invalid: {}",
-                        err
-                    )),
-                    stack: None,
-                })
-            }
+            Err(_err) => None,
         };
 
         let meta = CallMeta::parse_with_caller(&self.shared.inbound_svc_auth, &parts.headers)?;
