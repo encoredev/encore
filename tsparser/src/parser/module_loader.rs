@@ -30,8 +30,11 @@ pub struct ModuleLoader<'a> {
 
     // The universe module, if it's been loaded.
     universe: OnceCell<Lrc<Module>>,
+
     /// The generated encore.gen/clients module.
     encore_app_clients: OnceCell<Lrc<Module>>,
+    /// The generated encore.gen/auth module.
+    encore_auth: OnceCell<Lrc<Module>>,
 }
 
 impl std::fmt::Debug for ModuleLoader<'_> {
@@ -56,6 +59,7 @@ impl<'a> ModuleLoader<'a> {
             by_path: RefCell::new(HashMap::new()),
             universe: OnceCell::new(),
             encore_app_clients: OnceCell::new(),
+            encore_auth: OnceCell::new(),
         }
     }
 
@@ -71,6 +75,8 @@ impl<'a> ModuleLoader<'a> {
         // Special case for the generated clients.
         if import_path == "~encore/clients" {
             return Ok(self.encore_app_clients());
+        } else if import_path == "~encore/auth" {
+            return Ok(self.encore_auth());
         }
 
         let target_file_path = {
@@ -161,6 +167,20 @@ impl<'a> ModuleLoader<'a> {
                     .new_source_file(FilePath::Real("encore.gen/clients".into()), "".into());
                 let module = self
                     .parse_and_store(file, Some("encore.gen/clients".into()))
+                    .unwrap();
+                module
+            })
+            .to_owned()
+    }
+
+    pub fn encore_auth(&self) -> Lrc<Module> {
+        self.encore_auth
+            .get_or_init(|| {
+                let file = self
+                    .file_set
+                    .new_source_file(FilePath::Real("encore.gen/auth".into()), "".into());
+                let module = self
+                    .parse_and_store(file, Some("encore.gen/auth".into()))
                     .unwrap();
                 module
             })
