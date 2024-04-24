@@ -467,7 +467,7 @@ Before running your application, make sure you have [Docker](https://www.docker.
 $ curl http://localhost:4000/url -d '{"url": "https://encore.dev"}'
 ```
 
-🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory:
+🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory and inputting `select * from url;`:
 
 ```shell
 $ encore db shell url
@@ -522,7 +522,50 @@ You should now see this:
 
 And there you have it! That's how you build REST APIs and use PostgreSQL databases in Encore.
 
-## 4. Deploy to the cloud
+## 4. Add a test
+
+Before deployment, it is good practice to have tests to assure that the service works properly. Such tests including database access are easy to write.
+
+🥐 Let's start by adding the `vitest` package to your project:
+
+```shell
+$ npm i --save-dev vitest
+```
+
+[Vitest](https://vitest.dev/) is a testing framework that works great with Encore but you can use another TypeScript testing framework if you like.
+
+🥐 Next we need to add a test script to our `package.json`:
+
+```json
+...
+"scripts": {
+  "test": "vitest"
+},
+...
+```
+
+We've prepared a test to check that the whole cycle of shortening the URL, storing and then retrieving the original URL works. It looks like this:
+
+```ts
+import { describe, expect, test } from "vitest";
+import { get, shorten } from "./url";
+
+describe("shorten", () => {
+  test("getting a shortened url should give back the original", async () => {
+    const resp = await shorten({ url: "https://example.com" });
+    const url = await get({ id: resp.id });
+    expect(url.url).toBe("https://example.com");
+  });
+});
+```
+
+🥐 Save this in a separate file `url/url.test.test`.
+
+🥐 Now run `encore test` to verify that it's working.
+
+If you use the local development dashboard ([localhost:9400](http://localhost:9400)), you can even see traces for tests.
+
+## 5. Deploy to the cloud
 
 The final step before you deploy is to commit all changes to the project repo.
 
