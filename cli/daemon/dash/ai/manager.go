@@ -11,6 +11,10 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
+var ErrorCodeMap = map[string]int64{
+	"ai_task_limit_reached": 100,
+}
+
 // Manager exposes the ai functionality to the local dashboard
 type Manager struct {
 	aiClient *LazySubClient
