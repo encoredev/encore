@@ -1,7 +1,6 @@
 #![deny(clippy::all)]
 
 pub mod api;
-mod async_context;
 mod gateway;
 mod log;
 mod meta;
