@@ -10,7 +10,7 @@ gjson = "0.8.1"
 prost = "0.12.3"
 prost-types = "0.12.3"
 serde = "1.0.193"
-serde_json = "1.0.108"
+serde_json = { version = "1.0.108", features = ["raw_value"] }
 tokio = { version = "1.35.1", features = ["sync"] }
 tokio-nsq = "0.14.0"
 xid = "1.0.3"
