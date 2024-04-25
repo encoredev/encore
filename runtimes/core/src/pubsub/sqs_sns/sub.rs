@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use aws_sdk_sqs::types::MessageSystemAttributeName;
 use prost::Message;
 use serde::Deserialize;
+use serde_json::value::RawValue;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Retry};
 
@@ -80,8 +81,8 @@ impl pubsub::Subscription for Subscription {
                 handler,
                 client,
                 queue_url: cloud_name.into(),
-                ack_deadline: ack_deadline,
-                requeue_policy: requeue_policy,
+                ack_deadline,
+                requeue_policy,
             });
             fetcher::process_concurrently(fetcher_cfg.clone(), sqs_fetcher).await;
 
@@ -160,7 +161,12 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
                     // Retry deleting a few times.
                     // If we can't delete the message, it'll be redelivered. Not much we can do.
                     let retry = ExponentialBackoff::from_millis(100).factor(2).take(5);
-                    _ = Retry::spawn(retry, delete_action).await;
+                    if let Err(err) = Retry::spawn(retry, delete_action).await {
+                        log::error!(
+                            "encore: internal error: failed to delete aws pub/sub message: {}",
+                            err
+                        );
+                    }
                 }
                 Err(_) => {
                     // Determine the requeue delay.
@@ -179,7 +185,12 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
 
                     // Retry requeuing a few times.
                     let retry = ExponentialBackoff::from_millis(100).factor(2).take(5);
-                    _ = Retry::spawn(retry, requeue_action).await
+                    if let Err(err) = Retry::spawn(retry, requeue_action).await {
+                        log::error!(
+                            "encore: internal error: failed to requeue aws pub/sub message: {}",
+                            err
+                        );
+                    }
                 }
             }
         })
@@ -277,17 +288,17 @@ fn parse_message(message: aws_sdk_sqs::types::Message, attempt: u32) -> Result<p
         })
         .collect::<HashMap<_, _>>();
 
-    let body = serde_json::from_str(&sns_message.message).ok();
-    let raw_body = sns_message.message.encode_to_vec();
+    let raw_body = sns_message.message.get();
+    let body = serde_json::from_str(raw_body).ok();
 
     Ok(pubsub::Message {
-        id: message.message_id.unwrap_or_default() as pubsub::MessageId,
+        id: sns_message.message_id,
         publish_time: Some(publish_time),
         attempt,
         data: pubsub::MessageData {
             attrs,
             body,
-            raw_body,
+            raw_body: raw_body.as_bytes().to_vec(),
         },
     })
 }
@@ -295,15 +306,15 @@ fn parse_message(message: aws_sdk_sqs::types::Message, attempt: u32) -> Result<p
 /// SNSMessageWrapper matches the JSON that is sent to SQS from an SNS subscription
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct SNSMessageWrapper {
+struct SNSMessageWrapper<'a> {
     #[serde(rename = "Type")]
     r#type: String,
     #[serde(rename = "MessageId")]
     message_id: String,
     #[serde(rename = "TopicArn")]
     topic_arn: String,
-    #[serde(rename = "Message")]
-    message: String,
+    #[serde(borrow, rename = "Message")]
+    message: &'a RawValue,
     #[serde(rename = "Timestamp")]
     timestamp: String,
     #[serde(rename = "SignatureVersion")]
