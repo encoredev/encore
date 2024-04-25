@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use aws_sdk_sqs::types::MessageSystemAttributeName;
 use prost::Message;
 use serde::Deserialize;
-use serde_json::value::RawValue;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Retry};
 
@@ -22,7 +22,7 @@ use crate::pubsub::{self};
 pub struct Subscription {
     client: Arc<LazyClient>,
     cloud_name: CloudName,
-    ack_deadline: std::time::Duration,
+    ack_deadline: Duration,
     fetcher_cfg: fetcher::Config,
     requeue_policy: ExponentialBackoff,
 }
@@ -43,7 +43,7 @@ impl Subscription {
 
         if let Some(retry) = &meta.retry_policy {
             requeue_policy =
-                requeue_policy.max_delay(std::time::Duration::from_nanos(retry.max_backoff as u64));
+                requeue_policy.max_delay(Duration::from_nanos(retry.max_backoff as u64));
         }
 
         let fetcher_cfg = fetcher::Config {
@@ -51,7 +51,11 @@ impl Subscription {
             max_batch_size: 10, // AWS SQS max batch size
         };
 
-        let ack_deadline = std::time::Duration::from_nanos(meta.ack_deadline.min(0) as u64);
+        // Clamp the ack deadline to between [1s, 12h].
+        let ack_deadline = Duration::from_nanos(
+            meta.ack_deadline
+                .clamp(1_000_000_000, 12 * 3600 * 1_000_000_000) as u64,
+        );
 
         Self {
             client,
@@ -94,7 +98,7 @@ impl pubsub::Subscription for Subscription {
 struct SqsFetcher {
     client: aws_sdk_sqs::Client,
     queue_url: String,
-    ack_deadline: std::time::Duration,
+    ack_deadline: Duration,
     requeue_policy: ExponentialBackoff,
     handler: Arc<SubHandler>,
 }
@@ -144,7 +148,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
                     .map_err(|err| err.into()),
                 Err(err) => {
                     log::error!(
-                        "encore: internal error: failed to parse message from SQS: {}",
+                        "encore: internal error: failed to parse message from SQS: {:#?}",
                         err
                     );
                     Err(err)
@@ -175,7 +179,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
                         .clone()
                         .skip((attempt - 1).max(0) as usize)
                         .next()
-                        .unwrap_or(std::time::Duration::from_secs(1));
+                        .unwrap_or(Duration::from_secs(1));
 
                     let requeue_action = RequeueMessageAction {
                         fetcher: self.clone(),
@@ -200,7 +204,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
 struct RequeueMessageAction {
     fetcher: Arc<SqsFetcher>,
     receipt_handle: String,
-    visibility_timeout: tokio::time::Duration,
+    visibility_timeout: Duration,
 }
 
 impl Action for RequeueMessageAction {
@@ -288,8 +292,8 @@ fn parse_message(message: aws_sdk_sqs::types::Message, attempt: u32) -> Result<p
         })
         .collect::<HashMap<_, _>>();
 
-    let raw_body = sns_message.message.get();
-    let body = serde_json::from_str(raw_body).ok();
+    let body = serde_json::from_str(&sns_message.message).ok();
+    let raw_body = sns_message.message.encode_to_vec();
 
     Ok(pubsub::Message {
         id: sns_message.message_id,
@@ -298,7 +302,7 @@ fn parse_message(message: aws_sdk_sqs::types::Message, attempt: u32) -> Result<p
         data: pubsub::MessageData {
             attrs,
             body,
-            raw_body: raw_body.as_bytes().to_vec(),
+            raw_body,
         },
     })
 }
@@ -306,15 +310,15 @@ fn parse_message(message: aws_sdk_sqs::types::Message, attempt: u32) -> Result<p
 /// SNSMessageWrapper matches the JSON that is sent to SQS from an SNS subscription
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct SNSMessageWrapper<'a> {
+struct SNSMessageWrapper {
     #[serde(rename = "Type")]
     r#type: String,
     #[serde(rename = "MessageId")]
     message_id: String,
     #[serde(rename = "TopicArn")]
     topic_arn: String,
-    #[serde(borrow, rename = "Message")]
-    message: &'a RawValue,
+    #[serde(rename = "Message")]
+    message: String,
     #[serde(rename = "Timestamp")]
     timestamp: String,
     #[serde(rename = "SignatureVersion")]

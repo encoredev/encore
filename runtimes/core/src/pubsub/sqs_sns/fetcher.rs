@@ -1,11 +1,11 @@
-use std::fmt::Display;
+use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
 pub trait Fetcher: Clone + Sync + Send {
     type Item;
-    type Error: Display;
+    type Error: Debug;
 
     fn fetch(
         self,
@@ -79,7 +79,7 @@ pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F) {
                 }
             }
             Err(err) => {
-                log::error!("encore: pub/sub fetch error: {err}, retrying.");
+                log::error!("encore: pub/sub fetch error, retrying: {err:#?}");
                 tokio::time::sleep(err_sleep).await;
                 err_sleep = err_sleep.mul_f32(1.5).min(max_sleep);
             }
