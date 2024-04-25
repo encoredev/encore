@@ -378,7 +378,7 @@ on [Enabling interactivity with Slash Commands](https://api.slack.com/interactiv
 ```ts
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import { IncomingMessage } from "node:http";
+import type { IncomingMessage } from "node:http";
 
 // cowart is the formatting string for printing the cow art.
 const cowart = (msg: string) => `Moo! ${msg}
@@ -475,7 +475,7 @@ TypeScript makes computing HMAC very straightforward, but it's still a fair amou
 🥐 Add a few more imports to your file, so that it reads:
 ```ts
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { IncomingHttpHeaders } from "http";
+import type { IncomingHttpHeaders } from "http";
 ```
 
 🥐 Next, we'll add the `verifySignature` function:
