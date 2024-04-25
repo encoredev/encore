@@ -78,7 +78,7 @@ func (mgr *Manager) Load(app *apps.Instance) *LoadResult {
 // more recent data that has been subsequently cached.
 func (lr *LoadResult) Get(ctx context.Context, expSet *experiments.Set) (data *Data, err error) {
 	defer func() {
-		if err == nil && experiments.LocalSecretsOverride.Enabled(expSet) {
+		if err == nil {
 			// Return a new data object so we don't write the overrides to the cache.
 			data, err = applyLocalOverrides(lr.app, data)
 		}

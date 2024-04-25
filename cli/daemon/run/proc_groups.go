@@ -208,6 +208,9 @@ func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Pr
 		Rewrite: func(r *httputil.ProxyRequest) {
 			r.SetURL(dst)
 
+			// Copy the host head over.
+			r.Out.Host = r.In.Host
+
 			// Add the auth key unless the test header is set.
 			if r.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
 				addAuthKeyToRequest(r.Out, pg.authKey)
@@ -489,6 +492,9 @@ func newNoopGateway(pg *ProcGroup) *noopgateway.Gateway {
 	gw := noopgateway.New(desc)
 
 	gw.Rewrite = func(rp *httputil.ProxyRequest) {
+		// Copy the host head over.
+		rp.Out.Host = rp.In.Host
+
 		// Add the auth key unless the test header is set.
 		if rp.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
 			addAuthKeyToRequest(rp.Out, pg.authKey)

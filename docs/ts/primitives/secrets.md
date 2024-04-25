@@ -23,6 +23,8 @@ import { secret } from "encore.dev/config";
 
 // Personal access token for deployments
 const githubToken = secret("GitHubAPIToken");
+
+// Then, resolve the secret value by calling `githubToken()`.
 ```
 
 When you've defined a secret in your program, the Encore compiler will check that they are set before running or deploying your application.
@@ -31,17 +33,18 @@ When running your application locally, if a secret is not set, you will get a wa
 
 When deploying to a cloud environment, all secrets must be defined, otherwise the deploy will fail.
 
-Once you've provided values for all secrets, you can just use them in your application like a regular variable. For example:
+Once you've provided values for all secrets, call the secret as a function.
+For example:
 
 ```ts
 async function callGitHub() {
-    const resp = await fetch("https:///api.github.com/user", {
-        credentials: "include",
-        headers: {
-            Authorization: `token ${githubToken}`,
-        }
-    });
-    // ... handle resp
+  const resp = await fetch("https:///api.github.com/user", {
+    credentials: "include",
+    headers: {
+      Authorization: `token ${githubToken()}`,
+    },
+  });
+  // ... handle resp
 }
 ```
 
@@ -78,6 +81,22 @@ take precedence over values for environment types.
 Each secret can only have one secret value for each environment type. For example: If you have a secret value that's shared between `development`, `preview` and `local`, and you want to override the value for `local`, you must first edit the existing secret and remove `local` using the Secrets Manager in the [Cloud Dashboard](https://app.encore.dev). You can then add a new secret value for `local`. The end result should look something like the picture below.
 
 <img src="/assets/docs/secretoverride.png" title="Overriding a secret in Encore's Secrets Manager"/>
+
+### Overriding local secrets
+
+When setting secrets via the `encore secret set` command, they are automatically synced to all developers
+working on the same application, courtesy of the Encore Platform.
+
+In some cases, however, you want to override a secret only for your local machine.
+This can be done by creating a file named `.secrets.local.cue` in the root of your Encore application,
+next to the `encore.app` file.
+
+The file contains key-value pairs of secret names to secret values. For example:
+
+```cue
+GitHubAPIToken: "my-local-override-token"
+SSHPrivateKey: "custom-ssh-private-key"
+```
 
 ## How it works: Where secrets are stored
 

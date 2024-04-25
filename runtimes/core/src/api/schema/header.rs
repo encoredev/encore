@@ -16,8 +16,12 @@ impl Header {
     pub fn contains_any(&self, headers: &impl HTTPHeaders) -> bool {
         for (name, field) in self.schema.root().fields.iter() {
             let header_name = field.name_override.as_deref().unwrap_or(name.as_str());
-            if headers.contains_key(header_name) {
-                return true;
+
+            if let Some(val) = headers.get(header_name) {
+                // Only consider non-empty values to be present.
+                if !val.is_empty() {
+                    return true;
+                }
             }
         }
         return false;

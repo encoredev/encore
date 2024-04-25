@@ -195,13 +195,21 @@ fn databases_from_cfg(
             config.application_name("encore");
 
             let mut tls_builder = native_tls::TlsConnector::builder();
-            if let Some(server_ca_cert) = &server.server_ca_cert {
-                let cert = native_tls::Certificate::from_pem(server_ca_cert.as_bytes())
-                    .context("unable to parse server ca certificate")?;
-                tls_builder.add_root_certificate(cert);
-                config.ssl_mode(tokio_postgres::config::SslMode::Require);
+            if let Some(tls_config) = &server.tls_config {
+                if let Some(server_ca_cert) = &tls_config.server_ca_cert {
+                    let cert = native_tls::Certificate::from_pem(server_ca_cert.as_bytes())
+                        .context("unable to parse server ca certificate")?;
+                    tls_builder.add_root_certificate(cert);
+                    config.ssl_mode(tokio_postgres::config::SslMode::Require);
+                } else {
+                    config.ssl_mode(tokio_postgres::config::SslMode::Prefer);
+                }
+
+                if tls_config.disable_tls_hostname_verification {
+                    tls_builder.danger_accept_invalid_hostnames(true);
+                }
             } else {
-                config.ssl_mode(tokio_postgres::config::SslMode::Prefer);
+                config.ssl_mode(tokio_postgres::config::SslMode::Disable);
             }
 
             if let Some(client_cert_rid) = &role.client_cert_rid {

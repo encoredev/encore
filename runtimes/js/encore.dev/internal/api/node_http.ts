@@ -39,7 +39,7 @@ export class RawRequest extends stream.Readable {
     if (!this._url) {
       this._url = this.meta.apiCall!.pathAndQuery;
     }
-    return this._url;
+    return this._url!;
   }
   set url(value: string) {
     this._url = value;
