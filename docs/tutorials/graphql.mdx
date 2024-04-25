@@ -7,11 +7,14 @@ seodesc: Learn how to build a microservices backend in Go, powered by GraphQL an
 
 Encore has great support for GraphQL with its type-safe approach to building APIs.
 
-The best way to use GraphQL with Encore is using [gqlgen](https://gqlgen.com/), which
-has similar goals as Encore (type-safe APIs, minimal boilerplate, code generation, etc).
-
 Encore's automatic tracing also makes it easy to find and fix
 performance issues that often arise in GraphQL APIs (like the [N+1 problem](https://hygraph.com/blog/graphql-n-1-problem)).
+
+<LangTabGroup langs={["go", "ts"]}>
+<LangTabPanel>
+
+The best way to use GraphQL with Encore is using [gqlgen](https://gqlgen.com/), which
+has similar goals as Encore (type-safe APIs, minimal boilerplate, code generation, etc).
 
 The final code will look like this:
 
@@ -152,7 +155,7 @@ func (s *Service) Playground(w http.ResponseWriter, req *http.Request) {
         http.Error(w, "Playground disabled", http.StatusNotFound)
 		return
     }
-	
+
     s.playground.ServeHTTP(w, req)
 }
 ```
@@ -251,7 +254,7 @@ query {
 }
 ```
 
-And you should get back `https://encore.dev`. 
+And you should get back `https://encore.dev`.
 
 ## 7. Deploy to the cloud
 
@@ -291,3 +294,9 @@ Note that the concepts discussed here are general and can be easily adapted to a
 Whenever you make a change to the schema or configuration, re-run `go generate ./graphql` to
 regenerate the GraphQL boilerplate. And for more information on how to use `gqlgen`,
 see the [gqlgen documentation](https://gqlgen.com/).
+
+</LangTabPanel>
+<LangTabPanel>
+  A TypeScript tutorial for using GraphQL with Encore is coming soon.
+</LangTabPanel>
+</LangTabGroup>
