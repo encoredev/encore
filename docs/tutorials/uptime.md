@@ -958,8 +958,6 @@ Test Files  1 passed (1)
 
 PASS  Waiting for file changes...
 ```
-
-And if you open the local development dashboard at [localhost:9400](http://localhost:9400), you can also see traces for the tests.
  
 ## 3. Create site service
 
@@ -982,13 +980,13 @@ Add the following contents:
 
 ```sql
 -- site/migrations/1_create_tables.up.sql --
-CREATE TABLE sites (
-    id BIGSERIAL PRIMARY KEY,
-    url TEXT NOT NULL
+CREATE TABLE site (
+    id SERIAL PRIMARY KEY,
+    url TEXT NOT NULL UNIQUE
 );
 ```
 
-🥐 Next, install the GORM library and PostgreSQL client:
+🥐 Next, install the Knex.js library and PostgreSQL client:
 
 ```shell
 $ npm i knex pg
@@ -1170,6 +1168,8 @@ that will list all the tracked sites and check all of them.
 
 ```ts
 -- monitor/check.ts --
+import {Site} from "../site/site";
+
 // Check checks a single site.
 export const check = api(
   { expose: true, method: "POST", path: "/check/:siteID" },
@@ -1225,6 +1225,51 @@ Cron jobs are not triggered when running the application locally but work when d
 
 </Callout>
 
+The frontend needs a way to list all sites and display if they are up or down. 
+
+🥐 Add a file in the `monitor` service and name it `status.ts`. Add the following code:
+
+```ts
+import { api } from "encore.dev/api";
+import { MonitorDB } from "./check";
+
+interface SiteStatus {
+  id: number;
+  up: boolean;
+  checkedAt: string;
+}
+
+// StatusResponse is the response type from the Status endpoint.
+interface StatusResponse {
+  // Sites contains the current status of all sites,
+  // keyed by the site ID.
+  sites: SiteStatus[];
+}
+
+// status checks the current up/down status of all monitored sites.
+export const status = api(
+  { expose: true, path: "/status", method: "GET" },
+  async (): Promise<StatusResponse> => {
+    const rows = await MonitorDB.query`
+      SELECT DISTINCT ON (site_id) site_id, up, checked_at
+      FROM checks
+      ORDER BY site_id, checked_at DESC
+    `;
+    const results: SiteStatus[] = [];
+    for await (const row of rows) {
+      results.push({
+        id: row.site_id,
+        up: row.up,
+        checkedAt: row.checked_at,
+      });
+    }
+    return { sites: results };
+  },
+);
+```
+
+Now try visiting [http://localhost:4000/](http://localhost:4000/frontend/) in your browser again. This time you should see a working frontend that lists all sites and their current status.
+
 ## 5. Deploy to Encore's development cloud
 
 To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
@@ -1253,8 +1298,7 @@ From there you can also see metrics, traces, link your app to a GitHub repo to g
 
 ## 6. Publish Pub/Sub events when a site goes down
 
-An uptime monitoring system isn't very useful if it doesn't
-actually notify you when a site goes down.
+An uptime monitoring system isn't very useful if it doesn't actually notify you when a site goes down.
 
 To do so let's add a [Pub/Sub topic](https://encore.dev/docs/ts/primitives/pubsub) on which we'll publish a message every time a site transitions from being up to being down, or vice versa.
 
