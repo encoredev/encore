@@ -941,7 +941,22 @@ describe("ping", () => {
 
 ```shell
 $ encore test
-...
+
+DEV  v1.3.0
+
+✓ monitor/ping.test.ts (4)
+  ✓ ping (4)
+    ✓ should verify that 'google.com' is up
+    ✓ should verify that 'https://encore.dev' is up
+    ✓ should verify that 'https://not-a-real-site.xyz' is up
+    ✓ should verify that 'invalid://scheme' is up
+
+Test Files  1 passed (1)
+     Tests  4 passed (4)
+  Start at  12:31:03
+  Duration  460ms (transform 43ms, setup 0ms, collect 59ms, tests 272ms, environment 0ms, prepare 47ms)
+
+PASS  Waiting for file changes...
 ```
 
 And if you open the local development dashboard at [localhost:9400](http://localhost:9400), you can also see traces for the tests.
