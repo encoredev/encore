@@ -77,7 +77,11 @@ with their default values:
             // The source code will be copied into /workspace as part
             // of the build process. This is primarily useful for tools like
             // Sentry that need access to the source code to generate stack traces.
-            "bundle_source": false
+            "bundle_source": false,
+            
+            // The working directory to start the docker image in.
+            // If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
+            "working_dir": ""
         }
     }
 }

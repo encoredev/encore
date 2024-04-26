@@ -81,7 +81,7 @@ type Docker struct {
 	BundleSource bool `json:"bundle_source,omitempty"`
 
 	// WorkingDir specifies the working directory to start the docker image in.
-	// If empty it defaults to "/".
+	// If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
 	WorkingDir string `json:"working_dir,omitempty"`
 }
 
