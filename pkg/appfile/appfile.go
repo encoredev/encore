@@ -77,8 +77,12 @@ type Docker struct {
 	BaseImage string `json:"base_image,omitempty"`
 
 	// BundleSource determines whether the source code of the application
-	// should be bundled into the binary.
+	// should be bundled into the binary, at "/workspace".
 	BundleSource bool `json:"bundle_source,omitempty"`
+
+	// WorkingDir specifies the working directory to start the docker image in.
+	// If empty it defaults to "/".
+	WorkingDir string `json:"working_dir,omitempty"`
 }
 
 type CORS struct {
