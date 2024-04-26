@@ -22,6 +22,9 @@ The final result will look like this:
 
 <img className="w-full h-auto" src="/assets/tutorials/booking-system/admin-dashboard.png" title="Admin dashboard" />
 
+<LangTabGroup langs={["go", "ts"]}>
+<LangTabPanel>
+
 If you want to skip ahead you can view the final project here: [https://github.com/encoredev/examples/tree/main/booking-system](https://github.com/encoredev/examples/tree/main/booking-system)
 
 ## 1. Create your Encore application
@@ -61,7 +64,7 @@ Let's start by creating the functionality to view bookable slots.
 
 With Encore you define a service by [defining one or more APIs](/docs/primitives/services-and-apis#defining-apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/deploy/infra) for each service.
 
-We already have a Go package named `booking`, let's turn that into an Encore service.    
+We already have a Go package named `booking`, let's turn that into an Encore service.
 
 🥐 Inside the `booking` folder, create a file named `slots.go`.
 
@@ -318,7 +321,7 @@ func Book(ctx context.Context, p *BookParams) error {
 		return eb.Cause(err).Code(errs.Unavailable).Msg("failed to start transaction").Err()
 	}
 	defer tx.Rollback(context.Background()) // committed explicitly on success
-	
+
 	_, err = query.InsertBooking(ctx, db.InsertBookingParams{
 		StartTime: pgtype.Timestamp{Time: p.Start, Valid: true},
 		EndTime:   pgtype.Timestamp{Time: p.Start.Add(DefaultBookingDuration), Valid: true},
@@ -391,11 +394,11 @@ func AuthHandler(ctx context.Context, p *AuthParams) (auth.UID, *Data, error) {
 
 ```
 
-This function is our [auth handler](/docs/develop/auth#the-auth-handler). An Encore applications can designate a special function to handle authentication, 
-by defining a function and annotating it with `//encore:authhandler`. This annotation tells Encore to run the function whenever an 
+This function is our [auth handler](/docs/develop/auth#the-auth-handler). An Encore applications can designate a special function to handle authentication,
+by defining a function and annotating it with `//encore:authhandler`. This annotation tells Encore to run the function whenever an
 incoming API call contains authentication data.
 
-The auth handler is responsible for validating the incoming authentication data and returning an `auth.UID` (a string type representing a user id). 
+The auth handler is responsible for validating the incoming authentication data and returning an `auth.UID` (a string type representing a user id).
 The `auth.UID` can be whatever you wish, but in practice it usually maps directly to the primary key stored in a user table (either defined in the Encore service or in an external service like Firebase or Okta).
 
 In order to keep this example simple, we'll just approve any request containing a token that is not empty.
@@ -404,7 +407,7 @@ Next we will implement some of our auth endpoints and make use of our newly crea
 
 ## 5. Setting availability
 
-Right now the availability is hardcoded to 9:00 - 17:00. Let's add the functionality to let our admin users customize this. 
+Right now the availability is hardcoded to 9:00 - 17:00. Let's add the functionality to let our admin users customize this.
 
 Let's start by adding another migration file, this time to create an `avilability` table.
 
@@ -617,7 +620,7 @@ func listBookingsBetween(
 
 func filterBookableSlots(
 	slots []BookableSlot,
-	now time.Time, 
+	now time.Time,
 	bookings []*Booking,
 ) []BookableSlot {
 	// Remove slots for which the start time has already passed.
@@ -640,7 +643,7 @@ func filterBookableSlots(
 }
 ```
 
-We'll use these functions to figure out which slots are bookable, and which are not, to avoid double bookings. 
+We'll use these functions to figure out which slots are bookable, and which are not, to avoid double bookings.
 
 🥐 Now we can update the `Book` endpoint inside `booking.go` and make use of these new functions:
 
@@ -834,9 +837,9 @@ While you're developing, you are going to want to run this command quite often (
 }
 ```
 
-For this frontend we use the request client together with [TanStack Query](https://tanstack.com/query/latest). When building something a bit more complex, you will likely need to deal with caching, refetching, and data going stale. [TanStack Query](https://tanstack.com/query/latest) is a popular library that was built to solve exactly these problems and works great with the Encore request client. 
+For this frontend we use the request client together with [TanStack Query](https://tanstack.com/query/latest). When building something a bit more complex, you will likely need to deal with caching, refetching, and data going stale. [TanStack Query](https://tanstack.com/query/latest) is a popular library that was built to solve exactly these problems and works great with the Encore request client.
 
-See our the docs page about [integrating with a web frontend](/docs/how-to/integrate-frontend) to learn more. 
+See our the docs page about [integrating with a web frontend](/docs/how-to/integrate-frontend) to learn more.
 
 ## 8. Deploy to Encore's development cloud
 
@@ -865,9 +868,9 @@ From there you can also see metrics, traces, link your app to a GitHub repo to g
 
 ## 8. Sending confirmation emails using SendGrid
 
-In order for the users to get a confirmation email when they book an appointment we need to add an email integration. 
+In order for the users to get a confirmation email when they book an appointment we need to add an email integration.
 
-Conveniently for us, there is a ready to use SendGrid integration as an [Encore Bit](https://github.com/encoredev/examples?tab=readme-ov-file#bits). 
+Conveniently for us, there is a ready to use SendGrid integration as an [Encore Bit](https://github.com/encoredev/examples?tab=readme-ov-file#bits).
 
 🥐 [Follow the instructions](https://github.com/encoredev/examples/tree/main/bits/sendgrid) to add the SendGrid integration to your project.
 
@@ -973,3 +976,10 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
 
 ![Fireworks](/assets/docs/fireworks.jpg)
+
+</LangTabPanel>
+<LangTabPanel>
+  A TypeScript tutorial for the Booking System will be available soon.
+</LangTabPanel>
+</LangTabGroup>
+
