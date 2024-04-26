@@ -373,11 +373,10 @@ Since Slack sends custom HTTP headers that we need to pay attention to, we're go
 use a raw endpoint in Encore. For more information on this check out Slack's documentation
 on [Enabling interactivity with Slash Commands](https://api.slack.com/interactivity/slash-commands).
 
-🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.go` with the following contents:
+🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.ts` with the following contents:
 
 ```ts
 import { api } from "encore.dev/api";
-import { secret } from "encore.dev/config";
 import type { IncomingMessage } from "node:http";
 
 // cowart is the formatting string for printing the cow art.
@@ -458,6 +457,8 @@ Let's define a secret using Encore's secrets management functionality.
 🥐 Add this to your `slack.ts` file:
 
 ```ts
+import { secret } from "encore.dev/config";
+
 const slackSigningSecret = secret("SlackSigningSecret");
 ```
 
