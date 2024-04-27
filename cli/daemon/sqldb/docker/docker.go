@@ -200,6 +200,10 @@ func (d *Driver) clusterStatus(ctx context.Context, id sqldb.ClusterID) (status 
 			if bytes.Contains(out, []byte("No such container")) {
 				continue
 			}
+			// Podman has slightly different output when a container is not found.
+			if bytes.Contains(out, []byte("no such container")) {
+				continue
+			}
 			return nil, "", errors.Wrapf(err, "docker container inspect failed: %s", out)
 		} else {
 			// Found our container; use it.
@@ -230,7 +234,8 @@ func (d *Driver) clusterStatus(ctx context.Context, id sqldb.ClusterID) (status 
 		return nil, "", errors.Wrap(err, "parse `docker container inspect` response")
 	}
 	for _, c := range resp {
-		if c.Name == "/"+containerName {
+		// Docker prefixes `/` to the container name, Podman doesn't.
+		if c.Name == "/"+containerName || c.Name == containerName {
 			status := &sqldb.ClusterStatus{Status: sqldb.Stopped, Config: &sqldb.ConnConfig{
 				// Defaults if we don't find anything else configured.
 				Superuser: sqldb.Role{
@@ -245,7 +250,15 @@ func (d *Driver) clusterStatus(ctx context.Context, id sqldb.ClusterID) (status 
 			}
 			ports := c.NetworkSettings.Ports["5432/tcp"]
 			if len(ports) > 0 {
-				status.Config.Host = ports[0].HostIP + ":" + ports[0].HostPort
+				hostIP := ports[0].HostIP
+
+				// Podman can keep HostIP empty or 0.0.0.0.
+				// https://github.com/containers/podman/issues/17780
+				if hostIP == "" || hostIP == "0.0.0.0" {
+					hostIP = "127.0.0.1"
+				}
+
+				status.Config.Host = hostIP + ":" + ports[0].HostPort
 			}
 
 			// Read the Postgres config from the docker container's environment.
@@ -353,8 +366,11 @@ func ImageExists(ctx context.Context) (ok bool, err error) {
 		return true, nil
 	case bytes.Contains(out, []byte("No such image")):
 		return false, nil
+	// Podman has a different error message.
+	case bytes.Contains(out, []byte("failed to find image")):
+		return false, nil
 	default:
-		return false, errors.WithStack(err)
+		return false, errors.WithStack(errors.Wrapf(err, "docker image inspect failed: %s", Image))
 	}
 }
 
