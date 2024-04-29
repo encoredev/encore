@@ -2,8 +2,10 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
+	"github.com/cockroachdb/errors"
 	"github.com/hasura/go-graphql-client"
 	"github.com/hasura/go-graphql-client/pkg/jsonutil"
 
@@ -120,16 +122,23 @@ type aiTask struct {
 // should be assembled to stream a 'result' graphql field that is a AIStreamMessage.
 func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[string]interface{}, notifier AINotifier) (string, error) {
 	var subId string
-	var errStrReply = func(error string) error {
+	var errStrReply = func(error string, code any) error {
 		_ = notifier(ctx, &AINotification{
 			SubscriptionID: subId,
-			Error:          error,
+			Error:          &AIError{Message: error, Code: fmt.Sprintf("%v", code)},
 			Finished:       true,
 		})
 		return graphql.ErrSubscriptionStopped
 	}
 	var errReply = func(err error) error {
-		return errStrReply(err.Error())
+		var graphqlErr graphql.Errors
+		if errors.As(err, &graphqlErr) {
+			for _, e := range graphqlErr {
+				_ = errStrReply(e.Message, e.Extensions["code"])
+			}
+			return graphql.ErrSubscriptionStopped
+		}
+		return errStrReply(err.Error(), "")
 	}
 	var query Query
 	subId, err := c.Subscribe(&query, params, func(message []byte, err error) error {
@@ -142,7 +151,7 @@ func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[st
 			return errReply(err)
 		}
 		if result.Message.Error != "" {
-			return errStrReply(result.Message.Error)
+			return errStrReply(result.Message.Error, "")
 		}
 		err = notifier(ctx, &AINotification{
 			SubscriptionID: subId,
@@ -159,10 +168,15 @@ func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[st
 
 // AINotification is a wrapper around messages and errors from the encore platform ai service
 type AINotification struct {
-	SubscriptionID string `json:"subscriptionId,omitempty"`
-	Value          any    `json:"value,omitempty"`
-	Error          string `json:"error,omitempty"`
-	Finished       bool   `json:"finished,omitempty"`
+	SubscriptionID string   `json:"subscriptionId,omitempty"`
+	Value          any      `json:"value,omitempty"`
+	Error          *AIError `json:"error,omitempty"`
+	Finished       bool     `json:"finished,omitempty"`
+}
+
+type AIError struct {
+	Message string `json:"message"`
+	Code    string `json:"code"`
 }
 
 type AINotifier func(context.Context, *AINotification) error

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -237,23 +238,39 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		suCh := make(chan ai.SessionUpdate)
+		sessionCh := make(chan *ai.AINotification)
+		defer close(sessionCh)
+		idResp := sync.Once{}
 		subID, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
-			if msg, ok := msg.Value.(ai.SessionUpdate); ok {
-				suCh <- msg
-				return nil
+			if _, ok := msg.Value.(ai.SessionUpdate); ok || msg.Error != nil {
+				idResp.Do(func() {
+					sessionCh <- msg
+				})
+				if ok {
+					return nil
+				}
 			}
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
+
 		select {
-		case su := <-suCh:
+		case msg := <-sessionCh:
+			su, ok := msg.Value.(ai.SessionUpdate)
+			if !ok || msg.Error != nil {
+				if msg.Error != nil {
+					err = jsonrpc2.NewError(ai.ErrorCodeMap[msg.Error.Code], msg.Error.Message)
+				} else {
+					err = jsonrpc2.NewError(1, "missing session_id")
+				}
+				return reply(ctx, nil, err)
+			}
 			return reply(ctx, map[string]string{
 				"session_id":      string(su.Id),
 				"subscription_id": subID,
-			}, err)
+			}, nil)
 		case <-ctx.Done():
 			return reply(ctx, nil, ctx.Err())
 		case <-time.NewTimer(10 * time.Second).C:
