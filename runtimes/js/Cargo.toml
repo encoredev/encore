@@ -32,5 +32,8 @@ tokio-util = { version = "0.7.10", features = ["io"] }
 chrono = "0.4.38"
 indexmap = { version = "2.2.6", features = ["serde"] }
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.5"
+
 [build-dependencies]
 napi-build = "2.0.1"
