@@ -67,7 +67,7 @@ impl api::TypedHandler for JSAuthHandler {
     ) -> Pin<Box<dyn Future<Output = api::HandlerResponse> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
-            let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
             // Call the handler.
             let req = Request::new(req);
@@ -90,7 +90,7 @@ impl api::TypedHandler for JSAuthHandler {
 
 struct AuthMessage {
     req: Request,
-    tx: tokio::sync::mpsc::Sender<Result<schema::JSONPayload, api::Error>>,
+    tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
 }
 
 fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result<()> {
@@ -103,9 +103,7 @@ fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result
         }
         Err(err) => {
             let res = handler.error(ctx.env, err);
-            spawn(async move {
-                _ = ctx.value.tx.send(res).await;
-            });
+            _ = ctx.value.tx.send(res);
             Ok(())
         }
     }
