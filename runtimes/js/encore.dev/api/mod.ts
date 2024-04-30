@@ -30,10 +30,7 @@ export interface APIOptions {
   auth?: boolean;
 }
 
-export type Handler<
-  Params extends object | void = void,
-  Response extends object | void = void
-> = Params extends void
+type HandlerFn<Params, Response> = Params extends void
   ? () => Promise<Response>
   : (params: Params) => Promise<Response>;
 
@@ -42,8 +39,17 @@ export function api<
   Response extends object | void = void
 >(
   options: APIOptions,
-  fn: Handler<Params, Response>
-): Handler<Params, Response> {
+  fn: (params: Params) => Promise<Response>
+): HandlerFn<Params, Response>;
+
+export function api<
+  Params extends object | void = void,
+  Response extends object | void = void
+>(
+  options: APIOptions,
+  fn: (params: Params) => Response
+): HandlerFn<Params, Response>;
+export function api(options: APIOptions, fn: any): typeof fn {
   return fn;
 }
 
