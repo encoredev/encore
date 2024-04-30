@@ -49,7 +49,7 @@ pub trait PromiseHandler: Clone + Send + Sync + 'static {
 pub fn await_promise<T, H>(
     env: Env,
     result: JsUnknown,
-    tx: tokio::sync::mpsc::Sender<T>,
+    tx: tokio::sync::mpsc::UnboundedSender<T>,
     handler: H,
 ) where
     H: PromiseHandler<Output = T>,
@@ -69,18 +69,13 @@ pub fn await_promise<T, H>(
                 let handler = handler.clone();
                 let tx = tx.clone();
                 let cb = env.create_function_from_closure("callback", move |ctx| {
-                    let handler = handler.clone();
                     let res = match ctx.try_get::<JsUnknown>(0) {
                         Ok(Either::A(success)) => handler.resolve(env, Some(success)),
                         Ok(Either::B(_)) => handler.resolve(env, None),
                         Err(err) => handler.error(env, err),
                     };
 
-                    let tx = tx.clone();
-                    spawn(async move {
-                        _ = tx.send(res).await;
-                    });
-
+                    _ = tx.send(res);
                     ctx.env.get_undefined()
                 })?;
                 cb
@@ -88,17 +83,13 @@ pub fn await_promise<T, H>(
 
             let eb = {
                 let handler = handler.clone();
-                let tx = tx.clone();
                 env.create_function_from_closure("error_callback", move |ctx| {
                     let res = match ctx.get(0) {
                         Ok(exception) => handler.reject(env, exception),
                         Err(err) => handler.error(env, err),
                     };
 
-                    let tx = tx.clone();
-                    spawn(async move {
-                        _ = tx.send(res).await;
-                    });
+                    _ = tx.send(res);
                     ctx.env.get_undefined()
                 })?
             };
@@ -106,21 +97,15 @@ pub fn await_promise<T, H>(
             then.call(Some(&result), &[cb, eb])?;
         } else {
             let res = handler.resolve(env, Some(result));
-            let tx = tx.clone();
-            spawn(async move {
-                _ = tx.send(res).await;
-            });
+            _ = tx.send(res);
         }
 
         Ok(())
     };
 
-    let tx = outer_tx.clone();
-    inner().unwrap_or_else(|err| {
+    inner().unwrap_or_else(move |err| {
         let res = outer_handler.error(env, err);
-        spawn(async move {
-            _ = tx.send(res).await;
-        });
+        _ = outer_tx.send(res);
     });
 }
 

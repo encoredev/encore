@@ -8,8 +8,7 @@ use crate::{raw_api, request_meta};
 use encore_runtime_core::api;
 use encore_runtime_core::api::schema;
 use encore_runtime_core::model::RequestData;
-use napi::bindgen_prelude::spawn;
-use napi::{Env, JsFunction, JsUnknown, NapiRaw, NapiValue};
+use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
 use std::pin::Pin;
@@ -156,7 +155,7 @@ impl PromiseHandler for APIPromiseHandler {
 
 struct TypedRequestMessage {
     req: Request,
-    tx: tokio::sync::mpsc::Sender<Result<schema::JSONPayload, api::Error>>,
+    tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
 }
 
 pub struct JSTypedHandler {
@@ -170,7 +169,7 @@ impl api::BoxedHandler for JSTypedHandler {
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
-            let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
             // Call the handler.
             let req = Request::new(req);
@@ -203,9 +202,7 @@ fn typed_resolve_on_js_thread(ctx: ThreadSafeCallContext<TypedRequestMessage>) -
         }
         Err(err) => {
             let res = handler.error(ctx.env, err);
-            spawn(async move {
-                _ = ctx.value.tx.send(res).await;
-            });
+            _ = ctx.value.tx.send(res);
             Ok(())
         }
     }
