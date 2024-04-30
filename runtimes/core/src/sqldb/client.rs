@@ -22,11 +22,17 @@ impl Pool {
     pub fn new(db: &sqldb::Database, tracer: Tracer) -> Self {
         let tls = db.tls().clone();
         let mgr = Mgr::new(db.config().clone(), tls);
-        let pool = bb8::Pool::builder()
+        let mut pool = bb8::Pool::builder()
             .error_sink(Box::new(RustLoggerSink {
                 db_name: db.name().to_string(),
             }))
-            .build_unchecked(mgr);
+            .max_size(if db.max_conns > 0 { db.max_conns } else { 30 });
+
+        if db.min_conns > 0 {
+            pool = pool.min_idle(Some(db.min_conns));
+        }
+
+        let pool = pool.build_unchecked(mgr);
         Self { pool, tracer }
     }
 }
