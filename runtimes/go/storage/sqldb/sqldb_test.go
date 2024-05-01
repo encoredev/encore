@@ -73,7 +73,7 @@ func TestDBConf(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		cfg, err := dbConf(test.Srv, test.DB)
+		cfg, err := dbConf(test.Srv, test.DB, "")
 		if err != nil {
 			t.Fatalf("test %d: unexpected error: %v", i, err)
 		}

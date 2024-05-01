@@ -164,6 +164,18 @@ func (mgr *Manager) EndTest(t *testing.T) {
 	case <-done:
 	}
 
+	// Run end callbacks.
+	(func() {
+		defer func() {
+			if err := recover(); err != nil {
+				t.Errorf("encore: internal error: panic occured running test end callback: %v\n\n%s", err, debug.Stack())
+			}
+		}()
+		for _, cb := range testData.Config.EndCallbacks {
+			cb(t)
+		}
+	})()
+
 	if curr.Trace != nil {
 		curr.Trace.TestSpanEnd(trace2.TestSpanEndParams{
 			EventParams: trace2.EventParams{TraceID: req.TraceID, SpanID: req.SpanID},
@@ -324,4 +336,11 @@ func (mgr *Manager) GetAPIMock(service string, api string) (model.ApiMock, bool)
 		value, found = cfg.APIMocks[service][api]
 		return
 	})
+}
+
+func (mgr *Manager) AddEndCallback(fn func(t *testing.T)) {
+	cfg := mgr.currentConfig()
+	cfg.Mu.Lock()
+	defer cfg.Mu.Unlock()
+	cfg.EndCallbacks = append(cfg.EndCallbacks, fn)
 }

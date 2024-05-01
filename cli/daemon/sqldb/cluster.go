@@ -229,9 +229,12 @@ func (c *Cluster) initDB(encoreName string) *DB {
 
 	dbCtx, cancel := context.WithCancel(c.Ctx)
 	db := &DB{
-		DriverName: driverName,
 		EncoreName: encoreName,
 		Cluster:    c,
+		driverName: driverName,
+
+		// Use a template database when running tests.
+		template: c.ID.Type == Test,
 
 		Ctx:    dbCtx,
 		cancel: cancel,
