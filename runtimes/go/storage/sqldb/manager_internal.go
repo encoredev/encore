@@ -58,12 +58,13 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 	if db, ok := mgr.dbs[dbName]; ok {
 		return db
 	}
-	pool, found := mgr.getPool(dbName)
+	pool, found := mgr.getPool(dbName, "")
 	db = &Database{
-		name:   dbName,
-		mgr:    mgr,
-		noopDB: !found,
-		pool:   pool,
+		name:     dbName,
+		origName: dbName,
+		mgr:      mgr,
+		noopDB:   !found,
+		pool:     pool,
 	}
 	mgr.dbs[dbName] = db
 	return db
@@ -71,10 +72,10 @@ func (mgr *Manager) GetDB(dbName string) *Database {
 
 // getPool returns a database connection pool for the given database name.
 // Each time it's called it returns a new pool.
-func (mgr *Manager) getPool(dbName string) (pool *pgxpool.Pool, found bool) {
+func (mgr *Manager) getPool(encoreName, dbNameOverride string) (pool *pgxpool.Pool, found bool) {
 	var db *config.SQLDatabase
 	for _, d := range mgr.runtime.SQLDatabases {
-		if d.EncoreName == dbName {
+		if d.EncoreName == encoreName {
 			db = d
 			break
 		}
@@ -84,7 +85,7 @@ func (mgr *Manager) getPool(dbName string) (pool *pgxpool.Pool, found bool) {
 	}
 
 	srv := mgr.runtime.SQLServers[db.ServerID]
-	cfg, err := dbConf(srv, db)
+	cfg, err := dbConf(srv, db, dbNameOverride)
 	if err != nil {
 		panic("sqldb: " + err.Error())
 	}
@@ -112,7 +113,7 @@ func (mgr *Manager) Shutdown(p *shutdown.Process) error {
 		db := db
 		go func() {
 			defer wg.Done()
-			db.shutdown(p)
+			db.shutdown()
 		}()
 	}
 	wg.Wait()

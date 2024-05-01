@@ -185,7 +185,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 			})
 			return nil
 		case <-time.After(60 * time.Second):
-			cm.log.Error().Str("db", db.DriverName).Msg("dbproxy: timed out waiting for database to come online")
+			cm.log.Error().Str("db", db.ApplicationCloudName()).Msg("dbproxy: timed out waiting for database to come online")
 			_ = cl.Backend.Send(&pgproto3.ErrorResponse{
 				Severity: "FATAL",
 				Code:     "08006",
@@ -230,7 +230,7 @@ func (cm *ClusterManager) ProxyConn(client net.Conn, waitForSetup bool) error {
 		// If it doesn't the cluster will return an SQL error to the client.
 		startup.Database = dbname
 	} else {
-		startup.Database = db.DriverName
+		startup.Database = db.ApplicationCloudName()
 	}
 	fe, err := pgproxy.SetupServer(server, &pgproxy.ServerConfig{
 		TLS:     nil,
@@ -360,7 +360,7 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 	admin, _ := info.Encore.First(RoleAdmin, RoleSuperuser)
 	startup.Username = admin.Username
 	startup.Password = admin.Password
-	startup.Database = db.DriverName
+	startup.Database = db.ApplicationCloudName()
 	fe, err := pgproxy.SetupServer(server, &pgproxy.ServerConfig{
 		TLS:     nil,
 		Startup: startup,

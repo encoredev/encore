@@ -19,13 +19,13 @@ import (
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/stack"
 	"encore.dev/appruntime/exported/trace2"
-	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/storage/sqldb/internal/stdlibdriver"
 )
 
 type Database struct {
-	name string
-	mgr  *Manager
+	name     string
+	origName string // original name if this was cloned.
+	mgr      *Manager
 
 	noopDB bool // true if this is a dummy database that does nothing and returns errors for all operations
 
@@ -46,7 +46,7 @@ func (db *Database) init() {
 
 	db.initOnce.Do(func() {
 		if db.pool == nil {
-			pool, found := db.mgr.getPool(db.name)
+			pool, found := db.mgr.getPool(db.origName, db.name)
 			db.pool, db.noopDB = pool, !found
 		}
 
@@ -93,7 +93,7 @@ func (db *Database) Stdlib() *sql.DB {
 	return db.stdlib
 }
 
-func (db *Database) shutdown(p *shutdown.Process) {
+func (db *Database) shutdown() {
 	if db.pool != nil {
 		db.pool.Close()
 	}
@@ -103,8 +103,14 @@ func (db *Database) shutdown(p *shutdown.Process) {
 }
 
 // dbConf computes a suitable pgxpool config given a database config.
-func dbConf(srv *config.SQLServer, db *config.SQLDatabase) (*pgxpool.Config, error) {
-	uri := fmt.Sprintf("user=%s password=%s dbname=%s", db.User, db.Password, db.DatabaseName)
+// If dbNameOverride is provided, it overrides the database name used when connecting,
+// for testing purposes.
+func dbConf(srv *config.SQLServer, db *config.SQLDatabase, dbNameOverride string) (*pgxpool.Config, error) {
+	dbName := dbNameOverride
+	if dbName == "" {
+		dbName = db.DatabaseName
+	}
+	uri := fmt.Sprintf("user=%s password=%s dbname=%s", db.User, db.Password, dbName)
 
 	// Handle different ways of expressing the host
 	if strings.HasPrefix(srv.Host, "/") {
