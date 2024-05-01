@@ -171,7 +171,8 @@ type TestConfig struct {
 
 	ServiceMocks     map[string]ServiceMock
 	APIMocks         map[string]map[string]ApiMock
-	IsolatedServices *bool // Whether to isolate services for this test
+	IsolatedServices *bool                // Whether to isolate services for this test
+	EndCallbacks     []func(t *testing.T) // Callbacks to run when the test ends
 }
 
 type ServiceMock struct {

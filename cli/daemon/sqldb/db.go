@@ -16,14 +16,16 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/option"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // DB represents a single database instance within a cluster.
 type DB struct {
 	EncoreName string
-	DriverName string
 	Cluster    *Cluster
+
+	driverName string
 
 	// Ctx is canceled when the database is being torn down.
 	Ctx    context.Context
@@ -37,7 +39,23 @@ type DB struct {
 
 	migrated bool
 
+	// template indicates the database is backed by a template database.
+	template bool
+
 	log zerolog.Logger
+}
+
+// ApplicationCloudName reports the "cloud name" of the application-facing database.
+func (db *DB) ApplicationCloudName() string {
+	return db.driverName
+}
+
+// TemplateCloudName reports the "cloud name" of the template database, if any.
+func (db *DB) TemplateCloudName() option.Option[string] {
+	if db.template {
+		return option.Some(db.driverName + "_template")
+	}
+	return option.None[string]()
 }
 
 // Ready returns a channel that is closed when the database is up and running.
@@ -63,33 +81,62 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 	}()
 
 	if recreate {
-		if err := db.Drop(ctx); err != nil {
-			return fmt.Errorf("drop db %s: %v", db.DriverName, err)
+		if err := db.drop(ctx); err != nil {
+			return err
 		}
 	}
-	if err := db.Create(ctx); err != nil {
-		return fmt.Errorf("create db %s: %v", db.DriverName, err)
-	}
-	if err := db.EnsureRoles(ctx, db.Cluster.Roles...); err != nil {
-		return fmt.Errorf("ensure db roles %s: %v", db.DriverName, err)
-	}
-	if migrate || recreate || !db.migrated {
-		if err := db.Migrate(ctx, appRoot, dbMeta); err != nil {
-			// Only report an error if we asked to migrate or recreate.
-			// Otherwise we might fail to open a database shell when there
-			// is a migration issue.
-			if migrate || recreate {
-				return fmt.Errorf("migrate db %s: %v", db.DriverName, err)
+
+	setupDB := func(cloudName string) error {
+		if err := db.doCreate(ctx, cloudName, option.None[string]()); err != nil {
+			return errors.Wrapf(err, "create db %s: %v", cloudName, err)
+		}
+
+		if err := db.ensureRoles(ctx, cloudName, db.Cluster.Roles...); err != nil {
+			return fmt.Errorf("ensure db roles %s: %v", cloudName, err)
+		}
+
+		if migrate || recreate || !db.migrated {
+			if err := db.doMigrate(ctx, cloudName, appRoot, dbMeta); err != nil {
+				// Only report an error if we asked to migrate or recreate.
+				// Otherwise we might fail to open a database shell when there
+				// is a migration issue.
+				if migrate || recreate {
+					return fmt.Errorf("migrate db %s: %v", cloudName, err)
+				}
 			}
 		}
+		return nil
 	}
+
+	if tmplName, ok := db.TemplateCloudName().Get(); ok {
+		// If we have a template database, set that up, and then use it as the template for the application database.
+		if err := setupDB(tmplName); err != nil {
+			return err
+		}
+
+		// Terminate the connections to the template database to prevent "database is being accessed by other users" errors.
+		_ = db.terminateConnectionsToDB(ctx, tmplName)
+
+		// Then create the application database based on the template
+		if err := db.doCreate(ctx, db.ApplicationCloudName(), option.Some(tmplName)); err != nil {
+			return errors.Wrapf(err, "create db %s: %v", db.ApplicationCloudName(), err)
+		}
+
+		// Ensure the application database has the right roles, too.
+		if err := db.ensureRoles(ctx, db.ApplicationCloudName(), db.Cluster.Roles...); err != nil {
+			return fmt.Errorf("ensure db roles %s: %v", db.ApplicationCloudName(), err)
+		}
+	} else {
+		// Otherwise create the application database directly.
+		if err := setupDB(db.ApplicationCloudName()); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-// Create creates the database in the cluster if it does not already exist.
-// It reports whether the database was initialized for the first time
-// in this process.
-func (db *DB) Create(ctx context.Context) error {
+func (db *DB) doCreate(ctx context.Context, cloudName string, template option.Option[string]) error {
 	adm, err := db.connectSuperuser(ctx)
 	if err != nil {
 		return err
@@ -98,7 +145,7 @@ func (db *DB) Create(ctx context.Context) error {
 
 	// Does it already exist?
 	var dummy int
-	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.DriverName).Scan(&dummy)
+	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", cloudName).Scan(&dummy)
 	owner, ok := db.Cluster.Roles.First(RoleAdmin, RoleSuperuser)
 	if !ok {
 		return errors.New("unable to find admin or superuser roles")
@@ -107,9 +154,15 @@ func (db *DB) Create(ctx context.Context) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		db.log.Debug().Msg("creating database")
 		// Sanitize names since this query does not support query params
-		dbName := (pgx.Identifier{db.DriverName}).Sanitize()
+		dbName := (pgx.Identifier{cloudName}).Sanitize()
 		ownerName := (pgx.Identifier{owner.Username}).Sanitize()
-		_, err = adm.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s OWNER %s;", dbName, ownerName))
+
+		// Use the template if one is provided.
+		var tmplSnippet string
+		if tmplName, ok := template.Get(); ok {
+			tmplSnippet = fmt.Sprintf("WITH TEMPLATE %s", (pgx.Identifier{tmplName}).Sanitize())
+		}
+		_, err = adm.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s %s OWNER %s;", dbName, tmplSnippet, ownerName))
 	}
 	if err != nil {
 		db.log.Error().Err(err).Msg("failed to create database")
@@ -117,8 +170,8 @@ func (db *DB) Create(ctx context.Context) error {
 	return err
 }
 
-// EnsureRoles ensures the roles have been granted access to this database.
-func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
+// ensureRoles ensures the roles have been granted access to this database.
+func (db *DB) ensureRoles(ctx context.Context, cloudName string, roles ...Role) error {
 	adm, err := db.connectSuperuser(ctx)
 	if err != nil {
 		return err
@@ -126,7 +179,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 	defer func() { _ = adm.Close(context.Background()) }()
 
 	db.log.Debug().Msg("revoking public access")
-	safeDBName := (pgx.Identifier{db.DriverName}).Sanitize()
+	safeDBName := (pgx.Identifier{cloudName}).Sanitize()
 	_, err = adm.Exec(ctx, "REVOKE ALL ON DATABASE "+safeDBName+" FROM public")
 	if err != nil {
 		return fmt.Errorf("revoke public: %v", err)
@@ -156,7 +209,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 			return fmt.Errorf("unknown role type %q", role.Type)
 		}
 
-		db.log.Debug().Str("role", role.Username).Str("db", db.DriverName).Msg("granting access to role")
+		db.log.Debug().Str("role", role.Username).Str("db", cloudName).Msg("granting access to role")
 
 		// We've observed race conditions in Postgres to grant access. Retry a few times.
 		{
@@ -166,7 +219,7 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 				if err == nil {
 					break
 				}
-				db.log.Debug().Str("role", role.Username).Str("db", db.DriverName).Err(err).Msg("error granting role, retrying")
+				db.log.Debug().Str("role", role.Username).Str("db", cloudName).Err(err).Msg("error granting role, retrying")
 				time.Sleep(250 * time.Millisecond)
 			}
 			if err != nil {
@@ -174,13 +227,13 @@ func (db *DB) EnsureRoles(ctx context.Context, roles ...Role) error {
 			}
 		}
 
-		db.log.Debug().Str("role", role.Username).Str("db", db.DriverName).Msg("successfully granted access")
+		db.log.Debug().Str("role", role.Username).Str("db", cloudName).Msg("successfully granted access")
 	}
 	return nil
 }
 
 // Migrate migrates the database.
-func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabase) (err error) {
+func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *meta.SQLDatabase) (err error) {
 	if db.Cluster.ID.Type == Shadow {
 		db.log.Debug().Msg("not applying migrations to shadow cluster")
 		return nil
@@ -211,7 +264,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 	if !ok {
 		return errors.New("unable to find superuser or admin roles")
 	}
-	uri := info.ConnURI(db.DriverName, admin)
+	uri := info.ConnURI(cloudName, admin)
 	db.log.Debug().Str("uri", uri).Msg("running migrations")
 	conn, err := sql.Open("pgx", uri)
 	if err != nil {
@@ -229,7 +282,7 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 		migrationsRelPath: *dbMeta.MigrationRelPath,
 		migrations:        dbMeta.Migrations,
 	}
-	m, err := migrate.NewWithInstance("src", s, db.DriverName, instance)
+	m, err := migrate.NewWithInstance("src", s, cloudName, instance)
 	if err != nil {
 		return err
 	}
@@ -268,14 +321,37 @@ func (db *DB) Migrate(ctx context.Context, appRoot string, dbMeta *meta.SQLDatab
 		db.log.Info().Msg("database already up to date")
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("could not migrate database %s: %v", db.DriverName, err)
+		return fmt.Errorf("could not migrate database %s: %v", cloudName, err)
 	}
 	db.log.Info().Msg("migration completed")
 	return nil
 }
 
-// Drop drops the database in the cluster if it exists.
-func (db *DB) Drop(ctx context.Context) error {
+func (db *DB) drop(ctx context.Context) error {
+	if err := db.doDrop(ctx, db.ApplicationCloudName()); err != nil {
+		return errors.Wrapf(err, "drop database %s", db.ApplicationCloudName())
+	}
+	if name, ok := db.TemplateCloudName().Get(); ok {
+		if err := db.doDrop(ctx, name); err != nil {
+			return errors.Wrapf(err, "drop database %s", name)
+		}
+	}
+	return nil
+}
+
+func (db *DB) terminateConnectionsToDB(ctx context.Context, cloudName string) error {
+	adm, err := db.connectSuperuser(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = adm.Close(context.Background()) }()
+
+	// Drop all connections to prevent "database is being accessed by other users" errors.
+	_, _ = adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", cloudName)
+	return nil
+}
+
+func (db *DB) doDrop(ctx context.Context, cloudName string) error {
 	adm, err := db.connectSuperuser(ctx)
 	if err != nil {
 		return err
@@ -283,12 +359,12 @@ func (db *DB) Drop(ctx context.Context) error {
 	defer func() { _ = adm.Close(context.Background()) }()
 
 	var dummy int
-	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", db.DriverName).Scan(&dummy)
+	err = adm.QueryRow(ctx, "SELECT 1 FROM pg_database WHERE datname = $1", cloudName).Scan(&dummy)
 	if err == nil {
 		// Drop all connections to prevent "database is being accessed by other users" errors.
-		_, _ = adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", db.DriverName)
+		_, _ = adm.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1", cloudName)
 
-		name := (pgx.Identifier{db.DriverName}).Sanitize() // sanitize database name, to be safe
+		name := (pgx.Identifier{cloudName}).Sanitize() // sanitize database name, to be safe
 		_, err = adm.Exec(ctx, fmt.Sprintf("DROP DATABASE %s;", name))
 		db.log.Debug().Err(err).Msgf("dropped database")
 	} else if errors.Is(err, pgx.ErrNoRows) {

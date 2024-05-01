@@ -3,7 +3,10 @@
 package et
 
 import (
+	"context"
+
 	"encore.dev/beta/auth"
+	"encore.dev/storage/sqldb"
 )
 
 // OverrideAuthInfo overrides the auth information for the current request.
@@ -38,4 +41,23 @@ func OverrideAuthInfo(uid auth.UID, data any) {
 // you can call this function to isolate the services for the impacted tests.
 func EnableServiceInstanceIsolation() {
 	Singleton.testMgr.SetIsolatedServices(true)
+}
+
+//publicapigen:keep
+type stringLiteral string
+
+// NewTestDatabase creates a new, fresh database for the database with the given name.
+// The database name must be a database known to Encore (via `sqldb.NewDatabase`),
+// otherwise it reports an error.
+//
+// The new database is cloned from a template database that has had all migrations applied to it,
+// but excludes any of the changes applied to the given db.
+//
+// The returned database is isolated to the current test and any sub-tests,
+// and is automatically dropped at the end of the test, and any
+// open connections are automatically closed.
+//
+// The provided name must be a constant string literal (like "mydb").
+func NewTestDatabase(ctx context.Context, name stringLiteral) (*sqldb.Database, error) {
+	return Singleton.db.NewTestDatabase(ctx, string(name))
 }
