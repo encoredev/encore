@@ -33,7 +33,8 @@ chrono = "0.4.38"
 indexmap = { version = "2.2.6", features = ["serde"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = { version = "0.5", features = ["disable_initial_exec_tls"] }
+tikv-jemallocator = { version = "0.5" }
+tikv-jemalloc-sys = { version = "0.5", features = ["disable_initial_exec_tls"] }
 
 [build-dependencies]
 napi-build = "2.0.1"
