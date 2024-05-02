@@ -1190,6 +1190,7 @@ dependencies = [
  "prost-types",
  "serde",
  "serde_json",
+ "tikv-jemalloc-sys",
  "tikv-jemallocator",
  "tokio",
  "tokio-util",
