@@ -585,6 +585,11 @@
 		path: "/deploy/own-cloud"
 		file: "deploy/own-cloud"
 	}, {
+		kind: "basic"
+		text: "Neon Postgres"
+		path: "/deploy/neon"
+		file: "deploy/neon"
+	}, {
 		kind: "accordion"
 		text: "Kubernetes deployment"
 		accordion: [{
