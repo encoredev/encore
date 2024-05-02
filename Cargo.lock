@@ -1266,7 +1266,6 @@ dependencies = [
  "socket2",
  "subtle",
  "sync_wrapper 0.1.2",
- "tikv-jemallocator",
  "tokio",
  "tokio-nsq",
  "tokio-postgres",
