@@ -66,6 +66,9 @@ pub struct Database {
     tls: postgres_native_tls::MakeTlsConnector,
     proxy_conn_string: String,
     tracer: Tracer,
+
+    pub(super) min_conns: u32,
+    pub(super) max_conns: u32,
 }
 
 impl Database {
@@ -262,6 +265,9 @@ fn databases_from_cfg(
                     tls,
                     proxy_conn_string,
                     tracer: tracer.clone(),
+
+                    min_conns: pool.min_connections as u32,
+                    max_conns: pool.max_connections as u32,
                 }),
             );
         }

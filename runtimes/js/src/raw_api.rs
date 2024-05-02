@@ -41,7 +41,7 @@ struct RawRequestMessage {
     req: Request,
     resp: ResponseWriter,
     body: BodyReader,
-    err_tx: mpsc::Sender<Result<(), api::Error>>,
+    err_tx: mpsc::UnboundedSender<Result<(), api::Error>>,
 }
 
 enum ResponseWriterState {
@@ -348,7 +348,7 @@ impl api::BoxedHandler for JSRawHandler {
             };
             let body = BodyReader::new(body.into_data_stream());
 
-            let (err_tx, mut err_rx) = mpsc::channel(1);
+            let (err_tx, mut err_rx) = mpsc::unbounded_channel();
 
             self.handler.call(
                 RawRequestMessage {
@@ -458,9 +458,7 @@ fn raw_resolve_on_js_thread(ctx: ThreadSafeCallContext<RawRequestMessage>) -> na
         }
         Err(err) => {
             let res = handler.error(ctx.env, err);
-            tokio::spawn(async move {
-                _ = ctx.value.err_tx.send(res).await;
-            });
+            _ = ctx.value.err_tx.send(res);
             Ok(())
         }
     }
