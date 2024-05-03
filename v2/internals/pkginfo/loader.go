@@ -101,7 +101,7 @@ func (l *Loader) init() {
 	if b.CgoEnabled {
 		cgoEnabled = "1"
 	}
-	updateGoPath(b)
+	UpdateGoPath(b.GOROOT)
 	l.packagesConfig = &packages.Config{
 		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedModule,
 		Context: l.c.Ctx,
@@ -196,13 +196,13 @@ func (l *Loader) LoadPkg(cause token.Pos, pkgPath paths.Pkg) (pkg *Package, ok b
 	return result.pkg, result.ok
 }
 
-// updateGoPath updates the PATH environment variable to use the
+// UpdateGoPath updates the PATH environment variable to use the
 // "go" binary from Encore's GOROOT.
 // This is necessary because packages.Load invokes "go list" under the hood,
 // and we want to ensure it uses the same 'go' binary as Encore.
-func updateGoPath(b parsectx.BuildInfo) {
+func UpdateGoPath(goRoot paths.FS) {
 	curr := os.Getenv("PATH")
-	prefix := b.GOROOT.Join("bin").ToIO() + string(filepath.ListSeparator)
+	prefix := goRoot.Join("bin").ToIO() + string(filepath.ListSeparator)
 	if !strings.HasPrefix(curr, prefix) {
 		_ = os.Setenv("PATH", prefix+curr)
 	}
