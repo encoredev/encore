@@ -23,6 +23,7 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/codegen/rewrite"
 	"encr.dev/v2/internals/perr"
+	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser/apis/api/apienc"
 	"encr.dev/v2/parser/apis/directive"
 )
@@ -384,6 +385,7 @@ func updateCode(ctx context.Context, services []Service, app *apps.Instance, ove
 		}
 	}
 	goRoot := paths.RootedFSPath(env.EncoreGoRoot(), ".")
+	pkginfo.UpdateGoPath(goRoot)
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedTypes | packages.NeedSyntax,
 		Dir:  app.Root(),
