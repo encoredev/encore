@@ -39,7 +39,9 @@ If you prefer to manage deployment yourself, you can export your application as 
 
 ### What is the price of the paid plan?
 
-The **Pro** plan is $39/month per member. If you use Encore for DevOps automation in your cloud, the price is $99/month per environment in AWS/GCP + $1.7/month per resource in AWS/GCP. ([Learn more](https://encore.dev/pricing))
+The **Pro** plan is $39/month per member. If you use Encore for DevOps automation in your cloud, the price is $99/month per environment on AWS/GCP + $1.7/month per resource in each AWS/GCP environment. _Resources are your app's services, databases, Pub/Sub topics and subscriptions, cron jobs, caches, and secrets, in each environment._
+
+ ([Learn more](https://encore.dev/pricing))
 
 See the [pricing page](https://encore.dev/pricing) for more details.
 

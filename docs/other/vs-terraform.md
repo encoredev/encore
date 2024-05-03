@@ -68,7 +68,7 @@ Encore does a lot more than just automate infrastructure provisioning and config
 - Service/API mocking
 
 ### Encore's built-in DevOps tools
-- Automatic Infrastructure provisioning in AWS/GCP
+- Automatic Infrastructure provisioning on AWS/GCP
 - Infrastructure Tracking & Approvals workflow
 - Cloud Configuration 2-way sync between Encore and AWS/GCP
 - Automatic least privilege IAM
