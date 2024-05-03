@@ -1422,7 +1422,7 @@ Successfully updated development secret SlackWebhookURL.
 🥐 Test the `slack.notify` endpoint by calling it via cURL:
 
 ```shell
-$ curl 'http://localhost:4000/slack.notify' -d '{"Text": "Testing Slack webhook"}'
+$ curl 'http://localhost:4000/slack.notify' -d '{"text": "Testing Slack webhook"}'
 ```
 You should see the *Testing Slack webhook* message appear in the Slack channel you designated for the webhook.
 
