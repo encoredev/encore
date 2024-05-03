@@ -19,7 +19,7 @@ We believe that adopting Encore is a low-risk decision for several reasons:
 
 - There's no upfront work to get the benefits
 - Encore apps are normal programs where less than 5% of the code is Encore-specific
-- All infrastructure, and data, lives in your own account in AWS/GCP
+- All infrastructure, and data, lives in your own account on AWS/GCP
 - It's simple to integrate with "unsupported" cloud services and other systems
 - Key parts are Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), and [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
 

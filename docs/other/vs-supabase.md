@@ -9,7 +9,7 @@ Supabase and Firebase are two popular _Backend as a Service_ providers, that pro
 
 This can be a great way of getting off the ground quickly. But as many developers have come to learn, you risk finding yourself boxed into a corner if you're not in full control of your own backend when new use cases arise.
 
-**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account in AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and and having to start over from scratch.
+**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account on AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and and having to start over from scratch.
 
 Let's take a look at how Encore compares to BaaS platforms like Supabase and Firebase:
 
@@ -109,7 +109,7 @@ Encore does a lot more than just automate infrastructure provisioning and config
 - Service/API mocking
 
 ### Encore's built-in DevOps tools
-- Automatic Infrastructure provisioning in AWS/GCP
+- Automatic Infrastructure provisioning on AWS/GCP
 - Infrastructure Tracking & Approvals workflow
 - Cloud Configuration 2-way sync between Encore and AWS/GCP
 - Automatic least privilege IAM
