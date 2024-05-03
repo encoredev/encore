@@ -248,7 +248,7 @@ Cloud Provider on deployment and delivered securely to the application at runtim
 
 ## Migrating to Encore
 
-Encore makes it easy to migrate existing applications to Encore, as you can keep using your existing cloud account in AWS or GCP.
+Encore makes it easy to migrate existing applications to Encore, as you can keep using your existing cloud account on AWS or GCP.
 In most cases, gradually migrating your existing backend services to Encore takes minimal effort and mostly involves removing boilerplate code.
 
 Normally you can remove:
