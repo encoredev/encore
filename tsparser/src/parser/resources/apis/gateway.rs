@@ -4,7 +4,7 @@ use swc_ecma_ast as ast;
 
 use litparser::LitParser;
 
-use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{iter_references, TrackedNames, UnnamedClassResource};
@@ -63,7 +63,7 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
                 range: r.range,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,

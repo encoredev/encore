@@ -111,6 +111,69 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
     }
 }
 
+pub struct NamedStaticMethod<const NAME_IDX: usize = 0> {
+    pub range: Range,
+    pub constructor_args: Vec<ast::ExprOrSpread>,
+    pub doc_comment: Option<String>,
+    pub resource_name: String,
+    pub bind_name: Option<ast::Ident>,
+}
+
+impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
+    fn parse_resource_reference(
+        module: &Module,
+        path: &swc_ecma_visit::AstNodePath,
+    ) -> Result<Option<Self>> {
+        for (idx, node) in path.iter().rev().enumerate() {
+            match node {
+                swc_ecma_visit::AstParentNodeRef::MemberExpr(
+                    expr,
+                    swc_ecma_visit::fields::MemberExprField::Obj,
+                ) => {
+                    let ast::MemberProp::Ident(method_name) = &expr.prop else {
+                        continue;
+                    };
+                    if method_name.sym != "named" {
+                        continue;
+                    }
+
+                    let idx = path.len() - idx - 1;
+
+                    // Make sure the parent is a call expression.
+                    // The path goes:
+                    // CallExpr -> Callee -> Expr -> MemberExpr
+                    // So we want idx-3.
+                    let Some(parent) = path.get(idx - 3) else {
+                        continue;
+                    };
+                    let swc_ecma_visit::AstParentNodeRef::CallExpr(
+                        call,
+                        swc_ecma_visit::fields::CallExprField::Callee,
+                    ) = parent
+                    else {
+                        continue;
+                    };
+
+                    let bind_name = extract_bind_name(path)?;
+                    let resource_name = extract_resource_name(&call.args, NAME_IDX)?;
+                    let doc_comment = module.preceding_comments(call.span.lo.into());
+
+                    return Ok(Some(Self {
+                        range: call.span.into(),
+                        constructor_args: call.args.clone(),
+                        resource_name: resource_name.to_string(),
+                        doc_comment,
+                        bind_name,
+                    }));
+                }
+
+                _ => {}
+            }
+        }
+        Ok(None)
+    }
+}
+
 pub fn extract_resource_name(args: &[ast::ExprOrSpread], idx: usize) -> Result<&str> {
     let val = args.get(idx).ok_or(anyhow::anyhow!(
         "missing resource name as argument[{}]",
