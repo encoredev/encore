@@ -33,7 +33,7 @@ Encore is purpose-built to solve this problem and provides a complete toolset fo
 
 ### How it works
 
-Encore's Open Source Backend SDK, available for [Go](https://encore.dev/docs/primitives/overview) and [TypeScript](https://encore.dev/docs/ts) (Beta), lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
+Encore's Open Source Backend SDK, available for [Go](https://encore.dev/docs/primitives/overview) and [TypeScript](https://encore.dev/docs/ts), lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
 With the Backend SDK you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore parses your application and builds a graph of both its logical architecture and its infrastructure requirements, it then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
 
