@@ -67,7 +67,7 @@ type Response struct {
 }
 ```
 
-As you can see, it's all standard Go code except for a few lines specific to Encore's Infrastructure SDK.
+As you can see, it's all standard Go code except for a few lines specific to Encore's Backend SDK.
 
 One such element is the API annotation:
 
@@ -81,7 +81,7 @@ the `World` function is a public API endpoint.
 To create more services and endpoints, you simply create new Go packages and define endpoints using
 the `//encore:api` annotation. _If you're curious, you can read more about [defining services and APIs](/docs/primitives/services-and-apis)._
 
-Encore's [Infrastructure SDK](/docs/primitives/overview) provides several other declarative ways of using backend
+Encore's [Backend SDK](/docs/primitives/overview) provides several other declarative ways of using backend
 primitives, such as databases, Pub/Sub, and scheduled tasks. All defined in your application code.
 
 ## 3. Start your app & Explore the Local Development Dashboard
@@ -297,7 +297,7 @@ and that the `world` function is a public API endpoint. Encore automatically han
 
 If you want to create more services and endpoints, you simply create new folders and define endpoints by wrapping functions in the `api` function. _If you're curious, you can read more about [defining services and APIs](/docs/ts/primitives/services-and-apis)._
 
-Encore's [Infrastructure SDK](/docs/ts) provides several declarative ways of using backend primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
+Encore's [Backend SDK](/docs/ts) provides several declarative ways of using backend primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
 
 ## 3. Start your app & Explore Local Development Dashboard
 
