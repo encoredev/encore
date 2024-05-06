@@ -1,5 +1,5 @@
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{
@@ -42,7 +42,7 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
                 range: r.range,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
                 ident: Some(r.bind_name),

@@ -4,7 +4,7 @@ use std::rc::Rc;
 use swc_ecma_ast as ast;
 
 use crate::parser::module_loader::ModuleId;
-use crate::parser::resources::Resource;
+use crate::parser::resources::{Resource, ResourcePath};
 use crate::parser::types::Object;
 use crate::parser::Range;
 
@@ -18,8 +18,14 @@ impl From<u32> for Id {
 }
 
 #[derive(Debug)]
+pub enum ResourceOrPath {
+    Resource(Resource),
+    Path(ResourcePath),
+}
+
+#[derive(Debug)]
 pub struct BindData {
-    pub resource: Resource,
+    pub resource: ResourceOrPath,
     pub range: Range,
 
     /// The identifier it is bound to, if any.

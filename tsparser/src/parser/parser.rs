@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 
@@ -20,6 +20,10 @@ use crate::parser::types::TypeChecker;
 use crate::parser::usageparser::{Usage, UsageResolver};
 use crate::parser::FileSet;
 use crate::runtimeresolve::{EncoreRuntimeResolver, TsConfigPathResolver};
+
+use super::resourceparser::bind::ResourceOrPath;
+use super::resourceparser::UnresolvedBind;
+use super::resources::ResourcePath;
 
 pub struct ParseContext<'a> {
     /// Directory roots to parse for Encore resources.
@@ -107,7 +111,8 @@ pub struct Parser<'a> {
     pc: &'a ParseContext<'a>,
     pass1: PassOneParser<'a>,
 
-    result: ParseResult,
+    resources: Vec<Resource>,
+    binds: Vec<UnresolvedBind>,
 }
 
 pub struct ParseResult {
@@ -118,12 +123,14 @@ pub struct ParseResult {
 
 impl<'a> Parser<'a> {
     pub fn new(pc: &'a ParseContext<'a>, pass1: PassOneParser<'a>) -> Self {
-        let result = ParseResult {
-            resources: Vec::new(),
-            binds: Vec::new(),
-            usages: Vec::new(),
-        };
-        Self { pc, pass1, result }
+        let resources = Vec::new();
+        let binds = Vec::new();
+        Self {
+            pc,
+            pass1,
+            resources,
+            binds,
+        }
     }
 
     /// Run the parser.
@@ -133,16 +140,23 @@ impl<'a> Parser<'a> {
         }
         self.inject_generated_service_clients();
 
-        let resolver =
-            UsageResolver::new(&self.pc.loader, &self.result.resources, &self.result.binds);
+        let binds = resolve_binds(self.binds)?;
+        let resolver = UsageResolver::new(&self.pc.loader, &self.resources, &binds);
+        let mut usages = Vec::new();
 
         for module in self.pc.loader.modules() {
             let exprs = resolver.scan_usage_exprs(&module)?;
-            let usages = resolver.resolve_usage(&exprs)?;
-            self.result.usages.extend(usages);
+            let u = resolver.resolve_usage(&exprs)?;
+            usages.extend(u);
         }
 
-        Ok(self.result)
+        let result = ParseResult {
+            resources: self.resources,
+            binds,
+            usages,
+        };
+
+        Ok(result)
     }
 
     /// Parse a single root directory.
@@ -151,8 +165,8 @@ impl<'a> Parser<'a> {
         scan(loader, root, |m| {
             let (resources, binds) = self.pass1.parse(m)?;
 
-            self.result.resources.extend(resources);
-            self.result.binds.extend(binds.clone());
+            self.resources.extend(resources);
+            self.binds.extend(binds);
             Ok(())
         })
     }
@@ -160,7 +174,7 @@ impl<'a> Parser<'a> {
     fn inject_generated_service_clients(&mut self) {
         // Find the services we have
         let mut services = HashSet::new();
-        for res in &self.result.resources {
+        for res in &self.resources {
             if let Resource::APIEndpoint(ep) = res {
                 services.insert(ep.service_name.clone());
             }
@@ -172,19 +186,64 @@ impl<'a> Parser<'a> {
                 service_name: service_name.clone(),
             });
             let resource = Resource::ServiceClient(client.clone());
-            self.result.resources.push(resource.clone());
+            self.resources.push(resource.clone());
 
             let id = self.pass1.alloc_bind_id();
-            self.result.binds.push(Lrc::new(Bind {
+            self.binds.push(UnresolvedBind {
                 id,
                 name: Some(service_name),
                 object: None,
                 kind: BindKind::Create,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 range: None,
                 internal_bound_id: None,
                 module_id: module.id,
-            }));
+            });
         }
     }
+}
+
+fn resolve_binds(binds: Vec<UnresolvedBind>) -> Result<Vec<Lrc<Bind>>> {
+    // Collect the resources we support by path.
+    let resource_paths = binds
+        .iter()
+        .filter_map(|b| match &b.resource {
+            ResourceOrPath::Resource(res) => match res {
+                Resource::SQLDatabase(db) => Some((
+                    ResourcePath::SQLDatabase {
+                        name: db.name.clone(),
+                    },
+                    res.clone(),
+                )),
+                _ => None,
+            },
+            ResourceOrPath::Path(_) => None,
+        })
+        .collect::<HashMap<ResourcePath, Resource>>();
+
+    let mut result = Vec::with_capacity(binds.len());
+    for b in binds {
+        let resource = match b.resource {
+            ResourceOrPath::Resource(res) => res,
+            ResourceOrPath::Path(path) => {
+                let res = resource_paths
+                    .get(&path)
+                    .ok_or_else(|| anyhow::anyhow!("resource not found: {:?}", path))?;
+                res.clone()
+            }
+        };
+
+        result.push(Lrc::new(Bind {
+            id: b.id,
+            range: b.range,
+            resource,
+            kind: b.kind,
+            module_id: b.module_id,
+            name: b.name,
+            object: b.object,
+            internal_bound_id: b.internal_bound_id,
+        }));
+    }
+
+    Ok(result)
 }

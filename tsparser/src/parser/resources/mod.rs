@@ -27,6 +27,11 @@ pub enum Resource {
     Secret(Lrc<infra::secret::Secret>),
 }
 
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
+pub enum ResourcePath {
+    SQLDatabase { name: String },
+}
+
 impl Display for Resource {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
