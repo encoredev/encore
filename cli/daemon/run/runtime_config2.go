@@ -679,15 +679,16 @@ func (g *RuntimeConfigGenerator) ProcEnvs(proc *ProcConfig, useRuntimeConfigV2 b
 
 func (g *RuntimeConfigGenerator) MissingSecrets() []string {
 	var missing []string
-	svcNames := fns.Map(g.md.Svcs, func(svc *meta.Service) string { return svc.Name })
-	secretNames := secretsUsedByServices(g.md, svcNames...)
-	for name := range g.DefinedSecrets {
-		if !secretNames[name] {
-			missing = append(missing, name)
+	for _, pkg := range g.md.Pkgs {
+		for _, name := range pkg.Secrets {
+			if _, ok := g.DefinedSecrets[name]; !ok {
+				missing = append(missing, name)
+			}
 		}
 	}
 
 	sort.Strings(missing)
+	missing = slices.Compact(missing)
 	return missing
 }
 
