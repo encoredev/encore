@@ -6,15 +6,15 @@ use anyhow::Context;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
-use crate::api::gateway::{Gateway, Route};
+use crate::api::gateway::Gateway;
 use crate::api::http_server::HttpServer;
 use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
 use crate::api::schema::encoding::EncodingConfig;
 use crate::api::schema::JSONPayload;
 use crate::api::{
-    auth, cors, encore_routes, endpoints_from_meta, gateway, jsonschema, paths, reqauth, server,
-    APIResult, Endpoint, IntoResponse,
+    auth, cors, encore_routes, endpoints_from_meta, jsonschema, paths, reqauth, server, APIResult,
+    Endpoint, IntoResponse,
 };
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
