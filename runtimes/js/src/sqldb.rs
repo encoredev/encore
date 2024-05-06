@@ -8,8 +8,8 @@ use std::sync::{Arc, OnceLock};
 
 #[napi]
 pub struct SQLDatabase {
-    db: Arc<sqldb::Database>,
-    pool: OnceLock<Marc<sqldb::Pool>>,
+    db: Arc<dyn sqldb::Database>,
+    pool: OnceLock<Marc<napi::Result<sqldb::Pool>>>,
 }
 
 #[napi]
@@ -87,7 +87,7 @@ impl QueryArgs {
 
 #[napi]
 impl SQLDatabase {
-    pub(crate) fn new(db: Arc<sqldb::Database>) -> Self {
+    pub(crate) fn new(db: Arc<dyn sqldb::Database>) -> Self {
         Self {
             db,
             pool: OnceLock::new(),
@@ -96,8 +96,10 @@ impl SQLDatabase {
 
     /// Reports the connection string to connect to this database.
     #[napi]
-    pub fn conn_string(&self) -> &str {
-        self.db.proxy_conn_string()
+    pub fn conn_string(&self) -> napi::Result<&str> {
+        self.db
+            .proxy_conn_string()
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e))
     }
 
     #[napi]
@@ -110,7 +112,7 @@ impl SQLDatabase {
         let values: Vec<_> = args.values.lock().unwrap().drain(..).collect();
         let source = source.map(|s| s.inner.as_ref());
         let stream = self
-            .pool()
+            .pool()?
             .query_raw(&query, values, source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
@@ -129,7 +131,7 @@ impl SQLDatabase {
         let values: Vec<_> = args.values.lock().unwrap().drain(..).collect();
         let source = source.map(|s| s.inner.as_ref());
         let mut stream = self
-            .pool()
+            .pool()?
             .query_raw(&query, values, source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
@@ -141,12 +143,21 @@ impl SQLDatabase {
         Ok(row.map(|row| Row { row }))
     }
 
-    fn pool(&self) -> &sqldb::Pool {
-        self.pool_marc().as_ref()
+    fn pool(&self) -> napi::Result<&sqldb::Pool> {
+        match self.pool_marc().as_ref() {
+            Ok(pool) => Ok(pool),
+            Err(e) => Err(e.clone()),
+        }
     }
 
-    fn pool_marc(&self) -> &Marc<sqldb::Pool> {
-        self.pool.get_or_init(|| Marc::new(self.db.new_pool()))
+    fn pool_marc(&self) -> &Marc<napi::Result<sqldb::Pool>> {
+        self.pool.get_or_init(|| {
+            let pool = self
+                .db
+                .new_pool()
+                .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e));
+            Marc::new(pool)
+        })
     }
 }
 

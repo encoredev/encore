@@ -12,7 +12,7 @@ use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::api::schema::Method;
-use crate::api::{auth, path_supports_tsr, schema, APIResult, IntoResponse};
+use crate::api::{auth, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
 
 mod reverseproxy;
@@ -65,7 +65,7 @@ impl Gateway {
             auth: auth_handler,
         });
 
-        let mut register_routes =
+        let register_routes =
             |paths: HashMap<EncoreName, Vec<(Arc<api::Endpoint>, Vec<String>)>>,
              mut router: axum::Router|
              -> anyhow::Result<axum::Router> {

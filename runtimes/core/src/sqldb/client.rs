@@ -19,21 +19,27 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub fn new(db: &sqldb::Database, tracer: Tracer) -> Self {
-        let tls = db.tls().clone();
-        let mgr = Mgr::new(db.config().clone(), tls);
+    pub fn new<DB: sqldb::Database>(db: &DB, tracer: Tracer) -> anyhow::Result<Self> {
+        let tls = db.tls()?.clone();
+        let mgr = Mgr::new(db.config()?.clone(), tls);
+
+        let pool_cfg = db.pool_config()?;
         let mut pool = bb8::Pool::builder()
             .error_sink(Box::new(RustLoggerSink {
                 db_name: db.name().to_string(),
             }))
-            .max_size(if db.max_conns > 0 { db.max_conns } else { 30 });
+            .max_size(if pool_cfg.max_conns > 0 {
+                pool_cfg.max_conns
+            } else {
+                30
+            });
 
-        if db.min_conns > 0 {
-            pool = pool.min_idle(Some(db.min_conns));
+        if pool_cfg.min_conns > 0 {
+            pool = pool.min_idle(Some(pool_cfg.min_conns));
         }
 
         let pool = pool.build_unchecked(mgr);
-        Self { pool, tracer }
+        Ok(Self { pool, tracer })
     }
 }
 
