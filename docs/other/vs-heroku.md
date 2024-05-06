@@ -28,7 +28,7 @@ Let's take a look at how Encore compares to PaaS tools like Heroku:
 
 With Encore you don't need to be a cloud expert to make full use of the services offered by major cloud providers like AWS and GCP.
 
-You simply use Encore's [Infrastructure SDK](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
+You simply use Encore's [Backend SDK](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
 
 You get the same, easy to use, "push to deploy" workflow that many developers appreciate with Heroku, while still being able to build large-scale distributed systems and event-driven applications deployed to AWS and GCP.
 
@@ -67,4 +67,4 @@ Encore does a lot more than just automate infrastructure provisioning and config
 - Automatic least privilege IAM
 - Preview Environments per Pull Request
 - Cost Analytics Dashboard
-- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Infrastructure SDK
+- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Backend SDK
