@@ -4,7 +4,7 @@ use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{describe_auth_handler, AuthHandlerEncoding};
@@ -69,7 +69,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
                 range: r.range,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
                 ident: Some(r.bind_name),
