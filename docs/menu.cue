@@ -405,8 +405,7 @@
 		text: "Back to Main Menu"
 		path: "/docs"
 	}
-	items: [
-		{
+	items: [{
 		kind: "section"
 		text: "Concepts"
 		items: [{
@@ -420,7 +419,7 @@
 			path: "/ts/concepts/hello-world"
 			file: "ts/concepts/hello-world"
 		}]
-		},{
+	}, {
 		kind: "section"
 		text: "Infrastructure"
 		items: [{
