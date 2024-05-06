@@ -489,6 +489,15 @@
 			path: "/ts/develop/testing"
 			file: "ts/develop/testing"
 		}]
+	},{
+		kind: "section"
+		text: "How to guides"
+		items: [{
+			kind: "basic"
+			text: "Use Vercel for frontend hosting"
+			path: "/ts/how-to/vercel"
+			file: "how-to/vercel"
+		}]
 	}]
 }
 
