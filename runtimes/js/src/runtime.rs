@@ -63,14 +63,10 @@ impl Runtime {
     }
 
     #[napi]
-    pub fn sql_database(&self, encore_name: String) -> napi::Result<SQLDatabase> {
+    pub fn sql_database(&self, encore_name: String) -> SQLDatabase {
         let encore_name: encore_runtime_core::EncoreName = encore_name.into();
-        let db = self
-            .runtime
-            .sqldb()
-            .database(&encore_name)
-            .ok_or_else(|| Error::new(Status::GenericFailure, "database not found"))?;
-        Ok(SQLDatabase::new(db))
+        let db = self.runtime.sqldb().database(&encore_name);
+        SQLDatabase::new(db)
     }
 
     #[napi]

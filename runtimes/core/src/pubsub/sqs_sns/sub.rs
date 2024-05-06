@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use aws_sdk_sqs::types::MessageSystemAttributeName;
-use prost::Message;
 use serde::Deserialize;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Retry};
