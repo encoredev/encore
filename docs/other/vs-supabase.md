@@ -32,11 +32,11 @@ Let's take a look at how Encore compares to BaaS platforms like Supabase and Fir
 
 With Encore you don't need to be a cloud expert to make full use of the services offered by major cloud providers like AWS and GCP.
 
-You simply use Encore's [Infrastructure SDK](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
+You simply use Encore's [Backend SDK](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
 
 ### Example: Using PostgreSQL with Encore
 
-Here's an example of how to use Encore's [Infrastructure SDK](/docs/primitives) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
+Here's an example of how to use Encore's [Backend SDK](/docs/primitives) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
 
 To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
 Databases must be created from within an [Encore service](/docs/primitives/services-and-apis).
@@ -77,7 +77,7 @@ Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support f
 
 For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
 
-With Encore's [Infrastructure SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
+With Encore's [Backend SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
 
 ## Encore's local development workflow lets application developers focus
@@ -115,4 +115,4 @@ Encore does a lot more than just automate infrastructure provisioning and config
 - Automatic least privilege IAM
 - Preview Environments per Pull Request
 - Cost Analytics Dashboard
-- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Infrastructure SDK
+- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Backend SDK

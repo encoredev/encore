@@ -31,7 +31,7 @@ When you use IaC you also end up with a separate codebase to maintain and keep i
 
 **Encore's _infrastructure from code_ approach means there are no configuration files to maintain**, nor any refactoring to do when changing the underlying infrastructure. Your application code is the source of truth for the semantic infrastructure requirements.
 
-In practise, you use Encore's [Infrastructure SDK](/docs/primitives/overview) to declare infrastructure as type-safe objects in your application code, and **Encore [automatically provisions the necessary infrastructure](/docs/deploy/infra) in all environments.** Including in your own cloud, with support for major cloud providers like AWS/GCP. (This also means your application is cloud-agnostic by default and **you avoid cloud lock-in**.)
+In practise, you use Encore's [Backend SDK](/docs/primitives/overview) to declare infrastructure as type-safe objects in your application code, and **Encore [automatically provisions the necessary infrastructure](/docs/deploy/infra) in all environments.** Including in your own cloud, with support for major cloud providers like AWS/GCP. (This also means your application is cloud-agnostic by default and **you avoid cloud lock-in**.)
 
 ## Encore's local development workflow lets application developers focus
 
@@ -74,4 +74,4 @@ Encore does a lot more than just automate infrastructure provisioning and config
 - Automatic least privilege IAM
 - Preview Environments per Pull Request
 - Cost Analytics Dashboard
-- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Infrastructure SDK
+- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Backend SDK

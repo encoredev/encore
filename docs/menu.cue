@@ -407,6 +407,20 @@
 	}
 	items: [{
 		kind: "section"
+		text: "Concepts"
+		items: [{
+			kind: "basic"
+			text: "Benefits"
+			path: "/ts/concepts/benefits"
+			file: "ts/concepts/benefits"
+		}, {
+			kind: "basic"
+			text: "Hello World"
+			path: "/ts/concepts/hello-world"
+			file: "ts/concepts/hello-world"
+		}]
+	}, {
+		kind: "section"
 		text: "Infrastructure"
 		items: [{
 			kind: "basic"
