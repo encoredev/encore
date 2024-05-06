@@ -5,7 +5,7 @@ title: Kubernetes deployment
 subtitle: Deploying your app to a new Kubernetes cluster
 ---
 
-When you build your app using Encore's [Infrastructure SDK](/docs/primitives), you can deploy the same code to many different types of [cloud infrastructure](/docs/deploy/infra). Encore will automatically handle provisioning different infrastructure for each environment — depending on your goals. Configuring what type of compute platform you want is done through the [Cloud Dashboard](https://app.encore.dev) rather than in the application code.
+When you build your app using Encore's [Backend SDK](/docs/primitives), you can deploy the same code to many different types of [cloud infrastructure](/docs/deploy/infra). Encore will automatically handle provisioning different infrastructure for each environment — depending on your goals. Configuring what type of compute platform you want is done through the [Cloud Dashboard](https://app.encore.dev) rather than in the application code.
 
 If you already have a Kubernetes cluster, you may want to deploy your Encore application into this pre-existing cluster. [See the docs](/docs/how-to/import-kubernetes-cluster) for how to do this.
 

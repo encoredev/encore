@@ -5,7 +5,7 @@ title: TypeScript (Preview)
 subtitle: Your feedback is welcome!
 lang: ts
 ---
-_This section shows how Encore's upcoming TypeScript support is intended to work and focuses only on TypeScript specifics. It does not contain full documentation on all Encore features. Please use [the complete Go docs](/docs) as a reference point for how Encore works generally._
+_This document is deprecated. Please refer to the [the complete TypeScript SDK docs](/docs/ts)._
 
 ## Example backend application
 
@@ -164,7 +164,7 @@ This comes with several, substantial benefits over traditional Infrastructure as
   Encore automatically provisions your local, preview, and cloud environments (using your own cloud account).
 
 * **Cloud-agnostic by default**:
-  The Infrastructure SDK is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
+  The Backend SDK is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
  
 * **Evolve infrastructure without code changes**:
   As your requirements evolve, you can change and configure the provisioned infrastructure by using Encore's Cloud Dashboard or your cloud provider's console.
