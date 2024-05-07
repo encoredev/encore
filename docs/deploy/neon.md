@@ -68,5 +68,12 @@ You can edit the endpoint to set the CPU limits and the suspend timeout. The sus
 before suspending the compute when it's not in use. The default is 5 minutes, but you can increase this to up to a week 
 (depending on your Neon plan).
 
-## Use Neon for PR environments
-Neon is not yet supported for PR environments, but we're working on it.
+## Use Neon for PR environments 
+Neon is a great choice for [PR environments](/deploy/preview-environments) as it allows you to branch off a populated 
+database and test your changes in isolation.  
+
+To configure which branch to use for PR environments, head to 
+Encore's Cloud Dashboard > (Select your app) > App Settings > Preview Environments 
+and select the environment with the database you want to branch from. Hit save and you're all done.
+
+<img src="/assets/docs/pr-neon.png" title="Use Neon for PR environments" className="mx-auto"/>
