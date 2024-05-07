@@ -687,6 +687,11 @@
 			file: "how-to/temporal"
 		}, {
 			kind: "basic"
+			text: "Self-host Encore applications"
+			path: "/how-to/self-host"
+			file: "how-to/self-host"
+		}, {
+			kind: "basic"
 			text: "Submit a Template"
 			path: "/how-to/submit-template"
 			file: "how-to/submit-template"
