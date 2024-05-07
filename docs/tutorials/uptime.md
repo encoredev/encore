@@ -525,6 +525,65 @@ Cron jobs are not triggered when running the application locally but work when d
 
 </Callout>
 
+The frontend needs a way to list all sites and display if they are up or down.
+
+🥐 Add a file in the `monitor` service and name it `status.go`. Add the following code:
+
+```go
+-- monitor/status.go --
+package monitor
+
+import (
+	"context"
+	"time"
+)
+
+// SiteStatus describes the current status of a site
+// and when it was last checked.
+type SiteStatus struct {
+	Up        bool      `json:"up"`
+	CheckedAt time.Time `json:"checked_at"`
+}
+
+// StatusResponse is the response type from the Status endpoint.
+type StatusResponse struct {
+	// Sites contains the current status of all sites,
+	// keyed by the site ID.
+	Sites map[int]SiteStatus `json:"sites"`
+}
+
+// Status checks the current up/down status of all monitored sites.
+//
+//encore:api public method=GET path=/status
+func Status(ctx context.Context) (*StatusResponse, error) {
+	rows, err := db.Query(ctx, `
+		SELECT DISTINCT ON (site_id) site_id, up, checked_at
+		FROM checks
+		ORDER BY site_id, checked_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[int]SiteStatus)
+	for rows.Next() {
+		var siteID int
+		var status SiteStatus
+		if err := rows.Scan(&siteID, &status.Up, &status.CheckedAt); err != nil {
+			return nil, err
+		}
+		result[siteID] = status
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return &StatusResponse{Sites: result}, nil
+}
+```
+
+Now try visiting http://localhost:4000/frontend in your browser again. This time you should see a working frontend that lists all sites and their current status.
+
 ## 5. Deploy to Encore's development cloud
 
 To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
@@ -589,8 +648,11 @@ state differs from the previous measurement.
 
 ```go
 -- monitor/alerts.go --
-import "encore.dev/storage/sqldb"
-
+import (
+	"encore.dev/storage/sqldb"
+	"errors"
+	"context"
+)
 // getPreviousMeasurement reports whether the given site was
 // up or down in the previous measurement.
 func getPreviousMeasurement(ctx context.Context, siteID int) (up bool, err error) {
@@ -650,7 +712,7 @@ func check(ctx context.Context, site *site.Site) error {
 		return err
 	}
 
-	_, err = sqldb.Exec(ctx, `
+	_, err = db.Exec(ctx, `
 		INSERT INTO checks (site_id, up, checked_at)
 		VALUES ($1, $2, NOW())
 	`, site.ID, result.Up)
