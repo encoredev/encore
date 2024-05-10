@@ -9,6 +9,7 @@ import (
 	"github.com/rs/xid"
 )
 
+//publicapigen:drop
 func (mgr *Manager) NewTestDatabase(ctx context.Context, name string) (*Database, error) {
 	db := mgr.GetDB(name)
 	if db.noopDB {

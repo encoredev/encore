@@ -10,6 +10,7 @@ import (
 // MockOption is a function that can be passed to MockEndpoint or MockService to configure the mocking behavior.
 type MockOption func(*mockOptions)
 
+//publicapigen:keep
 type mockOptions struct {
 	runMiddleware bool
 }
