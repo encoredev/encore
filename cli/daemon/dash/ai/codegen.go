@@ -385,6 +385,8 @@ func updateCode(ctx context.Context, services []Service, app *apps.Instance, ove
 		}
 	}
 	goRoot := paths.RootedFSPath(env.EncoreGoRoot(), ".")
+
+	// Parse the end result to catch any syntax errors
 	pkginfo.UpdateGoPath(goRoot)
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedTypes | packages.NeedSyntax,
@@ -403,6 +405,10 @@ func updateCode(ctx context.Context, services []Service, app *apps.Instance, ove
 	}
 	for _, pkg := range pkgs {
 		for _, err := range pkg.Errors {
+			// ignore missing function bodies error (it's allowed)
+			if strings.Contains(err.Error(), "missing function body") {
+				continue
+			}
 			perrs.AddStd(err)
 		}
 	}
