@@ -7,11 +7,11 @@ seodesc: Learn how to migrate your Go backend application to Encore, and unlock 
 
 Encore features like [automatic infrastructure provisioning](/docs/deploy/infra), [distributed tracing](/docs/observability/tracing), [architecture diagrams](/docs/observability/encore-flow), and [API documentation](/docs/develop/api-docs), rely on the [Encore application model](/docs/introduction#meet-the-encore-application-model).
 
-Building your backend using Encore's [API framework](/docs/primitives/services-and-apis) and declarative [Infrastructure SDK](/docs/primitives/overview) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
+Building your backend using Encore's declarative [Backend SDK](/docs/primitives/overview) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
 
 ## Get help with adopting Encore
 
-If you'd like to ask questions or get hands on advice about how to approach adopting Encore, we're happy to chat through your use case in a call. You can also [join Slack](https://encore.dev/slack) to ask questions and meet fellow Encore developers.
+If you'd like to ask questions or get hands on advice about how to approach adopting Encore, we're happy to chat through your use case in a call. You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
 <a href="/book">
     <Button className="mt-4" kind="primary" section="white">Book call</Button>
 </a>
@@ -34,7 +34,7 @@ Once you've created you app, [integrate it with your GitHub repository](/docs/ho
 
 Once you've created your app, it's time to start building. If you're new to Encore, we recommend trying out some of the [tutorials](/docs/tutorials).
 
-If you need help or have questions, join the friendly developer community on [Slack](https://encore.dev/slack).
+If you need help or have questions, join the friendly developer community on [Discord](https://encore.dev/discord).
 
 #### Design your APIs
 
@@ -117,8 +117,8 @@ As you run your app locally, using `encore run`, Encore will parse and compile i
 
 By iteratively making adjustments, you should relatively quickly be able to get your application up and running with Encore.
 
-If you need help or have questions, join the developer community on [Slack](https://encore.dev/slack) or send an email to [help@encore.dev](mailto:help@encore.dev).
+If you need help or have questions, join the developer community on [Discord](https://encore.dev/discord) or send an email to [help@encore.dev](mailto:help@encore.dev).
 
-### Incrementally start using the Encore infrastructure SDK
+### Incrementally start using the Encore Backend SDK
 
-Once your application is deployed, gradually break out specific endpoints using Encore's [API framework](/docs/primitives/services-and-apis) and introduce infrastructure declarations using Encore's [Infrastructure SDK](/docs/primitives/overview). This will let Encore understand your application and unlock all Encore features.
+Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/primitives/services-and-apis) and introduce infrastructure declarations using the [Backend SDK](/docs/primitives/overview). This will let Encore understand your application and unlock all Encore features.

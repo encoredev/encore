@@ -6,7 +6,7 @@ use swc_ecma_ast as ast;
 
 use litparser::LitParser;
 
-use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
@@ -28,6 +28,7 @@ pub struct SubscriptionConfig {
     pub min_retry_backoff: std::time::Duration,
     pub max_retry_backoff: std::time::Duration,
     pub max_retries: u32,
+    pub max_concurrency: Option<u32>,
 }
 
 #[allow(non_snake_case)]
@@ -111,12 +112,13 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                         .as_ref()
                         .and_then(|p| p.maxRetries)
                         .unwrap_or(100),
+                    max_concurrency: r.config.maxConcurrency,
                 },
             }));
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
                 range: r.range,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,

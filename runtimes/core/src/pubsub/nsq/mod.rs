@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub;
 use crate::pubsub::nsq::sub::NsqSubscription;
@@ -28,7 +29,8 @@ impl pubsub::Cluster for Cluster {
     fn subscription(
         &self,
         cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
     ) -> Arc<dyn pubsub::Subscription + 'static> {
-        return Arc::new(NsqSubscription::new(self.address.clone(), cfg));
+        return Arc::new(NsqSubscription::new(self.address.clone(), cfg, meta));
     }
 }

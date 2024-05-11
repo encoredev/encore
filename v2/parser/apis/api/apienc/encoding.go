@@ -13,7 +13,7 @@ import (
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/authhandler"
-	"encr.dev/v2/parser/apis/internal/directive"
+	"encr.dev/v2/parser/apis/directive"
 )
 
 // WireLoc is the location of a parameter in the HTTP request/response.
@@ -127,6 +127,10 @@ type ResponseEncoding struct {
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 }
 
+func (r *ResponseEncoding) AllParameters() []*ParameterEncoding {
+	return append(r.HeaderParameters, r.BodyParameters...)
+}
+
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
 type RequestEncoding struct {
 	// The HTTP methods this encoding can be used for
@@ -135,6 +139,10 @@ type RequestEncoding struct {
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
+}
+
+func (r *RequestEncoding) AllParameters() []*ParameterEncoding {
+	return append(append(r.HeaderParameters, r.QueryParameters...), r.BodyParameters...)
 }
 
 // ParameterEncoding expresses how a parameter should be encoded on the wire

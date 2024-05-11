@@ -1,0 +1,12 @@
+---
+source: runtimes/core/src/api/paths.rs
+expression: paths
+---
+main:
+  a:
+    - - one
+      - - /foo/
+  b:
+    - - two
+      - - /foo
+fallback: {}

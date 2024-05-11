@@ -26,37 +26,44 @@ func Register(i Initializer) {
 
 // Get returns the API Decl, initializing it if necessary.
 func (g *Decl[T]) Get() (*T, error) {
-	if Singleton.static.Testing && Singleton.testMgr.GetIsolatedServices() {
-		testData := Singleton.rt.Current().Req.Test
-
-		// Get the instance holder while under lock, but then
-		// unlock the mutex before calling doSetupService - as if the service
-		// init calls another service which we need to initialize, we would
-		// otherwise deadlock.
-		testData.ServiceInstancesMu.Lock()
-		holderAny, ok := testData.ServiceInstances[g.Service]
-		if !ok {
-			holderAny = &InstanceHolder[T]{}
-			testData.ServiceInstances[g.Service] = holderAny
-		}
-		testData.ServiceInstancesMu.Unlock()
-
-		// This is a bit of a hack, but we need to cast the holder to the
-		// correct type as the TestData struct is in our model package, which
-		// we don't want to introduce complex types to
-		holder, ok := holderAny.(*InstanceHolder[T])
-		if !ok {
-			var zero *InstanceHolder[T]
-			return nil, fmt.Errorf("failed to cast service instance holder to correct type for service %s. Found %T expected %T", g.Name, holderAny, zero)
-		}
-		err := holder.setupOnce.Do(func() error {
-			return doSetupService(Singleton, g, holder)
-		})
-		if err != nil {
-			return nil, err
+	if Singleton.static.Testing {
+		// Do we have a mock registered?
+		if mock, ok := Singleton.testMgr.GetServiceMock(g.Service); ok {
+			return mock.Service.(*T), nil
 		}
 
-		return holder.instance, nil
+		if Singleton.testMgr.GetIsolatedServices() {
+			testData := Singleton.rt.Current().Req.Test
+
+			// Get the instance holder while under lock, but then
+			// unlock the mutex before calling doSetupService - as if the service
+			// init calls another service which we need to initialize, we would
+			// otherwise deadlock.
+			testData.ServiceInstancesMu.Lock()
+			holderAny, ok := testData.ServiceInstances[g.Service]
+			if !ok {
+				holderAny = &InstanceHolder[T]{}
+				testData.ServiceInstances[g.Service] = holderAny
+			}
+			testData.ServiceInstancesMu.Unlock()
+
+			// This is a bit of a hack, but we need to cast the holder to the
+			// correct type as the TestData struct is in our model package, which
+			// we don't want to introduce complex types to
+			holder, ok := holderAny.(*InstanceHolder[T])
+			if !ok {
+				var zero *InstanceHolder[T]
+				return nil, fmt.Errorf("failed to cast service instance holder to correct type for service %s. Found %T expected %T", g.Name, holderAny, zero)
+			}
+			err := holder.setupOnce.Do(func() error {
+				return doSetupService(Singleton, g, holder)
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			return holder.instance, nil
+		}
 	}
 
 	err := g.InitService()

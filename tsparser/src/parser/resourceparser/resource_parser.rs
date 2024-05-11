@@ -87,20 +87,12 @@ impl<'a> ResourceParserRegistry<'a> {
 
 #[cfg(test)]
 mod tests {
-    use swc_common::sync::Lrc;
 
-    use crate::parser::parser::ParseContext;
     use crate::parser::resources::apis::api::ENDPOINT_PARSER;
-    use crate::parser::FilePath;
+
+    use crate::testutil::testparse::test_parse;
 
     use super::*;
-
-    fn parse(src: &str) -> Lrc<Module> {
-        let mut pc: ParseContext = Default::default();
-        pc.loader
-            .inject_file(FilePath::Real("test.ts".into()), src)
-            .unwrap()
-    }
 
     #[test]
     fn test_parser_registry() {
@@ -108,7 +100,7 @@ mod tests {
 
         // Should return the parser when the import path matches.
         {
-            let res = parse("import { APIEndpoint } from 'encore.dev/api';");
+            let res = test_parse("import { APIEndpoint } from 'encore.dev/api';");
             let got = registry.interested_parsers(&res);
             let want = vec![&ENDPOINT_PARSER];
             assert_eq!(got, want);
@@ -116,7 +108,7 @@ mod tests {
 
         // Should also work for wildcard imports.
         {
-            let res = parse("import * as foo from 'encore.dev/api';");
+            let res = test_parse("import * as foo from 'encore.dev/api';");
             let got = registry.interested_parsers(&res);
             let want = vec![&ENDPOINT_PARSER];
             assert_eq!(got, want);
@@ -124,7 +116,7 @@ mod tests {
 
         // Should be empty otherwise.
         {
-            let res = parse("import { APIEndpoint } from 'encore.dev/api2';");
+            let res = test_parse("import { APIEndpoint } from 'encore.dev/api2';");
             let got = registry.interested_parsers(&res);
             let want: Vec<&ResourceParser> = vec![];
             assert_eq!(got, want);

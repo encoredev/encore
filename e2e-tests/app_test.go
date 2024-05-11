@@ -36,6 +36,7 @@ import (
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	"encr.dev/v2/v2builder"
 )
 
 type RunAppData struct {
@@ -80,6 +81,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		App:             app,
 		ResourceManager: rm,
 		Mgr:             mgr,
+		Builder:         v2builder.BuilderImpl{},
 	}
 
 	parse, build, configs := testBuild(c, appRoot, env)
@@ -165,12 +167,14 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 	// since we use a persistent working directory based on the app id.
 	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
 	err := mgr.Test(ctx, TestParams{
-		App:        app,
-		WorkingDir: ".",
-		Args:       []string{"./..."},
-		Environ:    environ,
-		Stdout:     stdout,
-		Stderr:     stderr,
+		TestSpecParams: &TestSpecParams{
+			App:        app,
+			WorkingDir: ".",
+			Args:       []string{"./..."},
+			Environ:    environ,
+		},
+		Stdout: stdout,
+		Stderr: stderr,
 	})
 	return err
 }
@@ -208,7 +212,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		t.Fatal(err)
 	}
 
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve("", expSet)
 	defer fns.CloseIgnore(bld)
 	ctx := context.Background()
 

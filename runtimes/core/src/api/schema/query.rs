@@ -1,5 +1,5 @@
 use crate::api;
-use crate::api::schema::{HTTPHeaders, JSONPayload, ToOutgoingRequest};
+use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{jsonschema, APIResult};
 use serde::de::DeserializeSeed;
 use serde::Serialize;
@@ -45,8 +45,9 @@ impl Query {
         }
 
         let parsed = form_urlencoded::parse(query);
-        for (key, _) in parsed {
-            if schema.contains_name(key.as_ref()) {
+        for (key, val) in parsed {
+            // Only consider non-empty values to be present.
+            if !val.is_empty() && schema.contains_name(key.as_ref()) {
                 return true;
             }
         }

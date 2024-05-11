@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"io"
+	"io/fs"
+	"os"
 	"runtime/trace"
 	"strings"
 	"time"
@@ -12,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/experiments"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/perr"
@@ -43,6 +47,68 @@ type Context struct {
 
 	// Errs contains encountered errors.
 	Errs *perr.List
+
+	// Overlay is an optional replacement for reading files using the os pkg.
+	// If unset, os is used instead.
+	Overlay OverlaidOSFS
+}
+
+func (c *Context) ReadFile(dir string) ([]byte, error) {
+	if c.Overlay == nil {
+		return os.ReadFile(dir)
+	}
+	return c.Overlay.ReadFile(dir)
+}
+
+func (c *Context) ReadDir(dir string) ([]fs.DirEntry, error) {
+	if c.Overlay == nil {
+		return os.ReadDir(dir)
+	}
+	return c.Overlay.ReadDir(dir)
+}
+
+func (c *Context) ReadFileInfo(dir string) ([]fs.FileInfo, error) {
+	entries, err := c.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	return fns.MapErr(entries, func(entry fs.DirEntry) (fs.FileInfo, error) {
+		return entry.Info()
+	})
+}
+
+func (c *Context) IsDir(path string) bool {
+	stat := os.Stat
+	if c.Overlay != nil {
+		stat = c.Overlay.Stat
+	}
+	fi, err := stat(path)
+	return err == nil && fi.IsDir()
+}
+
+func (c *Context) OpenFile(file string) (io.ReadCloser, error) {
+	if c.Overlay == nil {
+		return os.Open(file)
+	}
+	return c.Overlay.Open(file)
+}
+
+func (c *Context) PkgOverlay() map[string][]byte {
+	if c.Overlay == nil {
+		return nil
+	}
+	return c.Overlay.PkgOverlay()
+}
+
+// OverlaidOSFS is an interface that allows overlaying the os package with custom implementations.
+// This is used to allow for e.g. in-memory files. The name parameters are os paths, like the
+// corresponding methods in the os package.
+type OverlaidOSFS interface {
+	ReadDir(name string) ([]os.DirEntry, error)
+	ReadFile(name string) ([]byte, error)
+	Stat(name string) (os.FileInfo, error)
+	Open(name string) (io.ReadCloser, error)
+	PkgOverlay() map[string][]byte
 }
 
 // BuildInfo represents the information needed to parse and build an Encore application.

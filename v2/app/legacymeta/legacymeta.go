@@ -61,6 +61,7 @@ func (b *builder) Build() *meta.Data {
 		AppRevision:        b.app.BuildInfo.Revision,
 		UncommittedChanges: b.app.BuildInfo.UncommittedChanges,
 		Experiments:        b.app.BuildInfo.Experiments.StringList(),
+		Language:           meta.Lang_GO,
 	}
 	md := b.md
 
@@ -440,6 +441,7 @@ func (b *builder) Build() *meta.Data {
 				ServiceName:      svc.Name,
 				AckDeadline:      r.Cfg.AckDeadline.Nanoseconds(),
 				MessageRetention: r.Cfg.MessageRetention.Nanoseconds(),
+				MaxConcurrency:   zeroNil(int32(r.Cfg.MaxConcurrency)),
 				RetryPolicy: &meta.PubSubTopic_RetryPolicy{
 					MinBackoff: r.Cfg.MinRetryBackoff.Nanoseconds(),
 					MaxBackoff: r.Cfg.MaxRetryBackoff.Nanoseconds(),

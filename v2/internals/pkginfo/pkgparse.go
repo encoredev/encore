@@ -7,7 +7,6 @@ import (
 	goparser "go/parser"
 	"go/token"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -100,7 +99,7 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 // parseAST is like go/parser.ParseDir but it constructs *File objects instead.
 func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 	dir := s.dir.ToIO()
-	entries, err := os.ReadDir(dir)
+	entries, err := l.c.ReadDir(dir)
 	if err != nil {
 		l.c.Errs.Addf(s.cause, "parse package %q: %v", s.path, err)
 		return nil, nil
@@ -154,7 +153,7 @@ func (l *Loader) parseAST(s loadPkgSpec) ([]*ast.Package, []*File) {
 			continue
 		}
 
-		reader, err := os.Open(d.ioPath)
+		reader, err := l.c.OpenFile(d.ioPath)
 		if err != nil {
 			l.c.Errs.Add(errReadingFile.InFile(d.ioPath).Wrapping(err))
 			continue

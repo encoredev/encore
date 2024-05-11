@@ -10,11 +10,14 @@ use swc_ecma_ast as ast;
 use litparser::LitParser;
 use litparser::LocalRelPath;
 
+use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
+use crate::parser::resources::parseutil::NamedStaticMethod;
 use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
 use crate::parser::resources::Resource;
+use crate::parser::resources::ResourcePath;
 use crate::parser::FilePath;
 
 #[derive(Debug, Clone)]
@@ -50,43 +53,68 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
         let names = TrackedNames::new(&[("encore.dev/storage/sqldb", "SQLDatabase")]);
 
         let module = pass.module.clone();
-        type Res = NamedClassResource<DecodedDatabaseConfig>;
-        for r in iter_references::<Res>(&module, &names) {
-            let r = r?;
+        {
+            type Res = NamedClassResource<DecodedDatabaseConfig>;
+            for r in iter_references::<Res>(&module, &names) {
+                let r = r?;
 
-            let migrations = match (r.config.migrations, &pass.module.file_path) {
-                (None, _) => None,
-                (_, FilePath::Custom(_)) => {
-                    anyhow::bail!("cannot use custom file path for db migrations")
-                }
-                (Some(rel), FilePath::Real(path)) => {
-                    let dir = path.parent().unwrap().join(rel.0);
-                    let migrations = parse_migrations(&dir)?;
-                    Some(DBMigrations { dir, migrations })
-                }
-            };
+                let migrations = match (r.config.migrations, &pass.module.file_path) {
+                    (None, _) => None,
+                    (_, FilePath::Custom(_)) => {
+                        anyhow::bail!("cannot use custom file path for db migrations")
+                    }
+                    (Some(rel), FilePath::Real(path)) => {
+                        let dir = path.parent().unwrap().join(rel.0);
+                        let migrations = parse_migrations(&dir)?;
+                        Some(DBMigrations { dir, migrations })
+                    }
+                };
 
-            let object = match &r.bind_name {
-                None => None,
-                Some(id) => pass
-                    .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
-            };
+                let object = match &r.bind_name {
+                    None => None,
+                    Some(id) => pass
+                        .type_checker
+                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                };
 
-            let resource = Resource::SQLDatabase(Lrc::new(SQLDatabase {
-                name: r.resource_name,
-                doc: r.doc_comment,
-                migrations,
-            }));
-            pass.add_resource(resource.clone());
-            pass.add_bind(BindData {
-                range: r.range,
-                resource,
-                object,
-                kind: BindKind::Create,
-                ident: r.bind_name,
-            });
+                let resource = Resource::SQLDatabase(Lrc::new(SQLDatabase {
+                    name: r.resource_name,
+                    doc: r.doc_comment,
+                    migrations,
+                }));
+                pass.add_resource(resource.clone());
+                pass.add_bind(BindData {
+                    range: r.range,
+                    resource: ResourceOrPath::Resource(resource),
+                    object,
+                    kind: BindKind::Create,
+                    ident: r.bind_name,
+                });
+            }
         }
+
+        {
+            for r in iter_references::<NamedStaticMethod>(&module, &names) {
+                let r = r?;
+                let object = match &r.bind_name {
+                    None => None,
+                    Some(id) => pass
+                        .type_checker
+                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                };
+
+                pass.add_bind(BindData {
+                    range: r.range,
+                    resource: ResourceOrPath::Path(ResourcePath::SQLDatabase {
+                        name: r.resource_name,
+                    }),
+                    object,
+                    kind: BindKind::Create,
+                    ident: r.bind_name,
+                });
+            }
+        }
+
         Ok(())
     },
 };

@@ -19,7 +19,7 @@ We believe that adopting Encore is a low-risk decision for several reasons:
 
 - There's no upfront work to get the benefits
 - Encore apps are normal programs where less than 5% of the code is Encore-specific
-- All infrastructure, and data, lives in your own account in AWS/GCP
+- All infrastructure, and data, lives in your own account on AWS/GCP
 - It's simple to integrate with "unsupported" cloud services and other systems
 - Key parts are Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), and [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
 
@@ -31,9 +31,9 @@ If you want to migrate away, we want to ensure this is as smooth as possible! He
 
 Building with Encore doesn't require writing your application in an Encore-specific way. Encore applications are normal programs where less than 5% of the code is specific to Encore.
 
-This means that the changes required to migrate away will be almost exactly the same work you would have needed to do if you hadn't used Encore in the first placem, e.g. writing infrastructure boilerplate. There's no added migration cost.
+This means that the changes required to migrate away will be almost exactly the same work you would have needed to do if you hadn't used Encore in the first place, e.g. writing infrastructure boilerplate. There's no added migration cost.
 
-In practise, the code specific to Encore is limited to the use of Encore's Infrastructure SDK. So if you wish to stop using Encore, you need to rework these interfaces to function in a traditional way. This normally means adding boilerplate that isn't necessary when using Encore.
+In practise, the code specific to Encore is limited to the use of Encore's Backend SDK. So if you wish to stop using Encore, you need to rework these interfaces to function in a traditional way. This normally means adding boilerplate that isn't necessary when using Encore.
 
 ### Ejecting your app as a Docker image
 
@@ -65,4 +65,4 @@ We're engineers ourselves and we understand the importance of not being constrai
 We're working every single day on making it even easier to start, <i>and stop</i>, using Encore.
 If you have specific concerns, questions, or requirements, we'd love to hear from you!
 
-Please reach out on [Slack](https://encore.dev/slack) or [send an email](mailto:hello@encore.dev) with your thoughts.
+Please reach out on [Discord](https://encore.dev/discord) or [send an email](mailto:hello@encore.dev) with your thoughts.

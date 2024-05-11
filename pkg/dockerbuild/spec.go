@@ -129,6 +129,9 @@ type DescribeConfig struct {
 	// and where the source is located on the host filesystem.
 	BundleSource option.Option[BundleSourceSpec]
 
+	// WorkingDir specifies the working directory to start the docker image in.
+	WorkingDir option.Option[ImagePath]
+
 	// BuildInfo contains information about the build.
 	BuildInfo BuildInfo
 }
@@ -239,7 +242,6 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 			}
 
 			cmd := ep.Cmd.Expand(paths.FS(imageArtifacts.BuildArtifacts))
-			b.spec.WorkingDir = "/"
 			b.spec.Entrypoint = cmd.Command
 			b.spec.Env = cmd.Env
 			useSupervisor = false
@@ -250,7 +252,6 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 			}
 
 			cmd := ep.Cmd.Expand(paths.FS(imageArtifacts.BuildArtifacts))
-			b.spec.WorkingDir = "/"
 			b.spec.Entrypoint = cmd.Command
 			b.spec.Env = cmd.Env
 
@@ -312,7 +313,6 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 		b.spec.Supervisor = option.Some(super)
 		b.spec.Entrypoint = []string{string(super.MountPath), "-c", string(super.ConfigPath)}
 		b.spec.Env = nil // not needed by supervisor
-		b.spec.WorkingDir = "/"
 
 		// If we have a supervisor, we need to use the new runtime config.
 		b.spec.FeatureFlags[NewRuntimeConfig] = true
@@ -391,7 +391,9 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	}
 
 	b.spec.DockerBaseImage = cfg.DockerBaseImage.GetOrElse("scratch")
+
 	b.spec.BundleSource = cfg.BundleSource
+	b.spec.WorkingDir = cfg.WorkingDir.GetOrElse("/")
 
 	// Include build information.
 	b.spec.BuildInfo = BuildInfoSpec{

@@ -2,6 +2,7 @@ package encore
 
 import (
 	"reflect"
+	"slices"
 	"time"
 
 	"encore.dev/appruntime/exported/model"
@@ -21,6 +22,9 @@ type APIDesc struct {
 
 	// Raw specifies whether the endpoint is a Raw endpoint.
 	Raw bool
+
+	// Tags describes what tags are attached to the endpoint.
+	Tags Tags
 }
 
 // Request provides metadata about how and why the currently running code was started.
@@ -169,6 +173,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 			RequestType:  desc.RequestType,
 			ResponseType: desc.ResponseType,
 			Raw:          desc.Raw,
+			Tags:         data.Desc.Tags,
 		}
 
 		if data.FromEncorePlatform {
@@ -190,4 +195,16 @@ func (mgr *Manager) CurrentRequest() *Request {
 	}
 
 	return result
+}
+
+// Tags describes a set of tags an endpoint is tagged with,
+// without the "tag:" prefix.
+//
+// The ordering is unspecified.
+type Tags []string
+
+// Has reports whether the set contains the given tag.
+// The provided value should not contain the "tag:" prefix.
+func (tags Tags) Has(tag string) bool {
+	return slices.Contains(tags, tag)
 }

@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::pin::Pin;
 
-use anyhow::Context;
 use bb8::{ErrorSink, PooledConnection, RunError};
 use bb8_postgres::PostgresConnectionManager;
 use futures_util::StreamExt;
-use tokio::sync::Mutex;
+
 use tokio_postgres::types::BorrowToSql;
 
 use crate::sqldb::val::RowValue;
@@ -20,15 +19,27 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub fn new(db: &sqldb::Database, tracer: Tracer) -> Self {
-        let tls = db.tls().clone();
-        let mgr = Mgr::new(db.config().clone(), tls);
-        let pool = bb8::Pool::builder()
+    pub fn new<DB: sqldb::Database>(db: &DB, tracer: Tracer) -> anyhow::Result<Self> {
+        let tls = db.tls()?.clone();
+        let mgr = Mgr::new(db.config()?.clone(), tls);
+
+        let pool_cfg = db.pool_config()?;
+        let mut pool = bb8::Pool::builder()
             .error_sink(Box::new(RustLoggerSink {
                 db_name: db.name().to_string(),
             }))
-            .build_unchecked(mgr);
-        Self { pool, tracer }
+            .max_size(if pool_cfg.max_conns > 0 {
+                pool_cfg.max_conns
+            } else {
+                30
+            });
+
+        if pool_cfg.min_conns > 0 {
+            pool = pool.min_idle(Some(pool_cfg.min_conns));
+        }
+
+        let pool = pool.build_unchecked(mgr);
+        Ok(Self { pool, tracer })
     }
 }
 
@@ -139,8 +150,10 @@ impl Row {
 }
 
 pub struct Connection {
+    #[allow(dead_code)]
     conn:
         PooledConnection<'static, PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>>,
+    #[allow(dead_code)]
     tracer: Tracer,
 }
 
@@ -158,6 +171,7 @@ pub struct Connection {
 
 pub struct Transaction<'a> {
     transaction: Option<tokio_postgres::Transaction<'a>>,
+    #[allow(dead_code)]
     tracer: Tracer,
 }
 

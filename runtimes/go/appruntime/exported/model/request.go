@@ -30,6 +30,7 @@ type RPCDesc struct {
 	Raw          bool
 	RequestType  reflect.Type // nil if no payload
 	ResponseType reflect.Type // nil if no payload
+	Tags         []string
 }
 
 type PathParams []PathParam
@@ -168,14 +169,21 @@ type TestConfig struct {
 	// Lock for the below fields
 	Mu sync.RWMutex
 
-	ServiceMocks     map[string]any // The service mocks we want to use
+	ServiceMocks     map[string]ServiceMock
 	APIMocks         map[string]map[string]ApiMock
-	IsolatedServices *bool // Whether to isolate services for this test
+	IsolatedServices *bool                // Whether to isolate services for this test
+	EndCallbacks     []func(t *testing.T) // Callbacks to run when the test ends
+}
+
+type ServiceMock struct {
+	Service       any
+	RunMiddleware bool
 }
 
 type ApiMock struct {
-	ID       uint64
-	Function any
+	ID            uint64
+	Function      any
+	RunMiddleware bool
 }
 
 type Response struct {

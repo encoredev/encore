@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -7,13 +6,9 @@ use serde::Serialize;
 
 use crate::api::reqauth::CallMeta;
 use crate::api::APIResult;
-use crate::{api, encore, EndpointName};
+use crate::{api, EndpointName};
 
-use encore::parser::meta::v1 as meta;
-use encore::parser::schema::v1 as schema;
-
-use crate::api::reqauth::caller::Caller;
-use crate::api::schema::encoding::{EncodingConfig, Schema};
+use crate::api::schema::encoding::Schema;
 pub use local::LocalAuthHandler;
 pub use remote::RemoteAuthHandler;
 
@@ -58,7 +53,7 @@ pub enum AuthHandlerType {
 }
 
 impl AuthHandlerType {
-    fn set_local_handler(&self, handler: Option<Arc<dyn api::BoxedHandler>>) {
+    fn set_local_handler(&self, handler: Option<Arc<dyn api::TypedHandler>>) {
         if let Self::Local(local) = self {
             local.set_handler(handler);
         }
@@ -108,7 +103,7 @@ impl Authenticator {
         }
     }
 
-    pub fn set_local_handler_impl(&self, handler: Option<Arc<dyn api::BoxedHandler>>) {
+    pub fn set_local_handler_impl(&self, handler: Option<Arc<dyn api::TypedHandler>>) {
         self.auth_handler.set_local_handler(handler);
     }
 

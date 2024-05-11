@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
@@ -8,10 +8,14 @@ use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
 use crate::api::gateway::Gateway;
 use crate::api::http_server::HttpServer;
+use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
 use crate::api::schema::encoding::EncodingConfig;
 use crate::api::schema::JSONPayload;
-use crate::api::{auth, encore_routes, endpoints_from_meta, gateway, jsonschema, reqauth, server, APIResult, EndpointMap, IntoResponse, cors};
+use crate::api::{
+    auth, cors, encore_routes, endpoints_from_meta, jsonschema, paths, reqauth, server, APIResult,
+    Endpoint, IntoResponse,
+};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
 use crate::trace::Tracer;
@@ -114,16 +118,11 @@ impl ManagerConfig<'_> {
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
         let gateways = {
-            let mut routes = HashMap::new();
-            for (_, ep) in endpoints.iter() {
-                let svc = EncoreName::from(ep.name.service());
-                let route = gateway::Route {
-                    path: ep.path.clone(),
-                    methods: ep.methods().collect(),
-                };
-                routes.entry(svc).or_insert_with(Vec::new).push(route);
-            }
-
+            let routes = paths::compute(
+                endpoints
+                    .iter()
+                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
+            );
             let mut gateways = HashMap::new();
             for gw in &self.meta.gateways {
                 let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
@@ -142,8 +141,10 @@ impl ManagerConfig<'_> {
                 )
                 .context("unable to build authenticator")?;
 
-                let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
-                let cors = cors::layer(cors_cfg, meta_headers).context("failed to parse CORS configuration")?;
+                let meta_headers =
+                    cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
+                let cors = cors::layer(cors_cfg, meta_headers)
+                    .context("failed to parse CORS configuration")?;
 
                 let gateway = Gateway::new(
                     gw.encore_name.clone().into(),
@@ -151,7 +152,6 @@ impl ManagerConfig<'_> {
                     service_registry.clone(),
                     routes.clone(),
                     auth_handler,
-                    self.runtime.clone(),
                     cors,
                 )
                 .context("unable to create gateway")?;
@@ -170,6 +170,24 @@ impl ManagerConfig<'_> {
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
         })
+    }
+}
+
+#[derive(Debug)]
+struct RoutePerService(Arc<Endpoint>);
+
+impl Pather for RoutePerService {
+    type Key = EncoreName;
+    type Value = Arc<Endpoint>;
+
+    fn key(&self) -> Self::Key {
+        self.0.name.service().into()
+    }
+    fn value(&self) -> Self::Value {
+        self.0.clone()
+    }
+    fn path(&self) -> &meta::Path {
+        &self.0.path
     }
 }
 

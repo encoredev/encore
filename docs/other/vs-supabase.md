@@ -9,35 +9,34 @@ Supabase and Firebase are two popular _Backend as a Service_ providers, that pro
 
 This can be a great way of getting off the ground quickly. But as many developers have come to learn, you risk finding yourself boxed into a corner if you're not in full control of your own backend when new use cases arise.
 
-**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account in AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and and having to start over from scratch.
+**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account on AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and and having to start over from scratch.
 
 Let's take a look at how Encore compares to BaaS platforms like Supabase and Firebase:
 
-|                                                     | Encore                                           | Supabase             | Firebase             |
-| --------------------------------------------------- | ------------------------------------------------ | -------------------- | -------------------- |
-| **Approach?**                                       | Backend Development Platform                     | Backend as a Service | Backend as a Service |
-| **Native PostgreSQL support?**                      | ✅︎ Yes                                            | ✅︎ Yes                | ❌ No                 |
-| **Support pgvector for AI use cases?**              | ✅︎ Yes                                            | ✅︎ Yes                | ❌ No                 |
-| **Supports major cloud providers like AWS/GCP?**    | ✅︎ Yes                                            | ❌ No                 | ✅︎ Yes (GCP only)     |
-| **Supports Microservices?**                         | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Supports Event-Driven systems?**                  | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Supports Kubernetes and custom infra?**           | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Infrastructure is Type-Safe?**                    | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Built-in local dev environment?**                 | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Built-in Preview Environments per Pull Request?** | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Built-in Distributed Tracing?**                   | ✅︎ Yes                                            | ❌ No                 | ❌ No                 |
-| **Charges for hosting?**                            | No                                               | Yes                  | Yes                  |
-| **Pricing?**                                        | [$299 per developer](https://encore.dev/pricing) | Variable (complex)   | Variable (complex)   |
+|                                                     | Encore                       | Supabase             | Firebase             |
+| --------------------------------------------------- | ---------------------------- | -------------------- | -------------------- |
+| **Approach?**                                       | Backend Development Platform | Backend as a Service | Backend as a Service |
+| **Native PostgreSQL support?**                      | ✅︎ Yes                        | ✅︎ Yes                | ❌ No                 |
+| **Support pgvector for AI use cases?**              | ✅︎ Yes                        | ✅︎ Yes                | ❌ No                 |
+| **Supports major cloud providers like AWS/GCP?**    | ✅︎ Yes                        | ❌ No                 | ✅︎ Yes (GCP only)     |
+| **Supports Microservices?**                         | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Supports Event-Driven systems?**                  | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Supports Kubernetes and custom infra?**           | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Infrastructure is Type-Safe?**                    | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Built-in local dev environment?**                 | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Built-in Preview Environments per Pull Request?** | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Built-in Distributed Tracing?**                   | ✅︎ Yes                        | ❌ No                 | ❌ No                 |
+| **Charges for hosting?**                            | No                           | Yes                  | Yes                  |
 
 ## Encore is the simplest way of accessing the full power and flexibility of the major cloud providers
 
 With Encore you don't need to be a cloud expert to make full use of the services offered by major cloud providers like AWS and GCP.
 
-You simply use Encore's [Infrastructure SDK](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
+You simply use Encore's [Backend SDK](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
 
 ### Example: Using PostgreSQL with Encore
 
-Here's an example of how to use Encore's [Infrastructure SDK](/docs/primitives) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
+Here's an example of how to use Encore's [Backend SDK](/docs/primitives) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
 
 To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
 Databases must be created from within an [Encore service](/docs/primitives/services-and-apis).
@@ -78,7 +77,7 @@ Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support f
 
 For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
 
-With Encore's [Infrastructure SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
+With Encore's [Backend SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
 
 ## Encore's local development workflow lets application developers focus
@@ -110,10 +109,10 @@ Encore does a lot more than just automate infrastructure provisioning and config
 - Service/API mocking
 
 ### Encore's built-in DevOps tools
-- Automatic Infrastructure provisioning in AWS/GCP
+- Automatic Infrastructure provisioning on AWS/GCP
 - Infrastructure Tracking & Approvals workflow
 - Cloud Configuration 2-way sync between Encore and AWS/GCP
 - Automatic least privilege IAM
 - Preview Environments per Pull Request
 - Cost Analytics Dashboard
-- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Infrastructure SDK
+- Encore Terraform provider for extending Encore with infrastructure that is not currently part of Encore's Backend SDK

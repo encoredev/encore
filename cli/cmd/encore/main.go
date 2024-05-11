@@ -99,18 +99,27 @@ func streamCommandOutput(stream commandOutputStream, converter outputConverter) 
 			writesDone.Add(1)
 			go func() {
 				defer writesDone.Done()
-				scanner := bufio.NewScanner(read)
-				for scanner.Scan() {
-					line := append(scanner.Bytes(), '\n')
-					line = converter(line)
-					if stdout {
-						_, _ = os.Stdout.Write(line)
-					} else {
-						_, _ = os.Stderr.Write(line)
+
+				for {
+					scanner := bufio.NewScanner(read)
+					for scanner.Scan() {
+						line := append(scanner.Bytes(), '\n')
+						line = converter(line)
+						if stdout {
+							_, _ = os.Stdout.Write(line)
+						} else {
+							_, _ = os.Stderr.Write(line)
+						}
 					}
-				}
-				if err := scanner.Err(); err != nil {
-					fmt.Fprintln(os.Stderr, "failed to read output:", err)
+					if err := scanner.Err(); err != nil {
+						// The scanner failed, likely due to a too-long line. Log an error
+						// and create a new scanner since the old one is in an unrecoverable state.
+						fmt.Fprintln(os.Stderr, "failed to read output:", err)
+						scanner = bufio.NewScanner(read)
+						continue
+					} else {
+						break
+					}
 				}
 			}()
 		}

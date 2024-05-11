@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub use manager::{Manager, SubscriptionObj, TopicObj};
 pub use push_registry::PushHandlerRegistry;
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
 use crate::pubsub::manager::SubHandler;
@@ -17,6 +18,7 @@ mod manager;
 mod noop;
 mod nsq;
 mod push_registry;
+mod sqs_sns;
 
 pub type MessageId = String;
 
@@ -29,13 +31,18 @@ pub struct MessageData {
 pub struct Message {
     pub id: MessageId,
     pub publish_time: Option<chrono::DateTime<chrono::Utc>>,
-    pub attempt: u32, // starts at 1
+    /// starts at 1
+    pub attempt: u32,
     pub data: MessageData,
 }
 
 trait Cluster: Debug + Send + Sync {
     fn topic(&self, cfg: &pb::PubSubTopic) -> Arc<dyn Topic + 'static>;
-    fn subscription(&self, cfg: &pb::PubSubSubscription) -> Arc<dyn Subscription + 'static>;
+    fn subscription(
+        &self,
+        cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
+    ) -> Arc<dyn Subscription + 'static>;
 }
 
 trait Topic: Debug + Send + Sync {

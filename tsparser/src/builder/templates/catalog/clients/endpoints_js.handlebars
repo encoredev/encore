@@ -1,12 +1,12 @@
 import { apiCall } from "encore.dev/internal/codegen/api";
 
-const IS_TEST = process.env.NODE_ENV === "test";
-
-const TEST_ENDPOINTS = IS_TEST ? await import("./endpoints_testing.js") : null;
+const TEST_ENDPOINTS = typeof ENCORE_DROP_TESTS === "undefined" && process.env.NODE_ENV === "test"
+    ? await import("./endpoints_testing.js")
+    : null;
 
 {{#each endpoints}}
 export async function {{name}}(params) {
-    if (IS_TEST) {
+    if (typeof ENCORE_DROP_TESTS === "undefined" && process.env.NODE_ENV === "test") {
         return TEST_ENDPOINTS.{{name}}(params);
     }
     return apiCall("{{../name}}", "{{name}}", params);

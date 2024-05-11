@@ -173,6 +173,7 @@ func (d *AuthHandlerDesc[Params]) rpcDesc() *model.RPCDesc {
 			// TODO would be nice to support these for auth handlers in the future.
 			RequestType:  nil,
 			ResponseType: nil,
+			Tags:         nil,
 		}
 		d.cachedRPCDesc = desc
 	})

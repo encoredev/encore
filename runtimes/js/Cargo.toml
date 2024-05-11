@@ -17,7 +17,7 @@ napi = { version = "2.12.2", default-features = false, features = [
 napi-derive = "2.12.2"
 encore-runtime-core = { path = "../core" }
 lazy_static = { version = "1.4.0", features = [] }
-axum = "0.7.3"
+axum = "0.7.5"
 tokio = "1.35.1"
 log = "0.4.20"
 serde = "1.0.194"
@@ -28,6 +28,9 @@ prost = "0.12.3"
 prost-types = "0.12.3"
 futures = "0.3.30"
 mappable-rc = "0.1.1"
+tokio-util = { version = "0.7.10", features = ["io"] }
+chrono = "0.4.38"
+indexmap = { version = "2.2.6", features = ["serde"] }
 
 [build-dependencies]
 napi-build = "2.0.1"

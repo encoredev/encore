@@ -4,8 +4,10 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use google_cloud_pubsub as gcp;
+use google_cloud_pubsub::apiv1::default_retry_setting;
 use tokio_util::sync::CancellationToken;
 
+use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub::gcp::LazyGCPClient;
 use crate::pubsub::manager::SubHandler;
@@ -16,21 +18,46 @@ pub struct Subscription {
     client: Arc<LazyGCPClient>,
     project_id: String,
     sub_name: String,
+    receive_cfg: gcp::subscription::ReceiveConfig,
     cell: tokio::sync::OnceCell<Result<gcp::subscription::Subscription>>,
 }
 
 impl Subscription {
-    pub(super) fn new(client: Arc<LazyGCPClient>, cfg: &pb::PubSubSubscription) -> Self {
+    pub(super) fn new(
+        client: Arc<LazyGCPClient>,
+        cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
+    ) -> Self {
         let Some(pb::pub_sub_subscription::ProviderConfig::GcpConfig(gcp_cfg)) =
             cfg.provider_config.as_ref()
         else {
             panic!("missing gcp config for subscription")
         };
 
+        let receive_cfg = gcp::subscription::ReceiveConfig {
+            subscriber_config: gcp::subscriber::SubscriberConfig {
+                max_outstanding_messages: meta.max_concurrency.map_or(100, |v| v as i64),
+                retry_setting: Some(google_cloud_gax::retry::RetrySetting {
+                    from_millis: meta.retry_policy.as_ref().map_or(10, |retry| {
+                        let min_backoff = retry.min_backoff.max(0) as u64;
+                        min_backoff / 1_000_000 // nanos to millis
+                    }),
+                    max_delay: meta.retry_policy.as_ref().map(|retry| {
+                        let max_backoff = retry.max_backoff.max(0) as u64;
+                        std::time::Duration::from_nanos(max_backoff)
+                    }),
+                    ..default_retry_setting()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
         Self {
             client,
             project_id: gcp_cfg.project_id.clone().into(),
             sub_name: cfg.subscription_cloud_name.clone().into(),
+            receive_cfg,
             cell: tokio::sync::OnceCell::new(),
         }
     }
@@ -64,9 +91,6 @@ impl pubsub::Subscription for Subscription {
         handler: Arc<SubHandler>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
         Box::pin(async move {
-            // TODO configure these
-            let cfg: Option<gcp::subscription::ReceiveConfig> = None;
-
             let sub = self.get_sub().await?;
             let cancel = CancellationToken::new();
             sub.receive(
@@ -75,7 +99,7 @@ impl pubsub::Subscription for Subscription {
                     handle_message(handler, message, cancel)
                 },
                 cancel,
-                cfg,
+                Some(self.receive_cfg.clone()),
             )
             .await
             .context("receive subscription")?;

@@ -9,7 +9,7 @@ use crate::encore::parser::meta::v1;
 use crate::legacymeta::schema::{loc_from_range, SchemaBuilder};
 use crate::parser::parser::{ParseContext, ParseResult};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
-use crate::parser::resources::apis::{api, authhandler, gateway};
+use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::{cron, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
@@ -140,7 +140,11 @@ impl<'a> MetaBuilder<'a> {
                         access_type,
                         request_schema,
                         response_schema,
-                        proto: v1::rpc::Protocol::Regular as i32,
+                        proto: if ep.raw {
+                            v1::rpc::Protocol::Raw
+                        } else {
+                            v1::rpc::Protocol::Regular
+                        } as i32,
                         path: Some(ep.encoding.path.to_meta()),
                         http_methods: ep.encoding.methods.to_vec(),
                         tags: vec![],
@@ -463,6 +467,7 @@ impl<'a> MetaBuilder<'a> {
             service_name,
             ack_deadline: sub.config.ack_deadline.as_nanos() as i64,
             message_retention: sub.config.message_retention.as_nanos() as i64,
+            max_concurrency: sub.config.max_concurrency.map(|v| v as i32),
             retry_policy: Some(v1::pub_sub_topic::RetryPolicy {
                 min_backoff: sub.config.min_retry_backoff.as_nanos() as i64,
                 max_backoff: sub.config.max_retry_backoff.as_nanos() as i64,
@@ -582,6 +587,7 @@ fn new_meta() -> v1::Data {
         metrics: vec![],
         sql_databases: vec![],
         gateways: vec![],
+        language: v1::Lang::Typescript as i32,
     }
 }
 
@@ -595,6 +601,7 @@ mod tests {
     use crate::parser::parser::Parser;
     use crate::parser::resourceparser::PassOneParser;
     use crate::testutil::testresolve::TestResolver;
+    use crate::testutil::JS_RUNTIME_PATH;
 
     use super::*;
 
@@ -605,10 +612,9 @@ mod tests {
             ar.materialize(tmp_dir)?;
 
             let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-            let mut pc = ParseContext::with_resolver(resolver);
-
-            pc.dir_roots.push(tmp_dir.to_path_buf());
-            pc.loader.load_archive(tmp_dir, &ar)?;
+            let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), &JS_RUNTIME_PATH, resolver)
+                .unwrap();
+            let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
 
             let pass1 = PassOneParser::new(
                 pc.file_set.clone(),
@@ -639,7 +645,7 @@ export const Bar = 5;
     }
 }
 
-fn parse_app_revision(dir: &Path) -> anyhow::Result<String> {
+fn _parse_app_revision(dir: &Path) -> anyhow::Result<String> {
     duct::cmd!(
         "git",
         "-c",

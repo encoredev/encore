@@ -70,6 +70,9 @@ type Desc[Req, Resp any] struct {
 	// PathParamNames are the names of the path params, in order.
 	PathParamNames []string
 
+	// Tags are the tags for this API, excluding the "tag:" prefix.
+	Tags []string
+
 	// Access describes the access type for this API.
 	Access Access
 
@@ -285,7 +288,7 @@ func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp *
 			respCapturer = newRawResponseCapturer(c.w, c.req)
 			return d.invokeHandlerRaw(mwReq, c, respCapturer)
 		} else {
-			return d.invokeHandlerNonRaw(mwReq, reqData)
+			return d.invokeHandlerNonRaw(mwReq, reqData, d.AppHandler)
 		}
 	}
 
@@ -383,11 +386,11 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 }
 
 // invokeHandlerNonRaw invokes the handler for a regular (non-raw) endpoint. If the endpoint is raw, it panics.
-func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData Req) (mwResp middleware.Response) {
+func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData Req, handler func(context.Context, Req) (Resp, error)) (mwResp middleware.Response) {
 	if d.Raw {
 		panic("invokeHandlerNonRaw called on Raw endpoint")
 	}
-	handlerResp, handlerErr := d.AppHandler(mwReq.Context(), reqData)
+	handlerResp, handlerErr := handler(mwReq.Context(), reqData)
 	if handlerErr != nil {
 		mwResp.Err = errs.Convert(handlerErr)
 		mwResp.HTTPStatus = errs.HTTPStatus(mwResp.Err)
@@ -453,13 +456,13 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 			if err != nil {
 				return respData, errs.Wrap(err, "unable to call mocked API due to an issue with the mock")
 			}
-			return d.mockedCall(c, function, req)
-		} else if mockedService, found := c.server.testingMgr.GetServiceMock(d.Service); found && mockedService != nil {
+			return d.mockedCall(c, function, req, mockedAPI.RunMiddleware)
+		} else if mockedService, found := c.server.testingMgr.GetServiceMock(d.Service); found && mockedService.Service != nil {
 			method, err := d.getMockMethod(mockedService)
 			if err != nil {
 				return respData, errs.Wrap(err, "unable to call mocked API due to an issue with the mock")
 			}
-			return d.mockedCall(c, method, req)
+			return d.mockedCall(c, method, req, mockedService.RunMiddleware)
 		} else {
 			return d.internalCall(c, req)
 		}
@@ -484,9 +487,9 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 
 // getMockMethod returns a reflected method for the given object, caching the result.
 // so subsequent calls will be faster.
-func (d *Desc[Req, Resp]) getMockMethod(obj any) (reflectedAPIMethod[Req, Resp], error) {
+func (d *Desc[Req, Resp]) getMockMethod(svcMock model.ServiceMock) (reflectedAPIMethod[Req, Resp], error) {
 	d.mockCacheMu.RLock()
-	method, found := d.mockObjCache[obj]
+	method, found := d.mockObjCache[svcMock.Service]
 	d.mockCacheMu.RUnlock()
 
 	if !found {
@@ -494,16 +497,16 @@ func (d *Desc[Req, Resp]) getMockMethod(obj any) (reflectedAPIMethod[Req, Resp],
 		defer d.mockCacheMu.Unlock()
 
 		// Get a reflected value of the object
-		val := reflect.ValueOf(obj)
+		val := reflect.ValueOf(svcMock.Service)
 		if !val.IsValid() {
-			return nil, errs.B().Code(errs.Internal).Msgf("object %T is not valid", obj).Err()
+			return nil, errs.B().Code(errs.Internal).Msgf("object %T is not valid", svcMock).Err()
 		}
 
 		// Get the method
 		// nosemgrep
 		methodVal := val.MethodByName(d.Endpoint)
 		if !methodVal.IsValid() {
-			return nil, errs.B().Code(errs.Internal).Msgf("method %s not found on object %T", d.Endpoint, obj).Err()
+			return nil, errs.B().Code(errs.Internal).Msgf("method %s not found on object %T", d.Endpoint, svcMock.Service).Err()
 		}
 
 		m, err := createReflectionCaller[Req, Resp](methodVal)
@@ -515,7 +518,7 @@ func (d *Desc[Req, Resp]) getMockMethod(obj any) (reflectedAPIMethod[Req, Resp],
 		if len(d.mockObjCache) == 0 {
 			d.mockObjCache = make(map[any]reflectedAPIMethod[Req, Resp])
 		}
-		d.mockObjCache[obj] = m
+		d.mockObjCache[svcMock.Service] = m
 		return m, nil
 	}
 
@@ -555,8 +558,16 @@ func (d *Desc[Req, Resp]) getMockFunction(apiMock model.ApiMock) (reflectedAPIMe
 	return method, nil
 }
 
-func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req, Resp], req Req) (respData Resp, respErr error) {
+func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req, Resp], req Req, runMiddleware bool) (respData Resp, respErr error) {
 	return d.runCall(c, req, true, func(ec execContext, req Req) (Resp, int, error) {
+		// If we want to run middleware, use the same code path as internalCall but switch out the handler
+		// to our mock.
+		if runMiddleware {
+			return d.executeEndpoint(ec, func(mwReq middleware.Request) (mwResp middleware.Response) {
+				return d.invokeHandlerNonRaw(mwReq, req, mock)
+			})
+		}
+
 		respData, err := mock(ec.ctx, req)
 		if err != nil {
 			return respData, errs.HTTPStatus(err), err
@@ -568,7 +579,7 @@ func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req,
 func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
 	return d.runCall(c, req, false, func(ec execContext, req Req) (Resp, int, error) {
 		return d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
-			return d.invokeHandlerNonRaw(mwReq, req)
+			return d.invokeHandlerNonRaw(mwReq, req, d.AppHandler)
 		})
 	})
 }
@@ -860,6 +871,7 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 			Endpoint:    d.Endpoint,
 			Raw:         d.Raw,
 			RequestType: reflect.TypeOf(reqTyp),
+			Tags:        d.Tags,
 		}
 
 		if !isVoid[Resp]() {

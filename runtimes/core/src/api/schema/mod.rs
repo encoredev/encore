@@ -4,8 +4,9 @@ pub use header::*;
 pub use method::*;
 pub use path::*;
 pub use query::*;
+use std::sync::Arc;
 
-use crate::api::{APIResult, RequestPayload};
+use crate::api::{endpoint, APIResult, RequestPayload};
 
 mod body;
 pub mod encoding;
@@ -52,8 +53,14 @@ pub struct Request {
     /// Query string names used by the endpoint.
     pub query: Option<Query>,
 
-    /// Request body, if any.
-    pub body: Option<Body>,
+    /// Request body.
+    pub body: RequestBody,
+}
+
+#[derive(Debug)]
+pub enum RequestBody {
+    Typed(Option<Body>),
+    Raw,
 }
 
 impl Request {
@@ -71,12 +78,14 @@ impl Request {
             None => None,
             Some(h) => h.parse_incoming_request_parts(parts)?,
         };
-        let body = match &self.body {
-            None => None,
-            Some(b) => b.parse_incoming_request_body(body).await?,
-        };
 
-        // let cookies = axum_extra::extract::CookieJar::from_headers(&parts.headers);
+        let body = match &self.body {
+            RequestBody::Raw => endpoint::Body::Raw(Arc::new(std::sync::Mutex::new(Some(body)))),
+            RequestBody::Typed(None) => endpoint::Body::Typed(None),
+            RequestBody::Typed(Some(b)) => {
+                endpoint::Body::Typed(b.parse_incoming_request_body(body).await?)
+            }
+        };
 
         Ok(Some(RequestPayload {
             path,

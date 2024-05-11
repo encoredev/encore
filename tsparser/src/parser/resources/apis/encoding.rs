@@ -168,13 +168,14 @@ pub fn describe_endpoint(
     path: Path,
     req: Option<Type>,
     resp: Option<Type>,
+    raw: bool,
 ) -> Result<EndpointEncoding> {
     let resp = resp
         .map(|t| unwrap_promise(ctx, &t).clone())
         .and_then(|t| drop_empty_or_void(t));
 
     let default_method = default_method(&methods);
-    let (req_enc, _req_schema) = describe_req(ctx, &methods, &path, &req)?;
+    let (req_enc, _req_schema) = describe_req(ctx, &methods, &path, &req, raw)?;
     let (resp_enc, _resp_schema) = describe_resp(ctx, &methods, &resp)?;
 
     let path = rewrite_path_types(&req_enc[0], path).context("parse path param types")?;
@@ -195,11 +196,12 @@ fn describe_req(
     methods: &Methods,
     path: &Path,
     req_schema: &Option<Type>,
+    raw: bool,
 ) -> Result<(Vec<RequestEncoding>, Option<FieldMap>)> {
     let Some(req_schema) = req_schema else {
         // We don't have any request schema. This is valid if and only if
-        // we have no path parameters.
-        if !path.has_dynamic_segments() {
+        // we have no path parameters or it's a raw endpoint.
+        if !path.has_dynamic_segments() || raw {
             return Ok((
                 vec![RequestEncoding {
                     methods: methods.clone(),
@@ -406,7 +408,6 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path) -> Result<Path> {
         Ok(match typ {
             Type::Basic(Basic::String) => ValueType::String,
             Type::Basic(Basic::Boolean) => ValueType::Bool,
-            Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
             Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
             typ => anyhow::bail!("unsupported path param type: {:?}", typ),
         })

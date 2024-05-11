@@ -1,7 +1,9 @@
 use chrono::Utc;
+use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use rand::RngCore;
 use tokio::time::Instant;
@@ -142,6 +144,7 @@ pub struct Request {
 
     /// When the request started.
     pub start: Instant,
+    pub start_time: SystemTime,
 
     /// Type-specific data.
     pub data: RequestData,
@@ -165,6 +168,17 @@ impl Request {
             RequestData::PubSub(_) => false,
         }
     }
+
+    pub fn take_raw_body(&self) -> Option<axum::body::Body> {
+        if let RequestData::RPC(data) = &self.data {
+            if let Some(data) = data.parsed_payload.as_ref() {
+                if let api::Body::Raw(body) = &data.body {
+                    return body.lock().unwrap().take();
+                }
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug)]
@@ -184,6 +198,10 @@ pub struct RPCRequestData {
 
     /// The request path.
     pub path: String,
+    pub path_and_query: String,
+
+    /// The request path params, if any.
+    pub path_params: Option<IndexMap<String, serde_json::Value>>,
 
     /// The request headers
     pub req_headers: axum::http::HeaderMap,

@@ -139,6 +139,19 @@ func (c *Cluster) setupRoles(ctx context.Context, st *ClusterStatus) (EncoreRole
 			}
 			c.log.Debug().Str("role", role.Username).Msg("role already exists")
 		}
+
+		// Add cluster-level permissions.
+		switch role.Type {
+		case RoleAdmin:
+			// Grant admins the ability to create databases.
+			_, err := conn.Exec(ctx, `
+				ALTER USER `+sanitizedUsername+` CREATEDB
+			`)
+			if err != nil {
+				c.log.Error().Err(err).Str("role", role.Username).Msg("unable to grant CREATEDB")
+				return nil, fmt.Errorf("grant CREATEDB to %q: %v", role.Username, err)
+			}
+		}
 	}
 
 	return roles, nil
@@ -216,9 +229,12 @@ func (c *Cluster) initDB(encoreName string) *DB {
 
 	dbCtx, cancel := context.WithCancel(c.Ctx)
 	db := &DB{
-		DriverName: driverName,
 		EncoreName: encoreName,
 		Cluster:    c,
+		driverName: driverName,
+
+		// Use a template database when running tests.
+		template: c.ID.Type == Test,
 
 		Ctx:    dbCtx,
 		cancel: cancel,

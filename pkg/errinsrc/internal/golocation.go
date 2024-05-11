@@ -9,10 +9,11 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 )
 
-func FromGoASTNodeWithTypeAndText(fileset *token.FileSet, node ast.Node, typ LocationType, text string) option.Option[*SrcLocation] {
-	loc := FromGoASTNode(fileset, node)
+func FromGoASTNodeWithTypeAndText(fileset *token.FileSet, node ast.Node, typ LocationType, text string, fileReaders ...paths.FileReader) option.Option[*SrcLocation] {
+	loc := FromGoASTNode(fileset, node, fileReaders...)
 	if l, ok := loc.Get(); ok {
 		l.Type = typ
 		l.Text = text
@@ -22,7 +23,7 @@ func FromGoASTNodeWithTypeAndText(fileset *token.FileSet, node ast.Node, typ Loc
 
 // FromGoASTNode returns a SrcLocation from a Go AST node storing the start and end
 // locations of that node.
-func FromGoASTNode(fileset *token.FileSet, node ast.Node) option.Option[*SrcLocation] {
+func FromGoASTNode(fileset *token.FileSet, node ast.Node, fileReaders ...paths.FileReader) option.Option[*SrcLocation] {
 	start := fileset.Position(node.Pos())
 	end := fileset.Position(node.End())
 
@@ -36,10 +37,10 @@ func FromGoASTNode(fileset *token.FileSet, node ast.Node) option.Option[*SrcLoca
 		return option.None[*SrcLocation]()
 	}
 
-	return FromGoTokenPositions(start, end)
+	return FromGoTokenPositions(start, end, fileReaders...)
 }
 
-func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) option.Option[*SrcLocation] {
+func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos, fileReaders ...paths.FileReader) option.Option[*SrcLocation] {
 	startPos := fileset.Position(start)
 	endPos := fileset.Position(end)
 
@@ -47,7 +48,7 @@ func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) option.Option[
 		return option.None[*SrcLocation]()
 	}
 
-	return FromGoTokenPositions(startPos, endPos)
+	return FromGoTokenPositions(startPos, endPos, fileReaders...)
 }
 
 // FromGoTokenPositions returns a SrcLocation from two Go token positions.
@@ -55,12 +56,22 @@ func FromGoTokenPos(fileset *token.FileSet, start, end token.Pos) option.Option[
 // be locations within the same file.
 //
 // This function will panic if the locations are in different files.
-func FromGoTokenPositions(start token.Position, end token.Position) option.Option[*SrcLocation] {
+func FromGoTokenPositions(start token.Position, end token.Position, fileReaders ...paths.FileReader) option.Option[*SrcLocation] {
 	if start.Filename != end.Filename {
 		panic("FromGoASTNode: start and end files must be the same")
 	}
-
-	bytes, err := os.ReadFile(start.Filename)
+	fileReaders = append(fileReaders, os.ReadFile)
+	var bytes []byte
+	var err error
+	for _, reader := range fileReaders {
+		if reader == nil {
+			continue
+		}
+		bytes, err = reader(start.Filename)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		log.Err(err).Str("filename", start.Filename).Msg("Failed to read Go file")
 		// Don't return, `bytes == nil` is fine here
@@ -101,9 +112,17 @@ func FromGoTokenPositions(start token.Position, end token.Position) option.Optio
 func convertSingleGoPositionToRange(filename string, fileBody []byte, start token.Position) (end token.Position) {
 	fs := token.NewFileSet()
 	file, err := parser.ParseFile(fs, filename, fileBody, parser.ParseComments)
-
 	if err != nil || file == nil {
-		return start
+		end = start
+		// If the file is not parsable for some reason (e.g. syntax error), we can't determine the end position
+		// based on ast.Nodes. If so, we can fall back on guessing the end position by looking for common delimiters
+		offset, ok := findPositionOffset(start, fileBody)
+		if !ok {
+			return end
+		}
+		endOffset := GuessEndColumn(fileBody, offset)
+		end.Column += endOffset - offset
+		return end
 	}
 
 	var match ast.Node
@@ -125,4 +144,65 @@ func convertSingleGoPositionToRange(filename string, fileBody []byte, start toke
 		return fs.Position(match.End())
 	}
 	return start
+}
+
+func findPositionOffset(pos token.Position, data []byte) (int, bool) {
+	line, col := 1, 1
+	for i, c := range data {
+		if line == pos.Line && col == pos.Column {
+			return i, true
+		} else if line > pos.Line {
+			return -1, false
+		}
+		if c == '\n' {
+			line++
+			col = 1
+		} else {
+			col++
+		}
+	}
+	return -1, false
+}
+
+func GuessEndColumn(data []byte, offset int) int {
+	var params, brackets, braces int
+	inBackticks := false
+
+	for i := offset; i < len(data); i++ {
+		switch data[i] {
+		case '(':
+			params++
+		case '[':
+			brackets++
+		case '{':
+			braces++
+		case ')':
+			params--
+			if params <= 0 {
+				return i + 1
+			}
+		case ']':
+			brackets--
+			if brackets <= 0 {
+				return i + 1
+			}
+		case '}':
+			braces--
+			if braces <= 0 {
+				return i + 1
+			}
+		case '`':
+			inBackticks = !inBackticks
+		case ';', ',', ':', '"', '\'':
+			if !inBackticks && params == 0 && brackets == 0 && braces == 0 {
+				return i + 1
+			}
+		case ' ', '\t', '\n', '\r':
+			if params == 0 && brackets == 0 && braces == 0 {
+				return i + 1
+			}
+		}
+	}
+
+	return len(data) + 1
 }

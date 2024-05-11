@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Implements the trace protocol.
 
 use std::sync::atomic::{AtomicU64, Ordering};

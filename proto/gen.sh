@@ -28,3 +28,6 @@ protoc -I . --go_out=. --go_opt=$GO_OPT \
 
 protoc -I . --go_out=. --go_opt=$GO_OPT \
 ./encore/runtime/v1/secretdata.proto
+
+protoc -I . --go_out=. --go_opt=$GO_OPT \
+./encore/runtime/v1/secretdata.proto

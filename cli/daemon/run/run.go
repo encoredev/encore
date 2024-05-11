@@ -52,7 +52,7 @@ type Run struct {
 	ResourceManager *infra.ResourceManager
 	NS              *namespace.Namespace
 
-	builder builder.Impl
+	Builder builder.Impl
 	log     zerolog.Logger
 	Mgr     *Manager
 	Params  *StartParams
@@ -176,8 +176,8 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 }
 
 func (r *Run) Close() {
-	if r.builder != nil {
-		_ = r.builder.Close()
+	if r.Builder != nil {
+		_ = r.Builder.Close()
 	}
 	r.SvcProxy.Close()
 	r.ResourceManager.StopAll()
@@ -313,8 +313,8 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		return err
 	}
 
-	if r.builder == nil {
-		r.builder = builderimpl.Resolve(expSet)
+	if r.Builder == nil {
+		r.Builder = builderimpl.Resolve(r.App.Lang(), expSet)
 	}
 
 	vcsRevision := vcs.GetRevision(r.App.Root())
@@ -340,7 +340,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		}
 	}()
 
-	parse, err := r.builder.Parse(procCtx, builder.ParseParams{
+	parse, err := r.Builder.Parse(procCtx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
@@ -360,7 +360,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 	r.ResourceManager.StartRequiredServices(jobs, parse.Meta)
 
 	configProm := promise.New(func() (*builder.ServiceConfigsResult, error) {
-		return r.builder.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+		return r.Builder.ServiceConfigs(ctx, builder.ServiceConfigsParams{
 			Parse: parse,
 			CueMeta: &cueutil.Meta{
 				APIBaseURL: fmt.Sprintf("http://%s", r.ListenAddr),
@@ -373,7 +373,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 
 	var build *builder.CompileResult
 	jobs.Go("Compiling application source code", false, 0, func(ctx context.Context) (err error) {
-		build, err = r.builder.Compile(ctx, builder.CompileParams{
+		build, err = r.Builder.Compile(ctx, builder.CompileParams{
 			Build:       buildInfo,
 			App:         r.App,
 			Parse:       parse,
@@ -507,7 +507,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			DefinedSecrets: params.Secrets,
 			SvcConfigs:     params.ServiceConfigs,
 			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
-			IncludeMetaEnv: r.builder.NeedsMeta(),
+			IncludeMetaEnv: r.Builder.NeedsMeta(),
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
@@ -544,7 +544,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			gwConfs  map[string]*ProcConfig
 		)
 
-		if r.builder.UseNewRuntimeConfig() {
+		if r.Builder.UseNewRuntimeConfig() {
 			_, svcConfs, gwConfs, err = p.ConfigGen.ProcPerServiceWithNewRuntimeConfig(r.SvcProxy)
 			if err != nil {
 				return nil, err
@@ -778,9 +778,5 @@ func isSingleProc(outputs []builder.BuildOutput) bool {
 	if len(outputs) != 1 {
 		return false
 	}
-	o, ok := outputs[0].(*builder.GoBuildOutput)
-	if !ok {
-		return false
-	}
-	return len(o.Entrypoints) == 1
+	return len(outputs[0].GetEntrypoints()) == 1
 }

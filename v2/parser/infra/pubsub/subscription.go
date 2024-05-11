@@ -48,6 +48,7 @@ type SubscriptionConfig struct {
 	MinRetryBackoff  time.Duration
 	MaxRetryBackoff  time.Duration
 	MaxRetries       int
+	MaxConcurrency   int
 }
 
 func (s *Subscription) Kind() resource.Kind       { return resource.PubSubSubscription }
@@ -166,6 +167,7 @@ func parsePubSubSubscription(d parseutil.ReferenceInfo) {
 		MinRetryBackoff:  cfg.RetryPolicy.MinRetryBackoff,
 		MaxRetryBackoff:  cfg.RetryPolicy.MaxRetryBackoff,
 		MaxRetries:       cfg.RetryPolicy.MaxRetries,
+		MaxConcurrency:   cfg.MaxConcurrency,
 	}
 
 	if cfg.Handler == nil {

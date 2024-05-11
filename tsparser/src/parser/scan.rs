@@ -28,7 +28,7 @@ where
 
 fn ignored(entry: &walkdir::DirEntry) -> bool {
     match entry.file_name().to_str().unwrap_or_default() {
-        "node_modules" | ".git" | "encore.gen" => true,
-        _ => false,
+        "node_modules" | "encore.gen" => true,
+        x => x.starts_with('.'),
     }
 }

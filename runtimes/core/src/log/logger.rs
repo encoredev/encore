@@ -416,6 +416,7 @@ where
 
 #[inline]
 #[track_caller]
+#[allow(dead_code)]
 fn get_rust_caller() -> Option<String> {
     let location = std::panic::Location::caller();
     Some(format!("{}:{}", location.file(), location.line()))
@@ -492,31 +493,5 @@ impl log::kv::Visitor<'_> for KeyValueVisitor {
             }
             Err(e) => Err(log::kv::Error::boxed(e)),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::LogFromRust;
-    use crate::error::AppError;
-    use crate::log::{init, root};
-    use colored::control;
-    use log::{debug, error, info, trace, warn};
-
-    #[test]
-    fn test_logger() {
-        init();
-
-        control::set_override(true);
-
-        trace!("something tracing");
-        debug!("this was a debug");
-        info!(zzz=123,a_boolean=true,another_string="err",error="some error here";"hello world");
-        warn!(some_numer=12;"hello from a trace");
-        error!("this is an error");
-
-        root().info(None, "hello world", None);
-        root().error(None, "this error", Some(AppError::new("boo hoo")), None);
-        root().error(None, "this error 2", Some("I'm sad"), None);
     }
 }

@@ -12,7 +12,7 @@ use crate::model::{PubSubRequestData, RequestData, ResponseData, SpanId, SpanKey
 use crate::names::EncoreName;
 use crate::pubsub::noop::NoopCluster;
 use crate::pubsub::{
-    gcp, noop, nsq, Cluster, Message, MessageData, MessageId, SubName, Subscription,
+    gcp, noop, nsq, sqs_sns, Cluster, Message, MessageData, MessageId, SubName, Subscription,
     SubscriptionHandler, Topic,
 };
 use crate::trace::{protocol, Tracer};
@@ -130,6 +130,7 @@ impl SubHandler {
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
 
             let start = tokio::time::Instant::now();
+            let start_time = std::time::SystemTime::now();
             let req = Arc::new(model::Request {
                 span,
                 parent_trace: parent_trace_id,
@@ -139,6 +140,7 @@ impl SubHandler {
                 is_platform_request: false,
                 internal_caller: None,
                 start,
+                start_time,
                 data: RequestData::PubSub(PubSubRequestData {
                     service: self.obj.service.clone(),
                     topic: self.obj.topic.clone(),
@@ -217,7 +219,7 @@ impl Manager {
 
         let sub = {
             if let Some((cluster, sub_cfg, meta_sub)) = self.sub_cfg.get(&name) {
-                let inner = cluster.subscription(sub_cfg);
+                let inner = cluster.subscription(sub_cfg, meta_sub);
 
                 // If we have a push handler, register it.
                 if let Some((sub_id, push_handler)) = inner.push_handler() {
@@ -325,13 +327,11 @@ fn new_cluster(cluster: &pb::PubSubCluster) -> Arc<dyn Cluster> {
     match provider {
         pb::pub_sub_cluster::Provider::Gcp(_) => return Arc::new(gcp::Cluster::new()),
         pb::pub_sub_cluster::Provider::Nsq(cfg) => {
-            return Arc::new(nsq::Cluster::new(cfg.hosts[0].clone()))
+            return Arc::new(nsq::Cluster::new(cfg.hosts[0].clone()));
         }
+        pb::pub_sub_cluster::Provider::Aws(_) => return Arc::new(sqs_sns::Cluster::new()),
         pb::pub_sub_cluster::Provider::Encore(_) => {
             log::error!("Encore Cloud Pub/Sub not yet supported: {}", cluster.rid);
-        }
-        pb::pub_sub_cluster::Provider::Aws(_) => {
-            log::error!("AWS Pub/Sub not yet supported: {}", cluster.rid);
         }
         pb::pub_sub_cluster::Provider::Azure(_) => {
             log::error!("Azure Pub/Sub not yet supported: {}", cluster.rid);

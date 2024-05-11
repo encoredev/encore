@@ -430,6 +430,8 @@ impl VisitAstPath for UsageVisitor<'_> {
 
 #[cfg(test)]
 mod tests {
+    use assert_fs::fixture::PathChild;
+    use assert_fs::TempDir;
     use std::path::PathBuf;
 
     use assert_matches::assert_matches;
@@ -437,14 +439,14 @@ mod tests {
 
     use crate::parser::parser::ParseContext;
     use crate::parser::resourceparser::bind::BindKind;
-    use crate::parser::resources::apis::api::Access::Public;
     use crate::parser::resources::apis::api::{Endpoint, Method, Methods};
     use crate::parser::resources::apis::encoding::{
         EndpointEncoding, RequestEncoding, ResponseEncoding,
     };
     use crate::parser::resources::Resource;
-    use crate::parser::respath::{ParseOptions, Path};
+    use crate::parser::respath::Path;
     use crate::testutil::testresolve::TestResolver;
+    use crate::testutil::JS_RUNTIME_PATH;
 
     use super::*;
 
@@ -463,7 +465,9 @@ export const Bar = 5;
 
             let base = PathBuf::from("/dummy");
             let resolver = Box::new(TestResolver::new(&base, &ar));
-            let mut pc = ParseContext::with_resolver(resolver);
+            let tmp = TempDir::new().unwrap();
+            let app_root = tmp.child("app_root").to_path_buf();
+            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -474,7 +478,9 @@ export const Bar = 5;
                 service_name: "svc".into(),
                 name: "Bar".into(),
                 doc: None,
-                access: Public,
+                expose: true,
+                raw: false,
+                require_auth: false,
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
@@ -531,7 +537,9 @@ export const Bar = 5;
 
             let base = PathBuf::from("/dummy");
             let resolver = Box::new(TestResolver::new(&base, &ar));
-            let mut pc = ParseContext::with_resolver(resolver);
+            let tmp = TempDir::new().unwrap();
+            let app_root = tmp.child("app_root").to_path_buf();
+            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -542,7 +550,9 @@ export const Bar = 5;
                 name: "Bar".to_string(),
                 service_name: "svc".to_string(),
                 doc: None,
-                access: Public,
+                expose: true,
+                raw: false,
+                require_auth: false,
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),

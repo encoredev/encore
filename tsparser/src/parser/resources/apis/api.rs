@@ -9,7 +9,7 @@ use swc_ecma_ast::TsTypeParamInstantiation;
 use litparser::LitParser;
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{describe_endpoint, EndpointEncoding};
@@ -28,6 +28,7 @@ pub struct Endpoint {
     pub service_name: String,
     pub doc: Option<String>,
     pub expose: bool,
+    pub raw: bool,
     pub require_auth: bool,
     pub encoding: EndpointEncoding,
 }
@@ -109,7 +110,8 @@ impl Method {
             Self::Head,
             Self::Options,
             Self::Trace,
-            Self::Connect,
+            // Skip connect for now, since axum doesn't support it.
+            // Self::Connect,
         ]
     }
 }
@@ -163,22 +165,36 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 
             let path = Path::parse(&path_str, Default::default())?;
 
-            let request = match r.request {
-                None => None,
-                Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)?),
-            };
-            let response = match r.response {
-                None => None,
-                Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)?),
-            };
-
             let object = pass
                 .type_checker
                 .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()))?;
 
             let methods = r.config.method.unwrap_or(Methods::Some(vec![Method::Post]));
-            let encoding =
-                describe_endpoint(pass.type_checker.ctx(), methods, path, request, response)?;
+
+            let raw = matches!(r.kind, EndpointKind::Raw);
+            let (request, response) = match r.kind {
+                EndpointKind::Typed { request, response } => {
+                    let request = match request {
+                        None => None,
+                        Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)?),
+                    };
+                    let response = match response {
+                        None => None,
+                        Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)?),
+                    };
+                    (request, response)
+                }
+                EndpointKind::Raw => (None, None),
+            };
+
+            let encoding = describe_endpoint(
+                pass.type_checker.ctx(),
+                methods,
+                path,
+                request,
+                response,
+                raw,
+            )?;
 
             let resource = Resource::APIEndpoint(Lrc::new(Endpoint {
                 range: r.range,
@@ -187,13 +203,14 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 doc: r.doc_comment,
                 expose: r.config.expose.unwrap_or(false),
                 require_auth: r.config.auth.unwrap_or(false),
+                raw,
                 encoding,
             }));
 
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
                 range: r.range,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
                 ident: Some(r.bind_name),
@@ -236,8 +253,16 @@ struct APIEndpointLiteral {
     pub endpoint_name: String,
     pub bind_name: ast::Ident,
     pub config: EndpointConfig,
-    pub request: Option<ast::TsType>,
-    pub response: Option<ast::TsType>,
+    pub kind: EndpointKind,
+}
+
+#[derive(Debug)]
+enum EndpointKind {
+    Typed {
+        request: Option<ast::TsType>,
+        response: Option<ast::TsType>,
+    },
+    Raw,
 }
 
 #[derive(LitParser, Debug)]
@@ -272,29 +297,55 @@ impl ReferenceParser for APIEndpointLiteral {
                     let Some(handler) = &expr.args.get(1) else {
                         anyhow::bail!("API Endpoint must have a handler function")
                     };
-                    let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
 
-                    if req.is_none() {
-                        req = extract_type_param(expr.type_args.as_deref(), 0)?;
-                    }
-                    if resp.is_none() {
-                        resp = extract_type_param(expr.type_args.as_deref(), 1)?;
-                    }
+                    let ast::Callee::Expr(callee) = &expr.callee else {
+                        anyhow::bail!("invalid api definition expression")
+                    };
 
-                    return Ok(Some(Self {
-                        range: expr.span.into(),
-                        doc_comment,
-                        endpoint_name: bind_name.sym.to_string(),
-                        bind_name,
-                        config,
-                        request: req.map(|t| t.clone()),
-                        response: resp.map(|t| t.clone()),
+                    // Determine what kind of endpoint it is.
+                    return Ok(Some(match callee.as_ref() {
+                        ast::Expr::Member(member) if member.prop.is_ident_with("raw") => {
+                            // Raw endpoint
+                            Self {
+                                range: expr.span.into(),
+                                doc_comment,
+                                endpoint_name: bind_name.sym.to_string(),
+                                bind_name,
+                                config,
+                                kind: EndpointKind::Raw,
+                            }
+                        }
+
+                        _ => {
+                            // Regular endpoint
+                            let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
+
+                            if req.is_none() {
+                                req = extract_type_param(expr.type_args.as_deref(), 0)?;
+                            }
+                            if resp.is_none() {
+                                resp = extract_type_param(expr.type_args.as_deref(), 1)?;
+                            }
+
+                            Self {
+                                range: expr.span.into(),
+                                doc_comment,
+                                endpoint_name: bind_name.sym.to_string(),
+                                bind_name,
+                                config,
+                                kind: EndpointKind::Typed {
+                                    request: req.map(|t| t.clone()),
+                                    response: resp.map(|t| t.clone()),
+                                },
+                            }
+                        }
                     }));
                 }
 
                 _ => {}
             }
         }
+
         Ok(None)
     }
 }

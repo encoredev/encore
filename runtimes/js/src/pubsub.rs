@@ -107,7 +107,7 @@ impl PubSubSubscription {
 
 struct PubSubMessageRequest {
     req: Request,
-    tx: tokio::sync::mpsc::Sender<Result<(), api::Error>>,
+    tx: tokio::sync::mpsc::UnboundedSender<Result<(), api::Error>>,
 }
 
 #[derive(Debug)]
@@ -122,8 +122,8 @@ impl pubsub::SubscriptionHandler for JSSubscriptionHandler {
     ) -> Pin<Box<dyn Future<Output = Result<(), api::Error>> + Send + '_>> {
         let handler = self.handler.clone();
         Box::pin(async move {
-            let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-            let req = Request { inner: msg };
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let req = Request::new(msg);
             handler.call(
                 PubSubMessageRequest { req, tx },
                 crate::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,
@@ -216,9 +216,7 @@ fn resolve_on_js_thread(ctx: ThreadSafeCallContext<PubSubMessageRequest>) -> nap
         }
         Err(err) => {
             let res = handler.error(ctx.env, err);
-            spawn(async move {
-                _ = ctx.value.tx.send(res).await;
-            });
+            _ = ctx.value.tx.send(res);
             Ok(())
         }
     }

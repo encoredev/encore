@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - feature/typescript
   pull_request:
     branches:
       - main
-      - feature/typescript
   schedule:
     - cron: "30 2 * * *" # Every night at 2:30am UTC (if you change this schedule, also change the if statement in the test steps)
 
@@ -59,9 +57,6 @@ jobs:
           check-latest: true
           cache-dependency-path: "encr.dev/go.sum"
 
-      - name: Install go-junit-report
-        run: go install github.com/jstemmer/go-junit-report/v2@7933520 # Note: this is an untagged latest release, as the v2.0.0 tag has a bug which doesn't work with the reporting tool
-
       - name: Install encore-go
         run: |
           URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
@@ -69,14 +64,14 @@ jobs:
 
       # If we're not running on a schedule, we only want to run tests on changed code
       - name: Run tests on changed code on the CLI
-        run: cd encr.dev && go test -v -short -tags=dev_build 2>&1 ./... | go-junit-report -set-exit-code > cli-test-report.xml
+        run: cd encr.dev && go test -short -tags=dev_build 2>&1 ./...
         if: github.event.schedule != '30 2 * * *'
         env:
           ENCORE_GOROOT: ${{ github.workspace }}/encore-go
           ENCORE_RUNTIMES_PATH: ${{ github.workspace }}/encr.dev/runtimes
 
       - name: Run tests on changed runtime code
-        run: cd encr.dev/runtimes/go && go test -v -short -tags=dev_build ./...
+        run: cd encr.dev/runtimes/go && go test -short -tags=dev_build ./...
         if: github.event.schedule != '30 2 * * *'
 
       # Each night we want to run all tests multiple times to catch any flaky tests
@@ -122,10 +117,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: reviewdog/action-setup@8e48baae926e97848f0863ae248f3b08e089c81f
-        with:
-          reviewdog_version: latest
-
       - name: Install jq
         uses: dcarbone/install-jq-action@91d8da7268538e8a0ae0c8b72af44f1763228455
 
@@ -145,17 +136,6 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@master
           go install github.com/kisielk/errcheck@latest
           go install github.com/gordonklaus/ineffassign@latest
-
-      - name: Run reviewdog
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Fail the build if there were any static analysis errors within files which where changed
-        # within this PR. Note: we'll ignore changes made on files which where not modified in this PR.
-        #
-        # If we want to fail on any errors only within the lines modified, change to "-filter-mode=added"
-        # If we want to fail on any errors found in files modified, change to "-filter-mode=file"
-        # If you want to fail on any errors found in the entire codebase, change to "-filter-mode=nofilter"
-        run: reviewdog -fail-on-error -filter-mode=file -reporter=github-pr-review
 
   rust_core:
     name: "Test core runtime"
@@ -181,7 +161,10 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo
+      - uses: taiki-e/install-action@nextest
       - name: Run test
-        run: cargo test
+        run: cargo nextest run
+        env:
+          CARGO_TERM_COLOR: always
       - name: Run rustfmt
         run: cargo fmt --all --check

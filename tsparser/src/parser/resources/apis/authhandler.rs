@@ -1,12 +1,10 @@
-use std::str::FromStr;
-
 use anyhow::Result;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{describe_auth_handler, AuthHandlerEncoding};
@@ -14,7 +12,7 @@ use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
-use crate::parser::types::Type;
+
 use crate::parser::{FilePath, Range};
 
 #[derive(Debug, Clone)]
@@ -71,7 +69,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
                 range: r.range,
-                resource,
+                resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
                 ident: Some(r.bind_name),

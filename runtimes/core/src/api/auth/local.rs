@@ -1,6 +1,6 @@
 use crate::api::auth::{AuthHandler, AuthPayload, AuthRequest, AuthResponse};
 use crate::api::schema::encoding::Schema;
-use crate::api::schema::{Header, JSONPayload, Query};
+use crate::api::schema::JSONPayload;
 use crate::api::APIResult;
 use crate::log::LogFromRust;
 use crate::model::{AuthRequestData, RequestData};
@@ -13,12 +13,12 @@ use std::sync::{Arc, RwLock};
 pub struct LocalAuthHandler {
     pub name: EndpointName,
     pub schema: Schema,
-    pub handler: RwLock<Option<Arc<dyn api::BoxedHandler>>>,
+    pub handler: RwLock<Option<Arc<dyn api::TypedHandler>>>,
     pub tracer: Tracer,
 }
 
 impl LocalAuthHandler {
-    pub fn set_handler(&self, handler: Option<Arc<dyn api::BoxedHandler>>) {
+    pub fn set_handler(&self, handler: Option<Arc<dyn api::TypedHandler>>) {
         let mut guard = self.handler.write().unwrap();
         *guard = handler;
     }
@@ -70,6 +70,7 @@ impl AuthHandler for LocalAuthHandler {
                 is_platform_request: false, // TODO
                 internal_caller: None,      // TODO
                 start: tokio::time::Instant::now(),
+                start_time: std::time::SystemTime::now(),
                 data: RequestData::Auth(AuthRequestData {
                     auth_handler: this.name().clone(),
                     parsed_payload: AuthPayload { query, header },

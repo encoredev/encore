@@ -1,4 +1,5 @@
 use anyhow::Context;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::proxy;
@@ -12,7 +13,7 @@ use crate::sqldb::Pool;
 use crate::trace::Tracer;
 
 pub struct Manager {
-    databases: Arc<HashMap<EncoreName, Arc<Database>>>,
+    databases: Arc<HashMap<EncoreName, Arc<DatabaseImpl>>>,
     proxy_port: u16,
 }
 
@@ -34,8 +35,11 @@ impl Manager {
         })
     }
 
-    pub fn database(&self, name: &EncoreName) -> Option<Arc<Database>> {
-        self.databases.get(name).cloned()
+    pub fn database(&self, name: &EncoreName) -> Arc<dyn Database> {
+        match self.databases.get(name) {
+            Some(db) => db.clone(),
+            None => Arc::new(NoopDatabase { name: name.clone() }),
+        }
     }
 
     pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
@@ -58,41 +62,99 @@ impl Manager {
     }
 }
 
+pub trait Database: Send + Sync {
+    // The name of the database.
+    fn name(&self) -> &EncoreName;
+
+    fn pool_config(&self) -> anyhow::Result<PoolConfig>;
+    fn config(&self) -> anyhow::Result<&tokio_postgres::Config>;
+    fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector>;
+    fn new_pool(&self) -> anyhow::Result<Pool>;
+
+    /// Returns the connection string for connecting to this database via the proxy.
+    fn proxy_conn_string(&self) -> anyhow::Result<&str>;
+}
+
 /// Represents a SQL Database available to the runtime.
-pub struct Database {
+pub struct DatabaseImpl {
     name: EncoreName,
     config: Arc<tokio_postgres::Config>,
     tls: postgres_native_tls::MakeTlsConnector,
     proxy_conn_string: String,
     tracer: Tracer,
+
+    min_conns: u32,
+    max_conns: u32,
 }
 
-impl Database {
-    /// Returns the connection string for connecting to this database via the proxy.
-    pub fn proxy_conn_string(&self) -> &str {
-        &self.proxy_conn_string
-    }
+#[derive(Debug, Clone)]
+pub struct PoolConfig {
+    pub min_conns: u32,
+    pub max_conns: u32,
+}
 
-    pub fn name(&self) -> &EncoreName {
+impl Database for DatabaseImpl {
+    fn name(&self) -> &EncoreName {
         &self.name
     }
 
-    pub(crate) fn config(&self) -> &tokio_postgres::Config {
-        &self.config
+    fn pool_config(&self) -> anyhow::Result<PoolConfig> {
+        Ok(PoolConfig {
+            min_conns: self.min_conns,
+            max_conns: self.max_conns,
+        })
     }
 
-    pub(crate) fn tls(&self) -> &postgres_native_tls::MakeTlsConnector {
-        &self.tls
+    fn config(&self) -> anyhow::Result<&tokio_postgres::Config> {
+        Ok(&self.config)
     }
 
-    pub fn new_pool(&self) -> Pool {
+    fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector> {
+        Ok(&self.tls)
+    }
+
+    fn new_pool(&self) -> anyhow::Result<Pool> {
         Pool::new(self, self.tracer.clone())
+    }
+
+    fn proxy_conn_string(&self) -> anyhow::Result<&str> {
+        Ok(&self.proxy_conn_string)
+    }
+}
+
+struct NoopDatabase {
+    name: EncoreName,
+}
+
+impl Database for NoopDatabase {
+    fn name(&self) -> &EncoreName {
+        &self.name
+    }
+
+    fn pool_config(&self) -> anyhow::Result<PoolConfig> {
+        anyhow::bail!("this database is not configured for use by this process")
+    }
+
+    fn config(&self) -> anyhow::Result<&tokio_postgres::Config> {
+        anyhow::bail!("this database is not configured for use by this process")
+    }
+
+    fn tls(&self) -> anyhow::Result<&postgres_native_tls::MakeTlsConnector> {
+        anyhow::bail!("this database is not configured for use by this process")
+    }
+
+    fn new_pool(&self) -> anyhow::Result<Pool> {
+        anyhow::bail!("this database is not configured for use by this process")
+    }
+
+    fn proxy_conn_string(&self) -> anyhow::Result<&str> {
+        anyhow::bail!("this database is not configured for use by this process")
     }
 }
 
 #[derive(Clone)]
 struct Bouncer {
-    databases: Arc<HashMap<EncoreName, Arc<Database>>>,
+    databases: Arc<HashMap<EncoreName, Arc<DatabaseImpl>>>,
 }
 
 impl ClientBouncer for Bouncer {
@@ -133,7 +195,7 @@ fn databases_from_cfg(
     secrets: &secrets::Manager,
     proxy_port: u16,
     tracer: Tracer,
-) -> anyhow::Result<HashMap<EncoreName, Arc<Database>>> {
+) -> anyhow::Result<HashMap<EncoreName, Arc<DatabaseImpl>>> {
     let mut databases = HashMap::new();
     for c in clusters {
         // Get the primary server.
@@ -194,13 +256,21 @@ fn databases_from_cfg(
             config.application_name("encore");
 
             let mut tls_builder = native_tls::TlsConnector::builder();
-            if let Some(server_ca_cert) = &server.server_ca_cert {
-                let cert = native_tls::Certificate::from_pem(server_ca_cert.as_bytes())
-                    .context("unable to parse server ca certificate")?;
-                tls_builder.add_root_certificate(cert);
-                config.ssl_mode(tokio_postgres::config::SslMode::Require);
+            if let Some(tls_config) = &server.tls_config {
+                if let Some(server_ca_cert) = &tls_config.server_ca_cert {
+                    let cert = native_tls::Certificate::from_pem(server_ca_cert.as_bytes())
+                        .context("unable to parse server ca certificate")?;
+                    tls_builder.add_root_certificate(cert);
+                    config.ssl_mode(tokio_postgres::config::SslMode::Require);
+                } else {
+                    config.ssl_mode(tokio_postgres::config::SslMode::Prefer);
+                }
+
+                if tls_config.disable_tls_hostname_verification {
+                    tls_builder.danger_accept_invalid_hostnames(true);
+                }
             } else {
-                config.ssl_mode(tokio_postgres::config::SslMode::Prefer);
+                config.ssl_mode(tokio_postgres::config::SslMode::Disable);
             }
 
             if let Some(client_cert_rid) = &role.client_cert_rid {
@@ -223,9 +293,14 @@ fn databases_from_cfg(
                     .context("client certificate has no key")?;
                 let client_key = secrets.load(client_key.clone());
                 let client_key = client_key.get().context("failed to resolve client key")?;
-                let identity =
-                    native_tls::Identity::from_pkcs8(client_cert.cert.as_bytes(), client_key)
-                        .context("failed to parse client certificate")?;
+
+                let client_key = convert_client_key_if_necessary(client_key)
+                    .context("failed to convert client key to PKCS#8")?;
+                let identity = native_tls::Identity::from_pkcs8(
+                    client_cert.cert.as_bytes(),
+                    client_key.as_ref(),
+                )
+                .context("failed to parse client certificate")?;
                 tls_builder.identity(identity);
             }
 
@@ -235,23 +310,47 @@ fn databases_from_cfg(
             let tls = postgres_native_tls::MakeTlsConnector::new(tls);
 
             let proxy_conn_string = format!(
-                "postgresql://encore:password@localhost:{}/{}?sslmode=disable",
+                "postgresql://encore:password@127.0.0.1:{}/{}?sslmode=disable",
                 proxy_port, db.encore_name
             );
 
             let name: EncoreName = db.encore_name.into();
             databases.insert(
                 name.clone(),
-                Arc::new(Database {
+                Arc::new(DatabaseImpl {
                     name,
                     config: Arc::new(config),
                     tls,
                     proxy_conn_string,
                     tracer: tracer.clone(),
+
+                    min_conns: pool.min_connections as u32,
+                    max_conns: pool.max_connections as u32,
                 }),
             );
         }
     }
 
     Ok(databases)
+}
+
+/// Converts the client key from PKCS#1 to PKCS#8 if necessary.
+fn convert_client_key_if_necessary(pem: &[u8]) -> anyhow::Result<Cow<'_, [u8]>> {
+    let Ok(pem_str) = std::str::from_utf8(pem) else {
+        // Assume the key is already in PKCS#8 format.
+        return Ok(Cow::Borrowed(pem));
+    };
+    if !pem_str.starts_with("-----BEGIN RSA PRIVATE KEY-----") {
+        // Key is not in PKCS#1 format, assume it's already in PKCS#8 format.
+        return Ok(Cow::Borrowed(pem));
+    }
+
+    use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::EncodePrivateKey};
+
+    let pkey = rsa::RsaPrivateKey::from_pkcs1_pem(pem_str)
+        .context("failed to parse PKCS#1 private key")?;
+    let pkcs8 = pkey
+        .to_pkcs8_pem(rsa::pkcs8::LineEnding::LF)
+        .context("failed to convert PKCS#1 private key to PKCS#8")?;
+    Ok(Cow::Owned(pkcs8.as_bytes().to_owned()))
 }

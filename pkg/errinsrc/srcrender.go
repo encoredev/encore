@@ -198,7 +198,7 @@ linePrintLoop:
 				// Try and guess the atom where the error is
 				// if the currentCause.Start()/currentCause.End() point is the same position
 				if endCol <= startCol {
-					endCol = guessEndColumn(sc.Text(), startCol)
+					endCol = GuessEndColumn(sc.Bytes(), startCol)
 				}
 
 				// Work out how long the indicator is
@@ -406,47 +406,4 @@ func wordWrap(text string, b *strings.Builder) {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
-}
-
-func guessEndColumn(line string, startColumn int) int {
-	var params, brackets, braces int
-	inBackticks := false
-
-	for i := startColumn; i < len(line); i++ {
-		switch line[i] {
-		case '(':
-			params++
-		case '[':
-			brackets++
-		case '{':
-			braces++
-		case ')':
-			params--
-			if params <= 0 {
-				return i + 1
-			}
-		case ']':
-			brackets--
-			if brackets <= 0 {
-				return i + 1
-			}
-		case '}':
-			braces--
-			if braces <= 0 {
-				return i + 1
-			}
-		case '`':
-			inBackticks = !inBackticks
-		case ';', ',', ':', '"', '\'':
-			if !inBackticks && params == 0 && brackets == 0 && braces == 0 {
-				return i + 1
-			}
-		case ' ', '\t', '\n', '\r':
-			if params == 0 && brackets == 0 && braces == 0 {
-				return i + 1
-			}
-		}
-	}
-
-	return len(line) + 1
 }

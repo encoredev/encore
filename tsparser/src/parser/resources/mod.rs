@@ -7,7 +7,7 @@ use crate::parser::resources::infra::pubsub_subscription::SUBSCRIPTION_PARSER;
 use crate::parser::resources::infra::pubsub_topic::TOPIC_PARSER;
 use crate::parser::resources::infra::secret::SECRET_PARSER;
 use crate::parser::resources::infra::sqldb::SQLDB_PARSER;
-use std::fmt::{Display, Formatter, Pointer};
+use std::fmt::{Display, Formatter};
 use swc_common::sync::Lrc;
 
 pub mod apis;
@@ -25,6 +25,11 @@ pub enum Resource {
     PubSubSubscription(Lrc<infra::pubsub_subscription::Subscription>),
     CronJob(Lrc<infra::cron::CronJob>),
     Secret(Lrc<infra::secret::Secret>),
+}
+
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
+pub enum ResourcePath {
+    SQLDatabase { name: String },
 }
 
 impl Display for Resource {

@@ -12,6 +12,66 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 	return dst
 }
 
+// MapAndFilter applies fn on all elements in src, producing a new slice
+// with the results, in order. If fn returns false, the element is
+// not included in the result.
+func MapAndFilter[A, B any](src []A, fn func(A) (B, bool)) []B {
+	var dst []B
+	for _, v := range src {
+		if r, ok := fn(v); ok {
+			dst = append(dst, r)
+		}
+	}
+	return dst
+
+}
+
+// MapErr applies fn on all elements in src, producing a new slice
+// with the results, in order. If fn returns an error, MapErr
+// returns that error and the resulting slice is nil.
+func MapErr[A, B any](src []A, fn func(A) (B, error)) ([]B, error) {
+	dst := make([]B, len(src))
+	for i, v := range src {
+		var err error
+		dst[i], err = fn(v)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return dst, nil
+
+}
+
+// TransformMapKeys creates a new map with the same values as m, but with
+// the keys transformed by fn.
+func TransformMapKeys[K1, K2 comparable, V any](m map[K1]V, fn func(K1) K2) map[K2]V {
+	dst := make(map[K2]V, len(m))
+	for k, v := range m {
+		dst[fn(k)] = v
+	}
+	return dst
+}
+
+// Any returns true if any element in src satisfies the predicate.
+func Any[A any](src []A, pred func(A) bool) bool {
+	for _, v := range src {
+		if pred(v) {
+			return true
+		}
+	}
+	return false
+}
+
+// FlatMap applies fn on all elements in src, producing a new slice
+// with the results, in order.
+func FlatMap[A, B any](src []A, fn func(A) []B) []B {
+	var dst []B
+	for _, v := range src {
+		dst = append(dst, fn(v)...)
+	}
+	return dst
+}
+
 // Find returns the first element where pred returns true.
 // The second argument is true if an element was found.
 func Find[A any](src []A, pred func(A) bool) (A, bool) {
@@ -36,6 +96,25 @@ func Filter[Elem any](src []Elem, fn func(Elem) bool) []Elem {
 		}
 	}
 	return dst
+}
+
+// ToMap converts a slice to a map.
+func ToMap[K comparable, V any](src []V, key func(V) K) map[K]V {
+	dst := make(map[K]V, len(src))
+	for _, v := range src {
+		dst[key(v)] = v
+	}
+	return dst
+}
+
+// TransformMapToSlice creates a new slice with the results of applying fn to each
+// key-value pair in m.
+func TransformMapToSlice[K comparable, V any, R any](m map[K]V, fn func(K, V) R) []R {
+	r := make([]R, 0, len(m))
+	for k, v := range m {
+		r = append(r, fn(k, v))
+	}
+	return r
 }
 
 // MapKeys returns the keys of the map m.

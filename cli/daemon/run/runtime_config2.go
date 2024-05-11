@@ -232,11 +232,18 @@ func (g *RuntimeConfigGenerator) initialize() error {
 				Rid: newRid(),
 			})
 
+			var tlsConfig *runtimev1.TLSConfig
+			if srvConfig.ServerCACert != "" {
+				tlsConfig = &runtimev1.TLSConfig{
+					ServerCaCert: &srvConfig.ServerCACert,
+				}
+			}
+
 			cluster.SQLServer(&runtimev1.SQLServer{
-				Rid:          newRid(),
-				Kind:         runtimev1.ServerKind_SERVER_KIND_PRIMARY,
-				ServerCaCert: ptrOrNil(srvConfig.ServerCACert),
-				Host:         srvConfig.Host,
+				Rid:       newRid(),
+				Kind:      runtimev1.ServerKind_SERVER_KIND_PRIMARY,
+				Host:      srvConfig.Host,
+				TlsConfig: tlsConfig,
 			})
 
 			for _, db := range g.md.SqlDatabases {
@@ -300,12 +307,18 @@ func (g *RuntimeConfigGenerator) initialize() error {
 					return r
 				})
 
+				var tlsConfig *runtimev1.TLSConfig
+				if srvConfig.EnableTLS || srvConfig.ServerCACert != "" {
+					tlsConfig = &runtimev1.TLSConfig{
+						ServerCaCert: ptrOrNil(srvConfig.ServerCACert),
+					}
+				}
+
 				cluster.RedisServer(&runtimev1.RedisServer{
-					Rid:          newRid(),
-					Host:         srvConfig.Host,
-					Kind:         runtimev1.ServerKind_SERVER_KIND_PRIMARY,
-					EnableTls:    srvConfig.EnableTLS,
-					ServerCaCert: ptrOrNil(srvConfig.ServerCACert),
+					Rid:       newRid(),
+					Host:      srvConfig.Host,
+					Kind:      runtimev1.ServerKind_SERVER_KIND_PRIMARY,
+					TlsConfig: tlsConfig,
 				})
 				cluster.RedisDatabase(&runtimev1.RedisDatabase{
 					Rid:         newRid(),
@@ -666,15 +679,16 @@ func (g *RuntimeConfigGenerator) ProcEnvs(proc *ProcConfig, useRuntimeConfigV2 b
 
 func (g *RuntimeConfigGenerator) MissingSecrets() []string {
 	var missing []string
-	svcNames := fns.Map(g.md.Svcs, func(svc *meta.Service) string { return svc.Name })
-	secretNames := secretsUsedByServices(g.md, svcNames...)
-	for name := range g.DefinedSecrets {
-		if !secretNames[name] {
-			missing = append(missing, name)
+	for _, pkg := range g.md.Pkgs {
+		for _, name := range pkg.Secrets {
+			if _, ok := g.DefinedSecrets[name]; !ok {
+				missing = append(missing, name)
+			}
 		}
 	}
 
 	sort.Strings(missing)
+	missing = slices.Compact(missing)
 	return missing
 }
 

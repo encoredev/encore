@@ -39,7 +39,7 @@ func (mgr *Manager) Test(ctx context.Context, params TestParams) (err error) {
 	if err != nil {
 		return err
 	}
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
 	spec, err := mgr.testSpec(ctx, bld, expSet, params.TestSpecParams)
@@ -95,7 +95,7 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 	if err != nil {
 		return nil, err
 	}
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve(params.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
 	spec, err := mgr.testSpec(ctx, bld, expSet, &params)
@@ -181,7 +181,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		app:            params.App,
 		infraManager:   rm,
 		md:             parse.Meta,
-		AppID:          option.Some("test"),
+		AppID:          option.Some(params.App.PlatformOrLocalID()),
 		EnvID:          option.Some("test"),
 		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
 		AuthKey:        authKey,

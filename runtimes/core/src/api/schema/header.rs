@@ -16,8 +16,12 @@ impl Header {
     pub fn contains_any(&self, headers: &impl HTTPHeaders) -> bool {
         for (name, field) in self.schema.root().fields.iter() {
             let header_name = field.name_override.as_deref().unwrap_or(name.as_str());
-            if headers.contains_key(header_name) {
-                return true;
+
+            if let Some(val) = headers.get(header_name) {
+                // Only consider non-empty values to be present.
+                if !val.is_empty() {
+                    return true;
+                }
             }
         }
         return false;
@@ -37,10 +41,14 @@ impl Header {
 
     /// Returns an iterator that yields the header names that are expected by the schema.
     pub fn header_names(&self) -> impl Iterator<Item = axum::http::HeaderName> + '_ {
-        self.schema.root().fields.iter().filter_map(|(name, field)| {
-            let header_name = field.name_override.as_deref().unwrap_or(name.as_str());
-            axum::http::HeaderName::from_str(header_name).ok()
-        })
+        self.schema
+            .root()
+            .fields
+            .iter()
+            .filter_map(|(name, field)| {
+                let header_name = field.name_override.as_deref().unwrap_or(name.as_str());
+                axum::http::HeaderName::from_str(header_name).ok()
+            })
     }
 }
 
@@ -253,13 +261,12 @@ impl ToResponse for Header {
         let schema = self.schema.root();
         for (key, value) in payload.iter() {
             let key = key.as_str();
-            let header_name = schema
-                .fields
-                .get(key)
-                .and_then(|f| f.name_override.as_deref())
-                .unwrap_or(key);
-            let header_name =
-                axum::http::header::HeaderName::from_str(header_name).map_err(api::Error::internal)?;
+            let Some(field) = schema.fields.get(key) else {
+                continue; // Not a header.
+            };
+            let header_name = field.name_override.as_deref().unwrap_or(key);
+            let header_name = axum::http::header::HeaderName::from_str(header_name)
+                .map_err(api::Error::internal)?;
 
             match to_axum_header_value(value)? {
                 AxumHeaders::Single(value) => resp = resp.header(header_name, value),

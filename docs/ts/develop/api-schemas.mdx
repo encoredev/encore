@@ -1,0 +1,174 @@
+---
+seotitle: API Schemas – Path, Query, and Body parameters
+seodesc: See how to design API schemas for your Go based backend application using Encore.
+title: API Schemas
+subtitle: How to design schemas for your APIs
+lang: ts
+---
+
+APIs in Encore for TypeScript are `async` functions with request and response data types.
+
+These request and response data types are TypeScript interfaces, which Encore uses to encode API requests to HTTP messages.
+
+Encore parses the source code to understand the request and response schema of each endpoint.
+By default, the data is parsed as a JSON body for incoming requests, and written back as JSON responses.
+
+This can be customized on a per-field basis, allowing individual fields to be parsed from query strings
+and HTTP headers with ease.
+
+For example:
+
+```typescript
+import { api, Header, Query } from "encore.dev/api";
+
+interface Data {
+  header: Header<"X-Header">; // this field will be read from the http header
+  query: Query<string>; // this will be parsed from the '?query=...' parameter in the request url
+  body: string; // this will be sent as part of the JSON body
+
+  // These will also sent as part of the JSON body:
+  nested: {
+    body2: string;
+    header2: Header<"X-Other-Header">; // Header has no effect inside nested fields
+    query2: Query<string>; // Query has no effect inside nested fields
+  };
+}
+
+// A simple API endpoint that echoes the data back.
+export const echo = api(
+  { method: "POST", path: "/echo" },
+  async (params: Data): Promise<Data> => {
+    return params; // echo the data back
+  },
+);
+```
+
+This API endpoint expects incoming requests to look like this:
+
+```output
+POST /echo?query=hello HTTP/1.1
+Content-Type: application/json
+X-Header: this is a header
+
+{
+   "body": "a body",
+   "nested": {
+      "body2": "nested body field",
+      "header2": "not a header",
+      "query2": "not a query string"
+   }
+}
+```
+
+The Encore runtime will parse this request, constructing a JavaScript object matching the TypeScript type definition
+for the `Data` type. The endpoint handler would receive this as a JavaScript object that looks like this:
+
+```javascript
+{
+    header: "this is a header",
+    query: "hello",
+    body: "a body",
+    nested: {
+        body2: "nested body field",
+        header2: "not a header",
+        query2: "not a query string"
+    }
+}
+```
+
+And when the `echo` endpoint returns this object back to Encore, Encore will serialize the request back to HTTP.
+
+For HTTP responses the `Query<string>` type is considered to be part of the JSON response body, since query strings
+only make sense for incoming requests.
+
+This data would be serialized as a HTTP response that looks like this:
+
+```output
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Header: this is a header
+
+{
+   "query": "hello",
+   "body": "a body",
+   "nested": {
+      "body2": "nested body"
+      "header2": "not a header",
+      "query2": "not a query"
+   }
+}
+```
+
+## Path parameters
+
+Path parameters are specified by the `path` field in the API Options in `api` call.
+To specify a placeholder variable, use `:name` and add a function parameter with the same name to the function signature.
+Encore parses the incoming request URL and makes sure it matches the type of the parameter. The last segment of the path
+can be parsed as a wildcard parameter by using `*name` with a matching function parameter.
+
+Each path parameter (whether a single segment like `:name` or a wildcard parameter like `*name`) must have
+a matching field in the request data type.
+
+For example:
+
+```ts
+// Retrieves a blog post by its id.
+export const getBlogPost = api(
+    {method: "GET", path: "/blog/:id/*path"},
+    async (params: {id: number; path: string}): Promise<BlogPost> {
+        // Use id and path to query database...
+    }
+)
+```
+
+## Headers
+
+Headers are defined by setting the field type to `Header<"Name-Of-Header">`. It can be used in both request and response data types.
+
+In the example below, the `Language` field of `ListBlogPost` will be fetched from the
+`Accept-Language` HTTP header.
+
+```ts
+import { Header } from "encore.dev/api";
+
+interface ListBlogPost {
+  language: Header<"Accept-Language">; // parsed from header
+  author: string; // not a header
+}
+```
+
+## Query parameters
+
+For `GET`, `HEAD` and `DELETE` requests, parameters are read from the query string by default, since those HTTP methods
+do not support request bodies.
+
+For other HTTP methods (that do support request bodies), parameters are by default read from the HTTP request body as JSON.
+In those cases, the `Query` type can be used to specify that a field should be parsed from the query string instead.
+
+Query strings are not supported in HTTP responses, and are treated as being part of the HTTP response body in JSON.
+
+In the example below, the `limit` field will be read from the `limit` query parameter for all HTTP methods,
+whereas the `author` field will be parsed from the query string only if the method of
+the request is `GET`, `HEAD` or `DELETE` (and otherwise from the HTTP request body as JSON).
+
+```ts
+interface ListBlogPost {
+  limit: Query<number>; // always a query parameter
+  author: string; // query if GET, HEAD or DELETE, otherwise body parameter
+}
+```
+
+## Body parameters
+
+Encore will default to reading request parameters from the body (as JSON) for all HTTP methods except `GET`, `HEAD` or
+`DELETE`. The name of the body parameter is the field name.
+Response fields will be serialized as JSON in the HTTP body unless the `Header` type is used to override it.
+
+## Raw endpoints
+
+In some cases you may need to fulfill an API schema that is defined by someone else, for instance when you want to accept webhooks.
+This often requires you to parse custom HTTP headers and do other low-level things that Encore usually lets you skip.
+
+For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
+
+Learn more in the [raw endpoints documentation](/docs/ts/primitives/services-and-apis#raw-endpoints).

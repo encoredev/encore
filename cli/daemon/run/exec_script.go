@@ -74,7 +74,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	parseOp := tracker.Add("Building Encore application graph", start)
 	topoOp := tracker.Add("Analyzing service topology", start)
 
-	bld := builderimpl.Resolve(expSet)
+	bld := builderimpl.Resolve(p.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 	vcsRevision := vcs.GetRevision(p.App.Root())
 	buildInfo := builder.BuildInfo{
@@ -196,10 +196,16 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	if err != nil {
 		return err
 	}
+	procEnv, err := configGen.ProcEnvs(procConf, bld.UseNewRuntimeConfig())
+	if err != nil {
+		return errors.Wrap(err, "compute proc envs")
+	}
 
 	env := append(os.Environ(), proc.Env...)
 	env = append(env, p.Environ...)
 	env = append(env, procConf.ExtraEnv...)
+
+	env = append(env, procEnv...)
 	env = append(env, encodeServiceConfigs(cfg.Configs)...)
 	if runtimeLibPath := encoreEnv.EncoreRuntimeLib(); runtimeLibPath != "" {
 		env = append(env, "ENCORE_RUNTIME_LIB="+runtimeLibPath)

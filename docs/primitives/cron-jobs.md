@@ -11,7 +11,7 @@ infobox: {
 lang: go
 ---
 
-When you need to run periodic and recurring tasks, Encore's Infrastructure SDK provides a declarative way of using Cron Jobs.
+When you need to run periodic and recurring tasks, Encore's Backend SDK provides a declarative way of using Cron Jobs.
 
 When a Cron Job is defined, Encore will call the API of your choice on the schedule you have defined.
 This means there is no need to maintain any infrastructure, as Encore handles the scheduling, monitoring and execution of Cron Jobs.
@@ -55,7 +55,7 @@ Cron Job executions across all your environments via the `Cron Jobs` menu item:
 A few important things to know:
 
 - Cron Jobs do not run when developing locally or in [Preview Environments](/docs/deploy/preview-environments); but you can always call the API manually to test the behavior.
-- Cron Jobs execution in Encore Cloud is capped at **once every hour** for users on the Free Tier; [deploy to your own cloud](/docs/deploy/own-cloud) or upgrade to the [Team plan](/pricing) to use more frequent executions.
+- Cron Jobs execution in Encore Cloud is capped at **once every hour** and the minute is randomized within the hour that they run for users on the Free Tier; [deploy to your own cloud](/docs/deploy/own-cloud) or upgrade to the [Pro plan](/pricing) to use more frequent executions or to set the minute within the hour when the job runs.
 - Cron Jobs support both public and private APIs.
 - The API endpoints used in Cron Jobs should always be idempotent. It's possible they're called multiple times in some network conditions.
 - The API endpoints used in Cron Jobs must not take any request parameters. That is, their signatures must be `func(context.Context) error` or `func(context.Context) (*T, error)`.
@@ -77,6 +77,8 @@ the `Every` field is not expressive enough.
 
 For these use cases, Encore provides full support for [Cron expressions](https://en.wikipedia.org/wiki/Cron) by using the `Schedule` field
 instead of the `Every` field.
+
+Cron expressions allow you to define precise schedules for your tasks, including specific days of the week, specific hours of the day, and more. Note that all times are expressed in UTC.
 
 For example:
 

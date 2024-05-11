@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
-	"os"
 	"path"
 	"sync"
 
@@ -126,7 +125,7 @@ func (f *File) Names() *FileNames {
 func (f *File) Contents() []byte {
 	f.contentsOnce.Do(func() {
 		ioPath := f.FSPath.ToIO()
-		data, err := os.ReadFile(ioPath)
+		data, err := f.l.c.ReadFile(ioPath)
 		if err != nil {
 			f.l.c.Errs.Assert(errReadingFile.InFile(ioPath).Wrapping(err))
 		}

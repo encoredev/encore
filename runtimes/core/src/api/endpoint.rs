@@ -17,6 +17,7 @@ use crate::api::schema::encoding::{
 use crate::api::schema::{JSONPayload, Method};
 use crate::api::{jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1 as meta;
+use crate::encore::parser::meta::v1::rpc;
 use crate::log::LogFromRust;
 use crate::names::EndpointName;
 use crate::trace;
@@ -102,11 +103,11 @@ pub type HandlerRequest = Arc<model::Request>;
 pub type HandlerResponse = APIResult<JSONPayload>;
 
 /// A trait for handlers that accept a request and return a response.
-pub trait Handler: Clone + Send + Sync + Sized + 'static {
-    type Future: Future<Output = HandlerResponse> + Send + 'static;
-
-    fn call(self, req: HandlerRequest) -> Self::Future;
-    fn noop();
+pub trait TypedHandler: Send + Sync + 'static {
+    fn call(
+        self: Arc<Self>,
+        req: HandlerRequest,
+    ) -> Pin<Box<dyn Future<Output = HandlerResponse> + Send + 'static>>;
 }
 
 /// A trait for handlers that accept a request and return a response.
@@ -114,14 +115,20 @@ pub trait BoxedHandler: Send + Sync + 'static {
     fn call(
         self: Arc<Self>,
         req: HandlerRequest,
-    ) -> Pin<Box<dyn Future<Output = HandlerResponse> + Send + 'static>>;
+    ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>;
+}
+
+pub enum ResponseData {
+    Typed(APIResult<JSONPayload>),
+    Raw(axum::http::Response<axum::body::Body>),
 }
 
 /// Represents a single API Endpoint.
 #[derive(Debug)]
 pub struct Endpoint {
     pub name: EndpointName,
-    pub path: String,
+    pub path: meta::Path,
+    pub raw: bool,
     pub request: Vec<Arc<schema::Request>>,
     pub response: Arc<schema::Response>,
 
@@ -151,8 +158,22 @@ pub struct RequestPayload {
     #[serde(flatten)]
     pub header: Option<serde_json::Map<String, serde_json::Value>>,
 
-    #[serde(flatten)]
-    pub body: Option<serde_json::Map<String, serde_json::Value>>,
+    #[serde(flatten, skip_serializing_if = "Body::is_raw")]
+    pub body: Body,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(untagged)]
+pub enum Body {
+    Typed(Option<serde_json::Map<String, serde_json::Value>>),
+    #[serde(skip)]
+    Raw(Arc<std::sync::Mutex<Option<axum::body::Body>>>),
+}
+
+impl Body {
+    pub fn is_raw(&self) -> bool {
+        matches!(self, Body::Raw(_))
+    }
 }
 
 pub type EndpointMap = HashMap<EndpointName, Arc<Endpoint>>;
@@ -168,7 +189,6 @@ pub fn endpoints_from_meta(
     struct EndpointUnderConstruction<'a> {
         svc: &'a meta::Service,
         ep: &'a meta::Rpc,
-        path: String,
         request_schemas: Vec<ReqSchemaUnderConstruction>,
         response_schema: SchemaUnderConstruction,
     }
@@ -190,7 +210,6 @@ pub fn endpoints_from_meta(
             endpoints.push(EndpointUnderConstruction {
                 svc,
                 ep,
-                path: path_to_str(&ep)?,
                 request_schemas,
                 response_schema,
             });
@@ -203,6 +222,7 @@ pub fn endpoints_from_meta(
 
     for ep in endpoints {
         let mut request_schemas = Vec::with_capacity(ep.request_schemas.len());
+        let raw = rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|p| p == rpc::Protocol::Raw);
         for req_schema in ep.request_schemas {
             let req_schema = req_schema.build(&registry)?;
             request_schemas.push(Arc::new(schema::Request {
@@ -213,18 +233,32 @@ pub fn endpoints_from_meta(
                     .context("endpoint must have path defined")?,
                 header: req_schema.schema.header,
                 query: req_schema.schema.query,
-                body: req_schema.schema.body,
+                body: if raw {
+                    schema::RequestBody::Raw
+                } else {
+                    schema::RequestBody::Typed(req_schema.schema.body)
+                },
             }));
         }
         let resp_schema = ep.response_schema.build(&registry)?;
 
         // We only support a single gateway right now.
         let exposed = ep.ep.expose.contains_key("api-gateway");
+        let raw =
+            rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
-            path: ep.path,
+            path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
+                r#type: meta::path::Type::Url as i32,
+                segments: vec![meta::PathSegment {
+                    r#type: meta::path_segment::SegmentType::Literal as i32,
+                    value_type: meta::path_segment::ParamType::String as i32,
+                    value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                }],
+            }),
             exposed,
+            raw,
             requires_auth: !ep.ep.allow_unauthenticated,
             request: request_schemas,
             response: Arc::new(schema::Response {
@@ -242,36 +276,9 @@ pub fn endpoints_from_meta(
     Ok((Arc::new(endpoint_map), hosted_endpoints))
 }
 
-fn path_to_str(ep: &meta::Rpc) -> anyhow::Result<String> {
-    let Some(path) = &ep.path else {
-        return Ok(format!("/{}.{}", ep.service_name, ep.name));
-    };
-
-    let mut result = String::new();
-    for seg in &path.segments {
-        result.push('/');
-
-        use meta::path_segment::SegmentType;
-        match SegmentType::try_from(seg.r#type).context("invalid path segment")? {
-            SegmentType::Literal => result.push_str(&seg.value),
-            SegmentType::Param => {
-                result.push(':');
-                result.push_str(&seg.value)
-            }
-            SegmentType::Wildcard | SegmentType::Fallback => {
-                result.push('*');
-                result.push_str(&seg.value)
-            }
-        }
-    }
-
-    Ok(result)
-}
-
 pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,
     pub handler: Arc<dyn BoxedHandler>,
-    pub req_schemas: Arc<HashMap<axum::http::Method, Arc<schema::Request>>>,
     pub shared: Arc<SharedEndpointData>,
 }
 
@@ -287,7 +294,6 @@ impl Clone for EndpointHandler {
         Self {
             endpoint: self.endpoint.clone(),
             handler: self.handler.clone(),
-            req_schemas: self.req_schemas.clone(),
             shared: self.shared.clone(),
         }
     }
@@ -303,8 +309,10 @@ impl EndpointHandler {
         let api_method = Method::try_from(method.clone()).expect("invalid method");
 
         let req_schema = self
-            .req_schemas
-            .get(method)
+            .endpoint
+            .request
+            .iter()
+            .find(|schema| schema.methods.contains(&api_method))
             .expect("request schema must exist for all endpoints");
 
         let (mut parts, body) = axum_req.with_limited_body().into_parts();
@@ -312,17 +320,7 @@ impl EndpointHandler {
         // Authenticate the request from the platform, if applicable.
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {
             Ok(seal) => seal,
-            Err(err) => {
-                return Err(Error {
-                    code: ErrCode::Unauthenticated,
-                    message: "invalid platform request".to_owned(),
-                    internal_message: Some(format!(
-                        "the X-Encore-Auth header was invalid: {}",
-                        err
-                    )),
-                    stack: None,
-                })
-            }
+            Err(_err) => None,
         };
 
         let meta = CallMeta::parse_with_caller(&self.shared.inbound_svc_auth, &parts.headers)?;
@@ -350,12 +348,19 @@ impl EndpointHandler {
             caller_event_id: meta.parent_event_id,
             ext_correlation_id: meta.ext_correlation_id,
             start: tokio::time::Instant::now(),
+            start_time: std::time::SystemTime::now(),
             is_platform_request: platform_seal_of_approval.is_some(),
             internal_caller,
             data: model::RequestData::RPC(model::RPCRequestData {
                 endpoint: self.endpoint.clone(),
                 method: api_method,
                 path: parts.uri.path().to_string(),
+                path_and_query: parts
+                    .uri
+                    .path_and_query()
+                    .map(|q| q.to_string())
+                    .unwrap_or_default(),
+                path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
                 req_headers: parts.headers,
                 auth_user_id,
                 auth_data,
@@ -401,12 +406,13 @@ impl EndpointHandler {
 
             self.shared.tracer.request_span_start(&request);
 
-            let resp: HandlerResponse = self.handler.call(request.clone()).await;
+            let resp: ResponseData = self.handler.call(request.clone()).await;
 
             let duration = tokio::time::Instant::now().duration_since(request.start);
 
             // If we had a request failure, log that separately.
-            if let Err(err) = &resp {
+
+            if let ResponseData::Typed(Err(err)) = &resp {
                 logger.error(Some(&request), "request failed", Some(err), {
                     let mut fields = crate::log::Fields::new();
                     fields.insert(
@@ -431,30 +437,32 @@ impl EndpointHandler {
                         },
                     )),
                 );
-                fields.insert(
-                    "code".into(),
-                    serde_json::Value::String(match &resp {
-                        Ok(_) => "ok".to_string(),
-                        Err(err) => err.code.to_string(),
-                    }),
-                );
+
+                let code = match &resp {
+                    ResponseData::Typed(Ok(_)) => "ok".to_string(),
+                    ResponseData::Typed(Err(err)) => err.code.to_string(),
+                    ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
+                };
+
+                fields.insert("code".into(), serde_json::Value::String(code));
                 Some(fields)
             });
 
-            let (mut encoded_resp, resp_payload, status_code, error) = match resp {
-                Ok(payload) => (
+            let (status_code, mut encoded_resp, resp_payload, error) = match resp {
+                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None),
+                ResponseData::Typed(Ok(payload)) => (
+                    200,
                     self.endpoint
                         .response
                         .encode(&payload)
                         .unwrap_or_else(|err| err.into_response()),
                     Some(payload),
-                    200,
                     None,
                 ),
-                Err(err) => (
+                ResponseData::Typed(Err(err)) => (
+                    err.code.status_code().as_u16(),
                     (&err).into_response(),
                     None,
-                    err.code.status_code().as_u16(),
                     Some(err),
                 ),
             };
@@ -520,4 +528,8 @@ impl axum::handler::Handler<(), ()> for EndpointHandler {
     fn call(self, axum_req: axum::extract::Request, _state: ()) -> Self::Future {
         self.handle(axum_req)
     }
+}
+
+pub fn path_supports_tsr(path: &str) -> bool {
+    path != "/" && !path.ends_with("/") && !path.contains("/*")
 }

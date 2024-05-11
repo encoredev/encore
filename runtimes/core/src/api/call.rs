@@ -13,7 +13,7 @@ use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::meta::{MetaKey, MetaMapMut};
 use crate::api::reqauth::{service_auth_method, svcauth};
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
-use crate::api::{APIResult, Endpoint, EndpointMap};
+use crate::api::{schema, APIResult, Endpoint, EndpointMap};
 use crate::model::{SpanKey, TraceEventId};
 use crate::names::EndpointName;
 use crate::trace::Tracer;
@@ -183,8 +183,21 @@ impl ServiceRegistry {
         if let Some(hdr) = &req_schema.header {
             hdr.to_outgoing_request(&mut data, &mut req)?;
         }
-        if let Some(body) = &req_schema.body {
-            body.to_outgoing_request(&mut data, &mut req)?;
+
+        match &req_schema.body {
+            schema::RequestBody::Typed(Some(body)) => {
+                body.to_outgoing_request(&mut data, &mut req)?
+            }
+            schema::RequestBody::Typed(None) => {}
+
+            schema::RequestBody::Raw => {
+                return Err(api::Error {
+                    code: api::ErrCode::Internal,
+                    message: "internal error".into(),
+                    internal_message: Some("cannot make api calls to raw endpoints".to_string()),
+                    stack: None,
+                });
+            }
         }
 
         // Add call metadata.

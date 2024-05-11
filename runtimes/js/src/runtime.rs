@@ -1,6 +1,7 @@
-use crate::api::{to_handler, APIRoute, JSHandler, Request};
+use crate::api::{new_api_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
+use crate::meta;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
@@ -62,14 +63,10 @@ impl Runtime {
     }
 
     #[napi]
-    pub fn sql_database(&self, encore_name: String) -> napi::Result<SQLDatabase> {
+    pub fn sql_database(&self, encore_name: String) -> SQLDatabase {
         let encore_name: encore_runtime_core::EncoreName = encore_name.into();
-        let db = self
-            .runtime
-            .sqldb()
-            .database(&encore_name)
-            .ok_or_else(|| Error::new(Status::GenericFailure, "database not found"))?;
-        Ok(SQLDatabase::new(db))
+        let db = self.runtime.sqldb().database(&encore_name);
+        SQLDatabase::new(db)
     }
 
     #[napi]
@@ -119,7 +116,7 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
-        let handler = to_handler(env, route.handler)?;
+        let handler = new_api_handler(env, route.handler, route.raw)?;
 
         // If we're not hosting an API server, this is a no-op.
         let Some(srv) = self.runtime.api().server() else {
@@ -189,5 +186,11 @@ impl Runtime {
     #[napi]
     pub fn build_commit() -> String {
         encore_runtime_core::build_commit().to_string()
+    }
+
+    #[napi]
+    pub fn app_meta(&self) -> meta::AppMeta {
+        let md = self.runtime.app_meta();
+        md.clone().into()
     }
 }

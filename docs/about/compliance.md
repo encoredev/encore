@@ -133,7 +133,7 @@ Encore is currently planning a rehearsal of disaster recovery in Q4 of 2023. In 
 
 Whenever an incident occurs, Encore's designated on-call engineer initiates an investigation and escalates to the broader engineering team as necessary based on severity. For issues deemed critical, they follow an iterative response process to identify and contain errors, recover systems and services, and remediate vulnerabilities.
 
-Customers and users can report outages via regular support channels (for example via email, or using the Slack chat group). Encore's internal communication systems have dedicated channels for incident escalation.
+Customers and users can report outages via regular support channels (for example via email, or using the [Discord](https://encore.dev/discord) chat group). Encore's internal communication systems have dedicated channels for incident escalation.
 
 ## Confidentiality
 

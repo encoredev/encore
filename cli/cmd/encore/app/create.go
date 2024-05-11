@@ -60,17 +60,36 @@ func init() {
 func createApp(ctx context.Context, name, template string) (err error) {
 	cyan := color.New(color.FgCyan)
 	green := color.New(color.FgGreen)
+	red := color.New(color.FgRed)
 
+	// Prompt the user for creating an account if they're not logged in.
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) && createAppOnPlatform {
-		_, _ = cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
-		_, _ = fmt.Scanln()
-		if err := auth.DoLogin(auth.AutoFlow); err != nil {
-			cmdutil.Fatal(err)
+	PromptLoop:
+		for {
+			_, _ = cyan.Fprint(os.Stderr, "Create a free Encore account to enable Cloud Deployments, Secrets Management, and more? (Y/n): ")
+			var input string
+			_, _ = fmt.Scanln(&input)
+			input = strings.TrimSpace(input)
+			switch input {
+			case "Y", "y", "yes", "":
+				if err := auth.DoLogin(auth.AutoFlow); err != nil {
+					cmdutil.Fatal(err)
+				}
+			case "N", "n", "no":
+				// Continue without creating an account.
+			case "q", "quit", "exit":
+				os.Exit(1)
+			default:
+				// Try again.
+				_, _ = red.Fprintln(os.Stderr, "Unexpected answer, please enter 'y' or 'n'.")
+				continue PromptLoop
+			}
+			break
 		}
 	}
 
 	if name == "" || template == "" {
-		name, template = selectTemplate(name, template)
+		name, template, _ = selectTemplate(name, template, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
@@ -149,6 +168,9 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		if ok {
 			_ = os.Remove(exampleJSONPath(name))
 		}
+	} else {
+		// Remove the example config file since we're not creating the app on the platform.
+		_ = os.Remove(exampleJSONPath(name))
 	}
 
 	encoreAppPath := filepath.Join(name, "encore.app")
@@ -219,7 +241,11 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	_, _ = cyan.Printf("    encore run\n")
 	fmt.Print("        Run your app locally\n\n")
 
-	_, _ = cyan.Printf("    encore test ./...\n")
+	if detectLang(name) == languageGo {
+		_, _ = cyan.Printf("    encore test ./...\n")
+	} else {
+		_, _ = cyan.Printf("    encore test\n")
+	}
 	fmt.Print("        Run tests\n\n")
 
 	if app != nil {
@@ -231,6 +257,17 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	fmt.Printf("Get started now: %s\n", greenBoldF("cd %s && encore run", name))
 
 	return nil
+}
+
+// detectLang attempts to detect the application language for an Encore application
+// situated at appRoot.
+func detectLang(appRoot string) language {
+	if _, err := os.Stat(filepath.Join(appRoot, "go.mod")); err == nil {
+		return languageGo
+	} else if _, err := os.Stat(filepath.Join(appRoot, "package.json")); err == nil {
+		return languageTS
+	}
+	return languageGo
 }
 
 func validateName(name string) error {
@@ -276,7 +313,7 @@ func gogetEncore(dir string) error {
 	cmd := exec.Command(goBinPath, "get", "encore.dev@latest")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.New(string(out))
+		return errors.Newf("go get failed: %v: %s", err, out)
 	}
 	return nil
 }
