@@ -71,9 +71,10 @@ impl TsConfigPathResolver {
                 PathVal::Exact(key) if import == key => {
                     for val in &entry.values {
                         if let PathVal::Exact(val) = val {
-                            let candidate = self.base.join(val);
-                            if candidate.exists() {
-                                return Some(Cow::Borrowed(val));
+                            for candidate in file_candidates(self.base.join(val)) {
+                                if candidate.exists() {
+                                    return Some(Cow::Borrowed(val));
+                                }
                             }
                         }
                     }
@@ -93,15 +94,17 @@ impl TsConfigPathResolver {
                                 rel_path.push_str(wildcard);
                                 rel_path.push_str(suffix);
 
-                                let candidate = self.base.join(&rel_path);
-                                if candidate.exists() {
-                                    return Some(Cow::Owned(rel_path));
+                                for candidate in file_candidates(self.base.join(&rel_path)) {
+                                    if candidate.exists() {
+                                        return Some(Cow::Owned(rel_path));
+                                    }
                                 }
                             }
                             PathVal::Exact(val) => {
-                                let candidate = self.base.join(val);
-                                if candidate.exists() {
-                                    return Some(Cow::Borrowed(val));
+                                for candidate in file_candidates(self.base.join(val)) {
+                                    if candidate.exists() {
+                                        return Some(Cow::Borrowed(val));
+                                    }
                                 }
                             }
                         }
@@ -243,4 +246,46 @@ fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
     }
 
     json_output
+}
+
+struct PathResolveIterator {
+    base: PathBuf,
+    candidates: &'static [&'static str],
+    idx: usize,
+}
+
+impl Iterator for PathResolveIterator {
+    type Item = PathBuf;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx < self.candidates.len() {
+            let candidate = self.candidates[self.idx];
+            self.idx += 1;
+
+            if candidate == "" {
+                Some(self.base.clone())
+            } else {
+                Some(self.base.with_extension(candidate))
+            }
+        } else {
+            None
+        }
+    }
+}
+
+fn file_candidates(base: PathBuf) -> impl Iterator<Item = PathBuf> {
+    let candidates: &'static [&'static str] = match base.extension().and_then(|s| s.to_str()) {
+        Some("js") => &["ts", "tsx", "d.ts", "js", "jsx"],
+        Some("mjs") => &["mts", "d.mts", "mjs"],
+        Some("cjs") => &["cts", "d.cts", "cjs"],
+        None => &[
+            "ts", "tsx", "d.ts", "js", "jsx", "mts", "d.mts", "mjs", "cts", "d.cts", "cjs", "",
+        ],
+        _ => &[""],
+    };
+    PathResolveIterator {
+        base,
+        candidates,
+        idx: 0,
+    }
 }
