@@ -1,0 +1,27 @@
+-- foo/foo.ts --
+import { api } from "encore.dev/api";
+import { blah } from "@bar/bar";
+
+export const ping = api<void, void>({}, () => {});
+
+-- bar/bar.ts --
+
+export const blah = 5;
+
+-- package.json --
+{
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}
+
+-- tsconfig.json --
+{
+  "compilerOptions": {
+    "paths": {
+      "~encore/*": ["./encore.gen/*"],
+      "@bar/*": ["./bar/*"]
+    }
+  }
+}

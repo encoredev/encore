@@ -7,9 +7,7 @@ use super::Builder;
 #[derive(Debug, Clone)]
 pub struct PrepareParams<'a> {
     pub js_runtime_root: &'a Path,
-    pub runtime_version: &'a str,
     pub app_root: &'a Path,
-    pub use_local_runtime: bool,
 }
 
 impl Builder<'_> {
