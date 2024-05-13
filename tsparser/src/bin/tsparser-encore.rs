@@ -33,9 +33,7 @@ fn main() -> Result<()> {
         {
             let pp = builder::PrepareParams {
                 js_runtime_root: &js_runtime_path,
-                runtime_version: &prepare.runtime_version,
                 app_root: &prepare.app_root,
-                use_local_runtime: prepare.use_local_runtime,
             };
 
             match builder.prepare(&pp) {
