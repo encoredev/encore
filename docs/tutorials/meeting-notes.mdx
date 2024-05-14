@@ -35,7 +35,7 @@ This is the end result:
 
 Create a new app from the meeting-notes example. This will start you off with everything described in this tutorial:
 
-```bash
+```shell
 $ encore app create my-app --example=meeting-notes
 ```
 
@@ -47,7 +47,7 @@ Before running the project locally, make sure you have [Docker](https://www.dock
 
 To run the backend locally:
 
-```bash
+```shell
 $ cd you-app-name # replace with the app name you picked
 $ encore run
 ```
@@ -74,7 +74,7 @@ That means your local development backend is up and running! Encore takes care o
 
 To start the front-end, run the following commands in another terminal window:
 
-```bash
+```shell
 $ cd you-app-name/frontend
 $ npm install
 $ npm run dev
@@ -229,7 +229,7 @@ req.Header.Set("Authorization", secrets.PexelsApiKey)
 
 Here we could have hardcoded the API key but that would have made it readable for everyone with access to our repo. Instead, we made use of Encore's built-in [secrets management](https://encore.dev/docs/primitives/secrets). To set this secret, run the following command in your project folder and follow the prompt:
 
-```bash
+```shell
 encore secret set --type dev,prod,local,pr PexelsApiKey
 ```
 
@@ -237,7 +237,7 @@ encore secret set --type dev,prod,local,pr PexelsApiKey
 
 Encore is able to generate frontend [request clients](https://encore.dev/docs/develop/client-generation) (TypeScript or JavaScript). This means that you do not need to manually keep the request/response objects in sync on the frontend, huge time saver. To generate a client run:
 
-```bash
+```shell
 $ encore gen client <APP_NAME> --output=./src/client.ts --env=<ENV_NAME>
 ```
 
