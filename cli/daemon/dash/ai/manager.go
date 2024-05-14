@@ -3,8 +3,6 @@ package ai
 import (
 	"context"
 
-	"github.com/hasura/go-graphql-client"
-
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/paths"
@@ -16,19 +14,17 @@ var ErrorCodeMap = map[string]int64{
 }
 
 // Manager exposes the ai functionality to the local dashboard
-type Manager struct {
-	aiClient *LazySubClient
+type Manager struct{}
+
+func NewAIManager() *Manager {
+	return &Manager{}
 }
 
-func NewAIManager(client *graphql.SubscriptionClient) *Manager {
-	return &Manager{aiClient: newLazySubClient(client)}
-}
-
-func (m *Manager) DefineEndpoints(ctx context.Context, appSlug string, sessionID AISessionID, prompt string, md *meta.Data, proposed []Service, notifier AINotifier) (string, error) {
+func (m *Manager) DefineEndpoints(ctx context.Context, appSlug string, sessionID AISessionID, prompt string, md *meta.Data, proposed []Service, notifier AINotifier) (*AITask, error) {
 	svcs := fns.Map(proposed, Service.GetName)
 	return startAITask[struct {
 		Message *AIStreamMessage `graphql:"result: defineEndpoints(appSlug: $appSlug, sessionID: $sessionID, prompt: $prompt, current: $current, proposedDesign: $proposedDesign, existingTypes: $existingTypes)"`
-	}](ctx, m.aiClient, map[string]interface{}{
+	}](ctx, map[string]interface{}{
 		"appSlug":        appSlug,
 		"prompt":         prompt,
 		"current":        parseServicesFromMetadata(md, svcs...),
@@ -38,20 +34,20 @@ func (m *Manager) DefineEndpoints(ctx context.Context, appSlug string, sessionID
 	}, newEndpointAssemblerHandler(proposed, notifier, true))
 }
 
-func (m *Manager) ProposeSystemDesign(ctx context.Context, appSlug, prompt string, md *meta.Data, notifier AINotifier) (string, error) {
+func (m *Manager) ProposeSystemDesign(ctx context.Context, appSlug, prompt string, md *meta.Data, notifier AINotifier) (*AITask, error) {
 	return startAITask[struct {
 		Message *AIStreamMessage `graphql:"result: proposeSystemDesign(appSlug: $appSlug, prompt: $prompt, current: $current)"`
-	}](ctx, m.aiClient, map[string]interface{}{
+	}](ctx, map[string]interface{}{
 		"appSlug": appSlug,
 		"prompt":  prompt,
 		"current": parseServicesFromMetadata(md),
 	}, newEndpointAssemblerHandler(nil, notifier, false))
 }
 
-func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug string, sessionID AISessionID, originalPrompt string, proposed []Service, newPrompt string, md *meta.Data, notifier AINotifier) (string, error) {
+func (m *Manager) ModifySystemDesign(ctx context.Context, appSlug string, sessionID AISessionID, originalPrompt string, proposed []Service, newPrompt string, md *meta.Data, notifier AINotifier) (*AITask, error) {
 	return startAITask[struct {
 		Message *AIStreamMessage `graphql:"result: modifySystemDesign(appSlug: $appSlug, sessionID: $sessionID, originalPrompt: $originalPrompt, proposedDesign: $proposedDesign, newPrompt: $newPrompt, current: $current)"`
-	}](ctx, m.aiClient, map[string]interface{}{
+	}](ctx, map[string]interface{}{
 		"appSlug":        appSlug,
 		"originalPrompt": originalPrompt,
 		"proposedDesign": fns.Map(proposed, Service.GraphQL),
@@ -92,8 +88,4 @@ func (m *Manager) PreviewFiles(ctx context.Context, services []Service, app *app
 	return &PreviewFilesResponse{Files: fns.TransformMapToSlice(files, func(k paths.RelSlash, v string) PreviewFile {
 		return PreviewFile{Path: k, Content: v}
 	})}, err
-}
-
-func (m *Manager) Unsubscribe(id string) error {
-	return m.aiClient.Unsubscribe(id)
 }

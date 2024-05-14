@@ -7,10 +7,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/hasura/go-graphql-client"
 	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/apps"
@@ -40,15 +38,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 		log.Fatal().Err(err).Msg("could not create graphql proxy")
 	}
 
-	aiClient := graphql.NewSubscriptionClient(conf.WSBaseURL + "/graphql").
-		WithRetryTimeout(5 * time.Second).
-		WithRetryDelay(2 * time.Second).
-		WithRetryStatusCodes("500-599").
-		WithWebSocketOptions(
-			graphql.WebsocketOptions{
-				HTTPClient: conf.AuthClient,
-			}).WithSyncMode(true)
-	aiMgr := ai.NewAIManager(aiClient)
+	aiMgr := ai.NewAIManager()
 
 	s := &Server{
 		proxy:    proxy,

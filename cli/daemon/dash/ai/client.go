@@ -3,75 +3,15 @@ package ai
 import (
 	"context"
 	"fmt"
-	"sync"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/hasura/go-graphql-client"
 	"github.com/hasura/go-graphql-client/pkg/jsonutil"
+	"github.com/rs/zerolog/log"
 
-	"encr.dev/pkg/fns"
+	"encr.dev/internal/conf"
 )
-
-// newLazySubClient wraps a graphql.SubscriptionClient and starts it when the first subscription is made.
-func newLazySubClient(client *graphql.SubscriptionClient) *LazySubClient {
-	lazy := &LazySubClient{
-		SubscriptionClient: client,
-		notifiers:          make(map[string]func([]byte, error) error),
-	}
-	client.OnDisconnected(func() {
-		lazy.mu.Lock()
-		defer lazy.mu.Unlock()
-		lazy.running = false
-	})
-	client.OnConnected(func() {
-		lazy.mu.Lock()
-		defer lazy.mu.Unlock()
-		lazy.running = true
-	})
-	client.OnSubscriptionComplete(func(sub graphql.Subscription) {
-		lazy.mu.Lock()
-		defer lazy.mu.Unlock()
-		delete(lazy.notifiers, sub.GetKey())
-	})
-	return lazy
-}
-
-// LazySubClient is a wrapper around graphql.SubscriptionClient that starts the client when the first subscription is made.
-// It also stops the client when the last subscription is removed and reconnects when a subscription is added.
-type LazySubClient struct {
-	*graphql.SubscriptionClient
-
-	mu        sync.Mutex
-	running   bool
-	notifiers map[string]func([]byte, error) error
-}
-
-// Subscribe subscribes to a query and calls notify with the result.
-func (l *LazySubClient) Subscribe(query interface{}, variables map[string]interface{}, notify func([]byte, error) error) (string, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if !l.running {
-		go func() {
-			defer fns.CloseIgnore(l)
-			err := l.Run()
-			l.mu.Lock()
-			defer l.mu.Unlock()
-			if err != nil {
-				for _, n := range l.notifiers {
-					_ = n(nil, err)
-				}
-			}
-			l.notifiers = make(map[string]func([]byte, error) error)
-		}()
-	}
-	subID, err := l.SubscriptionClient.Subscribe(query, variables, notify)
-	if err != nil {
-		return "", err
-	}
-	key := l.GetSubscription(subID).GetKey()
-	l.notifiers[key] = notify
-	return subID, nil
-}
 
 type TaskMessage struct {
 	Type string `graphql:"__typename"`
@@ -118,11 +58,41 @@ type aiTask struct {
 	Message *AIStreamMessage `graphql:"result"`
 }
 
+func getClient(errHandler func(err error)) *graphql.SubscriptionClient {
+	client := graphql.NewSubscriptionClient(conf.WSBaseURL + "/graphql").
+		WithRetryTimeout(5 * time.Second).
+		WithRetryDelay(2 * time.Second).
+		WithRetryStatusCodes("500-599").
+		WithWebSocketOptions(
+			graphql.WebsocketOptions{
+				HTTPClient: conf.AuthClient,
+			}).WithSyncMode(true)
+	go func() {
+		log.Info().Msg("starting ai client")
+		err := client.Run()
+		log.Info().Msg("closed ai client")
+		if err != nil {
+			errHandler(err)
+		}
+	}()
+	return client
+}
+
+type AITask struct {
+	SubscriptionID string
+	client         *graphql.SubscriptionClient
+}
+
+func (t *AITask) Stop() error {
+	return t.client.Unsubscribe(t.SubscriptionID)
+}
+
 // startAITask is a helper function to intitiate an AI query to the encore platform. The query
 // should be assembled to stream a 'result' graphql field that is a AIStreamMessage.
-func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[string]interface{}, notifier AINotifier) (string, error) {
+func startAITask[Query any](ctx context.Context, params map[string]interface{}, notifier AINotifier) (*AITask, error) {
 	var subId string
 	var errStrReply = func(error string, code any) error {
+		log.Error().Msgf("ai error: %s (%v)", error, code)
 		_ = notifier(ctx, &AINotification{
 			SubscriptionID: subId,
 			Error:          &AIError{Message: error, Code: fmt.Sprintf("%v", code)},
@@ -141,7 +111,8 @@ func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[st
 		return errStrReply(err.Error(), "")
 	}
 	var query Query
-	subId, err := c.Subscribe(&query, params, func(message []byte, err error) error {
+	client := getClient(func(err error) { _ = errReply(err) })
+	subId, err := client.Subscribe(&query, params, func(message []byte, err error) error {
 		if err != nil {
 			return errReply(err)
 		}
@@ -163,7 +134,7 @@ func startAITask[Query any](ctx context.Context, c *LazySubClient, params map[st
 		}
 		return nil
 	})
-	return subId, err
+	return &AITask{SubscriptionID: subId, client: client}, err
 }
 
 // AINotification is a wrapper around messages and errors from the encore platform ai service
