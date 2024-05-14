@@ -227,6 +227,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		return reply(ctx, resp, nil)
 	case "ai/propose-system-design":
+		log.Debug().Msg("dash: propose-system-design")
 		var params struct {
 			AppID  string `json:"app_id"`
 			Prompt string `json:"prompt"`
@@ -241,7 +242,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		sessionCh := make(chan *ai.AINotification)
 		defer close(sessionCh)
 		idResp := sync.Once{}
-		subID, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
+		task, err := h.ai.ProposeSystemDesign(ctx, params.AppID, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
 			if _, ok := msg.Value.(ai.SessionUpdate); ok || msg.Error != nil {
 				idResp.Do(func() {
 					sessionCh <- msg
@@ -269,16 +270,17 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			}
 			return reply(ctx, map[string]string{
 				"session_id":      string(su.Id),
-				"subscription_id": subID,
+				"subscription_id": task.SubscriptionID,
 			}, nil)
 		case <-ctx.Done():
 			return reply(ctx, nil, ctx.Err())
 		case <-time.NewTimer(10 * time.Second).C:
-			_ = h.ai.Unsubscribe(subID)
+			_ = task.Stop()
 			return reply(ctx, nil, errors.New("timed out waiting for response"))
 		}
 
 	case "ai/modify-system-design":
+		log.Debug().Msg("dash: modify-system-design")
 		var params struct {
 			AppID          string         `json:"app_id"`
 			SessionID      ai.AISessionID `json:"session_id"`
@@ -293,11 +295,13 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		subID, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.SessionID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
+		task, err := h.ai.ModifySystemDesign(ctx, params.AppID, params.SessionID, params.OriginalPrompt, params.Proposed, params.Prompt, md, func(ctx context.Context, msg *ai.AINotification) error {
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
-		return reply(ctx, subID, err)
+		return reply(ctx, task.SubscriptionID, err)
 	case "ai/define-endpoints":
+		log.Debug().Msg("dash: define-endpoints")
+		log.Debug().Msg("dash: define-endpoints")
 		var params struct {
 			AppID     string         `json:"app_id"`
 			SessionID ai.AISessionID `json:"session_id"`
@@ -311,11 +315,12 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			return reply(ctx, nil, err)
 		}
-		subID, err := h.ai.DefineEndpoints(ctx, params.AppID, params.SessionID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.AINotification) error {
+		task, err := h.ai.DefineEndpoints(ctx, params.AppID, params.SessionID, params.Prompt, md, params.Proposed, func(ctx context.Context, msg *ai.AINotification) error {
 			return h.rpc.Notify(ctx, r.Method()+"/stream", msg)
 		})
-		return reply(ctx, subID, err)
+		return reply(ctx, task.SubscriptionID, err)
 	case "ai/parse-code":
+		log.Debug().Msg("dash: parse-code")
 		var params struct {
 			AppID    string       `json:"app_id"`
 			Services []ai.Service `json:"services"`
@@ -330,6 +335,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		results, err := h.ai.ParseCode(ctx, params.Services, app)
 		return reply(ctx, results, err)
 	case "ai/update-code":
+		log.Debug().Msg("dash: update-code")
 		var params struct {
 			AppID     string       `json:"app_id"`
 			Services  []ai.Service `json:"services"`
@@ -345,6 +351,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		results, err := h.ai.UpdateCode(ctx, params.Services, app, params.Overwrite)
 		return reply(ctx, results, err)
 	case "ai/preview-files":
+		log.Debug().Msg("dash: preview-files")
 		var params struct {
 			AppID    string       `json:"app_id"`
 			Services []ai.Service `json:"services"`
@@ -359,6 +366,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		result, err := h.ai.PreviewFiles(ctx, params.Services, app)
 		return reply(ctx, result, err)
 	case "ai/write-files":
+		log.Debug().Msg("dash: write-files")
 		var params struct {
 			AppID    string       `json:"app_id"`
 			Services []ai.Service `json:"services"`
