@@ -56,9 +56,9 @@ type SubscriptionConfig[T any] struct {
 	// of messages processed simultaneously.
 	//
 	// Note: This is not supported by all cloud providers; specifically on GCP
-	// when using Cloud Run instances on an unordered topic the subscription will
-	// be configured as a Push Subscription and will have an adaptive concurrency
-	// See [GCP Push Delivery Rate].
+	// when using Cloud Run instances on a topic with at-least-once delivery, the
+	// subscription will be configured as a Push Subscription and will have an adaptive
+	// concurrency. See [GCP Push Delivery Rate].
 	//
 	// This setting also has no effect on Encore Cloud environments.
 	//
