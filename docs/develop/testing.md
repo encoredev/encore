@@ -49,6 +49,25 @@ In general, Encore applications tend to focus more on integration tests
 compared to traditional applications that are heavier on unit tests.
 This is nothing to worry about and is the recommended best practice.
 
+### Temporary databases
+
+When Encore runs tests, by default it reuses the same database for all tests,
+to improve performance. However, this means that you need to take care when writing tests
+to ensure tests don't interfere with each other.
+
+If you instead want to have a separate database for a given test, you can use
+[`et.NewTestDatabase`](https://pkg.go.dev/encore.dev/et#NewTestDatabase) to create a temporary database
+that only exists for the duration of the test.
+
+The temporary test database is a fully-migrated database. It does not include any data written by other tests.
+
+<Callout type="info">
+
+Under the hood, when you start running tests, Encore sets up a fresh "template database" and runs the database migrations
+against that database. When you later call `et.NewTestDatabase`, Encore creates a new database by cloning the template database.
+
+</Callout>
+
 ### Service Structs
 
 In tests, [service structs](/docs/primitives/services-and-apis/service-structs) are initialised on demand when the first
@@ -56,7 +75,7 @@ API call is made to that service and then that instance of the service struct fo
 can run faster as they don't have to each initialise all the service struct's each time a new test starts.
 
 However, in some situations you might be storing state in the service struct that would interfere with other tests. When
-you have a test you want to have it's own instance of the service struct, you can use the `et.EnableServiceInstanceIsolation()` function within the test to enable this for just that test, while the rest of your tests will continue to use the shared instance.
+you have a test you want to have its own instance of the service struct, you can use the `et.EnableServiceInstanceIsolation()` function within the test to enable this for just that test, while the rest of your tests will continue to use the shared instance.
 
 ## Test-only infrastructure
 
