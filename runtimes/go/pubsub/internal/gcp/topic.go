@@ -96,52 +96,43 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		}
 		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
 
-		// We've seen resource starvation with large numbers of goroutines, so we limit the number of goroutines to 10
-		// and then spawn a new goroutine for each message received, we rely on the MaxOutstandingMessages and GCP Pub/Sub
-		// library to limit the number of messages we receive at once
-		subscription.ReceiveSettings.NumGoroutines = 10
-
 		// Start the subscription with the GCP library
 		go func() {
 			for t.mgr.ctxs.Fetch.Err() == nil {
 				// Subscribe to the topic to receive messages
 				err := subscription.Receive(t.mgr.ctxs.Fetch, func(_ context.Context, msg *pubsub.Message) {
-					// run each message in a separate goroutine to allow the subscription goroutine to continue to fetch
-					// messages from GCP
-					go func() {
-						deliveryAttempt := 1
-						if msg.DeliveryAttempt != nil {
-							deliveryAttempt = *msg.DeliveryAttempt
-						}
+					deliveryAttempt := 1
+					if msg.DeliveryAttempt != nil {
+						deliveryAttempt = *msg.DeliveryAttempt
+					}
 
-						// Create a context from the handler context with a deadline of the ackdeadline
-						ctx, cancel := context.WithTimeout(t.mgr.ctxs.Handler, ackDeadline)
-						defer cancel()
+					// Create a context from the handler context with a deadline of the ackdeadline
+					ctx, cancel := context.WithTimeout(t.mgr.ctxs.Handler, ackDeadline)
+					defer cancel()
 
-						var result *pubsub.AckResult
-						if err := f(ctx, msg.ID, msg.PublishTime, deliveryAttempt, msg.Attributes, msg.Data); err != nil {
-							result = msg.NackWithResult()
-						} else {
-							result = msg.AckWithResult()
-						}
+					var result *pubsub.AckResult
+					if err := f(ctx, msg.ID, msg.PublishTime, deliveryAttempt, msg.Attributes, msg.Data); err != nil {
+						result = msg.NackWithResult()
+					} else {
+						result = msg.AckWithResult()
+					}
 
-						res, err := result.Get(t.mgr.ctxs.Connection)
-						if err != nil {
-							logger.Warn().Err(err).Str("msg_id", msg.ID).Msg("failed to ack/nack message")
-						} else {
-							switch res {
-							case pubsub.AcknowledgeStatusSuccess:
-							case pubsub.AcknowledgeStatusPermissionDenied:
-								logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to permissions")
-							case pubsub.AcknowledgeStatusFailedPrecondition:
-								logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to precondition")
-							case pubsub.AcknowledgeStatusInvalidAckID:
-								logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to invalid ack ID")
-							default:
-								logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to unknown error")
-							}
+					res, err := result.Get(t.mgr.ctxs.Connection)
+					if err != nil {
+						logger.Warn().Err(err).Str("msg_id", msg.ID).Msg("failed to ack/nack message")
+					} else {
+						switch res {
+						case pubsub.AcknowledgeStatusSuccess:
+						case pubsub.AcknowledgeStatusPermissionDenied:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to permissions")
+						case pubsub.AcknowledgeStatusFailedPrecondition:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to precondition")
+						case pubsub.AcknowledgeStatusInvalidAckID:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to invalid ack ID")
+						default:
+							logger.Error().Str("msg_id", msg.ID).Msg("failed to ack/nack message due to unknown error")
 						}
-					}()
+					}
 				})
 
 				// If there was an error and we're not shutting down, log it and then sleep for a bit before trying again
