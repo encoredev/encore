@@ -108,14 +108,20 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 		return nil
 	}
 
+	// First set up the database with the application name.
+	if err := setupDB(db.ApplicationCloudName()); err != nil {
+		return err
+	}
+
 	if tmplName, ok := db.TemplateCloudName().Get(); ok {
-		// If we have a template database, set that up, and then use it as the template for the application database.
-		if err := setupDB(tmplName); err != nil {
-			return err
-		}
+		// If we want a template database, rename the application database to the template name.
+		// We do it this way in case the migrations assume the database is named according to the application name.
 
 		// Terminate the connections to the template database to prevent "database is being accessed by other users" errors.
-		_ = db.terminateConnectionsToDB(ctx, tmplName)
+		_ = db.terminateConnectionsToDB(ctx, db.ApplicationCloudName())
+		if err := db.renameDB(ctx, db.ApplicationCloudName(), tmplName); err != nil {
+			return fmt.Errorf("rename db %s to %s: %v", db.ApplicationCloudName(), tmplName, err)
+		}
 
 		// Then create the application database based on the template
 		if err := db.doCreate(ctx, db.ApplicationCloudName(), option.Some(tmplName)); err != nil {
@@ -125,11 +131,6 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 		// Ensure the application database has the right roles, too.
 		if err := db.ensureRoles(ctx, db.ApplicationCloudName(), db.Cluster.Roles...); err != nil {
 			return fmt.Errorf("ensure db roles %s: %v", db.ApplicationCloudName(), err)
-		}
-	} else {
-		// Otherwise create the application database directly.
-		if err := setupDB(db.ApplicationCloudName()); err != nil {
-			return err
 		}
 	}
 
@@ -167,6 +168,20 @@ func (db *DB) doCreate(ctx context.Context, cloudName string, template option.Op
 	if err != nil {
 		db.log.Error().Err(err).Msg("failed to create database")
 	}
+	return err
+}
+
+func (db *DB) renameDB(ctx context.Context, from, to string) error {
+	adm, err := db.connectSuperuser(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = adm.Close(context.Background()) }()
+
+	_, err = adm.Exec(ctx, fmt.Sprintf("ALTER DATABASE %s RENAME TO %s",
+		(pgx.Identifier{from}).Sanitize(),
+		(pgx.Identifier{to}).Sanitize(),
+	))
 	return err
 }
 
