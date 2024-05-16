@@ -76,4 +76,6 @@ To configure which branch to use for PR environments, head to
 Encore's Cloud Dashboard > (Select your app) > App Settings > Preview Environments 
 and select the environment with the database you want to branch from. Hit save and you're all done.
 
+Keep in mind that you can only branch from environments that use Neon as the database provider; this is the default for Encore Cloud environments, but is a configurable option when creating AWS and GCP environments.
+
 <img src="/assets/docs/pr-neon.png" title="Use Neon for PR environments" className="mx-auto"/>
