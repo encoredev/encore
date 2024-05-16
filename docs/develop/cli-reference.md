@@ -53,6 +53,14 @@ Create a new Encore app
 $ encore app create [name]
 ```
 
+### Init
+
+Create a new Encore app from an existing repository
+
+```shell
+$ encore app init [name]
+```
+
 #### Link
 
 Link an Encore app with the server
@@ -164,16 +172,17 @@ Code generation commands
 Generates an API client for your app. For more information about the generated clients, see [this page](/docs/develop/client-generation).
 
 By default generates the API based on your [primary environment](/docs/deploy/environments#primary-environment).
-Use '--env=local' to generate it based on your local development version of the app.
+Use `--env=local` to generate it based on your local development version of the app.
 
-Supported language codes are:
-- go: A Go client using the net/http package
-- typescript: A TypeScript client using the in-browser Fetch API
-- javascript: A JavaScript client using the in-browser Fetch API
+Use `--lang=<lang>` to specificy the language. Supported language codes are:
+- `go`: A Go client using the net/http package
+- `typescript`: A TypeScript client using the in-browser Fetch API
+- `javascript`: A JavaScript client using the in-browser Fetch API
+- `openapi`: An OpenAPI spec
 
 
 ```shell
-$ encore gen client <app-id> [--env=prod] [flags]
+$ encore gen client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--lang=<lang>] [flags]
 ```
 
 ## Logs
@@ -182,6 +191,18 @@ Streams logs from your application
 
 ```shell
 $ encore logs [--env=prod] [--json]
+```
+
+## Kubernetes
+
+Kubernetes management commands
+
+#### Configure
+
+Updates your kubectl config to point to the Kubernetes cluster(s) for the specified environment
+
+```shell
+$ encore k8s configure --env=ENV_NAME
 ```
 
 ## Secrets Management
@@ -213,6 +234,31 @@ Piping a secret from a file:
 	Successfully created secret value for MySecret.
 
 Note that this strips trailing newlines from the secret value.
+
+#### List
+
+Lists secrets, optionally for a specific key
+
+```shell 
+$ encore secret list [keys...]
+```
+
+#### Archive
+
+Archives a secret value
+
+```shell
+$ encore secret archive <id>
+```
+
+#### Unarchive
+
+Unarchives a secret value
+
+```shell
+$  encore secret unarchive <id>
+```
+
 
 ## Version
 
@@ -257,3 +303,18 @@ Stops the VPN connection
 ```shell
 $ encore vpn stop
 ```
+## Eject
+
+Generates an image for your app, which can be used to [self-host](/docs/how-to/self-host) your app.
+
+#### Docker
+
+Builds a portable Docker image of your Encore application.
+
+```shell
+$ encore eject docker
+```
+
+**Flags**
+`--base string` defines the base image to build from (default "scratch")
+`--push` pushes image to remote repository
