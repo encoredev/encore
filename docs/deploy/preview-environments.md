@@ -23,7 +23,7 @@ See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious 
 
 Encore Cloud, and Encore managed environmens on AWS and GCP, can be provisioned using [Neon](/docs/deploy/neon) as the database provider.
 
-Neon is a serverless postgres provider that supports [database branches](https://neon.tech/docs/introduction/branching), which work similar to branches in your code.
+Neon is a serverless postgres provider that supports [database branches](https://neon.tech/docs/introduction/branching), which are similar to branches in git.
 Branches enable you to automatically seed your Preview Environments with test data by branching off a populated database, e.g. the database in a staging environment. 
 
 To configure which branch to use for PR environments, head to Encore's Cloud Dashboard > (Select your app) > App Settings > Preview Environments 
