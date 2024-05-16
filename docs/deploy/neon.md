@@ -21,7 +21,7 @@ Click the "Connect Account" button, give it a name, and enter your API key.
 
 <img src="/assets/docs/connect-neon.png" title="Connect Neon Account" className="mx-auto"/>
 
-## Configuring environments to use Neon
+## Creating environments using Neon
 Neon organizes databases in projects. A project consist of a main branch and any number of feature branches.
 [Branches](https://neon.tech/docs/introduction/branching) in Neon are similar to branches in git, letting you to create a new branch for each feature or bug fix, to test your changes in isolation.
 
