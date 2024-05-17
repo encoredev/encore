@@ -14,6 +14,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	encore "encore.dev"
 	"encore.dev/appruntime/apisdk/api/svcauth"
@@ -192,11 +194,14 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		if runtime.CORS != nil {
 			corsCfg = runtime.CORS
 		}
+
+		h2cHandler := h2c.NewHandler(baseHandler, &http2.Server{})
+
 		baseHandler = cors.Wrap(
 			corsCfg,
 			static.CORSAllowHeaders,
 			static.CORSExposeHeaders,
-			http.HandlerFunc(s.handler),
+			http.HandlerFunc(h2cHandler.ServeHTTP),
 		)
 	}
 
