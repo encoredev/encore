@@ -162,9 +162,7 @@ func initService() (*Service, error) {
 	mux := http.NewServeMux()
 	path, handler := greetv1connect.NewGreetServiceHandler(greeter)
 	mux.Handle(path, handler)
-
-	routes := h2c.NewHandler(mux, &http2.Server{})
-	return &Service{routes: routes}, nil
+	return &Service{routes: mux}, nil
 }
 ```
 
@@ -184,7 +182,14 @@ Once it starts up, open a separate terminal and use `grpcurl` to call the servic
 # Install grpcurl if you haven't already
 $ go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 
-# Call the service
+# Call the service with grpcurl
+grpcurl \
+    -protoset <(buf build -o -) -plaintext \
+    -d '{"name": "Jane"}' \
+    localhost:4000 greet.v1.GreetService/Greet
+{"greeting": "Hello, Jane!"} 
+
+# Or call the service with curl
 $ curl -H "Content-Type: application/json" -d '{"name": "Jane"}' http://localhost:4000/greet.v1.GreetService/Greet
 {"greeting":"Hello, Jane!"}  # Expected response
 ```
