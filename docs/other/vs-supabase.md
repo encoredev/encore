@@ -82,7 +82,7 @@ This gives you type-safety for Pub/Sub with compilation errors for any type-erro
 
 ## Encore's local development workflow lets application developers focus
 
-When using BaaS service like Supabase to handle your infrastructure, you're not at all solving for local development.
+When using a BaaS service like Supabase to handle your infrastructure, you're not at all solving for local development.
 
 This means, with Supabase, developers need to manually set up and maintain their local environment in order to facilitate local development and testing.
 
