@@ -77,7 +77,7 @@ Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support f
 
 For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
 
-With Encore's [Backend SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
+With Encore's [Backend SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topics and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
 
 ## Encore's local development workflow lets application developers focus
