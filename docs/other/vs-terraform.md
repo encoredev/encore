@@ -53,7 +53,7 @@ When using IaC tools like Terraform, you must always assign explicit permissions
 
 When using Encore, IAM identities and policies are automatically defined according to best practices for least privilege security. This is possible because Encore parses your source code and builds a graph of the logical architecture, it then uses this to define the infrastructure needs. This means Encore knows exactly which services needs access to which infrastructure for your application to function as expected.
 
-## Encore provides an end-to-end purpose-built workflow for cloud backend developement
+## Encore provides an end-to-end purpose-built workflow for cloud backend development
 
 Encore does a lot more than just automate infrastructure provisioning and configuration. It's designed as a purpose-built tool for cloud backend development and comes with out-of-the-box tooling for both development and DevOps.
 

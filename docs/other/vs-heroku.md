@@ -46,7 +46,7 @@ All this effort takes time away from product development and slows down onboardi
 
 This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 
-## Encore provides an end-to-end purpose-built workflow for cloud backend developement
+## Encore provides an end-to-end purpose-built workflow for cloud backend development
 
 Encore does a lot more than just automate infrastructure provisioning and configuration. It's designed as a purpose-built tool for cloud backend development and comes with out-of-the-box tooling for both development and DevOps.
 
