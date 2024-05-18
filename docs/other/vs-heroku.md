@@ -42,7 +42,7 @@ This can be a major distraction for application developers, because it forces th
 
 All this effort takes time away from product development and slows down onboarding time for new developers.
 
-**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev envioronments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
+**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
 
 This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 
