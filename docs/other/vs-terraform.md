@@ -49,7 +49,7 @@ This greatly speeds up development iterations as developers can start using new 
 
 ## Encore ensures your cloud environments are secure by automating IAM
 
-When using IaC tools like Terraform, you must always assign explicit permissions using IAM idenities and IAM policies. This can be very time consuming when developing a large-scale distributed systems, and when you get it wrong it can lead to glaring security holes or unexpected system behavior.
+When using IaC tools like Terraform, you must always assign explicit permissions using IAM identities and IAM policies. This can be very time consuming when developing a large-scale distributed systems, and when you get it wrong it can lead to glaring security holes or unexpected system behavior.
 
 When using Encore, IAM identities and policies are automatically defined according to best practices for least privilege security. This is possible because Encore parses your source code and builds a graph of the logical architecture, it then uses this to define the infrastructure needs. This means Encore knows exactly which services needs access to which infrastructure for your application to function as expected.
 
