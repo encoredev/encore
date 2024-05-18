@@ -34,7 +34,7 @@ You get the same, easy to use, "push to deploy" workflow that many developers ap
 
 ## Encore's local development workflow lets application developers focus
 
-When using PaaS service like Heroku to deploy your application, you're not at all solving for an efficient local development workflow.
+When using a PaaS service like Heroku to deploy your application, you're not at all solving for an efficient local development workflow.
 
 This means, with Heroku, developers need to manually set up and maintain their local environment and observability tools, in order to facilitate local development and testing.
 
