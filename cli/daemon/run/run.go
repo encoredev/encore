@@ -23,6 +23,8 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"golang.org/x/sync/errgroup"
 
 	"encore.dev/appruntime/exported/config"
@@ -254,8 +256,13 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 		close(r.started)
 	}()
 
+	// Wrap the handler with h2c support to enable HTTP/2 in cleartext
+	// (the std http library only accepts HTTP/2 over TLS).
+	// We need this to be able to forward e.g. gRPC requests to the app.
+	handler := h2c.NewHandler(r, &http2.Server{})
+
 	// Run the http server until the app exits.
-	srv := &http.Server{Addr: ln.Addr().String(), Handler: r}
+	srv := &http.Server{Addr: ln.Addr().String(), Handler: handler}
 	go func() {
 		if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 			r.log.Error().Err(err).Msg("could not serve")
