@@ -210,8 +210,9 @@ func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Pr
 		// Enable h2c for the proxy.
 		Transport: &http2.Transport{
 			AllowHTTP: true,
-			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return net.Dial(network, addr)
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
 			},
 		},
 		Rewrite: func(r *httputil.ProxyRequest) {

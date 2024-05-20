@@ -99,8 +99,9 @@ func (s *Server) createProxyToService(service config.Service, endpointName strin
 	if serviceBaseURL.Scheme == "http" {
 		proxy.Transport = &http2.Transport{
 			AllowHTTP: true,
-			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return net.Dial(network, addr)
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
 			},
 		}
 	}
