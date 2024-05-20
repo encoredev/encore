@@ -19,6 +19,21 @@ See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious 
 
 ![Preview environment linked in GitHub](/assets/docs/ghpreviewenv.png "Preview environment linked in GitHub")
 
+## Populate databases with data automatically
+
+Encore Cloud, and Encore managed environmens on AWS and GCP, can be provisioned using [Neon](/docs/deploy/neon) as the database provider.
+
+Neon is a serverless postgres provider that supports [database branches](https://neon.tech/docs/introduction/branching), which are similar to branches in git.
+Branches enable you to automatically seed your Preview Environments with test data by branching off a populated database, e.g. the database in a staging environment. 
+
+To configure which branch to use for PR environments, head to Encore's Cloud Dashboard > (Select your app) > App Settings > Preview Environments 
+and select the environment with the database you want to branch from. Hit save and you're all done.
+
+Keep in mind that you can only branch from environments that use Neon as the database provider; this is the default for Encore Cloud environments, but is a configurable option when creating AWS and GCP environments.
+
+<img src="/assets/docs/pr-neon.png" title="Use Neon for PR environments" className="mx-auto"/>
+
+
 ## Frontend Collaboration
 
 Preview Environments make it really easy to collaborate and test changes with your frontend. Just update your frontend API client to point to the `pr:#` environment.

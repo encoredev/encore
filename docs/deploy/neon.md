@@ -4,9 +4,10 @@ seodesc: Learn how to configure your environment to provision a Neon Postgres da
 title: Use Neon Postgres
 ---
 
-You can configure Encore to provision a Neon Postgres database instead of the default offering for any Cloud.  
 [Neon](https://neon.tech/) is a serverless database provider that offers a fully managed and autoscalable
-Postgres database. 
+Postgres database.
+
+You can configure Encore to provision a Neon Postgres database instead of the default offering for all supported cloud providers.
 
 ## Connect your Neon account
 To start using Neon with Encore, you need to add your Neon API key to your Encore application. You can sign up for 
@@ -20,10 +21,9 @@ Click the "Connect Account" button, give it a name, and enter your API key.
 
 <img src="/assets/docs/connect-neon.png" title="Connect Neon Account" className="mx-auto"/>
 
-## Create an environment with Neon
+## Creating environments using Neon
 Neon organizes databases in projects. A project consist of a main branch and any number of feature branches.
-[Branches](https://neon.tech/docs/introduction/branching) in Neon works the same way as branches in your code. 
-This allows you to create a new branch for each feature or bug fix, and test your changes in isolation.
+[Branches](https://neon.tech/docs/introduction/branching) in Neon are similar to branches in git, letting you to create a new branch for each feature or bug fix, to test your changes in isolation.
 
 When configuring your Encore environment to use Neon, you can choose which project and branch to use. To get started,
 head to Encore's Cloud Dashboard > (Select your app) > Environments > Create Environment. In the Database section, select
@@ -75,5 +75,7 @@ database and test your changes in isolation.
 To configure which branch to use for PR environments, head to 
 Encore's Cloud Dashboard > (Select your app) > App Settings > Preview Environments 
 and select the environment with the database you want to branch from. Hit save and you're all done.
+
+Keep in mind that you can only branch from environments that use Neon as the database provider; this is the default for Encore Cloud environments, but is a configurable option when creating AWS and GCP environments.
 
 <img src="/assets/docs/pr-neon.png" title="Use Neon for PR environments" className="mx-auto"/>
