@@ -9,7 +9,7 @@ Supabase and Firebase are two popular _Backend as a Service_ providers, that pro
 
 This can be a great way of getting off the ground quickly. But as many developers have come to learn, you risk finding yourself boxed into a corner if you're not in full control of your own backend when new use cases arise.
 
-**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account on AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and and having to start over from scratch.
+**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account on AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and having to start over from scratch.
 
 Let's take a look at how Encore compares to BaaS platforms like Supabase and Firebase:
 
@@ -77,12 +77,12 @@ Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support f
 
 For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
 
-With Encore's [Backend SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topcis and subscriptions as type-safe objects in your application.
+With Encore's [Backend SDK](/docs/primitives), you can build event-driven systems by defining Pub/Sub topics and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
 
 ## Encore's local development workflow lets application developers focus
 
-When using BaaS service like Supabase to handle your infrastructure, you're not at all solving for local development.
+When using a BaaS service like Supabase to handle your infrastructure, you're not at all solving for local development.
 
 This means, with Supabase, developers need to manually set up and maintain their local environment in order to facilitate local development and testing.
 
@@ -90,11 +90,11 @@ This can be a major distraction for application developers, because it forces th
 
 All this effort takes time away from product development and slows down onboarding time for new developers.
 
-**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev envioronments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
+**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
 
-This greately speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
+This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 
-## Encore provides an end-to-end purpose-built workflow for cloud backend developement
+## Encore provides an end-to-end purpose-built workflow for cloud backend development
 
 Encore does a lot more than just automate infrastructure provisioning and configuration. It's designed as a purpose-built tool for cloud backend development and comes with out-of-the-box tooling for both development and DevOps.
 
