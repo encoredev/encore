@@ -34,7 +34,7 @@ You get the same, easy to use, "push to deploy" workflow that many developers ap
 
 ## Encore's local development workflow lets application developers focus
 
-When using PaaS service like Heroku to deploy your application, you're not at all solving for an efficient local development workflow.
+When using a PaaS service like Heroku to deploy your application, you're not at all solving for an efficient local development workflow.
 
 This means, with Heroku, developers need to manually set up and maintain their local environment and observability tools, in order to facilitate local development and testing.
 
@@ -42,11 +42,11 @@ This can be a major distraction for application developers, because it forces th
 
 All this effort takes time away from product development and slows down onboarding time for new developers.
 
-**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev envioronments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
+**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
 
-This greately speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
+This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 
-## Encore provides an end-to-end purpose-built workflow for cloud backend developement
+## Encore provides an end-to-end purpose-built workflow for cloud backend development
 
 Encore does a lot more than just automate infrastructure provisioning and configuration. It's designed as a purpose-built tool for cloud backend development and comes with out-of-the-box tooling for both development and DevOps.
 
