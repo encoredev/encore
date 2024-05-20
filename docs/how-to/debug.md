@@ -46,3 +46,17 @@ To debug with VS Code you must first add a debug configuration. Press `Run -> Ad
 Next, open the **Run and Debug** menu in the toolbar on the left, select Attach to Process (the configuration you just created), and then press the green arrow.
 
 That’s it! You should be able to set breakpoints and have the Encore application pause when they’re hit like you would expect.
+
+## Goland
+To debug with Goland, you must first install the `gops` package. Open a terminal and run the following command
+
+```shell
+go get -t github.com/google/gops/
+```
+
+Then click `Run | Attach to Process`. If a notification window appears, click the `Invoke 'go get gops'` link. Once 
+it has completed, click `Run | Attach to Process` again. In the dialog that appears, select the process with the
+process ID from above.
+
+That's it. You should be able to set breakpoints and have the Encore application pause when they’re hit like you would expect.
+
