@@ -1,14 +1,18 @@
 package api
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
+	"golang.org/x/net/http2"
 
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
@@ -68,7 +72,7 @@ func (s *Server) createGatewayHandlerAdapter(h Handler) httprouter.Handle {
 func (s *Server) createProxyToService(service config.Service, endpointName string, serviceBaseURL *url.URL, logger zerolog.Logger) *httputil.ReverseProxy {
 	callee := fmt.Sprintf("%s.%s", service.Name, endpointName)
 
-	return &httputil.ReverseProxy{
+	proxy := &httputil.ReverseProxy{
 		// Rewrite the inbound request
 		Rewrite: func(req *httputil.ProxyRequest) {
 			req.SetURL(serviceBaseURL)
@@ -89,6 +93,19 @@ func (s *Server) createProxyToService(service config.Service, endpointName strin
 			errs.HTTPError(w, errs.B().Cause(err).Code(errs.Unavailable).Err())
 		},
 	}
+
+	// If the service is served without TLS, we need to configure the proxy to allow forwarding
+	// HTTP2 in clear text to make sure grpc requests are forwarded correctly.
+	if serviceBaseURL.Scheme == "http" {
+		proxy.Transport = &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
+			},
+		}
+	}
+	return proxy
 }
 
 type zeroLogWriter struct {

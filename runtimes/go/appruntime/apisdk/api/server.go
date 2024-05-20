@@ -186,7 +186,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 	// Create our HTTP server handler chain
 
 	// Start with the underlying router
-	var baseHandler http.Handler = http.HandlerFunc(s.handler)
+	var baseHandler http.Handler = h2c.NewHandler(http.HandlerFunc(s.handler), &http2.Server{})
 
 	// If we're acting as an API Gateway, then we need to add CORS support
 	if s.IsGateway() {
@@ -195,13 +195,11 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 			corsCfg = runtime.CORS
 		}
 
-		h2cHandler := h2c.NewHandler(baseHandler, &http2.Server{})
-
 		baseHandler = cors.Wrap(
 			corsCfg,
 			static.CORSAllowHeaders,
 			static.CORSExposeHeaders,
-			http.HandlerFunc(h2cHandler.ServeHTTP),
+			http.HandlerFunc(baseHandler.ServeHTTP),
 		)
 	}
 
