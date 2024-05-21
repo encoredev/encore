@@ -1,18 +1,14 @@
 package api
 
 import (
-	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
-	"golang.org/x/net/http2"
 
 	"encore.dev/appruntime/apisdk/api/transport"
 	"encore.dev/appruntime/exported/config"
@@ -97,13 +93,7 @@ func (s *Server) createProxyToService(service config.Service, endpointName strin
 	// If the service is served without TLS, we need to configure the proxy to allow forwarding
 	// HTTP2 in clear text to make sure grpc requests are forwarded correctly.
 	if serviceBaseURL.Scheme == "http" {
-		proxy.Transport = &http2.Transport{
-			AllowHTTP: true,
-			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, network, addr)
-			},
-		}
+		proxy.Transport = transport.NewH2CTransport(http.DefaultTransport)
 	}
 	return proxy
 }
