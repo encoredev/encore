@@ -186,7 +186,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 	// Create our HTTP server handler chain
 
 	// Start with the underlying router
-	var baseHandler http.Handler = h2c.NewHandler(http.HandlerFunc(s.handler), &http2.Server{})
+	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 
 	// If we're acting as an API Gateway, then we need to add CORS support
 	if s.IsGateway() {
@@ -194,13 +194,13 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		if runtime.CORS != nil {
 			corsCfg = runtime.CORS
 		}
-
 		baseHandler = cors.Wrap(
 			corsCfg,
 			static.CORSAllowHeaders,
 			static.CORSExposeHeaders,
-			http.HandlerFunc(baseHandler.ServeHTTP),
+			baseHandler,
 		)
+
 	}
 
 	// Finally, this handler is used to track the number of running handlers
@@ -233,7 +233,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 	// Now we have the handler chain setup, create the HTTP server object
 	s.httpCtx, s.httpCtxCancel = context.WithCancel(context.Background())
 	s.httpsrv = &http.Server{
-		Handler: activeHandlersWrapper,
+		Handler: h2c.NewHandler(activeHandlersWrapper, &http2.Server{}),
 		BaseContext: func(_ net.Listener) context.Context {
 			// We set the base context which allows us to cancel it when the server is shutting down
 			return s.httpCtx
