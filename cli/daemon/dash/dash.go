@@ -26,6 +26,7 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/jsonrpc2"
+	"encr.dev/cli/internal/telemetry"
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/editors"
@@ -73,6 +74,22 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	}
 
 	switch r.Method() {
+	case "telemetry":
+		type params struct {
+			Event      string                 `json:"event"`
+			Properties map[string]interface{} `json:"properties"`
+			Once       bool                   `json:"once,omitempty"`
+		}
+		var p params
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		if p.Once {
+			telemetry.SendOnce(p.Event, p.Properties)
+		} else {
+			telemetry.Send(p.Event, p.Properties)
+		}
+		return reply(ctx, "ok", nil)
 	case "version":
 		type versionResp struct {
 			Version string `json:"version"`
@@ -130,6 +147,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, apps, nil)
 
 	case "traces/list":
+		telemetry.Send("traces.list")
 		var params struct {
 			AppID      string `json:"app_id"`
 			MessageID  string `json:"message_id"`
@@ -157,6 +175,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, list, err)
 
 	case "traces/get":
+		telemetry.Send("traces.get")
 		var params struct {
 			AppID   string `json:"app_id"`
 			TraceID string `json:"trace_id"`
@@ -205,6 +224,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		return reply(ctx, status, nil)
 
 	case "api-call":
+		telemetry.Send("api.call")
 		var params apiCallParams
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
@@ -227,6 +247,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		return reply(ctx, resp, nil)
 	case "ai/propose-system-design":
+		telemetry.Send("ai.propose")
 		log.Debug().Msg("dash: propose-system-design")
 		var params struct {
 			AppID  string `json:"app_id"`
@@ -280,6 +301,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 
 	case "ai/modify-system-design":
+		telemetry.Send("ai.modify")
 		log.Debug().Msg("dash: modify-system-design")
 		var params struct {
 			AppID          string         `json:"app_id"`
@@ -300,6 +322,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		})
 		return reply(ctx, task.SubscriptionID, err)
 	case "ai/define-endpoints":
+		telemetry.Send("ai.details")
 		log.Debug().Msg("dash: define-endpoints")
 		log.Debug().Msg("dash: define-endpoints")
 		var params struct {
@@ -351,6 +374,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		results, err := h.ai.UpdateCode(ctx, params.Services, app, params.Overwrite)
 		return reply(ctx, results, err)
 	case "ai/preview-files":
+		telemetry.Send("ai.preview")
 		log.Debug().Msg("dash: preview-files")
 		var params struct {
 			AppID    string       `json:"app_id"`
@@ -366,6 +390,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		result, err := h.ai.PreviewFiles(ctx, params.Services, app)
 		return reply(ctx, result, err)
 	case "ai/write-files":
+		telemetry.Send("ai.write")
 		log.Debug().Msg("dash: write-files")
 		var params struct {
 			AppID    string       `json:"app_id"`
@@ -403,6 +428,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		return reply(ctx, true, err)
 	case "editors/open":
+		telemetry.Send("editors.open")
 		var params struct {
 			AppID     string             `json:"app_id"`
 			Editor    editors.EditorName `json:"editor"`

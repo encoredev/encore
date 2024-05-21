@@ -1,6 +1,9 @@
 package fns
 
-import "io"
+import (
+	"io"
+	"maps"
+)
 
 // Map applies fn on all elements in src, producing a new slice
 // with the results, in order.
@@ -131,4 +134,17 @@ func MapKeys[M ~map[K]V, K comparable, V any](m M) []K {
 // Its main use is to satisfy linters.
 func CloseIgnore(c io.Closer) {
 	_ = c.Close()
+}
+
+// MergeMaps merges all maps into a single map.
+func MergeMaps[K comparable, V any](ms ...map[K]V) map[K]V {
+	var rtn map[K]V
+	for i, m := range ms {
+		if i == 0 {
+			rtn = m
+			continue
+		}
+		maps.Copy(rtn, m)
+	}
+	return rtn
 }

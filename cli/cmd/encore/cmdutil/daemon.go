@@ -20,9 +20,27 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
-// ConnectDaemon sets up the Encore daemon if it isn't already running
-// and returns a client connected to it.
-func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
+// DaemonOption is an option for connecting to the Encore daemon.
+type DaemonOption func(*daemonOptions)
+
+type daemonOptions struct {
+	skipStart bool
+}
+
+var (
+	// SkipStart skips starting the daemon if it is not already running.
+	SkipStart DaemonOption = func(o *daemonOptions) {
+		o.skipStart = true
+	}
+)
+
+// ConnectDaemon returns a client connection to the Encore daemon.
+// By default, it will start the daemon if it is not already running.
+func ConnectDaemon(ctx context.Context, opts ...DaemonOption) daemonpb.DaemonClient {
+	var options daemonOptions
+	for _, o := range opts {
+		o(&options)
+	}
 	socketPath, err := daemonSockPath()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
@@ -58,6 +76,9 @@ func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
 		_ = os.Remove(socketPath)
 	}
 
+	if options.skipStart {
+		return nil
+	}
 	// Start the daemon.
 	if err := StartDaemonInBackground(ctx); err != nil {
 		Fatal("starting daemon: ", err)

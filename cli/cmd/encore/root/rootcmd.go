@@ -9,13 +9,20 @@ import (
 )
 
 var (
-	verbosity int
+	Verbosity int
 	traceFile string
 
 	// TraceFile is the file to write trace logs to.
 	// If nil (the default), trace logs are not written.
 	TraceFile *string
 )
+
+var preRuns []func(cmd *cobra.Command, args []string)
+
+// AddPreRun adds a function to be executed before the command runs.
+func AddPreRun(f func(cmd *cobra.Command, args []string)) {
+	preRuns = append(preRuns, f)
+}
 
 var Cmd = &cobra.Command{
 	Use:           "encore",
@@ -30,20 +37,24 @@ var Cmd = &cobra.Command{
 		}
 
 		level := zerolog.InfoLevel
-		if verbosity == 1 {
+		if Verbosity == 1 {
 			level = zerolog.DebugLevel
-		} else if verbosity >= 2 {
+		} else if Verbosity >= 2 {
 			level = zerolog.TraceLevel
 		}
 
-		if verbosity >= 1 {
+		if Verbosity >= 1 {
 			errlist.Verbose = true
 		}
 		log.Logger = log.Logger.Level(level)
+
+		for _, f := range preRuns {
+			f(cmd, args)
+		}
 	},
 }
 
 func init() {
-	Cmd.PersistentFlags().CountVarP(&verbosity, "verbose", "v", "verbose output")
+	Cmd.PersistentFlags().CountVarP(&Verbosity, "verbose", "v", "verbose output")
 	Cmd.PersistentFlags().StringVar(&traceFile, "trace", "", "file to write execution trace data to")
 }

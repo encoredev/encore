@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -269,3 +270,18 @@ var DefaultTokenSource = NewTokenSource()
 // AuthClient is an *http.Client that authenticates requests
 // using the logged-in user.
 var AuthClient = oauth2.NewClient(nil, DefaultTokenSource)
+
+// DefaultClient is an *http.Client that authenticates requests if the user is logged in.
+// If the user is not logged in, the request is sent without authentication.
+var DefaultClient = &http.Client{Transport: defaultTransport{}}
+
+type defaultTransport struct{}
+
+var authTransport = oauth2.Transport{Base: http.DefaultTransport, Source: DefaultTokenSource}
+
+func (defaultTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if _, err := DefaultTokenSource.Token(); err != nil {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	return authTransport.RoundTrip(req)
+}
