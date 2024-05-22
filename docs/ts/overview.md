@@ -18,4 +18,8 @@ Modern backend applications rely on a common set of infrastructure primitives fo
 
 Check out the [Tutorials](/docs/tutorials) section for examples of complete Encore applications.
 
-<img src="/assets/docs/primitives.png" title="Cloud Primitives" className="noshadow mx-auto d:w-1/2"/>
+### Intro video
+
+Get to know the core concepts of Encore for TypeScript in this intro video.
+
+<iframe width="360" height="202" src="https://www.youtube.com/embed/zr3OXQKbaHQ?si=zUVcR9eYmC3OuW2c" title="Encore for TypeScript Intro" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
