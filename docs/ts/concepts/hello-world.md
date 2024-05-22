@@ -32,6 +32,12 @@ interface Response {
 
 To run it, you simply use `encore run` and the Open Source CLI will automatically set up your local infrastructure.
 
+## Getting started video
+
+Get to know the basics of Encore for TypeScript in this getting started video.
+
+<iframe width="360" height="202" src="https://www.youtube.com/embed/wiLDz-JUuqY?si=BxmW0BV1hx2LIvtO" title="Getting Started with Encore for TypeScript" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 ## Using databases, Pub/Sub, and other primitives
 
 Encore's Backend SDK makes it simple to add more primitives, such as additional microservices, databases, Pub/Sub, etc.
