@@ -74,5 +74,5 @@ The docker image ships with the following PostgreSQL extensions available for us
 | tsm_system_time                | 1.0     |
 | unaccent                       | 1.1     |
 | uuid-ossp                      | 1.1     |
-| vector                         | 0.4.4   |
+| vector                         | 0.7     |
 | xml2                           | 1.1     |
