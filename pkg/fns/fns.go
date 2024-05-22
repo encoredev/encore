@@ -1,6 +1,7 @@
 package fns
 
 import (
+	"cmp"
 	"io"
 	"maps"
 )
@@ -13,6 +14,16 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 		dst[i] = fn(v)
 	}
 	return dst
+}
+
+func Max[A any, B cmp.Ordered](src []A, fn func(A) B) B {
+	var m B
+	for _, v := range src {
+		if val := fn(v); m < val {
+			m = val
+		}
+	}
+	return m
 }
 
 // MapAndFilter applies fn on all elements in src, producing a new slice

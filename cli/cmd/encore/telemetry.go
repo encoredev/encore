@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/rs/zerolog/log"
@@ -12,6 +13,7 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/telemetry"
+	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -19,23 +21,24 @@ var TelemetryDisabledByEnvVar = os.Getenv("DISABLE_ENCORE_TELEMETRY") == "1"
 var TelemetryDebugByEnvVar = os.Getenv("ENCORE_TELEMETRY_DEBUG") == "1"
 
 func printTelemetryStatus() {
-	status := aurora.Green("Enabled")
+	status := aurora.Green("Enabled").String()
 	if !telemetry.IsEnabled() {
-		status = aurora.Red("Disabled")
+		status = aurora.Red("Disabled").String()
 	}
 	fmt.Println(aurora.Sprintf("%s\n", aurora.Bold("Encore Telemetry")))
 	items := [][2]string{
-		{"Status", status.String()},
+		{"Status", status},
 	}
 	if root.Verbosity > 0 {
 		items = append(items, [2]string{"Install ID", telemetry.GetAnonID()})
 	}
 	if telemetry.IsDebug() {
-		items = append(items, [2]string{"Debug", "Enabled"})
+		items = append(items, [2]string{"Debug", aurora.Green("Enabled").String()})
 	}
+	maxKeyLen := fns.Max(items, func(entry [2]string) int { return len(entry[0]) })
 	for _, item := range items {
-		// add spacing to align the columns
-		fmt.Printf("  %-12s %s\n", item[0], item[1])
+		spacing := strings.Repeat(" ", maxKeyLen-len(item[0]))
+		fmt.Printf("%s: %s%s\n", item[0], spacing, item[1])
 	}
 	fmt.Println(aurora.Sprintf("\nLearn more: %s", aurora.Underline("https://encore.dev/docs/telemetry")))
 }
