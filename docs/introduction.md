@@ -9,6 +9,10 @@ Cloud services enable us to build highly scalable applications, but offer a poor
 
 Encore is purpose-built to solve this problem, restoring creativity for developers and productivity for teams.
 
+## Intro video
+
+<iframe width="360" height="202" src="https://www.youtube.com/embed/vvqTGfoXVsw?si=TliVv2VAT0YtNuYk" title="Encore Intro Video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 ## A simplified cloud backend development workflow
 
 Encore provides a complete toolset for backend development, from local development and testing, to cloud infrastructure management and DevOps.
