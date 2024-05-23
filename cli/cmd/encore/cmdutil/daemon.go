@@ -20,27 +20,27 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
-// DaemonOption is an option for connecting to the Encore daemon.
-type DaemonOption func(*daemonOptions)
-
-type daemonOptions struct {
-	skipStart bool
-}
-
-var (
-	// SkipStart skips starting the daemon if it is not already running.
-	SkipStart DaemonOption = func(o *daemonOptions) {
-		o.skipStart = true
+func IsDaemonRunning(ctx context.Context) bool {
+	socketPath, err := daemonSockPath()
+	if err != nil {
+		return false
 	}
-)
+	if _, err := xos.SocketStat(socketPath); err == nil {
+		// The socket exists; check that it is responsive.
+		if cc, err := dialDaemon(ctx, socketPath); err == nil {
+			_ = cc.Close()
+			return true
+		}
+		// socket is not responding, remove it
+		_ = os.Remove(socketPath)
+	}
+	return false
+
+}
 
 // ConnectDaemon returns a client connection to the Encore daemon.
 // By default, it will start the daemon if it is not already running.
-func ConnectDaemon(ctx context.Context, opts ...DaemonOption) daemonpb.DaemonClient {
-	var options daemonOptions
-	for _, o := range opts {
-		o(&options)
-	}
+func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
 	socketPath, err := daemonSockPath()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
@@ -76,9 +76,6 @@ func ConnectDaemon(ctx context.Context, opts ...DaemonOption) daemonpb.DaemonCli
 		_ = os.Remove(socketPath)
 	}
 
-	if options.skipStart {
-		return nil
-	}
 	// Start the daemon.
 	if err := StartDaemonInBackground(ctx); err != nil {
 		Fatal("starting daemon: ", err)

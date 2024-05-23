@@ -10,11 +10,6 @@ import (
 )
 
 func (s *Server) Telemetry(ctx context.Context, req *daemonpb.TelemetryConfig) (*emptypb.Empty, error) {
-	if telemetry.UpdateConfig(req.AnonId, req.Enabled, req.Debug) {
-		err := telemetry.SaveConfig()
-		if err != nil {
-			return nil, err
-		}
-	}
+	telemetry.UpdateConfig(req.AnonId, req.Enabled, req.Debug)
 	return new(emptypb.Empty), nil
 }

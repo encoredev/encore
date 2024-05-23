@@ -44,24 +44,20 @@ func printTelemetryStatus() {
 }
 
 func updateTelemetry(ctx context.Context) {
-	err := func() error {
-		//
-		daemon := cmdutil.ConnectDaemon(ctx, cmdutil.SkipStart)
-		if daemon != nil {
-			// Update the telemetry config on the daemon if it is running
-			_, err := daemon.Telemetry(ctx, &daemonpb.TelemetryConfig{
-				AnonId:  telemetry.GetAnonID(),
-				Enabled: telemetry.IsEnabled(),
-				Debug:   telemetry.IsDebug(),
-			})
-			return err
-		} else {
-			// Update the telemetry config locally if the daemon is not running
-			return telemetry.SaveConfig()
+	// Update the telemetry config on the daemon if it is running
+	if cmdutil.IsDaemonRunning(ctx) {
+		daemon := cmdutil.ConnectDaemon(ctx)
+		_, err := daemon.Telemetry(ctx, &daemonpb.TelemetryConfig{
+			AnonId:  telemetry.GetAnonID(),
+			Enabled: telemetry.IsEnabled(),
+			Debug:   telemetry.IsDebug(),
+		})
+		if err != nil {
+			log.Debug().Err(err).Msgf("could not update daemon telemetry: %s", err)
 		}
-	}()
-	if err != nil {
-		log.Debug().Err(err).Msgf("could not update telemetry: %s", err)
+	}
+	if err := telemetry.SaveConfig(); err != nil {
+		log.Debug().Err(err).Msgf("could not save telemetry: %s", err)
 	}
 }
 
