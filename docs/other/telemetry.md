@@ -49,7 +49,7 @@ At Encore, we prioritize your privacy and ensure that no sensitive data is colle
 2. **File Paths**: The specific paths of your files and directories are not collected.
 3. **Contents of Files**: We do not access or collect the contents of your code files or any other files in your projects.
 4. **Logs**: No log files from your application or development environment are collected.
-5. **Serialized JavaScript Errors**: We do not collect serialized JavaScript errors that may contain sensitive information.
+5. **Serialized Errors**: We do not collect serialized errors that may contain sensitive information.
 
 Our goal is to gather useful data that helps improve Encore while ensuring that your sensitive information remains private and secure.
 
