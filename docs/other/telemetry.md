@@ -3,7 +3,9 @@ seotitle: Encore Telemetry
 seodesc: Encore collects telemetry data about app usage
 title: Telemetry
 ---
-Telemetry helps us improve the Encore platform by collecting usage data. This data provides insights into how the platform is used, enabling us to make informed decisions to enhance performance, add new features, and fix bugs more efficiently.
+Telemetry helps us improve the Encore by collecting usage data. This data provides insights into how Encore is used, enabling us to make informed decisions to enhance performance, add new features, and fix bugs more efficiently.
+
+Only Encore only collects telemetry data in the local development tools and Encore's Cloud Dashboard, it does **not** collect any telemetry data from your running applications or cloud services, ensuring complete privacy and security for your operations.
 
 ## Why We Collect Data
 
@@ -21,7 +23,7 @@ Encore collects data in a way that prioritizes user privacy and security. Here's
 1. **User Identifiable Data**: The data collected includes identifiable information that helps us understand specific user interactions and contexts.
 2. **Types of Data**: We collect data on usage patterns, performance metrics, and error reports.
 3. **Secure Transmission**: All data is transmitted securely using industry-standard encryption protocols.
-4. **Minimal Impact**: Data collection is designed to have minimal impact on system performance and user workflow.
+4. **Minimal Impact**: Data collection is designed to have minimal impact on Encore's performance.
 
 ### Example of Data Being Sent
 
@@ -49,7 +51,7 @@ At Encore, we prioritize your privacy and ensure that no sensitive data is colle
 4. **Logs**: No log files from your application or development environment are collected.
 5. **Serialized JavaScript Errors**: We do not collect serialized JavaScript errors that may contain sensitive information.
 
-Our goal is to gather useful data that helps improve the platform while ensuring that your sensitive information remains private and secure.
+Our goal is to gather useful data that helps improve Encore while ensuring that your sensitive information remains private and secure.
 
 ## Disabling Telemetry
 
@@ -89,6 +91,6 @@ For users who want more visibility into what telemetry data is being sent, you c
 
 ## Conclusion
 
-Encore Telemetry is a vital tool for improving the platform, but we respect your choice regarding data sharing. With easy-to-use commands and environment variables, you can manage your telemetry settings as you see fit. If you have any further questions or need assistance, please refer to our support documentation or contact our support team.
+Telemetry is a vital tool for improving Encore, but we respect your choice regarding data sharing. With easy-to-use commands and environment variables, you can manage your telemetry settings as you see fit. If you have any further questions or need assistance, please refer to our support documentation or contact our support team.
 
 Thank you for helping us make Encore better!
