@@ -20,8 +20,26 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
-// ConnectDaemon sets up the Encore daemon if it isn't already running
-// and returns a client connected to it.
+func IsDaemonRunning(ctx context.Context) bool {
+	socketPath, err := daemonSockPath()
+	if err != nil {
+		return false
+	}
+	if _, err := xos.SocketStat(socketPath); err == nil {
+		// The socket exists; check that it is responsive.
+		if cc, err := dialDaemon(ctx, socketPath); err == nil {
+			_ = cc.Close()
+			return true
+		}
+		// socket is not responding, remove it
+		_ = os.Remove(socketPath)
+	}
+	return false
+
+}
+
+// ConnectDaemon returns a client connection to the Encore daemon.
+// By default, it will start the daemon if it is not already running.
 func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
 	socketPath, err := daemonSockPath()
 	if err != nil {
