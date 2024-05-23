@@ -178,7 +178,7 @@ pub fn describe_endpoint(
     let (req_enc, _req_schema) = describe_req(ctx, &methods, &path, &req, raw)?;
     let (resp_enc, _resp_schema) = describe_resp(ctx, &methods, &resp)?;
 
-    let path = rewrite_path_types(&req_enc[0], path).context("parse path param types")?;
+    let path = rewrite_path_types(&req_enc[0], path, raw).context("parse path param types")?;
 
     Ok(EndpointEncoding {
         path,
@@ -396,7 +396,7 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> Vec<Para
     params
 }
 
-fn rewrite_path_types(req: &RequestEncoding, path: Path) -> Result<Path> {
+fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> Result<Path> {
     use crate::parser::respath::{Segment, ValueType};
     // Get the path params into a map, keyed by name.
     let path_params = req
@@ -417,10 +417,19 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path) -> Result<Path> {
     for seg in path.segments.into_iter() {
         let seg = match seg {
             Segment::Param { name, .. } => {
-                let param = path_params
-                    .get(&name)
-                    .ok_or_else(|| anyhow::anyhow!("path param {:?} not found", name))?;
-                let value_type = typ_to_value_type(&param.typ)?;
+                // Get the value type of the path parameter.
+                let value_type = match path_params.get(&name) {
+                    Some(param) => typ_to_value_type(&param.typ)?,
+                    None => {
+                        // Raw endpoints assume path params are strings.
+                        if raw {
+                            ValueType::String
+                        } else {
+                            anyhow::bail!("path param {:?} not found in request schema", name);
+                        }
+                    }
+                };
+
                 Segment::Param { name, value_type }
             }
             Segment::Literal(_) | Segment::Wildcard { .. } | Segment::Fallback { .. } => seg,
