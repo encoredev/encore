@@ -50,16 +50,19 @@ impl Path {
                 }
                 SegmentType::Param => {
                     let name = &seg.value;
-                    let field = fields
-                        .fields
-                        .get(name)
-                        .ok_or_else(|| anyhow::anyhow!("missing field in request schema"))?;
-                    let jsonschema::BasicOrValue::Basic(typ) = &field.value else {
-                        anyhow::bail!("invalid field type in request schema");
+                    let typ = match fields.fields.get(name) {
+                        Some(field) => match &field.value {
+                            jsonschema::BasicOrValue::Basic(typ) => typ.clone(),
+                            _ => anyhow::bail!("invalid field type in request schema"),
+                        },
+                        // If the segment doesn't exist in the schema it's because the endpoint is raw.
+                        // Treat this as a string.
+                        None => Basic::String,
                     };
+
                     segments.push(Segment::Param {
                         name: name.clone().into_boxed_str(),
-                        typ: typ.clone(),
+                        typ,
                     });
                 }
 
