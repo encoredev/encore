@@ -21,6 +21,7 @@ import (
 	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/platform"
+	"encr.dev/cli/internal/telemetry"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
@@ -58,6 +59,15 @@ func init() {
 
 // createApp is the implementation of the "encore app create" command.
 func createApp(ctx context.Context, name, template string) (err error) {
+	var lang language
+	defer func() {
+		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
+		telemetry.SendSync("app.create", map[string]any{
+			"template": template,
+			"lang":     lang,
+			"error":    err != nil,
+		})
+	}()
 	cyan := color.New(color.FgCyan)
 	green := color.New(color.FgGreen)
 	red := color.New(color.FgRed)
@@ -72,10 +82,12 @@ func createApp(ctx context.Context, name, template string) (err error) {
 			input = strings.TrimSpace(input)
 			switch input {
 			case "Y", "y", "yes", "":
+				telemetry.Send("app.create.account", map[string]any{"response": true})
 				if err := auth.DoLogin(auth.AutoFlow); err != nil {
 					cmdutil.Fatal(err)
 				}
 			case "N", "n", "no":
+				telemetry.Send("app.create.account", map[string]any{"response": false})
 				// Continue without creating an account.
 			case "q", "quit", "exit":
 				os.Exit(1)
@@ -89,7 +101,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	}
 
 	if name == "" || template == "" {
-		name, template, _ = selectTemplate(name, template, false)
+		name, template, lang = selectTemplate(name, template, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).

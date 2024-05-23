@@ -1,6 +1,10 @@
 package fns
 
-import "io"
+import (
+	"cmp"
+	"io"
+	"maps"
+)
 
 // Map applies fn on all elements in src, producing a new slice
 // with the results, in order.
@@ -10,6 +14,16 @@ func Map[A, B any](src []A, fn func(A) B) []B {
 		dst[i] = fn(v)
 	}
 	return dst
+}
+
+func Max[A any, B cmp.Ordered](src []A, fn func(A) B) B {
+	var m B
+	for _, v := range src {
+		if val := fn(v); m < val {
+			m = val
+		}
+	}
+	return m
 }
 
 // MapAndFilter applies fn on all elements in src, producing a new slice
@@ -131,4 +145,17 @@ func MapKeys[M ~map[K]V, K comparable, V any](m M) []K {
 // Its main use is to satisfy linters.
 func CloseIgnore(c io.Closer) {
 	_ = c.Close()
+}
+
+// MergeMaps merges all maps into a single map.
+func MergeMaps[K comparable, V any](ms ...map[K]V) map[K]V {
+	var rtn map[K]V
+	for i, m := range ms {
+		if i == 0 {
+			rtn = m
+			continue
+		}
+		maps.Copy(rtn, m)
+	}
+	return rtn
 }
