@@ -38,6 +38,7 @@ const (
 	Daemon_ListNamespaces_FullMethodName  = "/encore.daemon.Daemon/ListNamespaces"
 	Daemon_DeleteNamespace_FullMethodName = "/encore.daemon.Daemon/DeleteNamespace"
 	Daemon_DumpMeta_FullMethodName        = "/encore.daemon.Daemon/DumpMeta"
+	Daemon_Telemetry_FullMethodName       = "/encore.daemon.Daemon/Telemetry"
 )
 
 // DaemonClient is the client API for Daemon service.
@@ -81,6 +82,7 @@ type DaemonClient interface {
 	// DeleteNamespace deletes an infra namespace.
 	DeleteNamespace(ctx context.Context, in *DeleteNamespaceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DumpMeta(ctx context.Context, in *DumpMetaRequest, opts ...grpc.CallOption) (*DumpMetaResponse, error)
+	Telemetry(ctx context.Context, in *TelemetryConfig, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type daemonClient struct {
@@ -414,6 +416,15 @@ func (c *daemonClient) DumpMeta(ctx context.Context, in *DumpMetaRequest, opts .
 	return out, nil
 }
 
+func (c *daemonClient) Telemetry(ctx context.Context, in *TelemetryConfig, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Daemon_Telemetry_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DaemonServer is the server API for Daemon service.
 // All implementations must embed UnimplementedDaemonServer
 // for forward compatibility
@@ -455,6 +466,7 @@ type DaemonServer interface {
 	// DeleteNamespace deletes an infra namespace.
 	DeleteNamespace(context.Context, *DeleteNamespaceRequest) (*emptypb.Empty, error)
 	DumpMeta(context.Context, *DumpMetaRequest) (*DumpMetaResponse, error)
+	Telemetry(context.Context, *TelemetryConfig) (*emptypb.Empty, error)
 	mustEmbedUnimplementedDaemonServer()
 }
 
@@ -515,6 +527,9 @@ func (UnimplementedDaemonServer) DeleteNamespace(context.Context, *DeleteNamespa
 }
 func (UnimplementedDaemonServer) DumpMeta(context.Context, *DumpMetaRequest) (*DumpMetaResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpMeta not implemented")
+}
+func (UnimplementedDaemonServer) Telemetry(context.Context, *TelemetryConfig) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Telemetry not implemented")
 }
 func (UnimplementedDaemonServer) mustEmbedUnimplementedDaemonServer() {}
 
@@ -874,6 +889,24 @@ func _Daemon_DumpMeta_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Daemon_Telemetry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TelemetryConfig)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DaemonServer).Telemetry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Daemon_Telemetry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DaemonServer).Telemetry(ctx, req.(*TelemetryConfig))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Daemon_ServiceDesc is the grpc.ServiceDesc for Daemon service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -924,6 +957,10 @@ var Daemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DumpMeta",
 			Handler:    _Daemon_DumpMeta_Handler,
+		},
+		{
+			MethodName: "Telemetry",
+			Handler:    _Daemon_Telemetry_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

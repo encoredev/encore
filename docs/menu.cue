@@ -752,6 +752,11 @@
 		file: "about/billing"
 	}, {
 		kind: "basic"
+		text: "Telemetry"
+		path: "/telemetry"
+		file: "other/telemetry"
+	}, {
+		kind: "basic"
 		text: "Roles & Permissions"
 		path: "/about/permissions"
 		file: "about/permissions"

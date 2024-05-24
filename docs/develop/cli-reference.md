@@ -316,5 +316,6 @@ $ encore eject docker
 ```
 
 **Flags**
+
 `--base string` defines the base image to build from (default "scratch")
 `--push` pushes image to remote repository
