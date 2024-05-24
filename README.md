@@ -15,7 +15,7 @@ It consists of a **Backend SDK**, a **Local Development Environment** with tools
 
 **⭐ Star this repository** to help spread the word.
 
-**🍿 Intro video:** [Watch this video](https://youtu.be/LN8mQWho0Jc) for an introduction to Encore concepts & features
+**🍿 Intro video:** [Watch this video](https://youtu.be/vvqTGfoXVsw?si=z4N-oQwPNAWMwqvT) for an introduction to Encore
 
 **👋 Have questions?** Join the friendly developer community on [Discord](https://encore.dev/discord).
 
@@ -207,9 +207,10 @@ Here's how you can contribute:
 
 ## Videos
 
-- <a href="https://youtu.be/LN8mQWho0Jc" alt="Intro video: Encore concepts & features" target="_blank">Intro: Encore concepts & features</a>
-- <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service" target="_blank">Demo: Building and deploying a simple service</a>
-- <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system</a>
+- <a href="https://youtu.be/vvqTGfoXVsw?si=z4N-oQwPNAWMwqvT" alt="Intro vide" target="_blank">Introduction to Encore</a>
+- <a href="https://youtu.be/wiLDz-JUuqY?si=wYesxdXMjXF59EQZ" alt="Demo video: Building and deploying a simple TypeScript service" target="_blank">Demo: Building and deploying a simple TypeScript service</a>
+- <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service in Go" target="_blank">Demo: Building and deploying a simple Go service</a>
+- <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system in Go</a>
 
 ## Visuals
 
