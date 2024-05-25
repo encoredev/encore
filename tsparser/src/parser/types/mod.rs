@@ -6,9 +6,10 @@ mod typ;
 mod type_resolve;
 mod utils;
 
-pub use object::{Ctx, Object, ObjectId, ObjectKind, TypeResolver};
-pub use typ::{
-    Basic, ClassType, Interface, InterfaceField, Literal, Named, Signature, Type, TypeArgId,
-};
+#[cfg(test)]
+mod tests;
+
+pub use object::{Object, ObjectId, ObjectKind, ResolveState};
+pub use typ::{Basic, ClassType, Interface, InterfaceField, Literal, Named, Type, TypeArgId};
 pub use type_resolve::TypeChecker;
 pub use utils::*;

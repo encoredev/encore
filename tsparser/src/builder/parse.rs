@@ -13,7 +13,7 @@ use super::{App, Builder};
 #[derive(Debug, Clone)]
 pub struct ParseParams<'a> {
     pub app: &'a App,
-    pub pc: &'a ParseContext<'a>,
+    pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
     pub parse_tests: bool,
 }
@@ -36,6 +36,10 @@ impl Builder<'_> {
 
         let result = parser.parse()?;
         let desc = validate_and_describe(&pc, &result)?;
+
+        if pc.errs.has_errors() {
+            anyhow::bail!("parse failed")
+        }
 
         let file_set = pc.file_set.clone();
         Ok(ParseResult { file_set, desc })

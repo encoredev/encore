@@ -75,6 +75,9 @@ name = "anyhow"
 version = "1.0.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59d2a3357dde987206219e78ecfbbb6e8dad06cbb65292758d3270e6254f7355"
+dependencies = [
+ "backtrace",
+]
 
 [[package]]
 name = "approx"

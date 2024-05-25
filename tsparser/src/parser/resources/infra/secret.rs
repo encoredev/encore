@@ -37,7 +37,7 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
 
             let object = pass
                 .type_checker
-                .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()))?;
+                .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
 
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {

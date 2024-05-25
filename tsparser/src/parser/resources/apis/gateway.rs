@@ -41,13 +41,13 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
                 None => None,
                 Some(id) => pass
                     .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
             };
 
             let auth_handler = if let Some(expr) = r.config.authHandler {
                 let obj = pass
                     .type_checker
-                    .resolve_obj(pass.module.clone(), &expr)?
+                    .resolve_obj(pass.module.clone(), &expr)
                     .ok_or(anyhow::anyhow!("can't resolve endpoint"))?;
                 Some(obj)
             } else {
