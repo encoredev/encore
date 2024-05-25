@@ -174,7 +174,7 @@ impl Range {
         self.start <= other.start && other.end <= self.end
     }
 
-    fn to_span(&self) -> swc_common::Span {
+    pub fn to_span(&self) -> swc_common::Span {
         swc_common::Span {
             lo: swc_common::BytePos(self.start.0),
             hi: swc_common::BytePos(self.end.0),

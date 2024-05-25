@@ -24,7 +24,7 @@ pub mod resource_parser;
 #[derive(Debug)]
 pub struct PassOneParser<'a> {
     file_set: Lrc<FileSet>,
-    type_checker: Lrc<TypeChecker<'a>>,
+    type_checker: Lrc<TypeChecker>,
     registry: ResourceParserRegistry<'a>,
     next_id: u32,
 }
@@ -56,7 +56,7 @@ pub struct UnresolvedBind {
 impl<'a> PassOneParser<'a> {
     pub fn new(
         file_set: Lrc<FileSet>,
-        type_checker: Lrc<TypeChecker<'a>>,
+        type_checker: Lrc<TypeChecker>,
         registry: ResourceParserRegistry<'a>,
     ) -> Self {
         Self {
@@ -101,18 +101,18 @@ impl<'a> PassOneParser<'a> {
 
 /// Encompasses the necessary information for parsing resources from a single TS file.
 #[derive(Debug)]
-pub struct ResourceParseContext<'a, 'b> {
+pub struct ResourceParseContext<'a> {
     pub module: Lrc<Module>,
-    pub type_checker: &'a TypeChecker<'b>,
+    pub type_checker: &'a TypeChecker,
     file_set: &'a FileSet,
     resources: Vec<Resource>,
     binds: Vec<BindData>,
 }
 
-impl<'a, 'b: 'a> ResourceParseContext<'a, 'b> {
+impl<'a> ResourceParseContext<'a> {
     pub fn new(
         file_set: &'a FileSet,
-        type_checker: &'a TypeChecker<'b>,
+        type_checker: &'a TypeChecker,
         module: Lrc<Module>,
     ) -> Self {
         Self {

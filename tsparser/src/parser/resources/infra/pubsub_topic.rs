@@ -63,7 +63,7 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
                 None => None,
                 Some(id) => pass
                     .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
             };
 
             let delivery_guarantee = r.config.delivery_guarantee()?;

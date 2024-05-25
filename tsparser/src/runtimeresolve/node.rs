@@ -29,17 +29,17 @@ struct PackageJson {
 }
 
 #[derive(Debug)]
-pub struct EncoreRuntimeResolver<'a, R> {
+pub struct EncoreRuntimeResolver<R> {
     inner: R,
-    js_runtime_path: &'a Path,
+    js_runtime_path: PathBuf,
     extra_export_conditions: Vec<String>,
     tsconfig_resolver: Option<TsConfigPathResolver>,
 }
 
 static DEFAULT_CONDITIONS: &[&str] = &["node-addons", "node", "import", "require", "default"];
 
-impl<'a, R> EncoreRuntimeResolver<'a, R> {
-    pub fn new(inner: R, js_runtime_path: &'a Path, extra_export_conditions: Vec<String>) -> Self {
+impl<R> EncoreRuntimeResolver<R> {
+    pub fn new(inner: R, js_runtime_path: PathBuf, extra_export_conditions: Vec<String>) -> Self {
         Self {
             inner,
             js_runtime_path,
@@ -127,7 +127,7 @@ impl<'a, R> EncoreRuntimeResolver<'a, R> {
     }
 }
 
-impl<R> Resolve for EncoreRuntimeResolver<'_, R>
+impl<R> Resolve for EncoreRuntimeResolver<R>
 where
     R: Resolve,
 {

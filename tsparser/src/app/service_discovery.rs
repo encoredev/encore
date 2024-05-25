@@ -149,7 +149,9 @@ impl<'a> ServiceDiscoverer<'a> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
-    use swc_common::{Globals, GLOBALS};
+    use std::rc::Rc;
+    use swc_common::{Globals, GLOBALS, SourceMap};
+    use swc_common::errors::{Handler, HANDLER};
     use tempdir::TempDir;
 
     use crate::parser::parser::{ParseContext, Parser};
@@ -161,27 +163,39 @@ mod tests {
 
     fn parse(tmp_dir: &Path, src: &str) -> Result<Vec<DiscoveredService>> {
         let globals = Globals::new();
+        let cm: Rc<SourceMap> = Default::default();
+        let errs = Rc::new(Handler::with_tty_emitter(
+            swc_common::errors::ColorConfig::Auto,
+            true,
+            false,
+            Some(cm.clone()),
+        ));
+
         GLOBALS.set(&globals, || {
-            let ar = txtar::from_str(src);
-            ar.materialize(tmp_dir)?;
+            HANDLER.set(&errs, || {
+                let ar = txtar::from_str(src);
+                ar.materialize(tmp_dir)?;
 
-            let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-            let pc = ParseContext::with_resolver(
-                tmp_dir.to_path_buf(),
-                JS_RUNTIME_PATH.as_path(),
-                resolver,
-            )
-            .unwrap();
-            pc.loader.load_archive(tmp_dir, &ar)?;
+                let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
+                let pc = ParseContext::with_resolver(
+                    tmp_dir.to_path_buf(),
+                    JS_RUNTIME_PATH.clone(),
+                    resolver,
+                    cm,
+                    errs.clone(),
+                )
+                    .unwrap();
+                pc.loader.load_archive(tmp_dir, &ar)?;
 
-            let pass1 = PassOneParser::new(
-                pc.file_set.clone(),
-                pc.type_checker.clone(),
-                Default::default(),
-            );
-            let parser = Parser::new(&pc, pass1);
-            let result = parser.parse()?;
-            discover_services(&pc.file_set, &result.binds)
+                let pass1 = PassOneParser::new(
+                    pc.file_set.clone(),
+                    pc.type_checker.clone(),
+                    Default::default(),
+                );
+                let parser = Parser::new(&pc, pass1);
+                let result = parser.parse()?;
+                discover_services(&pc.file_set, &result.binds)
+            })
         })
     }
 

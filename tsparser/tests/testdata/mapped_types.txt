@@ -1,0 +1,21 @@
+-- foo/foo.ts --
+import { api } from "encore.dev/api";
+
+type OnlyBoolsAndHorses = {
+  [key: string]: boolean | number;
+};
+
+interface Params {
+    blah: OnlyBoolsAndHorses;
+};
+
+export const ping = api<Params, void>({}, () => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

@@ -74,14 +74,14 @@ pub struct Other {
 }
 
 pub struct UsageResolver<'a> {
-    module_loader: &'a ModuleLoader<'a>,
+    module_loader: &'a ModuleLoader,
     resources: &'a [Resource],
     binds_by_module: HashMap<ModuleId, Vec<Lrc<Bind>>>,
 }
 
 impl<'a> UsageResolver<'a> {
     pub fn new(
-        module_loader: &'a ModuleLoader<'a>,
+        module_loader: &'a ModuleLoader,
         resources: &'a [Resource],
         binds: &[Lrc<Bind>],
     ) -> Self {
@@ -433,9 +433,11 @@ mod tests {
     use assert_fs::fixture::PathChild;
     use assert_fs::TempDir;
     use std::path::PathBuf;
+    use std::rc::Rc;
 
     use assert_matches::assert_matches;
-    use swc_common::{Globals, GLOBALS};
+    use swc_common::{Globals, GLOBALS, SourceMap};
+    use swc_common::errors::Handler;
 
     use crate::parser::parser::ParseContext;
     use crate::parser::resourceparser::bind::BindKind;
@@ -464,10 +466,17 @@ export const Bar = 5;
             );
 
             let base = PathBuf::from("/dummy");
-            let resolver = Box::new(TestResolver::new(&base, &ar));
+            let resolver = Box::new(TestResolver::new(base.to_path_buf(), ar.clone()));
             let tmp = TempDir::new().unwrap();
             let app_root = tmp.child("app_root").to_path_buf();
-            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
+            let cm: Rc<SourceMap> = Default::default();
+            let errs = Rc::new(Handler::with_tty_emitter(
+                swc_common::errors::ColorConfig::Auto,
+                true,
+                false,
+                Some(cm.clone()),
+            ));
+            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -536,10 +545,17 @@ export const Bar = 5;
             );
 
             let base = PathBuf::from("/dummy");
-            let resolver = Box::new(TestResolver::new(&base, &ar));
+            let resolver = Box::new(TestResolver::new(base.clone(), ar.clone()));
             let tmp = TempDir::new().unwrap();
             let app_root = tmp.child("app_root").to_path_buf();
-            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver).unwrap();
+            let cm: Rc<SourceMap> = Default::default();
+            let errs = Rc::new(Handler::with_tty_emitter(
+                swc_common::errors::ColorConfig::Auto,
+                true,
+                false,
+                Some(cm.clone()),
+            ));
+            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();

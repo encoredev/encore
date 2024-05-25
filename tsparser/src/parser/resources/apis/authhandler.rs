@@ -49,14 +49,14 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<AuthHandlerLiteral>(&module, &names) {
             let r = r?;
-            let request = pass.type_checker.resolve(module.clone(), &r.request)?;
-            let response = pass.type_checker.resolve(module.clone(), &r.response)?;
+            let request = pass.type_checker.resolve_type(module.clone(), &r.request);
+            let response = pass.type_checker.resolve_type(module.clone(), &r.response);
 
             let object = pass
                 .type_checker
-                .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()))?;
+                .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
 
-            let encoding = describe_auth_handler(pass.type_checker.ctx(), request, response)?;
+            let encoding = describe_auth_handler(pass.type_checker.state(), request, response)?;
 
             let resource = Resource::AuthHandler(Lrc::new(AuthHandler {
                 range: r.range,

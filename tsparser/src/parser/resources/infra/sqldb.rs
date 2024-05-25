@@ -74,7 +74,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     None => None,
                     Some(id) => pass
                         .type_checker
-                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };
 
                 let resource = Resource::SQLDatabase(Lrc::new(SQLDatabase {
@@ -100,7 +100,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     None => None,
                     Some(id) => pass
                         .type_checker
-                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };
 
                 pass.add_bind(BindData {

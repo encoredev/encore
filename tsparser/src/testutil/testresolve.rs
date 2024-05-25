@@ -3,18 +3,18 @@ use std::path::{Path, PathBuf};
 use swc_common::FileName;
 use swc_ecma_loader::resolve::Resolve;
 
-pub struct TestResolver<'a> {
-    root_dir: &'a Path,
-    ar: &'a txtar::Archive,
+pub struct TestResolver {
+    root_dir: PathBuf,
+    ar: txtar::Archive,
 }
 
-impl<'a> TestResolver<'a> {
-    pub fn new(root_dir: &'a Path, ar: &'a txtar::Archive) -> Self {
+impl TestResolver {
+    pub fn new(root_dir: PathBuf, ar: txtar::Archive) -> Self {
         Self { root_dir, ar }
     }
 }
 
-impl Resolve for TestResolver<'_> {
+impl Resolve for TestResolver {
     fn resolve(&self, base: &FileName, module_specifier: &str) -> Result<FileName, Error> {
         // Fake the existence of the runtime module for now.
         if module_specifier.starts_with("encore.dev/") {
@@ -70,7 +70,7 @@ export const Bar = 5;
         );
 
         let root = PathBuf::from("");
-        let r = TestResolver::new(&root, &ar);
+        let r = TestResolver::new(root, ar);
 
         let base = FileName::Real("foo.ts".into());
         assert_eq!(
@@ -82,5 +82,13 @@ export const Bar = 5;
             r.resolve(&base, "./moo.ts").unwrap_err().to_string(),
             "import not found: ./moo.ts"
         );
+    }
+}
+
+pub struct NoopResolver;
+
+impl Resolve for NoopResolver {
+    fn resolve(&self, _: &FileName, _: &str) -> Result<FileName, Error> {
+        bail!("NoopResolver does not support resolving files");
     }
 }

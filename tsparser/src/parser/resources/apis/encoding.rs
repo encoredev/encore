@@ -5,9 +5,7 @@ use anyhow::{Context, Result};
 use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
-use crate::parser::types::{
-    drop_empty_or_void, unwrap_promise, Basic, Ctx, Interface, InterfaceField, Type,
-};
+use crate::parser::types::{drop_empty_or_void, unwrap_promise, Basic, ResolveState, Interface, InterfaceField, Type, TypeChecker};
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
@@ -163,7 +161,7 @@ impl ResponseEncoding {
 }
 
 pub fn describe_endpoint(
-    ctx: &Ctx,
+    tc: &TypeChecker,
     methods: Methods,
     path: Path,
     req: Option<Type>,
@@ -171,12 +169,12 @@ pub fn describe_endpoint(
     raw: bool,
 ) -> Result<EndpointEncoding> {
     let resp = resp
-        .map(|t| unwrap_promise(ctx, &t).clone())
+        .map(|t| unwrap_promise(tc.state(), &t).clone())
         .and_then(|t| drop_empty_or_void(t));
 
     let default_method = default_method(&methods);
-    let (req_enc, _req_schema) = describe_req(ctx, &methods, &path, &req, raw)?;
-    let (resp_enc, _resp_schema) = describe_resp(ctx, &methods, &resp)?;
+    let (req_enc, _req_schema) = describe_req(tc, &methods, &path, &req, raw)?;
+    let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
     let path = rewrite_path_types(&req_enc[0], path, raw).context("parse path param types")?;
 
@@ -192,7 +190,7 @@ pub fn describe_endpoint(
 }
 
 fn describe_req(
-    ctx: &Ctx,
+    tc: &TypeChecker,
     methods: &Methods,
     path: &Path,
     req_schema: &Option<Type>,
@@ -214,7 +212,7 @@ fn describe_req(
         }
     };
 
-    let mut fields = iface_fields(ctx, &req_schema)?;
+    let mut fields = iface_fields(tc, &req_schema)?;
     let path_params = extract_path_params(path, &mut fields)?;
 
     // If there are no fields remaining, we can use this encoding for all methods.
@@ -244,7 +242,7 @@ fn describe_req(
 }
 
 fn describe_resp(
-    ctx: &Ctx,
+    tc: &TypeChecker,
     _methods: &Methods,
     resp_schema: &Option<Type>,
 ) -> Result<(ResponseEncoding, Option<FieldMap>)> {
@@ -252,7 +250,7 @@ fn describe_resp(
         return Ok((ResponseEncoding { params: vec![] }, None));
     };
 
-    let fields = iface_fields(ctx, &resp_schema)?;
+    let fields = iface_fields(tc, &resp_schema)?;
     let params = extract_loc_params(&fields, ParamLocation::Body);
 
     let fields = if fields.is_empty() {
@@ -265,7 +263,7 @@ fn describe_resp(
 }
 
 pub fn describe_auth_handler(
-    ctx: &Ctx,
+    ctx: &ResolveState,
     params: Type,
     response: Type,
 ) -> Result<AuthHandlerEncoding> {
@@ -320,22 +318,22 @@ pub struct Field {
     custom: Option<CustomType>,
 }
 
-fn iface_fields<'a>(ctx: &'a Ctx, typ: &'a Type) -> Result<FieldMap> {
-    fn to_fields(ctx: &Ctx, iface: &Interface) -> Result<FieldMap> {
+fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
+    fn to_fields(state: &ResolveState, iface: &Interface) -> Result<FieldMap> {
         let mut map = HashMap::new();
         for f in &iface.fields {
-            map.insert(f.name.clone(), rewrite_custom_type_field(ctx, f)?);
+            map.insert(f.name.clone(), rewrite_custom_type_field(state, f)?);
         }
         Ok(map)
     }
 
-    let typ = unwrap_promise(ctx, typ);
+    let typ = unwrap_promise(tc.state(), typ);
     match typ {
         Type::Basic(Basic::Void) => Ok(HashMap::new()),
-        Type::Interface(iface) => to_fields(ctx, iface),
+        Type::Interface(iface) => to_fields(tc.state(), iface),
         Type::Named(named) => {
-            let underlying = ctx.obj_type(named.obj.clone())?;
-            iface_fields(ctx, &underlying)
+            let underlying = tc.underlying(named.obj.module_id, typ);
+            iface_fields(tc, &underlying)
         }
         _ => anyhow::bail!("expected named interface type, found {:?}", typ),
     }
@@ -440,7 +438,7 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> Result<Pa
     Ok(Path { segments })
 }
 
-fn rewrite_custom_type_field(ctx: &Ctx, field: &InterfaceField) -> Result<Field> {
+fn rewrite_custom_type_field(ctx: &ResolveState, field: &InterfaceField) -> Result<Field> {
     let standard_field = Field {
         name: field.name.clone(),
         typ: field.typ.clone(),
