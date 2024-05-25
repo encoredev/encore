@@ -18,7 +18,7 @@ pub struct CompileParams<'a> {
     pub js_runtime_root: &'a Path,
     pub runtime_version: &'a String,
     pub app: &'a App,
-    pub pc: &'a ParseContext<'a>,
+    pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
     pub parse: &'a ParseResult,
     pub use_local_runtime: bool,

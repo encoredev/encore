@@ -55,12 +55,12 @@ pub const CRON_PARSER: ResourceParser = ResourceParser {
                 None => None,
                 Some(id) => pass
                     .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
             };
 
             let endpoint = pass
                 .type_checker
-                .resolve_obj(pass.module.clone(), &r.config.endpoint)?
+                .resolve_obj(pass.module.clone(), &r.config.endpoint)
                 .ok_or(anyhow::anyhow!("can't resolve endpoint"))?;
 
             let schedule = r.config.schedule()?;

@@ -167,7 +167,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 
             let object = pass
                 .type_checker
-                .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()))?;
+                .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
 
             let methods = r.config.method.unwrap_or(Methods::Some(vec![Method::Post]));
 
@@ -176,11 +176,11 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 EndpointKind::Typed { request, response } => {
                     let request = match request {
                         None => None,
-                        Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)?),
+                        Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
                     let response = match response {
                         None => None,
-                        Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)?),
+                        Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
                     (request, response)
                 }
@@ -188,7 +188,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             };
 
             let encoding = describe_endpoint(
-                pass.type_checker.ctx(),
+                pass.type_checker,
                 methods,
                 path,
                 request,

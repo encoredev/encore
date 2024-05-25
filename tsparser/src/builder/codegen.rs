@@ -23,7 +23,7 @@ use super::{App, Builder};
 pub struct CodegenParams<'a> {
     pub js_runtime_root: &'a Path,
     pub app: &'a App,
-    pub pc: &'a ParseContext<'a>,
+    pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
     pub parse: &'a ParseResult,
 }

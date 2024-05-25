@@ -94,7 +94,7 @@ let archive = Archive::from(txt);
 archive.materialize("/tmp/somedir/").unwrap();
 ```
 **/
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct Archive {
     // internal invariant:
     // comment is fix_newlined
@@ -102,7 +102,7 @@ pub struct Archive {
     pub files: Vec<File>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct File {
     pub name: PathBuf,
     // internal invariant:

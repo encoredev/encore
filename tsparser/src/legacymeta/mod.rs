@@ -47,7 +47,7 @@ pub fn compute_meta(
 }
 
 struct MetaBuilder<'a> {
-    pc: &'a ParseContext<'a>,
+    pc: &'a ParseContext,
     schema: SchemaBuilder<'a>,
     parse: &'a ParseResult,
     services: &'a [Service],
@@ -593,7 +593,8 @@ fn new_meta() -> v1::Data {
 
 #[cfg(test)]
 mod tests {
-    use swc_common::{Globals, GLOBALS};
+    use swc_common::{Globals, GLOBALS, SourceMap};
+    use swc_common::errors::{Handler, HANDLER};
     use tempdir::TempDir;
 
     use crate::app::collect_services;
@@ -607,26 +608,36 @@ mod tests {
 
     fn parse(tmp_dir: &Path, src: &str) -> Result<v1::Data> {
         let globals = Globals::new();
+        let cm: Rc<SourceMap> = Default::default();
+        let errs = Rc::new(Handler::with_tty_emitter(
+            swc_common::errors::ColorConfig::Auto,
+            true,
+            false,
+            Some(cm.clone()),
+        ));
+
         GLOBALS.set(&globals, || {
-            let ar = txtar::from_str(src);
-            ar.materialize(tmp_dir)?;
+            HANDLER.set(&errs, || {
+                let ar = txtar::from_str(src);
+                ar.materialize(tmp_dir)?;
 
-            let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-            let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), &JS_RUNTIME_PATH, resolver)
-                .unwrap();
-            let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
+                let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
+                let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), JS_RUNTIME_PATH.clone(), resolver, cm, errs.clone())
+                    .unwrap();
+                let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
 
-            let pass1 = PassOneParser::new(
-                pc.file_set.clone(),
-                pc.type_checker.clone(),
-                Default::default(),
-            );
-            let parser = Parser::new(&pc, pass1);
-            let parse = parser.parse()?;
+                let pass1 = PassOneParser::new(
+                    pc.file_set.clone(),
+                    pc.type_checker.clone(),
+                    Default::default(),
+                );
+                let parser = Parser::new(&pc, pass1);
+                let parse = parser.parse()?;
 
-            let discovered = discover_services(&pc.file_set, &parse.binds)?;
-            let services = collect_services(&pc.file_set, &parse, discovered)?;
-            compute_meta(&pc, &parse, &services)
+                let discovered = discover_services(&pc.file_set, &parse.binds)?;
+                let services = collect_services(&pc.file_set, &parse, discovered)?;
+                compute_meta(&pc, &parse, &services)
+            })
         })
     }
 

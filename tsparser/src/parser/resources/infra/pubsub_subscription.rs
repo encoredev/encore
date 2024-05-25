@@ -73,12 +73,12 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                 None => None,
                 Some(id) => pass
                     .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone()))?,
+                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
             };
 
             let topic = pass
                 .type_checker
-                .resolve_obj(pass.module.clone(), &topic_expr.expr)?
+                .resolve_obj(pass.module.clone(), &topic_expr.expr)
                 .ok_or(anyhow::anyhow!("can't resolve topic"))?;
 
             let resource = Resource::PubSubSubscription(Lrc::new(Subscription {

@@ -20,12 +20,12 @@ use crate::parser::{FilePath, FileSet, Pos};
 
 /// A unique id for a module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ModuleId(usize);
+pub struct ModuleId(pub usize);
 
-pub struct ModuleLoader<'a> {
+pub struct ModuleLoader {
     errs: Lrc<Handler>,
     file_set: Lrc<FileSet>,
-    resolver: Box<dyn Resolve + 'a>,
+    resolver: Box<dyn Resolve>,
     by_path: RefCell<HashMap<FilePath, Lrc<Module>>>,
 
     // The universe module, if it's been loaded.
@@ -37,7 +37,7 @@ pub struct ModuleLoader<'a> {
     encore_auth: OnceCell<Lrc<Module>>,
 }
 
-impl std::fmt::Debug for ModuleLoader<'_> {
+impl std::fmt::Debug for ModuleLoader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ModuleLoader")
             .field("file_set", &self.file_set)
@@ -46,12 +46,8 @@ impl std::fmt::Debug for ModuleLoader<'_> {
     }
 }
 
-impl<'a> ModuleLoader<'a> {
-    pub fn new(
-        errs: Lrc<Handler>,
-        file_set: Lrc<FileSet>,
-        resolver: Box<dyn Resolve + 'a>,
-    ) -> Self {
+impl ModuleLoader {
+    pub fn new(errs: Lrc<Handler>, file_set: Lrc<FileSet>, resolver: Box<dyn Resolve>) -> Self {
         Self {
             errs,
             file_set,
@@ -303,7 +299,7 @@ fn imports_from_mod(ast: &ast::Module) -> Vec<ast::ImportDecl> {
 }
 
 #[cfg(test)]
-impl<'a> ModuleLoader<'a> {
+impl ModuleLoader {
     /// Injects a new file into the module loader.
     /// If a file with that name has already been added it does nothing.
     pub fn inject_file(&self, path: FilePath, src: &str) -> Result<Lrc<Module>> {

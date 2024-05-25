@@ -1,8 +1,8 @@
-use crate::parser::types::{Basic, Ctx, Type};
+use crate::parser::types::{Basic, ResolveState, Type};
 
-pub fn unwrap_promise<'a>(ctx: &Ctx, typ: &'a Type) -> &'a Type {
+pub fn unwrap_promise<'a>(state: &ResolveState, typ: &'a Type) -> &'a Type {
     if let Type::Named(named) = &typ {
-        if named.obj.name.as_deref() == Some("Promise") && ctx.is_universe(named.obj.module_id) {
+        if named.obj.name.as_deref() == Some("Promise") && state.is_universe(named.obj.module_id) {
             if let Some(t) = named.type_arguments.get(0) {
                 return t;
             }

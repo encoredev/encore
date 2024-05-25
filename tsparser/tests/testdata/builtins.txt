@@ -1,0 +1,15 @@
+-- foo/foo.ts --
+import { api } from "encore.dev/api";
+
+type Params = Record<string, string>;
+
+export const ping = api<Params, void>({}, () => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

@@ -1,6 +1,6 @@
-use crate::parser::types::{Ctx, Interface, Type};
+use crate::parser::types::{ResolveState, Interface, Type};
 
-pub(super) fn strip_path_params(ctx: &Ctx, typ: &mut Interface) {
+pub(super) fn strip_path_params(ctx: &ResolveState, typ: &mut Interface) {
     // Drop any fields whose type is Path.
     typ.fields.retain(|f| {
         if let Type::Named(named) = &f.typ {

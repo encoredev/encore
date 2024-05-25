@@ -11,13 +11,11 @@ use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
 
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
-use crate::parser::types::{
-    drop_empty_or_void, Basic, Interface, Literal, Named, ObjectId, Type, TypeResolver,
-};
+use crate::parser::types::{drop_empty_or_void, Basic, Interface, Literal, Named, ObjectId, Type};
 use crate::parser::{FilePath, FileSet, Range};
 
 pub(super) struct SchemaBuilder<'a> {
-    pc: &'a ParseContext<'a>,
+    pc: &'a ParseContext,
     app_root: &'a Path,
 
     decls: RefCell<Vec<schema::Decl>>,
@@ -54,20 +52,32 @@ impl<'a> SchemaBuilder<'a> {
             Type::Interface(tt) => schema::Type {
                 typ: Some(styp::Typ::Struct(self.interface(tt)?)),
             },
-            Type::Union(_) => anyhow::bail!("union types are not yet supported in schemas"),
+            Type::Union(types) => {
+                anyhow::bail!("union types are not yet supported in schemas: {:#?}", types)
+            }
             Type::Tuple(_) => anyhow::bail!("tuple types are not yet supported in schemas"),
             Type::Literal(tt) => schema::Type {
                 typ: Some(styp::Typ::Builtin(self.literal(tt)? as i32)),
             },
             Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
-            Type::Named(tt) => schema::Type {
-                typ: Some(styp::Typ::Named(self.named(tt)?)),
+            Type::Named(tt) => {
+                let state = self.pc.type_checker.state();
+                if state.is_universe(tt.obj.module_id) {
+                    let underlying = tt.underlying(state);
+                    self.typ(underlying)?
+                } else {
+                    schema::Type {
+                        typ: Some(styp::Typ::Named(self.named(tt)?)),
+                    }
+                }
             },
-            Type::Signature(_) => anyhow::bail!("signature types are not yet supported in schemas"),
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
             Type::This => anyhow::bail!("this types are not yet supported in schemas"),
-            Type::TypeArgument(_) => {
-                anyhow::bail!("type argument types are not yet supported in schemas")
+            Type::Generic(typ) => {
+                anyhow::bail!(
+                    "unresolved generic types are not supported in schemas, got: {:#?}",
+                    typ
+                )
             }
         })
     }
@@ -103,7 +113,7 @@ impl<'a> SchemaBuilder<'a> {
 
     fn interface(&self, typ: &Interface) -> Result<schema::Struct> {
         let mut fields = Vec::with_capacity(typ.fields.len());
-        let ctx = self.pc.type_checker.ctx();
+        let ctx = self.pc.type_checker.state();
         for f in &typ.fields {
             let custom: Option<CustomType> = if let Type::Named(named) = &f.typ {
                 resolve_custom_type_named(ctx, named)?
@@ -220,8 +230,7 @@ impl<'a> SchemaBuilder<'a> {
         self.decls.borrow_mut().push(decl);
         self.obj_to_decl.borrow_mut().insert(obj.id, id);
 
-        let ctx = self.pc.type_checker.ctx();
-        let obj_typ = obj.typ(ctx)?;
+        let obj_typ = self.pc.type_checker.resolve_obj_type(&obj);
         let schema_typ = self.typ(&obj_typ)?;
         self.decls.borrow_mut().get_mut(id as usize).unwrap().r#type = Some(schema_typ);
 
@@ -266,19 +275,20 @@ impl<'a> SchemaBuilder<'a> {
     pub fn transform_request(&self, typ: Option<Type>) -> Result<Option<schema::Type>> {
         let Some(typ) = typ else { return Ok(None) };
 
-        let ctx = self.pc.type_checker.ctx();
+        let rs = self.pc.type_checker.state();
         Ok(match typ {
             Type::Interface(mut interface) => {
-                strip_path_params(ctx, &mut interface);
+                strip_path_params(rs, &mut interface);
                 let Some(typ) = drop_empty_or_void(Type::Interface(interface)) else {
                     return Ok(None);
                 };
                 Some(self.typ(&typ)?)
             }
-            Type::Named(named) => {
-                if let Ok(Type::Interface(mut iface)) = ctx.obj_type(named.obj.clone()) {
-                    strip_path_params(ctx, &mut iface);
-                    let obj = named.obj;
+            Type::Named(ref named) => {
+                let underlying = named.underlying(rs).clone();
+                if let Type::Interface(mut iface) = underlying {
+                    strip_path_params(rs, &mut iface);
+                    let obj = &named.obj;
                     let Some(underlying) = drop_empty_or_void(Type::Interface(iface)) else {
                         return Ok(None);
                     };
@@ -294,7 +304,7 @@ impl<'a> SchemaBuilder<'a> {
                         typ: Some(styp::Typ::Named(named)),
                     }));
                 } else {
-                    match drop_empty_or_void(Type::Named(named)) {
+                    match drop_empty_or_void(typ) {
                         Some(typ) => Some(self.typ(&typ)?),
                         None => None,
                     }
@@ -342,12 +352,15 @@ pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> R
                 let file_name = buf
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing file name"))?;
+                    .ok_or(anyhow::anyhow!("missing file name: {}", buf.display()))?;
                 let pkg_name = buf
                     .parent()
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing package name"))?;
+                    .ok_or(anyhow::anyhow!(
+                        "missing package name for {}",
+                        buf.display()
+                    ))?;
                 let pkg_path = format!("unknown/{}", pkg_name);
                 (pkg_path, pkg_name, file_name)
             }

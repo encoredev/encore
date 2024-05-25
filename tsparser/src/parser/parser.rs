@@ -25,15 +25,15 @@ use super::resourceparser::bind::ResourceOrPath;
 use super::resourceparser::UnresolvedBind;
 use super::resources::ResourcePath;
 
-pub struct ParseContext<'a> {
+pub struct ParseContext {
     /// Directory roots to parse for Encore resources.
     /// Typically this is the single directory containing the 'encore.app' file.
     pub dir_roots: Vec<PathBuf>,
 
     /// The module loader to use.
-    pub loader: Lrc<ModuleLoader<'a>>,
+    pub loader: Lrc<ModuleLoader>,
 
-    pub type_checker: Lrc<TypeChecker<'a>>,
+    pub type_checker: Lrc<TypeChecker>,
 
     /// The file set to use.
     pub file_set: Lrc<FileSet>,
@@ -42,7 +42,7 @@ pub struct ParseContext<'a> {
     pub errs: Lrc<Handler>,
 }
 
-impl std::fmt::Debug for ParseContext<'_> {
+impl std::fmt::Debug for ParseContext {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ParseContext")
             .field("dir_roots", &self.dir_roots)
@@ -50,33 +50,32 @@ impl std::fmt::Debug for ParseContext<'_> {
     }
 }
 
-impl<'a> ParseContext<'a> {
-    pub fn new(app_root: PathBuf, js_runtime_path: &'a Path) -> Result<Self> {
+impl ParseContext {
+    pub fn new(
+        app_root: PathBuf,
+        js_runtime_path: PathBuf,
+        cm: Lrc<SourceMap>,
+        errs: Lrc<Handler>,
+    ) -> Result<Self> {
         let resolver = NodeModulesResolver::with_export_conditions(
             TargetEnv::Node,
             Default::default(),
             true,
             vec!["bun".into(), "deno".into(), "types".into()],
         );
-        Self::with_resolver(app_root, js_runtime_path, resolver)
+        Self::with_resolver(app_root, js_runtime_path, resolver, cm, errs)
     }
 
     pub fn with_resolver<R>(
         app_root: PathBuf,
-        js_runtime_path: &'a Path,
+        js_runtime_path: PathBuf,
         resolver: R,
+        cm: Lrc<SourceMap>,
+        errs: Lrc<Handler>,
     ) -> Result<Self>
     where
-        R: Resolve + 'a,
+        R: Resolve + 'static,
     {
-        let cm: Lrc<SourceMap> = Default::default();
-        let errs = Lrc::new(Handler::with_tty_emitter(
-            swc_common::errors::ColorConfig::Auto,
-            true,
-            false,
-            Some(cm.clone()),
-        ));
-
         let mut resolver =
             EncoreRuntimeResolver::new(resolver, js_runtime_path, vec!["types".into()]);
 
@@ -108,7 +107,7 @@ impl<'a> ParseContext<'a> {
 }
 
 pub struct Parser<'a> {
-    pc: &'a ParseContext<'a>,
+    pc: &'a ParseContext,
     pass1: PassOneParser<'a>,
 
     resources: Vec<Resource>,
@@ -122,7 +121,7 @@ pub struct ParseResult {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(pc: &'a ParseContext<'a>, pass1: PassOneParser<'a>) -> Self {
+    pub fn new(pc: &'a ParseContext, pass1: PassOneParser<'a>) -> Self {
         let resources = Vec::new();
         let binds = Vec::new();
         Self {
