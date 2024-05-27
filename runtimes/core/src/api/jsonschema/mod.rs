@@ -11,6 +11,7 @@ mod de;
 mod meta;
 mod parse;
 mod ser;
+mod validate;
 
 use crate::api::jsonschema::parse::ParseWithSchema;
 use crate::api::APIResult;
@@ -86,6 +87,7 @@ impl Value {
             Value::Option(v) => f.debug_struct("Option").field("value", &v).finish(),
             Value::Array(v) => f.debug_struct("Array").field("value", &v).finish(),
             Value::Map(v) => f.debug_struct("Map").field("value", &v).finish(),
+            Value::Union(v) => f.debug_struct("Union").field("types", &v).finish(),
             Value::Ref(idx) => match reg.values.get(*idx) {
                 Some(ref v) => v.write_debug(reg, f),
                 None => write!(f, "Ref({})", idx),

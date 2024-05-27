@@ -304,6 +304,18 @@ impl<'a> TypeArgResolver<'a> {
                 }
             }
 
+            Typ::Union(union) => {
+                let types = self.resolve_types(&union.types)?;
+                let types = types
+                    .into_iter()
+                    .map(|t| schema::Type {
+                        typ: Some(t.into_owned()),
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(Cow::Owned(Typ::Union(schema::Union { types })))
+            }
+
             Typ::Builtin(_) => Ok(Cow::Borrowed(typ)),
 
             Typ::Pointer(ptr) => {
