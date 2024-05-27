@@ -49,9 +49,8 @@ impl<'a> SchemaBuilder<'a> {
                     }))),
                 }
             }
-            Type::Interface(tt) => schema::Type {
-                typ: Some(styp::Typ::Struct(self.interface(tt)?)),
-            },
+            Type::Interface(tt) => self.interface(tt)?,
+
             Type::Union(types) => {
                 anyhow::bail!("union types are not yet supported in schemas: {:#?}", types)
             }
@@ -111,9 +110,23 @@ impl<'a> SchemaBuilder<'a> {
         })
     }
 
-    fn interface(&self, typ: &Interface) -> Result<schema::Struct> {
-        let mut fields = Vec::with_capacity(typ.fields.len());
+    fn interface(&self, typ: &Interface) -> Result<schema::Type> {
         let ctx = self.pc.type_checker.state();
+
+        // Is this an index signature?
+        if let Some((key, value)) = typ.index.as_ref() {
+            if typ.fields.len() > 0 {
+                anyhow::bail!("index signature with additional fields is not supported");
+            }
+            return Ok(schema::Type {
+                typ: Some(styp::Typ::Map(Box::new(schema::Map {
+                    key: Some(Box::new(self.typ(key)?)),
+                    value: Some(Box::new(self.typ(value)?)),
+                }))),
+            })
+        }
+
+        let mut fields = Vec::with_capacity(typ.fields.len());
         for f in &typ.fields {
             let custom: Option<CustomType> = if let Type::Named(named) = &f.typ {
                 resolve_custom_type_named(ctx, named)?
@@ -142,7 +155,18 @@ impl<'a> SchemaBuilder<'a> {
             };
 
             let mut tags = vec![];
+
+            // Tag it as `encore:"optional"` if the field is optional.
+            if f.optional {
+                tags.push(schema::Tag {
+                    key: "encore".into(),
+                    name: "optional".into(),
+                    options: vec![],
+                });
+            }
+
             let mut query_string_name = String::new();
+
             match custom {
                 None => {}
                 Some(CustomType::Header { name, .. }) => tags.push(schema::Tag {
@@ -184,6 +208,9 @@ impl<'a> SchemaBuilder<'a> {
                 })
                 .join(" ");
 
+
+            let doc = self.pc.loader.module_containing_pos(f.range.start)
+                .and_then(|module| module.preceding_comments(f.range.start));
             fields.push(schema::Field {
                 typ: Some(typ),
                 name: f.name.clone(),
@@ -193,11 +220,13 @@ impl<'a> SchemaBuilder<'a> {
                 tags,
                 raw_tag,
                 query_string_name,
-
-                doc: "".into(), // TODO
+                doc: doc.unwrap_or_else(|| "".into()),
             });
         }
-        Ok(schema::Struct { fields })
+
+        Ok(schema::Type {
+            typ: Some(styp::Typ::Struct(schema::Struct { fields }))
+        })
     }
 
     fn named(&self, typ: &Named) -> Result<schema::Named> {
