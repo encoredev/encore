@@ -5,6 +5,7 @@ use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use crate::parser::Range;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeArgId(usize);
@@ -235,6 +236,7 @@ impl PartialEq for Interface {
 
 #[derive(Debug, Clone, Hash, Serialize)]
 pub struct InterfaceField {
+    pub range: Range,
     pub name: String,
     pub typ: Type,
     pub optional: bool,

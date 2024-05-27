@@ -67,6 +67,12 @@ impl ModuleLoader {
             .collect::<Vec<_>>()
     }
 
+    pub fn module_containing_pos(&self, pos: Pos) -> Option<Lrc<Module>> {
+        let file = self.file_set.lookup_file(pos)?;
+        let path = file.name();
+        self.by_path.borrow().get(&path).map(|m| m.clone())
+    }
+
     pub fn resolve_import(&self, module: &Module, import_path: &str) -> Result<Lrc<Module>> {
         // Special case for the generated clients.
         if import_path == "~encore/clients" {
