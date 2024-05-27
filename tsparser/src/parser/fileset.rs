@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 use crate::parser::doc_comments::doc_comments_before;
 use anyhow::Result;
+use serde::Serialize;
 use swc_common::sync::Lrc;
-use swc_common::SyntaxContext;
+use swc_common::{BytePos, Span, SyntaxContext};
 
 pub struct FileSet {
     source_map: Lrc<swc_common::SourceMap>,
@@ -19,6 +20,15 @@ impl std::fmt::Debug for FileSet {
 impl FileSet {
     pub(super) fn new(source_map: Lrc<swc_common::SourceMap>) -> Lrc<Self> {
         Lrc::new(Self { source_map })
+    }
+
+    pub fn lookup_file<P: Into<Pos>>(&self, pos: P) -> Option<Lrc<SourceFile>> {
+        let pos = pos.into();
+        if pos.0 == 0 {
+            return None;
+        }
+        let f = self.source_map.lookup_byte_offset(pos.into());
+        Some(Lrc::new(SourceFile { file: f.sf }))
     }
 
     pub fn lookup_line<P: Into<Pos>>(&self, pos: P) -> (Lrc<SourceFile>, Option<usize>) {
@@ -111,7 +121,7 @@ impl From<&str> for FilePath {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd, Serialize)]
 pub struct Pos(pub u32);
 
 impl Into<swc_common::BytePos> for Pos {
@@ -126,7 +136,7 @@ impl From<swc_common::BytePos> for Pos {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd, Serialize)]
 pub struct Range {
     pub start: Pos,
     pub end: Pos,

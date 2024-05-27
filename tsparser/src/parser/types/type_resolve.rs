@@ -5,10 +5,10 @@ use std::rc::Rc;
 
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::{Span, Spanned};
+use swc_common::{BytePos, Span, Spanned};
 use swc_ecma_ast as ast;
 
-use crate::parser::module_loader;
+use crate::parser::{module_loader, Range};
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
 use crate::parser::types::{typ, Object};
@@ -432,6 +432,7 @@ impl<'a> Ctx<'a> {
                     }
 
                     fields.push(InterfaceField {
+                        range: m.span().into(),
                         name,
                         typ,
                         optional: p.optional,
@@ -1004,6 +1005,7 @@ impl<'a> Ctx<'a> {
                         }
                     };
                     fields.push(InterfaceField {
+                        range: prop.span().into(),
                         name: name.into_owned(),
                         typ,
                         optional: false,
@@ -1178,6 +1180,7 @@ impl<'a> Ctx<'a> {
                         ast::TsEnumMemberId::Str(str) => str.value.as_ref().to_string(),
                     };
                     fields.push(InterfaceField {
+                        range: m.span.into(),
                         name,
                         typ: field_type,
                         optional: false,
@@ -1281,6 +1284,7 @@ impl<'a> Ctx<'a> {
                             res.extend(fields[0..i].iter().cloned());
 
                             res.push(InterfaceField {
+                                range: field.range,
                                 typ: t,
                                 name: field.name.clone(),
                                 optional: field.optional,
@@ -1288,6 +1292,7 @@ impl<'a> Ctx<'a> {
 
                             // Copy all remaining elements.
                             res.extend(fields[i + 1..].iter().map(|t| InterfaceField {
+                                range: t.range,
                                 name: t.name.clone(),
                                 typ: self.concrete(&t.typ).into_owned(),
                                 optional: t.optional,
@@ -1462,6 +1467,7 @@ impl<'a> Ctx<'a> {
                                 };
 
                                 iface.fields.push(InterfaceField {
+                                    range: Range::default(),
                                     name: str.clone(),
                                     typ,
                                     optional,
@@ -1552,5 +1558,9 @@ impl<'a> Ctx<'a> {
         }
         // All types are the same, so we can just return the original list.
         Cow::Borrowed(v)
+    }
+
+    fn doc_comment(&self, pos: BytePos) -> Option<String> {
+        self.state.lookup_module(self.module).and_then(|m| m.base.preceding_comments(pos.into()))
     }
 }
