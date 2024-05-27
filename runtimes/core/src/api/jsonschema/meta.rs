@@ -93,6 +93,7 @@ impl<'a> Builder<'a> {
             Typ::Struct(st) => Ok(Value::Struct(self.struct_val(st)?)),
             Typ::Map(map) => self.map(map),
             Typ::List(list) => self.list(list),
+            Typ::Union(union) => self.union(union),
             Typ::Config(_) => anyhow::bail!("config not yet supported"),
             Typ::TypeParameter(_) => anyhow::bail!("type params not yet supported"),
         }
@@ -205,6 +206,16 @@ impl<'a> Builder<'a> {
     fn list(&mut self, list: &schema::List) -> Result<Value> {
         let value = self.typ(list.elem.tt()?)?;
         Ok(Value::Array(self.bov(value)))
+    }
+
+    #[inline]
+    fn union(&mut self, union: &schema::Union) -> Result<Value> {
+        let values: Result<Vec<BasicOrValue>> = union
+            .types
+            .iter()
+            .map(|t| self.typ(t).map(|v| self.bov(v)))
+            .collect();
+        Ok(Value::Union(values?))
     }
 
     #[inline]

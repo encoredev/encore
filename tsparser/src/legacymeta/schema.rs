@@ -51,9 +51,11 @@ impl<'a> SchemaBuilder<'a> {
             }
             Type::Interface(tt) => self.interface(tt)?,
 
-            Type::Union(types) => {
-                anyhow::bail!("union types are not yet supported in schemas: {:#?}", types)
-            }
+            Type::Union(types) => schema::Type {
+                typ: Some(styp::Typ::Union(schema::Union {
+                    types: self.types(types)?,
+                })),
+            },
             Type::Tuple(_) => anyhow::bail!("tuple types are not yet supported in schemas"),
             Type::Literal(tt) => schema::Type {
                 typ: Some(styp::Typ::Builtin(self.literal(tt)? as i32)),
@@ -69,7 +71,7 @@ impl<'a> SchemaBuilder<'a> {
                         typ: Some(styp::Typ::Named(self.named(tt)?)),
                     }
                 }
-            },
+            }
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
             Type::This => anyhow::bail!("this types are not yet supported in schemas"),
             Type::Generic(typ) => {
@@ -123,7 +125,7 @@ impl<'a> SchemaBuilder<'a> {
                     key: Some(Box::new(self.typ(key)?)),
                     value: Some(Box::new(self.typ(value)?)),
                 }))),
-            })
+            });
         }
 
         let mut fields = Vec::with_capacity(typ.fields.len());
@@ -208,8 +210,10 @@ impl<'a> SchemaBuilder<'a> {
                 })
                 .join(" ");
 
-
-            let doc = self.pc.loader.module_containing_pos(f.range.start)
+            let doc = self
+                .pc
+                .loader
+                .module_containing_pos(f.range.start)
                 .and_then(|module| module.preceding_comments(f.range.start));
             fields.push(schema::Field {
                 typ: Some(typ),
@@ -225,7 +229,7 @@ impl<'a> SchemaBuilder<'a> {
         }
 
         Ok(schema::Type {
-            typ: Some(styp::Typ::Struct(schema::Struct { fields }))
+            typ: Some(styp::Typ::Struct(schema::Struct { fields })),
         })
     }
 
