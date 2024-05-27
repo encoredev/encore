@@ -121,6 +121,35 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             call: None,
         },
     ),
+    "Partial1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    typ: Basic(
+                        String,
+                    ),
+                    optional: true,
+                },
+                InterfaceField {
+                    name: "bar",
+                    typ: Basic(
+                        Number,
+                    ),
+                    optional: true,
+                },
+                InterfaceField {
+                    name: "optional",
+                    typ: Basic(
+                        Boolean,
+                    ),
+                    optional: true,
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
     "Index": Interface(
         Interface {
             fields: [],

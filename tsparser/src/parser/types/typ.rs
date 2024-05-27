@@ -353,6 +353,11 @@ pub struct Mapped {
     /// The value of each property in the mapped type.
     /// Must be evaluated using the property name in the evaluation context.
     pub value_type: Box<Type>,
+
+    /// Whether to force fields to be optional (Some(True)), to make them required (Some(False)),
+    /// or to keep them as-is (None).
+    pub optional: Option<bool>,
+
     // Indicates a remapping of the property name.
     // Must be evaluated using the property name in the evaluation context.
     // pub as_type: Option<Box<Type>>,
