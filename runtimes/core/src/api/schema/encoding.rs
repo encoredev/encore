@@ -201,6 +201,7 @@ fn resolve_type<'a>(meta: &'a meta::Data, typ: &'a Typ) -> anyhow::Result<Cow<'a
     let resolver = TypeArgResolver {
         meta,
         resolved_args: vec![],
+        decls: vec![],
     };
     resolver.resolve(typ)
 }
@@ -208,6 +209,10 @@ fn resolve_type<'a>(meta: &'a meta::Data, typ: &'a Typ) -> anyhow::Result<Cow<'a
 struct TypeArgResolver<'a> {
     meta: &'a meta::Data,
     resolved_args: Vec<Cow<'a, Typ>>,
+
+    /// List of declarations being processed.
+    /// Used to detect cycles.
+    decls: Vec<u32>,
 }
 
 impl<'a> TypeArgResolver<'a> {
@@ -215,10 +220,20 @@ impl<'a> TypeArgResolver<'a> {
         match typ {
             Typ::Named(named) => {
                 let decl = &self.meta.decls[named.id as usize];
+                if self.decls.contains(&decl.id) {
+                    // Return it unmodified.
+                    return Ok(Cow::Borrowed(typ));
+                }
+
                 let args = self.resolve_types(&named.type_arguments)?;
                 let nested = TypeArgResolver {
                     meta: self.meta,
                     resolved_args: args,
+                    decls: {
+                        let mut decls = self.decls.clone();
+                        decls.push(decl.id);
+                        decls
+                    },
                 };
                 let typ = decl.r#type.as_ref().context("decl without type")?;
                 let typ = typ.typ.as_ref().context("type without type")?;
