@@ -214,9 +214,16 @@ impl<'a> Ctx<'a> {
         // Next, parse the value type.
         let value_type = nested.btyp(value_type);
 
+        let optional = match tt.optional {
+            None => None,
+            Some(ast::TruePlusMinus::Plus | ast::TruePlusMinus::True) => Some(true),
+            Some(ast::TruePlusMinus::Minus) => Some(false),
+        };
+
         Type::Generic(Generic::Mapped(Mapped {
             in_type,
             value_type,
+            optional,
         }))
     }
 
@@ -1467,6 +1474,29 @@ impl<'a> Ctx<'a> {
                                         .err(&format!("unsupported mapped key type: {:#?}", typ));
                                 });
                             }
+                        }
+                    }
+
+                    // If the mapped type contains optional modifiers, apply them.
+                    if let Some(optional) = &mapped.optional {
+                        if let Some((key, value)) = iface.index.take() {
+                            let value = if *optional {
+                                match value.as_ref() {
+                                    Type::Optional(_) => value,
+                                    _ => Box::new(Type::Optional(value)),
+                                }
+                            } else {
+                                if let Type::Optional(inner) = *value {
+                                    inner
+                                } else {
+                                    value
+                                }
+                            };
+                            iface.index = Some((key, value));
+                        }
+
+                        for field in iface.fields.iter_mut() {
+                            field.optional = *optional;
                         }
                     }
 
