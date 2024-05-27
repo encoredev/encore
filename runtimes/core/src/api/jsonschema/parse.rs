@@ -11,6 +11,17 @@ pub trait ParseWithSchema<Output> {
     fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<Output>;
 }
 
+macro_rules! header_to_str {
+    ($header_value:expr) => {
+        $header_value.to_str().map_err(|err| api::Error {
+            code: api::ErrCode::InvalidArgument,
+            message: "invalid header value".to_string(),
+            internal_message: Some(format!("invalid header value: {}", err)),
+            stack: None,
+        })
+    };
+}
+
 impl<H> ParseWithSchema<serde_json::Map<String, JSON>> for H
 where
     H: schema::HTTPHeaders,
@@ -40,7 +51,7 @@ where
                 match &field.value {
                     BasicOrValue::Basic(basic) => {
                         let basic = Value::Basic(*basic);
-                        let value = parse_header_value(header_value, reg, &basic)?;
+                        let value = parse_header_value(header_to_str!(header_value)?, reg, &basic)?;
                         value
                     }
                     BasicOrValue::Value(idx) => {
@@ -64,12 +75,17 @@ where
                             let values = std::iter::once(header_value).chain(values);
                             let mut arr = Vec::new();
                             for header_value in values {
-                                let value = parse_header_value(header_value, reg, value_type)?;
+                                let value = parse_header_value(
+                                    header_to_str!(header_value)?,
+                                    reg,
+                                    value_type,
+                                )?;
                                 arr.push(value);
                             }
                             serde_json::Value::Array(arr)
                         } else {
-                            let value = parse_header_value(header_value, reg, value_type)?;
+                            let value =
+                                parse_header_value(header_to_str!(header_value)?, reg, value_type)?;
                             value
                         }
                     }
@@ -81,17 +97,8 @@ where
     }
 }
 
-fn parse_header_value<V>(header: V, reg: &Registry, schema: &Value) -> APIResult<JSON>
-where
-    V: ToHeaderStr,
-{
-    let str = header.to_str().map_err(|err| api::Error {
-        code: api::ErrCode::InvalidArgument,
-        message: "invalid header value".to_string(),
-        internal_message: Some(format!("invalid header value: {}", err)),
-        stack: None,
-    })?;
 
+fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<JSON> {
     match schema {
         // Recurse
         Value::Ref(idx) => parse_header_value(header, reg, &reg.values[*idx]),
@@ -101,13 +108,36 @@ where
 
         // Otherwise recurse.
         Value::Option(opt) => match opt {
-            BasicOrValue::Basic(basic) => parse_basic_str(basic, str),
+            BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
             BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
         },
 
-        Value::Basic(basic) => parse_basic_str(basic, str),
+        Value::Basic(basic) => parse_basic_str(basic, header),
 
         Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
+
+        Value::Union(union) => {
+            // Find the first value that matches.
+            for value in union {
+                let result = match value {
+                    BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
+                    BasicOrValue::Value(idx) => {
+                        let value = reg.get(*idx);
+                        parse_header_value(header, reg, value)
+                    }
+                };
+                match result {
+                    Ok(value) => return Ok(value),
+                    Err(_) => continue,
+                }
+            }
+            return Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "invalid header value".to_string(),
+                internal_message: Some(format!("no union value matched: {}", header)),
+                stack: None,
+            });
+        }
     }
 }
 
@@ -218,6 +248,29 @@ fn parse_json_value(
 
             _ => unexpected_json(reg, schema, &this),
         },
+
+        Value::Union(types) => {
+            // Find the first type that matches.
+            for candidate in types {
+                let result = match candidate {
+                    BasicOrValue::Basic(basic) => parse_basic_json(reg, basic, this.clone()),
+                    BasicOrValue::Value(idx) => {
+                        parse_json_value(this.clone(), reg, &reg.values[*idx])
+                    }
+                };
+                if let Ok(value) = result {
+                    return Ok(value);
+                }
+            }
+
+            // Couldn't find a match.
+            Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "invalid value".to_string(),
+                internal_message: Some(format!("no union type matched: {}", describe_json(&this),)),
+                stack: None,
+            })
+        }
     }
 }
 
