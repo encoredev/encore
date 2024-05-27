@@ -12,6 +12,8 @@ export type Pick2 = Pick<Interface, "foo" | "optional">;
 export type Omit1 = Omit<Interface, "foo">;
 export type Omit2 = Omit<Interface, "foo" | "bar">;
 
+export type Partial1 = Partial<Interface>;
+
 // Index signatures
 export type Index = { [key: string]: boolean | number};
 
