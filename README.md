@@ -15,11 +15,14 @@ It consists of a **Backend SDK**, a **Local Development Environment** with tools
 
 **⭐ Star this repository** to help spread the word.
 
-**🍿 Intro video:** [Watch this video](https://youtu.be/LN8mQWho0Jc) for an introduction to Encore concepts & features
-
 **👋 Have questions?** Join the friendly developer community on [Discord](https://encore.dev/discord).
 
-**📞 See if Encore fits your project:** [Book a 1:1 demo](https://encore.dev/book).
+**📞 See if Encore fits your project:** [Book a 1:1 intro](https://encore.dev/book).
+
+## 🍿 Intro video
+[Watch the intro video](https://youtu.be/vvqTGfoXVsw) for a quick introduction to Encore concepts & code examples.
+
+<a href="https://youtu.be/vvqTGfoXVsw" target="_blank"><img width="589" alt="Encore Intro Video" src="https://github.com/encoredev/encore/assets/78424526/89737146-be48-429f-a83f-41bc8da37980"></a>
 
 ## Introduction to Encore
 
@@ -41,12 +44,60 @@ This completely removes the need for separate infrastructure configuration like 
 
 When your application is deployed to your cloud, there are **no runtime dependencies on Encore** and there is **no proprietary code running in your cloud**.
 
-#### Example: Using Pub/Sub
+### Example: Hello World
+
+Defining microservices and API endpoints is incredibly simple, requiring less than 10 lines of code to define a production-ready deployable service and API endpoint.
+
+Using the TypeScript Backend SDK, it looks like so:
+
+```typescript
+import { api } from "encore.dev/api";
+
+export const get = api(
+  { expose: true, method: "GET", path: "/hello/:name" },
+  async ({ name }: { name: string }): Promise<Response> => {
+    const msg = `Hello ${name}!`;
+    return { message: msg };
+  }
+);
+
+interface Response {
+  message: string;
+}
+```
+
+Using the Go Backend SDK, it looks like so:
+
+```go
+package hello
+
+//encore:api public
+func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
+    msg := fmt.Sprintf("Hello, %s!", params.Name)
+    return &PingResponse{Message: msg}, nil
+}
+```
+
+### Example: Using Pub/Sub
 
 If you want a Pub/Sub Topic, you declare it directly in your application code and Encore will automatically provision the infrastructure and generate the boilerplate code necessary for each environment:
 - **NSQ** for local development
 - **GCP Pub/Sub** for environments on GCP
 - **SNS/SQS** for environments on AWS
+
+Using the TypeScript Backend SDK, it looks like so:
+
+```typescript
+import { Topic } "encore.dev/pubsub"
+
+export interface SignupEvent {
+    userID: string;
+}
+
+export const signups = new Topic<SignupEvent>("signups", {
+    deliveryGuarantee: "at-least-once",
+});
+```
 
 Using the Go Backend SDK, it looks like so:
 
@@ -61,20 +112,6 @@ var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
  
 // Publish messages by calling a method
 Signup.Publish(ctx, &User{...})
-```
-
-Using the TypeScript Backend SDK, it looks like so:
-
-```typescript
-import { Topic } "encore.dev/pubsub"
-
-export interface SignupEvent {
-    userID: string;
-}
-
-export const signups = new Topic<SignupEvent>("signups", {
-    deliveryGuarantee: "at-least-once",
-});
 ```
 
 ### Learn more in the docs
@@ -178,18 +215,18 @@ Encore is designed to give teams a productive and less complex experience when s
 
 ## Getting started
 
-- **1.** [Sign up and install the Encore CLI](https://encore.dev/signup)
-- **2.** [Follow a tutorial and start building](https://encore.dev/docs/tutorials/)
+- **1.** [Install Encore with the Quick Start Guide](https://encore.dev/docs/quick-start)
+- **2.** [Follow a tutorial and build a bigger app](https://encore.dev/docs/tutorials/)
 - **3.** Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
 - **4.** Explore the [Documentation](https://encore.dev/docs) to learn more about Encore's features
 - **5.** [Book a 1:1](https://encore.dev/book) or [join Discord](https://encore.dev/discord) to discuss your use case or how to begin adopting Encore
 
 ## Open Source
 
-Encore's Backend SDK, parser, compiler, and CLI are all Open Source — this includes all code needed for local development and everything that runs in your cloud.
-A free Encore account is needed to use features like distributed tracing, secrets management, and deploying to cloud environments, as this functionality is orchestrated by Encore's Cloud Platform.
+Everything needed to develop and deploy Encore applications is Open Source, including the Backend SDK, parser, compiler, runtime, and CLI.
+This includes all code needed for local development and everything that runs in your cloud.
 
-The Open Source CLI also provides a mechanism to generate a standalone Docker image for your application, so you can deploy it without using the Cloud Platform. [Learn more in the docs](https://encore.dev/docs/how-to/migrate-away#ejecting-your-app-as-a-docker-image).
+The Open Source CLI also provides a mechanism to generate a standalone Docker image for your application, so you easily self-host your application. [Learn more in the docs](https://encore.dev/docs/how-to/self-host).
 
 ## Join the most pioneering developer community
 
@@ -207,9 +244,10 @@ Here's how you can contribute:
 
 ## Videos
 
-- <a href="https://youtu.be/LN8mQWho0Jc" alt="Intro video: Encore concepts & features" target="_blank">Intro: Encore concepts & features</a>
-- <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service" target="_blank">Demo: Building and deploying a simple service</a>
-- <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system</a>
+- <a href="https://youtu.be/vvqTGfoXVsw" alt="Intro video: Encore concepts & features" target="_blank">Intro: Encore concepts & features</a>
+- <a href="https://youtu.be/wiLDz-JUuqY" alt="Demo video: Getting started with Encore for TypeScript" target="_blank">Demo video: Getting started with Encore for TypeScript</a>
+- <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service" target="_blank">Demo: Building and deploying a simple Go service</a>
+- <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system in Go</a>
 
 ## Visuals
 
@@ -261,17 +299,11 @@ We've found that to meaningfully improve the developer experience, you have to o
 
 ### What if I want to migrate away from Encore?
 
-Encore has been designed to let you go outside of the Backend SDK when you want to, and easily drop down in abstraction level when you need to, so you never need to run into any dead-ends.
+Encore is designed to let you go outside of the Backend SDK when you want to, and easily drop down in abstraction level when you need to, so you never run into any dead-ends.
 
-Should you want to migrate away, it's straightforward and does not require a big rewrite. 95% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the Backend SDK.
+Should you want to migrate away, it's straightforward and does not require a big rewrite. 99% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the Backend SDK.
 
-Encore has built-in support for [ejecting](https://encore.dev/docs/how-to/migrate-away#ejecting) your application as a way of removing the connection to the Encore Platform. Ejecting your app produces a standalone Docker image that can be deployed anywhere you'd like, and can help facilitate the migration away according to the process above.
-
-Migrating away is low risk since Encore deploys to your cloud account from the start, which means there's never any data to migrate.
-
-Open Source also plays a role. Encore's code generation, compiler, and parser are all open source and can be used however you want. So if you run into something unforeseen down the line, you have free access to the tools you might need.
-
-And since Encore is designed for building distributed systems, it's straightforward to use it in combination with other backends that aren't built with Encore. So if you come across a use case where Encore for some reason doesn't fit, you won't need to tear everything up and start from scratch. You can just build that specific part without Encore.
+Encore has support for [self-hosting](https://encore.dev/docs/how-to/self-host) your application, by using the Open Source CLI to produce a standalone Docker image that can be deployed anywhere you'd like.
 
 We believe that adopting Encore is a low-risk decision, given it needs no initial investment in foundational work. The ambition is to simply add a lot of value to your everyday development process, from day one.
 
