@@ -14,7 +14,7 @@ pub fn unwrap_promise<'a>(state: &ResolveState, typ: &'a Type) -> &'a Type {
 pub fn drop_empty_or_void(typ: Type) -> Option<Type> {
     match typ {
         Type::Interface(iface) => {
-            if iface.fields.is_empty() {
+            if iface.fields.is_empty() && iface.index.is_none() {
                 None
             } else {
                 Some(Type::Interface(iface))
