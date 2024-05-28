@@ -5,6 +5,7 @@ use schema::ToHeaderStr;
 
 use std::str::FromStr;
 
+use crate::api::jsonschema::de::Literal;
 use serde_json::Value as JSON;
 
 pub trait ParseWithSchema<Output> {
@@ -97,7 +98,6 @@ where
     }
 }
 
-
 fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<JSON> {
     match schema {
         // Recurse
@@ -115,6 +115,40 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
         Value::Basic(basic) => parse_basic_str(basic, header),
 
         Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
+
+        Value::Literal(lit) => {
+            match lit {
+                Literal::Str(want) if header == want => Ok(JSON::String(want.to_string())),
+                Literal::Bool(true) if header == "true" => Ok(JSON::Bool(true)),
+                Literal::Bool(false) if header == "false" => Ok(JSON::Bool(false)),
+                Literal::Int(want) if header.parse() == Ok(*want) => {
+                    Ok(JSON::Number(serde_json::Number::from(*want)))
+                }
+                Literal::Float(want) if header.parse() == Ok(*want) => {
+                    if let Some(num) = serde_json::Number::from_f64(*want) {
+                       Ok(JSON::Number(num))
+                    } else {
+                        Err(api::Error {
+                            code: api::ErrCode::InvalidArgument,
+                            message: "invalid header value".to_string(),
+                            internal_message: Some(format!("invalid float value: {}", header)),
+                            stack: None,
+                        })
+                    }
+                }
+
+                want => Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: "invalid header value".to_string(),
+                    internal_message: Some(format!(
+                        "expected {}, got {}",
+                        want.expecting(),
+                        header
+                    )),
+                    stack: None,
+                }),
+            }
+        }
 
         Value::Union(union) => {
             // Find the first value that matches.
@@ -190,6 +224,41 @@ fn parse_json_value(
         },
 
         Value::Basic(basic) => parse_basic_json(reg, basic, this),
+
+        Value::Literal(lit) => {
+            let invalid = |got| {
+                Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: "invalid value".to_string(),
+                    internal_message: Some(format!("expected {}, got {:#?}", lit.expecting(), got)),
+                    stack: None,
+                })
+            };
+
+            match (this, lit) {
+                (JSON::String(got), Literal::Str(want)) if &got == want => {
+                    return Ok(JSON::String(got))
+                }
+                (JSON::Bool(got), Literal::Bool(want)) if &got == want => {
+                    return Ok(JSON::Bool(got))
+                }
+                (JSON::Number(got), Literal::Int(want)) => {
+                    if got.as_i64() == Some(*want) {
+                        Ok(JSON::Number(got))
+                    } else {
+                        invalid(JSON::Number(got))
+                    }
+                }
+                (JSON::Number(got), Literal::Float(want)) => {
+                    if got.as_f64() == Some(*want) {
+                       Ok(JSON::Number(got))
+                    } else {
+                        invalid(JSON::Number(got))
+                    }
+                }
+                (got, _) => invalid(got),
+            }
+        }
 
         Value::Struct(Struct { fields }) => match this {
             JSON::Object(obj) => {

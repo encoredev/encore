@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Display;
@@ -12,6 +13,9 @@ use crate::api::jsonschema::Registry;
 pub enum Value {
     // A JSON primitive (e.g. string, number, boolean, null).
     Basic(Basic),
+
+    // A literal value.
+    Literal(Literal),
 
     /// Consume a value if present.
     Option(BasicOrValue),
@@ -92,15 +96,32 @@ impl Value {
         matches!(self, Value::Ref(_))
     }
 
-    pub fn expecting(&self, reg: &Registry) -> &'static str {
+    pub fn expecting<'a>(&'a self, reg: &'a Registry) -> Cow<'a, str> {
         match self {
-            Value::Array(_) => "a JSON array",
-            Value::Basic(basic) => basic.expecting(),
-            Value::Map(_) => "a JSON object",
-            Value::Union(_) => "one of various JSON values",
+            Value::Array(_) => Cow::Borrowed("a JSON array"),
+            Value::Basic(basic) => Cow::Borrowed(basic.expecting()),
+            Value::Map(_) => Cow::Borrowed("a JSON map"),
+            Value::Literal(lit) => Cow::Owned(lit.expecting()),
             Value::Option(bov) => bov.expecting(reg),
             Value::Ref(idx) => reg.get(*idx).expecting(reg),
-            Value::Struct { .. } => "a JSON object",
+            Value::Struct { .. } => Cow::Borrowed("a JSON object"),
+            Value::Union(types) => {
+                let mut s = String::new();
+                let num = types.len();
+                for (i, typ) in types.iter().enumerate() {
+                    if i > 0 {
+                        if i == (num - 1) && num > 2 {
+                            s.push_str(", or ");
+                        } else if i == (num - 1) {
+                            s.push_str(" or ");
+                        } else {
+                            s.push_str(", ");
+                        }
+                    }
+                    s.push_str(&typ.expecting(reg));
+                }
+                Cow::Owned(s)
+            }
         }
     }
 }
@@ -126,6 +147,25 @@ impl Basic {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Literal {
+    Str(String), // A literal string
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+}
+
+impl Literal {
+    pub fn expecting(&self) -> String {
+        match self {
+            Literal::Str(lit) => format!("{:#?}", lit),
+            Literal::Bool(lit) => format!("{:#?}", lit),
+            Literal::Int(lit) => format!("{:#?}", lit),
+            Literal::Float(lit) => format!("{:#?}", lit),
+        }
+    }
+}
+
 impl<'de> DeserializeSeed<'de> for Basic {
     type Value = serde_json::Value;
 
@@ -142,6 +182,20 @@ impl<'de> DeserializeSeed<'de> for Basic {
     }
 }
 
+impl Basic {
+    pub fn validate<E>(self, value: &serde_json::Value) -> Result<(), E>
+    where
+        E: serde::de::Error,
+    {
+        let reg = Registry { values: vec![] };
+        let visitor = DecodeValue {
+            reg: &reg,
+            value: &Value::Basic(self),
+        };
+        visitor.validate(value)
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum BasicOrValue {
     Basic(Basic),
@@ -149,9 +203,9 @@ pub enum BasicOrValue {
 }
 
 impl BasicOrValue {
-    pub fn expecting(&self, reg: &Registry) -> &'static str {
+    pub fn expecting<'a>(&'a self, reg: &'a Registry) -> Cow<'a, str> {
         match self {
-            BasicOrValue::Basic(basic) => basic.expecting(),
+            BasicOrValue::Basic(basic) => Cow::Borrowed(basic.expecting()),
             BasicOrValue::Value(idx) => reg.get(*idx).expecting(reg),
         }
     }
@@ -251,21 +305,42 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     type Value = serde_json::Value;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str(match self.value {
-            Value::Basic(b) => match b {
+        match self.value {
+            Value::Literal(lit) => {
+                let s = lit.expecting();
+                formatter.write_str(&s)
+            }
+            Value::Basic(b) => formatter.write_str(match b {
                 Basic::Any => "any valid JSON value",
                 Basic::Null => "null",
                 Basic::Bool => "a boolean",
                 Basic::Number => "a number",
                 Basic::String => "a string",
-            },
-            Value::Map(_) => "a JSON object",
-            Value::Array(_) => "a JSON array",
-            Value::Union(_) => "one of various JSON values",
-            Value::Option(_) => "any valid JSON value or null",
-            Value::Struct { .. } => "a JSON object",
-            Value::Ref(_) => "a JSON value",
-        })
+            }),
+            Value::Map(_) => formatter.write_str("a JSON object"),
+            Value::Array(_) => formatter.write_str("a JSON array"),
+            Value::Union(union) => {
+                let num = union.len();
+                let mut s = String::new();
+                for (i, typ) in union.iter().enumerate() {
+                    if i > 0 {
+                        if num > 2 && i == (num - 1) {
+                            s.push_str(", or ");
+                        } else if i == (num - 1) {
+                            s.push_str(" or ");
+                        } else {
+                            s.push_str(", ");
+                        }
+                    }
+                    let expecting = typ.expecting(self.reg);
+                    s.push_str(&expecting);
+                }
+                formatter.write_str(&s)
+            }
+            Value::Option(_) => formatter.write_str("any valid JSON value or null"),
+            Value::Struct { .. } => formatter.write_str("a JSON object"),
+            Value::Ref(_) => formatter.write_str("a JSON value"),
+        }
     }
 
     #[inline]
@@ -279,6 +354,9 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Option(val) => {
                 recurse!(self, val, visit_bool, value)
             }
+            Value::Literal(Literal::Bool(bool)) if *bool == value => {
+                Ok(serde_json::Value::Bool(value))
+            }
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_bool, value);
@@ -286,7 +364,10 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                         return Ok(val);
                     }
                 }
-                Err(serde::de::Error::invalid_type(Unexpected::Bool(value), &self))
+                Err(serde::de::Error::invalid_type(
+                    Unexpected::Bool(value),
+                    &self,
+                ))
             }
             _ => Err(serde::de::Error::invalid_type(
                 Unexpected::Bool(value),
@@ -306,6 +387,9 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Option(val) => {
                 recurse!(self, val, visit_i64, value)
             }
+            Value::Literal(Literal::Int(val)) if *val == value => {
+                Ok(serde_json::Value::Number(value.into()))
+            }
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_i64, value);
@@ -313,7 +397,10 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                         return Ok(val);
                     }
                 }
-                Err(serde::de::Error::invalid_type(Unexpected::Signed(value), &self))
+                Err(serde::de::Error::invalid_type(
+                    Unexpected::Signed(value),
+                    &self,
+                ))
             }
             _ => Err(serde::de::Error::invalid_type(
                 Unexpected::Signed(value),
@@ -333,6 +420,9 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Option(val) => {
                 recurse!(self, val, visit_u64, value)
             }
+            Value::Literal(Literal::Int(val)) if *val == value as i64 => {
+                Ok(serde_json::Value::Number(value.into()))
+            }
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_u64, value);
@@ -340,7 +430,10 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                         return Ok(val);
                     }
                 }
-                Err(serde::de::Error::invalid_type(Unexpected::Unsigned(value), &self))
+                Err(serde::de::Error::invalid_type(
+                    Unexpected::Unsigned(value),
+                    &self,
+                ))
             }
             _ => Err(serde::de::Error::invalid_type(
                 Unexpected::Unsigned(value),
@@ -361,6 +454,16 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Option(bov) => {
                 recurse!(self, bov, visit_f64, value)
             }
+            Value::Literal(Literal::Float(val)) if *val == value => {
+                if let Some(num) = serde_json::Number::from_f64(value) {
+                    Ok(serde_json::Value::Number(num))
+                } else {
+                    Err(serde::de::Error::custom(format_args!(
+                        "expected {}, got {}",
+                        val, value
+                    )))
+                }
+            }
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_f64, value);
@@ -368,7 +471,10 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                         return Ok(val);
                     }
                 }
-                Err(serde::de::Error::invalid_type(Unexpected::Float(value), &self))
+                Err(serde::de::Error::invalid_type(
+                    Unexpected::Float(value),
+                    &self,
+                ))
             }
             _ => Err(serde::de::Error::invalid_type(
                 Unexpected::Float(value),
@@ -396,6 +502,9 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Option(bov) => {
                 recurse!(self, bov, visit_string, value)
             }
+            Value::Literal(Literal::Str(val)) if val.as_str() == value => {
+                Ok(serde_json::Value::String(value))
+            }
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_string, value.clone());
@@ -403,7 +512,10 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                         return Ok(val);
                     }
                 }
-                Err(serde::de::Error::invalid_type(Unexpected::Str(&value), &self))
+                Err(serde::de::Error::invalid_type(
+                    Unexpected::Str(&value),
+                    &self,
+                ))
             }
             _ => Err(serde::de::Error::invalid_type(
                 Unexpected::Str(&value),
@@ -640,8 +752,9 @@ struct FieldList<'a> {
 }
 
 impl<'a> DecodeValue<'a> {
-    fn validate<E>(&self, value: &serde_json::Value) -> Result<(), E>
-        where E: serde::de::Error
+    pub fn validate<E>(&self, value: &serde_json::Value) -> Result<(), E>
+    where
+        E: serde::de::Error,
     {
         match value {
             serde_json::Value::Null => match self.value {
@@ -665,6 +778,14 @@ impl<'a> DecodeValue<'a> {
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
                 }
+                Value::Literal(lit) => match lit {
+                    Literal::Bool(val) if *bool == *val => Ok(()),
+                    _ => Err(serde::de::Error::custom(format_args!(
+                        "expected {}, got {}",
+                        lit.expecting(),
+                        bool,
+                    ))),
+                },
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -672,9 +793,15 @@ impl<'a> DecodeValue<'a> {
                             return res;
                         }
                     }
-                    Err(serde::de::Error::invalid_type(Unexpected::Bool(*bool), self))
+                    Err(serde::de::Error::invalid_type(
+                        Unexpected::Bool(*bool),
+                        self,
+                    ))
                 }
-                _ => Err(serde::de::Error::invalid_type(Unexpected::Bool(*bool), self)),
+                _ => Err(serde::de::Error::invalid_type(
+                    Unexpected::Bool(*bool),
+                    self,
+                )),
             },
             serde_json::Value::Number(num) => match self.value {
                 Value::Basic(Basic::Any | Basic::Number) => Ok(()),
@@ -682,6 +809,15 @@ impl<'a> DecodeValue<'a> {
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
                 }
+                Value::Literal(lit) => match lit {
+                    Literal::Int(val) if num.as_i64() == Some(*val) => Ok(()),
+                    Literal::Float(val) if num.as_f64() == Some(*val) => Ok(()),
+                    _ => Err(serde::de::Error::custom(format_args!(
+                        "expected {}, got {}",
+                        lit.expecting(),
+                        num,
+                    ))),
+                },
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -689,9 +825,15 @@ impl<'a> DecodeValue<'a> {
                             return res;
                         }
                     }
-                    Err(serde::de::Error::invalid_type(Unexpected::Other("number"), self))
+                    Err(serde::de::Error::invalid_type(
+                        Unexpected::Other("number"),
+                        self,
+                    ))
                 }
-                _ => Err(serde::de::Error::invalid_type(Unexpected::Other("number"), self)),
+                _ => Err(serde::de::Error::invalid_type(
+                    Unexpected::Other("number"),
+                    self,
+                )),
             },
 
             serde_json::Value::String(string) => match self.value {
@@ -700,6 +842,14 @@ impl<'a> DecodeValue<'a> {
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
                 }
+                Value::Literal(lit) => match lit {
+                    Literal::Str(val) if string.as_str() == *val => Ok(()),
+                    _ => Err(serde::de::Error::custom(format_args!(
+                        "expected {}, got {}",
+                        lit.expecting(),
+                        string,
+                    ))),
+                },
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -707,9 +857,15 @@ impl<'a> DecodeValue<'a> {
                             return res;
                         }
                     }
-                    Err(serde::de::Error::invalid_type(Unexpected::Str(string), self))
+                    Err(serde::de::Error::invalid_type(
+                        Unexpected::Str(string),
+                        self,
+                    ))
                 }
-                _ => Err(serde::de::Error::invalid_type(Unexpected::Str(string), self)),
+                _ => Err(serde::de::Error::invalid_type(
+                    Unexpected::Str(string),
+                    self,
+                )),
             },
 
             serde_json::Value::Array(array) => match self.value {
@@ -862,7 +1018,7 @@ impl<'a> DecodeValue<'a> {
                 }
 
                 _ => return Err(serde::de::Error::invalid_type(Unexpected::Map, self)),
-            }
+            },
         }
     }
 }
