@@ -318,6 +318,8 @@ impl<'a> TypeArgResolver<'a> {
 
             Typ::Builtin(_) => Ok(Cow::Borrowed(typ)),
 
+            Typ::Literal(_) => Ok(Cow::Borrowed(typ)),
+
             Typ::Pointer(ptr) => {
                 let base = ptr.base.as_ref().context("pointer without base")?;
                 let typ = base.typ.as_ref().context("base without type")?;

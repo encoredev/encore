@@ -19,6 +19,7 @@ message Type {
     Builtin          builtin        =  5; // The type is one of the base built in types within Go
     Pointer          pointer        =  8; // The type is a pointer
     Union            union          =  9; // The type is a union
+    Literal          literal        =  10; // The type is a literal
 
     /* Abstract Types */
     TypeParameterRef type_parameter =  6; // This is placeholder for a unknown type within the declaration block
@@ -156,6 +157,16 @@ message Pointer {
 // Union represents a union type.
 message Union {
   repeated Type types = 1; // The types that make up the union
+}
+
+// Literal represents a literal value.
+message Literal {
+  oneof value {
+    string str     = 1;
+    bool   boolean = 2;
+    int64  int     = 3;
+    double float   = 4;
+  }
 }
 
 // ConfigValue represents a config value wrapper.
