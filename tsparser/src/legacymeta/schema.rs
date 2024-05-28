@@ -58,7 +58,7 @@ impl<'a> SchemaBuilder<'a> {
             },
             Type::Tuple(_) => anyhow::bail!("tuple types are not yet supported in schemas"),
             Type::Literal(tt) => schema::Type {
-                typ: Some(styp::Typ::Builtin(self.literal(tt)? as i32)),
+                typ: Some(styp::Typ::Literal(self.literal(tt))),
             },
             Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
             Type::Named(tt) => {
@@ -103,13 +103,23 @@ impl<'a> SchemaBuilder<'a> {
         })
     }
 
-    fn literal(&self, typ: &Literal) -> Result<schema::Builtin> {
-        Ok(match typ {
-            Literal::String(_) => schema::Builtin::String,
-            Literal::Boolean(_) => schema::Builtin::Bool,
-            Literal::Number(_) => schema::Builtin::Float64, // TODO figure out how to handle
-            Literal::BigInt(_) => anyhow::bail!("TODO bigint"),
-        })
+    fn literal(&self, typ: &Literal) -> schema::Literal {
+        use schema::literal::Value;
+        let val = match typ.clone() {
+            Literal::String(val) => Value::Str(val),
+            Literal::Boolean(bool) => Value::Boolean(bool),
+            Literal::Number(float) => {
+                // If this can be represented as an int64, do that.
+                let int = float as i64;
+                if float == (int as f64) {
+                    Value::Int(int)
+                } else {
+                    Value::Float(float)
+                }
+            }
+            Literal::BigInt(str) => Value::Str(str),
+        };
+        schema::Literal { value: Some(val) }
     }
 
     fn interface(&self, typ: &Interface) -> Result<schema::Type> {

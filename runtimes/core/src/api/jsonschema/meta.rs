@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
-use crate::api::jsonschema::de::{Basic, BasicOrValue, Field, Struct};
+use crate::api::jsonschema::de::{Basic, BasicOrValue, Field, Literal, Struct};
 use crate::api::jsonschema::{JSONSchema, Registry, Value};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::schema::v1 as schema;
@@ -94,6 +94,7 @@ impl<'a> Builder<'a> {
             Typ::Map(map) => self.map(map),
             Typ::List(list) => self.list(list),
             Typ::Union(union) => self.union(union),
+            Typ::Literal(lit) => self.literal(lit),
             Typ::Config(_) => anyhow::bail!("config not yet supported"),
             Typ::TypeParameter(_) => anyhow::bail!("type params not yet supported"),
         }
@@ -216,6 +217,17 @@ impl<'a> Builder<'a> {
             .map(|t| self.typ(t).map(|v| self.bov(v)))
             .collect();
         Ok(Value::Union(values?))
+    }
+
+    #[inline]
+    fn literal(&mut self, literal: &schema::Literal) -> Result<Value> {
+        Ok(match literal.value.clone() {
+            Some(schema::literal::Value::Str(val)) => Value::Literal(Literal::Str(val)),
+            Some(schema::literal::Value::Boolean(val)) => Value::Literal(Literal::Bool(val)),
+            Some(schema::literal::Value::Int(val)) => Value::Literal(Literal::Int(val)),
+            Some(schema::literal::Value::Float(val)) => Value::Literal(Literal::Float(val)),
+            None => anyhow::bail!("missing literal value"),
+        })
     }
 
     #[inline]
