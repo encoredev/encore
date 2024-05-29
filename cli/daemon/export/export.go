@@ -43,6 +43,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		CgoEnabled:         req.CgoEnabled,
 		StaticLink:         true,
 		Debug:              false,
+		Environ:            req.Environ,
 		GOOS:               req.Goos,
 		GOARCH:             req.Goarch,
 		KeepOutput:         false,

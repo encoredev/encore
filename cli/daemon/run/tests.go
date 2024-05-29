@@ -123,6 +123,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		CgoEnabled:         true,
 		StaticLink:         false,
 		Debug:              false,
+		Environ:            params.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         params.CodegenDebug,
