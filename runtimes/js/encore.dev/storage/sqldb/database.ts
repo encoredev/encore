@@ -1,6 +1,6 @@
+import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
-import { getCurrentRequest } from "../../internal/reqtrack/mod";
 
 export interface SQLDatabaseConfig {
   migrations?: string;
@@ -121,7 +121,11 @@ export class SQLDatabase {
     const query = this.buildQuery(strings, params);
     const args = new runtime.QueryArgs(params);
     const source = getCurrentRequest();
-    await this.impl.query(query, args, source);
+
+    // Need to await the cursor to process any errors from things like
+    // unique constraint violations.
+    let cur = await this.impl.query(query, args, source);
+    await cur.next();
   }
 
   private buildQuery(strings: TemplateStringsArray, expr: Primitive[]): string {
