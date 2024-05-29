@@ -36,6 +36,7 @@ func (s *Server) DumpMeta(ctx context.Context, req *daemonpb.DumpMetaRequest) (*
 		CgoEnabled:         true,
 		StaticLink:         false,
 		Debug:              false,
+		Environ:            req.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,

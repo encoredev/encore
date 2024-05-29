@@ -82,6 +82,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		CgoEnabled:         true,
 		StaticLink:         false,
 		Debug:              false,
+		Environ:            p.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,

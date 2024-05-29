@@ -94,9 +94,13 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 
 	cmd := exec.CommandContext(ctx, exe)
 	cmd.Dir = filepath.Join(p.App.Root(), p.WorkingDir)
+
 	cmd.Env = append(os.Environ(),
-		"RUST_LOG=debug",
+		"RUST_LOG=error",
 		"RUST_BACKTRACE=1",
+	)
+	cmd.Env = append(cmd.Env, p.Build.Environ...)
+	cmd.Env = append(cmd.Env,
 		"ENCORE_JS_RUNTIME_PATH="+jsRuntimePath.ToIO(),
 		"ENCORE_APP_REVISION="+p.Build.Revision,
 	)

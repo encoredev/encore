@@ -39,6 +39,7 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 		CgoEnabled:         true,
 		StaticLink:         false,
 		Debug:              false,
+		Environ:            nil,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,

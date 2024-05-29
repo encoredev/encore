@@ -330,6 +330,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		CgoEnabled:         true,
 		StaticLink:         false,
 		Debug:              r.Params.Debug,
+		Environ:            r.Params.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,
