@@ -33,6 +33,7 @@ type BuildInfo struct {
 	CgoEnabled         bool
 	StaticLink         bool
 	Debug              bool
+	Environ            []string
 	GOOS, GOARCH       string
 	KeepOutput         bool
 	Revision           string
