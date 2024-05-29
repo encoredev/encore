@@ -8,15 +8,21 @@ use anyhow::Result;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
-use swc_common::{Globals, SourceMap, GLOBALS, SourceMapper};
 use swc_common::sync::Lrc;
+use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
+use tracing::Level;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 use encore_tsparser::builder;
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
 
 fn main() -> Result<()> {
-    env_logger::init();
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::ENTER)
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_writer(io::stderr)
+        .init();
     let cwd = std::env::current_dir()?;
 
     let js_runtime_path = std::env::var("ENCORE_JS_RUNTIME_PATH")
@@ -32,11 +38,7 @@ fn main() -> Result<()> {
         errors: errors.clone(),
     };
 
-    let errs = Rc::new(Handler::with_emitter(
-        true,
-        false,
-        Box::new(emitter),
-    ));
+    let errs = Rc::new(Handler::with_emitter(true, false, Box::new(emitter)));
 
     GLOBALS.set(&globals, || -> Result<()> {
         HANDLER.set(&errs, || -> Result<()> {

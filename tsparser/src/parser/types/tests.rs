@@ -18,10 +18,11 @@ use serde::{Deserialize, Serialize};
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
 use tempdir::TempDir;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[test]
 fn resolve_types() {
-    env_logger::init();
+    tracing_subscriber::fmt().with_span_events(FmtSpan::ACTIVE).init();
     glob!("testdata/*.ts", |path| {
         let globals = Globals::new();
         let errs = Rc::new(Handler::with_tty_emitter(

@@ -16,4 +16,3 @@ export type Partial1 = Partial<Interface>;
 
 // Index signatures
 export type Index = { [key: string]: boolean | number};
-

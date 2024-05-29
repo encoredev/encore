@@ -33,6 +33,13 @@ pub struct Builder<'a> {
     decls: HashMap<u32, usize>,
 }
 
+struct BuilderCtx<'a, 'b: 'a> {
+    builder: &'a mut Builder<'b>,
+
+    /// The ids of computed type arguments, for the current declaration being processed.
+    type_args: &'a [usize],
+}
+
 impl<'a> Builder<'a> {
     pub fn new(md: &'a meta::Data) -> Self {
         Self {
@@ -62,21 +69,44 @@ impl<'a> Builder<'a> {
         match val {
             // If it's already a ref, return it unmodified.
             Value::Ref(idx) => idx,
-            val => self.reg(val),
+            val => {
+                let mut ctx = BuilderCtx {
+                    builder: self,
+                    type_args: &[],
+                };
+                ctx.reg(val)
+            },
         }
     }
 
     #[inline]
     pub fn register_type(&mut self, typ: &schema::Type) -> Result<usize> {
-        let val = self.typ(typ)?;
+        let mut ctx = BuilderCtx {
+            builder: self,
+            type_args: &[],
+        };
+        let val = ctx.typ(typ)?;
 
         Ok(match val {
             // If it's a ref, return its index directly.
             Value::Ref(idx) => idx,
-            val => self.reg(val),
+            val => ctx.reg(val),
         })
     }
 
+    pub fn struct_field<'b>(&mut self, f: &'b schema::Field) -> Result<(&'b String, Field)> {
+        // This should be safe to do because it's only called for schema types,
+        // and schema types don't include any type arguments, so we shouldn't need to worry
+        // about missing type arguments.
+        let ctx = &mut BuilderCtx {
+            builder: self,
+            type_args: &[],
+        };
+        ctx.struct_field(f)
+    }
+}
+
+impl<'a, 'b> BuilderCtx<'a, 'b> {
     /// Computes the JSONSchema value for the given type.
     #[inline]
     fn typ<T: ToType>(&mut self, typ: T) -> Result<Value> {
@@ -96,36 +126,56 @@ impl<'a> Builder<'a> {
             Typ::Union(union) => self.union(union),
             Typ::Literal(lit) => self.literal(lit),
             Typ::Config(_) => anyhow::bail!("config not yet supported"),
-            Typ::TypeParameter(_) => anyhow::bail!("type params not yet supported"),
+            Typ::TypeParameter(param) => {
+                let idx = self.type_args.get(param.param_idx as usize)
+                    .ok_or_else(|| anyhow::anyhow!("missing type argument"))?;
+                Ok(Value::Ref(*idx))
+            },
         }
     }
 
     #[inline]
     fn named(&mut self, named: &schema::Named) -> Result<Value> {
         let decl = self
+            .builder
             .md
             .decls
             .get(named.id as usize)
             .context("missing decl")?;
-        let idx = self.decl(decl)?;
+
+        // Compute indices for the type arguments.
+        let type_args: Result<Vec<usize>> = named
+            .type_arguments
+            .iter()
+            .map(|t| self.typ(t).map(|v| self.reg(v)))
+            .collect();
+        let type_args = type_args?;
+
+        // Create a nested context that includes the type arguments.
+        let mut nested = BuilderCtx {
+            builder: self.builder,
+            type_args: &type_args,
+        };
+
+        let idx = nested.decl(decl)?;
         Ok(Value::Ref(idx))
     }
 
     #[inline]
     fn decl(&mut self, decl: &schema::Decl) -> Result<usize> {
         // Do we have a value for this decl already?
-        if let Some(idx) = self.decls.get(&decl.id) {
+        if let Some(idx) = self.builder.decls.get(&decl.id) {
             return Ok(*idx);
         }
 
         // Allocate an index first to handle recursive references.
-        let idx = self.values.len();
-        self.values.push(None);
-        self.decls.insert(decl.id, idx);
+        let idx = self.builder.values.len();
+        self.builder.values.push(None);
+        self.builder.decls.insert(decl.id, idx);
 
         // Then compute the type and update the stored value.
         let typ = self.typ(&decl.r#type)?;
-        self.values[idx] = Some(typ);
+        self.builder.values[idx] = Some(typ);
         Ok(idx)
     }
 
@@ -174,7 +224,7 @@ impl<'a> Builder<'a> {
     }
 
     #[inline]
-    pub fn struct_field<'b>(&mut self, f: &'b schema::Field) -> Result<(&'b String, Field)> {
+    fn struct_field<'c>(&mut self, f: &'c schema::Field) -> Result<(&'c String, Field)> {
         // Note: Our JS/TS support don't include the ability to change
         // the JSON name from the field name, so we use the field name unconditionally.
 
@@ -240,8 +290,8 @@ impl<'a> Builder<'a> {
 
     #[inline]
     fn reg(&mut self, value: Value) -> usize {
-        let idx = self.values.len();
-        self.values.push(Some(value));
+        let idx = self.builder.values.len();
+        self.builder.values.push(Some(value));
         idx
     }
 }
