@@ -1,0 +1,201 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/generics.ts
+---
+{
+    "Generic1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "cond",
+                    optional: false,
+                    typ: Generic(
+                        Conditional(
+                            Conditional {
+                                check_type: Generic(
+                                    TypeParam(
+                                        TypeParam {
+                                            idx: 0,
+                                            constraint: None,
+                                        },
+                                    ),
+                                ),
+                                extends_type: Basic(
+                                    String,
+                                ),
+                                true_type: Literal(
+                                    String(
+                                        "literal",
+                                    ),
+                                ),
+                                false_type: Basic(
+                                    Number,
+                                ),
+                            },
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Generic2": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "value",
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 0,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: "cond",
+                    optional: false,
+                    typ: Generic(
+                        Conditional(
+                            Conditional {
+                                check_type: Generic(
+                                    TypeParam(
+                                        TypeParam {
+                                            idx: 0,
+                                            constraint: None,
+                                        },
+                                    ),
+                                ),
+                                extends_type: Basic(
+                                    String,
+                                ),
+                                true_type: Literal(
+                                    String(
+                                        "literal",
+                                    ),
+                                ),
+                                false_type: Basic(
+                                    Number,
+                                ),
+                            },
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Concrete1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "one",
+                    optional: false,
+                    typ: Named(
+                        Named {
+                            obj: Object {
+                                name: Some(
+                                    "Generic1",
+                                ),
+                            },
+                            type_arguments: [
+                                Basic(
+                                    String,
+                                ),
+                            ],
+                            underlying: OnceCell(
+                                <uninit>,
+                            ),
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: "two",
+                    optional: false,
+                    typ: Named(
+                        Named {
+                            obj: Object {
+                                name: Some(
+                                    "Generic1",
+                                ),
+                            },
+                            type_arguments: [
+                                Literal(
+                                    String(
+                                        "test",
+                                    ),
+                                ),
+                            ],
+                            underlying: OnceCell(
+                                <uninit>,
+                            ),
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: "three",
+                    optional: false,
+                    typ: Named(
+                        Named {
+                            obj: Object {
+                                name: Some(
+                                    "Generic2",
+                                ),
+                            },
+                            type_arguments: [
+                                Basic(
+                                    Null,
+                                ),
+                            ],
+                            underlying: OnceCell(
+                                <uninit>,
+                            ),
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: "four",
+                    optional: false,
+                    typ: Named(
+                        Named {
+                            obj: Object {
+                                name: Some(
+                                    "Generic2",
+                                ),
+                            },
+                            type_arguments: [
+                                Named(
+                                    Named {
+                                        obj: Object {
+                                            name: Some(
+                                                "Generic1",
+                                            ),
+                                        },
+                                        type_arguments: [
+                                            Basic(
+                                                Boolean,
+                                            ),
+                                        ],
+                                        underlying: OnceCell(
+                                            <uninit>,
+                                        ),
+                                    },
+                                ),
+                            ],
+                            underlying: OnceCell(
+                                <uninit>,
+                            ),
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

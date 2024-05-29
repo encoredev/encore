@@ -8,8 +8,9 @@ mod utils;
 
 #[cfg(test)]
 mod tests;
+mod resolved;
 
 pub use object::{Object, ObjectId, ObjectKind, ResolveState};
-pub use typ::{Basic, ClassType, Interface, InterfaceField, Literal, Named, Type, TypeArgId};
+pub use typ::{Basic, ClassType, Interface, InterfaceField, Literal, Named, Type, TypeArgId, Generic};
 pub use type_resolve::TypeChecker;
 pub use utils::*;

@@ -1,0 +1,176 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/basic.ts
+---
+{
+    "Interface": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: "bar",
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: "optional",
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Exclude1": Union(
+        [
+            Literal(
+                String(
+                    "bar",
+                ),
+            ),
+            Literal(
+                String(
+                    "optional",
+                ),
+            ),
+        ],
+    ),
+    "Pick1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Pick2": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: "optional",
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Omit1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "bar",
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: "optional",
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Omit2": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "optional",
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Partial1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: true,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: "bar",
+                    optional: true,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: "optional",
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Index": Interface(
+        Interface {
+            fields: [],
+            index: Some(
+                (
+                    Basic(
+                        String,
+                    ),
+                    Union(
+                        [
+                            Basic(
+                                Boolean,
+                            ),
+                            Basic(
+                                Number,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            call: None,
+        },
+    ),
+}

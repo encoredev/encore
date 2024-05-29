@@ -3,6 +3,7 @@ use crate::parser::types::{object, ResolveState};
 use serde::Serialize;
 use std::cell::OnceCell;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::parser::Range;
@@ -234,12 +235,22 @@ impl PartialEq for Interface {
     }
 }
 
-#[derive(Debug, Clone, Hash, Serialize)]
+#[derive(Clone, Hash, Serialize)]
 pub struct InterfaceField {
     pub range: Range,
     pub name: String,
-    pub typ: Type,
     pub optional: bool,
+    pub typ: Type,
+}
+
+impl Debug for InterfaceField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InterfaceField")
+            .field("name", &self.name)
+            .field("optional", &self.optional)
+            .field("typ", &self.typ)
+            .finish()
+    }
 }
 
 impl InterfaceField {
@@ -264,8 +275,6 @@ impl ClassType {
 pub struct Named {
     pub obj: Rc<object::Object>,
     pub type_arguments: Vec<Type>,
-    #[serde(skip)]
-    underlying: OnceCell<Box<Type>>,
 }
 
 impl Hash for Named {
@@ -280,7 +289,6 @@ impl Named {
         Self {
             obj,
             type_arguments,
-            underlying: OnceCell::new(),
         }
     }
 
@@ -297,11 +305,9 @@ impl Named {
         true
     }
 
-    pub fn underlying(&self, state: &ResolveState) -> &Type {
-        self.underlying.get_or_init(|| {
-            let ctx = Ctx::new(state, self.obj.module_id);
-            Box::new(ctx.underlying_named(self))
-        })
+    pub fn underlying(&self, state: &ResolveState) -> Type {
+        let ctx = Ctx::new(state, self.obj.module_id);
+        ctx.underlying_named(self)
     }
 }
 
@@ -421,7 +427,7 @@ impl Type {
             },
             (a, Type::Named(b)) => {
                 let b = b.underlying(state);
-                a.assignable(state, b)
+                a.assignable(state, &b)
             }
 
             (Type::Basic(a), Type::Basic(b)) => Some(a == b),

@@ -242,29 +242,23 @@ impl<'a> TypeArgResolver<'a> {
 
             Typ::Struct(strukt) => {
                 let mut cows = Vec::with_capacity(strukt.fields.len());
-                let mut has_owned = false;
                 for field in &strukt.fields {
                     let typ = field.typ.as_ref().context("field without type")?;
                     let typ = typ.typ.as_ref().context("type without type")?;
                     let resolved = self.resolve(typ)?;
-                    has_owned = has_owned || matches!(resolved, Cow::Owned(_));
                     cows.push(resolved);
                 }
 
-                if !has_owned {
-                    Ok(Cow::Borrowed(typ))
-                } else {
-                    let mut fields = Vec::with_capacity(strukt.fields.len());
-                    for (field, typ) in strukt.fields.iter().zip(cows) {
-                        fields.push(schema::Field {
-                            typ: Some(schema::Type {
-                                typ: Some(typ.into_owned()),
-                            }),
-                            ..field.clone()
-                        });
-                    }
-                    Ok(Cow::Owned(Typ::Struct(schema::Struct { fields })))
+                let mut fields = Vec::with_capacity(strukt.fields.len());
+                for (field, typ) in strukt.fields.iter().zip(cows) {
+                    fields.push(schema::Field {
+                        typ: Some(schema::Type {
+                            typ: Some(typ.into_owned()),
+                        }),
+                        ..field.clone()
+                    });
                 }
+                Ok(Cow::Owned(Typ::Struct(schema::Struct { fields })))
             }
 
             Typ::Map(map) => {
