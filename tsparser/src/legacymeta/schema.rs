@@ -11,15 +11,25 @@ use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
 
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
-use crate::parser::types::{drop_empty_or_void, Basic, Interface, Literal, Named, ObjectId, Type};
+use crate::parser::types::{
+    drop_empty_or_void, Basic, Generic, Interface, Literal, Named, ObjectId, Type,
+};
 use crate::parser::{FilePath, FileSet, Range};
 
 pub(super) struct SchemaBuilder<'a> {
     pc: &'a ParseContext,
     app_root: &'a Path,
 
-    decls: RefCell<Vec<schema::Decl>>,
-    obj_to_decl: RefCell<HashMap<ObjectId, u32>>,
+    decls: Vec<schema::Decl>,
+    obj_to_decl: HashMap<ObjectId, u32>,
+}
+
+struct BuilderCtx<'a, 'b> {
+    builder: &'a mut SchemaBuilder<'b>,
+
+    // The id of the current decl being built.
+    // Used for generating TypeParameterRefs.
+    decl_id: Option<u32>
 }
 
 impl<'a> SchemaBuilder<'a> {
@@ -27,16 +37,36 @@ impl<'a> SchemaBuilder<'a> {
         SchemaBuilder {
             pc,
             app_root,
-            decls: RefCell::new(Vec::new()),
-            obj_to_decl: RefCell::new(HashMap::new()),
+            decls: Vec::new(),
+            obj_to_decl: HashMap::new(),
         }
     }
 
     pub(super) fn into_decls(self) -> Vec<schema::Decl> {
-        self.decls.take()
+        self.decls
     }
 
-    pub(super) fn typ(&self, typ: &Type) -> Result<schema::Type> {
+    pub(super) fn typ(&mut self, typ: &Type) -> Result<schema::Type> {
+        let mut ctx = BuilderCtx { builder: self, decl_id: None };
+        ctx.typ(typ)
+    }
+
+    pub fn transform_request(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
+        let mut ctx = BuilderCtx { builder: self, decl_id: None };
+        ctx.transform_request(typ)
+    }
+
+    pub fn transform_response(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
+        match typ {
+            Some(typ) => Ok(Some(self.typ(&typ)?)),
+            None => Ok(None),
+        }
+    }
+}
+
+impl<'a, 'b> BuilderCtx<'a, 'b> {
+    #[tracing::instrument(skip(self), ret, level="trace")]
+    fn typ(&mut self, typ: &Type) -> Result<schema::Type> {
         Ok(match typ {
             Type::Basic(tt) => schema::Type {
                 typ: Some(styp::Typ::Builtin(self.basic(tt)? as i32)),
@@ -62,10 +92,18 @@ impl<'a> SchemaBuilder<'a> {
             },
             Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
             Type::Named(tt) => {
-                let state = self.pc.type_checker.state();
+                let state = self.builder.pc.type_checker.state();
                 if state.is_universe(tt.obj.module_id) {
                     let underlying = tt.underlying(state);
-                    self.typ(underlying)?
+                    self.typ(&underlying)?
+                } else if !tt.type_arguments.is_empty() {
+                    tracing::trace!("got named type with type arguments, resolving to underlying type");
+                    // The type is a generic type.
+                    // To avoid having to reproduce the full generic type resolution,
+                    // concretize the type here.
+                    let underlying = tt.underlying(state);
+                    tracing::trace!(underlying = ?underlying, "underlying type");
+                    self.typ(&underlying)?
                 } else {
                     schema::Type {
                         typ: Some(styp::Typ::Named(self.named(tt)?)),
@@ -74,12 +112,24 @@ impl<'a> SchemaBuilder<'a> {
             }
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
             Type::This => anyhow::bail!("this types are not yet supported in schemas"),
-            Type::Generic(typ) => {
-                anyhow::bail!(
-                    "unresolved generic types are not supported in schemas, got: {:#?}",
-                    typ
-                )
-            }
+            Type::Generic(typ) => match typ {
+                Generic::TypeParam(param) => {
+                    let decl_id = self.decl_id.ok_or_else(|| anyhow::anyhow!("missing decl_id"))?;
+                    schema::Type {
+                        typ: Some(styp::Typ::TypeParameter(schema::TypeParameterRef {
+                            decl_id,
+                            param_idx: param.idx as u32,
+                        })),
+                    }
+                },
+
+                typ => {
+                    anyhow::bail!(
+                        "unresolved generic types are not supported in schemas, got: {:#?}",
+                        typ
+                    )
+                }
+            },
         })
     }
 
@@ -122,8 +172,8 @@ impl<'a> SchemaBuilder<'a> {
         schema::Literal { value: Some(val) }
     }
 
-    fn interface(&self, typ: &Interface) -> Result<schema::Type> {
-        let ctx = self.pc.type_checker.state();
+    fn interface(&mut self, typ: &Interface) -> Result<schema::Type> {
+        let ctx = self.builder.pc.type_checker.state();
 
         // Is this an index signature?
         if let Some((key, value)) = typ.index.as_ref() {
@@ -221,7 +271,7 @@ impl<'a> SchemaBuilder<'a> {
                 .join(" ");
 
             let doc = self
-                .pc
+                .builder.pc
                 .loader
                 .module_containing_pos(f.range.start)
                 .and_then(|module| module.preceding_comments(f.range.start));
@@ -243,10 +293,10 @@ impl<'a> SchemaBuilder<'a> {
         })
     }
 
-    fn named(&self, typ: &Named) -> Result<schema::Named> {
+    fn named(&mut self, typ: &Named) -> Result<schema::Named> {
         let type_arguments = self.types(&typ.type_arguments)?;
         let obj = &typ.obj;
-        if let Some(decl_id) = self.obj_to_decl.borrow().get(&obj.id) {
+        if let Some(decl_id) = self.builder.obj_to_decl.get(&obj.id) {
             return Ok(schema::Named {
                 id: *decl_id,
                 type_arguments,
@@ -254,14 +304,15 @@ impl<'a> SchemaBuilder<'a> {
         }
 
         // Allocate a new decl.
-        let id = self.decls.borrow().len() as u32;
+        let id = self.builder.decls.len() as u32;
         let Some(name) = typ.obj.name.as_ref() else {
             anyhow::bail!("missing name for named object");
         };
 
         // Allocate the object and add it to the list without the underlying type.
         // We'll add the underlying type afterwards to properly handle recursive types.
-        let loc = loc_from_range(self.app_root, &self.pc.file_set, obj.range)?;
+        let loc = loc_from_range(self.builder.app_root, &self.builder.pc.file_set, obj.range)?;
+
         let decl = schema::Decl {
             id,
             name: name.clone(),
@@ -270,18 +321,25 @@ impl<'a> SchemaBuilder<'a> {
             doc: "".into(),      // TODO
             loc: Some(loc),
         };
-        self.decls.borrow_mut().push(decl);
-        self.obj_to_decl.borrow_mut().insert(obj.id, id);
+        self.builder.decls.push(decl);
+        self.builder.obj_to_decl.insert(obj.id, id);
 
-        let obj_typ = self.pc.type_checker.resolve_obj_type(&obj);
-        let schema_typ = self.typ(&obj_typ)?;
-        self.decls.borrow_mut().get_mut(id as usize).unwrap().r#type = Some(schema_typ);
+        let obj_typ = self.builder.pc.type_checker.resolve_obj_type(&obj);
+        let obj_typ = self.builder.pc.type_checker.concrete(obj.module_id, &obj_typ);
+
+        let mut nested = BuilderCtx {
+            builder: self.builder,
+            decl_id: Some(id),
+        };
+
+        let schema_typ = nested.typ(&obj_typ)?;
+        self.builder.decls.get_mut(id as usize).unwrap().r#type = Some(schema_typ);
 
         Ok(schema::Named { id, type_arguments })
     }
 
     fn new_named_from_type(
-        &self,
+        &mut self,
         name: String,
         underlying: Type,
         range: Range,
@@ -291,10 +349,10 @@ impl<'a> SchemaBuilder<'a> {
         let underlying = self.typ(&underlying)?;
 
         // Allocate a new decl.
-        let id = self.decls.borrow().len() as u32;
+        let id = self.builder.decls.len() as u32;
         // Allocate the object and add it to the list without the underlying type.
         // We'll add the underlying type afterwards to properly handle recursive types.
-        let loc = loc_from_range(self.app_root, &self.pc.file_set, range)?;
+        let loc = loc_from_range(self.builder.app_root, &self.builder.pc.file_set, range)?;
         let decl = schema::Decl {
             id,
             name: name.clone(),
@@ -303,11 +361,11 @@ impl<'a> SchemaBuilder<'a> {
             doc: "".into(),      // TODO
             loc: Some(loc),
         };
-        self.decls.borrow_mut().push(decl);
+        self.builder.decls.push(decl);
         Ok(schema::Named { id, type_arguments })
     }
 
-    fn types(&self, types: &[Type]) -> Result<Vec<schema::Type>> {
+    fn types(&mut self, types: &[Type]) -> Result<Vec<schema::Type>> {
         let mut result = Vec::with_capacity(types.len());
         for t in types {
             result.push(self.typ(t)?);
@@ -315,10 +373,10 @@ impl<'a> SchemaBuilder<'a> {
         Ok(result)
     }
 
-    pub fn transform_request(&self, typ: Option<Type>) -> Result<Option<schema::Type>> {
+    fn transform_request(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
         let Some(typ) = typ else { return Ok(None) };
 
-        let rs = self.pc.type_checker.state();
+        let rs = self.builder.pc.type_checker.state();
         Ok(match typ {
             Type::Interface(mut interface) => {
                 strip_path_params(rs, &mut interface);
@@ -360,7 +418,7 @@ impl<'a> SchemaBuilder<'a> {
         })
     }
 
-    pub fn transform_response(&self, typ: Option<Type>) -> Result<Option<schema::Type>> {
+    fn transform_response(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
         match typ {
             Some(typ) => Ok(Some(self.typ(&typ)?)),
             None => Ok(None),

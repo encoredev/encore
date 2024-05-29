@@ -46,6 +46,8 @@ os_pipe = "1.1.4"
 indexmap = { version = "2.1.0", features = ["serde"] }
 serde_yaml = "0.9.32"
 symlink = "0.1.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [build-dependencies]
 prost-build = { version = "0.12.1" }

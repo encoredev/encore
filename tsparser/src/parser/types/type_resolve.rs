@@ -1,5 +1,7 @@
 use std::borrow::Cow;
+use std::borrow::Cow::{Borrowed, Owned};
 use std::cell::OnceCell;
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -8,11 +10,12 @@ use swc_common::sync::Lrc;
 use swc_common::{BytePos, Span, Spanned};
 use swc_ecma_ast as ast;
 
-use crate::parser::{module_loader, Range};
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
 use crate::parser::types::{typ, Object};
+use crate::parser::{module_loader, Range};
 
+use super::resolved::{Resolved, Resolved::*};
 use super::typ::*;
 
 #[derive(Debug)]
@@ -39,9 +42,16 @@ impl TypeChecker {
         let ctx = Ctx::new(&self.ctx, module_id);
         let typ = ctx.typ(expr);
         match ctx.concrete(&typ) {
-            Cow::Owned(typ) => typ,
-            Cow::Borrowed(_) => typ,
+            New(typ) => typ,
+            Changed(typ) => typ.clone(),
+            Same(_) => typ,
         }
+    }
+
+    pub fn concrete(&self, module_id: ModuleId, typ: &Type) -> Type {
+        // Ensure the module is initialized.
+        let ctx = Ctx::new(&self.ctx, module_id);
+        ctx.concrete(typ).into_owned()
     }
 
     pub fn underlying(&self, module_id: ModuleId, typ: &Type) -> Type {
@@ -243,12 +253,12 @@ impl<'a> Ctx<'a> {
 
             (Type::Named(named), idx) => {
                 let underlying = named.underlying(self.state);
-                self.type_index(span, underlying, idx)
+                self.type_index(span, &underlying, idx)
             }
 
             (obj, Type::Named(idx)) => {
                 let underlying = idx.underlying(self.state);
-                self.type_index(span, obj, underlying)
+                self.type_index(span, obj, &underlying)
             }
 
             // Otherwise, look up the concrete result.
@@ -1247,65 +1257,72 @@ impl<'a> Ctx<'a> {
 }
 
 impl<'a> Ctx<'a> {
-    pub fn concrete<'b>(&'b self, typ: &'b Type) -> Cow<'b, Type> {
+    #[tracing::instrument(skip(self), ret, level = "trace")]
+    pub fn concrete<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         match typ {
             // Basic types that never change.
-            Type::Basic(_) | Type::Literal(_) | Type::This => Cow::Borrowed(typ),
+            Type::Basic(_) | Type::Literal(_) | Type::This => Same(typ),
 
             // Nested types that recurse.
             Type::Array(elem) => match self.concrete(elem) {
-                Cow::Owned(t) => Cow::Owned(Type::Array(Box::new(t))),
-                Cow::Borrowed(t) => Cow::Borrowed(typ),
+                New(t) => New(Type::Array(Box::new(t))),
+                Changed(t) => New(Type::Array(Box::new(t.clone()))),
+                Same(_) => Same(typ),
             },
             Type::Tuple(types) => match self.concrete_list(types) {
-                Cow::Owned(t) => Cow::Owned(Type::Tuple(t)),
-                Cow::Borrowed(t) => Cow::Borrowed(typ),
+                New(t) => New(Type::Tuple(t)),
+                Changed(t) => New(Type::Tuple(t.to_owned())),
+                Same(_) => Same(typ),
             },
             Type::Union(types) => match self.concrete_list(types) {
-                Cow::Owned(t) => Cow::Owned(Type::Union(t)),
-                Cow::Borrowed(t) => Cow::Borrowed(typ),
+                New(t) => New(Type::Union(t)),
+                Changed(t) => New(Type::Union(t.to_owned())),
+                Same(_) => Same(typ),
             },
             Type::Optional(typ) => match self.concrete(typ) {
-                Cow::Owned(t) => Cow::Owned(Type::Optional(Box::new(t))),
-                Cow::Borrowed(t) => Cow::Borrowed(typ),
+                New(t) => New(Type::Optional(Box::new(t))),
+                Changed(t) => New(Type::Optional(Box::new(t.to_owned()))),
+                Same(_) => Same(typ),
             },
 
             Type::Named(named) => match self.concrete_list(&named.type_arguments) {
-                Cow::Owned(t) => Cow::Owned(Type::Named(Named::new(named.obj.clone(), t))),
-                Cow::Borrowed(_) => Cow::Borrowed(typ),
+                New(t) => New(Type::Named(Named::new(named.obj.clone(), t))),
+                Changed(t) => New(Type::Named(Named::new(named.obj.clone(), t.to_owned()))),
+                Same(_) => Same(typ),
             },
 
             Type::Interface(iface) => {
-                let concrete_fields = |fields: &'b [InterfaceField]| -> Cow<'b, [InterfaceField]> {
+                let concrete_fields = |fields: &'b [InterfaceField]| -> Resolved<'b, [InterfaceField]> {
                     for (i, field) in fields.iter().enumerate() {
-                        if let Cow::Owned(t) = self.concrete(&field.typ) {
-                            // We have a new type, so we need to clone the entire list.
-                            let mut res = Vec::with_capacity(fields.len());
-                            res.extend(fields[0..i].iter().cloned());
+                        let t = match self.concrete(&field.typ) {
+                            New(t) => t,
+                            Changed(t) => t.clone(),
+                            Same(_) => continue,
+                        };
+                        // We have a new type, so we need to clone the entire list.
+                        let mut res = Vec::with_capacity(fields.len());
+                        res.extend(fields[0..i].iter().cloned());
 
-                            res.push(InterfaceField {
-                                range: field.range,
-                                typ: t,
-                                name: field.name.clone(),
-                                optional: field.optional,
-                            });
+                        res.push(InterfaceField {
+                            range: field.range,
+                            typ: t,
+                            name: field.name.clone(),
+                            optional: field.optional,
+                        });
 
-                            // Copy all remaining elements.
-                            res.extend(fields[i + 1..].iter().map(|t| InterfaceField {
-                                range: t.range,
-                                name: t.name.clone(),
-                                typ: self.concrete(&t.typ).into_owned(),
-                                optional: t.optional,
-                            }));
+                        // Copy all remaining elements.
+                        res.extend(fields[i + 1..].iter().map(|t| InterfaceField {
+                            range: t.range,
+                            name: t.name.clone(),
+                            typ: self.concrete(&t.typ).into_owned(),
+                            optional: t.optional,
+                        }));
 
-                            // Filter out any `never` types.
-                            res.retain(|f| !matches!(f.typ, Type::Basic(Basic::Never)));
-
-                            return Cow::Owned(res);
-                        }
+                        return New(res);
                     }
+
                     // All types are the same, so we can just return the original list.
-                    Cow::Borrowed(fields)
+                    Same(fields)
                 };
 
                 let fields = concrete_fields(&iface.fields);
@@ -1320,44 +1337,42 @@ impl<'a> Ctx<'a> {
                     None => None,
                 };
 
-                // If we have any Owned parts, we need to make the whole thing Owned.
+                // If we have any parts that aren't Same, we need to make the whole thing New.
                 // Otherwise return the original type.
-                if matches!(fields, Cow::Owned(_))
-                    || matches!(index, Some((Cow::Owned(_), _) | (_, Cow::Owned(_))))
-                    || matches!(call, Some((Cow::Owned(_), _) | (_, Cow::Owned(_))))
+                if !matches!(fields, Same(_))
+                    || !matches!(index, Some((Same(_), _) | (_, Same(_))))
+                    || !matches!(call, Some((Same(_), _) | (_, Same(_))))
                 {
-                    Cow::Owned(Type::Interface(Interface {
+                    New(Type::Interface(Interface {
                         fields: fields.into_owned(),
                         index: index
                             .map(|(k, v)| (Box::new(k.into_owned()), Box::new(v.into_owned()))),
                         call: call.map(|(p, r)| (p.into_owned(), r.into_owned())),
                     }))
                 } else {
-                    Cow::Borrowed(typ)
+                    Same(typ)
                 }
             }
 
             // TODO is this correct?
             // Class types are already concrete.
-            Type::Class(_) => Cow::Borrowed(typ),
+            Type::Class(_) => Same(typ),
 
             Type::Generic(generic) => match generic {
                 Generic::TypeParam(param) => {
                     // If the type parameter is a concrete type, return that.
                     if let Some(arg) = self.type_args.get(param.idx) {
-                        // We could use Borrowed here, but currently we use 'Owned' to signify
-                        // that the type has changed.
-                        Cow::Owned(arg.clone())
+                        Changed(arg)
                     } else {
                         // We don't have a concrete type, so return the original type.
-                        Cow::Borrowed(typ)
+                        Same(typ)
                     }
                 }
 
                 Generic::Keyof(source) => {
                     let concrete_source = self.concrete(source);
                     let keys = self.keyof(&concrete_source);
-                    Cow::Owned(keys)
+                    New(keys)
                 }
 
                 Generic::Conditional(cond) => {
@@ -1396,16 +1411,22 @@ impl<'a> Ctx<'a> {
                                 })
                                 .collect();
 
-                            Cow::Owned(unify_union(result))
+                            New(unify_union(result))
                         }
 
                         // Otherwise just check the single element.
                         (_, check) => match check.assignable(self.state, &extends) {
-                            Some(true) => self.concrete(&cond.true_type),
-                            Some(false) => self.concrete(&cond.false_type),
-                            // This implies there's a generic type in this mix,
-                            // which shouldn't happen when concretizing.
-                            None => Cow::Owned(Type::Basic(Basic::Never)),
+                            Some(true) => self.concrete(&cond.true_type).same_to_changed(),
+                            Some(false) => self.concrete(&cond.false_type).same_to_changed(),
+
+                            // We don't yet have enough type information to resolve the conditional.
+                            // Still, return a new type with the concretized types we have.
+                            None => New(Type::Generic(Generic::Conditional(Conditional {
+                                check_type: Box::new(check),
+                                extends_type: Box::new(extends.into_owned()),
+                                true_type: Box::new(self.concrete(&cond.true_type).into_owned()),
+                                false_type: Box::new(self.concrete(&cond.false_type).into_owned()),
+                            }))),
                         },
                     }
                 }
@@ -1414,7 +1435,7 @@ impl<'a> Ctx<'a> {
                     let source = self.concrete(source);
                     let index = self.concrete(index);
                     let result = self.type_index(Span::default(), &source, &index);
-                    Cow::Owned(result)
+                    New(result)
                 }
 
                 Generic::Mapped(mapped) => {
@@ -1506,12 +1527,12 @@ impl<'a> Ctx<'a> {
                         }
                     }
 
-                    Cow::Owned(Type::Interface(iface))
+                    New(Type::Interface(iface))
                 }
 
                 Generic::MappedKeyType => match self.mapped_key_type {
-                    Some(key) => Cow::Borrowed(key),
-                    None => Cow::Borrowed(typ),
+                    Some(key) => Changed(key),
+                    None => Same(typ),
                 },
             },
         }
@@ -1526,41 +1547,55 @@ impl<'a> Ctx<'a> {
             .clone()
             .with_type_params(&type_params)
             .with_type_args(&type_args);
+
+        let span = tracing::trace_span!("underlying_named", ?named, ?type_args);
+        let _guard = span.enter();
         ctx.underlying(&typ).into_owned()
     }
 
-    pub fn underlying<'b>(&'b self, typ: &'b Type) -> Cow<'b, Type> {
+    pub fn underlying<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         // Ensure we resolve the concrete type.
         match self.concrete(typ) {
-            Cow::Borrowed(tt) => match tt {
-                Type::Named(named) => Cow::Borrowed(named.underlying(self.state)),
-                _ => Cow::Borrowed(typ),
+            Same(tt) => match tt {
+                Type::Named(named) => New(named.underlying(self.state)),
+                _ => Same(typ),
             },
-            Cow::Owned(tt) => match tt {
-                Type::Named(named) => Cow::Owned(named.underlying(self.state).clone()),
-                _ => Cow::Owned(tt),
+            Changed(tt) => match tt {
+                Type::Named(named) => New(named.underlying(self.state)),
+                _ => Changed(tt),
+            },
+            New(tt) => match tt {
+                Type::Named(named) => New(named.underlying(self.state)),
+                _ => New(tt),
             },
         }
     }
 
-    fn concrete_list<'b>(&'b self, v: &'b [Type]) -> Cow<'b, [Type]> {
+    fn concrete_list<'b>(&'b self, v: &'b [Type]) -> Resolved<'b, [Type]> {
         for (i, typ) in v.iter().enumerate() {
-            if let Cow::Owned(t) = self.concrete(typ) {
-                // We have a new type, so we need to clone the entire list.
-                let mut res = Vec::with_capacity(v.len());
-                res.extend(v[0..i].iter().cloned());
-                res.push(t);
+            let t = match self.concrete(typ) {
+                New(t) => t,
+                Changed(t) => t.clone(),
+                Same(_) => continue,
+            };
 
-                // Copy all remaining elements.
-                res.extend(v[i + 1..].iter().map(|t| self.concrete(t).into_owned()));
-                return Cow::Owned(res);
-            }
+            // We have a new type, so we need to clone the entire list.
+            let mut res = Vec::with_capacity(v.len());
+            res.extend(v[0..i].iter().cloned());
+            res.push(t);
+
+            // Copy all remaining elements.
+            res.extend(v[i + 1..].iter().map(|t| self.concrete(t).into_owned()));
+            return New(res);
         }
+
         // All types are the same, so we can just return the original list.
-        Cow::Borrowed(v)
+        Same(v)
     }
 
     fn doc_comment(&self, pos: BytePos) -> Option<String> {
-        self.state.lookup_module(self.module).and_then(|m| m.base.preceding_comments(pos.into()))
+        self.state
+            .lookup_module(self.module)
+            .and_then(|m| m.base.preceding_comments(pos.into()))
     }
 }
