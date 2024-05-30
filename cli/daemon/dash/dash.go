@@ -26,6 +26,7 @@ import (
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/jsonrpc2"
+	"encr.dev/cli/internal/onboarding"
 	"encr.dev/cli/internal/telemetry"
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
@@ -74,6 +75,38 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	}
 
 	switch r.Method() {
+	case "onboarding/get":
+		state, err := onboarding.Load()
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		resp := map[string]time.Time{}
+		for key, val := range state.EventMap {
+			if val.IsSet() {
+				resp[key] = val.UTC()
+			}
+		}
+		return reply(ctx, resp, nil)
+	case "onboarding/set":
+		type params struct {
+			Properties []string `json:"properties"`
+		}
+		var p params
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		state, err := onboarding.Load()
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		for _, prop := range p.Properties {
+			state.Property(prop).Set()
+		}
+		err = state.Write()
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+		return reply(ctx, nil, nil)
 	case "telemetry":
 		type params struct {
 			Event      string                 `json:"event"`
