@@ -36,9 +36,24 @@ export default class Client {
      */
     constructor(target = "prod", options = undefined) {
         const base = new BaseClient(target, options ?? {})
+        this.authentication = new authentication.ServiceClient(base)
         this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
     }
+}
+
+class AuthenticationServiceClient {
+    constructor(baseClient) {
+        this.baseClient = baseClient
+    }
+
+    async Docs(params) {
+        await this.baseClient.callAPI("POST", `/authentication.Docs`, JSON.stringify(params))
+    }
+}
+
+export const authentication = {
+    ServiceClient: AuthenticationServiceClient
 }
 
 class ProductsServiceClient {

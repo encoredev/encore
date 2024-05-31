@@ -75,7 +75,7 @@ func (v *typeRegistry) Visit(typ *schema.Type) {
 		for _, f := range t.Struct.Fields {
 			v.Visit(f.Typ)
 		}
-	case *schema.Type_Builtin, *schema.Type_TypeParameter:
+	case *schema.Type_Builtin, *schema.Type_TypeParameter, *schema.Type_Literal:
 	// do nothing
 
 	case *schema.Type_Pointer:
@@ -83,6 +83,12 @@ func (v *typeRegistry) Visit(typ *schema.Type) {
 
 	case *schema.Type_Config:
 		v.Visit(t.Config.Elem)
+
+	case *schema.Type_Union:
+		for _, tt := range t.Union.Types {
+			v.Visit(tt)
+		}
+
 	default:
 		panic(fmt.Sprintf("unhandled type: %+v", reflect.TypeOf(typ.Typ)))
 	}
