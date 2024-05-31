@@ -56,7 +56,8 @@ fn main() -> Result<()> {
                 js_runtime_path.clone(),
                 cm.clone(),
                 errs.clone(),
-            ).unwrap();;
+            )
+            .unwrap();
 
             let app = builder::App {
                 root: app_root.clone(),
@@ -74,7 +75,7 @@ fn main() -> Result<()> {
                 Ok(_) => {
                     println!("successfully parsed {}", app_root.display());
                     Ok(())
-                },
+                }
                 Err(err) => {
                     log::error!("failed to parse: {:?}", err);
                     // Get any errors from the emitter.
@@ -92,7 +93,6 @@ fn main() -> Result<()> {
         })
     })
 }
-
 
 struct ErrorList {
     cm: Rc<dyn SourceMapper>,

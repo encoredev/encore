@@ -5,7 +5,10 @@ use anyhow::{Context, Result};
 use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
-use crate::parser::types::{drop_empty_or_void, unwrap_promise, Basic, ResolveState, Interface, InterfaceField, Type, TypeChecker};
+use crate::parser::types::{
+    drop_empty_or_void, unwrap_promise, Basic, Interface, InterfaceField, ResolveState, Type,
+    TypeChecker,
+};
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]

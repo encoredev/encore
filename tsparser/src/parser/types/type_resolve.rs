@@ -1292,38 +1292,39 @@ impl<'a> Ctx<'a> {
             },
 
             Type::Interface(iface) => {
-                let concrete_fields = |fields: &'b [InterfaceField]| -> Resolved<'b, [InterfaceField]> {
-                    for (i, field) in fields.iter().enumerate() {
-                        let t = match self.concrete(&field.typ) {
-                            New(t) => t,
-                            Changed(t) => t.clone(),
-                            Same(_) => continue,
-                        };
-                        // We have a new type, so we need to clone the entire list.
-                        let mut res = Vec::with_capacity(fields.len());
-                        res.extend(fields[0..i].iter().cloned());
+                let concrete_fields =
+                    |fields: &'b [InterfaceField]| -> Resolved<'b, [InterfaceField]> {
+                        for (i, field) in fields.iter().enumerate() {
+                            let t = match self.concrete(&field.typ) {
+                                New(t) => t,
+                                Changed(t) => t.clone(),
+                                Same(_) => continue,
+                            };
+                            // We have a new type, so we need to clone the entire list.
+                            let mut res = Vec::with_capacity(fields.len());
+                            res.extend(fields[0..i].iter().cloned());
 
-                        res.push(InterfaceField {
-                            range: field.range,
-                            typ: t,
-                            name: field.name.clone(),
-                            optional: field.optional,
-                        });
+                            res.push(InterfaceField {
+                                range: field.range,
+                                typ: t,
+                                name: field.name.clone(),
+                                optional: field.optional,
+                            });
 
-                        // Copy all remaining elements.
-                        res.extend(fields[i + 1..].iter().map(|t| InterfaceField {
-                            range: t.range,
-                            name: t.name.clone(),
-                            typ: self.concrete(&t.typ).into_owned(),
-                            optional: t.optional,
-                        }));
+                            // Copy all remaining elements.
+                            res.extend(fields[i + 1..].iter().map(|t| InterfaceField {
+                                range: t.range,
+                                name: t.name.clone(),
+                                typ: self.concrete(&t.typ).into_owned(),
+                                optional: t.optional,
+                            }));
 
-                        return New(res);
-                    }
+                            return New(res);
+                        }
 
-                    // All types are the same, so we can just return the original list.
-                    Same(fields)
-                };
+                        // All types are the same, so we can just return the original list.
+                        Same(fields)
+                    };
 
                 let fields = concrete_fields(&iface.fields);
                 let index = match &iface.index {

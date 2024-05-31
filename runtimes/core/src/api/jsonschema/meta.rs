@@ -75,7 +75,7 @@ impl<'a> Builder<'a> {
                     type_args: &[],
                 };
                 ctx.reg(val)
-            },
+            }
         }
     }
 
@@ -127,10 +127,12 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             Typ::Literal(lit) => self.literal(lit),
             Typ::Config(_) => anyhow::bail!("config not yet supported"),
             Typ::TypeParameter(param) => {
-                let idx = self.type_args.get(param.param_idx as usize)
+                let idx = self
+                    .type_args
+                    .get(param.param_idx as usize)
                     .ok_or_else(|| anyhow::anyhow!("missing type argument"))?;
                 Ok(Value::Ref(*idx))
-            },
+            }
         }
     }
 

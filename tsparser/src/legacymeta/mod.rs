@@ -593,8 +593,8 @@ fn new_meta() -> v1::Data {
 
 #[cfg(test)]
 mod tests {
-    use swc_common::{Globals, GLOBALS, SourceMap};
     use swc_common::errors::{Handler, HANDLER};
+    use swc_common::{Globals, SourceMap, GLOBALS};
     use tempdir::TempDir;
 
     use crate::app::collect_services;
@@ -622,8 +622,14 @@ mod tests {
                 ar.materialize(tmp_dir)?;
 
                 let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
-                let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), JS_RUNTIME_PATH.clone(), resolver, cm, errs.clone())
-                    .unwrap();
+                let pc = ParseContext::with_resolver(
+                    tmp_dir.to_path_buf(),
+                    JS_RUNTIME_PATH.clone(),
+                    resolver,
+                    cm,
+                    errs.clone(),
+                )
+                .unwrap();
                 let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
 
                 let pass1 = PassOneParser::new(
