@@ -218,8 +218,17 @@ impl ModuleLoader {
         file: Lrc<SourceFile>,
     ) -> Result<(ast::Module, Box<SingleThreadedComments>)> {
         let comments: Box<SingleThreadedComments> = Box::new(Default::default());
+
+        let syntax = Syntax::Typescript(swc_ecma_parser::TsConfig {
+            tsx: file.name().is_tsx(),
+            dts: file.name().is_dts(),
+            decorators: true,
+            no_early_errors: false,
+            disallow_ambiguous_jsx_like: false,
+        });
+
         let lexer = Lexer::new(
-            Syntax::Typescript(Default::default()),
+            syntax,
             EsVersion::Es2022,
             StringInput::from(file.as_ref()),
             Some(&comments),
