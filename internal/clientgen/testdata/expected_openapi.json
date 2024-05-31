@@ -35,6 +35,18 @@
       }
     },
     "schemas": {
+      "authentication.BarType": {
+        "properties": {
+          "Baz": {
+            "title": "Baz docs\n",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Baz"
+        ],
+        "type": "object"
+      },
       "authentication.User": {
         "properties": {
           "id": {
@@ -178,6 +190,41 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/authentication.Docs": {
+      "post": {
+        "operationId": "POST:authentication.Docs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "Bar": {
+                    "$ref": "#/components/schemas/authentication.BarType"
+                  },
+                  "Moo": {
+                    "title": "Moo docs\n",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "Moo",
+                  "Bar"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
     "/fallbackPath/{a}/{b}": {
       "get": {
         "operationId": "GET:svc.FallbackPath",

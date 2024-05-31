@@ -791,6 +791,25 @@ func (g *golang) getType(typ *schema.Type) Code {
 	case *schema.Type_Map:
 		return Map(g.getType(typ.Map.Key)).Add(g.getType(typ.Map.Value))
 
+	case *schema.Type_Literal:
+		switch typ.Literal.Value.(type) {
+		case *schema.Literal_Str:
+			return String()
+		case *schema.Literal_Boolean:
+			return Bool()
+		case *schema.Literal_Int:
+			return Int()
+		case *schema.Literal_Float:
+			return Float64()
+		default:
+			return Any()
+		}
+
+	case *schema.Type_Union:
+		// There's no good way of representing unions in Go.
+		// Use 'any' for now.
+		return Any()
+
 	case *schema.Type_Builtin:
 		switch typ.Builtin {
 		case schema.Builtin_ANY:
