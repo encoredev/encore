@@ -1,4 +1,4 @@
-use crate::parser::types::{ResolveState, Interface, Type};
+use crate::parser::types::{Interface, ResolveState, Type};
 
 pub(super) fn strip_path_params(ctx: &ResolveState, typ: &mut Interface) {
     // Drop any fields whose type is Path.

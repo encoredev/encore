@@ -110,11 +110,7 @@ pub struct ResourceParseContext<'a> {
 }
 
 impl<'a> ResourceParseContext<'a> {
-    pub fn new(
-        file_set: &'a FileSet,
-        type_checker: &'a TypeChecker,
-        module: Lrc<Module>,
-    ) -> Self {
+    pub fn new(file_set: &'a FileSet, type_checker: &'a TypeChecker, module: Lrc<Module>) -> Self {
         Self {
             module,
             type_checker,

@@ -116,39 +116,33 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
 
         Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
 
-        Value::Literal(lit) => {
-            match lit {
-                Literal::Str(want) if header == want => Ok(JSON::String(want.to_string())),
-                Literal::Bool(true) if header == "true" => Ok(JSON::Bool(true)),
-                Literal::Bool(false) if header == "false" => Ok(JSON::Bool(false)),
-                Literal::Int(want) if header.parse() == Ok(*want) => {
-                    Ok(JSON::Number(serde_json::Number::from(*want)))
-                }
-                Literal::Float(want) if header.parse() == Ok(*want) => {
-                    if let Some(num) = serde_json::Number::from_f64(*want) {
-                       Ok(JSON::Number(num))
-                    } else {
-                        Err(api::Error {
-                            code: api::ErrCode::InvalidArgument,
-                            message: "invalid header value".to_string(),
-                            internal_message: Some(format!("invalid float value: {}", header)),
-                            stack: None,
-                        })
-                    }
-                }
-
-                want => Err(api::Error {
-                    code: api::ErrCode::InvalidArgument,
-                    message: "invalid header value".to_string(),
-                    internal_message: Some(format!(
-                        "expected {}, got {}",
-                        want.expecting(),
-                        header
-                    )),
-                    stack: None,
-                }),
+        Value::Literal(lit) => match lit {
+            Literal::Str(want) if header == want => Ok(JSON::String(want.to_string())),
+            Literal::Bool(true) if header == "true" => Ok(JSON::Bool(true)),
+            Literal::Bool(false) if header == "false" => Ok(JSON::Bool(false)),
+            Literal::Int(want) if header.parse() == Ok(*want) => {
+                Ok(JSON::Number(serde_json::Number::from(*want)))
             }
-        }
+            Literal::Float(want) if header.parse() == Ok(*want) => {
+                if let Some(num) = serde_json::Number::from_f64(*want) {
+                    Ok(JSON::Number(num))
+                } else {
+                    Err(api::Error {
+                        code: api::ErrCode::InvalidArgument,
+                        message: "invalid header value".to_string(),
+                        internal_message: Some(format!("invalid float value: {}", header)),
+                        stack: None,
+                    })
+                }
+            }
+
+            want => Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "invalid header value".to_string(),
+                internal_message: Some(format!("expected {}, got {}", want.expecting(), header)),
+                stack: None,
+            }),
+        },
 
         Value::Union(union) => {
             // Find the first value that matches.
@@ -251,7 +245,7 @@ fn parse_json_value(
                 }
                 (JSON::Number(got), Literal::Float(want)) => {
                     if got.as_f64() == Some(*want) {
-                       Ok(JSON::Number(got))
+                        Ok(JSON::Number(got))
                     } else {
                         invalid(JSON::Number(got))
                     }

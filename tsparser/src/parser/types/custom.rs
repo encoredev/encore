@@ -13,7 +13,10 @@ pub enum CustomType {
     },
 }
 
-pub fn resolve_custom_type_named(ctx: &ResolveState, named: &typ::Named) -> Result<Option<CustomType>> {
+pub fn resolve_custom_type_named(
+    ctx: &ResolveState,
+    named: &typ::Named,
+) -> Result<Option<CustomType>> {
     if !ctx.is_module_path(named.obj.module_id, "encore.dev/api") {
         return Ok(None);
     }

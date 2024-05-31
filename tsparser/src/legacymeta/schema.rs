@@ -29,7 +29,7 @@ struct BuilderCtx<'a, 'b> {
 
     // The id of the current decl being built.
     // Used for generating TypeParameterRefs.
-    decl_id: Option<u32>
+    decl_id: Option<u32>,
 }
 
 impl<'a> SchemaBuilder<'a> {
@@ -47,12 +47,18 @@ impl<'a> SchemaBuilder<'a> {
     }
 
     pub(super) fn typ(&mut self, typ: &Type) -> Result<schema::Type> {
-        let mut ctx = BuilderCtx { builder: self, decl_id: None };
+        let mut ctx = BuilderCtx {
+            builder: self,
+            decl_id: None,
+        };
         ctx.typ(typ)
     }
 
     pub fn transform_request(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
-        let mut ctx = BuilderCtx { builder: self, decl_id: None };
+        let mut ctx = BuilderCtx {
+            builder: self,
+            decl_id: None,
+        };
         ctx.transform_request(typ)
     }
 
@@ -65,7 +71,7 @@ impl<'a> SchemaBuilder<'a> {
 }
 
 impl<'a, 'b> BuilderCtx<'a, 'b> {
-    #[tracing::instrument(skip(self), ret, level="trace")]
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn typ(&mut self, typ: &Type) -> Result<schema::Type> {
         Ok(match typ {
             Type::Basic(tt) => schema::Type {
@@ -97,7 +103,9 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                     let underlying = tt.underlying(state);
                     self.typ(&underlying)?
                 } else if !tt.type_arguments.is_empty() {
-                    tracing::trace!("got named type with type arguments, resolving to underlying type");
+                    tracing::trace!(
+                        "got named type with type arguments, resolving to underlying type"
+                    );
                     // The type is a generic type.
                     // To avoid having to reproduce the full generic type resolution,
                     // concretize the type here.
@@ -114,14 +122,16 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             Type::This => anyhow::bail!("this types are not yet supported in schemas"),
             Type::Generic(typ) => match typ {
                 Generic::TypeParam(param) => {
-                    let decl_id = self.decl_id.ok_or_else(|| anyhow::anyhow!("missing decl_id"))?;
+                    let decl_id = self
+                        .decl_id
+                        .ok_or_else(|| anyhow::anyhow!("missing decl_id"))?;
                     schema::Type {
                         typ: Some(styp::Typ::TypeParameter(schema::TypeParameterRef {
                             decl_id,
                             param_idx: param.idx as u32,
                         })),
                     }
-                },
+                }
 
                 typ => {
                     anyhow::bail!(
@@ -271,7 +281,8 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 .join(" ");
 
             let doc = self
-                .builder.pc
+                .builder
+                .pc
                 .loader
                 .module_containing_pos(f.range.start)
                 .and_then(|module| module.preceding_comments(f.range.start));
@@ -325,7 +336,11 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         self.builder.obj_to_decl.insert(obj.id, id);
 
         let obj_typ = self.builder.pc.type_checker.resolve_obj_type(&obj);
-        let obj_typ = self.builder.pc.type_checker.concrete(obj.module_id, &obj_typ);
+        let obj_typ = self
+            .builder
+            .pc
+            .type_checker
+            .concrete(obj.module_id, &obj_typ);
 
         let mut nested = BuilderCtx {
             builder: self.builder,

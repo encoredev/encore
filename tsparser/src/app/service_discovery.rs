@@ -150,8 +150,8 @@ impl<'a> ServiceDiscoverer<'a> {
 mod tests {
     use std::path::Path;
     use std::rc::Rc;
-    use swc_common::{Globals, GLOBALS, SourceMap};
     use swc_common::errors::{Handler, HANDLER};
+    use swc_common::{Globals, SourceMap, GLOBALS};
     use tempdir::TempDir;
 
     use crate::parser::parser::{ParseContext, Parser};
@@ -184,7 +184,7 @@ mod tests {
                     cm,
                     errs.clone(),
                 )
-                    .unwrap();
+                .unwrap();
                 pc.loader.load_archive(tmp_dir, &ar)?;
 
                 let pass1 = PassOneParser::new(
