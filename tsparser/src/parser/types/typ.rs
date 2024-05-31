@@ -1,12 +1,12 @@
 use crate::parser::types::type_resolve::Ctx;
 use crate::parser::types::{object, ResolveState};
+use crate::parser::Range;
 use serde::Serialize;
 use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::parser::Range;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeArgId(usize);
@@ -270,7 +270,6 @@ impl ClassType {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize)]
 pub struct Named {
     pub obj: Rc<object::Object>,
@@ -365,7 +364,6 @@ pub struct Mapped {
     /// Whether to force fields to be optional (Some(True)), to make them required (Some(False)),
     /// or to keep them as-is (None).
     pub optional: Option<bool>,
-
     // Indicates a remapping of the property name.
     // Must be evaluated using the property name in the evaluation context.
     // pub as_type: Option<Box<Type>>,
@@ -424,7 +422,7 @@ impl Type {
             (Type::Named(a), b) => {
                 let a = a.underlying(state);
                 a.assignable(state, b)
-            },
+            }
             (a, Type::Named(b)) => {
                 let b = b.underlying(state);
                 a.assignable(state, &b)

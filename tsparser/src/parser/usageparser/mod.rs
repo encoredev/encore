@@ -436,8 +436,8 @@ mod tests {
     use std::rc::Rc;
 
     use assert_matches::assert_matches;
-    use swc_common::{Globals, GLOBALS, SourceMap};
     use swc_common::errors::Handler;
+    use swc_common::{Globals, SourceMap, GLOBALS};
 
     use crate::parser::parser::ParseContext;
     use crate::parser::resourceparser::bind::BindKind;
@@ -476,7 +476,9 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
+            let pc =
+                ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs)
+                    .unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();

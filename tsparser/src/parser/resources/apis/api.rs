@@ -187,14 +187,8 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 EndpointKind::Raw => (None, None),
             };
 
-            let encoding = describe_endpoint(
-                pass.type_checker,
-                methods,
-                path,
-                request,
-                response,
-                raw,
-            )?;
+            let encoding =
+                describe_endpoint(pass.type_checker, methods, path, request, response, raw)?;
 
             let resource = Resource::APIEndpoint(Lrc::new(Endpoint {
                 range: r.range,

@@ -22,7 +22,9 @@ use tracing_subscriber::fmt::format::FmtSpan;
 
 #[test]
 fn resolve_types() {
-    tracing_subscriber::fmt().with_span_events(FmtSpan::ACTIVE).init();
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::ACTIVE)
+        .init();
     glob!("testdata/*.ts", |path| {
         let globals = Globals::new();
         let errs = Rc::new(Handler::with_tty_emitter(

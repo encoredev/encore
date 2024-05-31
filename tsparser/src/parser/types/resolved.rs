@@ -2,12 +2,13 @@ use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::ops::{Deref};
+use std::ops::Deref;
 
 use Resolved::*;
 
 pub enum Resolved<'a, B: ?Sized + 'a>
-    where B: ToOwned
+where
+    B: ToOwned,
 {
     New(<B as ToOwned>::Owned),
     Changed(&'a B),
@@ -71,8 +72,8 @@ impl<B: ?Sized + ToOwned> Resolved<'_, B> {
 }
 
 impl<B: ?Sized + ToOwned> Deref for Resolved<'_, B>
-    where
-        B::Owned: Borrow<B>,
+where
+    B::Owned: Borrow<B>,
 {
     type Target = B;
 
@@ -87,8 +88,8 @@ impl<B: ?Sized + ToOwned> Deref for Resolved<'_, B>
 impl<B: ?Sized> Eq for Resolved<'_, B> where B: Eq + ToOwned {}
 
 impl<B: ?Sized> Ord for Resolved<'_, B>
-    where
-        B: Ord + ToOwned,
+where
+    B: Ord + ToOwned,
 {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
@@ -97,9 +98,9 @@ impl<B: ?Sized> Ord for Resolved<'_, B>
 }
 
 impl<'a, 'b, B: ?Sized, C: ?Sized> PartialEq<Resolved<'b, C>> for Resolved<'a, B>
-    where
-        B: PartialEq<C> + ToOwned,
-        C: ToOwned,
+where
+    B: PartialEq<C> + ToOwned,
+    C: ToOwned,
 {
     #[inline]
     fn eq(&self, other: &Resolved<'b, C>) -> bool {
@@ -108,8 +109,8 @@ impl<'a, 'b, B: ?Sized, C: ?Sized> PartialEq<Resolved<'b, C>> for Resolved<'a, B
 }
 
 impl<'a, B: ?Sized> PartialOrd for Resolved<'a, B>
-    where
-        B: PartialOrd + ToOwned,
+where
+    B: PartialOrd + ToOwned,
 {
     #[inline]
     fn partial_cmp(&self, other: &Resolved<'a, B>) -> Option<Ordering> {
@@ -118,9 +119,9 @@ impl<'a, B: ?Sized> PartialOrd for Resolved<'a, B>
 }
 
 impl<B: ?Sized, D> fmt::Debug for Resolved<'_, B>
-    where
-        D: fmt::Debug,
-        B: fmt::Debug + ToOwned<Owned = D>,
+where
+    D: fmt::Debug,
+    B: fmt::Debug + ToOwned<Owned = D>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -132,9 +133,9 @@ impl<B: ?Sized, D> fmt::Debug for Resolved<'_, B>
 }
 
 impl<B: ?Sized, D> fmt::Display for Resolved<'_, B>
-    where
-        D: fmt::Display,
-        B: fmt::Display + ToOwned<Owned = D>,
+where
+    D: fmt::Display,
+    B: fmt::Display + ToOwned<Owned = D>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -145,9 +146,9 @@ impl<B: ?Sized, D> fmt::Display for Resolved<'_, B>
 }
 
 impl<B: ?Sized, D> Default for Resolved<'_, B>
-    where
-        D: Default,
-        B: ToOwned<Owned = D>,
+where
+    D: Default,
+    B: ToOwned<Owned = D>,
 {
     /// Creates an owned Resolved<'a, B> with the default value for the contained owned value.
     fn default() -> Self {
@@ -156,8 +157,8 @@ impl<B: ?Sized, D> Default for Resolved<'_, B>
 }
 
 impl<B: ?Sized> Hash for Resolved<'_, B>
-    where
-        B: Hash + ToOwned,
+where
+    B: Hash + ToOwned,
 {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
