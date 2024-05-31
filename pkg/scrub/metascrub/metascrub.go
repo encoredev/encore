@@ -166,6 +166,28 @@ func (p *typeParser) typ(typ *schema.Type) declResult {
 	case *schema.Type_List:
 		return p.typ(t.List.Elem)
 
+	case *schema.Type_Union:
+		var results []declResult
+		var numScrub, numTypeParams, numHeaders int
+		for _, typ := range t.Union.Types {
+			res := p.typ(typ)
+			results = append(results, res)
+			numScrub += len(res.scrub)
+			numTypeParams += len(res.typeParams)
+			numHeaders += len(res.headers)
+		}
+		combined := declResult{
+			scrub:      make([]scrub.Path, 0, numScrub),
+			typeParams: make([]typeParamPath, 0, numTypeParams),
+			headers:    make([]string, 0, numHeaders),
+		}
+		for _, res := range results {
+			combined.scrub = append(combined.scrub, res.scrub...)
+			combined.typeParams = append(combined.typeParams, res.typeParams...)
+			combined.headers = append(combined.headers, res.headers...)
+		}
+		return combined
+
 	case *schema.Type_Map:
 		key := p.typ(t.Map.Key)
 		val := p.typ(t.Map.Value)
@@ -223,7 +245,7 @@ func (p *typeParser) typ(typ *schema.Type) declResult {
 		}
 		return out
 
-	case *schema.Type_Builtin:
+	case *schema.Type_Builtin, *schema.Type_Literal:
 		// Nothing to do
 		return declResult{}
 

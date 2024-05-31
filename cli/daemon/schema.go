@@ -48,6 +48,21 @@ func (r *schemaRenderer) renderType(typ *schema.Type) {
 		r.renderNamed(typ.Named)
 	case *schema.Type_Pointer:
 		r.renderType(typ.Pointer.Base)
+	case *schema.Type_Union:
+		r.renderType(typ.Union.Types[0])
+	case *schema.Type_Literal:
+		switch v := typ.Literal.Value.(type) {
+		case *schema.Literal_Str:
+			r.WriteString(v.Str)
+		case *schema.Literal_Int:
+			r.WriteInt(int(v.Int))
+		case *schema.Literal_Float:
+			r.WriteFloat64(v.Float)
+		case *schema.Literal_Boolean:
+			r.WriteBool(v.Boolean)
+		default:
+			panic(fmt.Sprintf("unknown literal type %T", v))
+		}
 	case *schema.Type_Config:
 		// Config is invisible here
 		r.renderType(typ.Config.Elem)

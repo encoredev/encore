@@ -90,6 +90,10 @@ func ConvertSchemaToJenType(typ *schema.Type, md *meta.Data) *Statement {
 			return Qual("encore.dev/config", "Value").Types(ConvertSchemaToJenType(typ.Config.Elem, md))
 		}
 
+	case *schema.Type_Literal, *schema.Type_Union:
+		// Not yet supported.
+		panic(fmt.Sprintf("ConvertSchemaToJenType doesn't support type: %T", typ))
+
 	default:
 		panic(fmt.Sprintf("ConvertSchemaToJenType doesn't support type: %T", typ))
 	}
