@@ -108,9 +108,6 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                                     String,
                                 ),
                             ],
-                            underlying: OnceCell(
-                                <uninit>,
-                            ),
                         },
                     ),
                 },
@@ -131,9 +128,6 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                                     ),
                                 ),
                             ],
-                            underlying: OnceCell(
-                                <uninit>,
-                            ),
                         },
                     ),
                 },
@@ -152,9 +146,6 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                                     Null,
                                 ),
                             ],
-                            underlying: OnceCell(
-                                <uninit>,
-                            ),
                         },
                     ),
                 },
@@ -181,15 +172,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                                                 Boolean,
                                             ),
                                         ],
-                                        underlying: OnceCell(
-                                            <uninit>,
-                                        ),
                                     },
                                 ),
                             ],
-                            underlying: OnceCell(
-                                <uninit>,
-                            ),
                         },
                     ),
                 },
