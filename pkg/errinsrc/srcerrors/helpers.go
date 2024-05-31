@@ -135,6 +135,12 @@ func schemaType(typ *schema.Type) string {
 	case *schema.Type_Map:
 		return "a map type"
 
+	case *schema.Type_Literal:
+		return "a literal"
+
+	case *schema.Type_Union:
+		return "a union type"
+
 	case *schema.Type_List:
 		return "a list type"
 

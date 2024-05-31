@@ -36,6 +36,10 @@ func walk(decls []*Decl, node any, visitor func(node any) error, namedChain []ui
 			return walk(decls, v.Pointer, visitor, namedChain)
 		case *Type_TypeParameter:
 			return walk(decls, v.TypeParameter, visitor, namedChain)
+		case *Type_Literal:
+			return walk(decls, v.Literal, visitor, namedChain)
+		case *Type_Union:
+			return walk(decls, v.Union, visitor, namedChain)
 		case *Type_Config:
 			return walk(decls, v.Config, visitor, namedChain)
 		default:
@@ -67,6 +71,12 @@ func walk(decls []*Decl, node any, visitor func(node any) error, namedChain []ui
 				return err
 			}
 		}
+	case *Union:
+		for _, typ := range node.Types {
+			if err := walk(decls, typ, visitor, namedChain); err != nil {
+				return err
+			}
+		}
 	case *Map:
 		if err := walk(decls, node.Key, visitor, namedChain); err != nil {
 			return err
@@ -79,6 +89,8 @@ func walk(decls []*Decl, node any, visitor func(node any) error, namedChain []ui
 	case *Pointer:
 		return walk(decls, node.Base, visitor, namedChain)
 	case *TypeParameterRef:
+		return nil
+	case *Literal:
 		return nil
 	case *ConfigValue:
 		return walk(decls, node.Elem, visitor, namedChain)
