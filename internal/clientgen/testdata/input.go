@@ -239,3 +239,19 @@ type User struct {
 func AuthenticateRequest(ctx context.Context, auth *AuthData) (auth.UID, *User, error) {
     return "", nil, nil
 }
+
+// FooType docs
+type FooType struct {
+    Moo string // Moo docs
+    Bar BarType // Bar docs
+}
+
+// BarType docs
+type BarType struct {
+    Baz string // Baz docs
+}
+
+//encore:api public
+func Docs(ctx context.Context, req *FooType) error {
+    return nil
+}

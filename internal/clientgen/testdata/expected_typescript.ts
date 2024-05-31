@@ -30,6 +30,7 @@ export function PreviewEnv(pr: number | string): BaseURL {
  * Client is an API client for the app Encore application. 
  */
 export default class Client {
+    public readonly authentication: authentication.ServiceClient
     public readonly products: products.ServiceClient
     public readonly svc: svc.ServiceClient
 
@@ -42,6 +43,7 @@ export default class Client {
      */
     constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
+        this.authentication = new authentication.ServiceClient(base)
         this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
     }
@@ -74,9 +76,46 @@ export namespace authentication {
         APIKey: string
     }
 
+    /**
+     * BarType docs
+     */
+    export interface BarType {
+        /**
+         * Baz docs
+         */
+        Baz: string
+    }
+
+    /**
+     * FooType docs
+     */
+    export interface FooType {
+        /**
+         * Moo docs
+         */
+        Moo: string
+
+        /**
+         * Bar docs
+         */
+        Bar: BarType
+    }
+
     export interface User {
         id: number
         name: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        public async Docs(params: FooType): Promise<void> {
+            await this.baseClient.callAPI("POST", `/authentication.Docs`, JSON.stringify(params))
+        }
     }
 }
 

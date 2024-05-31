@@ -19,8 +19,9 @@ import (
 
 // Client is an API client for the app Encore application.
 type Client struct {
-	Products ProductsClient
-	Svc      SvcClient
+	Authentication AuthenticationClient
+	Products       ProductsClient
+	Svc            SvcClient
 }
 
 // BaseURL is the base URL for calling the Encore application's API.
@@ -65,8 +66,9 @@ func New(target BaseURL, options ...Option) (*Client, error) {
 	}
 
 	return &Client{
-		Products: &productsClient{base},
-		Svc:      &svcClient{base},
+		Authentication: &authenticationClient{base},
+		Products:       &productsClient{base},
+		Svc:            &svcClient{base},
 	}, nil
 }
 
@@ -102,9 +104,37 @@ type AuthenticationAuthData struct {
 	APIKey string `header:"X-API-Key"`
 }
 
+// BarType docs
+type AuthenticationBarType struct {
+	Baz string // Baz docs
+}
+
+// FooType docs
+type AuthenticationFooType struct {
+	Moo string                // Moo docs
+	Bar AuthenticationBarType // Bar docs
+}
+
 type AuthenticationUser struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+// AuthenticationClient Provides you access to call public and authenticated APIs on authentication. The concrete implementation is authenticationClient.
+// It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
+type AuthenticationClient interface {
+	Docs(ctx context.Context, params AuthenticationFooType) error
+}
+
+type authenticationClient struct {
+	base *baseClient
+}
+
+var _ AuthenticationClient = (*authenticationClient)(nil)
+
+func (c *authenticationClient) Docs(ctx context.Context, params AuthenticationFooType) error {
+	_, err := callAPI(ctx, c.base, "POST", "/authentication.Docs", nil, params, nil)
+	return err
 }
 
 type ProductsCreateProductRequest struct {

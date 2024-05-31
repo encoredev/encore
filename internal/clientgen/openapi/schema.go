@@ -67,6 +67,7 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 			}
 
 			val := g.schemaType(f.Typ)
+
 			if vv := val.Value; vv != nil {
 				vv.Title, vv.Description = splitDoc(f.Doc)
 			}
@@ -93,6 +94,69 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 
 	case *schema.Type_Pointer:
 		return g.schemaType(t.Pointer.Base)
+
+	case *schema.Type_Literal:
+		switch tt := t.Literal.Value.(type) {
+		case *schema.Literal_Str:
+			return openapi3.NewStringSchema().WithEnum(tt.Str).NewRef()
+		case *schema.Literal_Boolean:
+			return openapi3.NewBoolSchema().WithEnum(tt.Boolean).NewRef()
+		case *schema.Literal_Int:
+			return openapi3.NewInt64Schema().WithEnum(tt.Int).NewRef()
+		case *schema.Literal_Float:
+			return openapi3.NewFloat64Schema().WithEnum(tt.Float).NewRef()
+		default:
+			doBailout(errors.Newf("unknown literal type %T", tt))
+			return nil // unreachable
+		}
+
+	case *schema.Type_Union:
+		// First check if all of the fields are literals.
+		// If so we can more accurately represent this union as an enum.
+		var literals []any
+		var literalsType string
+		for i, tt := range t.Union.Types {
+			if lit, ok := tt.Typ.(*schema.Type_Literal); ok {
+				var litType string
+				switch tt := lit.Literal.Value.(type) {
+				case *schema.Literal_Str:
+					litType = openapi3.TypeString
+					literals = append(literals, tt.Str)
+				case *schema.Literal_Boolean:
+					litType = openapi3.TypeBoolean
+					literals = append(literals, tt.Boolean)
+				case *schema.Literal_Int:
+					litType = openapi3.TypeInteger
+					literals = append(literals, tt.Int)
+				case *schema.Literal_Float:
+					litType = openapi3.TypeNumber
+					literals = append(literals, tt.Float)
+				default:
+					doBailout(errors.Newf("unknown literal type %T", tt))
+				}
+
+				if i == 0 {
+					literalsType = litType
+				} else if literalsType != litType {
+					break
+				}
+			} else {
+				break
+			}
+		}
+
+		if len(literals) == len(t.Union.Types) {
+			s := openapi3.NewSchema()
+			s.Type = literalsType
+			return s.WithEnum(literals...).NewRef()
+		}
+
+		// Otherwise, we have to represent this as an anyOf schema.
+		schemas := make([]*openapi3.Schema, 0, len(t.Union.Types))
+		for _, tt := range t.Union.Types {
+			schemas = append(schemas, g.schemaType(tt).Value)
+		}
+		return openapi3.NewAnyOfSchema(schemas...).NewRef()
 
 	case *schema.Type_TypeParameter:
 		return openapi3.NewObjectSchema().NewRef() // unknown
@@ -189,7 +253,9 @@ func (g *Generator) namedSchemaType(typ *schema.Named) *openapi3.SchemaRef {
 			g.spec.Components.Schemas[candidate] = g.schemaType(concrete)
 		}
 
-		return &openapi3.SchemaRef{Ref: "#/components/schemas/" + candidate}
+		return &openapi3.SchemaRef{
+			Ref: "#/components/schemas/" + candidate,
+		}
 	}
 }
 

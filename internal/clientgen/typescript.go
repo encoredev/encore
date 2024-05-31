@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -1034,6 +1035,28 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		// FIXME(ENC-827): Handle pointers in TypeScript in a way which more technically correct without
 		// making the end user experience of using a generated client worse.
 		ts.writeTyp(ns, typ.Pointer.Base, numIndents)
+
+	case *schema.Type_Literal:
+		switch lit := typ.Literal.Value.(type) {
+		case *schema.Literal_Str:
+			ts.WriteString(ts.Quote(lit.Str))
+		case *schema.Literal_Int:
+			ts.WriteString(strconv.FormatInt(lit.Int, 10))
+		case *schema.Literal_Float:
+			ts.WriteString(strconv.FormatFloat(lit.Float, 'f', -1, 64))
+		case *schema.Literal_Boolean:
+			ts.WriteString(strconv.FormatBool(lit.Boolean))
+		default:
+			ts.errorf("unknown literal type %T", lit)
+		}
+
+	case *schema.Type_Union:
+		for i, typ := range typ.Union.Types {
+			if i > 0 {
+				ts.WriteString(" | ")
+			}
+			ts.writeTyp(ns, typ, numIndents)
+		}
 
 	case *schema.Type_Struct:
 		indent := func() {
