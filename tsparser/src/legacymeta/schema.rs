@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
@@ -209,14 +210,17 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
 
         let mut fields = Vec::with_capacity(typ.fields.len());
         for f in &typ.fields {
-            let custom: Option<CustomType> = if let Type::Named(named) = &f.typ {
+            let (tt, had_undefined) = drop_undefined_union(&f.typ);
+            let optional = f.optional || had_undefined;
+
+            let custom: Option<CustomType> = if let Type::Named(named) = tt.as_ref() {
                 resolve_custom_type_named(ctx, named)?
             } else {
                 None
             };
 
             let (typ, wire) = match &custom {
-                None => (self.typ(&f.typ)?, None),
+                None => (self.typ(&tt)?, None),
                 Some(CustomType::Header { typ, name }) => (
                     self.typ(typ)?,
                     Some(schema::WireSpec {
@@ -238,7 +242,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             let mut tags = vec![];
 
             // Tag it as `encore:"optional"` if the field is optional.
-            if f.optional {
+            if optional {
                 tags.push(schema::Tag {
                     key: "encore".into(),
                     name: "optional".into(),
@@ -299,7 +303,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 typ: Some(typ),
                 name: f.name.clone(),
                 json_name: f.name.clone(),
-                optional: f.optional,
+                optional,
                 wire,
                 tags,
                 raw_tag,
@@ -448,6 +452,28 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             None => Ok(None),
         }
     }
+}
+
+/// If typ is a union type containing, drop the undefined type and return the modified
+/// union and `true` to indicate the type included "| undefined".
+/// Otherwise, returns the original type and `false`.
+fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
+    if let Type::Union(types) = &typ {
+        for (i, t) in types.iter().enumerate() {
+            if let Type::Basic(Basic::Undefined) = &t {
+                // If we have a union with only two types, return the other type.
+                return if types.len() == 2 {
+                    (Cow::Borrowed(&types[1 - i]), true)
+                } else {
+                    let mut types = types.clone();
+                    types.swap_remove(i);
+                    (Cow::Owned(Type::Union(types)), true)
+                }
+            }
+        }
+    }
+
+    (Cow::Borrowed(typ), false)
 }
 
 pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> Result<schema::Loc> {
