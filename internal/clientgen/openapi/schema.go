@@ -105,49 +105,66 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 			return openapi3.NewInt64Schema().WithEnum(tt.Int).NewRef()
 		case *schema.Literal_Float:
 			return openapi3.NewFloat64Schema().WithEnum(tt.Float).NewRef()
+		case *schema.Literal_Null:
+			// This shouldn't happen in most situations as we handle literals explicitly.
+			return openapi3.NewBoolSchema().WithNullable().NewRef()
 		default:
 			doBailout(errors.Newf("unknown literal type %T", tt))
 			return nil // unreachable
 		}
 
 	case *schema.Type_Union:
-		// First check if all of the fields are literals.
+		// First check if all the fields are literals.
 		// If so we can more accurately represent this union as an enum.
-		var literals []any
-		var literalsType string
-		for i, tt := range t.Union.Types {
-			if lit, ok := tt.Typ.(*schema.Type_Literal); ok {
-				var litType string
-				switch tt := lit.Literal.Value.(type) {
-				case *schema.Literal_Str:
-					litType = openapi3.TypeString
-					literals = append(literals, tt.Str)
-				case *schema.Literal_Boolean:
-					litType = openapi3.TypeBoolean
-					literals = append(literals, tt.Boolean)
-				case *schema.Literal_Int:
-					litType = openapi3.TypeInteger
-					literals = append(literals, tt.Int)
-				case *schema.Literal_Float:
-					litType = openapi3.TypeNumber
-					literals = append(literals, tt.Float)
-				default:
-					doBailout(errors.Newf("unknown literal type %T", tt))
-				}
+		var (
+			literals        []any
+			literalsType    string
+			haveAllLiterals = true
+			haveLiteralNull bool
+		)
+		for _, tt := range t.Union.Types {
+			lit, ok := tt.Typ.(*schema.Type_Literal)
+			if !ok {
+				// It's not a literal.
+				// Still need to keep going to find any nulls.
+				haveAllLiterals = false
+				continue
+			}
 
-				if i == 0 {
-					literalsType = litType
-				} else if literalsType != litType {
-					break
-				}
-			} else {
-				break
+			var litType string
+			switch tt := lit.Literal.Value.(type) {
+			case *schema.Literal_Str:
+				litType = openapi3.TypeString
+				literals = append(literals, tt.Str)
+			case *schema.Literal_Boolean:
+				litType = openapi3.TypeBoolean
+				literals = append(literals, tt.Boolean)
+			case *schema.Literal_Int:
+				litType = openapi3.TypeInteger
+				literals = append(literals, tt.Int)
+			case *schema.Literal_Float:
+				litType = openapi3.TypeNumber
+				literals = append(literals, tt.Float)
+			case *schema.Literal_Null:
+				haveLiteralNull = true
+				continue
+			default:
+				doBailout(errors.Newf("unknown literal type %T", tt))
+			}
+
+			// Set the literals type if we haven't seen it yet.
+			if literalsType == "" {
+				literalsType = litType
+			} else if literalsType != litType {
+				// If we have different types, it can't be represented as an enum.
+				haveAllLiterals = false
 			}
 		}
 
-		if len(literals) == len(t.Union.Types) {
+		if haveAllLiterals {
 			s := openapi3.NewSchema()
 			s.Type = literalsType
+			s.Nullable = haveLiteralNull
 			return s.WithEnum(literals...).NewRef()
 		}
 
@@ -156,7 +173,10 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 		for _, tt := range t.Union.Types {
 			schemas = append(schemas, g.schemaType(tt).Value)
 		}
-		return openapi3.NewAnyOfSchema(schemas...).NewRef()
+
+		s := openapi3.NewAnyOfSchema(schemas...)
+		s.Nullable = haveLiteralNull
+		return s.NewRef()
 
 	case *schema.Type_TypeParameter:
 		return openapi3.NewObjectSchema().NewRef() // unknown

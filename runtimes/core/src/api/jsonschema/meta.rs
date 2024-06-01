@@ -116,7 +116,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             Typ::Named(named) => self.named(named),
             Typ::Builtin(builtin) => {
                 let builtin = schema::Builtin::try_from(*builtin).context("invalid builtin")?;
-                self.builtin(builtin)
+                Ok(self.builtin(builtin))
             }
 
             Typ::Pointer(ptr) => self.ptr(ptr),
@@ -187,9 +187,9 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
     }
 
     #[inline]
-    fn builtin(&mut self, b: schema::Builtin) -> Result<Value> {
+    fn builtin(&mut self, b: schema::Builtin) -> Value {
         use schema::Builtin;
-        Ok(Value::Basic(match b {
+        Value::Basic(match b {
             Builtin::Any | Builtin::Json => Basic::Any,
             Builtin::Bool => Basic::Bool,
             Builtin::String | Builtin::Bytes | Builtin::Time | Builtin::Uuid | Builtin::UserId => {
@@ -208,7 +208,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             | Builtin::Uint64
             | Builtin::Float32
             | Builtin::Float64 => Basic::Number,
-        }))
+        })
     }
 
     #[inline]
@@ -278,6 +278,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             Some(schema::literal::Value::Boolean(val)) => Value::Literal(Literal::Bool(val)),
             Some(schema::literal::Value::Int(val)) => Value::Literal(Literal::Int(val)),
             Some(schema::literal::Value::Float(val)) => Value::Literal(Literal::Float(val)),
+            Some(schema::literal::Value::Null(_)) => Value::Basic(Basic::Null),
             None => anyhow::bail!("missing literal value"),
         })
     }
