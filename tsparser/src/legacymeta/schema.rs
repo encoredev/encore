@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use itertools::Itertools;
+use swc_common::errors::HANDLER;
 
 use crate::encore::parser::schema::v1 as schema;
 use crate::encore::parser::schema::v1::r#type as styp;
@@ -74,9 +75,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
     #[tracing::instrument(skip(self), ret, level = "trace")]
     fn typ(&mut self, typ: &Type) -> Result<schema::Type> {
         Ok(match typ {
-            Type::Basic(tt) => schema::Type {
-                typ: Some(styp::Typ::Builtin(self.basic(tt)? as i32)),
-            },
+            Type::Basic(tt) => self.basic(tt),
             Type::Array(tt) => {
                 let elem = self.typ(&*tt)?;
                 schema::Type {
@@ -143,24 +142,34 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         })
     }
 
-    fn basic(&self, typ: &Basic) -> Result<schema::Builtin> {
-        Ok(match typ {
-            Basic::Any => schema::Builtin::Any,
-            Basic::String => schema::Builtin::String,
-            Basic::Boolean => schema::Builtin::Bool,
+    fn basic(&self, typ: &Basic) -> schema::Type {
+        let b = |b: schema::Builtin| schema::Type {
+            typ: Some(styp::Typ::Builtin(b as i32)),
+        };
+        match typ {
+            Basic::Any | Basic::Unknown => b(schema::Builtin::Any),
+            Basic::String => b(schema::Builtin::String),
+            Basic::Boolean => b(schema::Builtin::Bool),
             Basic::Number => {
                 // TODO handle float/int distinction somehow
-                schema::Builtin::Float64
+                b(schema::Builtin::Float64)
             }
-            Basic::Void => anyhow::bail!("TODO void"),
-            Basic::Object => anyhow::bail!("TODO object"),
-            Basic::BigInt => anyhow::bail!("TODO bigint"),
-            Basic::Symbol => anyhow::bail!("TODO Symbol"),
-            Basic::Undefined => anyhow::bail!("TODO Undefined"),
-            Basic::Null => anyhow::bail!("TODO Null"),
-            Basic::Unknown => anyhow::bail!("TODO Unknown"),
-            Basic::Never => anyhow::bail!("TODO Never"),
-        })
+            Basic::Null => schema::Type {
+                typ: Some(styp::Typ::Literal(schema::Literal {
+                    value: Some(schema::literal::Value::Null(true)),
+                })),
+            },
+
+            Basic::Void
+            | Basic::Object
+            | Basic::BigInt
+            | Basic::Symbol
+            | Basic::Undefined
+            | Basic::Never => {
+                HANDLER.with(|h| h.err(&format!("unsupported basic type in schema: {:?}", typ)));
+                b(schema::Builtin::Any)
+            }
+        }
     }
 
     fn literal(&self, typ: &Literal) -> schema::Literal {

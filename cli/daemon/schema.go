@@ -60,6 +60,8 @@ func (r *schemaRenderer) renderType(typ *schema.Type) {
 			r.WriteFloat64(v.Float)
 		case *schema.Literal_Boolean:
 			r.WriteBool(v.Boolean)
+		case *schema.Literal_Null:
+			r.WriteNil()
 		default:
 			panic(fmt.Sprintf("unknown literal type %T", v))
 		}
