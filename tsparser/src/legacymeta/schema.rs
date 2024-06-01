@@ -468,7 +468,7 @@ fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
                     let mut types = types.clone();
                     types.swap_remove(i);
                     (Cow::Owned(Type::Union(types)), true)
-                }
+                };
             }
         }
     }

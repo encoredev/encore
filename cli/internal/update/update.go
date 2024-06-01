@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -199,6 +200,11 @@ func (lv *LatestVersion) DoUpgrade(stdout, stderr io.Writer) error {
 	}
 
 	fmt.Println("Running update [" + script + "]")
+
+	if brewManaged {
+		updateBrewTap(stdout, stderr)
+	}
+
 	// nosemgrep
 	cmd := exec.Command(shell, arg, script)
 
@@ -245,4 +251,21 @@ func wasInstalledViaHomebrew(shell string, arg string, channel version.ReleaseCh
 	// No error means it was installed via homebrew, error means homebrew doesn't know about it
 	// or isn't installed
 	return cmd.Run() == nil
+}
+
+func updateBrewTap(stdout, stderr io.Writer) {
+	// Attempt to update the tap if it exists.
+	var outBuf bytes.Buffer
+	cmd := exec.Command("brew", "--prefix")
+	cmd.Stdout = &outBuf
+	if err := cmd.Run(); err == nil {
+		dst := filepath.Join(strings.TrimSpace(outBuf.String()), "Library", "Taps", "encoredev", "homebrew-tap")
+		if _, err := os.Stat(dst); err == nil {
+			cmd := exec.Command("git", "fetch", "--all")
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
+			cmd.Dir = dst
+			_ = cmd.Run()
+		}
+	}
 }
