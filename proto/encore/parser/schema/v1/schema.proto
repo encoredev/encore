@@ -166,6 +166,7 @@ message Literal {
     bool   boolean = 2;
     int64  int     = 3;
     double float   = 4;
+    bool   null    = 5;
   }
 }
 

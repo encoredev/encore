@@ -1046,6 +1046,8 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			ts.WriteString(strconv.FormatFloat(lit.Float, 'f', -1, 64))
 		case *schema.Literal_Boolean:
 			ts.WriteString(strconv.FormatBool(lit.Boolean))
+		case *schema.Literal_Null:
+			ts.WriteString("null")
 		default:
 			ts.errorf("unknown literal type %T", lit)
 		}

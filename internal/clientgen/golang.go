@@ -42,7 +42,8 @@ type golang struct {
 	skipDocs          bool
 	skipPkgTypePrefix bool
 
-	seenSlicePath bool
+	seenSlicePath   bool
+	seenLiteralNull bool
 }
 
 func GenTypes(md *meta.Data, typs ...*schema.Decl) ([]byte, error) {
@@ -801,6 +802,10 @@ func (g *golang) getType(typ *schema.Type) Code {
 			return Int()
 		case *schema.Literal_Float:
 			return Float64()
+		case *schema.Literal_Null:
+			// Can't use nil as a type, so use *bool
+			g.seenLiteralNull = true
+			return Id("null")
 		default:
 			return Any()
 		}
@@ -1325,6 +1330,12 @@ func (g *golang) writeExtraHelpers(file *File) {
 			),
 			Return(Id("escapedPaths").Dot("String").Call()),
 		)
+	}
+
+	if g.seenLiteralNull {
+		file.Line()
+		file.Comment("null is a helper type to indicate a null value in JSON.")
+		file.Type().Id("null").Op("=").Op("*").Bool()
 	}
 }
 
