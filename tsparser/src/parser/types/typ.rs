@@ -628,11 +628,20 @@ pub fn intersect<'a: 'b, 'b>(
     };
 
     match (a.as_ref(), b.as_ref()) {
-        (Type::Basic(Basic::Unknown), _) | (_, Type::Basic(Basic::Unknown)) => b,
-        (Type::Basic(Basic::Any), _) | (_, Type::Basic(Basic::Any)) => b,
+        // T & unknown == T
+        (Type::Basic(Basic::Unknown), _) => b,
+        (_, Type::Basic(Basic::Unknown)) => a,
+
+        // T & any == any
+        (Type::Basic(Basic::Any), _) | (_, Type::Basic(Basic::Any)) => {
+            Cow::Owned(Type::Basic(Basic::Any))
+        }
+
+        // T & never == never
         (Type::Basic(Basic::Never), _) | (_, Type::Basic(Basic::Never)) => {
             Cow::Owned(Type::Basic(Basic::Never))
         }
+
         (Type::Basic(a), Type::Basic(b)) => {
             if a == b {
                 Cow::Owned(Type::Basic(*a))

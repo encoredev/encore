@@ -440,11 +440,6 @@ impl<'a> Ctx<'a> {
                     }
 
                     let typ = self.typ(p.type_ann.as_ref().unwrap().type_ann.as_ref());
-                    if let Type::Basic(Basic::Never) = typ {
-                        // Ignore fields with type `never`.
-                        continue;
-                    }
-
                     fields.push(InterfaceField {
                         range: m.span().into(),
                         name,
