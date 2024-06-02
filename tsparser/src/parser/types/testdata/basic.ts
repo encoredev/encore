@@ -22,3 +22,4 @@ export type Intersect1 = {foo: string} & {bar: number};
 export type Intersect2 = {foo: string} & {foo: "literal"};
 export type Intersect3 = {foo: string} & {foo: number};
 export type Intersect4 = {foo?: "optional"} & {foo: string};
+export type Intersect5 = {a: string; b: string; c: string} & {a: any; b: unknown; c: never};

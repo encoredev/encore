@@ -244,4 +244,33 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             call: None,
         },
     ),
+    "Intersect5": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "a",
+                    optional: false,
+                    typ: Basic(
+                        Any,
+                    ),
+                },
+                InterfaceField {
+                    name: "b",
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: "c",
+                    optional: false,
+                    typ: Basic(
+                        Never,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
 }
