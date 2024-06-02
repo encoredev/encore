@@ -13,4 +13,3 @@ export type Concrete1 = {
     three: Generic2<null>;
     four: Generic2<Generic1<boolean>>;
 }
-

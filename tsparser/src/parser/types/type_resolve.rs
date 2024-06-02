@@ -110,6 +110,10 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    pub fn state(&self) -> &ResolveState {
+        self.state
+    }
+
     fn with_module(self, module: ModuleId) -> Self {
         Self { module, ..self }
     }
@@ -660,7 +664,7 @@ impl<'a> Ctx<'a> {
                                     })),
                                 })
                                 .collect::<Vec<_>>();
-                            return unify_union(result);
+                            return simplify_union(result);
                         }
                     }
                 }
@@ -680,8 +684,12 @@ impl<'a> Ctx<'a> {
     }
 
     fn intersection(&self, typ: &ast::TsIntersectionType) -> Type {
-        HANDLER.with(|handler| handler.span_err(typ.span, "intersection types not yet supported"));
-        Type::Basic(Basic::Never)
+        let mut result = Owned(self.typ(&typ.types[0]));
+        for t in &typ.types[1..] {
+            let t = self.typ(t);
+            result = intersect(self, result, Owned(t));
+        }
+        result.into_owned()
     }
 
     fn keyword(&self, typ: &ast::TsKeywordType) -> Type {
@@ -752,7 +760,7 @@ impl<'a> Ctx<'a> {
                 let left = self.expr(&expr.left);
                 let right = self.expr(&expr.right);
 
-                match left.unify(&right) {
+                match left.union_merge(&right) {
                     Some(unified) => unified,
                     // TODO handle this correctly.
                     None => left,
@@ -768,7 +776,7 @@ impl<'a> Ctx<'a> {
             ast::Expr::Cond(cond) => {
                 let left = self.expr(&cond.cons);
                 let right = self.expr(&cond.alt);
-                left.unify_or_union(right)
+                left.simplify_or_union(right)
             }
             ast::Expr::Call(expr) => {
                 HANDLER.with(|handler| handler.span_err(expr.span, "call expr not yet supported"));
@@ -1376,6 +1384,19 @@ impl<'a> Ctx<'a> {
                     New(keys)
                 }
 
+                Generic::Intersection(intersection) => {
+                    let x = self.concrete(&intersection.x);
+                    let y = self.concrete(&intersection.y);
+
+                    match (x, y) {
+                        (Same(_), Same(_)) => Same(typ),
+                        (x, y) => match intersect(self, x.into(), y.into()) {
+                            Owned(t) => New(t),
+                            Borrowed(t) => Changed(t),
+                        },
+                    }
+                }
+
                 Generic::Conditional(cond) => {
                     let check = self.concrete(&cond.check_type);
                     let extends = self.concrete(&cond.extends_type);
@@ -1412,7 +1433,7 @@ impl<'a> Ctx<'a> {
                                 })
                                 .collect();
 
-                            New(unify_union(result))
+                            New(simplify_union(result))
                         }
 
                         // Otherwise just check the single element.
