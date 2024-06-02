@@ -1,12 +1,14 @@
 use crate::parser::types::type_resolve::Ctx;
 use crate::parser::types::{object, ResolveState};
 use crate::parser::Range;
+use indexmap::IndexMap;
 use serde::Serialize;
-use std::cell::OnceCell;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use swc_common::errors::HANDLER;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeArgId(usize);
@@ -64,9 +66,9 @@ impl Type {
         }
     }
 
-    /// Returns a unified type that merges `self` and `other`, if possible.
+    /// Returns a union type that merges `self` and `other`, if possible.
     /// If the types cannot be merged, it returns None.
-    pub(super) fn unify(&self, other: &Type) -> Option<Type> {
+    pub(super) fn union_merge(&self, other: &Type) -> Option<Type> {
         match (self, other) {
             // 'any' and any type unify to 'any'.
             (Type::Basic(Basic::Any), _) | (_, Type::Basic(Basic::Any)) => {
@@ -91,8 +93,8 @@ impl Type {
         }
     }
 
-    pub(super) fn unify_or_union(self, other: Type) -> Type {
-        match self.unify(&other) {
+    pub(super) fn simplify_or_union(self, other: Type) -> Type {
+        match self.union_merge(&other) {
             Some(typ) => typ,
             None => Type::Union(vec![self, other]),
         }
@@ -328,6 +330,9 @@ pub enum Generic {
     Conditional(Conditional),
     // A reference to the 'as' type when evaluating a mapped type.
     // MappedAsType,
+
+    // An intersection type.
+    Intersection(Intersection),
 }
 
 #[derive(Debug, Clone, Hash, Serialize)]
@@ -376,6 +381,18 @@ impl Mapped {
 }
 
 #[derive(Debug, Clone, Hash, Serialize)]
+pub struct Intersection {
+    pub x: Box<Type>,
+    pub y: Box<Type>,
+}
+
+impl Intersection {
+    pub fn identical(&self, other: &Intersection) -> bool {
+        self.x.identical(&other.x) && self.y.identical(&other.y)
+    }
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct Conditional {
     pub check_type: Box<Type>,
     pub extends_type: Box<Type>,
@@ -397,6 +414,10 @@ impl Type {
     pub fn iter_unions<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Type> + 'a> {
         match self {
             Type::Union(types) => Box::new(types.iter().flat_map(|t| t.iter_unions())),
+            Type::Optional(tt) => Box::new(
+                tt.iter_unions()
+                    .chain(std::iter::once(&Type::Basic(Basic::Undefined))),
+            ),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -404,6 +425,10 @@ impl Type {
     pub fn into_iter_unions(self) -> Box<dyn Iterator<Item = Type>> {
         match self {
             Type::Union(types) => Box::new(types.into_iter().flat_map(|t| t.into_iter_unions())),
+            Type::Optional(tt) => Box::new(
+                tt.into_iter_unions()
+                    .chain(std::iter::once(Type::Basic(Basic::Undefined))),
+            ),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -537,8 +562,8 @@ impl Type {
     }
 }
 
-pub fn unify_union(mut types: Vec<Type>) -> Type {
-    let mut unified: Vec<Type> = Vec::with_capacity(types.len());
+pub fn simplify_union(mut types: Vec<Type>) -> Type {
+    let mut results: Vec<Type> = Vec::with_capacity(types.len());
 
     for typ in types {
         // Ignore `never` in unions.
@@ -547,8 +572,8 @@ pub fn unify_union(mut types: Vec<Type>) -> Type {
         }
 
         let mut found = false;
-        for unified_typ in &mut unified {
-            match unified_typ.unify(&typ) {
+        for unified_typ in &mut results {
+            match unified_typ.union_merge(&typ) {
                 Some(u) => {
                     *unified_typ = u;
                     found = true;
@@ -561,13 +586,212 @@ pub fn unify_union(mut types: Vec<Type>) -> Type {
         }
 
         if !found {
-            unified.push(typ);
+            results.push(typ);
         }
     }
 
-    match unified.len() {
+    match results.len() {
         0 => Type::Basic(Basic::Never),
-        1 => unified.remove(0),
-        _ => Type::Union(unified),
+        1 => results.remove(0),
+        _ => Type::Union(results),
+    }
+}
+
+/// Computes (a & b), the intersection of two types.
+#[tracing::instrument(level = "trace", skip(ctx), ret)]
+pub fn intersect<'a: 'b, 'b>(
+    ctx: &'b Ctx<'a>,
+    a: Cow<'a, Type>,
+    b: Cow<'a, Type>,
+) -> Cow<'a, Type> {
+    let union_with = |a: Cow<'_, Type>, b: Cow<'_, Type>| {
+        let result = a
+            .into_owned()
+            .into_iter_unions()
+            .filter_map(
+                |typ| match intersect(ctx, Cow::Owned(typ), b.clone()).into_owned() {
+                    Type::Basic(Basic::Never) => None,
+                    other => Some(other),
+                },
+            )
+            .collect();
+        Cow::Owned(simplify_union(result))
+    };
+    let literal = |lit: &Literal, b: &Basic| -> bool {
+        match (lit, b) {
+            (Literal::String(_), Basic::String | Basic::Any | Basic::Unknown) => true,
+            (Literal::Boolean(_), Basic::Boolean | Basic::Any | Basic::Unknown) => true,
+            (Literal::Number(_), Basic::Number | Basic::Any | Basic::Unknown) => true,
+            (Literal::BigInt(_), Basic::BigInt | Basic::Any | Basic::Unknown) => true,
+            _ => false,
+        }
+    };
+
+    match (a.as_ref(), b.as_ref()) {
+        (Type::Basic(Basic::Unknown), _) | (_, Type::Basic(Basic::Unknown)) => b,
+        (Type::Basic(Basic::Any), _) | (_, Type::Basic(Basic::Any)) => b,
+        (Type::Basic(Basic::Never), _) | (_, Type::Basic(Basic::Never)) => {
+            Cow::Owned(Type::Basic(Basic::Never))
+        }
+        (Type::Basic(a), Type::Basic(b)) => {
+            if a == b {
+                Cow::Owned(Type::Basic(*a))
+            } else {
+                Cow::Owned(Type::Basic(Basic::Never))
+            }
+        }
+
+        // Intersection distributes into unions.
+        (Type::Union(a), Type::Union(b)) => {
+            let mut types = Vec::with_capacity(a.len() * b.len());
+            for typ in a {
+                for other in b.iter() {
+                    match intersect(ctx, Cow::Borrowed(&typ), Cow::Borrowed(other)).into_owned() {
+                        Type::Basic(Basic::Never) => {}
+                        other => types.push(other),
+                    }
+                }
+            }
+            Cow::Owned(simplify_union(types))
+        }
+        (Type::Union(_), _) => union_with(a, b),
+        (_, Type::Union(_)) => union_with(b, a),
+
+        (Type::Literal(x), Type::Literal(y)) if x == y => a,
+        (Type::Literal(lit), Type::Basic(x)) => {
+            if literal(lit, x) {
+                a
+            } else {
+                Cow::Owned(Type::Basic(Basic::Never))
+            }
+        }
+        (Type::Basic(x), Type::Literal(lit)) => {
+            if literal(lit, x) {
+                b
+            } else {
+                Cow::Owned(Type::Basic(Basic::Never))
+            }
+        }
+
+        (Type::Array(x), Type::Array(y)) => Cow::Owned(Type::Array(Box::new(
+            intersect(ctx, Cow::Borrowed(x.as_ref()), Cow::Borrowed(y.as_ref())).into_owned(),
+        ))),
+        (Type::Array(x), Type::Tuple(y)) | (Type::Tuple(y), Type::Array(x)) => {
+            Cow::Owned(Type::Array(Box::new(if y.is_empty() {
+                Type::Basic(Basic::Never)
+            } else {
+                // Inspect the first element of the tuple for intersection.
+                // It's not completely correct but close enough for now.
+                intersect(ctx, Cow::Borrowed(x.as_ref()), Cow::Borrowed(&y[0])).into_owned()
+            })))
+        }
+
+        (Type::Tuple(x), Type::Tuple(y)) => {
+            let mut types = Vec::with_capacity(x.len().min(y.len()));
+            for (a, b) in x.iter().zip(y.iter()) {
+                types.push(intersect(ctx, Cow::Borrowed(a), Cow::Borrowed(b)).into_owned());
+            }
+            Cow::Owned(Type::Tuple(types))
+        }
+
+        (Type::Optional(x), Type::Optional(y)) => Cow::Owned(Type::Optional(Box::new(
+            intersect(ctx, Cow::Borrowed(x), Cow::Borrowed(y)).into_owned(),
+        ))),
+        // Treat optional as "T | undefined".
+        (Type::Optional(x), y) | (y, Type::Optional(x)) => {
+            union_with(Cow::Borrowed(x), Cow::Borrowed(y))
+        }
+
+        (Type::This, Type::This) => Cow::Owned(Type::This),
+
+        (Type::Generic(_), _) | (_, Type::Generic(_)) => {
+            Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
+                x: Box::new(a.into_owned()),
+                y: Box::new(b.into_owned()),
+            })))
+        }
+
+        (Type::Class(_), Type::Class(_)) => {
+            HANDLER.with(|handler| {
+                handler.err("intersection of class types is not yet supported");
+            });
+            Cow::Owned(Type::Basic(Basic::Never))
+        }
+
+        (Type::Named(x), y) | (y, Type::Named(x)) => {
+            let x = ctx.underlying_named(x);
+            intersect(ctx, Cow::Owned(x), b)
+        }
+
+        (Type::Interface(_), Type::Interface(_)) => {
+            let Type::Interface(x) = a.into_owned() else {
+                unreachable!();
+            };
+            let Type::Interface(y) = b.into_owned() else {
+                unreachable!();
+            };
+
+            let fields = {
+                let mut y_fields = y
+                    .fields
+                    .into_iter()
+                    .map(|f| (f.name.clone(), Some(f)))
+                    .collect::<IndexMap<_, _>>();
+
+                // Fields are added together.
+                // If they have the same name, the type is the intersection.
+                let mut result = Vec::with_capacity(x.fields.len() + y_fields.len());
+
+                for mut field in x.fields {
+                    if let Some(other) = y_fields.get_mut(field.name.as_str()) {
+                        // Intersect the type.
+                        let other = other.take().expect("field name should not appear twice");
+                        field.typ = intersect(ctx, Cow::Owned(field.typ), Cow::Owned(other.typ))
+                            .into_owned();
+                        field.optional = field.optional && other.optional;
+                    }
+                    result.push(field);
+                }
+
+                // Add any remaining fields from `y`.
+                for (_, other) in y_fields {
+                    if let Some(other) = other {
+                        result.push(other);
+                    }
+                }
+                result
+            };
+
+            // If we have any fields, ignore the index signature.
+            let index = if fields.is_empty() {
+                None
+            } else {
+                match (x.index, y.index) {
+                    (Some((x_key, x_value)), Some((y_key, y_value))) => {
+                        let key =
+                            intersect(ctx, Cow::Owned(*x_key), Cow::Owned(*y_key)).into_owned();
+                        let value =
+                            intersect(ctx, Cow::Owned(*x_value), Cow::Owned(*y_value)).into_owned();
+                        Some((Box::new(key), Box::new(value)))
+                    }
+                    (Some((k, v)), None) | (None, Some((k, v))) => Some((k, v)),
+                    (None, None) => None,
+                }
+            };
+
+            if x.call.is_some() || y.call.is_some() {
+                HANDLER.with(|handler| {
+                    handler.err("intersection of call signature types not yet supported");
+                })
+            }
+
+            Cow::Owned(Type::Interface(Interface {
+                fields,
+                index,
+                call: None,
+            }))
+        }
+
+        (_, _) => Cow::Owned(Type::Basic(Basic::Never)),
     }
 }
