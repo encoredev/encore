@@ -16,3 +16,9 @@ export type Partial1 = Partial<Interface>;
 
 // Index signatures
 export type Index = { [key: string]: boolean | number};
+
+// Intersections
+export type Intersect1 = {foo: string} & {bar: number};
+export type Intersect2 = {foo: string} & {foo: "literal"};
+export type Intersect3 = {foo: string} & {foo: number};
+export type Intersect4 = {foo?: "optional"} & {foo: string};

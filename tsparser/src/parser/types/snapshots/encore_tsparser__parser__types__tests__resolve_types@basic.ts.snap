@@ -173,4 +173,75 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             call: None,
         },
     ),
+    "Intersect1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: "bar",
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Intersect2": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "literal",
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Intersect3": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Basic(
+                        Never,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Intersect4": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: "foo",
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "optional",
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
 }

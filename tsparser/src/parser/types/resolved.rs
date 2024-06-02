@@ -15,6 +15,18 @@ where
     Same(&'a B),
 }
 
+impl<'a, B: ?Sized + 'a> Into<Cow<'a, B>> for Resolved<'a, B>
+where
+    B: ToOwned,
+{
+    fn into(self) -> Cow<'a, B> {
+        match self {
+            New(owned) => Cow::Owned(owned),
+            Changed(borrowed) | Same(borrowed) => Cow::Borrowed(borrowed),
+        }
+    }
+}
+
 impl<B: ?Sized + ToOwned> Clone for Resolved<'_, B> {
     fn clone(&self) -> Self {
         match *self {
