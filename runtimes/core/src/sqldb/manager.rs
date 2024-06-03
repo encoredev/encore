@@ -38,7 +38,13 @@ impl Manager {
     pub fn database(&self, name: &EncoreName) -> Arc<dyn Database> {
         match self.databases.get(name) {
             Some(db) => db.clone(),
-            None => Arc::new(NoopDatabase { name: name.clone() }),
+            None => {
+                let proxy_conn_string = proxy_conn_string(&name, self.proxy_port);
+                Arc::new(NoopDatabase {
+                    name: name.clone(),
+                    proxy_conn_string,
+                })
+            }
         }
     }
 
@@ -72,7 +78,7 @@ pub trait Database: Send + Sync {
     fn new_pool(&self) -> anyhow::Result<Pool>;
 
     /// Returns the connection string for connecting to this database via the proxy.
-    fn proxy_conn_string(&self) -> anyhow::Result<&str>;
+    fn proxy_conn_string(&self) -> &str;
 }
 
 /// Represents a SQL Database available to the runtime.
@@ -117,13 +123,14 @@ impl Database for DatabaseImpl {
         Pool::new(self, self.tracer.clone())
     }
 
-    fn proxy_conn_string(&self) -> anyhow::Result<&str> {
-        Ok(&self.proxy_conn_string)
+    fn proxy_conn_string(&self) -> &str {
+        &self.proxy_conn_string
     }
 }
 
 struct NoopDatabase {
     name: EncoreName,
+    proxy_conn_string: String,
 }
 
 impl Database for NoopDatabase {
@@ -147,8 +154,11 @@ impl Database for NoopDatabase {
         anyhow::bail!("this database is not configured for use by this process")
     }
 
-    fn proxy_conn_string(&self) -> anyhow::Result<&str> {
-        anyhow::bail!("this database is not configured for use by this process")
+    fn proxy_conn_string(&self) -> &str {
+        // We need to return a valid connection string here,
+        // as this is typically called during initialization.
+        // The proxy will reject any connections to the database.
+        &self.proxy_conn_string
     }
 }
 
@@ -186,6 +196,14 @@ impl ClientBouncer for Bouncer {
         };
         futures::future::ready(resolve())
     }
+}
+
+/// Returns the connection string for connecting to the database via the proxy.
+fn proxy_conn_string(db_encore_name: &str, proxy_port: u16) -> String {
+    format!(
+        "postgresql://encore:password@127.0.0.1:{}/{}?sslmode=disable",
+        proxy_port, db_encore_name,
+    )
 }
 
 /// Computes the database configuration for the given clusters.
@@ -309,10 +327,7 @@ fn databases_from_cfg(
                 .context("failed to build TLS connector")?;
             let tls = postgres_native_tls::MakeTlsConnector::new(tls);
 
-            let proxy_conn_string = format!(
-                "postgresql://encore:password@127.0.0.1:{}/{}?sslmode=disable",
-                proxy_port, db.encore_name
-            );
+            let proxy_conn_string = proxy_conn_string(&db.encore_name, proxy_port);
 
             let name: EncoreName = db.encore_name.into();
             databases.insert(
