@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use litparser::LitParser;
+use swc_common::errors::HANDLER;
 use swc_ecma_ast as ast;
 use swc_ecma_visit::VisitWithPath;
 
@@ -34,6 +35,50 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
+        let res= NamedClassResourceOptionalConfig::<Config, NAME_IDX, CONFIG_IDX>::parse_resource_reference(module, path)?;
+        match res {
+            None => Ok(None),
+            Some(res) => {
+                let Some(config) = res.config else {
+                    HANDLER.with(|handler| {
+                        handler.span_err(res.range.to_span(), "missing required config object");
+                    });
+                    return Ok(None);
+                };
+
+                Ok(Some(Self {
+                    range: res.range,
+                    constructor_args: res.constructor_args,
+                    doc_comment: res.doc_comment,
+                    resource_name: res.resource_name,
+                    bind_name: res.bind_name,
+                    config,
+                }))
+            }
+        }
+    }
+}
+
+pub struct NamedClassResourceOptionalConfig<
+    Config,
+    const NAME_IDX: usize = 0,
+    const CONFIG_IDX: usize = 1,
+> {
+    pub range: Range,
+    pub constructor_args: Vec<ast::ExprOrSpread>,
+    pub doc_comment: Option<String>,
+    pub resource_name: String,
+    pub bind_name: Option<ast::Ident>,
+    pub config: Option<Config>,
+}
+
+impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> ReferenceParser
+    for NamedClassResourceOptionalConfig<Config, NAME_IDX, CONFIG_IDX>
+{
+    fn parse_resource_reference(
+        module: &Module,
+        path: &swc_ecma_visit::AstNodePath,
+    ) -> Result<Option<Self>> {
         for node in path.iter().rev() {
             match node {
                 swc_ecma_visit::AstParentNodeRef::NewExpr(
@@ -46,8 +91,12 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
 
                     let bind_name = extract_bind_name(path)?;
                     let resource_name = extract_resource_name(&args, NAME_IDX)?;
-                    let config = Config::parse_lit(&args[CONFIG_IDX].expr)?;
                     let doc_comment = module.preceding_comments(expr.span.lo.into());
+
+                    let config = args
+                        .get(CONFIG_IDX)
+                        .map(|arg| Config::parse_lit(&arg.expr))
+                        .transpose()?;
 
                     return Ok(Some(Self {
                         range: expr.span.into(),
