@@ -14,8 +14,8 @@ use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::parseutil::NamedStaticMethod;
 use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
+use crate::parser::resources::parseutil::{NamedClassResourceOptionalConfig, NamedStaticMethod};
 use crate::parser::resources::Resource;
 use crate::parser::resources::ResourcePath;
 use crate::parser::FilePath;
@@ -40,7 +40,7 @@ pub struct DBMigration {
     pub number: u64,
 }
 
-#[derive(LitParser)]
+#[derive(LitParser, Default)]
 struct DecodedDatabaseConfig {
     migrations: Option<LocalRelPath>,
 }
@@ -54,11 +54,12 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
 
         let module = pass.module.clone();
         {
-            type Res = NamedClassResource<DecodedDatabaseConfig>;
+            type Res = NamedClassResourceOptionalConfig<DecodedDatabaseConfig>;
             for r in iter_references::<Res>(&module, &names) {
                 let r = r?;
+                let cfg = r.config.unwrap_or_default();
 
-                let migrations = match (r.config.migrations, &pass.module.file_path) {
+                let migrations = match (cfg.migrations, &pass.module.file_path) {
                     (None, _) => None,
                     (_, FilePath::Custom(_)) => {
                         anyhow::bail!("cannot use custom file path for db migrations")
