@@ -103,7 +103,13 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	clusterType := getClusterType(req)
 	switch clusterType {
 	case sqldb.Run:
-		passwd = "local-" + string(clusterNS.ID)
+		// If the user didn't specify a namespace, leave it out from the password
+		// so it uses the active namespace.
+		if req.Namespace != nil {
+			passwd = "local-" + string(clusterNS.ID)
+		} else {
+			passwd = "local"
+		}
 	default:
 		passwd = fmt.Sprintf("%s-%s", clusterType, clusterNS.ID)
 	}
