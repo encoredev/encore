@@ -96,10 +96,8 @@ impl SQLDatabase {
 
     /// Reports the connection string to connect to this database.
     #[napi]
-    pub fn conn_string(&self) -> napi::Result<&str> {
-        self.db
-            .proxy_conn_string()
-            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e))
+    pub fn conn_string(&self) -> &str {
+        self.db.proxy_conn_string()
     }
 
     #[napi]
