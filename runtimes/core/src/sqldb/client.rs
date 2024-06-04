@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::pin::Pin;
 
 use bb8::{ErrorSink, PooledConnection, RunError};
@@ -15,7 +16,7 @@ type Mgr = PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>;
 
 pub struct Pool {
     pool: bb8::Pool<Mgr>,
-    tracer: Tracer,
+    tracer: QueryTracer,
 }
 
 impl Pool {
@@ -39,7 +40,10 @@ impl Pool {
         }
 
         let pool = pool.build_unchecked(mgr);
-        Ok(Self { pool, tracer })
+        Ok(Self {
+            pool,
+            tracer: QueryTracer(tracer),
+        })
     }
 }
 
@@ -68,39 +72,21 @@ impl Pool {
         query: &str,
         params: I,
         source: Option<&model::Request>,
-    ) -> Result<Cursor, tokio_postgres::Error>
+    ) -> Result<Cursor, Error>
     where
         P: BorrowToSql,
         I: IntoIterator<Item = P>,
         I::IntoIter: ExactSizeIterator,
     {
-        let start_id = if let Some(source) = source {
-            let id = self
-                .tracer
-                .db_query_start(protocol::DBQueryStartData { source, query });
-            Some(id)
-        } else {
-            None
-        };
-
-        let conn = self.pool.get().await.map_err(|e| match e {
-            RunError::User(err) => err,
-            RunError::TimedOut => tokio_postgres::Error::__private_api_timeout(),
-        })?;
-        let result = conn.query_raw(query, params).await;
-
-        if let Some(start_id) = start_id {
-            self.tracer.db_query_end(protocol::DBQueryEndData {
-                start_id,
-                source: source.unwrap(),
-                error: result.as_ref().err(),
-            });
-        }
-
-        let stream = result?;
-        Ok(Cursor {
-            stream: Box::pin(stream),
-        })
+        self.tracer
+            .trace(source, query, || async {
+                let conn = self.pool.get().await.map_err(|e| match e {
+                    RunError::User(err) => Error::DB(err),
+                    RunError::TimedOut => Error::ConnectTimeout,
+                })?;
+                conn.query_raw(query, params).await.map_err(Error::from)
+            })
+            .await
     }
 
     pub async fn acquire(&self) -> Result<Connection, tokio_postgres::Error> {
@@ -109,7 +95,7 @@ impl Pool {
             RunError::TimedOut => tokio_postgres::Error::__private_api_timeout(),
         })?;
         Ok(Connection {
-            conn: conn,
+            conn: tokio::sync::RwLock::new(Some(conn)),
             tracer: self.tracer.clone(),
         })
     }
@@ -149,54 +135,104 @@ impl Row {
     }
 }
 
+type PooledConn =
+    PooledConnection<'static, PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>>;
+
 pub struct Connection {
-    #[allow(dead_code)]
-    conn:
-        PooledConnection<'static, PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>>,
-    #[allow(dead_code)]
-    tracer: Tracer,
+    conn: tokio::sync::RwLock<Option<PooledConn>>,
+    tracer: QueryTracer,
 }
 
-// impl Connection {
-//     pub async fn begin(&mut self) -> Result<Transaction<'a>, tokio_postgres::Error> {
-//         self.conn.lock().await.transaction()
-//         let transaction = self.conn.transaction().await?;
-//
-//         Ok(Transaction {
-//             transaction: Some(transaction),
-//             tracer: self.tracer.clone(),
-//         })
-//     }
-// }
-
-pub struct Transaction<'a> {
-    transaction: Option<tokio_postgres::Transaction<'a>>,
-    #[allow(dead_code)]
-    tracer: Tracer,
+#[derive(Debug)]
+pub enum Error {
+    DB(tokio_postgres::Error),
+    Closed,
+    ConnectTimeout,
 }
 
-impl Transaction<'_> {
-    pub async fn rollback(&mut self) -> anyhow::Result<()> {
-        match self.transaction.take() {
-            Some(transaction) => {
-                transaction.rollback().await?;
-                Ok(())
-            }
-            None => Err(anyhow::anyhow!(
-                "transaction already committed or rolled back"
-            )),
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::DB(err) => <tokio_postgres::Error as std::fmt::Display>::fmt(err, f),
+            Error::Closed => f.write_str("connection_closed"),
+            Error::ConnectTimeout => f.write_str("timeout establishing connection"),
+        }
+    }
+}
+
+impl From<tokio_postgres::Error> for Error {
+    fn from(err: tokio_postgres::Error) -> Self {
+        Error::DB(err)
+    }
+}
+
+impl Connection {
+    pub async fn close(&self) {
+        let mut guard = self.conn.write().await;
+        if let Some(conn) = guard.take() {
+            drop(conn);
         }
     }
 
-    pub async fn commit(&mut self) -> anyhow::Result<()> {
-        match self.transaction.take() {
-            Some(transaction) => {
-                transaction.commit().await?;
-                Ok(())
-            }
-            None => Err(anyhow::anyhow!(
-                "transaction already committed or rolled back"
-            )),
+    pub async fn query_raw<P, I>(
+        &self,
+        query: &str,
+        params: I,
+        source: Option<&model::Request>,
+    ) -> Result<Cursor, Error>
+    where
+        P: BorrowToSql,
+        I: IntoIterator<Item = P>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.tracer
+            .trace(source, query, || async {
+                let guard = self.conn.read().await;
+                let Some(conn) = guard.as_ref() else {
+                    return Err(Error::Closed);
+                };
+                conn.query_raw(query, params).await.map_err(Error::from)
+            })
+            .await
+    }
+}
+
+#[derive(Debug, Clone)]
+struct QueryTracer(Tracer);
+
+impl QueryTracer {
+    async fn trace<F, Fut>(
+        &self,
+        source: Option<&model::Request>,
+        query: &str,
+        exec: F,
+    ) -> Result<Cursor, Error>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<tokio_postgres::RowStream, Error>>,
+    {
+        let start_id = if let Some(source) = source {
+            let id = self
+                .0
+                .db_query_start(protocol::DBQueryStartData { source, query });
+            Some(id)
+        } else {
+            None
+        };
+
+        let result = exec().await;
+
+        if let Some(start_id) = start_id {
+            self.0.db_query_end(protocol::DBQueryEndData {
+                start_id,
+                source: source.unwrap(),
+                error: result.as_ref().err(),
+            });
         }
+
+        let stream = result?;
+        Ok(Cursor {
+            stream: Box::pin(stream),
+        })
     }
 }
