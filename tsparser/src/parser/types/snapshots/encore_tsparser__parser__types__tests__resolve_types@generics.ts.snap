@@ -8,7 +8,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "cond",
+                    name: String(
+                        "cond",
+                    ),
                     optional: false,
                     typ: Generic(
                         Conditional(
@@ -45,7 +47,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "value",
+                    name: String(
+                        "value",
+                    ),
                     optional: false,
                     typ: Generic(
                         TypeParam(
@@ -57,7 +61,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                     ),
                 },
                 InterfaceField {
-                    name: "cond",
+                    name: String(
+                        "cond",
+                    ),
                     optional: false,
                     typ: Generic(
                         Conditional(
@@ -94,7 +100,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "one",
+                    name: String(
+                        "one",
+                    ),
                     optional: false,
                     typ: Named(
                         Named {
@@ -112,7 +120,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                     ),
                 },
                 InterfaceField {
-                    name: "two",
+                    name: String(
+                        "two",
+                    ),
                     optional: false,
                     typ: Named(
                         Named {
@@ -132,7 +142,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                     ),
                 },
                 InterfaceField {
-                    name: "three",
+                    name: String(
+                        "three",
+                    ),
                     optional: false,
                     typ: Named(
                         Named {
@@ -150,7 +162,9 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                     ),
                 },
                 InterfaceField {
-                    name: "four",
+                    name: String(
+                        "four",
+                    ),
                     optional: false,
                     typ: Named(
                         Named {

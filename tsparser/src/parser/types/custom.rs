@@ -1,16 +1,10 @@
 use anyhow::Result;
 
-use crate::parser::types::{typ, ResolveState};
+use crate::parser::types::{typ, Basic, Literal, ResolveState, Type};
 
 pub enum CustomType {
-    Header {
-        name: Option<String>,
-        typ: typ::Type,
-    },
-    Query {
-        name: Option<String>,
-        typ: typ::Type,
-    },
+    Header { name: Option<String>, typ: Type },
+    Query { name: Option<String>, typ: Type },
 }
 
 pub fn resolve_custom_type_named(
@@ -29,34 +23,51 @@ pub fn resolve_custom_type_named(
 }
 
 fn resolve_header_type(named: &typ::Named) -> Result<CustomType> {
-    let (name, typ) = match (named.type_arguments.get(0), named.type_arguments.get(1)) {
-        (None, None) => (None, typ::Type::Basic(typ::Basic::String)),
-        (Some(name), None) => (
-            Some(resolve_str_lit(name)?),
-            typ::Type::Basic(typ::Basic::String),
-        ),
-        (Some(typ), Some(name)) => (Some(resolve_str_lit(name)?), typ.clone()),
+    let (typ, name) = match (named.type_arguments.get(0), named.type_arguments.get(1)) {
+        (None, None) => (Type::Basic(Basic::String), None),
+
+        (Some(first), None) => {
+            // If we only have a single argument, check its type.
+            // If it's a string literal it's the name, otherwise it's the type.
+            match first {
+                Type::Literal(Literal::String(lit)) => {
+                    (Type::Basic(Basic::String), Some(lit.to_string()))
+                }
+                _ => (first.clone(), None),
+            }
+        }
+
+        (Some(typ), Some(name)) => (typ.clone(), Some(resolve_str_lit(name)?)),
         (None, Some(_)) => unreachable!(),
     };
-    Ok(CustomType::Header { name, typ })
+    Ok(CustomType::Header { typ, name })
 }
 
 fn resolve_query_type(named: &typ::Named) -> Result<CustomType> {
-    let (name, typ) = match (named.type_arguments.get(0), named.type_arguments.get(1)) {
-        (None, None) => (None, typ::Type::Basic(typ::Basic::String)),
-        (Some(name), None) => (
-            Some(resolve_str_lit(name)?),
-            typ::Type::Basic(typ::Basic::String),
-        ),
-        (Some(typ), Some(name)) => (Some(resolve_str_lit(name)?), typ.clone()),
+    let (typ, name) = match (named.type_arguments.get(0), named.type_arguments.get(1)) {
+        (None, None) => (Type::Basic(Basic::String), None),
+
+        (Some(first), None) => {
+            // If we only have a single argument, check its type.
+            // If it's a string literal it's the name, otherwise it's the type.
+            match first {
+                Type::Literal(Literal::String(lit)) => {
+                    (Type::Basic(Basic::String), Some(lit.to_string()))
+                }
+                _ => (first.clone(), None),
+            }
+        }
+
+        (Some(typ), Some(name)) => (typ.clone(), Some(resolve_str_lit(name)?)),
         (None, Some(_)) => unreachable!(),
     };
-    Ok(CustomType::Query { name, typ })
+
+    Ok(CustomType::Query { typ, name })
 }
 
-fn resolve_str_lit(typ: &typ::Type) -> Result<String> {
+fn resolve_str_lit(typ: &Type) -> Result<String> {
     match typ {
-        typ::Type::Literal(typ::Literal::String(s)) => Ok(s.clone()),
+        Type::Literal(Literal::String(s)) => Ok(s.clone()),
         _ => anyhow::bail!("expected string literal"),
     }
 }
