@@ -4,6 +4,7 @@ use mappable_rc::Marc;
 use napi::{Env, JsUnknown};
 use napi_derive::napi;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::{Arc, OnceLock};
 
 #[napi]
@@ -204,67 +205,72 @@ impl Cursor {
     }
 }
 
-// #[napi]
-// impl SQLDatabase {
-//     #[napi]
-//     pub fn acquire(&self, env: Env) -> napi::Result<napi::JsObject> {
-//         let pool = self.pool_marc();
-//         env.execute_tokio_future(
-//             async move {
-//                 let conn = pool.acquire().await.map_err(to_napi_err)?;
-//                 Marc::map(pool.to_owned(), ||
-//                 Ok(Marc::new(conn))
-//             },
-//             |env, conn| {
-//                 let conn = Connection { inner: conn };
-//                 Ok(conn)
-//             },
-//         )
-//     }
-// }
-//
-// #[napi]
-// pub struct Connection {
-//     inner: Marc<sqldb::Connection<'static>>,
-// }
-//
-// #[napi]
-// impl Connection {
-//     #[napi]
-//     pub fn begin(
-//         &self,
-//         reference: Reference<Connection>,
-//         env: Env,
-//     ) -> napi::Result<napi::JsObject> {
-//         let ref2 = reference.clone(env)?;
-//         let mut tx = reference.share_with(env, |conn| Ok(conn.inner.begin()))?;
-//         env.execute_tokio_future(
-//             async move {
-//                 let tx = unsafe { Pin::new_unchecked(tx.deref_mut()) };
-//                 let tx: sqldb::Transaction<'static> = tx.await.map_err(to_napi_err)?;
-//                 Ok((ref2, tx))
-//             },
-//             |env, (ref2, tx)| {
-//                 let tx_ref = ref2.share_with(env.clone(), |_| Ok(tx))?;
-//                 Ok(Tx { inner: tx_ref })
-//             },
-//         )
-//     }
-// }
-//
-// #[napi]
-// pub struct Tx {
-//     inner: SharedReference<Connection, sqldb::Transaction<'static>>,
-// }
-//
-// #[napi]
-// impl Tx {
-//     #[napi]
-//     pub fn commit(&mut self, env: Env) -> napi::Result<napi::JsObject> {
-//         let result = self.inner.commit();
-//         env.execute_tokio_future(
-//             async move { result.await.map_err(to_napi_err) },
-//             |env, result| env.get_undefined(),
-//         )
-//     }
-// }
+#[napi]
+impl SQLDatabase {
+    #[napi]
+    pub async fn acquire(&self) -> napi::Result<SQLConn> {
+        let conn = self.pool()?.acquire().await.map_err(to_napi_err)?;
+        log::info!("acquired connection");
+        Ok(SQLConn {
+            inner: Arc::new(conn),
+        })
+    }
+}
+
+#[napi]
+pub struct SQLConn {
+    inner: Arc<sqldb::Connection>,
+}
+
+#[napi]
+impl SQLConn {
+    #[napi]
+    pub async fn close(&self) {
+        self.inner.close().await
+    }
+
+    #[napi]
+    pub async fn query(
+        &self,
+        query: String,
+        args: &QueryArgs,
+        source: Option<&Request>,
+    ) -> napi::Result<Cursor> {
+        let values: Vec<_> = args.values.lock().unwrap().drain(..).collect();
+        let source = source.map(|s| s.inner.as_ref());
+        let stream = self
+            .inner
+            .query_raw(&query, values, source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+        Ok(Cursor {
+            stream: tokio::sync::Mutex::new(stream),
+        })
+    }
+
+    #[napi]
+    pub async fn query_row(
+        &self,
+        query: String,
+        args: &QueryArgs,
+        source: Option<&Request>,
+    ) -> napi::Result<Option<Row>> {
+        let values: Vec<_> = args.values.lock().unwrap().drain(..).collect();
+        let source = source.map(|s| s.inner.as_ref());
+        let mut stream = self
+            .inner
+            .query_raw(&query, values, source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+        let row = stream
+            .next()
+            .await
+            .transpose()
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+        Ok(row.map(|row| Row { row }))
+    }
+}
+
+fn to_napi_err<E: Display>(e: E) -> napi::Error {
+    napi::Error::new(napi::Status::GenericFailure, e.to_string())
+}
