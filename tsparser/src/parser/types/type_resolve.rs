@@ -270,7 +270,10 @@ impl<'a> Ctx<'a> {
                 Type::Literal(Literal::String(s)) => iface
                     .fields
                     .iter()
-                    .find(|f| f.name.as_str() == s)
+                    .find(|f| match &f.name {
+                        FieldName::String(name) => *name == *s,
+                        FieldName::Symbol(_) => false,
+                    })
                     .map_or(Type::Basic(Basic::Never), |f| {
                         let typ = f.typ.clone();
                         // If the field is optional, wrap the type in Optional.
@@ -343,7 +346,12 @@ impl<'a> Ctx<'a> {
                 let keys = interface
                     .fields
                     .iter()
-                    .map(|f| Type::Literal(Literal::String(f.name.clone())))
+                    .filter_map(|f| match &f.name {
+                        FieldName::String(name) => {
+                            Some(Type::Literal(Literal::String(name.clone())))
+                        }
+                        FieldName::Symbol(_) => None,
+                    })
                     .collect();
                 Type::Union(keys)
             }
@@ -417,7 +425,7 @@ impl<'a> Ctx<'a> {
             match m {
                 ast::TsTypeElement::TsPropertySignature(p) => {
                     let name = match *p.key {
-                        ast::Expr::Ident(ref i) => i.sym.as_ref().to_string(),
+                        ast::Expr::Ident(ref i) => FieldName::String(i.sym.as_ref().to_string()),
                         _ => {
                             HANDLER.with(|handler| {
                                 handler.span_err(p.key.span(), "unsupported property key")
@@ -519,9 +527,9 @@ impl<'a> Ctx<'a> {
     }
 
     fn type_ref(&self, typ: &ast::TsTypeRef) -> Type {
-        let ident: &ast::Ident = match typ.type_name {
-            ast::TsEntityName::Ident(ref i) => i,
-            ast::TsEntityName::TsQualifiedName(_) => {
+        let ident: &ast::Ident = match &typ.type_name {
+            ast::TsEntityName::Ident(i) => i,
+            ast::TsEntityName::TsQualifiedName(qn) => {
                 HANDLER
                     .with(|handler| handler.span_err(typ.span, "qualified name not yet supported"));
                 return Type::Basic(Basic::Never);
@@ -1019,7 +1027,7 @@ impl<'a> Ctx<'a> {
                     };
                     fields.push(InterfaceField {
                         range: prop.span().into(),
-                        name: name.into_owned(),
+                        name: FieldName::String(name.into_owned()),
                         typ,
                         optional: false,
                     });
@@ -1071,12 +1079,12 @@ impl<'a> Ctx<'a> {
             Type::Interface(tt) => {
                 for field in tt.fields.iter() {
                     let matches = match prop {
-                        ast::MemberProp::Ident(i) => field.name == i.sym.as_ref(),
-                        ast::MemberProp::PrivateName(i) => field.name == i.id.sym.as_ref(),
+                        ast::MemberProp::Ident(i) => field.name.eq_str(i.sym.as_ref()),
+                        ast::MemberProp::PrivateName(i) => field.name.eq_str(i.id.sym.as_ref()),
                         ast::MemberProp::Computed(i) => match self.expr(&i.expr) {
                             Type::Literal(lit) => match lit {
-                                Literal::String(str) => field.name == str,
-                                Literal::Number(num) => num.to_string() == field.name,
+                                Literal::String(str) => field.name.eq_str(&str),
+                                Literal::Number(num) => field.name.eq_str(num.to_string().as_str()),
                                 _ => false,
                             },
                             _ => false,
@@ -1194,7 +1202,7 @@ impl<'a> Ctx<'a> {
                     };
                     fields.push(InterfaceField {
                         range: m.span.into(),
-                        name,
+                        name: FieldName::String(name),
                         typ: field_type,
                         optional: false,
                     });
@@ -1506,7 +1514,7 @@ impl<'a> Ctx<'a> {
 
                                 iface.fields.push(InterfaceField {
                                     range: Range::default(),
-                                    name: str.clone(),
+                                    name: FieldName::String(str.clone()),
                                     typ,
                                     optional,
                                 });

@@ -1,5 +1,5 @@
 use crate::parser::types::type_resolve::Ctx;
-use crate::parser::types::{object, ResolveState};
+use crate::parser::types::{object, Object, ResolveState};
 use crate::parser::Range;
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -237,10 +237,25 @@ impl PartialEq for Interface {
     }
 }
 
+#[derive(Debug, Clone, Hash, Serialize, Eq, PartialEq)]
+pub enum FieldName {
+    String(String),
+    Symbol(Rc<Object>),
+}
+
+impl FieldName {
+    pub fn eq_str(&self, str: &str) -> bool {
+        match self {
+            FieldName::String(s) => s == str,
+            FieldName::Symbol(_) => false,
+        }
+    }
+}
+
 #[derive(Clone, Hash, Serialize)]
 pub struct InterfaceField {
     pub range: Range,
-    pub name: String,
+    pub name: FieldName,
     pub optional: bool,
     pub typ: Type,
 }
@@ -507,14 +522,14 @@ impl Type {
             },
 
             (Type::Interface(iface), other) => {
-                let this_fields: HashMap<&str, &InterfaceField> =
-                    HashMap::from_iter(iface.fields.iter().map(|f| (f.name.as_str(), f)));
+                let this_fields: HashMap<&FieldName, &InterfaceField> =
+                    HashMap::from_iter(iface.fields.iter().map(|f| (&f.name, f)));
                 match other {
                     Type::Interface(other) => {
                         // Does every field in `other` exist in `iface`?
                         let mut found_none = false;
                         for field in &other.fields {
-                            if let Some(this_field) = this_fields.get(field.name.as_str()) {
+                            if let Some(this_field) = this_fields.get(&field.name) {
                                 match this_field.typ.assignable(state, &field.typ) {
                                     Some(true) => {}
                                     Some(false) => return Some(false),
@@ -727,9 +742,13 @@ pub fn intersect<'a: 'b, 'b>(
             Cow::Owned(Type::Basic(Basic::Never))
         }
 
-        (Type::Named(x), y) | (y, Type::Named(x)) => {
+        (Type::Named(x), _) => {
             let x = ctx.underlying_named(x);
             intersect(ctx, Cow::Owned(x), b)
+        }
+        (_, Type::Named(y)) => {
+            let y = ctx.underlying_named(y);
+            intersect(ctx, a, Cow::Owned(y))
         }
 
         (Type::Interface(_), Type::Interface(_)) => {
@@ -752,7 +771,7 @@ pub fn intersect<'a: 'b, 'b>(
                 let mut result = Vec::with_capacity(x.fields.len() + y_fields.len());
 
                 for mut field in x.fields {
-                    if let Some(other) = y_fields.get_mut(field.name.as_str()) {
+                    if let Some(other) = y_fields.get_mut(&field.name) {
                         // Intersect the type.
                         let other = other.take().expect("field name should not appear twice");
                         field.typ = intersect(ctx, Cow::Owned(field.typ), Cow::Owned(other.typ))
@@ -799,6 +818,13 @@ pub fn intersect<'a: 'b, 'b>(
                 index,
                 call: None,
             }))
+        }
+
+        (Type::Interface(_), _) | (_, Type::Interface(_)) => {
+            Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
+                x: Box::new(a.into_owned()),
+                y: Box::new(b.into_owned()),
+            })))
         }
 
         (_, _) => Cow::Owned(Type::Basic(Basic::Never)),

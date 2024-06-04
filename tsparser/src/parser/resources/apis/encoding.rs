@@ -6,8 +6,8 @@ use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, unwrap_promise, Basic, Interface, InterfaceField, ResolveState, Type,
-    TypeChecker,
+    drop_empty_or_void, unwrap_promise, Basic, FieldName, Interface, InterfaceField, ResolveState,
+    Type, TypeChecker,
 };
 
 /// Describes how an API endpoint can be encoded on the wire.
@@ -325,7 +325,9 @@ fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
     fn to_fields(state: &ResolveState, iface: &Interface) -> Result<FieldMap> {
         let mut map = HashMap::new();
         for f in &iface.fields {
-            map.insert(f.name.clone(), rewrite_custom_type_field(state, f)?);
+            if let FieldName::String(name) = &f.name {
+                map.insert(name.clone(), rewrite_custom_type_field(state, f, name)?);
+            }
         }
         Ok(map)
     }
@@ -441,9 +443,13 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> Result<Pa
     Ok(Path { segments })
 }
 
-fn rewrite_custom_type_field(ctx: &ResolveState, field: &InterfaceField) -> Result<Field> {
+fn rewrite_custom_type_field(
+    ctx: &ResolveState,
+    field: &InterfaceField,
+    field_name: &str,
+) -> Result<Field> {
     let standard_field = Field {
-        name: field.name.clone(),
+        name: field_name.to_string(),
         typ: field.typ.clone(),
         optional: field.optional,
         custom: None,

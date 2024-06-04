@@ -1,0 +1,27 @@
+-- foo/foo.ts --
+import { api, Query, Header } from "encore.dev/api";
+
+interface Params {
+    q1: Query;
+    q2: Query<boolean>;
+    q3: Query<"my-query">;
+    q4: Query<boolean, "my-query">;
+
+    h1: Header;
+    h2: Header<boolean>;
+    h3: Header<"my-header">;
+    h4: Header<boolean, "my-header">;
+};
+
+export const t1 = api<Params, void>({}, () => {});
+export const t2 = api<void, Params>({}, () => {});
+export const t3 = api<Params, Params>({}, () => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}
