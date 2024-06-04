@@ -14,7 +14,7 @@ use crate::parser::parser::ParseContext;
 
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, Basic, Generic, Interface, Literal, Named, ObjectId, Type,
+    drop_empty_or_void, Basic, FieldName, Generic, Interface, Literal, Named, ObjectId, Type,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
@@ -210,6 +210,9 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
 
         let mut fields = Vec::with_capacity(typ.fields.len());
         for f in &typ.fields {
+            let FieldName::String(field_name) = &f.name else {
+                continue;
+            };
             let (tt, had_undefined) = drop_undefined_union(&f.typ);
             let optional = f.optional || had_undefined;
 
@@ -256,7 +259,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 None => {}
                 Some(CustomType::Header { name, .. }) => tags.push(schema::Tag {
                     key: "header".into(),
-                    name: name.unwrap_or(f.name.clone()),
+                    name: name.unwrap_or(field_name.clone()),
                     options: if f.optional {
                         vec!["optional".into()]
                     } else {
@@ -264,7 +267,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                     },
                 }),
                 Some(CustomType::Query { name, .. }) => {
-                    query_string_name = name.unwrap_or(f.name.clone());
+                    query_string_name = name.unwrap_or(field_name.clone());
                     tags.push(schema::Tag {
                         key: "query".into(),
                         name: query_string_name.clone(),
@@ -301,8 +304,8 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 .and_then(|module| module.preceding_comments(f.range.start));
             fields.push(schema::Field {
                 typ: Some(typ),
-                name: f.name.clone(),
-                json_name: f.name.clone(),
+                name: field_name.clone(),
+                json_name: field_name.clone(),
                 optional,
                 wire,
                 tags,

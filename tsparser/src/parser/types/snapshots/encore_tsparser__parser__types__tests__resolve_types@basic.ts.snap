@@ -8,21 +8,27 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Basic(
                         String,
                     ),
                 },
                 InterfaceField {
-                    name: "bar",
+                    name: String(
+                        "bar",
+                    ),
                     optional: false,
                     typ: Basic(
                         Number,
                     ),
                 },
                 InterfaceField {
-                    name: "optional",
+                    name: String(
+                        "optional",
+                    ),
                     optional: true,
                     typ: Basic(
                         Boolean,
@@ -51,7 +57,9 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Basic(
                         String,
@@ -66,14 +74,18 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Basic(
                         String,
                     ),
                 },
                 InterfaceField {
-                    name: "optional",
+                    name: String(
+                        "optional",
+                    ),
                     optional: true,
                     typ: Basic(
                         Boolean,
@@ -88,14 +100,18 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "bar",
+                    name: String(
+                        "bar",
+                    ),
                     optional: false,
                     typ: Basic(
                         Number,
                     ),
                 },
                 InterfaceField {
-                    name: "optional",
+                    name: String(
+                        "optional",
+                    ),
                     optional: true,
                     typ: Basic(
                         Boolean,
@@ -110,7 +126,9 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "optional",
+                    name: String(
+                        "optional",
+                    ),
                     optional: true,
                     typ: Basic(
                         Boolean,
@@ -125,21 +143,27 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: true,
                     typ: Basic(
                         String,
                     ),
                 },
                 InterfaceField {
-                    name: "bar",
+                    name: String(
+                        "bar",
+                    ),
                     optional: true,
                     typ: Basic(
                         Number,
                     ),
                 },
                 InterfaceField {
-                    name: "optional",
+                    name: String(
+                        "optional",
+                    ),
                     optional: true,
                     typ: Basic(
                         Boolean,
@@ -177,14 +201,18 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Basic(
                         String,
                     ),
                 },
                 InterfaceField {
-                    name: "bar",
+                    name: String(
+                        "bar",
+                    ),
                     optional: false,
                     typ: Basic(
                         Number,
@@ -199,7 +227,9 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Literal(
                         String(
@@ -216,7 +246,9 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Basic(
                         Never,
@@ -231,7 +263,9 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "foo",
+                    name: String(
+                        "foo",
+                    ),
                     optional: false,
                     typ: Literal(
                         String(
@@ -248,21 +282,27 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         Interface {
             fields: [
                 InterfaceField {
-                    name: "a",
+                    name: String(
+                        "a",
+                    ),
                     optional: false,
                     typ: Basic(
                         Any,
                     ),
                 },
                 InterfaceField {
-                    name: "b",
+                    name: String(
+                        "b",
+                    ),
                     optional: false,
                     typ: Basic(
                         String,
                     ),
                 },
                 InterfaceField {
-                    name: "c",
+                    name: String(
+                        "c",
+                    ),
                     optional: false,
                     typ: Basic(
                         Never,
