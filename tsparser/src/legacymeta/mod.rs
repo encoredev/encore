@@ -3,6 +3,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::{Context, Result};
+use swc_common::errors::HANDLER;
 
 use crate::app::Service;
 use crate::encore::parser::meta::v1;
@@ -81,8 +82,8 @@ impl<'a> MetaBuilder<'a> {
             self.data.svcs.push(v1::Service {
                 name: svc.name.clone(),
                 rel_path,
-                rpcs: vec![], // filled in later
-                databases: self.svc_databases_names(svc),
+                rpcs: vec![],      // filled in later
+                databases: vec![], // filled in later
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -343,6 +344,20 @@ impl<'a> MetaBuilder<'a> {
                             .push(v1::pub_sub_topic::Publisher { service_name });
                     }
                 }
+                Usage::AccessDatabase(access) => {
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        HANDLER.with(|h| {
+                            h.span_err(
+                                access.range.to_span(),
+                                "unable to determine which service is accessing this database",
+                            )
+                        });
+                        continue;
+                    };
+
+                    let idx = svc_index.get(&svc.name).unwrap();
+                    self.data.svcs[*idx].databases.push(access.db.name.clone());
+                }
                 Usage::CallEndpoint(call) => {
                     let src_service = self
                         .service_for_range(&call.range)
@@ -377,11 +392,6 @@ impl<'a> MetaBuilder<'a> {
             }
         }
 
-        // Sort the endpoints for deterministic output.
-        for svc in &mut self.data.svcs {
-            svc.rpcs.sort_by(|a, b| a.name.cmp(&b.name));
-        }
-
         // Sort the packages for deterministic output.
         self.data.pkgs.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -389,6 +399,15 @@ impl<'a> MetaBuilder<'a> {
         for pkg in &mut self.data.pkgs {
             pkg.secrets.sort();
             pkg.secrets.dedup();
+        }
+
+        for svc in &mut self.data.svcs {
+            // Remove duplicate database access.
+            svc.databases.sort();
+            svc.databases.dedup();
+
+            // Sort the endpoints for deterministic output.
+            svc.rpcs.sort_by(|a, b| a.name.cmp(&b.name));
         }
 
         // If there is no gateway, add a default one.
@@ -401,21 +420,6 @@ impl<'a> MetaBuilder<'a> {
 
         self.data.decls = self.schema.into_decls();
         Ok(self.data)
-    }
-
-    fn svc_databases_names(&self, svc: &Service) -> Vec<String> {
-        let mut dbs: Vec<String> = svc
-            .binds
-            .iter()
-            .filter_map(|b| match &b.resource {
-                Resource::SQLDatabase(db) => Some(db.name.clone()),
-                _ => None,
-            })
-            .collect();
-
-        // Sort the result for deterministic output.
-        dbs.sort();
-        dbs
     }
 
     fn pubsub_topic(&self, topic: &pubsub_topic::Topic) -> v1::PubSubTopic {
@@ -443,8 +447,6 @@ impl<'a> MetaBuilder<'a> {
         topic
             .publishers
             .sort_by(|a, b| a.service_name.cmp(&b.service_name));
-
-        // TODO: Usage parsing not yet implemented
 
         topic
     }

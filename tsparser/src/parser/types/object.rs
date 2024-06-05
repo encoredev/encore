@@ -195,13 +195,6 @@ impl NSData {
     fn add_top_level(&mut self, id: AstId, obj: Rc<Object>) -> Rc<Object> {
         if let Some(other) = self.top_level.get(&id) {
             // Unhandled overload most likely, return the existing object for now.
-            HANDLER.with(|handler| {
-                handler.span_warn(
-                    obj.range.to_span(),
-                    &format!("`{}` declared twice (unhandled overload?)", id),
-                );
-            });
-
             return other.clone();
         }
 
