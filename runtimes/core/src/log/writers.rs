@@ -1,6 +1,5 @@
 use crate::log::consolewriter::ConsoleWriter;
 use crate::log::fields::FieldConfig;
-use crate::log::LogLevel;
 use anyhow::Context;
 use serde_json::Value;
 use std::cell::RefCell;
@@ -15,7 +14,7 @@ use tokio::io::AsyncWrite;
 /// A log writer.
 pub trait Writer: Send + Sync + 'static {
     /// Write the given key-value pairs to the log.
-    fn write(&self, level: LogLevel, values: &BTreeMap<String, Value>) -> anyhow::Result<()>;
+    fn write(&self, level: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()>;
 }
 
 impl Debug for dyn Writer {
@@ -76,7 +75,7 @@ impl Default for BlockingWriter<std::io::Stderr> {
 
 /// A Writer implementation that writes logs in JSON format.
 impl<W: Write + Sync + Send + 'static> Writer for BlockingWriter<W> {
-    fn write(&self, _: LogLevel, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
+    fn write(&self, _: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
         let mut buf = Vec::with_capacity(256);
         serde_json::to_writer(&mut buf, values)
             .map_err(std::io::Error::from)
@@ -117,7 +116,7 @@ impl Default for AsyncWriter<tokio::io::Stderr> {
 }
 
 impl<W: AsyncWrite + Sync + Send + 'static> Writer for AsyncWriter<W> {
-    fn write(&self, _: LogLevel, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
+    fn write(&self, _: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
         let mut buf = Vec::with_capacity(256);
         serde_json::to_writer(&mut buf, values)
             .map_err(std::io::Error::from)

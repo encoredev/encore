@@ -1,9 +1,9 @@
 use crate::error::AppError;
 use crate::log::fields::{FieldConfig, DEFAULT_FIELDS, GCP_FIELDS};
 use crate::log::writers::{default_writer, Writer};
-use crate::log::LogLevel;
 use crate::model;
 use anyhow::Context;
+use env_logger::filter::Filter;
 use log::{Log, Metadata, Record};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -14,7 +14,8 @@ pub type Fields = BTreeMap<String, serde_json::Value>;
 /// Logger is a structured JSON logger that can be used to emit structured logs to stderr
 #[derive(Debug, Clone)]
 pub struct Logger {
-    level: LogLevel,
+    filter: Arc<Filter>,
+    app_level: log::LevelFilter,
     field_config: &'static FieldConfig,
     writer: Arc<dyn Writer>,
     extra_fields: Fields,
@@ -22,9 +23,14 @@ pub struct Logger {
 
 impl Logger {
     /// New returns a new logger with the given field config.
-    pub fn new(field_config: &'static FieldConfig) -> Self {
+    pub fn new(
+        app_level: log::LevelFilter,
+        filter: Filter,
+        field_config: &'static FieldConfig,
+    ) -> Self {
         Self {
-            level: LogLevel::default(),
+            filter: Arc::new(filter),
+            app_level,
             field_config,
             writer: default_writer(field_config),
             extra_fields: Fields::new(),
@@ -32,9 +38,9 @@ impl Logger {
     }
 
     /// Returns a new logger with the given log level.
-    pub fn with_level(&self, level: LogLevel) -> Self {
+    pub fn with_level(&self, level: log::LevelFilter) -> Self {
         Self {
-            level,
+            app_level: level,
             ..self.clone()
         }
     }
@@ -62,15 +68,13 @@ impl Logger {
     }
 
     /// Returns the current log level as expected by the `log` crate.
-    fn level_to_value(&self, level: LogLevel) -> serde_json::Value {
+    fn level_to_value(&self, level: ::log::Level) -> serde_json::Value {
         serde_json::Value::from(match level {
-            LogLevel::Trace => &self.field_config.level_trace_value,
-            LogLevel::Debug => &self.field_config.level_debug_value,
-            LogLevel::Info => &self.field_config.level_info_value,
-            LogLevel::Warn => &self.field_config.level_warn_value,
-            LogLevel::Error => &self.field_config.level_error_value,
-            LogLevel::Fatal => &self.field_config.level_fatal_value,
-            LogLevel::Disabled => "disabled",
+            ::log::Level::Trace => self.field_config.level_trace_value,
+            ::log::Level::Debug => self.field_config.level_debug_value,
+            ::log::Level::Info => self.field_config.level_info_value,
+            ::log::Level::Warn => self.field_config.level_warn_value,
+            ::log::Level::Error => self.field_config.level_error_value,
         })
     }
 
@@ -78,16 +82,12 @@ impl Logger {
     fn try_log(
         &self,
         request: Option<&model::Request>,
-        level: LogLevel,
+        level: log::Level,
         msg: String,
         error: Option<AppError>,
         caller: Option<String>,
         fields: Option<Fields>,
     ) -> anyhow::Result<()> {
-        if level < self.level {
-            return Ok(());
-        }
-
         let mut values = Fields::new();
 
         // Copy the extra fields into the values map.
@@ -221,8 +221,9 @@ impl Logger {
             None => record.args().to_string(),
         };
 
-        let caller = match (record.file(), record.line()) {
-            (Some(file), Some(line)) => Some(format!("{}:{}", file, line)),
+        let caller = match (record.module_path(), record.file(), record.line()) {
+            (Some(module), _, _) => Some(module.to_string()),
+            (_, Some(file), Some(line)) => Some(format!("{}:{}", file, line)),
             _ => None,
         };
 
@@ -262,14 +263,6 @@ pub trait LogFromRust<T: std::fmt::Display> {
         error: Option<Err>,
         fields: Option<Fields>,
     );
-
-    fn fatal<Err: Into<AppError>>(
-        &self,
-        req: Option<&model::Request>,
-        msg: T,
-        error: Option<Err>,
-        fields: Option<Fields>,
-    );
 }
 
 /// This trait defines the logging functions that are available on the `Logger` type.
@@ -280,7 +273,7 @@ pub trait LogFromExternalRuntime<T: std::fmt::Display> {
     fn log<Err: Into<AppError>>(
         &self,
         request: Option<&model::Request>,
-        level: LogLevel,
+        level: log::Level,
         msg: T,
         error: Option<Err>,
         caller: Option<String>,
@@ -296,12 +289,16 @@ where
     fn log<Err: Into<AppError>>(
         &self,
         request: Option<&model::Request>,
-        level: LogLevel,
+        level: log::Level,
         msg: T,
         error: Option<Err>,
         caller: Option<String>,
         fields: Option<Fields>,
     ) -> anyhow::Result<()> {
+        if level > self.app_level {
+            return Ok(());
+        }
+
         self.try_log(
             request,
             level,
@@ -319,41 +316,32 @@ where
 {
     #[track_caller]
     fn trace(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>) {
-        self.try_log(
-            req,
-            LogLevel::Trace,
-            msg.to_string(),
-            None,
-            None, // get_rust_caller(),
-            fields,
-        )
-        .expect("failed to log");
+        if log::Level::Trace > self.app_level {
+            return;
+        }
+
+        self.try_log(req, log::Level::Trace, msg.to_string(), None, None, fields)
+            .expect("failed to log");
     }
 
     #[track_caller]
     fn debug(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>) {
-        self.try_log(
-            req,
-            LogLevel::Debug,
-            msg.to_string(),
-            None,
-            None, // get_rust_caller(),
-            fields,
-        )
-        .expect("failed to log");
+        if log::Level::Debug > self.app_level {
+            return;
+        }
+
+        self.try_log(req, log::Level::Debug, msg.to_string(), None, None, fields)
+            .expect("failed to log");
     }
 
     #[track_caller]
     fn info(&self, req: Option<&model::Request>, msg: T, fields: Option<Fields>) {
-        self.try_log(
-            req,
-            LogLevel::Info,
-            msg.to_string(),
-            None,
-            None, // get_rust_caller(),
-            fields,
-        )
-        .expect("failed to log");
+        if log::Level::Info > self.app_level {
+            return;
+        }
+
+        self.try_log(req, log::Level::Info, msg.to_string(), None, None, fields)
+            .expect("failed to log");
     }
 
     #[track_caller]
@@ -364,12 +352,16 @@ where
         error: Option<Err>,
         fields: Option<Fields>,
     ) {
+        if log::Level::Warn > self.app_level {
+            return;
+        }
+
         self.try_log(
             req,
-            LogLevel::Warn,
+            log::Level::Warn,
             msg.to_string(),
             error.map(|e| e.into().trim_stack(file!(), line!(), 1)),
-            None, // get_rust_caller(),
+            None,
             fields,
         )
         .expect("failed to log");
@@ -383,50 +375,19 @@ where
         error: Option<Err>,
         fields: Option<Fields>,
     ) {
+        if log::Level::Error > self.app_level {
+            return;
+        }
+
         self.try_log(
             req,
-            LogLevel::Error,
+            log::Level::Error,
             msg.to_string(),
             error.map(|e| e.into().trim_stack(file!(), line!(), 1)),
-            None, // get_rust_caller(),
+            None,
             fields,
         )
         .expect("failed to log");
-    }
-
-    #[track_caller]
-    fn fatal<Err: Into<AppError>>(
-        &self,
-        req: Option<&model::Request>,
-        msg: T,
-        error: Option<Err>,
-        fields: Option<Fields>,
-    ) {
-        self.try_log(
-            req,
-            LogLevel::Fatal,
-            msg.to_string(),
-            error.map(|e| e.into().trim_stack(file!(), line!(), 1)),
-            None, // get_rust_caller(),
-            fields,
-        )
-        .expect("failed to log");
-    }
-}
-
-#[inline]
-#[track_caller]
-#[allow(dead_code)]
-fn get_rust_caller() -> Option<String> {
-    let location = std::panic::Location::caller();
-    Some(format!("{}:{}", location.file(), location.line()))
-}
-
-#[inline]
-fn should_ignore_caller(c: Option<&str>) -> bool {
-    match c {
-        Some(c) => c.contains(".cargo/registry/src/"),
-        None => false,
     }
 }
 
@@ -439,33 +400,15 @@ pub fn iso8601_now() -> serde_json::Value {
     serde_json::Value::from(date.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
 }
 
-impl Default for Logger {
-    fn default() -> Self {
-        // If we're running in GCP, then we'll use the GCP fields.
-        for var in &[
-            "GCP_PROJECT",
-            "GOOGLE_CLOUD_PROJECT",
-            "GCP_METADATA_PROJECT",
-        ] {
-            if let Ok(_) = std::env::var(var) {
-                return Self::new(&GCP_FIELDS);
-            }
-        }
-
-        Self::new(&DEFAULT_FIELDS)
-    }
-}
-
 /// Implement the `Log` trait for `Logger` which allows other creates which use the `log` facade
 /// crate to emit structured logs via our `Logger` implementation.
 impl Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        let level: LogLevel = metadata.level().into();
-        level >= self.level
+        self.filter.enabled(metadata)
     }
 
     fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) && !should_ignore_caller(record.file()) {
+        if self.enabled(record.metadata()) {
             self.try_log_record(record).unwrap_or_else(|e| {
                 eprintln!("failed to log: {}", e);
             });

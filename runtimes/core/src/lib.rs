@@ -278,6 +278,8 @@ impl Runtime {
         .build()
         .context("unable to initialize api manager")?;
 
+        ::log::debug!("encore runtime successfully initialized");
+
         Ok(Self {
             md,
             pubsub,

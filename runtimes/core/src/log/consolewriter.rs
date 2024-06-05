@@ -1,7 +1,6 @@
 use crate::error::{write_stack_trace, StackFrame};
 use crate::log::fields::FieldConfig;
 use crate::log::writers::Writer;
-use crate::log::LogLevel;
 use anyhow::Context;
 use chrono::Timelike;
 use colored::Colorize;
@@ -113,7 +112,7 @@ impl std::fmt::Write for VecWriter<'_> {
 }
 
 impl<W: Write + Sync + Send + 'static> Writer for ConsoleWriter<W> {
-    fn write(&self, level: LogLevel, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
+    fn write(&self, level: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
         let mut buf = Vec::with_capacity(256);
 
         write_part(
@@ -197,15 +196,13 @@ fn format_timestamp(timestamp: &str) -> anyhow::Result<String> {
     Ok(format!("{}", timestamp.bright_black()))
 }
 
-fn write_level(buf: &mut Vec<u8>, level: LogLevel) -> anyhow::Result<()> {
+fn write_level(buf: &mut Vec<u8>, level: log::Level) -> anyhow::Result<()> {
     let level_str = match level {
-        LogLevel::Trace => "TRC".magenta(),
-        LogLevel::Debug => "DBG".yellow(),
-        LogLevel::Info => "INF".green(),
-        LogLevel::Warn => "WRN".red(),
-        LogLevel::Error => "ERR".red().bold(),
-        LogLevel::Fatal => "FTL".red().bold(),
-        LogLevel::Disabled => "???".bold(),
+        log::Level::Trace => "TRC".magenta(),
+        log::Level::Debug => "DBG".yellow(),
+        log::Level::Info => "INF".green(),
+        log::Level::Warn => "WRN".red(),
+        log::Level::Error => "ERR".red().bold(),
     };
 
     if buf.len() > 0 {
