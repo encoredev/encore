@@ -5,6 +5,7 @@ use serde::de::{DeserializeSeed, Deserializer};
 
 pub use de::{Basic, BasicOrValue, Field, Struct, Value};
 
+pub use crate::api::jsonschema::de::DecodeConfig;
 use crate::api::jsonschema::de::DecodeValue;
 
 mod de;
@@ -65,6 +66,18 @@ impl JSONSchema {
     {
         payload.parse_with_schema(&self)
     }
+
+    pub fn deserialize<'de, T>(
+        &self,
+        de: T,
+        cfg: DecodeConfig,
+    ) -> Result<serde_json::Map<String, serde_json::Value>, T::Error>
+    where
+        T: Deserializer<'de>,
+    {
+        let seed = SchemaDeserializer { cfg, schema: self };
+        seed.deserialize(de)
+    }
 }
 
 impl fmt::Debug for JSONSchema {
@@ -96,7 +109,7 @@ impl Value {
     }
 }
 
-impl<'de> DeserializeSeed<'de> for &JSONSchema {
+impl<'de: 'a, 'a> DeserializeSeed<'de> for SchemaDeserializer<'a> {
     type Value = serde_json::Map<String, serde_json::Value>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -104,8 +117,9 @@ impl<'de> DeserializeSeed<'de> for &JSONSchema {
         D: Deserializer<'de>,
     {
         let visitor = DecodeValue {
-            reg: &self.registry,
-            value: &self.registry.values[self.root],
+            cfg: &self.cfg,
+            reg: &self.schema.registry,
+            value: &self.schema.registry.values[self.schema.root],
         };
         let value = deserializer.deserialize_any(visitor)?;
         match value {
@@ -113,6 +127,11 @@ impl<'de> DeserializeSeed<'de> for &JSONSchema {
             _ => Err(serde::de::Error::custom("expected object")),
         }
     }
+}
+
+struct SchemaDeserializer<'a> {
+    cfg: DecodeConfig,
+    schema: &'a JSONSchema,
 }
 
 #[cfg(test)]
@@ -151,7 +170,7 @@ mod tests {
 
         let str = r#"{"foo": "bar", "blah": "baz"}"#;
         let mut jsonde = serde_json::Deserializer::from_str(str);
-        let res = serde::de::DeserializeSeed::deserialize(&schema, &mut jsonde);
+        let res = schema.deserialize(&mut jsonde, DecodeConfig::default());
         println!("{:?}", res);
     }
 }
