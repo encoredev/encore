@@ -219,27 +219,26 @@ impl Path {
                             Basic::String | Basic::Any => serde_json::Value::String(val),
 
                             // For numbers and booleans, use the JSON parser.
-                            Basic::Number | Basic::Bool => {
-                                let mut de = serde_json::Deserializer::from_str(&val);
-                                let val =
-                                    DeserializeSeed::deserialize(*typ, &mut de).map_err(|err| {
-                                        let expected = match typ {
-                                            Basic::Number => "number",
-                                            Basic::Bool => "boolean",
-                                            _ => "value", // shouldn't happen
-                                        };
-
-                                        api::Error {
-                                            code: api::ErrCode::InvalidArgument,
-                                            message: format!(
-                                                "path parameter is not a valid {}",
-                                                expected
-                                            ),
-                                            internal_message: Some(err.to_string()),
-                                            stack: None,
-                                        }
+                            Basic::Number => {
+                                let val = serde_json::from_str::<serde_json::Number>(&val)
+                                    .map_err(|err| api::Error {
+                                        code: api::ErrCode::InvalidArgument,
+                                        message: "path parameter is not a valid number".into(),
+                                        internal_message: Some(err.to_string()),
+                                        stack: None,
                                     })?;
-                                val
+                                serde_json::Value::Number(val)
+                            }
+                            Basic::Bool => {
+                                let val = serde_json::from_str::<bool>(&val).map_err(|err| {
+                                    api::Error {
+                                        code: api::ErrCode::InvalidArgument,
+                                        message: "path parameter is not a valid boolean".into(),
+                                        internal_message: Some(err.to_string()),
+                                        stack: None,
+                                    }
+                                })?;
+                                serde_json::Value::Bool(val)
                             }
 
                             // We shouldn't have null here, but handle it just in case.
