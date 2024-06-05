@@ -204,6 +204,7 @@ pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
     ReferenceEndpoint(apis::api::ReferenceEndpointUsage),
     PublishTopic(infra::pubsub_topic::PublishUsage),
+    AccessDatabase(infra::sqldb::AccessDatabaseUsage),
 }
 
 pub struct ResolveUsageData<'a> {
@@ -230,6 +231,10 @@ impl UsageResolver<'_> {
                 }
                 Resource::PubSubTopic(topic) => {
                     infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())?
+                        .map(|u| usages.push(u));
+                }
+                Resource::SQLDatabase(db) => {
+                    infra::sqldb::resolve_database_usage(&data, db.clone())?
                         .map(|u| usages.push(u));
                 }
                 _ => {}

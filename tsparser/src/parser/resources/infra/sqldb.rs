@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use litparser_derive::LitParser;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
@@ -14,11 +15,13 @@ use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
+use crate::parser::resources::infra::pubsub_topic::Topic;
 use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
 use crate::parser::resources::parseutil::{NamedClassResourceOptionalConfig, NamedStaticMethod};
 use crate::parser::resources::Resource;
 use crate::parser::resources::ResourcePath;
-use crate::parser::FilePath;
+use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
+use crate::parser::{FilePath, Range};
 
 #[derive(Debug, Clone)]
 pub struct SQLDatabase {
@@ -161,5 +164,39 @@ fn parse_migrations(dir: &Path) -> Result<Vec<DBMigration>> {
         }
     }
 
+    // Sort the migrations by number.
+    migrations.sort_by_key(|m| m.number);
+
     Ok(migrations)
+}
+
+pub fn resolve_database_usage(
+    data: &ResolveUsageData,
+    db: Lrc<SQLDatabase>,
+) -> Result<Option<Usage>> {
+    Ok(match &data.expr.kind {
+        UsageExprKind::MethodCall(_)
+        | UsageExprKind::FieldAccess(_)
+        | UsageExprKind::CallArg(_)
+        | UsageExprKind::ConstructorArg(_) => Some(Usage::AccessDatabase(AccessDatabaseUsage {
+            range: data.expr.range,
+            db,
+        })),
+
+        _ => {
+            HANDLER.with(|h| {
+                h.span_err(
+                    data.expr.range.to_span(),
+                    "invalid use of database resource",
+                )
+            });
+            None
+        }
+    })
+}
+
+#[derive(Debug)]
+pub struct AccessDatabaseUsage {
+    pub range: Range,
+    pub db: Lrc<SQLDatabase>,
 }
