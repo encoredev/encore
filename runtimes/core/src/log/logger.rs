@@ -42,6 +42,7 @@ impl Logger {
         }
     }
 
+    /// Sets the loggers tracer
     pub fn set_tracer(&self, tracer: Tracer) {
         let mut t = self.tracer.write().expect("tracer lock poisoned");
         *t = tracer;
@@ -266,14 +267,13 @@ impl Logger {
                         key,
                         value: model::LogFieldValue::I64(num.as_i64().unwrap()),
                     });
-                }
-                if num.is_u64() {
+                } else if num.is_u64() {
                     trace_fields.push(LogField {
                         key,
                         value: model::LogFieldValue::U64(num.as_u64().unwrap()),
                     });
-                }
-                if num.is_f64() {
+                } else if num.is_f64() {
+                    println!("is_f64");
                     trace_fields.push(LogField {
                         key,
                         value: model::LogFieldValue::F64(num.as_f64().unwrap()),
@@ -288,7 +288,12 @@ impl Logger {
                 key,
                 value: model::LogFieldValue::String(str),
             }),
-            _ => {}
+            serde_json::Value::Array(_)
+            | serde_json::Value::Object(_)
+            | serde_json::Value::Null => trace_fields.push(LogField {
+                key,
+                value: model::LogFieldValue::Json(&val),
+            }),
         });
 
         let _ = self

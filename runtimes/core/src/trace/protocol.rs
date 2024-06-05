@@ -86,10 +86,20 @@ impl Tracer {
 
             match field.value {
                 LogFieldValue::String(str) => eb.str(str),
-                LogFieldValue::U64(n) => eb.u64(n),
-                LogFieldValue::I64(n) => eb.i64(n),
+                LogFieldValue::U64(n) => eb.uvarint(n),
+                LogFieldValue::I64(n) => eb.ivarint(n),
                 LogFieldValue::F64(n) => eb.f64(n),
                 LogFieldValue::Bool(b) => eb.bool(b),
+                LogFieldValue::Json(json) => match serde_json::to_vec(json) {
+                    Ok(bytes) => {
+                        eb.byte_string(&bytes);
+                        eb.nyi_stack_pcs()
+                    }
+                    Err(err) => {
+                        eb.byte_string(&[]);
+                        eb.err_with_legacy_stack(Some(&err))
+                    }
+                },
             }
         }
         eb.nyi_stack_pcs();

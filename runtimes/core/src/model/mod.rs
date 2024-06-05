@@ -304,6 +304,7 @@ pub enum LogFieldValue<'a> {
     I64(i64),
     F64(f64),
     Bool(bool),
+    Json(&'a serde_json::Value),
 }
 
 pub struct LogField<'a> {
@@ -317,6 +318,7 @@ impl LogField<'_> {
             LogFieldValue::String(_) => 2,
             LogFieldValue::Bool(_) => 3,
             LogFieldValue::I64(_) => 8,
+            LogFieldValue::Json(_) => 7,
             LogFieldValue::U64(_) => 9,
             LogFieldValue::F64(_) => 11,
         }
