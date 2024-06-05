@@ -59,6 +59,8 @@ impl Manager {
                 .await
                 .context("failed to bind proxy listener")?;
 
+            log::debug!("encore runtime database proxy listening for incoming requests");
+
             loop {
                 let (stream, _) = listener.accept().await?;
                 let mgr = manager.clone();

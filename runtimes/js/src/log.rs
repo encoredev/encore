@@ -2,7 +2,6 @@ use crate::api::Request;
 use encore_runtime_core::error::{AppError, StackFrame, StackTrace};
 use encore_runtime_core::log::Fields;
 use encore_runtime_core::log::LogFromExternalRuntime;
-use encore_runtime_core::log::LogLevel as CoreLogLevel;
 use napi::{Env, Error};
 use napi_derive::napi;
 use std::collections::HashMap;
@@ -20,18 +19,28 @@ pub enum LogLevel {
     Info,
     Warn,
     Error,
-    Fatal,
 }
 
-impl Into<CoreLogLevel> for LogLevel {
-    fn into(self) -> CoreLogLevel {
+impl Into<log::LevelFilter> for LogLevel {
+    fn into(self) -> log::LevelFilter {
         match self {
-            LogLevel::Trace => CoreLogLevel::Trace,
-            LogLevel::Debug => CoreLogLevel::Debug,
-            LogLevel::Info => CoreLogLevel::Info,
-            LogLevel::Warn => CoreLogLevel::Warn,
-            LogLevel::Error => CoreLogLevel::Error,
-            LogLevel::Fatal => CoreLogLevel::Fatal,
+            LogLevel::Trace => log::LevelFilter::Trace,
+            LogLevel::Debug => log::LevelFilter::Debug,
+            LogLevel::Info => log::LevelFilter::Info,
+            LogLevel::Warn => log::LevelFilter::Warn,
+            LogLevel::Error => log::LevelFilter::Error,
+        }
+    }
+}
+
+impl Into<log::Level> for LogLevel {
+    fn into(self) -> log::Level {
+        match self {
+            LogLevel::Trace => log::Level::Trace,
+            LogLevel::Debug => log::Level::Debug,
+            LogLevel::Info => log::Level::Info,
+            LogLevel::Warn => log::Level::Warn,
+            LogLevel::Error => log::Level::Error,
         }
     }
 }

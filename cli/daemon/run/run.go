@@ -485,6 +485,8 @@ const gracefulShutdownTime = 10 * time.Second
 func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
 
+	userEnv := append([]string{"ENCORE_RUNTIME_LOG=error"}, params.Environ...)
+
 	daemonProxyAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse listen address: %s", r.ListenAddr)
@@ -538,7 +540,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			return nil, errors.Wrap(err, "failed to generate environment variables")
 		}
 
-		env := slices.Clone(params.Environ)
+		env := slices.Clone(userEnv)
 		env = append(env, procEnv...)
 
 		// Otherwise we're running everything inside a single process
@@ -598,7 +600,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 						return nil, errors.Wrap(err, "failed to generate environment variables")
 					}
 
-					env := slices.Clone(params.Environ)
+					env := slices.Clone(userEnv)
 					env = append(env, procEnv...)
 
 					if err := p.NewProcForGateway(gwName, procConf.ListenAddr, cmd, env); err != nil {

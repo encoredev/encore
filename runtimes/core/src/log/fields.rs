@@ -59,3 +59,19 @@ pub static GCP_FIELDS: FieldConfig = FieldConfig {
 
     stack_trace_field_name: "stacktrace",
 };
+
+impl FieldConfig {
+    pub fn default() -> &'static FieldConfig {
+        // If we're running in GCP, then we'll use the GCP fields.
+        for var in &[
+            "GCP_PROJECT",
+            "GOOGLE_CLOUD_PROJECT",
+            "GCP_METADATA_PROJECT",
+        ] {
+            if let Ok(_) = std::env::var(var) {
+                return &GCP_FIELDS;
+            }
+        }
+        &DEFAULT_FIELDS
+    }
+}

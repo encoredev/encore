@@ -156,16 +156,12 @@ impl Server {
             .expect("server already started");
         self.runtime.spawn(async move {
             // Determine the listen addr.
-            let listen_addr = std::env::var("ENCORE_LISTEN_ADDR")
-                .or_else(|_| -> anyhow::Result<_> {
-                    let port = std::env::var("PORT").context("PORT env var not set")?;
-                    Ok(format!("0.0.0.0:{}", port))
-                })
-                .context("unable to determine listen address")?;
-
+            let listen_addr = determine_listen_addr()?;
+            log::debug!(addr = listen_addr; "encore api server listening for incoming requests");
             let listener = tokio::net::TcpListener::bind(listen_addr)
                 .await
                 .context("bind to port")?;
+
             axum::serve(listener, router).await.context("serve api")?;
             Ok(())
         })
@@ -275,4 +271,21 @@ where
             }
         }
     }
+}
+
+fn determine_listen_addr() -> anyhow::Result<String> {
+    let candidates = [
+        ("ENCORE_LISTEN_ADDR", false),
+        ("PORT", true),
+        ("HTTP_PORT", true),
+    ];
+    for c in candidates {
+        if let Ok(mut var) = std::env::var(c.0) {
+            if c.1 {
+                var = format!("0.0.0.0:{}", var);
+            }
+            return Ok(var);
+        }
+    }
+    anyhow::bail!("unable to determine listen address")
 }

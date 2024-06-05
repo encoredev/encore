@@ -31,7 +31,6 @@ export enum LogLevel {
   Info = runtime.LogLevel.Info,
   Warn = runtime.LogLevel.Warn,
   Error = runtime.LogLevel.Error,
-  Fatal = runtime.LogLevel.Fatal,
 }
 
 class Logger {
@@ -91,16 +90,6 @@ class Logger {
   error(msg: string, fields?: FieldsObject): void;
   error(errOrMsg: unknown, msgOrFields: unknown, fields?: unknown) {
     this.log(runtime.LogLevel.Error, errOrMsg, msgOrFields, fields);
-  }
-
-  /**
-   * Fatal logs a message at the fatal level
-   */
-  fatal(err: Error | unknown, fields?: FieldsObject): void;
-  fatal(err: Error | unknown, msg: string, fields?: FieldsObject): void;
-  fatal(msg: string, fields?: FieldsObject): void;
-  fatal(errOrMsg: unknown, msgOrFields: unknown, fields?: unknown) {
-    this.log(runtime.LogLevel.Fatal, errOrMsg, msgOrFields, fields);
   }
 
   /**
@@ -227,30 +216,6 @@ export function error(
   // the type cast here is just for TSC to be happy - the underlying method uses the same overloads so
   // will type check the arguments correctly
   log.error(
-    errOrMsg as Error,
-    msgOrFields as string,
-    fields as FieldsObject | undefined
-  );
-}
-
-/**
- * Fatal logs a message at the fatal level
- */
-export function fatal(err: Error | unknown, fields?: FieldsObject): void;
-export function fatal(
-  err: Error | unknown,
-  msg: string,
-  fields?: FieldsObject
-): void;
-export function fatal(msg: string, fields?: FieldsObject): void;
-export function fatal(
-  errOrMsg: unknown,
-  msgOrFields: unknown,
-  fields?: unknown
-) {
-  // the type cast here is just for TSC to be happy - the underlying method uses the same overloads so
-  // will type check the arguments correctly
-  log.fatal(
     errOrMsg as Error,
     msgOrFields as string,
     fields as FieldsObject | undefined
