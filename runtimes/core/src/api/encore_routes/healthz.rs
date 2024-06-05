@@ -14,6 +14,7 @@ impl axum::handler::Handler<(), ()> for Handler {
     >;
 
     fn call(self, _req: Request, _state: ()) -> Self::Future {
+        log::trace!(code = "ok"; "handling incoming health check request");
         Box::pin(async move {
             Json(Response {
                 code: "ok".into(),
