@@ -113,7 +113,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                         name: r.resource_name,
                     }),
                     object,
-                    kind: BindKind::Create,
+                    kind: BindKind::Reference,
                     ident: r.bind_name,
                 });
             }
