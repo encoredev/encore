@@ -166,36 +166,6 @@ impl Literal {
     }
 }
 
-impl<'de> DeserializeSeed<'de> for Basic {
-    type Value = serde_json::Value;
-
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let reg = Registry { values: vec![] };
-        let visitor = DecodeValue {
-            reg: &reg,
-            value: &Value::Basic(self),
-        };
-        visitor.deserialize(deserializer)
-    }
-}
-
-impl Basic {
-    pub fn validate<E>(self, value: &serde_json::Value) -> Result<(), E>
-    where
-        E: serde::de::Error,
-    {
-        let reg = Registry { values: vec![] };
-        let visitor = DecodeValue {
-            reg: &reg,
-            value: &Value::Basic(self),
-        };
-        visitor.validate(value)
-    }
-}
-
 #[derive(Debug, Copy, Clone)]
 pub enum BasicOrValue {
     Basic(Basic),
@@ -211,8 +181,16 @@ impl BasicOrValue {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct DecodeConfig {
+    // If true, attempts to parse strings as other primitive types
+    // when there's a type mismatch.
+    pub coerce_strings: bool,
+}
+
 #[derive(Copy, Clone)]
 pub(super) struct DecodeValue<'a> {
+    pub(super) cfg: &'a DecodeConfig,
     pub(super) reg: &'a Registry,
     pub(super) value: &'a Value,
 }
@@ -220,6 +198,7 @@ pub(super) struct DecodeValue<'a> {
 impl<'a> DecodeValue<'a> {
     fn resolve(&'a self, idx: usize) -> DecodeValue<'a> {
         DecodeValue {
+            cfg: self.cfg,
             reg: self.reg,
             value: &self.reg.values[idx],
         }
@@ -240,7 +219,8 @@ impl<'de: 'a, 'a> DeserializeSeed<'de> for DecodeValue<'a> {
 macro_rules! recurse_ref {
     ($self:ident, $idx:expr, $method:ident, $value:expr) => {{
         let visitor = DecodeValue {
-            reg: &$self.reg,
+            cfg: $self.cfg,
+            reg: $self.reg,
             value: &$self.reg.values[*$idx],
         };
         visitor.$method($value)
@@ -250,7 +230,8 @@ macro_rules! recurse_ref {
 macro_rules! recurse_ref0 {
     ($self:ident, $idx:expr, $method:ident) => {{
         let visitor = DecodeValue {
-            reg: &$self.reg,
+            cfg: $self.cfg,
+            reg: $self.reg,
             value: &$self.reg.values[*$idx],
         };
         visitor.$method()
@@ -263,14 +244,16 @@ macro_rules! recurse {
             BasicOrValue::Basic(basic) => {
                 let basic_val = Value::Basic(*basic);
                 let visitor = DecodeValue {
-                    reg: &$self.reg,
+                    cfg: $self.cfg,
+                    reg: $self.reg,
                     value: &basic_val,
                 };
                 visitor.$method($value)
             }
             BasicOrValue::Value(idx) => {
                 let visitor = DecodeValue {
-                    reg: &$self.reg,
+                    cfg: $self.cfg,
+                    reg: $self.reg,
                     value: &$self.reg.values[*idx],
                 };
                 visitor.$method($value)
@@ -285,13 +268,15 @@ macro_rules! recurse0 {
             BasicOrValue::Basic(basic) => {
                 let basic_val = Value::Basic(*basic);
                 let visitor = DecodeValue {
-                    reg: &$self.reg,
+                    cfg: $self.cfg,
+                    reg: $self.reg,
                     value: &basic_val,
                 };
                 visitor.$method()
             }
             BasicOrValue::Value(idx) => {
                 let visitor = DecodeValue {
+                    cfg: $self.cfg,
                     reg: &$self.reg,
                     value: &$self.reg.values[*idx],
                 };
@@ -497,14 +482,98 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
         E: serde::de::Error,
     {
         match self.value {
-            Value::Basic(Basic::Any | Basic::String) => Ok(serde_json::Value::String(value)),
+            Value::Basic(b) => match b {
+                Basic::Any | Basic::String => Ok(serde_json::Value::String(value)),
+                Basic::Bool if self.cfg.coerce_strings => {
+                    return if value == "true" {
+                        Ok(serde_json::Value::Bool(true))
+                    } else if value == "false" {
+                        Ok(serde_json::Value::Bool(false))
+                    } else {
+                        Err(serde::de::Error::custom(format_args!(
+                            "expected a boolean, got {}",
+                            value
+                        )))
+                    }
+                }
+                Basic::Number if self.cfg.coerce_strings => {
+                    return if let Ok(num) = value.parse::<i64>() {
+                        Ok(serde_json::Value::Number(num.into()))
+                    } else if let Ok(num) = value.parse::<f64>() {
+                        Ok(serde_json::Number::from_f64(num)
+                            .map_or(serde_json::Value::Null, serde_json::Value::Number))
+                    } else {
+                        Err(serde::de::Error::custom(format_args!(
+                            "expected a number, got {}",
+                            value
+                        )))
+                    }
+                }
+                Basic::Null if self.cfg.coerce_strings => {
+                    return if value == "null" {
+                        Ok(serde_json::Value::Null)
+                    } else {
+                        Err(serde::de::Error::custom(format_args!(
+                            "expected null, got {}",
+                            value
+                        )))
+                    }
+                }
+                _ => Err(serde::de::Error::invalid_type(
+                    Unexpected::Str(&value),
+                    &self,
+                )),
+            },
             Value::Ref(idx) => recurse_ref!(self, idx, visit_string, value),
             Value::Option(bov) => {
                 recurse!(self, bov, visit_string, value)
             }
+
             Value::Literal(Literal::Str(val)) if val.as_str() == value => {
                 Ok(serde_json::Value::String(value))
             }
+            Value::Literal(lit) => match lit {
+                Literal::Str(val) if val.as_str() == value => Ok(serde_json::Value::String(value)),
+                Literal::Bool(_) if self.cfg.coerce_strings => {
+                    return if let Ok(got) = value.parse::<bool>() {
+                        self.visit_bool(got)
+                    } else {
+                        Err(serde::de::Error::custom(format_args!(
+                            "expected {}, got {}",
+                            lit.expecting(),
+                            value,
+                        )))
+                    }
+                }
+                Literal::Int(_) if self.cfg.coerce_strings => {
+                    return if let Ok(got) = value.parse::<i64>() {
+                        self.visit_i64(got)
+                    } else {
+                        Err(serde::de::Error::custom(format_args!(
+                            "expected {}, got {}",
+                            lit.expecting(),
+                            value,
+                        )))
+                    }
+                }
+                Literal::Float(_) if self.cfg.coerce_strings => {
+                    return if let Ok(got) = value.parse::<f64>() {
+                        self.visit_f64(got)
+                    } else {
+                        Err(serde::de::Error::custom(format_args!(
+                            "expected {}, got {}",
+                            lit.expecting(),
+                            value,
+                        )))
+                    }
+                }
+                _ => Err(serde::de::Error::custom(format_args!(
+                    "expected {}, got {}",
+                    lit.expecting(),
+                    value,
+                ))),
+            },
+
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_string, value.clone());
@@ -574,14 +643,16 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 BasicOrValue::Basic(basic) => {
                     let basic_val = Value::Basic(*basic);
                     let visitor = DecodeValue {
-                        reg: &self.reg,
+                        cfg: self.cfg,
+                        reg: self.reg,
                         value: &basic_val,
                     };
                     visit_seq(visitor, seq)
                 }
                 BasicOrValue::Value(idx) => {
                     let visitor = DecodeValue {
-                        reg: &self.reg,
+                        cfg: self.cfg,
+                        reg: self.reg,
                         value: &self.reg.values[*idx],
                     };
                     visit_seq(visitor, seq)
@@ -612,14 +683,16 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 BasicOrValue::Basic(basic) => {
                     let basic_val = Value::Basic(*basic);
                     let visitor = DecodeValue {
-                        reg: &self.reg,
+                        cfg: self.cfg,
+                        reg: self.reg,
                         value: &basic_val,
                     };
                     visit_map(visitor, map)
                 }
                 BasicOrValue::Value(idx) => {
                     let visitor = DecodeValue {
-                        reg: &self.reg,
+                        cfg: self.cfg,
+                        reg: self.reg,
                         value: &self.reg.values[*idx],
                     };
                     visit_map(visitor, map)
@@ -649,6 +722,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                                 }
                                 BasicOrValue::Basic(basic) => {
                                     let field = DecodeValue {
+                                        cfg: self.cfg,
                                         reg: self.reg,
                                         value: &Value::Basic(*basic),
                                     };
@@ -874,7 +948,8 @@ impl<'a> DecodeValue<'a> {
                     BasicOrValue::Basic(basic) => {
                         let basic_val = Value::Basic(*basic);
                         let visitor = DecodeValue {
-                            reg: &self.reg,
+                            cfg: self.cfg,
+                            reg: self.reg,
                             value: &basic_val,
                         };
                         for elem in array {
@@ -884,7 +959,8 @@ impl<'a> DecodeValue<'a> {
                     }
                     BasicOrValue::Value(idx) => {
                         let visitor = DecodeValue {
-                            reg: &self.reg,
+                            cfg: self.cfg,
+                            reg: self.reg,
                             value: &self.reg.values[*idx],
                         };
                         for elem in array {
@@ -930,7 +1006,8 @@ impl<'a> DecodeValue<'a> {
                     BasicOrValue::Basic(basic) => {
                         let basic_val = Value::Basic(*basic);
                         let visitor = DecodeValue {
-                            reg: &self.reg,
+                            cfg: self.cfg,
+                            reg: self.reg,
                             value: &basic_val,
                         };
                         for (_key, value) in map {
@@ -940,7 +1017,8 @@ impl<'a> DecodeValue<'a> {
                     }
                     BasicOrValue::Value(idx) => {
                         let visitor = DecodeValue {
-                            reg: &self.reg,
+                            cfg: self.cfg,
+                            reg: self.reg,
                             value: &self.reg.values[*idx],
                         };
                         for (_key, value) in map {
@@ -963,6 +1041,7 @@ impl<'a> DecodeValue<'a> {
                                     }
                                     BasicOrValue::Basic(basic) => {
                                         let field = DecodeValue {
+                                            cfg: self.cfg,
                                             reg: self.reg,
                                             value: &Value::Basic(*basic),
                                         };

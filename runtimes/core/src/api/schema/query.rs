@@ -1,4 +1,5 @@
 use crate::api;
+use crate::api::jsonschema::DecodeConfig;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{jsonschema, APIResult};
 use serde::de::DeserializeSeed;
@@ -27,8 +28,13 @@ impl Query {
     ) -> APIResult<Option<serde_json::Map<String, serde_json::Value>>> {
         let parsed = form_urlencoded::parse(query.unwrap_or_default().as_bytes());
         let de = serde_urlencoded::Deserializer::new(parsed);
+        let cfg = DecodeConfig {
+            coerce_strings: true,
+        };
 
-        let decoded = DeserializeSeed::deserialize(&self.schema, de)
+        let decoded = self
+            .schema
+            .deserialize(de, cfg)
             .map_err(|e| api::Error::invalid_argument("unable to decode query string", e))?;
 
         Ok(Some(decoded))

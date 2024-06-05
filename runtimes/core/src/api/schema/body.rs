@@ -1,6 +1,7 @@
 use axum::http::HeaderValue;
 
 use crate::api;
+use crate::api::jsonschema::DecodeConfig;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{jsonschema, APIResult};
 use http_body_util::BodyExt;
@@ -29,7 +30,12 @@ impl Body {
             .to_bytes();
 
         let mut jsonde = serde_json::Deserializer::from_slice(&bytes);
-        let value = serde::de::DeserializeSeed::deserialize(&self.schema, &mut jsonde)
+        let cfg = DecodeConfig {
+            coerce_strings: false,
+        };
+        let value = self
+            .schema
+            .deserialize(&mut jsonde, cfg)
             .map_err(|e| api::Error::invalid_argument("unable to decode request body", e))?;
         Ok(Some(value))
     }
