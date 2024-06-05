@@ -4,7 +4,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::api;
-use crate::model::{Request, TraceEventId};
+use crate::model::{LogField, LogFieldValue, LogLevel, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
 use crate::trace::log::TraceEvent;
 use crate::{model, EncoreName};
@@ -54,6 +54,47 @@ impl Tracer {
 
     pub fn noop() -> Self {
         Self { tx: None }
+    }
+}
+
+pub struct LogMessageData<'a> {
+    pub source: Option<&'a Request>,
+    pub msg: &'a str,
+    pub level: LogLevel,
+    pub fields: Vec<LogField<'a>>,
+}
+
+impl Tracer {
+    #[inline]
+    pub fn log_message(&self, data: LogMessageData) -> Option<TraceEventId> {
+        let Some(source) = data.source else {
+            return None;
+        };
+
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 4 + 4 + data.msg.len() + 1 + 64 * data.fields.len(),
+        }
+        .to_eb();
+
+        eb.byte(data.level as u8);
+        eb.str(&data.msg);
+        eb.uvarint(data.fields.len() as u64);
+        for field in data.fields {
+            eb.byte(field.type_byte());
+            eb.str(field.key);
+
+            match field.value {
+                LogFieldValue::String(str) => eb.str(str),
+                LogFieldValue::U64(n) => eb.u64(n),
+                LogFieldValue::I64(n) => eb.i64(n),
+                LogFieldValue::F64(n) => eb.f64(n),
+                LogFieldValue::Bool(b) => eb.bool(b),
+            }
+        }
+        eb.nyi_stack_pcs();
+
+        Some(self.send(EventType::LogMessage, source.span, eb))
     }
 }
 

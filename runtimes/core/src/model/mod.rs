@@ -288,3 +288,53 @@ pub struct AuthSuccessResponse {
     /// The user data.
     pub user_data: serde_json::Map<String, serde_json::Value>,
 }
+
+// matches go runtime
+pub enum LogLevel {
+    Trace = 0,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+pub enum LogFieldValue<'a> {
+    String(&'a str),
+    U64(u64),
+    I64(i64),
+    F64(f64),
+    Bool(bool),
+}
+
+pub struct LogField<'a> {
+    pub key: &'a str,
+    pub value: LogFieldValue<'a>,
+}
+
+impl LogField<'_> {
+    pub fn type_byte(&self) -> u8 {
+        match self.value {
+            LogFieldValue::String(_) => 2,
+            LogFieldValue::Bool(_) => 3,
+            LogFieldValue::I64(_) => 8,
+            LogFieldValue::U64(_) => 9,
+            LogFieldValue::F64(_) => 11,
+        }
+    }
+}
+
+impl From<crate::log::LogLevel> for LogLevel {
+    fn from(level: crate::log::LogLevel) -> Self {
+        match level {
+            crate::log::LogLevel::Trace => LogLevel::Trace,
+            crate::log::LogLevel::Debug => LogLevel::Debug,
+            crate::log::LogLevel::Info => LogLevel::Info,
+            crate::log::LogLevel::Warn => LogLevel::Warn,
+            crate::log::LogLevel::Error => LogLevel::Error,
+
+            // TODO(fredr): these are not supported by the go runtime
+            crate::log::LogLevel::Fatal => LogLevel::Error,
+            crate::log::LogLevel::Disabled => LogLevel::Trace,
+        }
+    }
+}

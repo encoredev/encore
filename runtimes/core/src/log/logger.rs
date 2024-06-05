@@ -1,12 +1,15 @@
 use crate::error::AppError;
 use crate::log::fields::{FieldConfig, DEFAULT_FIELDS, GCP_FIELDS};
 use crate::log::writers::{default_writer, Writer};
-use crate::model;
+use crate::log::LogLevel;
+use crate::model::{self, LogField};
+use crate::trace::protocol::LogMessageData;
+use crate::trace::Tracer;
 use anyhow::Context;
 use env_logger::filter::Filter;
 use log::{Log, Metadata, Record};
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
 pub type Fields = BTreeMap<String, serde_json::Value>;
@@ -19,6 +22,7 @@ pub struct Logger {
     field_config: &'static FieldConfig,
     writer: Arc<dyn Writer>,
     extra_fields: Fields,
+    tracer: Arc<RwLock<Tracer>>,
 }
 
 impl Logger {
@@ -34,7 +38,13 @@ impl Logger {
             field_config,
             writer: default_writer(field_config),
             extra_fields: Fields::new(),
+            tracer: Arc::new(RwLock::new(Tracer::noop())),
         }
+    }
+
+    pub fn set_tracer(&self, tracer: Tracer) {
+        let mut t = self.tracer.write().expect("tracer lock poisoned");
+        *t = tracer;
     }
 
     /// Returns a new logger with the given log level.
@@ -134,7 +144,7 @@ impl Logger {
         );
         values.insert(
             self.field_config.message_field_name.to_string(),
-            serde_json::Value::from(msg),
+            serde_json::Value::from(msg.clone()),
         );
 
         if let Some(req) = request {
@@ -202,6 +212,8 @@ impl Logger {
             }
         }
 
+        self.write_to_trace(request, level, &msg, &values);
+
         // Now write the log to the configured writer.
         self.writer
             .write(level, &values)
@@ -235,6 +247,60 @@ impl Logger {
             caller,
             Some(visitor.0),
         )
+    }
+
+    /// Writes the log to trace
+    fn write_to_trace(
+        &self,
+        request: Option<&model::Request>,
+        level: LogLevel,
+        msg: &str,
+        fields: &Fields,
+    ) {
+        let mut trace_fields = Vec::new();
+
+        fields.iter().for_each(|(ref key, val)| match val {
+            serde_json::Value::Number(num) => {
+                if num.is_i64() {
+                    trace_fields.push(LogField {
+                        key,
+                        value: model::LogFieldValue::I64(num.as_i64().unwrap()),
+                    });
+                }
+                if num.is_u64() {
+                    trace_fields.push(LogField {
+                        key,
+                        value: model::LogFieldValue::U64(num.as_u64().unwrap()),
+                    });
+                }
+                if num.is_f64() {
+                    trace_fields.push(LogField {
+                        key,
+                        value: model::LogFieldValue::F64(num.as_f64().unwrap()),
+                    });
+                }
+            }
+            serde_json::Value::Bool(b) => trace_fields.push(LogField {
+                key,
+                value: model::LogFieldValue::Bool(b.to_owned()),
+            }),
+            serde_json::Value::String(ref str) => trace_fields.push(LogField {
+                key,
+                value: model::LogFieldValue::String(str),
+            }),
+            _ => {}
+        });
+
+        let _ = self
+            .tracer
+            .read()
+            .expect("tracer lock poisoned")
+            .log_message(LogMessageData {
+                source: request,
+                msg: &msg,
+                level: level.into(),
+                fields: trace_fields,
+            });
     }
 }
 
