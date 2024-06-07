@@ -7,7 +7,7 @@ use std::str::FromStr;
 use tower_http::cors;
 
 /// The default set of allowed headers.
-const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
+static ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("accept"),
     HeaderName::from_static("authorization"),
     HeaderName::from_static("content-type"),
@@ -18,7 +18,7 @@ const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("x-requested-with"),
 ];
 
-pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
+pub static ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("x-request-id"),
     HeaderName::from_static("x-correlation-id"),
     HeaderName::from_static("x-encore-trace-id"),
@@ -28,7 +28,7 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
     let mut allowed_headers = cfg
         .extra_allowed_headers
         .iter()
-        .map(|s| HeaderName::from_str(&s))
+        .map(|s| HeaderName::from_str(s))
         .collect::<Result<Vec<_>, _>>()
         .context("failed to parse extra allowed headers")?;
     allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
@@ -37,7 +37,7 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
     let mut exposed_headers = cfg
         .extra_exposed_headers
         .iter()
-        .map(|s| HeaderName::from_str(&s))
+        .map(|s| HeaderName::from_str(s))
         .collect::<Result<Vec<_>, _>>()
         .context("failed to parse extra exposed headers")?;
     exposed_headers.extend_from_slice(&ALWAYS_EXPOSED_HEADERS);

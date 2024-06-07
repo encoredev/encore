@@ -1,4 +1,3 @@
-use std::fmt::{Debug, Display};
 use std::future::Future;
 
 use bytes::Bytes;
@@ -119,13 +118,13 @@ where
                             Ok(true) => continue 'PushLoop,
                             Ok(false) => continue 'ReadRequestLoop,
                             Err(err) => {
-                                _ = self.notify_err(err);
+                                self.notify_err(err);
                                 return;
                             }
                         }
                     }
                     Err(err) => {
-                        _ = self.notify_err(err);
+                        self.notify_err(err);
                         return;
                     }
                 }

@@ -169,7 +169,7 @@ impl ServiceAuthMethod for EncoreAuth {
             .ok_or(VerifyError::NoDateHeader)?;
 
         let components = SignatureComponents::parse(auth_header, date_header)
-            .map_err(|e| VerifyError::InvalidHeader(e))?;
+            .map_err(VerifyError::InvalidHeader)?;
 
         let diff = now
             .duration_since(components.timestamp)
@@ -184,7 +184,7 @@ impl ServiceAuthMethod for EncoreAuth {
             .find(|k| k.key_id == components.key_id)
             .ok_or(VerifyError::UnknownKey)?;
 
-        let key_data = key.data.get().map_err(|e| VerifyError::ResolveKeyData(e))?;
+        let key_data = key.data.get().map_err(VerifyError::ResolveKeyData)?;
         let expected_signature = encoreauth::sign_for_verification(
             (key.key_id, key_data),
             &components.app_slug,

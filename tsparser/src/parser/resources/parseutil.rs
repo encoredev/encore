@@ -80,35 +80,32 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
         for node in path.iter().rev() {
-            match node {
-                swc_ecma_visit::AstParentNodeRef::NewExpr(
-                    expr,
-                    swc_ecma_visit::fields::NewExprField::Callee,
-                ) => {
-                    let Some(args) = &expr.args else {
-                        anyhow::bail!("missing constructor arguments")
-                    };
+            if let swc_ecma_visit::AstParentNodeRef::NewExpr(
+                expr,
+                swc_ecma_visit::fields::NewExprField::Callee,
+            ) = node
+            {
+                let Some(args) = &expr.args else {
+                    anyhow::bail!("missing constructor arguments")
+                };
 
-                    let bind_name = extract_bind_name(path)?;
-                    let resource_name = extract_resource_name(&args, NAME_IDX)?;
-                    let doc_comment = module.preceding_comments(expr.span.lo.into());
+                let bind_name = extract_bind_name(path)?;
+                let resource_name = extract_resource_name(args, NAME_IDX)?;
+                let doc_comment = module.preceding_comments(expr.span.lo.into());
 
-                    let config = args
-                        .get(CONFIG_IDX)
-                        .map(|arg| Config::parse_lit(&arg.expr))
-                        .transpose()?;
+                let config = args
+                    .get(CONFIG_IDX)
+                    .map(|arg| Config::parse_lit(&arg.expr))
+                    .transpose()?;
 
-                    return Ok(Some(Self {
-                        range: expr.span.into(),
-                        constructor_args: args.clone(),
-                        resource_name: resource_name.to_string(),
-                        doc_comment,
-                        bind_name,
-                        config,
-                    }));
-                }
-
-                _ => {}
+                return Ok(Some(Self {
+                    range: expr.span.into(),
+                    constructor_args: args.clone(),
+                    resource_name: resource_name.to_string(),
+                    doc_comment,
+                    bind_name,
+                    config,
+                }));
             }
         }
         Ok(None)
@@ -131,29 +128,26 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
         for node in path.iter().rev() {
-            match node {
-                swc_ecma_visit::AstParentNodeRef::NewExpr(
-                    expr,
-                    swc_ecma_visit::fields::NewExprField::Callee,
-                ) => {
-                    let Some(args) = &expr.args else {
-                        anyhow::bail!("missing constructor arguments")
-                    };
+            if let swc_ecma_visit::AstParentNodeRef::NewExpr(
+                expr,
+                swc_ecma_visit::fields::NewExprField::Callee,
+            ) = node
+            {
+                let Some(args) = &expr.args else {
+                    anyhow::bail!("missing constructor arguments")
+                };
 
-                    let bind_name = extract_bind_name(path)?;
-                    let config = Config::parse_lit(&args[CONFIG_IDX].expr)?;
-                    let doc_comment = module.preceding_comments(expr.span.lo.into());
+                let bind_name = extract_bind_name(path)?;
+                let config = Config::parse_lit(&args[CONFIG_IDX].expr)?;
+                let doc_comment = module.preceding_comments(expr.span.lo.into());
 
-                    return Ok(Some(Self {
-                        range: expr.span.into(),
-                        constructor_args: args.clone(),
-                        doc_comment,
-                        bind_name,
-                        config,
-                    }));
-                }
-
-                _ => {}
+                return Ok(Some(Self {
+                    range: expr.span.into(),
+                    constructor_args: args.clone(),
+                    doc_comment,
+                    bind_name,
+                    config,
+                }));
             }
         }
         Ok(None)
@@ -174,49 +168,46 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
         for (idx, node) in path.iter().rev().enumerate() {
-            match node {
-                swc_ecma_visit::AstParentNodeRef::MemberExpr(
-                    expr,
-                    swc_ecma_visit::fields::MemberExprField::Obj,
-                ) => {
-                    let ast::MemberProp::Ident(method_name) = &expr.prop else {
-                        continue;
-                    };
-                    if method_name.sym != "named" {
-                        continue;
-                    }
-
-                    let idx = path.len() - idx - 1;
-
-                    // Make sure the parent is a call expression.
-                    // The path goes:
-                    // CallExpr -> Callee -> Expr -> MemberExpr
-                    // So we want idx-3.
-                    let Some(parent) = path.get(idx - 3) else {
-                        continue;
-                    };
-                    let swc_ecma_visit::AstParentNodeRef::CallExpr(
-                        call,
-                        swc_ecma_visit::fields::CallExprField::Callee,
-                    ) = parent
-                    else {
-                        continue;
-                    };
-
-                    let bind_name = extract_bind_name(path)?;
-                    let resource_name = extract_resource_name(&call.args, NAME_IDX)?;
-                    let doc_comment = module.preceding_comments(call.span.lo.into());
-
-                    return Ok(Some(Self {
-                        range: call.span.into(),
-                        constructor_args: call.args.clone(),
-                        resource_name: resource_name.to_string(),
-                        doc_comment,
-                        bind_name,
-                    }));
+            if let swc_ecma_visit::AstParentNodeRef::MemberExpr(
+                expr,
+                swc_ecma_visit::fields::MemberExprField::Obj,
+            ) = node
+            {
+                let ast::MemberProp::Ident(method_name) = &expr.prop else {
+                    continue;
+                };
+                if method_name.sym != "named" {
+                    continue;
                 }
 
-                _ => {}
+                let idx = path.len() - idx - 1;
+
+                // Make sure the parent is a call expression.
+                // The path goes:
+                // CallExpr -> Callee -> Expr -> MemberExpr
+                // So we want idx-3.
+                let Some(parent) = path.get(idx - 3) else {
+                    continue;
+                };
+                let swc_ecma_visit::AstParentNodeRef::CallExpr(
+                    call,
+                    swc_ecma_visit::fields::CallExprField::Callee,
+                ) = parent
+                else {
+                    continue;
+                };
+
+                let bind_name = extract_bind_name(path)?;
+                let resource_name = extract_resource_name(&call.args, NAME_IDX)?;
+                let doc_comment = module.preceding_comments(call.span.lo.into());
+
+                return Ok(Some(Self {
+                    range: call.span.into(),
+                    constructor_args: call.args.clone(),
+                    resource_name: resource_name.to_string(),
+                    doc_comment,
+                    bind_name,
+                }));
             }
         }
         Ok(None)
@@ -242,23 +233,21 @@ pub fn extract_resource_name(args: &[ast::ExprOrSpread], idx: usize) -> Result<&
 
 pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> Result<Option<ast::Ident>> {
     for node in path.iter().rev() {
-        match node {
-            swc_ecma_visit::AstParentNodeRef::VarDecl(
-                var,
-                swc_ecma_visit::fields::VarDeclField::Decls(idx),
-            ) => {
-                let decl = var
-                    .decls
-                    .get(*idx)
-                    .ok_or(anyhow::anyhow!("missing declaration at index {}", idx))?;
-                match &decl.name {
-                    ast::Pat::Ident(bind_name) => {
-                        return Ok(Some(bind_name.id.clone()));
-                    }
-                    _ => anyhow::bail!("expected identifier as bind name"),
+        if let swc_ecma_visit::AstParentNodeRef::VarDecl(
+            var,
+            swc_ecma_visit::fields::VarDeclField::Decls(idx),
+        ) = node
+        {
+            let decl = var
+                .decls
+                .get(*idx)
+                .ok_or(anyhow::anyhow!("missing declaration at index {}", idx))?;
+            match &decl.name {
+                ast::Pat::Ident(bind_name) => {
+                    return Ok(Some(bind_name.id.clone()));
                 }
+                _ => anyhow::bail!("expected identifier as bind name"),
             }
-            _ => {}
         }
     }
     Ok(None)
@@ -323,7 +312,7 @@ fn collect_import_idents<'a>(
                     }
                     ast::ImportSpecifier::Namespace(namespace) => {
                         // We're importing the module as a namespace ("import * as foo from 'foo'").
-                        module_names.insert(namespace.local.to_id(), &tracked[..]);
+                        module_names.insert(namespace.local.to_id(), tracked);
                     }
                 }
             }
@@ -337,7 +326,7 @@ pub fn iter_references<R: ReferenceParser>(
     module: &Module,
     names: &TrackedNames,
 ) -> impl Iterator<Item = Result<R>> {
-    let (local_ids, _module_ids) = collect_import_idents(&module, names);
+    let (local_ids, _module_ids) = collect_import_idents(module, names);
     let mut visitor = <IterReferenceVisitor<'_, R>>::new(module, local_ids);
     module
         .ast

@@ -21,7 +21,7 @@ use crate::parser::{respath, FilePath, Range};
 mod api_schema;
 mod schema;
 
-const DEFAULT_API_GATEWAY_NAME: &'static str = "api-gateway";
+const DEFAULT_API_GATEWAY_NAME: &str = "api-gateway";
 
 pub fn compute_meta(
     pc: &ParseContext,
@@ -121,7 +121,7 @@ impl<'a> MetaBuilder<'a> {
                 Resource::ServiceClient(_) => {}
 
                 Resource::APIEndpoint(ep) => {
-                    let request_schema = self.schema.transform_request(&ep)?;
+                    let request_schema = self.schema.transform_request(ep)?;
                     let response_schema = self
                         .schema
                         .transform_response(ep.encoding.raw_resp_schema.clone())?;
@@ -148,7 +148,7 @@ impl<'a> MetaBuilder<'a> {
                         http_methods: ep.encoding.methods.to_vec(),
                         tags: vec![],
                         sensitive: false,
-                        loc: Some(loc_from_range(&self.app_root, &self.pc.file_set, ep.range)?),
+                        loc: Some(loc_from_range(self.app_root, &self.pc.file_set, ep.range)?),
                         allow_unauthenticated: !ep.require_auth,
                         expose: {
                             let mut map = HashMap::new();
@@ -274,7 +274,7 @@ impl<'a> MetaBuilder<'a> {
                             .name
                             .clone();
 
-                        let loc = loc_from_range(&self.app_root, &self.pc.file_set, ah.range)?;
+                        let loc = loc_from_range(self.app_root, &self.pc.file_set, ah.range)?;
                         Some(v1::AuthHandler {
                             name: ah.name.clone(),
                             doc: ah.doc.clone().unwrap_or_default(),
@@ -297,10 +297,10 @@ impl<'a> MetaBuilder<'a> {
 
                     if self.data.auth_handler.is_some() {
                         anyhow::bail!("multiple auth handlers not yet supported");
-                    } else if self.data.gateways.len() > 0 {
+                    } else if !self.data.gateways.is_empty() {
                         anyhow::bail!("multiple gateways not yet supported");
                     }
-                    self.data.auth_handler = auth_handler.clone();
+                    self.data.auth_handler.clone_from(&auth_handler);
 
                     if gw.name != "api-gateway" {
                         anyhow::bail!("only the 'api-gateway' gateway is supported");
@@ -409,7 +409,7 @@ impl<'a> MetaBuilder<'a> {
         }
 
         // If there is no gateway, add a default one.
-        if self.data.gateways.len() == 0 {
+        if self.data.gateways.is_empty() {
             self.data.gateways.push(v1::Gateway {
                 encore_name: "api-gateway".to_string(),
                 explicit: None,
@@ -591,6 +591,24 @@ fn new_meta() -> v1::Data {
     }
 }
 
+fn _parse_app_revision(dir: &Path) -> anyhow::Result<String> {
+    duct::cmd!(
+        "git",
+        "-c",
+        "log.showsignature=false",
+        "show",
+        "-s",
+        "--format=%H:%ct"
+    )
+    .dir(dir)
+    .read()
+    .map_err(|e| anyhow::anyhow!("failed to run git: {}", e))
+    .and_then(|s| {
+        let (hash, _) = s.trim().split_once(':').context("invalid git output")?;
+        Ok(hash.to_string())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use swc_common::errors::{Handler, HANDLER};
@@ -630,7 +648,7 @@ mod tests {
                     errs.clone(),
                 )
                 .unwrap();
-                let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
+                let _mods = pc.loader.load_archive(tmp_dir, &ar).unwrap();
 
                 let pass1 = PassOneParser::new(
                     pc.file_set.clone(),
@@ -660,22 +678,4 @@ export const Bar = 5;
         assert_eq!(meta.svcs.len(), 0);
         Ok(())
     }
-}
-
-fn _parse_app_revision(dir: &Path) -> anyhow::Result<String> {
-    duct::cmd!(
-        "git",
-        "-c",
-        "log.showsignature=false",
-        "show",
-        "-s",
-        "--format=%H:%ct"
-    )
-    .dir(dir)
-    .read()
-    .map_err(|e| anyhow::anyhow!("failed to run git: {}", e))
-    .and_then(|s| {
-        let (hash, _) = s.trim().split_once(":").context("invalid git output")?;
-        Ok(hash.to_string())
-    })
 }

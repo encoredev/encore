@@ -184,7 +184,7 @@ pub fn endpoints_from_meta(
     md: &meta::Data,
     hosted_services: &Hosted,
 ) -> anyhow::Result<(Arc<EndpointMap>, Vec<EndpointName>)> {
-    let mut registry_builder = jsonschema::Builder::new(&md);
+    let mut registry_builder = jsonschema::Builder::new(md);
 
     struct EndpointUnderConstruction<'a> {
         svc: &'a meta::Service,
@@ -531,5 +531,5 @@ impl axum::handler::Handler<(), ()> for EndpointHandler {
 }
 
 pub fn path_supports_tsr(path: &str) -> bool {
-    path != "/" && !path.ends_with("/") && !path.contains("/*")
+    path != "/" && !path.ends_with('/') && !path.contains("/*")
 }

@@ -65,7 +65,7 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                 .unwrap_or("tsbundler-encore".into());
 
             let mut cmd = std::process::Command::new(tsbundler_path);
-            cmd.current_dir(&p.cwd);
+            cmd.current_dir(p.cwd);
             cmd.arg("--bundle")
                 .arg("--engine=node:21")
                 // .arg("--format=esm")
@@ -146,13 +146,13 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
             (service_inputs, gateway_inputs, combined_inputs)
         };
 
-        if combined_inputs.len() > 0 {
+        if !combined_inputs.is_empty() {
             let entrypoints = bundle(combined_inputs, "combined")?;
             Ok(TranspileResult { entrypoints })
         } else {
             let services = bundle(service_inputs, "services")?;
             let gateways = bundle(gateway_inputs, "gateways")?;
-            let entrypoints = services.into_iter().chain(gateways.into_iter()).collect();
+            let entrypoints = services.into_iter().chain(gateways).collect();
 
             Ok(TranspileResult { entrypoints })
         }
@@ -168,7 +168,7 @@ impl OutputTranspiler for BunBuildCompiler<'_> {
     fn transpile(&self, p: TranspileParams) -> Result<TranspileResult> {
         let bundle = move |inputs: Vec<Input>, name_prefix| -> Result<Vec<Entrypoint>> {
             let mut cmd = std::process::Command::new("bun");
-            cmd.current_dir(&p.cwd);
+            cmd.current_dir(p.cwd);
             cmd.arg("build")
                 .arg("--target=bun")
                 .arg("--sourcemap")
@@ -251,13 +251,13 @@ impl OutputTranspiler for BunBuildCompiler<'_> {
             (service_inputs, gateway_inputs, combined_inputs)
         };
 
-        if combined_inputs.len() > 0 {
+        if !combined_inputs.is_empty() {
             let entrypoints = bundle(combined_inputs, "combined")?;
             Ok(TranspileResult { entrypoints })
         } else {
             let services = bundle(service_inputs, "services")?;
             let gateways = bundle(gateway_inputs, "gateways")?;
-            let entrypoints = services.into_iter().chain(gateways.into_iter()).collect();
+            let entrypoints = services.into_iter().chain(gateways).collect();
 
             Ok(TranspileResult { entrypoints })
         }

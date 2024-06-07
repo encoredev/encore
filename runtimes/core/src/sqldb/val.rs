@@ -19,9 +19,7 @@ impl ToSql for RowValue {
             Self::Uuid(val) => match *ty {
                 Type::UUID => val.to_sql(ty, out),
                 Type::TEXT => val.to_string().to_sql(ty, out),
-                _ => {
-                    return Err(format!("uuid not supported for column of type {}", ty).into());
-                }
+                _ => Err(format!("uuid not supported for column of type {}", ty).into()),
             },
 
             Self::Json(val) => match *ty {
@@ -32,11 +30,7 @@ impl ToSql for RowValue {
                     serde_json::Value::Bool(bool) => match *ty {
                         Type::BOOL => bool.to_sql(ty, out),
                         Type::TEXT => bool.to_string().to_sql(ty, out),
-                        _ => {
-                            return Err(
-                                format!("bool not supported for column of type {}", ty).into()
-                            );
-                        }
+                        _ => Err(format!("bool not supported for column of type {}", ty).into()),
                     },
 
                     serde_json::Value::String(str) => match *ty {
@@ -48,29 +42,25 @@ impl ToSql for RowValue {
                         Type::TIMESTAMP => {
                             let val =
                                 chrono::NaiveDateTime::parse_from_str(str, "%Y-%m-%d %H:%M:%S")
-                                    .map_err(|e| Box::new(e))?;
+                                    .map_err(Box::new)?;
                             val.to_sql(ty, out)
                         }
                         Type::TIMESTAMPTZ => {
-                            let val = chrono::DateTime::parse_from_rfc3339(str)
-                                .map_err(|e| Box::new(e))?;
+                            let val =
+                                chrono::DateTime::parse_from_rfc3339(str).map_err(Box::new)?;
                             val.with_timezone(&chrono::Utc).to_sql(ty, out)
                         }
                         Type::DATE => {
                             let val = chrono::NaiveDate::parse_from_str(str, "%Y-%m-%d")
-                                .map_err(|e| Box::new(e))?;
+                                .map_err(Box::new)?;
                             val.to_sql(ty, out)
                         }
                         Type::TIME => {
                             let val = chrono::NaiveTime::parse_from_str(str, "%H:%M:%S")
-                                .map_err(|e| Box::new(e))?;
+                                .map_err(Box::new)?;
                             val.to_sql(ty, out)
                         }
-                        _ => {
-                            return Err(
-                                format!("string not supported for column of type {}", ty).into()
-                            );
-                        }
+                        _ => Err(format!("string not supported for column of type {}", ty).into()),
                     },
 
                     serde_json::Value::Number(num) => match *ty {
@@ -90,7 +80,7 @@ impl ToSql for RowValue {
                             } else {
                                 return Err(format!("unsupported number: {:?}", num).into());
                             };
-                            val.map_err(|e| Box::new(e))?.to_sql(ty, out)
+                            val.map_err(Box::new)?.to_sql(ty, out)
                         }
                         Type::INT4 => {
                             let val: Result<i32, _> = if num.is_i64() {
@@ -108,7 +98,7 @@ impl ToSql for RowValue {
                             } else {
                                 return Err(format!("unsupported number: {:?}", num).into());
                             };
-                            val.map_err(|e| Box::new(e))?.to_sql(ty, out)
+                            val.map_err(Box::new)?.to_sql(ty, out)
                         }
                         Type::INT8 => {
                             let val: Result<i64, _> = if num.is_i64() {
@@ -126,7 +116,7 @@ impl ToSql for RowValue {
                             } else {
                                 return Err(format!("unsupported number: {:?}", num).into());
                             };
-                            val.map_err(|e| Box::new(e))?.to_sql(ty, out)
+                            val.map_err(Box::new)?.to_sql(ty, out)
                         }
                         Type::FLOAT4 => {
                             let val: f32 = if num.is_i64() {
@@ -168,7 +158,7 @@ impl ToSql for RowValue {
                             } else {
                                 return Err(format!("unsupported number: {:?}", num).into());
                             };
-                            val.map_err(|e| Box::new(e))?.to_sql(ty, out)
+                            val.map_err(Box::new)?.to_sql(ty, out)
                         }
                         Type::TEXT => val.to_string().to_sql(ty, out),
                         _ => {
@@ -185,12 +175,10 @@ impl ToSql for RowValue {
                     },
 
                     serde_json::Value::Array(_) => {
-                        return Err(format!("array not supported for column of type {}", ty).into());
+                        Err(format!("array not supported for column of type {}", ty).into())
                     }
                     serde_json::Value::Object(_) => {
-                        return Err(
-                            format!("object not supported for column of type {}", ty).into()
-                        );
+                        Err(format!("object not supported for column of type {}", ty).into())
                     }
                 },
             },
@@ -201,30 +189,30 @@ impl ToSql for RowValue {
     where
         Self: Sized,
     {
-        match *ty {
+        matches!(
+            *ty,
             Type::BOOL
-            | Type::BYTEA
-            | Type::CHAR
-            | Type::NAME
-            | Type::TEXT
-            | Type::INT2
-            | Type::INT4
-            | Type::INT8
-            | Type::OID
-            | Type::JSONB
-            | Type::JSON
-            | Type::POINT
-            | Type::BOX
-            | Type::PATH
-            | Type::UUID
-            | Type::FLOAT4
-            | Type::FLOAT8
-            | Type::TIMESTAMP
-            | Type::TIMESTAMPTZ
-            | Type::DATE
-            | Type::TIME => true,
-            _ => false,
-        }
+                | Type::BYTEA
+                | Type::CHAR
+                | Type::NAME
+                | Type::TEXT
+                | Type::INT2
+                | Type::INT4
+                | Type::INT8
+                | Type::OID
+                | Type::JSONB
+                | Type::JSON
+                | Type::POINT
+                | Type::BOX
+                | Type::PATH
+                | Type::UUID
+                | Type::FLOAT4
+                | Type::FLOAT8
+                | Type::TIMESTAMP
+                | Type::TIMESTAMPTZ
+                | Type::DATE
+                | Type::TIME
+        )
     }
 
     tokio_postgres::types::to_sql_checked!();
@@ -318,24 +306,24 @@ impl<'a> FromSql<'a> for RowValue {
     }
 
     fn accepts(ty: &Type) -> bool {
-        match *ty {
+        matches!(
+            *ty,
             Type::BOOL
-            | Type::BYTEA
-            | Type::TEXT
-            | Type::INT2
-            | Type::INT4
-            | Type::INT8
-            | Type::OID
-            | Type::JSONB
-            | Type::JSON
-            | Type::UUID
-            | Type::FLOAT4
-            | Type::FLOAT8
-            | Type::TIMESTAMP
-            | Type::TIMESTAMPTZ
-            | Type::DATE
-            | Type::TIME => true,
-            _ => false,
-        }
+                | Type::BYTEA
+                | Type::TEXT
+                | Type::INT2
+                | Type::INT4
+                | Type::INT8
+                | Type::OID
+                | Type::JSONB
+                | Type::JSON
+                | Type::UUID
+                | Type::FLOAT4
+                | Type::FLOAT8
+                | Type::TIMESTAMP
+                | Type::TIMESTAMPTZ
+                | Type::DATE
+                | Type::TIME
+        )
     }
 }

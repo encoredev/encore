@@ -23,7 +23,7 @@ impl Cluster {
 
 impl pubsub::Cluster for Cluster {
     fn topic(&self, cfg: &pb::PubSubTopic) -> Arc<dyn pubsub::Topic + 'static> {
-        return Arc::new(NsqTopic::new(self.address.clone(), cfg));
+        Arc::new(NsqTopic::new(self.address.clone(), cfg))
     }
 
     fn subscription(
@@ -31,6 +31,6 @@ impl pubsub::Cluster for Cluster {
         cfg: &pb::PubSubSubscription,
         meta: &meta::pub_sub_topic::Subscription,
     ) -> Arc<dyn pubsub::Subscription + 'static> {
-        return Arc::new(NsqSubscription::new(self.address.clone(), cfg, meta));
+        Arc::new(NsqSubscription::new(self.address.clone(), cfg, meta))
     }
 }

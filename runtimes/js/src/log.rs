@@ -21,9 +21,9 @@ pub enum LogLevel {
     Error,
 }
 
-impl Into<log::LevelFilter> for LogLevel {
-    fn into(self) -> log::LevelFilter {
-        match self {
+impl From<LogLevel> for log::LevelFilter {
+    fn from(value: LogLevel) -> Self {
+        match value {
             LogLevel::Trace => log::LevelFilter::Trace,
             LogLevel::Debug => log::LevelFilter::Debug,
             LogLevel::Info => log::LevelFilter::Info,
@@ -33,15 +33,21 @@ impl Into<log::LevelFilter> for LogLevel {
     }
 }
 
-impl Into<log::Level> for LogLevel {
-    fn into(self) -> log::Level {
-        match self {
+impl From<LogLevel> for log::Level {
+    fn from(value: LogLevel) -> Self {
+        match value {
             LogLevel::Trace => log::Level::Trace,
             LogLevel::Debug => log::Level::Debug,
             LogLevel::Info => log::Level::Info,
             LogLevel::Warn => log::Level::Warn,
             LogLevel::Error => log::Level::Error,
         }
+    }
+}
+
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -55,6 +61,7 @@ impl Logger {
 
     /// log a message from the application
     #[napi]
+    #[allow(clippy::too_many_arguments)]
     pub fn log(
         &self,
         env: Env,
@@ -114,8 +121,8 @@ fn convert_error(env: Env, input: Option<napi::JsObject>) -> napi::Result<Option
             // try to convert the JS stack trace
             let stack: napi::Result<napi::JsUnknown> = input.get_named_property("stack");
             let stack = stack
-                .map(|unknown| parse_js_stack(&env, unknown).unwrap_or(vec![]))
-                .unwrap_or(vec![]);
+                .map(|unknown| parse_js_stack(&env, unknown).unwrap_or_default())
+                .unwrap_or_default();
 
             Ok(Some(AppError {
                 message,
@@ -132,7 +139,7 @@ pub fn parse_js_stack(env: &Env, value: napi::JsUnknown) -> napi::Result<StackTr
 
     Ok(value
         .lines()
-        .filter_map(|line| extract_frame(line))
+        .filter_map(extract_frame)
         .filter(|frame| !is_common_frame(frame))
         .collect::<Vec<StackFrame>>())
 }
@@ -144,10 +151,10 @@ fn is_common_frame(frame: &StackFrame) -> bool {
     // "bun:" is a bun internal frame
     // "deno:" is a deno internal frame
     // "" is a frame with no file, so a core JS function
-    return frame.file.starts_with("node:")
+    frame.file.starts_with("node:")
         || frame.file.starts_with("bun:")
         || frame.file.starts_with("deno:")
-        || frame.file == "";
+        || frame.file.is_empty()
 }
 
 /// Attempts to extract a stack frame from a line of text.
@@ -162,10 +169,10 @@ fn extract_frame(line: &str) -> Option<StackFrame> {
     }
     let line = line[2..].trim_start();
 
-    let (function, file, line, column) = if line.ends_with(")") {
-        match line.rsplit_once("(") {
+    let (function, file, line, column) = if line.ends_with(')') {
+        match line.rsplit_once('(') {
             Some((function, rest)) => {
-                let (file, line, column) = match extract_file_line_col(rest.strip_suffix(")")?) {
+                let (file, line, column) = match extract_file_line_col(rest.strip_suffix(')')?) {
                     Some((file, line, column)) => (file, line, column),
                     None => return None,
                 };
@@ -198,9 +205,9 @@ fn extract_frame(line: &str) -> Option<StackFrame> {
 
 fn extract_file_line_col(string: &str) -> Option<(String, u32, Option<u32>)> {
     let string = string.strip_prefix("file://").unwrap_or(string);
-    let (file, rest) = string.split_once(":")?;
+    let (file, rest) = string.split_once(':')?;
 
-    match rest.split_once(":") {
+    match rest.split_once(':') {
         Some((line, column)) => Some((
             file.trim().to_string(),
             line.parse::<u32>().ok()?,

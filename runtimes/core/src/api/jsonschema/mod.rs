@@ -64,7 +64,7 @@ impl JSONSchema {
         P: ParseWithSchema<O>,
         O: Sized,
     {
-        payload.parse_with_schema(&self)
+        payload.parse_with_schema(self)
     }
 
     pub fn deserialize<'de, T>(
@@ -83,7 +83,7 @@ impl JSONSchema {
 impl fmt::Debug for JSONSchema {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.registry.values.get(self.root) {
-            Some(ref v) => v.write_debug(&self.registry, f),
+            Some(v) => v.write_debug(&self.registry, f),
             None => write!(f, "Ref({})", self.root),
         }
     }
@@ -102,7 +102,7 @@ impl Value {
             Value::Union(v) => f.debug_struct("Union").field("types", &v).finish(),
             Value::Literal(v) => f.debug_struct("Literal").field("value", &v).finish(),
             Value::Ref(idx) => match reg.values.get(*idx) {
-                Some(ref v) => v.write_debug(reg, f),
+                Some(v) => v.write_debug(reg, f),
                 None => write!(f, "Ref({})", idx),
             },
         }

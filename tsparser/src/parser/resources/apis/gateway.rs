@@ -20,9 +20,9 @@ pub struct Gateway {
     pub auth_handler: Option<Lrc<Object>>,
 }
 
+#[allow(non_snake_case)]
 #[derive(Debug, LitParser)]
 struct DecodedGatewayConfig {
-    #[allow(non_snake_case)]
     authHandler: Option<ast::Expr>,
 }
 

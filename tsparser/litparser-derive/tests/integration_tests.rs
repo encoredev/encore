@@ -19,7 +19,7 @@ fn test_parse() {
     }
 
     let expr = parse(r#"{ foo: "foo", bar: "1h" }"#);
-    let foo = Foo::parse_lit(&*expr).expect("failed to parse lit");
+    let foo = Foo::parse_lit(&expr).expect("failed to parse lit");
     assert_eq!(foo.foo, "foo");
     assert_eq!(foo.bar, std::time::Duration::from_secs(3600));
 }
@@ -33,7 +33,7 @@ fn test_parse_str_keys() {
     }
 
     let expr = parse(r#"{ "foo": "foo", "bar": 3 }"#);
-    let foo = Foo::parse_lit(&*expr).expect("failed to parse lit");
+    let foo = Foo::parse_lit(&expr).expect("failed to parse lit");
     assert_eq!(foo.foo, "foo");
     assert_eq!(foo.bar, 3);
 }
@@ -56,7 +56,7 @@ fn test_parse_refs() {
     }
 
     let expr = parse(r#"{ foo: "foo", "dummy": null }"#);
-    let foo = Foo::parse_lit(&*expr).expect("failed to parse lit");
+    let foo = Foo::parse_lit(&expr).expect("failed to parse lit");
     assert_eq!(foo.foo, "foo");
 }
 
@@ -76,7 +76,7 @@ fn test_parse_option() {
     // The empty case
     {
         let expr = parse(r#"{ }"#);
-        let foo = Foo::parse_lit(&*expr).expect("failed to parse lit");
+        let foo = Foo::parse_lit(&expr).expect("failed to parse lit");
         assert_eq!(foo.foo, None);
         assert_eq!(foo.bar, None);
         assert_eq!(foo.baz, None);
@@ -86,7 +86,7 @@ fn test_parse_option() {
     // The non-empty case
     {
         let expr = parse(r#"{ foo: "foo", bar: "bar", baz: "baz", boo: "boo" }"#);
-        let foo = Foo::parse_lit(&*expr).expect("failed to parse lit");
+        let foo = Foo::parse_lit(&expr).expect("failed to parse lit");
         assert_eq!(foo.foo, Some("foo".to_string()));
         assert_eq!(foo.bar, Some("bar".to_string()));
         assert_eq!(foo.baz, Some("baz".to_string()));

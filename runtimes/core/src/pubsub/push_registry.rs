@@ -13,6 +13,12 @@ pub struct PushHandlerRegistry {
     inner: Arc<Inner>,
 }
 
+impl Default for PushHandlerRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PushHandlerRegistry {
     pub fn new() -> Self {
         Self {

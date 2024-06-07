@@ -155,7 +155,7 @@ impl AsyncRead for ReadHalf {
                     let next = 'BufferLoop: loop {
                         match self.bufs.pop_front() {
                             // Found a non-empty buffer.
-                            Some(next) if next.buf.len() > 0 => break next,
+                            Some(next) if !next.buf.is_empty() => break next,
                             // Found an empty buffer; skip it.
                             Some(_) => continue 'BufferLoop,
                             // No more buffers to read from.
@@ -205,9 +205,9 @@ impl AsyncRead for ReadHalf {
 
         if did_read || self.done {
             // We read some data, or we're done, so we're ready.
-            return Poll::Ready(Ok(()));
+            Poll::Ready(Ok(()))
         } else {
-            return Poll::Pending;
+            Poll::Pending
         }
     }
 }

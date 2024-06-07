@@ -54,9 +54,9 @@ impl TryFrom<&str> for Method {
     }
 }
 
-impl Into<axum::http::Method> for Method {
-    fn into(self) -> axum::http::Method {
-        match self {
+impl From<Method> for axum::http::Method {
+    fn from(val: Method) -> Self {
+        match val {
             Method::GET => axum::http::Method::GET,
             Method::HEAD => axum::http::Method::HEAD,
             Method::POST => axum::http::Method::POST,
@@ -70,9 +70,9 @@ impl Into<axum::http::Method> for Method {
     }
 }
 
-impl Into<reqwest::Method> for Method {
-    fn into(self) -> reqwest::Method {
-        match self {
+impl From<Method> for reqwest::Method {
+    fn from(val: Method) -> Self {
+        match val {
             Method::GET => reqwest::Method::GET,
             Method::HEAD => reqwest::Method::HEAD,
             Method::POST => reqwest::Method::POST,

@@ -39,7 +39,7 @@ impl Manager {
         match self.databases.get(name) {
             Some(db) => db.clone(),
             None => {
-                let proxy_conn_string = proxy_conn_string(&name, self.proxy_port);
+                let proxy_conn_string = proxy_conn_string(name, self.proxy_port);
                 Arc::new(NoopDatabase {
                     name: name.clone(),
                     proxy_conn_string,
@@ -258,7 +258,7 @@ fn databases_from_cfg(
                 // Unix socket
                 config.host(&server.host);
             } else if let Some((host, port)) = server.host.split_once(':') {
-                config.host(&host);
+                config.host(host);
                 config.port(port.parse::<u16>().context("invalid port")?);
             } else {
                 config.host(&server.host);

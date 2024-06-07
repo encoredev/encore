@@ -1,42 +1,6 @@
 use std::fmt::Display;
 
-use encore_runtime_core::api::ErrCode;
-use napi::{bindgen_prelude::spawn, Either, Env, JsFunction, JsObject, JsUnknown};
-
-pub trait FromJsUnknown {
-    fn try_from_js_unknown(env: &Env, value: JsUnknown) -> napi::Result<Self>
-    where
-        Self: Sized;
-}
-
-impl<D> FromJsUnknown for D
-where
-    D: serde::de::DeserializeOwned,
-{
-    fn try_from_js_unknown(env: &Env, value: JsUnknown) -> napi::Result<Self>
-    where
-        Self: Sized,
-    {
-        env.from_js_value(value)
-    }
-}
-
-pub trait FromNapiError {
-    fn from_napi_error(error: napi::Error) -> Self
-    where
-        Self: Sized;
-}
-
-impl FromNapiError for encore_runtime_core::api::Error {
-    fn from_napi_error(error: napi::Error) -> Self {
-        Self {
-            code: ErrCode::Internal,
-            message: ErrCode::Internal.default_public_message().into(),
-            internal_message: Some(error.to_string()),
-            stack: None,
-        }
-    }
-}
+use napi::{Either, Env, JsFunction, JsObject, JsUnknown};
 
 pub trait PromiseHandler: Clone + Send + Sync + 'static {
     type Output: Send + 'static;
@@ -68,7 +32,7 @@ pub fn await_promise<T, H>(
             let cb = {
                 let handler = handler.clone();
                 let tx = tx.clone();
-                let cb = env.create_function_from_closure("callback", move |ctx| {
+                env.create_function_from_closure("callback", move |ctx| {
                     let res = match ctx.try_get::<JsUnknown>(0) {
                         Ok(Either::A(success)) => handler.resolve(env, Some(success)),
                         Ok(Either::B(_)) => handler.resolve(env, None),
@@ -77,8 +41,7 @@ pub fn await_promise<T, H>(
 
                     _ = tx.send(res);
                     ctx.env.get_undefined()
-                })?;
-                cb
+                })?
             };
 
             let eb = {
@@ -112,30 +75,6 @@ pub fn await_promise<T, H>(
 #[derive(Debug)]
 pub struct JSError {
     pub message: String,
-}
-
-impl FromJsUnknown for JSError {
-    fn try_from_js_unknown(env: &Env, value: JsUnknown) -> napi::Result<Self>
-    where
-        Self: Sized,
-    {
-        let value: JsObject = value.try_into()?;
-        let message: JsUnknown = value.get_named_property("message")?;
-        let message = message.coerce_to_string()?;
-        let message: String = env.from_js_value(message)?;
-        Ok(Self { message })
-    }
-}
-
-impl FromNapiError for JSError {
-    fn from_napi_error(error: napi::Error) -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            message: error.to_string(),
-        }
-    }
 }
 
 impl std::error::Error for JSError {}

@@ -30,9 +30,8 @@ impl NsqTopic {
 
             // Wait for the producer to send a Ready event.
             loop {
-                match producer.consume().await {
-                    Some(NSQEvent::Healthy()) => break,
-                    _ => {}
+                if let Some(NSQEvent::Healthy()) = producer.consume().await {
+                    break;
                 }
             }
 
@@ -77,8 +76,7 @@ impl Topic for NsqTopic {
             let req = PublishRequest { msg, resp: resp_tx };
             tx.send(req).await.context("failed to send message")?;
 
-            let resp = resp_rx.await.context("failed to receive response")?;
-            Ok(resp?)
+            resp_rx.await.context("failed to receive response")?
         })
     }
 }

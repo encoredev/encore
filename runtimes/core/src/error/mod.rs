@@ -77,7 +77,7 @@ impl AppError {
                 stack: self.stack.into_iter().skip(idx).collect(),
                 ..self
             },
-            None => return self,
+            None => self,
         }
     }
 }
@@ -88,7 +88,7 @@ const STACK_TAB_SIZE: &str = "  ";
 /// Write the stack trace to the given formatter.
 pub fn write_stack_trace<W: std::fmt::Write>(stack: &StackTrace, f: &mut W) -> std::fmt::Result {
     // If we have a stack trace add it
-    if stack.len() > 0 {
+    if !stack.is_empty() {
         write!(f, "\n{}{}", STACK_TAB_SIZE, "Stack:".magenta())?;
 
         // What's the longest function name including module name (for modules not named "main")
@@ -102,8 +102,7 @@ pub fn write_stack_trace<W: std::fmt::Write>(stack: &StackTrace, f: &mut W) -> s
             }
         }
 
-        let mut count = 0;
-        for frame in stack {
+        for (index, frame) in stack.iter().enumerate() {
             let (module_and_function, readable_len) = match (&frame.module, &frame.function) {
                 (Some(module), Some(function)) => (
                     format!("{}.{}", module.bright_black(), function.magenta()),
@@ -137,17 +136,16 @@ pub fn write_stack_trace<W: std::fmt::Write>(stack: &StackTrace, f: &mut W) -> s
             )?;
 
             // Only print the first 6 frames
-            if count >= MAX_FRAMES_TO_DISPLAY {
+            if index >= MAX_FRAMES_TO_DISPLAY {
                 write!(
                     f,
                     "\n{}{}... remaining {} frames omitted...",
                     STACK_TAB_SIZE,
                     STACK_TAB_SIZE,
-                    stack.len() - count
+                    stack.len() - index
                 )?;
                 break;
             }
-            count += 1;
         }
     }
 
@@ -161,7 +159,7 @@ impl Display for AppError {
             f,
             "{} {}",
             "Error:".red(),
-            self.message.replace("\n", "\n\t")
+            self.message.replace('\n', "\n\t")
         )?;
         write_stack_trace(&self.stack, f)?;
 
@@ -225,7 +223,7 @@ fn capture_stack_trace() -> StackTrace {
 
     // If the backtrace is empty, then we just return the caller which thanks to the
     // track_caller macro means we will always have at least one frame to report
-    if stacktrace.len() == 0 {
+    if stacktrace.is_empty() {
         vec![StackFrame {
             file: caller.file().to_string(),
             line: caller.line(),
@@ -244,7 +242,7 @@ fn convert_backtrace_to_stack_trace(backtrace: &backtrace::Backtrace) -> StackTr
     let mut stack_trace = Vec::new();
 
     for frame in backtrace.frames() {
-        if let Some(symbol) = frame.symbols().get(0) {
+        if let Some(symbol) = frame.symbols().first() {
             match (symbol.filename(), symbol.lineno()) {
                 (Some(filename), Some(line)) => {
                     let (module, function) = split_symbol_into_module_function(symbol.name());
@@ -266,7 +264,7 @@ fn convert_backtrace_to_stack_trace(backtrace: &backtrace::Backtrace) -> StackTr
         }
     }
 
-    return stack_trace;
+    stack_trace
 }
 
 fn split_symbol_into_module_function(
@@ -312,5 +310,5 @@ fn trim_file_path(full_path: String) -> String {
 }
 
 fn is_common_rust_frame(frame: &StackFrame) -> bool {
-    return frame.file.starts_with("/rustc/");
+    frame.file.starts_with("/rustc/")
 }

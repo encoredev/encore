@@ -36,13 +36,10 @@ pub struct SubscriptionConfig {
 struct DecodedSubscriptionConfig {
     #[allow(dead_code)]
     handler: ast::Expr,
-    #[allow(dead_code, non_snake_case)]
+    #[allow(dead_code)]
     maxConcurrency: Option<u32>,
-    #[allow(non_snake_case)]
     ackDeadline: Option<std::time::Duration>,
-    #[allow(non_snake_case)]
     messageRetention: Option<std::time::Duration>,
-    #[allow(non_snake_case)]
     retryPolicy: Option<DecodedRetryPolicy>,
 }
 

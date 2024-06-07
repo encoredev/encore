@@ -45,7 +45,7 @@ impl Eq for AstId {}
 
 impl PartialOrd for AstId {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
     }
 }
 impl Ord for AstId {

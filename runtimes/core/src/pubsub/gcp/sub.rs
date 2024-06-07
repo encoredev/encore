@@ -55,8 +55,8 @@ impl Subscription {
 
         Self {
             client,
-            project_id: gcp_cfg.project_id.clone().into(),
-            sub_name: cfg.subscription_cloud_name.clone().into(),
+            project_id: gcp_cfg.project_id.clone(),
+            sub_name: cfg.subscription_cloud_name.clone(),
             receive_cfg,
             cell: tokio::sync::OnceCell::new(),
         }

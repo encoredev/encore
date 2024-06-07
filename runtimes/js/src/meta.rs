@@ -64,8 +64,8 @@ impl From<meta::EnvironmentType> for EnvironmentType {
 #[napi]
 #[derive(Debug)]
 pub enum CloudProvider {
-    AWS,
-    GCP,
+    Aws,
+    Gcp,
     Azure,
     Encore,
     Local,
@@ -74,8 +74,8 @@ pub enum CloudProvider {
 impl From<meta::CloudProvider> for CloudProvider {
     fn from(rt: meta::CloudProvider) -> Self {
         match rt {
-            meta::CloudProvider::AWS => Self::AWS,
-            meta::CloudProvider::GCP => Self::GCP,
+            meta::CloudProvider::AWS => Self::Aws,
+            meta::CloudProvider::GCP => Self::Gcp,
             meta::CloudProvider::Azure => Self::Azure,
             meta::CloudProvider::Encore => Self::Encore,
             meta::CloudProvider::Local => Self::Local,

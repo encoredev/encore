@@ -88,9 +88,9 @@ impl From<String> for CloudName {
     }
 }
 
-impl Into<String> for CloudName {
-    fn into(self) -> String {
-        self.0
+impl From<CloudName> for String {
+    fn from(val: CloudName) -> Self {
+        val.0
     }
 }
 

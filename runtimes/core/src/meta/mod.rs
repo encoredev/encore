@@ -85,10 +85,12 @@ impl From<&rt::Environment> for EnvironmentMeta {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum EnvironmentType {
     // A production environment.
     Production,
     // A long-lived cloud-hosted, non-production environment, such as test environments, or local development.
+    #[default]
     Development,
     // A short-lived cloud-hosted, non-production environments, such as preview environments
     Ephemeral,
@@ -110,11 +112,13 @@ impl From<&rt::environment::Type> for EnvironmentType {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum CloudProvider {
     AWS,
     GCP,
     Azure,
     Encore,
+    #[default]
     Local,
 }
 
@@ -169,17 +173,7 @@ impl From<&rt::Deployment> for DeployMeta {
     }
 }
 
-impl Default for EnvironmentType {
-    fn default() -> Self {
-        EnvironmentType::Development
-    }
-}
 
-impl Default for CloudProvider {
-    fn default() -> Self {
-        CloudProvider::Local
-    }
-}
 
 impl Default for DeployMeta {
     fn default() -> Self {

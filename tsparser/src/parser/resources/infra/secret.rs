@@ -66,30 +66,27 @@ impl ReferenceParser for SecretLiteral {
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
         for node in path.iter().rev() {
-            match node {
-                swc_ecma_visit::AstParentNodeRef::CallExpr(
-                    expr,
-                    swc_ecma_visit::fields::CallExprField::Callee,
-                ) => {
-                    let doc_comment = module.preceding_comments(expr.span.lo.into());
-                    let Some(bind_name) = extract_bind_name(path)? else {
-                        anyhow::bail!("Secrets must be bound to a variable")
-                    };
+            if let swc_ecma_visit::AstParentNodeRef::CallExpr(
+                expr,
+                swc_ecma_visit::fields::CallExprField::Callee,
+            ) = node
+            {
+                let doc_comment = module.preceding_comments(expr.span.lo.into());
+                let Some(bind_name) = extract_bind_name(path)? else {
+                    anyhow::bail!("Secrets must be bound to a variable")
+                };
 
-                    let Some(secret_name) = &expr.args.get(0) else {
-                        anyhow::bail!("secret() takes a single argument, the name of the secret as a string literal")
-                    };
-                    let secret_name = String::parse_lit(secret_name.expr.as_ref())?;
+                let Some(secret_name) = &expr.args.first() else {
+                    anyhow::bail!("secret() takes a single argument, the name of the secret as a string literal")
+                };
+                let secret_name = String::parse_lit(secret_name.expr.as_ref())?;
 
-                    return Ok(Some(Self {
-                        range: expr.span.into(),
-                        doc_comment,
-                        secret_name,
-                        bind_name,
-                    }));
-                }
-
-                _ => {}
+                return Ok(Some(Self {
+                    range: expr.span.into(),
+                    doc_comment,
+                    secret_name,
+                    bind_name,
+                }));
             }
         }
         Ok(None)

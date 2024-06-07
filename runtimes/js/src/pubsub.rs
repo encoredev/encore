@@ -4,7 +4,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Context;
-use napi::bindgen_prelude::spawn;
 use napi::{Env, Error, JsFunction, JsUnknown, NapiRaw, Status};
 use napi_derive::napi;
 
@@ -185,7 +184,7 @@ impl PromiseHandler for SubscriptionPromiseHandler {
         let stack = obj
             .get_named_property::<JsUnknown>("stack")
             .and_then(|val| parse_js_stack(&env, val))
-            .map(|val| Some(val))
+            .map(Some)
             .unwrap_or(None);
 
         Err(api::Error {

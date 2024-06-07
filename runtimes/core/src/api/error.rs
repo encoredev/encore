@@ -55,21 +55,21 @@ impl Error {
     }
 }
 
-impl Into<AppError> for Error {
-    fn into(self) -> AppError {
-        let message = match self.internal_message {
-            Some(ref internal_msg) => format!("{}: {}", self.message, internal_msg),
-            None => self.message,
+impl From<Error> for AppError {
+    fn from(val: Error) -> Self {
+        let message = match val.internal_message {
+            Some(ref internal_msg) => format!("{}: {}", val.message, internal_msg),
+            None => val.message,
         };
         AppError::new(message)
     }
 }
 
-impl Into<AppError> for &Error {
-    fn into(self) -> AppError {
-        let message = match self.internal_message {
-            Some(ref internal_msg) => format!("{}: {}", self.message, internal_msg),
-            None => self.message.clone(),
+impl From<&Error> for AppError {
+    fn from(val: &Error) -> Self {
+        let message = match val.internal_message {
+            Some(ref internal_msg) => format!("{}: {}", val.message, internal_msg),
+            None => val.message.clone(),
         };
 
         // TODO: capture the JS stack trace for this error
@@ -352,9 +352,9 @@ impl FromStr for ErrCode {
     }
 }
 
-impl Into<axum::http::status::StatusCode> for ErrCode {
-    fn into(self) -> axum::http::status::StatusCode {
-        self.status_code()
+impl From<ErrCode> for axum::http::status::StatusCode {
+    fn from(val: ErrCode) -> Self {
+        val.status_code()
     }
 }
 

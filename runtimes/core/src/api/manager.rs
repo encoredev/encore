@@ -64,14 +64,14 @@ impl ManagerConfig<'_> {
             .to_string();
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
-        let (endpoints, hosted_endpoints) = endpoints_from_meta(&self.meta, &hosted_services)
+        let (endpoints, hosted_endpoints) = endpoints_from_meta(self.meta, &hosted_services)
             .context("unable to compute endpoints descriptions")?;
 
         let inbound_svc_auth = {
             let mut entries = Vec::with_capacity(self.svc_auth_methods.len());
             for auth in self.svc_auth_methods.drain(..) {
                 let auth_method =
-                    reqauth::service_auth_method(&self.secrets, &self.environment, auth)
+                    reqauth::service_auth_method(self.secrets, self.environment, auth)
                         .context("unable to initialize service auth method")?;
                 entries.push(auth_method);
             }
@@ -79,9 +79,9 @@ impl ManagerConfig<'_> {
         };
 
         let service_registry = ServiceRegistry::new(
-            &self.secrets,
+            self.secrets,
             endpoints.clone(),
-            &self.environment,
+            self.environment,
             self.service_discovery,
             &own_address,
             &inbound_svc_auth,
@@ -133,7 +133,7 @@ impl ManagerConfig<'_> {
                 };
 
                 let auth_handler = build_auth_handler(
-                    &self.meta,
+                    self.meta,
                     gw,
                     &service_registry,
                     self.http_client.clone(),
@@ -220,10 +220,10 @@ fn build_auth_handler(
             supports_path: false,
         };
 
-        let schema = cfg
+        
+        cfg
             .compute(auth_params)
-            .context("unable to compute auth handler schema")?;
-        schema
+            .context("unable to compute auth handler schema")?
     };
 
     let registry = builder.build();

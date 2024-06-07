@@ -26,9 +26,7 @@ pub fn service_auth_method(
                 .auth_keys
                 .into_iter()
                 .filter_map(|k| {
-                    let Some(data) = k.data else {
-                        return None;
-                    };
+                    let data = k.data?;
                     Some(svcauth::EncoreAuthKey {
                         key_id: k.id,
                         data: secrets.load(data),
@@ -248,9 +246,8 @@ fn parse_tracestate<'a>(
     }
 
     let parse_entry = |val: &str| -> Option<Data> {
-        let mut parts = val.splitn(2, '=');
-        let key = parts.next()?;
-        let val = parts.next()?;
+        let (key, val) = val.split_once('=')?;
+
         match key {
             "encore/event-id" => Some(Data::EventId(val.parse().ok()?)),
             "encore/span-id" => Some(Data::SpanId(model::SpanId::parse_std(val).ok()?)),
