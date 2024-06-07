@@ -273,7 +273,6 @@ impl Logger {
                         value: model::LogFieldValue::U64(num.as_u64().unwrap()),
                     });
                 } else if num.is_f64() {
-                    println!("is_f64");
                     trace_fields.push(LogField {
                         key,
                         value: model::LogFieldValue::F64(num.as_f64().unwrap()),
