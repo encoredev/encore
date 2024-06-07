@@ -1,13 +1,21 @@
-use crate::parser::types::{Interface, ResolveState, Type};
+use crate::parser::respath::Path;
+use crate::parser::types::{FieldName, Interface, ResolveState};
 
-pub(super) fn strip_path_params(ctx: &ResolveState, typ: &mut Interface) {
+pub(super) fn strip_path_params(path: &Path, typ: &mut Interface) {
+    if !path.has_dynamic_segments() {
+        return;
+    }
+
+    let is_path_param = |name: &str| {
+        path.dynamic_segments()
+            .find(|seg| seg.lit_or_name() == name)
+            .is_some()
+    };
+
     // Drop any fields whose type is Path.
     typ.fields.retain(|f| {
-        if let Type::Named(named) = &f.typ {
-            let obj = &named.obj;
-            if obj.name.as_deref() == Some("Path")
-                && ctx.is_module_path(obj.module_id, "encore.dev/api")
-            {
+        if let FieldName::String(name) = &f.name {
+            if is_path_param(name) {
                 return false;
             }
         }
