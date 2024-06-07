@@ -57,14 +57,14 @@ impl Tracer {
     }
 }
 
-pub struct LogMessageData<'a> {
+pub struct LogMessageData<'a, I> {
     pub source: Option<&'a Request>,
     pub msg: &'a str,
     pub level: log::Level,
-    pub fields: Vec<LogField<'a>>,
+    pub fields: Option<I>,
 }
 
-impl LogMessageData<'_> {
+impl<'a, I> LogMessageData<'a, I> {
     fn level_byte(&self) -> u8 {
         match self.level {
             log::Level::Error => 4,
@@ -78,42 +78,50 @@ impl LogMessageData<'_> {
 
 impl Tracer {
     #[inline]
-    pub fn log_message(&self, data: LogMessageData) {
+    pub fn log_message<'a, I>(&self, data: LogMessageData<I>)
+    where
+        I: ExactSizeIterator<Item = LogField<'a>>,
+    {
         let Some(source) = data.source else {
             return;
         };
 
+        let fields_count = data.fields.as_ref().map(|fields| fields.len()).unwrap_or(0);
+
         let mut eb = BasicEventData {
             correlation_event_id: None,
-            extra_space: 4 + 4 + data.msg.len() + 1 + 64 * data.fields.len(),
+            extra_space: 4 + 4 + data.msg.len() + 1 + 64 * fields_count,
         }
         .to_eb();
 
         eb.byte(data.level_byte());
         eb.str(&data.msg);
-        eb.uvarint(data.fields.len() as u64);
-        for field in data.fields {
-            eb.byte(field.type_byte());
-            eb.str(field.key);
+        eb.uvarint(fields_count as u64);
 
-            match field.value {
-                LogFieldValue::String(str) => eb.str(str),
-                LogFieldValue::U64(n) => eb.uvarint(n),
-                LogFieldValue::I64(n) => eb.ivarint(n),
-                LogFieldValue::F64(n) => eb.f64(n),
-                LogFieldValue::Bool(b) => eb.bool(b),
-                LogFieldValue::Json(json) => match serde_json::to_vec(json) {
-                    Ok(bytes) => {
-                        eb.byte_string(&bytes);
-                        eb.nyi_stack_pcs()
-                    }
-                    Err(err) => {
-                        eb.byte_string(&[]);
-                        eb.err_with_legacy_stack(Some(&err))
-                    }
-                },
+        data.fields.map(|fields| {
+            for field in fields {
+                eb.byte(field.type_byte());
+                eb.str(field.key);
+
+                match field.value {
+                    LogFieldValue::String(str) => eb.str(str),
+                    LogFieldValue::U64(n) => eb.uvarint(n),
+                    LogFieldValue::I64(n) => eb.ivarint(n),
+                    LogFieldValue::F64(n) => eb.f64(n),
+                    LogFieldValue::Bool(b) => eb.bool(b),
+                    LogFieldValue::Json(json) => match serde_json::to_vec(json) {
+                        Ok(bytes) => {
+                            eb.byte_string(&bytes);
+                            eb.nyi_stack_pcs()
+                        }
+                        Err(err) => {
+                            eb.byte_string(&[]);
+                            eb.err_with_legacy_stack(Some(&err))
+                        }
+                    },
+                }
             }
-        }
+        });
         eb.nyi_stack_pcs();
 
         _ = self.send(EventType::LogMessage, source.span, eb);

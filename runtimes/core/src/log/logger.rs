@@ -257,46 +257,51 @@ impl Logger {
         msg: &str,
         fields: &Option<Fields>,
     ) {
-        let mut trace_fields = Vec::new();
-
-        if let Some(ref fields) = fields {
-            fields.iter().for_each(|(ref key, val)| match val {
+        let fields = fields.as_ref().map(|fields| {
+            fields.iter().map(|(ref key, val)| match val {
                 serde_json::Value::Number(num) => {
                     if num.is_i64() {
-                        trace_fields.push(LogField {
+                        LogField {
                             key,
                             value: model::LogFieldValue::I64(num.as_i64().unwrap()),
-                        });
+                        }
                     } else if num.is_u64() {
-                        trace_fields.push(LogField {
+                        LogField {
                             key,
                             value: model::LogFieldValue::U64(num.as_u64().unwrap()),
-                        });
+                        }
                     } else if num.is_f64() {
-                        trace_fields.push(LogField {
+                        LogField {
                             key,
                             value: model::LogFieldValue::F64(num.as_f64().unwrap()),
-                        });
+                        }
+                    } else {
+                        // this can't happen as we have handle all the cases above,
+                        // but we need to handle this case for the iterator to function
+                        LogField {
+                            key,
+                            value: model::LogFieldValue::I64(0),
+                        }
                     }
                 }
-                serde_json::Value::Bool(b) => trace_fields.push(LogField {
+                serde_json::Value::Bool(b) => LogField {
                     key,
                     value: model::LogFieldValue::Bool(b.to_owned()),
-                }),
-                serde_json::Value::String(ref str) => trace_fields.push(LogField {
+                },
+                serde_json::Value::String(ref str) => LogField {
                     key,
                     value: model::LogFieldValue::String(str),
-                }),
+                },
                 serde_json::Value::Array(_)
                 | serde_json::Value::Object(_)
-                | serde_json::Value::Null => trace_fields.push(LogField {
+                | serde_json::Value::Null => LogField {
                     key,
                     value: model::LogFieldValue::Json(&val),
-                }),
-            });
-        }
+                },
+            })
+        });
 
-        let _ = self
+        _ = self
             .tracer
             .read()
             .expect("tracer lock poisoned")
@@ -304,7 +309,7 @@ impl Logger {
                 source: request,
                 msg,
                 level,
-                fields: trace_fields,
+                fields,
             });
     }
 }
