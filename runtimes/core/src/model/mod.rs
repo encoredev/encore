@@ -289,15 +289,6 @@ pub struct AuthSuccessResponse {
     pub user_data: serde_json::Map<String, serde_json::Value>,
 }
 
-// matches go runtime
-pub enum LogLevel {
-    Trace = 0,
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
-
 pub enum LogFieldValue<'a> {
     String(&'a str),
     U64(u64),
