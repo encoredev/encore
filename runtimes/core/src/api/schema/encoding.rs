@@ -467,5 +467,5 @@ fn split_by_loc(methods: &[Method]) -> impl Iterator<Item = (DefaultLoc, Vec<Met
         locs.entry(loc).or_insert(Vec::new()).push(*m);
     }
 
-    locs.into_iter().map(|(k, v)| (k, v))
+    locs.into_iter()
 }

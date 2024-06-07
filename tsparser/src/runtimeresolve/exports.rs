@@ -24,13 +24,13 @@ impl Exports {
             match candidate_matches(candidate, rel_path) {
                 None => continue,
                 Some(Match::Exact) => {
-                    return subpath.matches(&conditions).and_then(|m| match m {
+                    return subpath.matches(conditions).and_then(|m| match m {
                         SubpathMatch::Target(path) => Some(path.into()),
                         SubpathMatch::Exclude => None,
                     });
                 }
                 Some(Match::Wildcard { replacement }) => {
-                    match subpath.matches(&conditions) {
+                    match subpath.matches(conditions) {
                         None => continue,
 
                         // If we have a target, save it as a candidate.
@@ -48,10 +48,7 @@ impl Exports {
             }
         }
 
-        match wildcard_match {
-            None => None,
-            Some((path, replacement)) => Some(path.replace("*", replacement).into()),
-        }
+        wildcard_match.map(|(path, replacement)| path.replace('*', replacement).into())
     }
 }
 
@@ -101,12 +98,12 @@ enum SubpathMatch<'a> {
 impl Subpath {
     fn matches(&self, active_conditions: &HashSet<&str>) -> Option<SubpathMatch> {
         match self {
-            Subpath::Target(path) => Some(SubpathMatch::Target(&path)),
+            Subpath::Target(path) => Some(SubpathMatch::Target(path)),
             Subpath::Exclude => Some(SubpathMatch::Exclude),
             Subpath::Conditions(conds) => {
                 for (cond, subpath) in conds.iter() {
                     if active_conditions.contains(cond.as_str()) {
-                        return subpath.matches(&active_conditions);
+                        return subpath.matches(active_conditions);
                     }
                 }
                 None
@@ -163,7 +160,7 @@ impl<'de> Deserialize<'de> for Exports {
                     return Ok(Exports { subpaths });
                 };
 
-                if !key.starts_with(".") {
+                if !key.starts_with('.') {
                     let mut conditions: IndexMap<String, Subpath> =
                         Deserialize::deserialize(de::value::MapAccessDeserializer::new(access))?;
                     conditions.insert(key, value);

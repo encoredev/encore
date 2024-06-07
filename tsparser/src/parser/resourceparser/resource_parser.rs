@@ -54,7 +54,7 @@ impl<'a> ResourceParserRegistry<'a> {
         for path in parser.interesting_pkgs {
             self.interested_for_paths
                 .entry(*path)
-                .or_insert_with(|| Vec::new())
+                .or_default()
                 .push(parser);
         }
     }
@@ -68,7 +68,7 @@ impl<'a> ResourceParserRegistry<'a> {
         for it in &module.ast.body {
             if let ast::ModuleItem::ModuleDecl(ast::ModuleDecl::Import(import)) = it {
                 let path = PkgPath(&import.src.value);
-                self.interested_for_paths.get(&path).map(|found| {
+                if let Some(found) = self.interested_for_paths.get(&path) {
                     for p in found {
                         // If we haven't already seen the parser with that name,
                         // add it to the list of parsers to run.
@@ -77,7 +77,7 @@ impl<'a> ResourceParserRegistry<'a> {
                             parsers.push(*p);
                         }
                     }
-                });
+                }
             }
         }
 

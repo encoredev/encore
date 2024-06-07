@@ -1,23 +1,16 @@
 use super::*;
-use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::parser::module_loader::ModuleLoader;
 use crate::parser::types::type_resolve::Ctx;
 use crate::parser::{FilePath, FileSet};
-use crate::testutil::testresolve::{NoopResolver, TestResolver};
-use anyhow::Result;
+use crate::testutil::testresolve::{NoopResolver};
 use indexmap::IndexMap;
-use insta::{assert_debug_snapshot, assert_snapshot, assert_yaml_snapshot, glob};
+use insta::{assert_debug_snapshot, glob};
 use itertools::Itertools;
-use prost::Message;
-use serde::{Deserialize, Serialize};
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
-use tempdir::TempDir;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 #[test]
@@ -57,7 +50,7 @@ fn resolve_types() {
                     .iter()
                     .sorted_by(|a, b| a.1.range.cmp(&b.1.range))
                     .map(|(name, obj)| {
-                        let typ = ctx.obj_type(&obj);
+                        let typ = ctx.obj_type(obj);
                         let typ = ctx.underlying(&typ).into_owned();
                         (name, typ)
                     })

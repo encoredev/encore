@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -80,7 +79,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         Ok(match typ {
             Type::Basic(tt) => self.basic(tt),
             Type::Array(tt) => {
-                let elem = self.typ(&*tt)?;
+                let elem = self.typ(tt)?;
                 schema::Type {
                     typ: Some(styp::Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(elem)),
@@ -218,7 +217,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
 
         // Is this an index signature?
         if let Some((key, value)) = typ.index.as_ref() {
-            if typ.fields.len() > 0 {
+            if !typ.fields.is_empty() {
                 anyhow::bail!("index signature with additional fields is not supported");
             }
             return Ok(schema::Type {
@@ -372,7 +371,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         self.builder.decls.push(decl);
         self.builder.obj_to_decl.insert(obj.id, id);
 
-        let obj_typ = self.builder.pc.type_checker.resolve_obj_type(&obj);
+        let obj_typ = self.builder.pc.type_checker.resolve_obj_type(obj);
         let obj_typ = self
             .builder
             .pc
@@ -470,13 +469,6 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 None => None,
             },
         })
-    }
-
-    fn transform_response(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
-        match typ {
-            Some(typ) => Ok(Some(self.typ(&typ)?)),
-            None => Ok(None),
-        }
     }
 }
 

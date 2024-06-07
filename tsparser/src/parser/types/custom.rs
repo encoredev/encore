@@ -23,7 +23,7 @@ pub fn resolve_custom_type_named(
 }
 
 fn resolve_header_type(named: &typ::Named) -> Result<CustomType> {
-    let (typ, name) = match (named.type_arguments.get(0), named.type_arguments.get(1)) {
+    let (typ, name) = match (named.type_arguments.first(), named.type_arguments.get(1)) {
         (None, None) => (Type::Basic(Basic::String), None),
 
         (Some(first), None) => {
@@ -44,7 +44,7 @@ fn resolve_header_type(named: &typ::Named) -> Result<CustomType> {
 }
 
 fn resolve_query_type(named: &typ::Named) -> Result<CustomType> {
-    let (typ, name) = match (named.type_arguments.get(0), named.type_arguments.get(1)) {
+    let (typ, name) = match (named.type_arguments.first(), named.type_arguments.get(1)) {
         (None, None) => (Type::Basic(Basic::String), None),
 
         (Some(first), None) => {

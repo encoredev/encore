@@ -207,9 +207,7 @@ fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
                 }
                 // Check for block comment end
             } else if !is_in_string && last_char == Some('*') && cur_char == '/' {
-                if block_comment_depth > 0 {
-                    block_comment_depth -= 1;
-                }
+                block_comment_depth = block_comment_depth.saturating_sub(1);
                 last_char = None;
                 if preserve_locations {
                     json_output.push_str("  ");
@@ -220,10 +218,8 @@ fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
                     if let Some(last_char) = last_char {
                         json_output.push(last_char);
                     }
-                } else {
-                    if preserve_locations {
-                        json_output.push_str(" ");
-                    }
+                } else if preserve_locations {
+                    json_output.push(' ');
                 }
                 last_char = Some(cur_char);
             }
@@ -262,7 +258,7 @@ impl Iterator for PathResolveIterator {
             let candidate = self.candidates[self.idx];
             self.idx += 1;
 
-            if candidate == "" {
+            if candidate.is_empty() {
                 Some(self.base.clone())
             } else {
                 Some(self.base.with_extension(candidate))

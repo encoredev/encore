@@ -133,31 +133,29 @@ impl<'a> Template<'a> {
     }
 }
 
-const ENTRYPOINT_SERVICE_MAIN: &'static str =
+const ENTRYPOINT_SERVICE_MAIN: &str =
     include_str!("templates/entrypoints/services/main.handlebars");
-const ENTRYPOINT_GATEWAY_MAIN: &'static str =
+const ENTRYPOINT_GATEWAY_MAIN: &str =
     include_str!("templates/entrypoints/gateways/main.handlebars");
-const ENTRYPOINT_COMBINED_MAIN: &'static str =
+const ENTRYPOINT_COMBINED_MAIN: &str =
     include_str!("templates/entrypoints/combined/main.handlebars");
 
-const CATALOG_CLIENTS_INDEX_JS: &'static str =
+const CATALOG_CLIENTS_INDEX_JS: &str =
     include_str!("templates/catalog/clients/index_js.handlebars");
-const CATALOG_CLIENTS_INDEX_D_TS: &'static str =
+const CATALOG_CLIENTS_INDEX_D_TS: &str =
     include_str!("templates/catalog/clients/index_d_ts.handlebars");
-const CATALOG_CLIENTS_SERVICE_JS: &'static str =
+const CATALOG_CLIENTS_SERVICE_JS: &str =
     include_str!("templates/catalog/clients/endpoints_js.handlebars");
-const CATALOG_CLIENTS_SERVICE_TESTING_JS: &'static str =
+const CATALOG_CLIENTS_SERVICE_TESTING_JS: &str =
     include_str!("templates/catalog/clients/endpoints_testing_js.handlebars");
-const CATALOG_CLIENTS_SERVICE_D_TS: &'static str =
+const CATALOG_CLIENTS_SERVICE_D_TS: &str =
     include_str!("templates/catalog/clients/endpoints_d_ts.handlebars");
-const CATALOG_AUTH_INDEX_TS: &'static str =
-    include_str!("templates/catalog/auth/index_ts.handlebars");
-const CATALOG_AUTH_AUTH_TS: &'static str =
-    include_str!("templates/catalog/auth/auth_ts.handlebars");
+const CATALOG_AUTH_INDEX_TS: &str = include_str!("templates/catalog/auth/index_ts.handlebars");
+const CATALOG_AUTH_AUTH_TS: &str = include_str!("templates/catalog/auth/auth_ts.handlebars");
 
-handlebars_helper!(strip_ext: |v: String| v.rsplit_once(".").map(|(a, _)| a.to_string()).unwrap_or(v));
+handlebars_helper!(strip_ext: |v: String| v.rsplit_once('.').map(|(a, _)| a.to_string()).unwrap_or(v));
 handlebars_helper!(to_pascal_case: |v: String| v.to_case(Case::Pascal));
-handlebars_helper!(encore_name_to_ident: |v: String| v.replace("-", "_"));
+handlebars_helper!(encore_name_to_ident: |v: String| v.replace('-', "_"));
 
 fn to_json(
     h: &Helper<'_, '_>,
@@ -170,7 +168,7 @@ fn to_json(
     let param = h
         .param(0)
         .map(|v| serde_json::to_string(v.value()).unwrap())
-        .unwrap_or(String::new());
+        .unwrap_or_default();
     out.write(param.as_ref())?;
     Ok(())
 }

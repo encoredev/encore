@@ -52,7 +52,7 @@ pub(super) fn bindings(pat: &ast::Pat) -> Vec<BindingPat> {
     fn sub_bindings(pat: &ast::Pat) -> Vec<BindingPat> {
         let mut result = bindings(pat);
         for b in &mut result {
-            if matches!(b.destructure_path.get(0), Some(DestructuringExpr::Full)) {
+            if matches!(b.destructure_path.first(), Some(DestructuringExpr::Full)) {
                 b.destructure_path.remove(0);
             }
         }
@@ -112,7 +112,7 @@ pub(super) fn bindings(pat: &ast::Pat) -> Vec<BindingPat> {
             // An object destructuring expression, e.g. "let {x, y} = ..."
             let mut result = Vec::with_capacity(obj.props.len());
             let mut rest: Option<&ast::RestPat> = None;
-            for (_idx, prop) in obj.props.iter().enumerate() {
+            for prop in obj.props.iter() {
                 match prop {
                     ast::ObjectPatProp::KeyValue(kv) => {
                         // E.g. "let {x: y} = ...", indicates a nested destructuring
@@ -173,7 +173,7 @@ pub(super) fn bindings(pat: &ast::Pat) -> Vec<BindingPat> {
                 let mut except = Vec::with_capacity(result.len());
                 for b in &result {
                     if let Some(DestructuringExpr::ObjectKey(DestructuringObjectKey::Ident(id))) =
-                        b.destructure_path.get(0)
+                        b.destructure_path.first()
                     {
                         except.push(id.clone());
                     }

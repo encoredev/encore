@@ -130,7 +130,7 @@ impl<'a> ResourceParseContext<'a> {
     pub fn add_bind(&mut self, bind: BindData) {
         // Treat "_" as an anonymous bind.
         let ident = match &bind.ident {
-            Some(name) if name.sym.to_string() == "_" => None,
+            Some(name) if name.sym == "_" => None,
             x => x.to_owned(),
         };
         self.binds.push(BindData { ident, ..bind });

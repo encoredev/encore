@@ -68,7 +68,7 @@ impl FieldConfig {
             "GOOGLE_CLOUD_PROJECT",
             "GCP_METADATA_PROJECT",
         ] {
-            if let Ok(_) = std::env::var(var) {
+            if std::env::var(var).is_ok() {
                 return &GCP_FIELDS;
             }
         }

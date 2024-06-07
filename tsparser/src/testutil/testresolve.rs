@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Error};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use swc_common::FileName;
 use swc_ecma_loader::resolve::Resolve;
 
@@ -54,6 +54,14 @@ impl Resolve for TestResolver {
     }
 }
 
+pub struct NoopResolver;
+
+impl Resolve for NoopResolver {
+    fn resolve(&self, _: &FileName, _: &str) -> Result<FileName, Error> {
+        bail!("NoopResolver does not support resolving files");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,13 +90,5 @@ export const Bar = 5;
             r.resolve(&base, "./moo.ts").unwrap_err().to_string(),
             "import not found: ./moo.ts"
         );
-    }
-}
-
-pub struct NoopResolver;
-
-impl Resolve for NoopResolver {
-    fn resolve(&self, _: &FileName, _: &str) -> Result<FileName, Error> {
-        bail!("NoopResolver does not support resolving files");
     }
 }

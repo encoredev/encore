@@ -58,7 +58,7 @@ pub fn root() -> &'static Logger {
         // We only do this once.
         let logger = Box::leak(Box::new(logger));
 
-        let disable_logging = std::env::var("ENCORE_NOLOG").is_ok_and(|v| v != "");
+        let disable_logging = std::env::var("ENCORE_NOLOG").is_ok_and(|v| !v.is_empty());
         let filter = if disable_logging {
             log::LevelFilter::Off
         } else {

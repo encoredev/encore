@@ -47,7 +47,7 @@ where
                 SegmentType::Wildcard => {
                     // The wildcard is the last segment.
                     // Axum doesn't match e.g. "/" for "/*wildcard", so we need to register both.
-                    result.push_str("/");
+                    result.push('/');
                     entries.push(result.clone());
 
                     result.push('*');
@@ -55,7 +55,7 @@ where
                 }
                 SegmentType::Fallback => {
                     // Axum doesn't match e.g. "/" for "/*wildcard", so we need to register both.
-                    result.push_str("/");
+                    result.push('/');
                     entries.push(result.clone());
 
                     result.push('*');
@@ -73,9 +73,9 @@ where
         let key = ep.key();
         let routes = (ep.value(), entries);
         if is_fallback {
-            fallback.entry(key).or_insert_with(Vec::new).push(routes);
+            fallback.entry(key).or_default().push(routes);
         } else {
-            main.entry(key).or_insert_with(Vec::new).push(routes);
+            main.entry(key).or_default().push(routes);
         }
     }
 

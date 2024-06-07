@@ -50,6 +50,7 @@ pub(super) trait PackageManager {
 
     fn run_tests(&self) -> Result<CmdSpec>;
 
+    #[allow(dead_code)]
     fn mgr_name(&self) -> &'static str;
 }
 

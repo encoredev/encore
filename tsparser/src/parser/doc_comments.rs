@@ -49,11 +49,11 @@ pub fn doc_comments_before(
         }
     }
 
-    if comments.len() > 0 {
+    if !comments.is_empty() {
         let mut result = String::new();
         for comment in comments.iter().rev() {
             let is_jsdoc = comment.kind == swc_common::comments::CommentKind::Block
-                && comment.text.starts_with("*");
+                && comment.text.starts_with('*');
 
             for line in comment.text.lines() {
                 let mut trimmed = line.trim();
@@ -62,7 +62,7 @@ pub fn doc_comments_before(
                         trimmed = trimmed[3..].trim_start();
                     } else if trimmed.starts_with("*/") {
                         trimmed = trimmed[2..].trim_start();
-                    } else if trimmed.starts_with("*") {
+                    } else if trimmed.starts_with('*') {
                         trimmed = trimmed[1..].trim_start();
                     }
                 }
@@ -72,7 +72,7 @@ pub fn doc_comments_before(
         }
 
         let trimmed = result.trim();
-        if trimmed.len() > 0 {
+        if !trimmed.is_empty() {
             return Some(trimmed.to_string());
         }
     }
@@ -93,7 +93,7 @@ mod tests {
     fn decl_comments(src: &str) -> Vec<Option<String>> {
         let source_map: SourceMap = Default::default();
         let file = source_map.new_source_file(FileName::Custom("test.ts".into()), src.into());
-        let comments: Box<SingleThreadedComments> = Box::new(Default::default());
+        let comments: Box<SingleThreadedComments> = Box::default();
         let lexer = Lexer::new(
             Syntax::Typescript(Default::default()),
             ast::EsVersion::Es2022,

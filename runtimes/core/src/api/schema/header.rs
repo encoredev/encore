@@ -24,7 +24,7 @@ impl Header {
                 }
             }
         }
-        return false;
+        false
     }
 
     pub fn contains_key(&self, key: &str) -> bool {
@@ -33,6 +33,10 @@ impl Header {
 
     pub fn len(&self) -> usize {
         self.schema.root().fields.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn fields(&self) -> impl Iterator<Item = (&String, &jsonschema::Field)> {
@@ -298,7 +302,7 @@ fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeader
             reqwest::header::HeaderValue::from_static(if *bool { "true" } else { "false" })
         }
 
-        String(str) => reqwest::header::HeaderValue::from_str(&str).map_err(|e| api::Error {
+        String(str) => reqwest::header::HeaderValue::from_str(str).map_err(|e| api::Error {
             code: api::ErrCode::InvalidArgument,
             message: "unable to convert string to header value".to_string(),
             internal_message: Some(format!("unable to convert string to header value: {}", e)),
@@ -357,7 +361,7 @@ fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
 
         Bool(bool) => axum::http::HeaderValue::from_static(if *bool { "true" } else { "false" }),
 
-        String(str) => axum::http::HeaderValue::from_str(&str).map_err(|e| api::Error {
+        String(str) => axum::http::HeaderValue::from_str(str).map_err(|e| api::Error {
             code: api::ErrCode::InvalidArgument,
             message: "unable to convert string to header value".to_string(),
             internal_message: Some(format!("unable to convert string to header value: {}", e)),

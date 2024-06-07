@@ -1,5 +1,5 @@
 use crate::parser::respath::Path;
-use crate::parser::types::{FieldName, Interface, ResolveState};
+use crate::parser::types::{FieldName, Interface};
 
 pub(super) fn strip_path_params(path: &Path, typ: &mut Interface) {
     if !path.has_dynamic_segments() {
@@ -8,8 +8,7 @@ pub(super) fn strip_path_params(path: &Path, typ: &mut Interface) {
 
     let is_path_param = |name: &str| {
         path.dynamic_segments()
-            .find(|seg| seg.lit_or_name() == name)
-            .is_some()
+            .any(|seg| seg.lit_or_name() == name)
     };
 
     // Drop any fields whose type is Path.

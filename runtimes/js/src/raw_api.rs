@@ -209,6 +209,7 @@ pub struct ResponseWriter {
 #[napi]
 impl ResponseWriter {
     #[napi]
+    #[allow(clippy::type_complexity)]
     pub fn write_head(
         &mut self,
         status: u16,
@@ -393,6 +394,7 @@ impl api::BoxedHandler for JSRawHandler {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn parse_headers(
     headers: Either<Vec<String>, HashMap<String, Either3<String, i32, Vec<String>>>>,
 ) -> napi::Result<axum::http::HeaderMap> {
@@ -407,7 +409,6 @@ fn parse_headers(
     match headers {
         Either::A(headers) => {
             for i in (0..headers.len()).step_by(2) {
-                let key = &headers[i];
                 let key: axum::http::HeaderName = headers[i].parse().map_err(key_err)?;
                 let value = &headers[i + 1];
                 let value: axum::http::HeaderValue = value.parse().map_err(val_err)?;
@@ -509,7 +510,7 @@ impl PromiseHandler for RawPromiseHandler {
         let stack = obj
             .get_named_property::<JsUnknown>("stack")
             .and_then(|val| parse_js_stack(&env, val))
-            .map(|val| Some(val))
+            .map(Some)
             .unwrap_or(None);
 
         let mut internal_message = None;

@@ -83,7 +83,7 @@ impl Default for ParseOptions {
 
 impl Path {
     pub fn parse(path: &str, opts: ParseOptions) -> anyhow::Result<Self> {
-        if path == "" {
+        if path.is_empty() {
             anyhow::bail!("empty path");
         } else if !path.starts_with('/') && opts.prefix_slash {
             anyhow::bail!("path must start with '/'");
@@ -97,8 +97,8 @@ impl Path {
         let mut segments = vec![];
 
         let mut path = path;
-        while path != "" {
-            if opts.prefix_slash || segments.len() > 0 {
+        while !path.is_empty() {
+            if opts.prefix_slash || !segments.is_empty() {
                 path = &path[1..]; // drop leading slash
             }
 
@@ -142,13 +142,13 @@ impl Path {
         // Validate the segments.
         for (idx, seg) in segments.iter().enumerate() {
             match seg {
-                Segment::Literal(lit) if lit == "" => {
+                Segment::Literal(lit) if lit.is_empty() => {
                     anyhow::bail!("invalid path: literal cannot be empty");
                 }
-                Segment::Param { name, .. } if name == "" => {
+                Segment::Param { name, .. } if name.is_empty() => {
                     anyhow::bail!("path parameters must have a name");
                 }
-                Segment::Wildcard { name } if name == "" => {
+                Segment::Wildcard { name } if name.is_empty() => {
                     anyhow::bail!("path parameters must have a name");
                 }
                 Segment::Wildcard { .. } if idx != segments.len() - 1 => {

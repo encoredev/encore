@@ -95,7 +95,7 @@ impl<'a> UsageResolver<'a> {
             resolver
                 .binds_by_module
                 .entry(b.module_id)
-                .or_insert_with(|| Vec::new())
+                .or_default()
                 .push(b.clone());
         }
 
@@ -105,7 +105,7 @@ impl<'a> UsageResolver<'a> {
     pub fn scan_usage_exprs(&self, module: &Module) -> Result<Vec<UsageExpr>> {
         let external = self.external_binds_to_scan_for(module)?;
         let internal = self.internal_binds_to_scan_for(module);
-        let combined: Vec<BindToScan> = external.into_iter().chain(internal.into_iter()).collect();
+        let combined: Vec<BindToScan> = external.into_iter().chain(internal).collect();
 
         let mut visitor = UsageVisitor::new(&combined);
         module
@@ -134,9 +134,9 @@ impl<'a> UsageResolver<'a> {
                     ast::ImportSpecifier::Named(named) => {
                         // src_name is the original name of the bind in the module it was defined.
                         let src_name: &str = match &named.imported {
-                            Some(ast::ModuleExportName::Ident(id)) => &id.sym.as_ref(),
-                            Some(ast::ModuleExportName::Str(id)) => &id.value.as_ref(),
-                            None => &named.local.sym.as_ref(),
+                            Some(ast::ModuleExportName::Ident(id)) => id.sym.as_ref(),
+                            Some(ast::ModuleExportName::Str(id)) => id.value.as_ref(),
+                            None => named.local.sym.as_ref(),
                         };
 
                         // found_bind is the matching bind in the resolved module, if any.
@@ -226,16 +226,13 @@ impl UsageResolver<'_> {
                     usages.push(usage);
                 }
                 Resource::ServiceClient(client) => {
-                    apis::service_client::resolve_service_client_usage(&data, client.clone())?
-                        .map(|u| usages.push(u));
+                    if let Some(u) = apis::service_client::resolve_service_client_usage(&data, client.clone())? { usages.push(u) }
                 }
                 Resource::PubSubTopic(topic) => {
-                    infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())?
-                        .map(|u| usages.push(u));
+                    if let Some(u) = infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())? { usages.push(u) }
                 }
                 Resource::SQLDatabase(db) => {
-                    infra::sqldb::resolve_database_usage(&data, db.clone())?
-                        .map(|u| usages.push(u));
+                    if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone())? { usages.push(u) }
                 }
                 _ => {}
             }
@@ -290,7 +287,7 @@ impl<'a> UsageVisitor<'a> {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn classify_usage(&self, bind: Lrc<Bind>, path: &AstNodePath) -> Option<UsageExpr> {
@@ -395,17 +392,13 @@ impl<'a> UsageVisitor<'a> {
                             AstParentNodeRef::Expr(expr, _) => Some(*expr),
                             _ => None,
                         });
-                        if let Some(enclosing) = enclosing {
-                            Some(UsageExpr {
+                        enclosing.map(|enclosing| UsageExpr {
                                 range: enclosing.span().into(),
                                 bind: bind.clone(),
                                 kind: UsageExprKind::Other(Other {
                                     _enclosing_expr: enclosing.to_owned(),
                                 }),
                             })
-                        } else {
-                            None
-                        }
                     }
                 }
             }

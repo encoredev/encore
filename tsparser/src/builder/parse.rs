@@ -32,10 +32,10 @@ impl Builder<'_> {
             pc.type_checker.clone(),
             Default::default(),
         );
-        let parser = Parser::new(&pc, pass1);
+        let parser = Parser::new(pc, pass1);
 
         let result = parser.parse()?;
-        let desc = validate_and_describe(&pc, &result)?;
+        let desc = validate_and_describe(pc, &result)?;
 
         if pc.errs.has_errors() {
             anyhow::bail!("parse failed")

@@ -21,12 +21,12 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                 path_params: rpc
                     .path_params
                     .as_ref()
-                    .map(|p| serde_json::to_value(&p))
+                    .map(serde_json::to_value)
                     .transpose()?,
                 parsed_payload: rpc
                     .parsed_payload
                     .as_ref()
-                    .map(|p| serde_json::to_value(&p))
+                    .map(serde_json::to_value)
                     .transpose()?,
                 headers: serialize_headers(&rpc.req_headers),
             };

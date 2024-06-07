@@ -21,6 +21,7 @@ pub fn derive_lit_parser(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     // Build the output, possibly using quasi-quotation
     let expanded = quote! {
         // The generated impl.
+        #[allow(non_snake_case)]
         impl #impl_generics litparser::LitParser for #name #ty_generics #where_clause {
             fn parse_lit(#input_ident: &swc_ecma_ast::Expr) -> anyhow::Result<Self> {
                 #impl_stream

@@ -50,8 +50,8 @@ pub fn join_request_url(inbound: &axum::http::Uri, target: &mut reqwest::Url) {
     }
 }
 
-pub fn merge_query<'a, 'b>(
-    target: Option<&'a str>,
+pub fn merge_query<'b>(
+    target: Option<&str>,
     inbound: Option<&'b str>,
 ) -> Option<Cow<'b, str>> {
     match (target, inbound) {
@@ -67,10 +67,10 @@ pub fn merge_query<'a, 'b>(
     }
 }
 
-pub fn join_url_path<'a, 'b>(target: &'a str, inbound: &'b str) -> Option<Cow<'b, str>> {
-    if inbound == "" {
+pub fn join_url_path<'b>(target: &str, inbound: &'b str) -> Option<Cow<'b, str>> {
+    if inbound.is_empty() {
         return None;
-    } else if target == "" {
+    } else if target.is_empty() {
         return Some(Cow::Borrowed(inbound));
     }
 

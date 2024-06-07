@@ -60,17 +60,13 @@ impl ModuleLoader {
     }
 
     pub fn modules(&self) -> Vec<Lrc<Module>> {
-        self.by_path
-            .borrow()
-            .values()
-            .map(|m| m.clone())
-            .collect::<Vec<_>>()
+        self.by_path.borrow().values().cloned().collect::<Vec<_>>()
     }
 
     pub fn module_containing_pos(&self, pos: Pos) -> Option<Lrc<Module>> {
         let file = self.file_set.lookup_file(pos)?;
         let path = file.name();
-        self.by_path.borrow().get(&path).map(|m| m.clone())
+        self.by_path.borrow().get(&path).cloned()
     }
 
     pub fn resolve_import(&self, module: &Module, import_path: &str) -> Result<Lrc<Module>> {
@@ -103,7 +99,7 @@ impl ModuleLoader {
         // https://www.typescriptlang.org/docs/handbook/module-resolution.html#relative-vs-non-relative-module-imports
         let module_path = if import_path.starts_with("./")
             || import_path.starts_with("../")
-            || import_path.starts_with("/")
+            || import_path.starts_with('/')
         {
             None
         } else {
@@ -153,10 +149,8 @@ impl ModuleLoader {
                 let file = self
                     .file_set
                     .new_source_file(FilePath::Real("universe.ts".into()), UNIVERSE_TS.into());
-                let module = self
-                    .parse_and_store(file, Some("__universe__".into()))
-                    .unwrap();
-                module
+                self.parse_and_store(file, Some("__universe__".into()))
+                    .unwrap()
             })
             .to_owned()
     }
@@ -167,10 +161,8 @@ impl ModuleLoader {
                 let file = self
                     .file_set
                     .new_source_file(FilePath::Real("encore.gen/clients".into()), "".into());
-                let module = self
-                    .parse_and_store(file, Some("encore.gen/clients".into()))
-                    .unwrap();
-                module
+                self.parse_and_store(file, Some("encore.gen/clients".into()))
+                    .unwrap()
             })
             .to_owned()
     }
@@ -181,10 +173,8 @@ impl ModuleLoader {
                 let file = self
                     .file_set
                     .new_source_file(FilePath::Real("encore.gen/auth".into()), "".into());
-                let module = self
-                    .parse_and_store(file, Some("encore.gen/auth".into()))
-                    .unwrap();
-                module
+                self.parse_and_store(file, Some("encore.gen/auth".into()))
+                    .unwrap()
             })
             .to_owned()
     }
@@ -217,7 +207,7 @@ impl ModuleLoader {
         &self,
         file: Lrc<SourceFile>,
     ) -> Result<(ast::Module, Box<SingleThreadedComments>)> {
-        let comments: Box<SingleThreadedComments> = Box::new(Default::default());
+        let comments: Box<SingleThreadedComments> = Box::default();
 
         let syntax = Syntax::Typescript(swc_ecma_parser::TsConfig {
             tsx: file.name().is_tsx(),
@@ -304,7 +294,7 @@ impl Module {
 
 /// imports_from_mod returns the import declarations in the given module.
 fn imports_from_mod(ast: &ast::Module) -> Vec<ast::ImportDecl> {
-    (&ast.body)
+    (ast.body)
         .iter()
         .filter_map(|it| match &it {
             ast::ModuleItem::ModuleDecl(ast::ModuleDecl::Import(imp)) => Some(imp.clone()),
@@ -350,7 +340,7 @@ impl ModuleLoader {
                 continue;
             }
 
-            let file_name = FilePath::Real(base.join(&file.name).into());
+            let file_name = FilePath::Real(base.join(&file.name));
             let file = self.file_set.new_source_file(file_name, file.data.clone());
             let module = self.parse_and_store(file, None)?;
             result.insert(module.file_path.clone(), module);
@@ -364,4 +354,4 @@ impl ModuleLoader {
     }
 }
 
-const UNIVERSE_TS: &'static str = include_str!("./universe.ts");
+const UNIVERSE_TS: &str = include_str!("./universe.ts");

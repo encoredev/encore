@@ -11,9 +11,9 @@ pub enum Alphabet {
     Encore,
 }
 
-const RFC4648_ALPHABET: &'static [u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-const CROCKFORD_ALPHABET: &'static [u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const ENCORE_ALPHABET: &'static [u8] = b"0123456789abcdefghijklmnopqrstuv";
+const RFC4648_ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const CROCKFORD_ALPHABET: &[u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const ENCORE_ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuv";
 
 pub fn encode(alphabet: Alphabet, data: &[u8]) -> String {
     let (alphabet, padding) = match alphabet {
@@ -114,8 +114,8 @@ pub fn decode(alphabet: Alphabet, data: &str) -> Option<Vec<u8>> {
 mod test {
     use super::Alphabet::{Crockford, Encore, RFC4648};
     use super::{decode, encode};
-    use quickcheck;
-    use std;
+    
+    
 
     #[derive(Clone)]
     struct B32 {
@@ -126,7 +126,7 @@ mod test {
         fn arbitrary(g: &mut quickcheck::Gen) -> B32 {
             let alphabet = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
             B32 {
-                c: g.choose(alphabet).unwrap().clone(),
+                c: *g.choose(alphabet).unwrap(),
             }
         }
     }

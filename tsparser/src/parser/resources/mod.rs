@@ -54,7 +54,7 @@ impl Display for Resource {
     }
 }
 
-pub const DEFAULT_RESOURCE_PARSERS: &'static [&'static ResourceParser] = &[
+pub const DEFAULT_RESOURCE_PARSERS: &[&ResourceParser] = &[
     &ENDPOINT_PARSER,
     &AUTHHANDLER_PARSER,
     &GATEWAY_PARSER,

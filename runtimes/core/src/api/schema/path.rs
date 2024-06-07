@@ -9,7 +9,6 @@ use axum::extract::rejection::PathRejection;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use indexmap::IndexMap;
-use serde::de::DeserializeSeed;
 
 use crate::api;
 use crate::api::jsonschema::Basic;
@@ -52,7 +51,7 @@ impl Path {
                     let name = &seg.value;
                     let typ = match fields.fields.get(name) {
                         Some(field) => match &field.value {
-                            jsonschema::BasicOrValue::Basic(typ) => typ.clone(),
+                            jsonschema::BasicOrValue::Basic(typ) => *typ,
                             _ => anyhow::bail!("invalid field type in request schema"),
                         },
                         // If the segment doesn't exist in the schema it's because the endpoint is raw.
@@ -132,7 +131,7 @@ impl Path {
 
             use Segment::*;
             match seg {
-                Literal(lit) => path.push_str(&lit),
+                Literal(lit) => path.push_str(lit),
                 Param { name, .. } | Wildcard { name } | Fallback { name } => {
                     let Some(payload) = payload else {
                         return Err(api::Error {

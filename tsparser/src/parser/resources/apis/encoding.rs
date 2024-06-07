@@ -173,7 +173,7 @@ pub fn describe_endpoint(
 ) -> Result<EndpointEncoding> {
     let resp = resp
         .map(|t| unwrap_promise(tc.state(), &t).clone())
-        .and_then(|t| drop_empty_or_void(t));
+        .and_then(drop_empty_or_void);
 
     let default_method = default_method(&methods);
     let (req_enc, _req_schema) = describe_req(tc, &methods, &path, &req, raw)?;
@@ -215,7 +215,7 @@ fn describe_req(
         }
     };
 
-    let mut fields = iface_fields(tc, &req_schema)?;
+    let mut fields = iface_fields(tc, req_schema)?;
     let path_params = extract_path_params(path, &mut fields)?;
 
     // If there are no fields remaining, we can use this encoding for all methods.
@@ -232,7 +232,7 @@ fn describe_req(
     // Otherwise, the fields should be grouped by location depending on the method.
     let mut encodings = Vec::new();
 
-    for (loc, methods) in split_by_loc(&methods) {
+    for (loc, methods) in split_by_loc(methods) {
         let mut params = path_params.clone();
         params.extend(extract_loc_params(&fields, loc));
         encodings.push(RequestEncoding {
@@ -253,7 +253,7 @@ fn describe_resp(
         return Ok((ResponseEncoding { params: vec![] }, None));
     };
 
-    let fields = iface_fields(tc, &resp_schema)?;
+    let fields = iface_fields(tc, resp_schema)?;
     let params = extract_loc_params(&fields, ParamLocation::Body);
 
     let fields = if fields.is_empty() {
@@ -294,7 +294,7 @@ fn default_method(methods: &Methods) -> Method {
 fn split_by_loc(methods: &Methods) -> Vec<(ParamLocation, Vec<Method>)> {
     let methods = match methods {
         Methods::All => Method::all(),
-        Methods::Some(methods) => &methods,
+        Methods::Some(methods) => methods,
     };
 
     let mut locs = HashMap::new();
@@ -307,7 +307,7 @@ fn split_by_loc(methods: &Methods) -> Vec<(ParamLocation, Vec<Method>)> {
         locs.entry(loc).or_insert(Vec::new()).push(*m);
     }
 
-    let mut items: Vec<_> = locs.into_iter().map(|(k, v)| (k, v)).collect();
+    let mut items: Vec<_> = locs.into_iter().collect();
     items.sort();
     items
 }
@@ -346,8 +346,7 @@ fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
 
 fn extract_path_params(path: &Path, fields: &mut FieldMap) -> Result<Vec<Param>> {
     let mut params = Vec::new();
-    let mut index = 0;
-    for seg in path.dynamic_segments() {
+    for (index, seg) in path.dynamic_segments().enumerate() {
         let name = seg.lit_or_name();
         let Some(f) = fields.remove(name) else {
             anyhow::bail!("path parameter {:?} not found in request schema", name);
@@ -358,7 +357,6 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> Result<Vec<Param>>
             typ: f.typ.clone(),
             optional: f.optional,
         });
-        index += 1;
     }
 
     Ok(params)
