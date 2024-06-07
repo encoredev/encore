@@ -248,6 +248,8 @@ impl Runtime {
             trace::Tracer::noop()
         };
 
+        log::set_tracer(tracer.clone());
+
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md);
         let sqldb = sqldb::Manager::new(
             resources.sql_clusters,

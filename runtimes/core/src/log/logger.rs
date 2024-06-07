@@ -1,12 +1,14 @@
 use crate::error::AppError;
-use crate::log::fields::{FieldConfig, DEFAULT_FIELDS, GCP_FIELDS};
+use crate::log::fields::FieldConfig;
 use crate::log::writers::{default_writer, Writer};
-use crate::model;
+use crate::model::{self, LogField};
+use crate::trace::protocol::LogMessageData;
+use crate::trace::Tracer;
 use anyhow::Context;
 use env_logger::filter::Filter;
 use log::{Log, Metadata, Record};
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
 pub type Fields = BTreeMap<String, serde_json::Value>;
@@ -19,6 +21,7 @@ pub struct Logger {
     field_config: &'static FieldConfig,
     writer: Arc<dyn Writer>,
     extra_fields: Fields,
+    tracer: Arc<RwLock<Tracer>>,
 }
 
 impl Logger {
@@ -34,7 +37,14 @@ impl Logger {
             field_config,
             writer: default_writer(field_config),
             extra_fields: Fields::new(),
+            tracer: Arc::new(RwLock::new(Tracer::noop())),
         }
+    }
+
+    /// Sets the loggers tracer
+    pub fn set_tracer(&self, tracer: Tracer) {
+        let mut t = self.tracer.write().expect("tracer lock poisoned");
+        *t = tracer;
     }
 
     /// Returns a new logger with the given log level.
@@ -88,6 +98,8 @@ impl Logger {
         caller: Option<String>,
         fields: Option<Fields>,
     ) -> anyhow::Result<()> {
+        self.write_to_trace(request, level, &msg, &fields);
+
         let mut values = Fields::new();
 
         // Copy the extra fields into the values map.
@@ -235,6 +247,70 @@ impl Logger {
             caller,
             Some(visitor.0),
         )
+    }
+
+    /// Writes the log to trace
+    fn write_to_trace(
+        &self,
+        request: Option<&model::Request>,
+        level: log::Level,
+        msg: &str,
+        fields: &Option<Fields>,
+    ) {
+        let fields = fields.as_ref().map(|fields| {
+            fields.iter().map(|(ref key, val)| match val {
+                serde_json::Value::Number(num) => {
+                    if num.is_i64() {
+                        LogField {
+                            key,
+                            value: model::LogFieldValue::I64(num.as_i64().unwrap()),
+                        }
+                    } else if num.is_u64() {
+                        LogField {
+                            key,
+                            value: model::LogFieldValue::U64(num.as_u64().unwrap()),
+                        }
+                    } else if num.is_f64() {
+                        LogField {
+                            key,
+                            value: model::LogFieldValue::F64(num.as_f64().unwrap()),
+                        }
+                    } else {
+                        // this can't happen as we have handle all the cases above,
+                        // but we need to handle this case for the iterator to function
+                        LogField {
+                            key,
+                            value: model::LogFieldValue::Json(&serde_json::Value::Null),
+                        }
+                    }
+                }
+                serde_json::Value::Bool(b) => LogField {
+                    key,
+                    value: model::LogFieldValue::Bool(b.to_owned()),
+                },
+                serde_json::Value::String(ref str) => LogField {
+                    key,
+                    value: model::LogFieldValue::String(str),
+                },
+                serde_json::Value::Array(_)
+                | serde_json::Value::Object(_)
+                | serde_json::Value::Null => LogField {
+                    key,
+                    value: model::LogFieldValue::Json(&val),
+                },
+            })
+        });
+
+        _ = self
+            .tracer
+            .read()
+            .expect("tracer lock poisoned")
+            .log_message(LogMessageData {
+                source: request,
+                msg,
+                level,
+                fields,
+            });
     }
 }
 
