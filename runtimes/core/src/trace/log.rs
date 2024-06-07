@@ -77,6 +77,10 @@ impl Reporter {
                 HeaderValue::from_str(&self.config.env_id).unwrap(),
             );
             headers.insert(
+                "X-Encore-Deploy-Id",
+                HeaderValue::from_str(&self.config.deploy_id).unwrap(),
+            );
+            headers.insert(
                 "X-Encore-App-Commit",
                 HeaderValue::from_str(&self.config.app_commit).unwrap(),
             );
