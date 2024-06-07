@@ -280,7 +280,7 @@ impl Logger {
                         // but we need to handle this case for the iterator to function
                         LogField {
                             key,
-                            value: model::LogFieldValue::I64(0),
+                            value: model::LogFieldValue::Json(&serde_json::Value::Null),
                         }
                     }
                 }
