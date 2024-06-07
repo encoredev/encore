@@ -1,11 +1,23 @@
 package config
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
 	"net/url"
+	"strings"
 )
+
+func gunzip(data []byte) ([]byte, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(gz)
+}
 
 // ParseRuntime parses the Encore runtime config.
 func ParseRuntime(config, deployID string) *Runtime {
@@ -19,6 +31,7 @@ func ParseRuntime(config, deployID string) *Runtime {
 		bytes []byte
 		err   error
 	)
+	config, isGzipped := strings.CutPrefix(config, "gzip:")
 	// nosemgrep
 	if bytes, err = base64.StdEncoding.DecodeString(config); err != nil {
 		bytes, err = base64.RawURLEncoding.DecodeString(config)
@@ -26,7 +39,11 @@ func ParseRuntime(config, deployID string) *Runtime {
 	if err != nil {
 		log.Fatalln("encore runtime: fatal error: could not decode encore runtime config:", err)
 	}
-
+	if isGzipped {
+		if bytes, err = gunzip(bytes); err != nil {
+			log.Fatalln("encore runtime: fatal error: could not gunzip encore runtime config:", err)
+		}
+	}
 	var cfg Runtime
 	if err := json.Unmarshal(bytes, &cfg); err != nil {
 		log.Fatalln("encore runtime: fatal error: could not parse encore runtime config:", err)
