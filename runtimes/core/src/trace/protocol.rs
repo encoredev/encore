@@ -66,9 +66,9 @@ pub struct LogMessageData<'a> {
 
 impl Tracer {
     #[inline]
-    pub fn log_message(&self, data: LogMessageData) -> Option<TraceEventId> {
+    pub fn log_message(&self, data: LogMessageData) {
         let Some(source) = data.source else {
-            return None;
+            return;
         };
 
         let mut eb = BasicEventData {
@@ -104,7 +104,7 @@ impl Tracer {
         }
         eb.nyi_stack_pcs();
 
-        Some(self.send(EventType::LogMessage, source.span, eb))
+        _ = self.send(EventType::LogMessage, source.span, eb);
     }
 }
 
