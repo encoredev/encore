@@ -99,6 +99,10 @@ impl Logger {
         caller: Option<String>,
         fields: Option<Fields>,
     ) -> anyhow::Result<()> {
+        if let Some(ref fields) = fields {
+            self.write_to_trace(request, level, &msg, fields);
+        }
+
         let mut values = Fields::new();
 
         // Copy the extra fields into the values map.
@@ -145,7 +149,7 @@ impl Logger {
         );
         values.insert(
             self.field_config.message_field_name.to_string(),
-            serde_json::Value::from(msg.clone()),
+            serde_json::Value::from(msg),
         );
 
         if let Some(req) = request {
@@ -212,8 +216,6 @@ impl Logger {
                 );
             }
         }
-
-        self.write_to_trace(request, level, &msg, &values);
 
         // Now write the log to the configured writer.
         self.writer
@@ -301,7 +303,7 @@ impl Logger {
             .expect("tracer lock poisoned")
             .log_message(LogMessageData {
                 source: request,
-                msg: &msg,
+                msg,
                 level: level.into(),
                 fields: trace_fields,
             });
