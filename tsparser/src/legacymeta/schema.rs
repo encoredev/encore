@@ -12,6 +12,7 @@ use crate::encore::parser::schema::v1::r#type as styp;
 use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
 
+use crate::parser::resources::apis::api::Endpoint;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
     drop_empty_or_void, Basic, FieldName, Generic, Interface, Literal, Named, ObjectId, Type,
@@ -56,12 +57,12 @@ impl<'a> SchemaBuilder<'a> {
         ctx.typ(typ)
     }
 
-    pub fn transform_request(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
+    pub fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
         let mut ctx = BuilderCtx {
             builder: self,
             decl_id: None,
         };
-        ctx.transform_request(typ)
+        ctx.transform_request(ep)
     }
 
     pub fn transform_response(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
@@ -404,13 +405,15 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         Ok(result)
     }
 
-    fn transform_request(&mut self, typ: Option<Type>) -> Result<Option<schema::Type>> {
-        let Some(typ) = typ else { return Ok(None) };
+    fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+        let Some(typ) = ep.encoding.raw_req_schema.clone() else {
+            return Ok(None);
+        };
 
         let rs = self.builder.pc.type_checker.state();
         Ok(match typ {
             Type::Interface(mut interface) => {
-                strip_path_params(rs, &mut interface);
+                strip_path_params(&ep.encoding.path, &mut interface);
                 let Some(typ) = drop_empty_or_void(Type::Interface(interface)) else {
                     return Ok(None);
                 };
@@ -419,7 +422,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             Type::Named(ref named) => {
                 let underlying = named.underlying(rs).clone();
                 if let Type::Interface(mut iface) = underlying {
-                    strip_path_params(rs, &mut iface);
+                    strip_path_params(&ep.encoding.path, &mut iface);
                     let obj = &named.obj;
                     let Some(underlying) = drop_empty_or_void(Type::Interface(iface)) else {
                         return Ok(None);

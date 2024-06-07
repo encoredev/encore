@@ -121,9 +121,7 @@ impl<'a> MetaBuilder<'a> {
                 Resource::ServiceClient(_) => {}
 
                 Resource::APIEndpoint(ep) => {
-                    let request_schema = self
-                        .schema
-                        .transform_request(ep.encoding.raw_req_schema.clone())?;
+                    let request_schema = self.schema.transform_request(&ep)?;
                     let response_schema = self
                         .schema
                         .transform_response(ep.encoding.raw_resp_schema.clone())?;
