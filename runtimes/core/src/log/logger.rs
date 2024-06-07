@@ -1,7 +1,6 @@
 use crate::error::AppError;
-use crate::log::fields::{FieldConfig, DEFAULT_FIELDS, GCP_FIELDS};
+use crate::log::fields::FieldConfig;
 use crate::log::writers::{default_writer, Writer};
-use crate::log::LogLevel;
 use crate::model::{self, LogField};
 use crate::trace::protocol::LogMessageData;
 use crate::trace::Tracer;
@@ -256,7 +255,7 @@ impl Logger {
     fn write_to_trace(
         &self,
         request: Option<&model::Request>,
-        level: LogLevel,
+        level: log::Level,
         msg: &str,
         fields: &Fields,
     ) {
@@ -304,7 +303,7 @@ impl Logger {
             .log_message(LogMessageData {
                 source: request,
                 msg,
-                level: level.into(),
+                level,
                 fields: trace_fields,
             });
     }

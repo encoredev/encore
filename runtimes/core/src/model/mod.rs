@@ -324,19 +324,3 @@ impl LogField<'_> {
         }
     }
 }
-
-impl From<crate::log::LogLevel> for LogLevel {
-    fn from(level: crate::log::LogLevel) -> Self {
-        match level {
-            crate::log::LogLevel::Trace => LogLevel::Trace,
-            crate::log::LogLevel::Debug => LogLevel::Debug,
-            crate::log::LogLevel::Info => LogLevel::Info,
-            crate::log::LogLevel::Warn => LogLevel::Warn,
-            crate::log::LogLevel::Error => LogLevel::Error,
-
-            // TODO(fredr): these are not supported by the go runtime
-            crate::log::LogLevel::Fatal => LogLevel::Error,
-            crate::log::LogLevel::Disabled => LogLevel::Trace,
-        }
-    }
-}

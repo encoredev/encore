@@ -4,7 +4,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::api;
-use crate::model::{LogField, LogFieldValue, LogLevel, Request, TraceEventId};
+use crate::model::{LogField, LogFieldValue, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
 use crate::trace::log::TraceEvent;
 use crate::{model, EncoreName};
@@ -60,8 +60,20 @@ impl Tracer {
 pub struct LogMessageData<'a> {
     pub source: Option<&'a Request>,
     pub msg: &'a str,
-    pub level: LogLevel,
+    pub level: log::Level,
     pub fields: Vec<LogField<'a>>,
+}
+
+impl LogMessageData<'_> {
+    fn level_byte(&self) -> u8 {
+        match self.level {
+            log::Level::Error => 4,
+            log::Level::Warn => 3,
+            log::Level::Info => 2,
+            log::Level::Debug => 1,
+            log::Level::Trace => 0,
+        }
+    }
 }
 
 impl Tracer {
@@ -77,7 +89,7 @@ impl Tracer {
         }
         .to_eb();
 
-        eb.byte(data.level as u8);
+        eb.byte(data.level_byte());
         eb.str(&data.msg);
         eb.uvarint(data.fields.len() as u64);
         for field in data.fields {
