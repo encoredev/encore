@@ -127,10 +127,10 @@ fn resolve(data: &SecretData) -> ResolveResult<Vec<u8>> {
 
         Some(SubPath::JsonKey(json_key)) => {
             // Escape the JSON key since we use gjson.
-            let json_key = escape_gjson_key(&json_key);
+            let json_key = escape_gjson_key(json_key);
 
             let str_value = std::str::from_utf8(&value).map_err(|_| ResolveError::InvalidJSON)?;
-            let value = gjson::get(&str_value, &json_key);
+            let value = gjson::get(str_value, &json_key);
             match value.kind() {
                 gjson::Kind::String => {
                     // Use the string as-is.
@@ -170,9 +170,9 @@ fn resolve(data: &SecretData) -> ResolveResult<Vec<u8>> {
 
 fn escape_gjson_key(key: &str) -> String {
     fn is_safe_path_key_char(c: char) -> bool {
-        (c >= 'a' && c <= 'z')
-            || (c >= 'A' && c <= 'Z')
-            || (c >= '0' && c <= '9')
+        c.is_ascii_lowercase()
+            || c.is_ascii_uppercase()
+            || c.is_ascii_digit()
             || c <= ' '
             || c > '~'
             || c == '_'

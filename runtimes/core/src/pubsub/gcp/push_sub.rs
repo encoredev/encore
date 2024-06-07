@@ -142,8 +142,7 @@ impl Inner {
         };
 
         // Validate the JWT token.
-        _ = self
-            .validator
+        self.validator
             .validate_google_jwt(req.headers())
             .await
             .map_err(api::Error::internal)?;
@@ -227,7 +226,7 @@ impl GoogleJWTValidator {
             .context("unable to fetch JWK keys")?;
 
         // Find the key that matches the token.
-        let jwk_key = jwks.find(&token_key_id).ok_or_else(|| {
+        let jwk_key = jwks.find(token_key_id).ok_or_else(|| {
             anyhow::anyhow!("unable to find JWK key for token: {:?}", token_key_id)
         })?;
 
@@ -288,6 +287,6 @@ mod base64 {
         let base64 = String::deserialize(d)?;
         STANDARD
             .decode(base64.as_bytes())
-            .map_err(|e| serde::de::Error::custom(e))
+            .map_err(serde::de::Error::custom)
     }
 }

@@ -59,6 +59,12 @@ pub struct RuntimeBuilder {
     test_mode: bool,
 }
 
+impl Default for RuntimeBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
@@ -208,7 +214,8 @@ impl Runtime {
         let platform_validator = Arc::new(platform_validator);
 
         // Set up observability.
-        let disable_tracing = testing || std::env::var("ENCORE_NOTRACE").is_ok_and(|v| v != "");
+        let disable_tracing =
+            testing || std::env::var("ENCORE_NOTRACE").is_ok_and(|v| !v.is_empty());
         let tracer = if !disable_tracing {
             let observability = deployment.observability.take().unwrap_or_default();
             let trace_endpoint = observability
@@ -378,19 +385,19 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
         let cfg = &cfg["gzip:".len()..];
         let gzip_data = base64::engine::general_purpose::STANDARD
             .decode(cfg)
-            .map_err(|e| ParseError::Base64(e))?;
+            .map_err(ParseError::Base64)?;
 
         let mut decoder = flate2::read::GzDecoder::new(&gzip_data[..]);
         let mut raw_data = Vec::new();
         decoder
             .read_to_end(&mut raw_data)
-            .map_err(|e| ParseError::IO(e))?;
-        runtimepb::RuntimeConfig::decode(&raw_data[..]).map_err(|e| ParseError::Proto(e))
+            .map_err(ParseError::IO)?;
+        runtimepb::RuntimeConfig::decode(&raw_data[..]).map_err(ParseError::Proto)
     } else {
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(cfg.as_bytes())
-            .map_err(|e| ParseError::Base64(e))?;
-        runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(|e| ParseError::Proto(e))
+            .map_err(ParseError::Base64)?;
+        runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(ParseError::Proto)
     }
 }
 
@@ -417,25 +424,25 @@ fn meta_from_env() -> Result<metapb::Data, ParseError> {
         let cfg = &cfg["gzip:".len()..];
         let gzip_data = base64::engine::general_purpose::STANDARD
             .decode(cfg)
-            .map_err(|e| ParseError::Base64(e))?;
+            .map_err(ParseError::Base64)?;
 
         let mut decoder = flate2::read::GzDecoder::new(&gzip_data[..]);
         let mut raw_data = Vec::new();
         decoder
             .read_to_end(&mut raw_data)
-            .map_err(|e| ParseError::IO(e))?;
-        metapb::Data::decode(&raw_data[..]).map_err(|e| ParseError::Proto(e))
+            .map_err(ParseError::IO)?;
+        metapb::Data::decode(&raw_data[..]).map_err(ParseError::Proto)
     } else {
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(cfg.as_bytes())
-            .map_err(|e| ParseError::Base64(e))?;
-        metapb::Data::decode(&decoded[..]).map_err(|e| ParseError::Proto(e))
+            .map_err(ParseError::Base64)?;
+        metapb::Data::decode(&decoded[..]).map_err(ParseError::Proto)
     }
 }
 
 fn parse_meta(path: &Path) -> Result<metapb::Data, ParseError> {
-    let data = std::fs::read(path).map_err(|e| ParseError::IO(e))?;
-    metapb::Data::decode(&data[..]).map_err(|e| ParseError::Proto(e))
+    let data = std::fs::read(path).map_err(ParseError::IO)?;
+    metapb::Data::decode(&data[..]).map_err(ParseError::Proto)
 }
 
 fn enable_test_mode() -> Result<(), ParseError> {
@@ -447,7 +454,7 @@ fn enable_test_mode() -> Result<(), ParseError> {
         .stdout_capture()
         .stderr_capture()
         .run()
-        .map_err(|e| ParseError::IO(e))?;
+        .map_err(ParseError::IO)?;
     if !out.status.success() {
         return Err(ParseError::IO(std::io::Error::new(
             std::io::ErrorKind::Other,
@@ -458,8 +465,8 @@ fn enable_test_mode() -> Result<(), ParseError> {
     let data = String::from_utf8(out.stdout)
         .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
 
-    for line in data.split("\n") {
-        let Some((name, value)) = line.split_once("=") else {
+    for line in data.split('\n') {
+        let Some((name, value)) = line.split_once('=') else {
             continue;
         };
         match name {
@@ -477,14 +484,6 @@ fn enable_test_mode() -> Result<(), ParseError> {
 pub struct Hosted(pub HashSet<String>);
 
 impl Hosted {
-    pub fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator,
-        I::Item: Into<String>,
-    {
-        Self(iter.into_iter().map(Into::into).collect())
-    }
-
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -494,12 +493,18 @@ impl Hosted {
     }
 
     /// Reports whether the given service/entity is hosted by this runtime.
-    pub fn contains<Q: ?Sized>(&self, name: &Q) -> bool
+    pub fn contains<Q>(&self, name: &Q) -> bool
     where
         String: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
     {
         self.0.contains(name)
+    }
+}
+
+impl FromIterator<String> for Hosted {
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
+        Self(iter.into_iter().map(Into::into).collect())
     }
 }
 

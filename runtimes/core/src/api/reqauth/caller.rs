@@ -52,15 +52,15 @@ impl FromStr for Caller {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         fn parse(s: &str) -> Option<Caller> {
-            let mut parts = s.splitn(2, ':');
-            let kind = parts.next()?;
-            let rest = parts.next()?;
+            let (kind, rest) = s.split_once(':')?;
+            
+            
 
             Some(match kind {
                 "api" => {
-                    let mut parts = rest.splitn(2, '.');
-                    let service = parts.next()?;
-                    let endpoint = parts.next()?;
+                    let (service, endpoint) = rest.split_once('.')?;
+                    
+                    
                     Caller::APIEndpoint(EndpointName::new(service, endpoint))
                 }
                 "pubsub" => {

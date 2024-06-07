@@ -24,10 +24,10 @@ impl From<anyhow::Error> for AppError {
             }));
         }
 
-        return Self {
+        Self {
             message,
             stack: vec![],
             cause,
-        };
+        }
     }
 }

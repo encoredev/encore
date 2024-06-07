@@ -5,7 +5,7 @@ use crate::parser::doc_comments::doc_comments_before;
 use anyhow::Result;
 use serde::Serialize;
 use swc_common::sync::Lrc;
-use swc_common::{BytePos, Span, SyntaxContext};
+use swc_common::SyntaxContext;
 
 pub struct FileSet {
     source_map: Lrc<swc_common::SourceMap>,
@@ -50,9 +50,7 @@ impl FileSet {
     }
 
     pub fn new_source_file(&self, file_name: FilePath, src: String) -> Lrc<SourceFile> {
-        let file = self
-            .source_map
-            .new_source_file(file_name.into(), src.into());
+        let file = self.source_map.new_source_file(file_name.into(), src);
         Lrc::new(SourceFile { file })
     }
 
@@ -116,9 +114,9 @@ impl std::fmt::Display for FilePath {
     }
 }
 
-impl Into<swc_common::FileName> for FilePath {
-    fn into(self) -> swc_common::FileName {
-        match self {
+impl From<FilePath> for swc_common::FileName {
+    fn from(value: FilePath) -> Self {
+        match value {
             FilePath::Real(p) => swc_common::FileName::Real(p),
             FilePath::Custom(p) => swc_common::FileName::Custom(p),
         }
@@ -140,9 +138,9 @@ impl From<&str> for FilePath {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd, Serialize)]
 pub struct Pos(pub u32);
 
-impl Into<swc_common::BytePos> for Pos {
-    fn into(self) -> swc_common::BytePos {
-        swc_common::BytePos(self.0)
+impl From<Pos> for swc_common::BytePos {
+    fn from(value: Pos) -> Self {
+        swc_common::BytePos(value.0)
     }
 }
 
@@ -236,7 +234,7 @@ impl From<swc_common::Span> for Range {
 
 impl Default for Range {
     fn default() -> Self {
-        ZERO_RANGE.clone()
+        ZERO_RANGE
     }
 }
 

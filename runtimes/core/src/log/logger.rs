@@ -127,7 +127,7 @@ impl Logger {
                 serde_json::Value::from(error.message),
             );
 
-            if error.stack.len() > 0 {
+            if !error.stack.is_empty() {
                 values.insert(
                     self.field_config.stack_trace_field_name.to_string(),
                     serde_json::to_value(error.stack)?,
@@ -239,14 +239,7 @@ impl Logger {
             _ => None,
         };
 
-        self.try_log(
-            None,
-            record.level().into(),
-            msg,
-            None,
-            caller,
-            Some(visitor.0),
-        )
+        self.try_log(None, record.level(), msg, None, caller, Some(visitor.0))
     }
 
     /// Writes the log to trace
@@ -258,7 +251,7 @@ impl Logger {
         fields: &Option<Fields>,
     ) {
         let fields = fields.as_ref().map(|fields| {
-            fields.iter().map(|(ref key, val)| match val {
+            fields.iter().map(|(key, val)| match val {
                 serde_json::Value::Number(num) => {
                     if num.is_i64() {
                         LogField {
@@ -296,13 +289,12 @@ impl Logger {
                 | serde_json::Value::Object(_)
                 | serde_json::Value::Null => LogField {
                     key,
-                    value: model::LogFieldValue::Json(&val),
+                    value: model::LogFieldValue::Json(val),
                 },
             })
         });
 
-        _ = self
-            .tracer
+        self.tracer
             .read()
             .expect("tracer lock poisoned")
             .log_message(LogMessageData {
@@ -505,7 +497,7 @@ impl log::kv::Visitor<'_> for KeyValueVisitor {
         key: log::kv::Key,
         value: log::kv::Value,
     ) -> Result<(), log::kv::Error> {
-        match serde_json::to_value(&value) {
+        match serde_json::to_value(value) {
             Ok(value) => {
                 self.0.insert(key.to_string(), value);
                 Ok(())

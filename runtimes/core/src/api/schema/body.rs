@@ -81,7 +81,7 @@ impl Body {
                 HeaderValue::from_static(mime::APPLICATION_JSON.as_ref()),
             )
             .body(axum::body::Body::from(buf))
-            .map_err(|e| api::Error::internal(e))?;
+            .map_err(api::Error::internal)?;
 
         Ok(resp)
     }

@@ -32,7 +32,7 @@ pub struct Object {
 
 impl Serialize for Object {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.name.as_ref().unwrap_or(&"".to_string()))
+        serializer.serialize_str(self.name.as_ref().unwrap_or(&"".to_string()))
     }
 }
 
@@ -168,7 +168,7 @@ pub struct Module {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct ImportedName {
+pub struct ImportedName {
     pub range: Range,
     pub import_path: String,
     pub kind: ImportKind,
@@ -548,7 +548,7 @@ impl ResolveState {
     }
 
     pub(super) fn lookup_module(&self, id: ModuleId) -> Option<Rc<Module>> {
-        self.modules.borrow().get(&id).map(|m| m.clone())
+        self.modules.borrow().get(&id).cloned()
     }
 
     pub fn is_universe(&self, id: ModuleId) -> bool {
@@ -602,15 +602,6 @@ impl ResolveState {
             .ok_or_else(|| anyhow::anyhow!("internal error: no module on stack"))?
             .to_owned();
         Ok(module_id)
-    }
-
-    fn module(&self) -> Result<Rc<Module>> {
-        let module_id = self.module_id()?;
-        self.modules
-            .borrow()
-            .get(&module_id)
-            .map(|m| m.clone())
-            .ok_or_else(|| anyhow::anyhow!("internal error: module not found: {:?}", module_id))
     }
 
     pub(super) fn resolve_module_ident(

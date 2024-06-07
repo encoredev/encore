@@ -7,6 +7,7 @@ pub trait Fetcher: Clone + Sync + Send {
     type Item;
     type Error: Debug;
 
+    #[allow(clippy::type_complexity)]
     fn fetch(
         self,
         max_items: usize,

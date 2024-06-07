@@ -26,7 +26,7 @@ impl CachingClient {
         }
 
         // Fetch the JWK set from the URL.
-        let response = fetch(&url).await?;
+        let response = fetch(url).await?;
         let set = response.set.clone();
 
         // Update the cache.
@@ -82,7 +82,7 @@ async fn fetch(url: &str) -> anyhow::Result<CachedJwkSet> {
     }
 
     // Determine the expiration time from the cache headers.
-    let exp = response_cache_exp_time(&response.headers());
+    let exp = response_cache_exp_time(response.headers());
     let exp = exp.map(|dur| std::time::Instant::now() + dur);
 
     #[derive(Deserialize)]
@@ -105,7 +105,7 @@ async fn fetch(url: &str) -> anyhow::Result<CachedJwkSet> {
 fn parse_key(val: serde_json::Value) -> Option<Jwk> {
     if let serde_json::Value::Object(map) = &val {
         if let Some(serde_json::Value::String(alg)) = map.get("alg") {
-            if KeyAlgorithm::from_str(&alg).is_err() {
+            if KeyAlgorithm::from_str(alg).is_err() {
                 return None;
             }
             // We have an algorithm that can be parsed, so parse the whole JWT.

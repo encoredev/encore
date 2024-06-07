@@ -55,7 +55,7 @@ impl TraceId {
     }
 
     pub fn serialize_std(&self) -> String {
-        hex::encode(&self.0)
+        hex::encode(self.0)
     }
 
     pub fn parse_encore(s: &str) -> Result<Self, InvalidBase32> {
@@ -93,7 +93,7 @@ impl SpanId {
     }
 
     pub fn serialize_std(&self) -> String {
-        hex::encode(&self.0)
+        hex::encode(self.0)
     }
 
     pub fn parse_encore(s: &str) -> Result<Self, InvalidBase32> {

@@ -57,7 +57,7 @@ pub fn collect_services<'a>(
 
     for b in &parse.binds {
         let Some(range) = b.range else { continue };
-        let file_path = range.file(&file_set);
+        let file_path = range.file(file_set);
         let path: &Path = match file_path {
             FilePath::Real(ref buf) => buf.as_path(),
             FilePath::Custom(_) => continue,

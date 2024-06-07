@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use convert_case::Casing;
-use prost::Message;
-use serde::{Deserialize, Serialize};
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
-use swc_common::sync::Lrc;
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 
 use encore_tsparser::builder;
@@ -41,7 +36,7 @@ fn main() -> Result<()> {
     GLOBALS.set(&globals, || -> Result<()> {
         HANDLER.set(&errs, || -> Result<()> {
             let builder = Builder::new()?;
-            let mut parse: Option<(builder::App, builder::ParseResult)> = None;
+            let parse: Option<(builder::App, builder::ParseResult)> = None;
 
             {
                 let pp = builder::PrepareParams {
@@ -83,7 +78,7 @@ fn main() -> Result<()> {
                     let mut err_msg = String::new();
                     for err in errs.iter() {
                         err_msg.push_str(err);
-                        err_msg.push_str("\n");
+                        err_msg.push('\n');
                     }
                     err_msg.push_str(&format!("{:?}", err));
                     eprintln!("{}", err_msg);

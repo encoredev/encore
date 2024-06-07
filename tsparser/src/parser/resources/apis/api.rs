@@ -43,7 +43,7 @@ impl Methods {
     pub fn to_vec(&self) -> Vec<String> {
         let methods = match self {
             Methods::All => Method::all(),
-            Methods::Some(vec) => &vec,
+            Methods::Some(vec) => vec,
         };
         methods.iter().map(|s| s.as_str().to_string()).collect()
     }
@@ -119,7 +119,7 @@ impl Method {
 impl FromStr for Method {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self> {
-        Ok(match s.as_ref() {
+        Ok(match s {
             "CONNECT" => Self::Connect,
             "DELETE" => Self::Delete,
             "GET" => Self::Get,
@@ -273,70 +273,67 @@ impl ReferenceParser for APIEndpointLiteral {
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
         for node in path.iter().rev() {
-            match node {
-                swc_ecma_visit::AstParentNodeRef::CallExpr(
-                    expr,
-                    swc_ecma_visit::fields::CallExprField::Callee,
-                ) => {
-                    let doc_comment = module.preceding_comments(expr.span.lo.into());
-                    let Some(bind_name) = extract_bind_name(path)? else {
-                        anyhow::bail!("API Endpoints must be bound to a variable")
-                    };
+            if let swc_ecma_visit::AstParentNodeRef::CallExpr(
+                expr,
+                swc_ecma_visit::fields::CallExprField::Callee,
+            ) = node
+            {
+                let doc_comment = module.preceding_comments(expr.span.lo.into());
+                let Some(bind_name) = extract_bind_name(path)? else {
+                    anyhow::bail!("API Endpoints must be bound to a variable")
+                };
 
-                    let Some(config) = &expr.args.get(0) else {
-                        anyhow::bail!("API Endpoint must have a config object")
-                    };
-                    let config = EndpointConfig::parse_lit(config.expr.as_ref())?;
+                let Some(config) = expr.args.first() else {
+                    anyhow::bail!("API Endpoint must have a config object")
+                };
+                let config = EndpointConfig::parse_lit(config.expr.as_ref())?;
 
-                    let Some(handler) = &expr.args.get(1) else {
-                        anyhow::bail!("API Endpoint must have a handler function")
-                    };
+                let Some(handler) = &expr.args.get(1) else {
+                    anyhow::bail!("API Endpoint must have a handler function")
+                };
 
-                    let ast::Callee::Expr(callee) = &expr.callee else {
-                        anyhow::bail!("invalid api definition expression")
-                    };
+                let ast::Callee::Expr(callee) = &expr.callee else {
+                    anyhow::bail!("invalid api definition expression")
+                };
 
-                    // Determine what kind of endpoint it is.
-                    return Ok(Some(match callee.as_ref() {
-                        ast::Expr::Member(member) if member.prop.is_ident_with("raw") => {
-                            // Raw endpoint
-                            Self {
-                                range: expr.span.into(),
-                                doc_comment,
-                                endpoint_name: bind_name.sym.to_string(),
-                                bind_name,
-                                config,
-                                kind: EndpointKind::Raw,
-                            }
+                // Determine what kind of endpoint it is.
+                return Ok(Some(match callee.as_ref() {
+                    ast::Expr::Member(member) if member.prop.is_ident_with("raw") => {
+                        // Raw endpoint
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::Raw,
+                        }
+                    }
+
+                    _ => {
+                        // Regular endpoint
+                        let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
+
+                        if req.is_none() {
+                            req = extract_type_param(expr.type_args.as_deref(), 0)?;
+                        }
+                        if resp.is_none() {
+                            resp = extract_type_param(expr.type_args.as_deref(), 1)?;
                         }
 
-                        _ => {
-                            // Regular endpoint
-                            let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
-
-                            if req.is_none() {
-                                req = extract_type_param(expr.type_args.as_deref(), 0)?;
-                            }
-                            if resp.is_none() {
-                                resp = extract_type_param(expr.type_args.as_deref(), 1)?;
-                            }
-
-                            Self {
-                                range: expr.span.into(),
-                                doc_comment,
-                                endpoint_name: bind_name.sym.to_string(),
-                                bind_name,
-                                config,
-                                kind: EndpointKind::Typed {
-                                    request: req.map(|t| t.clone()),
-                                    response: resp.map(|t| t.clone()),
-                                },
-                            }
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::Typed {
+                                request: req.cloned(),
+                                response: resp.cloned(),
+                            },
                         }
-                    }));
-                }
-
-                _ => {}
+                    }
+                }));
             }
         }
 
@@ -349,12 +346,12 @@ fn parse_endpoint_signature(
 ) -> Result<(Option<&ast::TsType>, Option<&ast::TsType>)> {
     let (req_param, type_params, return_type) = match expr {
         ast::Expr::Fn(func) => (
-            func.function.params.get(0).map(|p| &p.pat),
+            func.function.params.first().map(|p| &p.pat),
             func.function.type_params.as_deref(),
             func.function.return_type.as_deref(),
         ),
         ast::Expr::Arrow(arrow) => (
-            arrow.params.get(0),
+            arrow.params.first(),
             arrow.type_params.as_deref(),
             arrow.return_type.as_deref(),
         ),
@@ -408,19 +405,15 @@ impl LitParser for Methods {
             }
             ast::Expr::Array(arr) => {
                 let mut methods = Vec::with_capacity(arr.elems.len());
-                for elem in &arr.elems {
-                    if let Some(ast::ExprOrSpread { expr, .. }) = elem {
-                        if let ast::Expr::Lit(ast::Lit::Str(s)) = expr.as_ref() {
-                            if s.value.as_ref() == "*" {
-                                if arr.elems.len() > 1 {
-                                    anyhow::bail!(
-                                        "invalid methods: cannot mix * and other methods"
-                                    );
-                                }
-                                return Ok(Self::All);
+                for ast::ExprOrSpread { expr, .. } in arr.elems.iter().flatten() {
+                    if let ast::Expr::Lit(ast::Lit::Str(s)) = expr.as_ref() {
+                        if s.value.as_ref() == "*" {
+                            if arr.elems.len() > 1 {
+                                anyhow::bail!("invalid methods: cannot mix * and other methods");
                             }
-                            methods.push(Method::from_str(s.value.as_ref())?);
+                            return Ok(Self::All);
                         }
+                        methods.push(Method::from_str(s.value.as_ref())?);
                     }
                 }
                 methods.sort();

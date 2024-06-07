@@ -36,7 +36,7 @@ pub enum Value {
     Ref(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Struct {
     pub fields: HashMap<String, Field>,
 }
@@ -49,10 +49,7 @@ impl Struct {
     pub fn contains_name(&self, name: &str) -> bool {
         self.fields
             .iter()
-            .find(|(field_name, field)| {
-                field.name_override.as_deref().unwrap_or(field_name) == name
-            })
-            .is_some()
+            .any(|(field_name, field)| field.name_override.as_deref().unwrap_or(field_name) == name)
     }
 }
 
@@ -61,14 +58,6 @@ pub struct Field {
     pub value: BasicOrValue,
     pub optional: bool,
     pub name_override: Option<String>,
-}
-
-impl Default for Struct {
-    fn default() -> Self {
-        Struct {
-            fields: HashMap::new(),
-        }
-    }
 }
 
 impl Value {
@@ -669,7 +658,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 self.validate(&arr)?;
                 Ok(arr)
             }
-            _ => return Err(serde::de::Error::invalid_type(Unexpected::Seq, &self)),
+            _ => Err(serde::de::Error::invalid_type(Unexpected::Seq, &self)),
         }
     }
 
@@ -793,7 +782,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 self.validate(&map)?;
                 Ok(map)
             }
-            _ => return Err(serde::de::Error::invalid_type(Unexpected::Map, &self)),
+            _ => Err(serde::de::Error::invalid_type(Unexpected::Map, &self)),
         }
     }
 }
@@ -1096,7 +1085,7 @@ impl<'a> DecodeValue<'a> {
                     Ok(())
                 }
 
-                _ => return Err(serde::de::Error::invalid_type(Unexpected::Map, self)),
+                _ => Err(serde::de::Error::invalid_type(Unexpected::Map, self)),
             },
         }
     }

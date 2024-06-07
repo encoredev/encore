@@ -95,48 +95,43 @@ impl ReferenceParser for AuthHandlerLiteral {
         path: &swc_ecma_visit::AstNodePath,
     ) -> Result<Option<Self>> {
         for node in path.iter().rev() {
-            match node {
-                swc_ecma_visit::AstParentNodeRef::CallExpr(
-                    expr,
-                    swc_ecma_visit::fields::CallExprField::Callee,
-                ) => {
-                    let doc_comment = module.preceding_comments(expr.span.lo.into());
-                    let Some(bind_name) = extract_bind_name(path)? else {
-                        anyhow::bail!("Auth Handler must be bound to a variable")
-                    };
+            if let swc_ecma_visit::AstParentNodeRef::CallExpr(
+                expr,
+                swc_ecma_visit::fields::CallExprField::Callee,
+            ) = node
+            {
+                let doc_comment = module.preceding_comments(expr.span.lo.into());
+                let Some(bind_name) = extract_bind_name(path)? else {
+                    anyhow::bail!("Auth Handler must be bound to a variable")
+                };
 
-                    let Some(handler) = &expr.args.get(0) else {
-                        anyhow::bail!("Auth Handler must have a handler function")
-                    };
-                    let (mut req, mut resp) = parse_auth_handler_signature(&handler.expr)?;
+                let Some(handler) = &expr.args.first() else {
+                    anyhow::bail!("Auth Handler must have a handler function")
+                };
+                let (mut req, mut resp) = parse_auth_handler_signature(&handler.expr)?;
 
-                    if req.is_none() {
-                        req = extract_type_param(expr.type_args.as_deref(), 0)?;
-                    }
-                    if resp.is_none() {
-                        resp = extract_type_param(expr.type_args.as_deref(), 1)?;
-                    }
-
-                    let Some(req) = req else {
-                        anyhow::bail!(
-                            "Auth Handler must have an explicitly defined parameter type"
-                        );
-                    };
-                    let Some(resp) = resp else {
-                        anyhow::bail!("Auth Handler must have an explicitly defined result type");
-                    };
-
-                    return Ok(Some(Self {
-                        range: expr.span.into(),
-                        doc_comment,
-                        endpoint_name: bind_name.sym.to_string(),
-                        bind_name,
-                        request: req.clone(),
-                        response: resp.clone(),
-                    }));
+                if req.is_none() {
+                    req = extract_type_param(expr.type_args.as_deref(), 0)?;
+                }
+                if resp.is_none() {
+                    resp = extract_type_param(expr.type_args.as_deref(), 1)?;
                 }
 
-                _ => {}
+                let Some(req) = req else {
+                    anyhow::bail!("Auth Handler must have an explicitly defined parameter type");
+                };
+                let Some(resp) = resp else {
+                    anyhow::bail!("Auth Handler must have an explicitly defined result type");
+                };
+
+                return Ok(Some(Self {
+                    range: expr.span.into(),
+                    doc_comment,
+                    endpoint_name: bind_name.sym.to_string(),
+                    bind_name,
+                    request: req.clone(),
+                    response: resp.clone(),
+                }));
             }
         }
         Ok(None)
@@ -148,12 +143,12 @@ fn parse_auth_handler_signature(
 ) -> Result<(Option<&ast::TsType>, Option<&ast::TsType>)> {
     let (req_param, type_params, return_type) = match expr {
         ast::Expr::Fn(func) => (
-            func.function.params.get(0).map(|p| &p.pat),
+            func.function.params.first().map(|p| &p.pat),
             func.function.type_params.as_deref(),
             func.function.return_type.as_deref(),
         ),
         ast::Expr::Arrow(arrow) => (
-            arrow.params.get(0),
+            arrow.params.first(),
             arrow.type_params.as_deref(),
             arrow.return_type.as_deref(),
         ),

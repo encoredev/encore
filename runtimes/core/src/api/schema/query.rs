@@ -2,7 +2,6 @@ use crate::api;
 use crate::api::jsonschema::DecodeConfig;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{jsonschema, APIResult};
-use serde::de::DeserializeSeed;
 use serde::Serialize;
 
 #[derive(Debug, Clone)]
@@ -58,11 +57,15 @@ impl Query {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn len(&self) -> usize {
         self.schema.root().fields.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn fields(&self) -> impl Iterator<Item = (&String, &jsonschema::Field)> {

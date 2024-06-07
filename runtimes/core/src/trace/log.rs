@@ -192,7 +192,7 @@ impl futures_core::stream::Stream for TraceEventStream {
         {
             // If we have a current item, return it.
             if inner.current.is_some() {
-                let next = inner.current.as_ref().unwrap().next.clone();
+                let next = inner.current.as_ref().unwrap().next;
                 return match next {
                     EventStreamState::Header => {
                         inner.current.as_mut().unwrap().next = EventStreamState::Data;

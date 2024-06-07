@@ -28,10 +28,9 @@ pub enum DeliveryGuarantee {
 }
 
 #[derive(Debug, LitParser)]
+#[allow(non_snake_case)]
 struct DecodedTopicConfig {
-    #[allow(non_snake_case)]
     deliveryGuarantee: Option<String>,
-    #[allow(non_snake_case)]
     orderingAttribute: Option<String>,
 }
 

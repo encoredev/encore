@@ -62,7 +62,7 @@ impl Request {
 
     #[napi]
     pub fn meta(&self) -> napi::Result<RequestMeta> {
-        request_meta::meta(&self.inner).map_err(|err| napi::Error::from(err))
+        request_meta::meta(&self.inner).map_err(napi::Error::from)
     }
 
     #[napi]
@@ -126,7 +126,7 @@ impl PromiseHandler for APIPromiseHandler {
         let stack = obj
             .get_named_property::<JsUnknown>("stack")
             .and_then(|val| parse_js_stack(&env, val))
-            .map(|val| Some(val))
+            .map(Some)
             .unwrap_or(None);
 
         let mut internal_message = None;

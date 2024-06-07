@@ -30,8 +30,8 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
     ) -> anyhow::Result<()> {
         // error field is always first
         if let Some(err) = values.get(self.field_config.error_field_name) {
-            if buf.len() > 0 {
-                buf.push(' ' as u8);
+            if !buf.is_empty() {
+                buf.push(b' ');
             }
             write!(
                 buf,
@@ -54,8 +54,8 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
                 continue;
             }
 
-            if buf.len() > 0 {
-                buf.push(' ' as u8);
+            if !buf.is_empty() {
+                buf.push(b' ');
             }
             write!(buf, "{}", format!("{}=", key).cyan())
                 .map_err(std::io::Error::from)
@@ -67,16 +67,16 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
                 // Strings have special handling, as if the string does not contain any special characters or whitespace
                 // we just print the string, otherwise we print the string as a JSON string (i.e. wrapped in quotes and escaped)
                 Value::String(s) => {
-                    if s.contains(" ")
-                        || s.contains("\t")
-                        || s.contains("\n")
-                        || s.contains("\r")
-                        || s.contains("\\")
-                        || s.contains("\"")
+                    if s.contains(' ')
+                        || s.contains('\t')
+                        || s.contains('\n')
+                        || s.contains('\r')
+                        || s.contains('\\')
+                        || s.contains('"')
                     {
                         format!("{}", value)
                     } else {
-                        format!("{}", s)
+                        s.to_string()
                     }
                 }
                 _ => format!("{}", value),
@@ -165,8 +165,8 @@ fn write_part(
     if let Some(value) = values.get(field) {
         if let Some(value) = value.as_str() {
             let value = mapper(value).context(format!("unable to map part {}", field))?;
-            if buf.len() > 0 {
-                buf.push(' ' as u8);
+            if !buf.is_empty() {
+                buf.push(b' ');
             }
             write!(buf, "{}", value)
                 .map_err(std::io::Error::from)
@@ -205,8 +205,8 @@ fn write_level(buf: &mut Vec<u8>, level: log::Level) -> anyhow::Result<()> {
         log::Level::Error => "ERR".red().bold(),
     };
 
-    if buf.len() > 0 {
-        buf.push(' ' as u8);
+    if !buf.is_empty() {
+        buf.push(b' ');
     }
     write!(buf, "{}", level_str)
         .map_err(std::io::Error::from)

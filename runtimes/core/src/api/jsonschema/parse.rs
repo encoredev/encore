@@ -52,8 +52,8 @@ where
                 match &field.value {
                     BasicOrValue::Basic(basic) => {
                         let basic = Value::Basic(*basic);
-                        let value = parse_header_value(header_to_str!(header_value)?, reg, &basic)?;
-                        value
+                        
+                        parse_header_value(header_to_str!(header_value)?, reg, &basic)?
                     }
                     BasicOrValue::Value(idx) => {
                         // Determine the type of the value(s).
@@ -85,9 +85,8 @@ where
                             }
                             serde_json::Value::Array(arr)
                         } else {
-                            let value =
-                                parse_header_value(header_to_str!(header_value)?, reg, value_type)?;
-                            value
+                            
+                            parse_header_value(header_to_str!(header_value)?, reg, value_type)?
                         }
                     }
                 },
@@ -159,12 +158,12 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
                     Err(_) => continue,
                 }
             }
-            return Err(api::Error {
+            Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: "invalid header value".to_string(),
                 internal_message: Some(format!("no union value matched: {}", header)),
                 stack: None,
-            });
+            })
         }
     }
 }
@@ -231,10 +230,10 @@ fn parse_json_value(
 
             match (this, lit) {
                 (JSON::String(got), Literal::Str(want)) if &got == want => {
-                    return Ok(JSON::String(got))
+                    Ok(JSON::String(got))
                 }
                 (JSON::Bool(got), Literal::Bool(want)) if &got == want => {
-                    return Ok(JSON::Bool(got))
+                    Ok(JSON::Bool(got))
                 }
                 (JSON::Number(got), Literal::Int(want)) => {
                     if got.as_i64() == Some(*want) {
@@ -401,7 +400,7 @@ fn parse_basic_json(
                 }),
             },
             Basic::Number => serde_json::Number::from_str(str)
-                .map(|num| serde_json::Value::Number(num))
+                .map(serde_json::Value::Number)
                 .map_err(|_err| api::Error {
                     code: api::ErrCode::InvalidArgument,
                     message: format!("invalid number value: {}", str),
@@ -421,7 +420,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
     match basic {
         Basic::Any | Basic::String => Ok(JSON::String(str.to_string())),
 
-        Basic::Null if str == "" || str == "null" => Ok(JSON::Null),
+        Basic::Null if str.is_empty() || str == "null" => Ok(JSON::Null),
 
         Basic::Bool => match str {
             "true" => Ok(JSON::Bool(true)),
@@ -435,7 +434,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
         },
 
         Basic::Number => serde_json::Number::from_str(str)
-            .map(|num| JSON::Number(num))
+            .map(JSON::Number)
             .map_err(|_err| api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: format!("invalid number value: {}", str),

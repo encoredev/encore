@@ -15,12 +15,12 @@ where
     Same(&'a B),
 }
 
-impl<'a, B: ?Sized + 'a> Into<Cow<'a, B>> for Resolved<'a, B>
+impl<'a, B: ?Sized + 'a> From<Resolved<'a, B>> for Cow<'a, B>
 where
     B: ToOwned,
 {
-    fn into(self) -> Cow<'a, B> {
-        match self {
+    fn from(val: Resolved<'a, B>) -> Self {
+        match val {
             New(owned) => Cow::Owned(owned),
             Changed(borrowed) | Same(borrowed) => Cow::Borrowed(borrowed),
         }
@@ -41,29 +41,13 @@ impl<B: ?Sized + ToOwned> Clone for Resolved<'_, B> {
 
     fn clone_from(&mut self, source: &Self) {
         match (self, source) {
-            (&mut New(ref mut dest), &New(ref o)) => o.borrow().clone_into(dest),
-            (t, s) => *t = s.clone(),
+            (&mut New(ref mut dest), New(o)) => o.borrow().clone_into(dest),
+            (t, s) => t.clone_from(s),
         }
     }
 }
 
 impl<B: ?Sized + ToOwned> Resolved<'_, B> {
-    /// Acquires a mutable reference to the owned form of the data.
-    ///
-    /// Clones the data if it is not already owned.
-    pub fn to_mut(&mut self) -> &mut <B as ToOwned>::Owned {
-        match *self {
-            Changed(borrowed) | Same(borrowed) => {
-                *self = New(borrowed.to_owned());
-                match *self {
-                    Changed(..) | Same(..) => unreachable!(),
-                    New(ref mut owned) => owned,
-                }
-            }
-            New(ref mut owned) => owned,
-        }
-    }
-
     /// Converts `Same` to `Changed`.
     pub fn same_to_changed(self) -> Self {
         match self {

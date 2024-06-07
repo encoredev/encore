@@ -8,11 +8,11 @@ use hmac::{Hmac, Mac};
 
 use crate::api::reqauth::encoreauth::ophash::OperationHash;
 
-const SIGNATURE_VERSION: &'static str = "ENCORE1";
-const _HASH_IMPL: &'static str = "HMAC-SHA3-256";
+const SIGNATURE_VERSION: &str = "ENCORE1";
+const _HASH_IMPL: &str = "HMAC-SHA3-256";
 
 // This must match the values of the constants above.
-const AUTH_SCHEME: &'static str = "ENCORE1-HMAC-SHA3-256";
+const AUTH_SCHEME: &str = "ENCORE1-HMAC-SHA3-256";
 
 /// Sign creates the authorization headers for a new request.
 ///
@@ -40,7 +40,7 @@ pub fn sign_for_verification(
     let signing_key = derive_signing_key(key.1, timestamp, app_slug, env_name).into_bytes();
 
     let signature = hash_hmac(&signing_key, request_digest.as_bytes()).into_bytes();
-    let signature = hex::encode(&signature);
+    let signature = hex::encode(signature);
 
     format!(
         "{} cred=\"{}\", op={}, sig={}",
@@ -266,9 +266,9 @@ fn derive_signing_key(
 
     let app_key = hash_hmac(&date_key, app_slug.as_bytes()).into_bytes();
     let env_key = hash_hmac(&app_key, env_name.as_bytes()).into_bytes();
-    let final_key = hash_hmac(&env_key, b"encore_request");
+    
 
-    final_key
+    hash_hmac(&env_key, b"encore_request")
 }
 
 type HmacSha3_256 = Hmac<sha3::Sha3_256>;

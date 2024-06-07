@@ -59,7 +59,7 @@ impl Builder<'_> {
         // self.symlink_packages(params.js_runtime_root, &node_modules)
         //     .context("link packages")?;
 
-        let files = self.codegen_data(&params, &rel_return_path)?;
+        let files = self.codegen_data(params, &rel_return_path)?;
 
         // write_gen_encore_app_package(&node_modules, &files)
         //     .context("write gen_encore.app package")?;
@@ -208,7 +208,7 @@ impl Builder<'_> {
                     path: PathBuf::from("internal")
                         .join("entrypoints")
                         .join("gateways")
-                        .join(&name)
+                        .join(name)
                         .join("main")
                         .with_extension("ts"),
                     contents: main,
@@ -470,7 +470,7 @@ impl Builder<'_> {
                 None => runtime_root.join(pkg_name),
             };
 
-            self.symlink_package(&source_dir, node_modules_dir, pkg_group, &pkg_name)
+            self.symlink_package(&source_dir, node_modules_dir, pkg_group, pkg_name)
                 .with_context(|| format!("symlink package {:?}/{:?}", pkg_group, pkg_name))?;
         }
 
@@ -502,7 +502,7 @@ impl Builder<'_> {
             }
             if !dst.exists() {
                 fs::create_dir_all(&dst)
-                    .with_context(|| format!("create package group directory"))?;
+                    .with_context(|| "create package group directory".to_string())?;
             }
         }
 
@@ -631,7 +631,7 @@ fn find_ancestor(base: &Path, predicate: fn(&Path) -> bool) -> Option<(PathBuf, 
         let curr = comps.as_path();
         if predicate(curr) {
             // Compute the return path. If it's empty return ".".
-            let return_path = if return_path.len() > 0 {
+            let return_path = if !return_path.is_empty() {
                 // The components of the return path have been inserted in backwards order,
                 // so reverse it now.
                 return_path.iter().rev().collect::<PathBuf>()
@@ -641,9 +641,8 @@ fn find_ancestor(base: &Path, predicate: fn(&Path) -> bool) -> Option<(PathBuf, 
             return Some((curr.to_path_buf(), return_path));
         }
 
-        let Some(comp) = comps.next_back() else {
-            return None;
-        };
+        let comp = comps.next_back()?;
+
         match comp {
             Component::Normal(_) | Component::ParentDir => {
                 return_path.push(comp);

@@ -6,7 +6,6 @@ use crate::threadsafe_function::{
 };
 use encore_runtime_core::api;
 use encore_runtime_core::api::schema;
-use napi::bindgen_prelude::spawn;
 use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
@@ -158,7 +157,7 @@ impl PromiseHandler for AuthPromiseHandler {
         let stack = obj
             .get_named_property::<JsUnknown>("stack")
             .and_then(|val| parse_js_stack(&env, val))
-            .map(|val| Some(val))
+            .map(Some)
             .unwrap_or(None);
 
         let mut internal_message = None;

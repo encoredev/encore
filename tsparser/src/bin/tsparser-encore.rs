@@ -8,9 +8,7 @@ use anyhow::Result;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
-use swc_common::sync::Lrc;
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
-use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use encore_tsparser::builder;
@@ -125,7 +123,7 @@ fn main() -> Result<()> {
                                 let mut err_msg = String::new();
                                 for err in errs.iter() {
                                     err_msg.push_str(err);
-                                    err_msg.push_str("\n");
+                                    err_msg.push('\n');
                                 }
                                 err_msg.push_str(&format!("{:?}", err));
                                 write_result(Err(anyhow::anyhow!(err_msg)))?
@@ -142,7 +140,7 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse: &parse,
+                                parse,
                                 use_local_runtime: input.use_local_runtime,
                             };
 
@@ -170,7 +168,7 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse: &parse,
+                                parse,
                                 use_local_runtime: input.use_local_runtime,
                             };
 
@@ -195,7 +193,7 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse: &parse,
+                                parse,
                             };
 
                             log::info!("starting generate user facing code");

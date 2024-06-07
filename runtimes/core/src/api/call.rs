@@ -30,6 +30,7 @@ pub struct ServiceRegistry {
 }
 
 impl ServiceRegistry {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         secrets: &secrets::Manager,
         endpoints: Arc<EndpointMap>,
@@ -98,7 +99,7 @@ impl ServiceRegistry {
         EncoreName: Borrow<Q>,
         Q: Eq + std::hash::Hash + ?Sized,
     {
-        self.service_auth.get(service_name).map(|m| m.clone())
+        self.service_auth.get(service_name).cloned()
     }
 
     pub async fn api_call(
@@ -108,7 +109,7 @@ impl ServiceRegistry {
         source: Option<&model::Request>,
     ) -> APIResult<JSONPayload> {
         let call = model::APICall {
-            source: source.as_deref(),
+            source,
             target: endpoint_name,
         };
         let start_event_id = self.tracer.rpc_call_start(&call);

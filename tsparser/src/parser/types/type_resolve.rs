@@ -1,18 +1,17 @@
 use std::borrow::Cow;
 use std::borrow::Cow::{Borrowed, Owned};
-use std::cell::OnceCell;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::{BytePos, Span, Spanned};
+use swc_common::{Span, Spanned};
 use swc_ecma_ast as ast;
 
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
-use crate::parser::types::{typ, Object};
+use crate::parser::types::Object;
 use crate::parser::{module_loader, Range};
 
 use super::resolved::{Resolved, Resolved::*};
@@ -56,7 +55,7 @@ impl TypeChecker {
 
     pub fn underlying(&self, module_id: ModuleId, typ: &Type) -> Type {
         let ctx = Ctx::new(&self.ctx, module_id);
-        ctx.underlying(&typ).into_owned()
+        ctx.underlying(typ).into_owned()
     }
 
     pub fn resolve_obj(
@@ -110,14 +109,6 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    pub fn state(&self) -> &ResolveState {
-        self.state
-    }
-
-    fn with_module(self, module: ModuleId) -> Self {
-        Self { module, ..self }
-    }
-
     fn with_type_params(self, type_params: &'a [&'a ast::TsTypeParam]) -> Self {
         Self {
             type_params,
@@ -154,15 +145,15 @@ impl<'a> Ctx<'a> {
             ast::TsType::TsUnionOrIntersectionType(ast::TsUnionOrIntersectionType::TsUnionType(tt)) => self.union(tt),
             ast::TsType::TsUnionOrIntersectionType(ast::TsUnionOrIntersectionType::TsIntersectionType(tt)) => self.intersection(tt),
             ast::TsType::TsParenthesizedType(tt) => self.typ(&tt.type_ann),
-            ast::TsType::TsTypeLit(tt) => self.type_lit(&tt),
-            ast::TsType::TsTypeRef(tt) => self.type_ref(&tt),
+            ast::TsType::TsTypeLit(tt) => self.type_lit(tt),
+            ast::TsType::TsTypeRef(tt) => self.type_ref(tt),
             ast::TsType::TsOptionalType(tt) => self.optional(tt),
             ast::TsType::TsTypeQuery(tt) => self.type_query(tt),
 
             ast::TsType::TsConditionalType(tt) => self.conditional(tt),
-            ast::TsType::TsLitType(tt) => self.lit_type(&tt),
-            ast::TsType::TsTypeOperator(tt) => self.type_op(&tt),
-            ast::TsType::TsMappedType(tt) => self.mapped(&tt),
+            ast::TsType::TsLitType(tt) => self.lit_type(tt),
+            ast::TsType::TsTypeOperator(tt) => self.type_op(tt),
+            ast::TsType::TsMappedType(tt) => self.mapped(tt),
             ast::TsType::TsIndexedAccessType(tt) => self.indexed_access(tt),
 
             ast::TsType::TsFnOrConstructorType(_)
@@ -373,9 +364,9 @@ impl<'a> Ctx<'a> {
                 Type::Basic(Basic::Never)
             }
 
-            Type::Optional(typ) => self.keyof(&typ),
+            Type::Optional(typ) => self.keyof(typ),
             Type::Union(types) => {
-                let res: Vec<_> = types.into_iter().map(|t| self.keyof(t)).collect();
+                let res: Vec<_> = types.iter().map(|t| self.keyof(t)).collect();
                 Type::Union(res)
             }
 
@@ -458,7 +449,7 @@ impl<'a> Ctx<'a> {
 
                 ast::TsTypeElement::TsIndexSignature(idx) => {
                     // [foo: K]: V;
-                    let Some(ast::TsFnParam::Ident(ident)) = idx.params.get(0) else {
+                    let Some(ast::TsFnParam::Ident(ident)) = idx.params.first() else {
                         HANDLER.with(|handler| {
                             handler.span_err(idx.span(), "missing index signature key")
                         });
@@ -529,7 +520,7 @@ impl<'a> Ctx<'a> {
     fn type_ref(&self, typ: &ast::TsTypeRef) -> Type {
         let ident: &ast::Ident = match &typ.type_name {
             ast::TsEntityName::Ident(i) => i,
-            ast::TsEntityName::TsQualifiedName(qn) => {
+            ast::TsEntityName::TsQualifiedName(_qn) => {
                 HANDLER
                     .with(|handler| handler.span_err(typ.span, "qualified name not yet supported"));
                 return Type::Basic(Basic::Never);
@@ -650,8 +641,7 @@ impl<'a> Ctx<'a> {
                         if self
                             .type_params
                             .iter()
-                            .find(|tp| tp.name.to_id() == ident.to_id())
-                            .is_some()
+                            .any(|tp| tp.name.to_id() == ident.to_id())
                         {
                             // Apply the conditional to each type in the union.
                             let result = types
@@ -721,7 +711,7 @@ impl<'a> Ctx<'a> {
     }
 
     fn interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
-        if decl.extends.len() > 0 {
+        if !decl.extends.is_empty() {
             HANDLER.with(|handler| handler.span_err(decl.span, "extends not yet supported"));
             return Type::Basic(Basic::Never);
         } else if decl.type_params.is_some() {
@@ -870,10 +860,9 @@ impl<'a> Ctx<'a> {
                 if let Type::Named(mut named) = prom {
                     if named.obj.name.as_deref() == Some("Promise")
                         && self.state.is_universe(named.obj.module_id)
+                        && !named.type_arguments.is_empty()
                     {
-                        if named.type_arguments.len() > 0 {
-                            return named.type_arguments.swap_remove(0);
-                        }
+                        return named.type_arguments.swap_remove(0);
                     }
                 }
                 Type::Basic(Basic::Unknown)
@@ -945,27 +934,22 @@ impl<'a> Ctx<'a> {
         // Track the current element type.
         let mut elem_type: Option<Type> = None;
 
-        for elem in &lit.elems {
-            if let Some(elem) = elem {
-                let mut base = self.expr(&elem.expr);
-                if elem.spread.is_some() {
-                    // The type of [...["a"]] is string[].
-                    match base {
-                        Type::Array(arr) => {
-                            base = *arr;
-                        }
-                        _ => {}
-                    }
+        for elem in lit.elems.iter().flatten() {
+            let mut base = self.expr(&elem.expr);
+            if elem.spread.is_some() {
+                // The type of [...["a"]] is string[].
+                if let Type::Array(arr) = base {
+                    base = *arr;
                 }
+            }
 
-                match &elem_type {
-                    Some(Type::Union(_elem_types)) => {}
-                    Some(typ) => {
-                        elem_type = Some(Type::Union(vec![typ.clone(), base]));
-                    }
-                    None => {
-                        elem_type = Some(base);
-                    }
+            match &elem_type {
+                Some(Type::Union(_elem_types)) => {}
+                Some(typ) => {
+                    elem_type = Some(Type::Union(vec![typ.clone(), base]));
+                }
+                None => {
+                    elem_type = Some(base);
                 }
             }
         }
@@ -981,7 +965,7 @@ impl<'a> Ctx<'a> {
                 ast::PropOrSpread::Prop(prop) => {
                     let (name, typ) = match prop.as_ref() {
                         ast::Prop::Shorthand(id) => {
-                            let Some(obj) = self.ident_obj(&id) else {
+                            let Some(obj) = self.ident_obj(id) else {
                                 HANDLER.with(|handler| {
                                     handler.span_err(id.span, "unknown identifier")
                                 });
@@ -1197,7 +1181,7 @@ impl<'a> Ctx<'a> {
                 }
                 TypeNameDecl::TypeAlias(ta) => {
                     // TODO handle type params here
-                    self.typ(&*ta.type_ann)
+                    self.typ(&ta.type_ann)
                 }
             },
 
@@ -1206,7 +1190,7 @@ impl<'a> Ctx<'a> {
                 let mut prev_value = None;
                 for m in &o.members {
                     // Determine the initializer type, if provided.
-                    let init = m.init.as_ref().map(|t| self.expr(&t));
+                    let init = m.init.as_ref().map(|t| self.expr(t));
                     let value = match init {
                         None => {
                             // We didn't have an initializer.
@@ -1261,9 +1245,9 @@ impl<'a> Ctx<'a> {
             ObjectKind::Var(o) => {
                 // Do we have a type annotation? If so, use that.
                 if let Some(type_ann) = &o.type_ann {
-                    self.typ(&*type_ann.type_ann)
+                    self.typ(&type_ann.type_ann)
                 } else if let Some(expr) = &o.expr {
-                    self.expr(&*expr)
+                    self.expr(expr)
                 } else {
                     Type::Basic(Basic::Never)
                 }
@@ -1274,7 +1258,7 @@ impl<'a> Ctx<'a> {
                 if let Some(type_ann) = &o.type_ann {
                     self.typ(&type_ann.type_ann)
                 } else if let Some(expr) = &o.expr {
-                    self.expr(&*expr)
+                    self.expr(expr)
                 } else {
                     Type::Basic(Basic::Never)
                 }
@@ -1381,16 +1365,14 @@ impl<'a> Ctx<'a> {
                     };
 
                 let fields = concrete_fields(&iface.fields);
-                let index = match &iface.index {
-                    Some((key, val)) => Some((self.concrete(key), self.concrete(val))),
-                    None => None,
-                };
-                let call = match &iface.call {
-                    Some((params, ret)) => {
-                        Some((self.concrete_list(params), self.concrete_list(ret)))
-                    }
-                    None => None,
-                };
+                let index = iface
+                    .index
+                    .as_ref()
+                    .map(|(key, val)| (self.concrete(key), self.concrete(val)));
+                let call = iface
+                    .call
+                    .as_ref()
+                    .map(|(params, ret)| (self.concrete_list(params), self.concrete_list(ret)));
 
                 // If we have any parts that aren't Same, we need to make the whole thing New.
                 // Otherwise return the original type.
@@ -1580,12 +1562,10 @@ impl<'a> Ctx<'a> {
                                     Type::Optional(_) => value,
                                     _ => Box::new(Type::Optional(value)),
                                 }
+                            } else if let Type::Optional(inner) = *value {
+                                inner
                             } else {
-                                if let Type::Optional(inner) = *value {
-                                    inner
-                                } else {
-                                    value
-                                }
+                                value
                             };
                             iface.index = Some((key, value));
                         }
@@ -1659,11 +1639,5 @@ impl<'a> Ctx<'a> {
 
         // All types are the same, so we can just return the original list.
         Same(v)
-    }
-
-    fn doc_comment(&self, pos: BytePos) -> Option<String> {
-        self.state
-            .lookup_module(self.module)
-            .and_then(|m| m.base.preceding_comments(pos.into()))
     }
 }

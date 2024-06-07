@@ -79,8 +79,7 @@ impl Type {
             }
 
             // Type literals unify with their basic type
-            ((Type::Basic(basic), Type::Literal(lit))
-            | ((Type::Literal(lit), Type::Basic(basic))))
+            (Type::Basic(basic), Type::Literal(lit)) | (Type::Literal(lit), Type::Basic(basic))
                 if *basic == lit.basic() =>
             {
                 Some(Type::Basic(*basic))
@@ -89,7 +88,7 @@ impl Type {
             // TODO more rules?
 
             // Identical types unify.
-            (this, other) if this.identical(&other) => Some(this.clone()),
+            (this, other) if this.identical(other) => Some(this.clone()),
 
             // Otherwise no unification is possible.
             (_, _) => None,
@@ -199,7 +198,8 @@ impl Interface {
     pub fn identical(&self, other: &Interface) -> bool {
         if self.fields.len() != other.fields.len() {
             return false;
-        } else if self.index.is_some() != other.index.is_some() {
+        }
+        if self.index.is_some() != other.index.is_some() {
             return false;
         }
 
@@ -213,7 +213,7 @@ impl Interface {
         // Check that all fields in `other` are in `self`.
         for field in &other.fields {
             if let Some(self_field) = by_name.get(&field.name) {
-                if !self_field.identical(&field) {
+                if !self_field.identical(field) {
                     return false;
                 }
             } else {
@@ -511,14 +511,14 @@ impl Type {
             }
 
             (Type::Basic(a), Type::Basic(b)) => Some(a == b),
-            (Type::Literal(a), Type::Basic(b)) => Some(match (a, b) {
-                (_, Basic::Any) => true,
-                (Literal::String(_), Basic::String) => true,
-                (Literal::Boolean(_), Basic::Boolean) => true,
-                (Literal::Number(_), Basic::Number) => true,
-                (Literal::BigInt(_), Basic::BigInt) => true,
-                _ => false,
-            }),
+            (Type::Literal(a), Type::Basic(b)) => Some(matches!(
+                (a, b),
+                (_, Basic::Any)
+                    | (Literal::String(_), Basic::String)
+                    | (Literal::Boolean(_), Basic::Boolean)
+                    | (Literal::Number(_), Basic::Number)
+                    | (Literal::BigInt(_), Basic::BigInt)
+            )),
 
             (this, Type::Optional(other)) => {
                 if matches!(this, Type::Basic(Basic::Undefined)) {
@@ -661,7 +661,7 @@ impl Type {
     }
 }
 
-pub fn simplify_union(mut types: Vec<Type>) -> Type {
+pub fn simplify_union(types: Vec<Type>) -> Type {
     let mut results: Vec<Type> = Vec::with_capacity(types.len());
 
     for typ in types {
@@ -717,13 +717,22 @@ pub fn intersect<'a: 'b, 'b>(
         Cow::Owned(simplify_union(result))
     };
     let literal = |lit: &Literal, b: &Basic| -> bool {
-        match (lit, b) {
-            (Literal::String(_), Basic::String | Basic::Any | Basic::Unknown) => true,
-            (Literal::Boolean(_), Basic::Boolean | Basic::Any | Basic::Unknown) => true,
-            (Literal::Number(_), Basic::Number | Basic::Any | Basic::Unknown) => true,
-            (Literal::BigInt(_), Basic::BigInt | Basic::Any | Basic::Unknown) => true,
-            _ => false,
-        }
+        matches!(
+            (lit, b),
+            (
+                Literal::String(_),
+                Basic::String | Basic::Any | Basic::Unknown
+            ) | (
+                Literal::Boolean(_),
+                Basic::Boolean | Basic::Any | Basic::Unknown
+            ) | (
+                Literal::Number(_),
+                Basic::Number | Basic::Any | Basic::Unknown
+            ) | (
+                Literal::BigInt(_),
+                Basic::BigInt | Basic::Any | Basic::Unknown
+            )
+        )
     };
 
     match (a.as_ref(), b.as_ref()) {
@@ -754,7 +763,7 @@ pub fn intersect<'a: 'b, 'b>(
             let mut types = Vec::with_capacity(a.len() * b.len());
             for typ in a {
                 for other in b.iter() {
-                    match intersect(ctx, Cow::Borrowed(&typ), Cow::Borrowed(other)).into_owned() {
+                    match intersect(ctx, Cow::Borrowed(typ), Cow::Borrowed(other)).into_owned() {
                         Type::Basic(Basic::Never) => {}
                         other => types.push(other),
                     }

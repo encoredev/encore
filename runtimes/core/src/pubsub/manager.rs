@@ -111,8 +111,8 @@ pub struct SubHandler {
     inner: Arc<dyn SubscriptionHandler>,
 }
 
-const ATTR_PARENT_TRACE_ID: &'static str = "encore_parent_trace_id";
-const ATTR_EXT_CORRELATION_ID: &'static str = "encore_ext_correlation_id";
+const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
+const ATTR_EXT_CORRELATION_ID: &str = "encore_ext_correlation_id";
 
 impl SubHandler {
     pub(super) fn handle_message(
@@ -126,7 +126,7 @@ impl SubHandler {
                 .data
                 .attrs
                 .get(ATTR_PARENT_TRACE_ID)
-                .and_then(|s| TraceId::parse_encore(&s).ok());
+                .and_then(|s| TraceId::parse_encore(s).ok());
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
 
             let start = tokio::time::Instant::now();
@@ -146,7 +146,7 @@ impl SubHandler {
                     topic: self.obj.topic.clone(),
                     subscription: self.obj.subscription.clone(),
                     message_id: msg.id.to_string(),
-                    published: msg.publish_time.unwrap_or_else(|| Utc::now()),
+                    published: msg.publish_time.unwrap_or_else(Utc::now),
                     attempt: msg.attempt,
                     payload: msg.data.raw_body.clone(),
                     parsed_payload: msg.data.body.clone(),
@@ -259,6 +259,7 @@ impl Manager {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn make_cfg_maps(
     clusters: Vec<pb::PubSubCluster>,
     md: &meta::Data,

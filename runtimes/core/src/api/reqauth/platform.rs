@@ -63,7 +63,7 @@ impl RequestValidator {
                 let secret_data = k
                     .data
                     .get()
-                    .map_err(|e| ValidationError::SecretResolve(e))?;
+                    .map_err(ValidationError::SecretResolve)?;
                 return check_auth_key(secret_data, req, received_mac);
             }
         }

@@ -92,13 +92,13 @@ impl Tracer {
             correlation_event_id: None,
             extra_space: 4 + 4 + data.msg.len() + 1 + 64 * fields_count,
         }
-        .to_eb();
+        .into_eb();
 
         eb.byte(data.level_byte());
-        eb.str(&data.msg);
+        eb.str(data.msg);
         eb.uvarint(fields_count as u64);
 
-        data.fields.map(|fields| {
+        if let Some(fields) = data.fields {
             for field in fields {
                 eb.byte(field.type_byte());
                 eb.str(field.key);
@@ -121,7 +121,8 @@ impl Tracer {
                     },
                 }
             }
-        });
+        }
+
         eb.nyi_stack_pcs();
 
         _ = self.send(EventType::LogMessage, source.span, eb);
@@ -137,12 +138,12 @@ impl Tracer {
             ext_correlation_id: req.ext_correlation_id.as_deref(),
             extra_space: 100,
         }
-        .to_eb();
+        .into_eb();
 
         let event_type = match &req.data {
             model::RequestData::RPC(rpc) => {
-                eb.str(&rpc.endpoint.name.service());
-                eb.str(&rpc.endpoint.name.endpoint());
+                eb.str(rpc.endpoint.name.service());
+                eb.str(rpc.endpoint.name.endpoint());
                 eb.str(rpc.method.as_str());
                 eb.str(&rpc.path);
 
@@ -179,8 +180,8 @@ impl Tracer {
 
             model::RequestData::Auth(auth) => {
                 let name = &auth.auth_handler;
-                eb.str(&name.service());
-                eb.str(&name.endpoint());
+                eb.str(name.service());
+                eb.str(name.endpoint());
 
                 // TODO: non-raw payload.
                 eb.byte_string(&[]);
@@ -218,17 +219,17 @@ impl Tracer {
             },
             extra_space: 100,
         }
-        .to_eb();
+        .into_eb();
 
         match &req.data {
             model::RequestData::RPC(req_data) => {
-                eb.str(&req_data.endpoint.name.service());
-                eb.str(&req_data.endpoint.name.endpoint());
+                eb.str(req_data.endpoint.name.service());
+                eb.str(req_data.endpoint.name.endpoint());
             }
             model::RequestData::Auth(auth_data) => {
                 let name = &auth_data.auth_handler;
-                eb.str(&name.service());
-                eb.str(&name.endpoint());
+                eb.str(name.service());
+                eb.str(name.endpoint());
             }
             model::RequestData::PubSub(msg_data) => {
                 eb.str(&msg_data.service);
@@ -278,16 +279,14 @@ impl Tracer {
 impl Tracer {
     #[inline]
     pub fn rpc_call_start(&self, call: &model::APICall) -> Option<TraceEventId> {
-        let Some(source) = call.source else {
-            return None;
-        };
+        let source = call.source?;
 
         let (service, endpoint) = (call.target.service(), call.target.endpoint());
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + service.len() + endpoint.len(),
         }
-        .to_eb();
+        .into_eb();
 
         eb.str(service);
         eb.str(endpoint);
@@ -312,7 +311,7 @@ impl Tracer {
             correlation_event_id: Some(start_event_id),
             extra_space: 4 + 4 + service.len() + endpoint.len(),
         }
-        .to_eb();
+        .into_eb();
 
         eb.api_err_with_legacy_stack(err);
 
@@ -339,9 +338,9 @@ impl Tracer {
             correlation_event_id: None,
             extra_space: 4 + 4 + 8 + data.topic.len() + data.payload.len(),
         }
-        .to_eb();
+        .into_eb();
 
-        eb.str(&data.topic);
+        eb.str(data.topic);
         eb.byte_string(data.payload);
         eb.nyi_stack_pcs();
 
@@ -354,7 +353,7 @@ impl Tracer {
             correlation_event_id: Some(data.start_id),
             extra_space: 4 + 4 + 8,
         }
-        .to_eb();
+        .into_eb();
 
         eb.str(data.result.as_deref().unwrap_or(""));
         eb.err_with_legacy_stack(data.result.as_ref().err());
@@ -381,9 +380,9 @@ impl Tracer {
             correlation_event_id: None,
             extra_space: 4 + 4 + data.query.len() + 32,
         }
-        .to_eb();
+        .into_eb();
 
-        eb.str(&data.query);
+        eb.str(data.query);
         eb.nyi_stack_pcs();
 
         self.send(EventType::DBQueryStart, data.source.span, eb)
@@ -398,7 +397,7 @@ impl Tracer {
             correlation_event_id: Some(data.start_id),
             extra_space: 4 + 4 + 8,
         }
-        .to_eb();
+        .into_eb();
 
         eb.err_with_legacy_stack(data.error);
 
@@ -505,7 +504,7 @@ impl Parent {
         if let Some(span) = req.parent_span {
             Some(Parent::Span(span))
         } else {
-            req.parent_trace.map(|t| Parent::Trace(t))
+            req.parent_trace.map(Parent::Trace)
         }
     }
 }
@@ -520,7 +519,7 @@ struct SpanStartEventData<'a> {
 }
 
 impl SpanStartEventData<'_> {
-    pub fn to_eb(self) -> EventBuffer {
+    pub fn into_eb(self) -> EventBuffer {
         let correlation_len = self.ext_correlation_id.map(|s| s.len()).unwrap_or(0);
         let mut eb =
             EventBuffer::with_capacity(4 + 16 + 8 + 4 + correlation_len + 2 + self.extra_space);
@@ -545,7 +544,7 @@ struct SpanEndEventData<'a> {
 }
 
 impl SpanEndEventData<'_> {
-    pub fn to_eb(self) -> EventBuffer {
+    pub fn into_eb(self) -> EventBuffer {
         let mut eb = EventBuffer::with_capacity(8 + 12 + 8 + self.extra_space);
 
         eb.duration(self.duration);
@@ -565,7 +564,7 @@ struct BasicEventData {
 }
 
 impl BasicEventData {
-    pub fn to_eb(self) -> EventBuffer {
+    pub fn into_eb(self) -> EventBuffer {
         let mut eb = EventBuffer::with_capacity(4 + 4 + self.extra_space);
 
         eb.uvarint(0u64); // TODO: def loc
