@@ -8,6 +8,8 @@ mod writers;
 use crate::log::fields::FieldConfig;
 pub use logger::{Fields, LogFromExternalRuntime, LogFromRust, Logger};
 
+use crate::trace::Tracer;
+
 /// The global root logger instance that is used by both the `log` crate
 /// and all other code in the Encore runtime.
 static ROOT: OnceCell<&Logger> = OnceCell::new();
@@ -18,6 +20,11 @@ static ROOT: OnceCell<&Logger> = OnceCell::new();
 /// if it has already been initialized.
 pub fn init() {
     _ = root();
+}
+
+/// Set the tracer on the global logger
+pub fn set_tracer(tracer: Tracer) {
+    root().set_tracer(tracer);
 }
 
 /// Returns a reference to the global root logger instance.

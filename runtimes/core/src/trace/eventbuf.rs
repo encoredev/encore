@@ -138,6 +138,13 @@ impl EventBuffer {
         self.buf.extend_from_slice(&self.scratch[..i]);
     }
 
+    /// Writes a float, always as 8 bytes.
+    #[inline]
+    pub fn f64(&mut self, f: f64) {
+        let data: [u8; 8] = f.to_le_bytes();
+        self.buf.extend_from_slice(&data);
+    }
+
     /// Writes a signed integer, always as 8 bytes.
     #[inline]
     pub fn i64(&mut self, i: i64) {

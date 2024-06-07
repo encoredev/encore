@@ -288,3 +288,30 @@ pub struct AuthSuccessResponse {
     /// The user data.
     pub user_data: serde_json::Map<String, serde_json::Value>,
 }
+
+pub enum LogFieldValue<'a> {
+    String(&'a str),
+    U64(u64),
+    I64(i64),
+    F64(f64),
+    Bool(bool),
+    Json(&'a serde_json::Value),
+}
+
+pub struct LogField<'a> {
+    pub key: &'a str,
+    pub value: LogFieldValue<'a>,
+}
+
+impl LogField<'_> {
+    pub fn type_byte(&self) -> u8 {
+        match self.value {
+            LogFieldValue::String(_) => 2,
+            LogFieldValue::Bool(_) => 3,
+            LogFieldValue::I64(_) => 8,
+            LogFieldValue::Json(_) => 7,
+            LogFieldValue::U64(_) => 9,
+            LogFieldValue::F64(_) => 11,
+        }
+    }
+}
