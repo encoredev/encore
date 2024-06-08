@@ -15,7 +15,8 @@ use crate::parser::parser::ParseContext;
 use crate::parser::resources::apis::api::Endpoint;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, Basic, FieldName, Generic, Interface, Literal, Named, ObjectId, Type,
+    drop_empty_or_void, Basic, EnumValue, FieldName, Generic, Interface, Literal, Named, ObjectId,
+    Type,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
@@ -87,6 +88,25 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 }
             }
             Type::Interface(tt) => self.interface(tt)?,
+
+            Type::Enum(tt) => schema::Type {
+                // Treat this as a union.
+                typ: Some(styp::Typ::Union(schema::Union {
+                    types: tt
+                        .members
+                        .iter()
+                        .cloned()
+                        .map(|m| schema::Type {
+                            typ: Some(styp::Typ::Literal(schema::Literal {
+                                value: Some(match m.value {
+                                    EnumValue::String(str) => schema::literal::Value::Str(str),
+                                    EnumValue::Number(n) => schema::literal::Value::Int(n),
+                                }),
+                            })),
+                        })
+                        .collect(),
+                })),
+            },
 
             Type::Union(types) => schema::Type {
                 typ: Some(styp::Typ::Union(schema::Union {

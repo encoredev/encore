@@ -29,6 +29,8 @@ pub enum Type {
     Literal(Literal),
     /// class Foo {}
     Class(ClassType),
+    /// enum Foo {}
+    Enum(EnumType),
 
     /// A named type, with optional type arguments.
     Named(Named),
@@ -62,6 +64,7 @@ impl Type {
             (Type::Optional(a), Type::Optional(b)) => a.identical(b),
             (Type::This, Type::This) => true,
             (Type::Generic(a), Type::Generic(b)) => a.identical(b),
+            (Type::Enum(a), Type::Enum(b)) => a.identical(b),
             _ => false,
         }
     }
@@ -284,6 +287,45 @@ pub struct ClassType {
 impl ClassType {
     pub fn identical(&self, _other: &ClassType) -> bool {
         todo!()
+    }
+}
+
+#[derive(Debug, Clone, Hash, Serialize, Eq, PartialEq)]
+pub struct EnumType {
+    pub members: Vec<EnumMember>,
+}
+
+#[derive(Debug, Clone, Hash, Serialize, Eq, PartialEq)]
+pub struct EnumMember {
+    pub name: String,
+    pub value: EnumValue,
+}
+
+#[derive(Debug, Clone, Hash, Serialize, Eq, PartialEq)]
+pub enum EnumValue {
+    String(String),
+    Number(i64),
+}
+
+impl EnumValue {
+    pub fn to_literal(self) -> Literal {
+        match self {
+            EnumValue::String(s) => Literal::String(s),
+            EnumValue::Number(n) => Literal::Number(n as f64),
+        }
+    }
+
+    pub fn to_type(self) -> Type {
+        Type::Literal(self.to_literal())
+    }
+}
+
+impl EnumType {
+    pub fn identical(&self, other: &EnumType) -> bool {
+        if self.members.len() != other.members.len() {
+            return false;
+        }
+        *self == *other
     }
 }
 
@@ -520,6 +562,48 @@ impl Type {
                 }
                 _ => Some(false),
             },
+
+            (Type::Enum(a), other) => {
+                let this_fields: HashMap<&str, &EnumValue> =
+                    HashMap::from_iter(a.members.iter().map(|m| (m.name.as_str(), &m.value)));
+                match other {
+                    Type::Enum(other) => {
+                        // Does every field in `other` exist in `this_fields`?
+                        for mem in &other.members {
+                            if let Some(this_field) = this_fields.get(mem.name.as_str()) {
+                                if **this_field == mem.value {
+                                    continue;
+                                }
+                            }
+                            return Some(false);
+                        }
+                        Some(true)
+                    }
+
+                    Type::Interface(other) => {
+                        // Does every field in `other` exist in `iface`?
+                        let mut found_none = false;
+                        for field in &other.fields {
+                            if let FieldName::String(name) = &field.name {
+                                if let Some(this_field) = this_fields.get(name.as_str()) {
+                                    let this_typ = (*this_field).clone().to_type();
+                                    match this_typ.assignable(state, &field.typ) {
+                                        Some(true) => continue,
+                                        Some(false) => return Some(false),
+                                        None => found_none = true,
+                                    }
+                                }
+                            }
+                        }
+                        if found_none {
+                            None
+                        } else {
+                            Some(true)
+                        }
+                    }
+                    _ => Some(false),
+                }
+            }
 
             (Type::Interface(iface), other) => {
                 let this_fields: HashMap<&FieldName, &InterfaceField> =

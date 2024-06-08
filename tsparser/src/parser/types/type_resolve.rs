@@ -338,6 +338,13 @@ impl<'a> Ctx<'a> {
                 | Basic::Never => Type::Basic(Basic::Never),
             },
 
+            Type::Enum(tt) => Type::Union(
+                tt.members
+                    .iter()
+                    .map(|m| Type::Literal(Literal::String(m.name.clone())))
+                    .collect(),
+            ),
+
             // These should technically enumerate the built-in properties
             // on these types, but we haven't implemented that yet.
             Type::Array(_) | Type::Tuple(_) => Type::Union(vec![]),
@@ -394,20 +401,13 @@ impl<'a> Ctx<'a> {
 
         match &typ.expr_name {
             ast::TsTypeQueryExpr::TsEntityName(ast::TsEntityName::Ident(ident)) => {
-                let _obj = self.ident_obj(ident);
-                HANDLER.with(|handler| handler.span_err(ident.span, "typeof not yet supported"));
-                Type::Basic(Basic::Never)
-                // Ok(match &*obj {
-                //     Object::TypeName(tt) | Object::Enum(_) | Object::Class(_) => Type::Named(Named {
-                //         obj,
-                //         type_arguments,
-                //     }),
-                //     Object::Var(_) | Object::Using(_) | Object::Func(_) => {
-                //         anyhow::bail!("value used as type")
-                //     }
-                //     Object::Module(_) => anyhow::bail!("module used as type"),
-                //     Object::Namespace(_) => anyhow::bail!("namespace used as type"),
-                // })
+                let obj = self.ident_obj(ident);
+                if let Some(obj) = obj {
+                    self.resolve_obj_type(&obj)
+                } else {
+                    HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
+                    Type::Basic(Basic::Never)
+                }
             }
             _ => {
                 HANDLER.with(|handler| {
@@ -801,14 +801,7 @@ impl<'a> Ctx<'a> {
                 };
 
                 let named = Named::new(obj, vec![]);
-
-                // Don't reference named types in the universe,
-                // otherwise we try to find them on disk.
-                // if self.state.is_universe(named.obj.module_id) {
-                //     named.underlying(self.state).clone()
-                // } else {
                 Type::Named(named)
-                // }
             }
             ast::Expr::PrivateName(expr) => {
                 let Some(obj) = self.ident_obj(&expr.id) else {
@@ -819,10 +812,10 @@ impl<'a> Ctx<'a> {
                 Type::Named(Named::new(obj, vec![]))
             }
             ast::Expr::Lit(expr) => match &expr {
-                ast::Lit::Str(_) => Type::Basic(Basic::String),
-                ast::Lit::Bool(_) => Type::Basic(Basic::Boolean),
+                ast::Lit::Str(val) => Type::Literal(Literal::String(val.value.to_string())),
+                ast::Lit::Bool(val) => Type::Literal(Literal::Boolean(val.value)),
+                ast::Lit::Num(val) => Type::Literal(Literal::Number(val.value)),
                 ast::Lit::Null(_) => Type::Basic(Basic::Null),
-                ast::Lit::Num(_) => Type::Basic(Basic::Number),
                 ast::Lit::BigInt(_) => Type::Basic(Basic::BigInt),
                 ast::Lit::Regex(_) => {
                     HANDLER
@@ -1076,6 +1069,27 @@ impl<'a> Ctx<'a> {
                 HANDLER.with(|handler| handler.span_err(prop.span(), "unsupported member on type"));
                 Type::Basic(Basic::Never)
             }
+            Type::Enum(tt) => {
+                for m in tt.members.iter() {
+                    let name = m.name.as_str();
+                    let matches = match prop {
+                        ast::MemberProp::Ident(i) => name == i.sym.as_ref(),
+                        ast::MemberProp::PrivateName(i) => name == i.id.sym.as_ref(),
+                        ast::MemberProp::Computed(i) => match self.expr(&i.expr) {
+                            Type::Literal(lit) => match lit {
+                                Literal::String(str) => name == str,
+                                Literal::Number(num) => name == num.to_string().as_str(),
+                                _ => false,
+                            },
+                            _ => false,
+                        },
+                    };
+                    if matches {
+                        return m.value.clone().to_type();
+                    }
+                }
+                Type::Basic(Basic::Never)
+            }
             Type::Interface(tt) => {
                 for field in tt.fields.iter() {
                     let matches = match prop {
@@ -1184,35 +1198,60 @@ impl<'a> Ctx<'a> {
             },
 
             ObjectKind::Enum(o) => {
-                // The type of an enum is interface.
-                let mut fields = Vec::with_capacity(o.members.len());
+                let mut members = Vec::with_capacity(o.members.len());
+                let mut prev_value = None;
                 for m in &o.members {
-                    let field_type = match &m.init {
-                        None => Type::Basic(Basic::Number),
-                        Some(expr) => self.expr(&*expr),
+                    // Determine the initializer type, if provided.
+                    let init = m.init.as_ref().map(|t| self.expr(&t));
+                    let value = match init {
+                        None => {
+                            // We didn't have an initializer.
+                            // Determine the value based on the previous value.
+                            match prev_value {
+                                // No previous value; this is the first entry.
+                                None => EnumValue::Number(0),
+                                Some(EnumValue::Number(i)) => EnumValue::Number(i + 1),
+                                Some(EnumValue::String(_)) => {
+                                    HANDLER.with(|h| {
+                                        h.span_err(
+                                            m.span(),
+                                            "implicit enum value cannot follow string value",
+                                        )
+                                    });
+                                    EnumValue::Number(0)
+                                }
+                            }
+                        }
+                        Some(Type::Literal(lit)) => match lit {
+                            Literal::String(str) => EnumValue::String(str),
+                            Literal::Number(num) => {
+                                // Ensure the number is an integer.
+                                if num.fract() != 0.0 {
+                                    HANDLER.with(|h| {
+                                        h.span_err(m.span(), "enum value must be an integer")
+                                    });
+                                }
+                                EnumValue::Number(num as i64)
+                            }
+                            _ => {
+                                HANDLER.with(|h| h.span_err(m.span(), "unsupported enum value"));
+                                EnumValue::Number(0)
+                            }
+                        },
+                        _ => {
+                            HANDLER.with(|h| h.span_err(m.span(), "unsupported enum value"));
+                            EnumValue::Number(0)
+                        }
                     };
-                    if let Type::Basic(Basic::Never) = &field_type {
-                        // Ignore fields with type `never`.
-                        continue;
-                    }
 
                     let name = match &m.id {
                         ast::TsEnumMemberId::Ident(id) => id.sym.as_ref().to_string(),
                         ast::TsEnumMemberId::Str(str) => str.value.as_ref().to_string(),
                     };
-                    fields.push(InterfaceField {
-                        range: m.span.into(),
-                        name: FieldName::String(name),
-                        typ: field_type,
-                        optional: false,
-                    });
+                    prev_value = Some(value.clone());
+                    members.push(EnumMember { name, value });
                 }
-                Type::Interface(Interface {
-                    fields,
-                    // TODO
-                    index: None,
-                    call: None,
-                })
+                Type::Enum(EnumType { members })
             }
 
             ObjectKind::Var(o) => {
@@ -1272,7 +1311,7 @@ impl<'a> Ctx<'a> {
     pub fn concrete<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         match typ {
             // Basic types that never change.
-            Type::Basic(_) | Type::Literal(_) | Type::This => Same(typ),
+            Type::Basic(_) | Type::Literal(_) | Type::Enum(_) | Type::This => Same(typ),
 
             // Nested types that recurse.
             Type::Array(elem) => match self.concrete(elem) {
