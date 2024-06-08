@@ -313,4 +313,80 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             call: None,
         },
     ),
+    "Enum1": Enum(
+        EnumType {
+            members: [
+                EnumMember {
+                    name: "A",
+                    value: Number(
+                        0,
+                    ),
+                },
+                EnumMember {
+                    name: "B",
+                    value: Number(
+                        1,
+                    ),
+                },
+                EnumMember {
+                    name: "C",
+                    value: Number(
+                        2,
+                    ),
+                },
+                EnumMember {
+                    name: "D",
+                    value: String(
+                        "foo",
+                    ),
+                },
+                EnumMember {
+                    name: "E",
+                    value: Number(
+                        5,
+                    ),
+                },
+                EnumMember {
+                    name: "F",
+                    value: Number(
+                        6,
+                    ),
+                },
+            ],
+        },
+    ),
+    "EnumFields": Union(
+        [
+            Literal(
+                String(
+                    "A",
+                ),
+            ),
+            Literal(
+                String(
+                    "B",
+                ),
+            ),
+            Literal(
+                String(
+                    "C",
+                ),
+            ),
+            Literal(
+                String(
+                    "D",
+                ),
+            ),
+            Literal(
+                String(
+                    "E",
+                ),
+            ),
+            Literal(
+                String(
+                    "F",
+                ),
+            ),
+        ],
+    ),
 }
