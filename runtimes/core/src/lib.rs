@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::io::Read;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -371,10 +372,26 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
         Err(e) => return Err(ParseError::EnvVar(e)),
     };
 
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(cfg.as_bytes())
-        .map_err(|e| ParseError::Base64(e))?;
-    runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(|e| ParseError::Proto(e))
+    if cfg.starts_with("gzip:") {
+        // Parse the remainder as base64-encoded gzip data.
+        let cfg = cfg.as_bytes();
+        let cfg = &cfg["gzip:".len()..];
+        let gzip_data = base64::engine::general_purpose::STANDARD
+            .decode(cfg)
+            .map_err(|e| ParseError::Base64(e))?;
+
+        let mut decoder = flate2::read::GzDecoder::new(&gzip_data[..]);
+        let mut raw_data = Vec::new();
+        decoder
+            .read_to_end(&mut raw_data)
+            .map_err(|e| ParseError::IO(e))?;
+        runtimepb::RuntimeConfig::decode(&raw_data[..]).map_err(|e| ParseError::Proto(e))
+    } else {
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(cfg.as_bytes())
+            .map_err(|e| ParseError::Base64(e))?;
+        runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(|e| ParseError::Proto(e))
+    }
 }
 
 fn meta_from_env() -> Result<metapb::Data, ParseError> {
@@ -394,10 +411,26 @@ fn meta_from_env() -> Result<metapb::Data, ParseError> {
         Err(e) => return Err(ParseError::EnvVar(e)),
     };
 
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(cfg.as_bytes())
-        .map_err(|e| ParseError::Base64(e))?;
-    metapb::Data::decode(&decoded[..]).map_err(|e| ParseError::Proto(e))
+    if cfg.starts_with("gzip:") {
+        // Parse the remainder as base64-encoded gzip data.
+        let cfg = cfg.as_bytes();
+        let cfg = &cfg["gzip:".len()..];
+        let gzip_data = base64::engine::general_purpose::STANDARD
+            .decode(cfg)
+            .map_err(|e| ParseError::Base64(e))?;
+
+        let mut decoder = flate2::read::GzDecoder::new(&gzip_data[..]);
+        let mut raw_data = Vec::new();
+        decoder
+            .read_to_end(&mut raw_data)
+            .map_err(|e| ParseError::IO(e))?;
+        metapb::Data::decode(&raw_data[..]).map_err(|e| ParseError::Proto(e))
+    } else {
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(cfg.as_bytes())
+            .map_err(|e| ParseError::Base64(e))?;
+        metapb::Data::decode(&decoded[..]).map_err(|e| ParseError::Proto(e))
+    }
 }
 
 fn parse_meta(path: &Path) -> Result<metapb::Data, ParseError> {
