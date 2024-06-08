@@ -379,6 +379,25 @@ func GetConcreteType(appDecls []*schema.Decl, originalType *schema.Type, typeArg
 
 		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Map{Map: mapType}}, typeArgs), nil
 
+	case *schema.Type_Union:
+		// If there are no type arguments, we've got a concrete type
+		if len(typeArgs) == 0 {
+			return originalType, nil
+		}
+
+		types := make([]*schema.Type, len(typ.Union.Types))
+		for i, t := range typ.Union.Types {
+			// Deep copy the type
+			cloned := proto.Clone(t).(*schema.Type)
+			types[i] = resolveTypeParams(cloned, typeArgs)
+		}
+
+		return &schema.Type{Typ: &schema.Type_Union{
+			Union: &schema.Union{
+				Types: types,
+			},
+		}}, nil
+
 	case *schema.Type_List:
 		// If there are no type arguments, we've got a concrete type
 		if len(typeArgs) == 0 {
