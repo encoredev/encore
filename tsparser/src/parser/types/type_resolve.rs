@@ -752,11 +752,15 @@ impl<'a> Ctx<'a> {
                 // See https://www.typescriptlang.org/docs/handbook/2/typeof-types.html
                 ast::UnaryOp::TypeOf => Type::Basic(Basic::String),
 
-                ast::UnaryOp::Minus
-                | ast::UnaryOp::Plus
-                | ast::UnaryOp::Bang
-                | ast::UnaryOp::Tilde
-                | ast::UnaryOp::Delete => self.expr(&expr.arg),
+                ast::UnaryOp::Plus => Type::Basic(Basic::Number),
+                ast::UnaryOp::Minus => match self.expr(&expr.arg) {
+                    Type::Literal(Literal::Number(num)) => Type::Literal(Literal::Number(-num)),
+                    other => other,
+                },
+
+                ast::UnaryOp::Bang | ast::UnaryOp::Tilde | ast::UnaryOp::Delete => {
+                    self.expr(&expr.arg)
+                }
             },
             ast::Expr::Update(expr) => self.expr(&expr.arg),
             ast::Expr::Bin(expr) => {
