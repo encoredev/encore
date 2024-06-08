@@ -49,17 +49,28 @@ pub fn doc_comments_before(
         }
     }
 
-    let _strs = comments
-        .iter()
-        .map(|c| c.text.to_string())
-        .collect::<Vec<_>>();
-
     if comments.len() > 0 {
         let mut result = String::new();
         for comment in comments.iter().rev() {
-            result.push_str(comment.text.trim());
-            result.push('\n');
+            let is_jsdoc = comment.kind == swc_common::comments::CommentKind::Block
+                && comment.text.starts_with("*");
+
+            for line in comment.text.lines() {
+                let mut trimmed = line.trim();
+                if is_jsdoc {
+                    if trimmed.starts_with("/**") {
+                        trimmed = trimmed[3..].trim_start();
+                    } else if trimmed.starts_with("*/") {
+                        trimmed = trimmed[2..].trim_start();
+                    } else if trimmed.starts_with("*") {
+                        trimmed = trimmed[1..].trim_start();
+                    }
+                }
+                result.push_str(trimmed);
+                result.push('\n');
+            }
         }
+
         let trimmed = result.trim();
         if trimmed.len() > 0 {
             return Some(trimmed.to_string());
@@ -145,6 +156,12 @@ let h = 7;
 /* block */
 // line two
 let i = 8;
+
+/**
+ * JSDoc comment
+ * multiple lines
+ */
+ let j = 9;
             "#,
         );
         assert_eq!(
@@ -159,7 +176,25 @@ let i = 8;
                 Some("followed by block\ncomment".into()),
                 Some("line one\nline two".into()),
                 Some("line two".into()),
+                Some("JSDoc comment\nmultiple lines".into()),
             ]
+        );
+    }
+
+    #[test]
+    fn parse_jsdoc() {
+        let comments = decl_comments(
+            r#"
+/**
+ * JSDoc comment
+ * multiple lines
+ */
+let i = 0;
+            "#,
+        );
+        assert_eq!(
+            comments,
+            vec![Some("JSDoc comment\nmultiple lines".into()),]
         );
     }
 }
