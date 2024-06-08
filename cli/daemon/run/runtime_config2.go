@@ -1,6 +1,8 @@
 package run
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -578,7 +580,8 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (envs []string, e
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal runtime config")
 		}
-		runtimeCfgStr = base64.StdEncoding.EncodeToString(runtimeCfgBytes)
+		gzipped := gzipBytes(runtimeCfgBytes)
+		runtimeCfgStr = "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
 	} else {
 		// We don't use secretEnvs because for local development we use
 		// plaintext secrets across the board.
@@ -608,7 +611,8 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (envs []string, e
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal metadata")
 		}
-		metaEnvStr := base64.StdEncoding.EncodeToString(metaBytes)
+		gzipped := gzipBytes(metaBytes)
+		metaEnvStr := "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
 		envs = append(envs, fmt.Sprintf("%s=%s", metaEnvVar, metaEnvStr))
 	}
 
@@ -640,7 +644,8 @@ func (g *RuntimeConfigGenerator) ProcEnvs(proc *ProcConfig, useRuntimeConfigV2 b
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to marshal runtime config")
 			}
-			runtimeCfgStr = base64.StdEncoding.EncodeToString(runtimeCfgBytes)
+			gzipped := gzipBytes(runtimeCfgBytes)
+			runtimeCfgStr = "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
 		} else {
 			// We don't use secretEnvs because for local development we use
 			// plaintext secrets across the board.
@@ -666,7 +671,8 @@ func (g *RuntimeConfigGenerator) ProcEnvs(proc *ProcConfig, useRuntimeConfigV2 b
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal metadata")
 		}
-		metaEnvStr := base64.StdEncoding.EncodeToString(metaBytes)
+		gzipped := gzipBytes(metaBytes)
+		metaEnvStr := "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
 		env = append(env, fmt.Sprintf("%s=%s", metaEnvVar, metaEnvStr))
 	}
 
@@ -756,4 +762,12 @@ func encodeServiceConfigs(svcCfgs map[string]string) []string {
 	}
 	slices.Sort(envs)
 	return envs
+}
+
+func gzipBytes(data []byte) []byte {
+	var buf bytes.Buffer
+	w := gzip.NewWriter(&buf)
+	_, _ = w.Write(data)
+	_ = w.Close()
+	return buf.Bytes()
 }
