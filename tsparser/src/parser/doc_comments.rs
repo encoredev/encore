@@ -106,11 +106,9 @@ mod tests {
 
         let mut result = Vec::new();
         for it in ast.body {
-            if let ast::ModuleItem::Stmt(stmt) = it {
-                if let ast::Stmt::Decl(decl) = stmt {
-                    let c = doc_comments_before(&source_map, &comments, decl.span_lo());
-                    result.push(c);
-                }
+            if let ast::ModuleItem::Stmt(ast::Stmt::Decl(decl)) = it {
+                let c = doc_comments_before(&source_map, &comments, decl.span_lo());
+                result.push(c);
             }
         }
 

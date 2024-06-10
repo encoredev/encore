@@ -183,10 +183,6 @@ mod tests {
         seg(SegmentType::Literal, str)
     }
 
-    fn param(str: &str) -> meta::PathSegment {
-        seg(SegmentType::Param, str)
-    }
-
     fn wildcard(str: &str) -> meta::PathSegment {
         seg(SegmentType::Wildcard, str)
     }
