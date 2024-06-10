@@ -220,9 +220,7 @@ fn build_auth_handler(
             supports_path: false,
         };
 
-        
-        cfg
-            .compute(auth_params)
+        cfg.compute(auth_params)
             .context("unable to compute auth handler schema")?
     };
 

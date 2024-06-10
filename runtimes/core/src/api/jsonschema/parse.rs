@@ -52,7 +52,7 @@ where
                 match &field.value {
                     BasicOrValue::Basic(basic) => {
                         let basic = Value::Basic(*basic);
-                        
+
                         parse_header_value(header_to_str!(header_value)?, reg, &basic)?
                     }
                     BasicOrValue::Value(idx) => {
@@ -85,7 +85,6 @@ where
                             }
                             serde_json::Value::Array(arr)
                         } else {
-                            
                             parse_header_value(header_to_str!(header_value)?, reg, value_type)?
                         }
                     }
@@ -229,12 +228,8 @@ fn parse_json_value(
             };
 
             match (this, lit) {
-                (JSON::String(got), Literal::Str(want)) if &got == want => {
-                    Ok(JSON::String(got))
-                }
-                (JSON::Bool(got), Literal::Bool(want)) if &got == want => {
-                    Ok(JSON::Bool(got))
-                }
+                (JSON::String(got), Literal::Str(want)) if &got == want => Ok(JSON::String(got)),
+                (JSON::Bool(got), Literal::Bool(want)) if &got == want => Ok(JSON::Bool(got)),
                 (JSON::Number(got), Literal::Int(want)) => {
                     if got.as_i64() == Some(*want) {
                         Ok(JSON::Number(got))
