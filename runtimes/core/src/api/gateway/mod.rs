@@ -65,6 +65,7 @@ impl Gateway {
             auth: auth_handler,
         });
 
+        #[allow(clippy::type_complexity)]
         let register_routes =
             |paths: HashMap<EncoreName, Vec<(Arc<api::Endpoint>, Vec<String>)>>,
              mut router: axum::Router|
