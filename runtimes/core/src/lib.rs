@@ -389,9 +389,7 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
 
         let mut decoder = flate2::read::GzDecoder::new(&gzip_data[..]);
         let mut raw_data = Vec::new();
-        decoder
-            .read_to_end(&mut raw_data)
-            .map_err(ParseError::IO)?;
+        decoder.read_to_end(&mut raw_data).map_err(ParseError::IO)?;
         runtimepb::RuntimeConfig::decode(&raw_data[..]).map_err(ParseError::Proto)
     } else {
         let decoded = base64::engine::general_purpose::STANDARD
@@ -428,9 +426,7 @@ fn meta_from_env() -> Result<metapb::Data, ParseError> {
 
         let mut decoder = flate2::read::GzDecoder::new(&gzip_data[..]);
         let mut raw_data = Vec::new();
-        decoder
-            .read_to_end(&mut raw_data)
-            .map_err(ParseError::IO)?;
+        decoder.read_to_end(&mut raw_data).map_err(ParseError::IO)?;
         metapb::Data::decode(&raw_data[..]).map_err(ParseError::Proto)
     } else {
         let decoded = base64::engine::general_purpose::STANDARD

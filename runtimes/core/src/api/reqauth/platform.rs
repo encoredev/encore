@@ -60,10 +60,7 @@ impl RequestValidator {
         let received_mac = &decoded_auth_header[KEY_ID_LEN..];
         for k in self.keys.iter() {
             if k.id == key_id {
-                let secret_data = k
-                    .data
-                    .get()
-                    .map_err(ValidationError::SecretResolve)?;
+                let secret_data = k.data.get().map_err(ValidationError::SecretResolve)?;
                 return check_auth_key(secret_data, req, received_mac);
             }
         }

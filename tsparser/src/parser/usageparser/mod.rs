@@ -226,13 +226,22 @@ impl UsageResolver<'_> {
                     usages.push(usage);
                 }
                 Resource::ServiceClient(client) => {
-                    if let Some(u) = apis::service_client::resolve_service_client_usage(&data, client.clone())? { usages.push(u) }
+                    if let Some(u) =
+                        apis::service_client::resolve_service_client_usage(&data, client.clone())?
+                    {
+                        usages.push(u)
+                    }
                 }
                 Resource::PubSubTopic(topic) => {
-                    if let Some(u) = infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())? { usages.push(u) }
+                    if let Some(u) = infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())?
+                    {
+                        usages.push(u)
+                    }
                 }
                 Resource::SQLDatabase(db) => {
-                    if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone())? { usages.push(u) }
+                    if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone())? {
+                        usages.push(u)
+                    }
                 }
                 _ => {}
             }
@@ -393,12 +402,12 @@ impl<'a> UsageVisitor<'a> {
                             _ => None,
                         });
                         enclosing.map(|enclosing| UsageExpr {
-                                range: enclosing.span().into(),
-                                bind: bind.clone(),
-                                kind: UsageExprKind::Other(Other {
-                                    _enclosing_expr: enclosing.to_owned(),
-                                }),
-                            })
+                            range: enclosing.span().into(),
+                            bind: bind.clone(),
+                            kind: UsageExprKind::Other(Other {
+                                _enclosing_expr: enclosing.to_owned(),
+                            }),
+                        })
                     }
                 }
             }

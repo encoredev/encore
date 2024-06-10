@@ -176,9 +176,7 @@ impl Pather for EndpointPathResolver {
     type Key = ();
     type Value = Arc<api::Endpoint>;
 
-    fn key(&self) {
-        
-    }
+    fn key(&self) {}
 
     fn value(&self) -> Self::Value {
         self.ep.clone()

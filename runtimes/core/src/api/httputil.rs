@@ -50,10 +50,7 @@ pub fn join_request_url(inbound: &axum::http::Uri, target: &mut reqwest::Url) {
     }
 }
 
-pub fn merge_query<'b>(
-    target: Option<&str>,
-    inbound: Option<&'b str>,
-) -> Option<Cow<'b, str>> {
+pub fn merge_query<'b>(target: Option<&str>, inbound: Option<&'b str>) -> Option<Cow<'b, str>> {
     match (target, inbound) {
         (Some(a), Some(b)) => {
             let mut s = String::with_capacity(a.len() + b.len() + 1);

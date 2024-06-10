@@ -114,8 +114,6 @@ pub fn decode(alphabet: Alphabet, data: &str) -> Option<Vec<u8>> {
 mod test {
     use super::Alphabet::{Crockford, Encore, RFC4648};
     use super::{decode, encode};
-    
-    
 
     #[derive(Clone)]
     struct B32 {
