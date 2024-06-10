@@ -234,12 +234,6 @@ impl Interface {
     }
 }
 
-impl PartialEq for Interface {
-    fn eq(&self, other: &Self) -> bool {
-        self.identical(other)
-    }
-}
-
 #[derive(Debug, Clone, Hash, Serialize, Eq, PartialEq)]
 pub enum FieldName {
     String(String),

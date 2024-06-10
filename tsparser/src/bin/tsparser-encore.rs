@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::fmt;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use prost::Message;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -291,25 +291,9 @@ struct ParseInput {
     parse_tests: bool,
 }
 
-#[derive(Serialize, Debug)]
-struct CompileResult {
-    pub build_dir: PathBuf,
-    pub gateways: HashMap<String, CmdSpec>,
-    pub services: HashMap<String, CmdSpec>,
-}
-
-#[derive(Serialize, Debug)]
-struct CmdSpec {
-    pub cmd: String,
-    pub args: Vec<String>,
-    pub env: Vec<String>,
-}
-
 #[derive(Deserialize, Debug)]
 struct PrepareInput {
     app_root: PathBuf,
-    runtime_version: String,
-    use_local_runtime: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -347,9 +331,9 @@ impl Emitter for ErrorList {
 #[derive(Default, Clone)]
 struct AtomicBuf(Arc<Mutex<Vec<u8>>>);
 
-impl AtomicBuf {
-    pub fn to_string(&self) -> String {
-        String::from_utf8_lossy(&self.0.lock().unwrap()).to_string()
+impl fmt::Display for AtomicBuf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0.lock().unwrap()))
     }
 }
 
