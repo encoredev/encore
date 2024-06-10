@@ -1,0 +1,2 @@
+ignore-interior-mutability = ["bytes::Bytes", "http::header::HeaderName"]
+

@@ -7,6 +7,7 @@ use std::str::FromStr;
 use tower_http::cors;
 
 /// The default set of allowed headers.
+#[allow(clippy::declare_interior_mutable_const)]
 const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("accept"),
     HeaderName::from_static("authorization"),
@@ -18,6 +19,7 @@ const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("x-requested-with"),
 ];
 
+#[allow(clippy::declare_interior_mutable_const)]
 pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("x-request-id"),
     HeaderName::from_static("x-correlation-id"),
@@ -31,6 +33,7 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
         .map(|s| HeaderName::from_str(s))
         .collect::<Result<Vec<_>, _>>()
         .context("failed to parse extra allowed headers")?;
+    #[allow(clippy::borrow_interior_mutable_const)]
     allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
     allowed_headers.extend(meta.allow_headers);
 
@@ -40,6 +43,7 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
         .map(|s| HeaderName::from_str(s))
         .collect::<Result<Vec<_>, _>>()
         .context("failed to parse extra exposed headers")?;
+    #[allow(clippy::borrow_interior_mutable_const)]
     exposed_headers.extend_from_slice(&ALWAYS_EXPOSED_HEADERS);
     exposed_headers.extend(meta.expose_headers);
 
