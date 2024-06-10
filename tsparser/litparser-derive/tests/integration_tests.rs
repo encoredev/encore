@@ -40,17 +40,21 @@ fn test_parse_str_keys() {
 }
 
 #[test]
+#[allow(dead_code)]
 fn test_parse_refs() {
-    struct Dummy {}
-    impl LitParser for Dummy {
+    struct Dummy<'a> {
+        foo: Option<&'a str>,
+    }
+    impl LitParser for Dummy<'_> {
         fn parse_lit(_input: &swc_ecma_ast::Expr) -> anyhow::Result<Self> {
-            Ok(Self {})
+            Ok(Self { foo: None })
         }
     }
 
     #[derive(LitParser)]
-    struct Foo {
+    struct Foo<'a> {
         foo: String,
+        dummy: Dummy<'a>,
     }
 
     let expr = parse(r#"{ foo: "foo", "dummy": null }"#);
