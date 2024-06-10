@@ -12,6 +12,7 @@ type GenerateParams struct {
 	AppSlug  string
 	Meta     *meta.Data
 	Services ServiceSet
+	Tags     []string
 }
 
 type ServiceSet struct {

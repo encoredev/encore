@@ -3,6 +3,7 @@ package clientgen
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 
 	"encr.dev/internal/version"
@@ -16,6 +17,23 @@ func doNotEditHeader() string {
 func hasPublicRPC(svc *meta.Service) bool {
 	for _, rpc := range svc.Rpcs {
 		if rpc.AccessType != meta.RPC_PRIVATE {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTag(rpc *meta.RPC, tags []string) bool {
+	if len(tags) == 0 {
+		return true
+	}
+
+	for _, selector := range rpc.Tags {
+		if selector.Type != meta.Selector.TAG {
+			continue
+		}
+
+		if slices.Contains(tags, selector.Value) {
 			return true
 		}
 	}
