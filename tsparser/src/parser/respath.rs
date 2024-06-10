@@ -206,11 +206,6 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        enum Result {
-            Ok(Vec<Segment>),
-            Err(String),
-        }
-
         let tests = vec![
             ("/foo", Ok(vec![Segment::Literal("foo".to_string())])),
             (

@@ -265,7 +265,7 @@ mod tests {
     use super::*;
     use assert_fs::{prelude::*, TempDir};
     use predicates::prelude::{predicate::str::contains, *};
-    use similar_asserts::{assert_eq, assert_str_eq};
+    use similar_asserts::assert_eq;
 
     const BASIC: &str = "\
 comment1
@@ -301,7 +301,7 @@ hello world";
 Archive { comment: \"blah\\r\\n\", files: [File { name: \"hello\", data: \"hello\\r\\n\" }] }";
 
             let arch = format!("{:?}", Archive::from(crlf));
-            assert_str_eq!(&arch, expected, "parse[CRLF input]",);
+            assert_eq!(&arch, expected, "parse[CRLF input]",);
         }
 
         // Test whitespace handling
@@ -315,7 +315,7 @@ Archive { comment: \"blah\\r\\n\", files: [File { name: \"hello\", data: \"hello
     fn check_parse_format(name: &str, txtar: &str, expected: &str) {
         let arch = Archive::from(txtar);
         let txtar = arch.to_string();
-        assert_str_eq!(txtar, expected, "parse[{name}]");
+        assert_eq!(txtar, expected, "parse[{name}]");
     }
 
     #[test]
