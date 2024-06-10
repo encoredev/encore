@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -36,7 +37,7 @@ fn main() -> Result<()> {
     GLOBALS.set(&globals, || -> Result<()> {
         HANDLER.set(&errs, || -> Result<()> {
             let builder = Builder::new()?;
-            let parse: Option<(builder::App, builder::ParseResult)> = None;
+            let _parse: Option<(builder::App, builder::ParseResult)> = None;
 
             {
                 let pp = builder::PrepareParams {
@@ -109,9 +110,9 @@ impl Emitter for ErrorList {
 #[derive(Default, Clone)]
 struct AtomicBuf(Arc<Mutex<Vec<u8>>>);
 
-impl AtomicBuf {
-    pub fn to_string(&self) -> String {
-        String::from_utf8_lossy(&self.0.lock().unwrap()).to_string()
+impl fmt::Display for AtomicBuf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0.lock().unwrap()))
     }
 }
 

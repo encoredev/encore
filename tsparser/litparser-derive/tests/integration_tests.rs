@@ -1,3 +1,4 @@
+#![allow(clippy::disallowed_names)]
 use std::option;
 
 use litparser_derive::LitParser;
@@ -40,19 +41,16 @@ fn test_parse_str_keys() {
 
 #[test]
 fn test_parse_refs() {
-    struct Dummy<'a> {
-        foo: Option<&'a str>,
-    }
-    impl LitParser for Dummy<'_> {
-        fn parse_lit(input: &swc_ecma_ast::Expr) -> anyhow::Result<Self> {
-            Ok(Self { foo: None })
+    struct Dummy {}
+    impl LitParser for Dummy {
+        fn parse_lit(_input: &swc_ecma_ast::Expr) -> anyhow::Result<Self> {
+            Ok(Self {})
         }
     }
 
     #[derive(LitParser)]
-    struct Foo<'a> {
+    struct Foo {
         foo: String,
-        dummy: Dummy<'a>,
     }
 
     let expr = parse(r#"{ foo: "foo", "dummy": null }"#);
