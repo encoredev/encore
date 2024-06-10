@@ -7,7 +7,7 @@ use std::str::FromStr;
 use tower_http::cors;
 
 /// The default set of allowed headers.
-static ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
+const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("accept"),
     HeaderName::from_static("authorization"),
     HeaderName::from_static("content-type"),
@@ -18,7 +18,7 @@ static ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
     HeaderName::from_static("x-requested-with"),
 ];
 
-pub static ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
+pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("x-request-id"),
     HeaderName::from_static("x-correlation-id"),
     HeaderName::from_static("x-encore-trace-id"),
