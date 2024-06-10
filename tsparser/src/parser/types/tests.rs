@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::parser::module_loader::ModuleLoader;
 use crate::parser::types::type_resolve::Ctx;
 use crate::parser::{FilePath, FileSet};
-use crate::testutil::testresolve::{NoopResolver};
+use crate::testutil::testresolve::NoopResolver;
 use indexmap::IndexMap;
 use insta::{assert_debug_snapshot, glob};
 use itertools::Itertools;

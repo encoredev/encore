@@ -173,8 +173,6 @@ impl From<&rt::Deployment> for DeployMeta {
     }
 }
 
-
-
 impl Default for DeployMeta {
     fn default() -> Self {
         DeployMeta {

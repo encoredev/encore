@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Error};
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use swc_common::FileName;
 use swc_ecma_loader::resolve::Resolve;
 

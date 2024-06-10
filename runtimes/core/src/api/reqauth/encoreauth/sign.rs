@@ -266,7 +266,6 @@ fn derive_signing_key(
 
     let app_key = hash_hmac(&date_key, app_slug.as_bytes()).into_bytes();
     let env_key = hash_hmac(&app_key, env_name.as_bytes()).into_bytes();
-    
 
     hash_hmac(&env_key, b"encore_request")
 }

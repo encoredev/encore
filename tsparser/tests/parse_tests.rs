@@ -3,7 +3,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::Result;
-use insta::{glob};
+use insta::glob;
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
 use tempdir::TempDir;
