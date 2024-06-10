@@ -147,7 +147,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          components: rustfmt
+          components: rustfmt,clippy
       - name: Install Protoc
         uses: arduino/setup-protoc@a8b67ba40b37d35169e222f3bb352603327985b6 # v2
       - name: Set up cargo cache
@@ -168,3 +168,5 @@ jobs:
           CARGO_TERM_COLOR: always
       - name: Run rustfmt
         run: cargo fmt --all --check
+      - name: Run clippy
+        run cargo clippy --all-targets --all-features -- -D warnings
