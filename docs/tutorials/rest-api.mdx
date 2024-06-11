@@ -9,6 +9,7 @@ In this tutorial you will create a REST API for a URL Shortener service. In a fe
 
 * Create REST APIs with Encore
 * Use PostgreSQL databases
+* Use the local development dashboard to test your app
 * Create and run tests
 
 <LangTabGroup langs={["go", "ts"]}>
@@ -85,15 +86,20 @@ Development Dashboard URL:  http://localhost:9400
 4:19PM INF registered endpoint path=/url service=url endpoint=Shorten
 ```
 
-🥐 Next, call your endpoint:
+🥐 Next, call your endpoint from the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) and view a trace of the response.
+It should look like this:
 
-Either do this from the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) or from the terminal:
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+You can also call it from the terminal:
 
 ```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
-You should see this (and in the Local Development Dashboard you can see a trace):
+And you should see this:
 
 ```json
 {
@@ -180,13 +186,19 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 (In case your application won't run, check the [databases troubleshooting guide](/docs/develop/databases#troubleshooting).)
 
-🥐 Now let's call the API again:
+You can verify that the database was created by looking at your applications Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+🥐 Now let's call the API again from the local development dashboard, or from the terminal:
 
 ```shell
 $ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
-🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory, or you can look at the trace in the local dev dashboard at [localhost:9400](http://localhost:9400).
+🥐 Finally, let's verify that it was saved in the database. You can do this by checking the trace in the local development dashboard, or you can run  `encore db shell url` from the app root directory and inputting `select * from url;`:
 
 ```shell
 $ encore db shell url
@@ -222,7 +234,13 @@ func Get(ctx context.Context, id string) (*URL, error) {
 
 Encore uses the `path=/url/:id` syntax to represent a path with a parameter. The `id` name corresponds to the parameter name in the function signature. In this case it is of type `string`, but you can also use other built-in types like `int` or `bool` if you want to restrict the values.
 
-🥐 Let’s make sure it works by calling it (remember to change the `id` below to the one you found in the last step):
+🥐 We can make sure it works by reviewing the endpoint in the Service Catalog in the local development dashboard, where we can call it using the `id` you got in the previous step:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut3.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+You can also call it directly from the terminal:
 
 ```shell
 $ curl http://localhost:4000/url/zr6RmZc4
@@ -237,7 +255,7 @@ You should now see this:
 }
 ```
 
-And there you have it! That's how you build REST APIs and use PostgreSQL databases in Encore.
+It works! That's how you build REST APIs and use PostgreSQL databases in Encore.
 
 ## 4. Add a test
 
@@ -301,6 +319,10 @@ $ git push encore
 Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
 After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut4.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
 
 From there you can also see metrics, traces, and connect your own AWS or GCP account to use for production deployment.
 
@@ -388,7 +410,14 @@ Development Dashboard URL:  http://localhost:9400/5g288
 3:50PM INF registered API endpoint endpoint=shorten path=/url service=url
 ```
 
-🥐 Next, call your endpoint:
+🥐 Next, call your endpoint from the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) and view a trace of the response.
+It should look like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+You can also call it from the terminal:
 
 ```shell
 $ curl http://localhost:4000/url -d '{"url": "https://encore.dev"}'
@@ -461,13 +490,19 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 (In case your application won't run, check the [databases troubleshooting guide](/docs/develop/databases#troubleshooting).)
 
-🥐 Now let's call the API again:
+You can verify that the database was created by looking at your applications Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+🥐 Now let's call the API again from the local development dashboard, or from the terminal:
 
 ```shell
-$ curl http://localhost:4000/url -d '{"url": "https://encore.dev"}'
+$ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
 ```
 
-🥐 Finally, let's verify that it was saved in the database by running  `encore db shell url` from the app root directory and inputting `select * from url;`:
+🥐 Finally, let's verify that it was saved in the database. You can do this by checking the trace in the local development dashboard, or you can run  `encore db shell url` from the app root directory and inputting `select * from url;`:
 
 ```shell
 $ encore db shell url
@@ -505,7 +540,13 @@ export const get = api(
 
 Encore uses the `/url/:id` syntax to represent a path with a parameter. The `id` name corresponds to the parameter name in the function signature. In this case it is of type `string`, but you can also use other built-in types like `number` or `boolean` if you want to restrict the values.
 
-🥐 Let’s make sure it works by calling it (remember to change the `id` below to the one you found in the last step):
+🥐 We can make sure it works by reviewing the endpoint in the Service Catalog in the local development dashboard, where we can call it using the `id` you got in the previous step:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut3.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+You can also call it directly from the terminal:
 
 ```shell
 $ curl http://localhost:4000/url/zr6RmZc4
@@ -520,7 +561,7 @@ You should now see this:
 }
 ```
 
-And there you have it! That's how you build REST APIs and use PostgreSQL databases in Encore.
+It works! That's how you build REST APIs and use PostgreSQL databases in Encore.
 
 ## 4. Add a test
 
@@ -580,6 +621,10 @@ $ git push encore
 Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
 After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/rest_tut4.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
 
 From there you can also see metrics, traces, and connect your own AWS or GCP account to use for production deployment.
 
