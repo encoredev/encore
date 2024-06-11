@@ -48,7 +48,6 @@ pub struct SchemaUnderConstruction {
     body: Option<usize>,
     query: Option<usize>,
     header: Option<usize>,
-    path: Option<usize>,
     rpc_path: Option<meta::Path>,
 }
 
@@ -59,11 +58,7 @@ impl SchemaUnderConstruction {
             body: self.body.map(|v| Body::new(reg.schema(v))),
             query: self.query.map(|v| Query::new(reg.schema(v))),
             header: self.header.map(|v| Header::new(reg.schema(v))),
-            path: self
-                .rpc_path
-                .as_ref()
-                .map(|mp| Path::from_meta(mp, self.path.map(|v| reg.schema(v))))
-                .transpose()?,
+            path: self.rpc_path.as_ref().map(Path::from_meta).transpose()?,
         })
     }
 }
@@ -88,7 +83,6 @@ impl EncodingConfig<'_, '_> {
                 body: None,
                 query: None,
                 header: None,
-                path: None,
                 rpc_path: self.rpc_path.cloned(),
             });
         };
@@ -114,25 +108,27 @@ impl EncodingConfig<'_, '_> {
         let mut body: Option<jsonschema::Struct> = None;
         let mut query: Option<jsonschema::Struct> = None;
         let mut header: Option<jsonschema::Struct> = None;
-        let mut path: Option<jsonschema::Struct> = None;
 
         for f in &st.fields {
+            // If it's a path field, skip it. We handle it separately in Path::from_meta.
+            if path_fields.contains(f.name.as_str()) {
+                continue;
+            }
+
             let (name, mut field) = self.registry_builder.struct_field(f)?;
             combined.fields.insert(name.to_owned(), field.clone());
 
             // Resolve which location the field should be in.
-            let is_path_field = path_fields.contains(f.name.as_str());
             let loc = f.wire.as_ref().and_then(|w| w.location.as_ref());
-            let wire_loc = match (loc, is_path_field) {
-                (_, true) => WireLoc::Path,
-                (None, false) => self
+            let wire_loc = match loc {
+                None => self
                     .default_loc
                     .with_context(|| format!("no location defined for field {}", f.name))?
                     .into_wire_loc(),
-                (Some(schema::wire_spec::Location::Header(hdr)), false) => {
+                Some(schema::wire_spec::Location::Header(hdr)) => {
                     WireLoc::Header(hdr.name.clone().unwrap_or_else(|| f.name.clone()))
                 }
-                (Some(schema::wire_spec::Location::Query(_)), false) => WireLoc::Query,
+                Some(schema::wire_spec::Location::Query(_)) => WireLoc::Query,
             };
 
             // Add the field to the appropriate struct.
@@ -140,7 +136,7 @@ impl EncodingConfig<'_, '_> {
                 WireLoc::Body => (&mut body, None),
                 WireLoc::Query => (&mut query, None),
                 WireLoc::Header(s) => (&mut header, Some(s)),
-                WireLoc::Path => (&mut path, None),
+                WireLoc::Path => unreachable!(),
             };
             field.name_override = name_override;
 
@@ -170,7 +166,6 @@ impl EncodingConfig<'_, '_> {
             body: body.map(&mut build),
             query: query.map(&mut build),
             header: header.map(&mut build),
-            path: path.map(&mut build),
             rpc_path: self.rpc_path.cloned(),
         })
     }
@@ -397,7 +392,6 @@ pub fn request_encoding(
                 body: None,
                 query: None,
                 header: None,
-                path: None,
                 rpc_path: Some(rpc_path.clone()),
             },
         }]);
@@ -438,7 +432,6 @@ pub fn response_encoding(
             body: None,
             query: None,
             header: None,
-            path: None,
             rpc_path: None,
         });
     };
