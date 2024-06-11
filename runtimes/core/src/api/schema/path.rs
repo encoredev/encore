@@ -157,7 +157,12 @@ impl Path {
 
                     use serde_json::Value::*;
                     match value {
-                        String(str) => path.push_str(str),
+                        String(str) => {
+                            // URL-encode the string, so it doesn't get reinterpreted
+                            // as multiple path segments.
+                            let encoded = urlencoding::encode(str);
+                            path.push_str(&encoded);
+                        }
                         Null => path.push_str("null"),
                         Bool(bool) => path.push_str(if *bool { "true" } else { "false" }),
                         Number(num) => {
