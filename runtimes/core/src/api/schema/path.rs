@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::ptr;
@@ -15,31 +14,21 @@ use crate::api::jsonschema::Basic;
 use crate::api::schema::JSONPayload;
 use crate::api::{jsonschema, APIResult};
 use crate::encore::parser::meta::v1 as meta;
+use crate::encore::parser::meta::v1::path_segment::ParamType;
 
 /// The URL path to an endpoint, e.g. ("/foo/bar/:id").
 #[derive(Debug, Clone)]
 pub struct Path {
     /// The path segments.
     segments: Vec<Segment>,
-    dynamic_segments: Vec<jsonschema::Basic>,
+    dynamic_segments: Vec<Basic>,
 
     /// The capacity to use for generating requests.
     capacity: usize,
 }
 
 impl Path {
-    pub fn from_meta(
-        path: &meta::Path,
-        schema: Option<jsonschema::JSONSchema>,
-    ) -> anyhow::Result<Self> {
-        let empty_fields = jsonschema::Struct {
-            fields: HashMap::new(),
-        };
-        let fields = match &schema {
-            Some(schema) => schema.root(),
-            None => &empty_fields,
-        };
-
+    pub fn from_meta(path: &meta::Path) -> anyhow::Result<Self> {
         let mut segments = Vec::with_capacity(path.segments.len());
         for seg in &path.segments {
             use meta::path_segment::SegmentType;
@@ -49,14 +38,22 @@ impl Path {
                 }
                 SegmentType::Param => {
                     let name = &seg.value;
-                    let typ = match fields.fields.get(name) {
-                        Some(field) => match &field.value {
-                            jsonschema::BasicOrValue::Basic(typ) => *typ,
-                            _ => anyhow::bail!("invalid field type in request schema"),
-                        },
-                        // If the segment doesn't exist in the schema it's because the endpoint is raw.
-                        // Treat this as a string.
-                        None => Basic::String,
+                    let typ = match ParamType::try_from(seg.value_type)
+                        .context("invalid path parameter type")?
+                    {
+                        ParamType::String => Basic::String,
+                        ParamType::Bool => Basic::Bool,
+                        ParamType::Uuid => Basic::String,
+                        ParamType::Int
+                        | ParamType::Int8
+                        | ParamType::Int16
+                        | ParamType::Int32
+                        | ParamType::Int64
+                        | ParamType::Uint
+                        | ParamType::Uint8
+                        | ParamType::Uint16
+                        | ParamType::Uint32
+                        | ParamType::Uint64 => Basic::Number,
                     };
 
                     segments.push(Segment::Param {
