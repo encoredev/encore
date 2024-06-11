@@ -1277,6 +1277,7 @@ dependencies = [
  "tower-http",
  "tower-service",
  "url",
+ "urlencoding",
  "uuid",
  "xid",
 ]
