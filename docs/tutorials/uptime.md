@@ -36,17 +36,7 @@ Whenever you see a 🥐 it means there's something for you to do.
 $ encore app create uptime --example=github.com/encoredev/example-app-uptime/tree/starting-point
 ```
 
-Your newly created application will also be registered on [https://app.encore.dev](https://app.encore.dev) for when you deploy your new app later.
-
-🥐 Check that your frontend works:
-
-```shell
-$ cd uptime
-$ encore run
-```
-
-Then visit [http://localhost:4000/frontend/](http://localhost:4000/frontend/) to see the frontend.
-It won't work yet, since we haven't yet built the backend, so let's do just that!
+If this is the first time you're using Encore, you'll be asked if you wish to create a free account. This is needed when you want Encore to manage functionality like secrets and handle cloud deployments (which we'll use later on in the tutorial).
 
 When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
 
@@ -112,8 +102,13 @@ func Ping(ctx context.Context, url string) (*PingResponse, error) {
 
 🥐 Let's try it! Run `encore run` in your terminal and you should see the service start up.
 
-Then open up the Local Development Dashboard running at [http://localhost:9400](http://localhost:9400) and try calling
-the `monitor.Ping` endpoint, passing in `google.com` as the URL.
+Then open up the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) and try calling the `monitor.ping` endpoint from the API Explorer, passing in `google.com` as the URL.
+
+You can then see the response, logs, and view a trace of the request. It will look like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_1.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
 
 If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in
 a new terminal instead. Either way you should see the response:
@@ -336,7 +331,15 @@ func (s *Service) Delete(ctx context.Context, siteID int) error {
 }
 ```
 
-🥐 Now make sure you have [Docker](https://docker.com) installed and running, and then restart `encore run` to cause the `site` database to be created by Encore. Then let's call the `site.Add` endpoint:
+🥐 Now make sure you have [Docker](https://docker.com) installed and running, and then restart `encore run` to cause the `site` database to be created by Encore. 
+
+You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), and then use the Service Catalog to call the `site.Add` endpoint:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+Or you can call `site.Add` from the terminal:
 
 ```shell
 $ curl -X POST 'http://localhost:4000/site' -d '{"url": "https://encore.dev"}'
@@ -410,13 +413,20 @@ var db = sqldb.NewDatabase("monitor", sqldb.DatabaseConfig{
 })
 ```
 
-🥐 Restart `encore run` to cause the `monitor` database to be created, and then call the new `monitor.Check` endpoint:
 
-```shell
-$ curl -X POST 'http://localhost:4000/check/1'
-```
+🥐 Restart `encore run` to cause the `monitor` database to be created.
 
-🥐 Inspect the database to make sure everything worked:
+We can again verify that the database was created in the Flow diagram, and also see the dependency between the `monitor` service and the `site` service that we just added. 
+
+We can then call the `monitor.Check` endpoint using the id `1` that we got in the last step, and view the trace where we see the database interactions.
+
+It will look something like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_3.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+🥐 You can also inspect the database using `encore db shell <database-name>` to make sure everything worked:
 
 ```shell
 $ encore db shell monitor
@@ -603,7 +613,11 @@ Encore will now build and test your app, provision the needed infrastructure, an
 
 After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
 
-From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
+From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces, and later connect your own AWS or GCP account to use for deployment.
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_4.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
 
 🥐 When the deploy has finished, you can try out your uptime monitor by going to `https://staging-$APP_ID.encr.app/frontend`.
 
@@ -612,7 +626,7 @@ From there you can also see metrics, traces, link your app to a GitHub repo to g
 
 ## 6. Publish Pub/Sub events when a site goes down
 
-An uptime monitoring system isn't very useful if it doesn't
+Hold on, an uptime monitoring system isn't very useful if it doesn't
 actually notify you when a site goes down.
 
 To do so let's add a [Pub/Sub topic](https://encore.dev/docs/primitives/pubsub) on which we'll publish a message every time a site transitions from being up to being down, or vice versa.
@@ -886,17 +900,7 @@ Whenever you see a 🥐 it means there's something for you to do.
 $ encore app create uptime --example=github.com/encoredev/example-app-uptime/tree/starting-point-ts
 ```
 
-Your newly created application will also be registered on [https://app.encore.dev](https://app.encore.dev) for when you deploy your new app later.
-
-🥐 Check that your frontend works:
-
-```shell
-$ cd uptime
-$ encore run
-```
-
-Then visit [http://localhost:4000/](http://localhost:4000/frontend/) to see the Next.js frontend.
-It won't work yet, since we haven't yet built the backend, so let's do just that!
+If this is the first time you're using Encore, you'll be asked if you wish to create a free account. This is needed when you want Encore to manage functionality like secrets and handle cloud deployments (which we'll use later on in the tutorial).
 
 When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
 
@@ -951,16 +955,19 @@ export const ping = api<PingParams, PingResponse>(
     }
   }
 );
-
 ```
 
 🥐 Let's try it! Run `encore run` in your terminal and you should see the service start up.
 
-Then open up the Local Development Dashboard running at [http://localhost:9400](http://localhost:9400) and try calling
-the `monitor.ping` endpoint, passing in `google.com` as the URL.
+Then open up the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) and try calling the `monitor.ping` endpoint from the API Explorer, passing in `google.com` as the URL.
 
-If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in
-a new terminal instead. Either way you should see the response:
+You can then see the response, logs, and view a trace of the request. It will look like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_1.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in a new terminal instead. Either way you should see the response:
 
 ```json
 {"up": true}
@@ -1131,7 +1138,15 @@ const orm = knex({
 const Sites = () => orm<Site>("site");
 ```
 
-🥐 Now make sure you have [Docker](https://docker.com) installed and running, and then restart `encore run` to cause the `site` database to be created by Encore. Then let's call the `site.add` endpoint:
+🥐 Now make sure you have [Docker](https://docker.com) installed and running, and then restart `encore run` to cause the `site` database to be created by Encore.
+
+You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), and then use the Service Catalog to call the `site.add` endpoint:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+You can also call the `site.add` endpoint from the terminal:
 
 ```shell
 $ curl -X POST 'http://localhost:4000/site' -d '{"url": "https://encore.dev"}'
@@ -1164,8 +1179,9 @@ We'll insert a database row every time we check if a site is up.
 takes in a Site ID, pings the site, and inserts a database row
 in the `checks` table.
 
-For this service we'll use Encore's [`SQLDatabase` class](https://encore.dev/docs/ts/primitives/databases#querying-data)
-instead of Knex (in order to showcase both approaches).
+For this service we'll use Encore's [`SQLDatabase` class](https://encore.dev/docs/ts/primitives/databases#querying-data) instead of Knex (in order to showcase both approaches).
+
+Add the following to `monitor/check.ts`:
 
 ```ts
 -- monitor/check.ts --
@@ -1196,13 +1212,19 @@ export const MonitorDB = new SQLDatabase("monitor", {
 });
 ```
 
-🥐 Restart `encore run` to cause the `monitor` database to be created, and then call the new `monitor.check` endpoint:
+🥐 Restart `encore run` to cause the `monitor` database to be created.
 
-```shell
-$ curl -X POST 'http://localhost:4000/check/1'
-```
+We can again verify that the database was created in the Flow diagram, and also see the dependency between the `monitor` service and the `site` service that we just added. 
 
-🥐 Inspect the database to make sure everything worked:
+We can then call the `monitor.check` endpoint using the id `1` that we got in the last step, and view the trace where we see the database interactions.
+
+It will look something like this:
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_3.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
+
+You can also also inspect the database using `encore db shell <database-name>`:
 
 ```shell
 $ encore db shell monitor
@@ -1215,7 +1237,7 @@ monitor=> SELECT * FROM checks;
   1 |       1 | t  | 2022-10-21 09:58:30.674265+00
 ```
 
-If that's what you see, everything's working great!
+If that's what you see, everything's working perfectly!
 
 ### Add a cron job to check all sites
 
@@ -1283,13 +1305,13 @@ const cronJob = new CronJob("check-all", {
 
 <Callout type="info">
 
-Cron jobs are not triggered when running the application locally but work when deploying the application to a cloud environment.
+To avoid confusion while developing, cron jobs are not triggered when running the application locally but work when deploying the application to a cloud environment.
 
 </Callout>
 
 The frontend needs a way to list all sites and display if they are up or down. 
 
-🥐 Add a file in the `monitor` service and name it `status.ts`. Add the following code:
+🥐 Add a file `monitor/status.ts` with the following code:
 
 ```ts
 import { api } from "encore.dev/api";
@@ -1330,16 +1352,17 @@ export const status = api(
 );
 ```
 
-Now try visiting [http://localhost:4000/](http://localhost:4000/frontend/) in your browser again. This time you should see a working frontend that lists all sites and their current status.
+Now that the backend is working, let's open [http://localhost:4000/](http://localhost:4000/) in the browser to see the frontend of our application.
+
+<img className="w-full h-auto" src="/assets/tutorials/uptime/frontend.png" title="Frontend" />
 
 ## 5. Deploy to Encore's development cloud
 
 To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
 
-Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`.
-(You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/deploy/deploying).)
+Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`. (You can also integrate with GitHub, learn more in the [CI/CD docs](/docs/deploy/deploying).)
 
-🥐 Now, let's deploy your app to Encore's free development cloud by running:
+🥐 Let's deploy your app to Encore's free development cloud by running:
 
 ```shell
 $ git add -A .
@@ -1351,16 +1374,20 @@ Encore will now build and test your app, provision the needed infrastructure, an
 
 After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
 
-From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
+From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces, and later connect your own AWS or GCP account to use for deployment.
+
+<video autoPlay playsInline loop controls muted className="w-full h-full">
+  <source src="/assets/docs/uptime_tut_4.mp4" className="w-full h-full" type="video/mp4"/>
+</video>
 
 🥐 When the deploy has finished, you can try out your uptime monitor by going to `https://staging-$APP_ID.encr.app`.
 
-*You now have an Uptime Monitor running in the cloud, well done!*
+*You now have an app running in the cloud, well done!*
 
 
 ## 6. Publish Pub/Sub events when a site goes down
 
-An uptime monitoring system isn't very useful if it doesn't actually notify you when a site goes down.
+Hold on, an uptime monitoring system isn't very useful if it doesn't actually notify you when a site goes down.
 
 To do so let's add a [Pub/Sub topic](https://encore.dev/docs/ts/primitives/pubsub) on which we'll publish a message every time a site transitions from being up to being down, or vice versa.
 
@@ -1426,6 +1453,10 @@ async function doCheck(site: Site): Promise<{ up: boolean }> {
   return { up };
 }
 ```
+
+🥐 Start your app again using `encore run` and open the Flow architecture diagram in the local development dashboard. Now you'll see the Pub/Sub topic as a black box, it should look like this:
+
+<img className="w-full h-auto" src="/assets/docs/uptime_tut_flow_2.png" title="Architecture diagram" />
 
 Now the monitoring system will publish messages on the `TransitionTopic`
 whenever a monitored site transitions from up->down or from down->up.
