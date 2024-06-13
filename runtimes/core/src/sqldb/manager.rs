@@ -1,7 +1,7 @@
 use anyhow::Context;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio_postgres::proxy;
 
 use tokio_postgres::proxy::{AcceptConn, AuthMethod, ClientBouncer, RejectConn};
@@ -15,26 +15,48 @@ use crate::trace::Tracer;
 pub struct Manager {
     databases: Arc<HashMap<EncoreName, Arc<DatabaseImpl>>>,
     proxy_port: u16,
+    listener: Mutex<Option<std::net::TcpListener>>,
+    runtime: tokio::runtime::Handle,
+}
+
+pub struct ManagerConfig<'a> {
+    pub clusters: Vec<pb::SqlCluster>,
+    pub creds: &'a pb::infrastructure::Credentials,
+    pub secrets: &'a secrets::Manager,
+    pub tracer: Tracer,
+    pub runtime: tokio::runtime::Handle,
+}
+
+impl<'a> ManagerConfig<'a> {
+    pub fn build(self) -> anyhow::Result<Manager> {
+        // Start listening so we can tell which port it is when we generate configuration.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").context("unable to bind to sqldb port")?;
+        let proxy_port = listener
+            .local_addr()
+            .context("unable to get local address")?
+            .port();
+
+        let databases = databases_from_cfg(
+            self.clusters,
+            self.creds,
+            self.secrets,
+            proxy_port,
+            self.tracer,
+        )
+        .context("failed to parse SQL clusters")?;
+        let databases = Arc::new(databases);
+
+        Ok(Manager {
+            databases,
+            proxy_port,
+            runtime: self.runtime,
+            listener: Mutex::new(Some(listener)),
+        })
+    }
 }
 
 impl Manager {
-    pub fn new(
-        clusters: Vec<pb::SqlCluster>,
-        creds: &pb::infrastructure::Credentials,
-        secrets: &secrets::Manager,
-        proxy_port: u16,
-        tracer: Tracer,
-    ) -> anyhow::Result<Self> {
-        let databases = databases_from_cfg(clusters, creds, secrets, proxy_port, tracer)
-            .context("failed to parse SQL clusters")?;
-        let databases = Arc::new(databases);
-
-        Ok(Self {
-            databases,
-            proxy_port,
-        })
-    }
-
     pub fn database(&self, name: &EncoreName) -> Arc<dyn Database> {
         match self.databases.get(name) {
             Some(db) => db.clone(),
@@ -49,22 +71,31 @@ impl Manager {
     }
 
     pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
-        let proxy_port = self.proxy_port;
         let manager = proxy::ProxyManager::new(Bouncer {
             databases: self.databases.clone(),
         });
 
-        tokio::spawn(async move {
-            let listener = tokio::net::TcpListener::bind(("127.0.0.1", proxy_port))
-                .await
-                .context("failed to bind proxy listener")?;
+        let listener = self.listener.lock().unwrap().take();
+        let runtime = self.runtime.clone();
+        self.runtime.spawn(async move {
+            let listener = listener.context("sqldb server already started")?;
+            listener
+                .set_nonblocking(true)
+                .context("unable to set nonblocking")?;
+            let listener = tokio::net::TcpListener::from_std(listener)
+                .context("unable to convert listener to tokio")?;
 
-            log::debug!("encore runtime database proxy listening for incoming requests");
+            let addr = listener
+                .local_addr()
+                .map(|a| a.to_string())
+                .unwrap_or("unknown".to_string());
+
+            log::debug!(addr=addr; "encore runtime database proxy listening for incoming requests");
 
             loop {
                 let (stream, _) = listener.accept().await?;
                 let mgr = manager.clone();
-                tokio::spawn(mgr.handle_conn(stream));
+                runtime.spawn(mgr.handle_conn(stream));
             }
         })
     }
