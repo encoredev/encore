@@ -259,13 +259,14 @@ impl Runtime {
         log::set_tracer(tracer.clone());
 
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md);
-        let sqldb = sqldb::Manager::new(
-            resources.sql_clusters,
-            &creds,
-            &secrets,
-            15432,
-            tracer.clone(),
-        )
+        let sqldb = sqldb::ManagerConfig {
+            clusters: resources.sql_clusters,
+            creds: &creds,
+            secrets: &secrets,
+            tracer: tracer.clone(),
+            runtime: tokio_rt.handle().clone(),
+        }
+        .build()
         .context("unable to initialize sqldb proxy")?;
 
         let api = api::ManagerConfig {

@@ -581,7 +581,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 						return nil, errors.Wrap(err, "failed to generate environment variables")
 					}
 
-					env := slices.Clone(params.Environ)
+					env := slices.Clone(userEnv)
 					env = append(env, procEnv...)
 
 					if err := p.NewProcForService(svcName, procConf.ListenAddr, cmd, env); err != nil {
