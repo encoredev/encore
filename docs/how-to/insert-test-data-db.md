@@ -43,4 +43,4 @@ Not included in the above example is preventing adding duplicate data. This is s
 
 In some cases, it can be useful to populate new Preview Environments with test data to simplify testing. 
 
-The best way to do this depends a bit on your use case, but a common way to do this is by using Encore's [webooks](/docs/deploy/webhooks) functionality, which provides notifications for when a deployment is completed and includes information about the environment in question.
+The best way to do this depends a bit on your use case, but a common way to do this is by using Encore's [webhooks](/docs/deploy/webhooks) functionality, which provides notifications for when a deployment is completed and includes information about the environment in question.
