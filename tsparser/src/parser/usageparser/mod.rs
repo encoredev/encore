@@ -499,6 +499,7 @@ export const Bar = 5;
                 expose: true,
                 raw: false,
                 require_auth: false,
+                body_limit: None,
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
@@ -578,6 +579,7 @@ export const Bar = 5;
                 expose: true,
                 raw: false,
                 require_auth: false,
+                body_limit: None,
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
