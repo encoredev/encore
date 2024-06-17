@@ -4,7 +4,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
-use anyhow::Context;
+use axum::routing;
 
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
@@ -35,8 +35,6 @@ pub struct Server {
 
     /// Data shared between all endpoints.
     shared: Arc<SharedEndpointData>,
-
-    runtime: tokio::runtime::Handle,
 }
 
 impl Server {
@@ -46,11 +44,11 @@ impl Server {
         platform_auth: Arc<reqauth::platform::RequestValidator>,
         inbound_svc_auth: Vec<Arc<dyn svcauth::ServiceAuthMethod>>,
         tracer: trace::Tracer,
-        runtime: tokio::runtime::Handle,
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
-        let mut router = axum::Router::new();
+        let mut router =
+            axum::Router::new().route("/__ws", routing::get(api::encore_routes::ws_handler));
 
         async fn not_found_handler(
             req: axum::http::Request<axum::body::Body>,
@@ -114,7 +112,6 @@ impl Server {
             hosted_endpoints: Mutex::new(handler_map),
             router: Mutex::new(Some(router)),
             shared,
-            runtime,
         })
     }
 
@@ -144,27 +141,6 @@ impl Server {
                 Ok(())
             }
         }
-    }
-
-    /// Starts serving the API.
-    pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
-        let router = self
-            .router
-            .lock()
-            .unwrap()
-            .take()
-            .expect("server already started");
-        self.runtime.spawn(async move {
-            // Determine the listen addr.
-            let listen_addr = determine_listen_addr()?;
-            log::debug!(addr = listen_addr; "encore api server listening for incoming requests");
-            let listener = tokio::net::TcpListener::bind(listen_addr)
-                .await
-                .context("bind to port")?;
-
-            axum::serve(listener, router).await.context("serve api")?;
-            Ok(())
-        })
     }
 }
 

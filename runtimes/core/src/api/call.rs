@@ -10,7 +10,7 @@ use url::Url;
 use encore::runtime::v1 as pb;
 
 use crate::api::reqauth::caller::Caller;
-use crate::api::reqauth::meta::{MetaKey, MetaMapMut};
+use crate::api::reqauth::meta::MetaKey;
 use crate::api::reqauth::{service_auth_method, svcauth};
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{schema, APIResult, Endpoint, EndpointMap};
@@ -336,12 +336,15 @@ impl<'a, AuthData> CallDesc<'a, AuthData>
 where
     AuthData: serde::ser::Serialize + 'a,
 {
-    pub fn add_meta(self, headers: &mut reqwest::header::HeaderMap) -> anyhow::Result<()> {
-        headers.set(MetaKey::Version, "1".to_string())?;
+    pub fn add_meta(
+        self,
+        upstream_request: &mut pingora::http::RequestHeader,
+    ) -> anyhow::Result<()> {
+        upstream_request.insert_header(MetaKey::Version.header_key(), "1".to_string())?;
 
         if let Some(span) = self.parent_span {
-            headers.set(
-                MetaKey::TraceParent,
+            upstream_request.insert_header(
+                MetaKey::TraceParent.header_key(),
                 format!(
                     "00-{}-{}-01",
                     span.0.serialize_std(),
@@ -355,37 +358,38 @@ where
                 trace_state.push_str(",encore/event-id=");
                 trace_state.push_str(event_id.to_string().as_str());
             }
-            headers.set(MetaKey::TraceState, trace_state)?;
+            upstream_request.insert_header(MetaKey::TraceState.header_key(), trace_state)?;
         }
 
         // TODO handle GCP span propagation with tracestate key.
         // headers.set(MetaKey::TraceState, "")?;
 
         if let Some(corr_id) = self.ext_correlation_id {
-            headers.set(MetaKey::XCorrelationId, corr_id.into_owned())?;
+            upstream_request
+                .insert_header(MetaKey::XCorrelationId.header_key(), corr_id.into_owned())?;
         }
 
         // Add auth data.
         if let Some(auth_uid) = self.auth_user_id {
-            headers.set(MetaKey::UserId, auth_uid.into_owned())?;
+            upstream_request.insert_header(MetaKey::UserId.header_key(), auth_uid.into_owned())?;
             if let Some(auth_data) = self.auth_data {
                 if let Ok(auth_data) = serde_json::to_string(&auth_data) {
-                    headers.set(MetaKey::UserData, auth_data)?;
+                    upstream_request.insert_header(MetaKey::UserData.header_key(), auth_data)?;
                 }
             }
         }
 
         // Caller.
-        headers.set(MetaKey::Caller, self.caller.serialize())?;
+        upstream_request.insert_header(MetaKey::Caller.header_key(), self.caller.serialize())?;
 
         let now = SystemTime::now();
 
         self.svc_auth_method
-            .sign(headers, now)
+            .sign(upstream_request, now)
             .map_err(api::Error::internal)?;
 
-        headers.set(
-            MetaKey::SvcAuthMethod,
+        upstream_request.insert_header(
+            MetaKey::SvcAuthMethod.header_key(),
             self.svc_auth_method.name().to_string(),
         )?;
 

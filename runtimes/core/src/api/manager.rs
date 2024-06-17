@@ -63,6 +63,8 @@ impl ManagerConfig<'_> {
             .context("unable to determine listen address")?
             .to_string();
 
+        println!("BUILDING {listener:?}, {own_address:?}");
+
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
         let (endpoints, hosted_endpoints) = endpoints_from_meta(self.meta, &hosted_services)
             .context("unable to compute endpoints descriptions")?;
@@ -100,7 +102,6 @@ impl ManagerConfig<'_> {
                 self.platform_validator,
                 inbound_svc_auth,
                 self.tracer.clone(),
-                self.runtime.clone(),
             )
             .context("unable to create API server")?;
             Some(server)
@@ -159,6 +160,9 @@ impl ManagerConfig<'_> {
             }
             gateways
         };
+
+        println!("APPREV {:?}", self.meta.app_revision);
+        println!("GATEWAYS {:?}", self.meta.gateways);
 
         Ok(Manager {
             app_revision: self.meta.app_revision.clone(),
@@ -268,6 +272,7 @@ impl Manager {
         data: JSONPayload,
         source: Option<&'a model::Request>,
     ) -> impl Future<Output = APIResult<JSONPayload>> + 'a {
+        println!("### A CALL WAS MADE");
         self.service_registry.api_call(endpoint_name, data, source)
     }
 
@@ -287,7 +292,6 @@ impl Manager {
             }
             .into_response()
         }
-
         let encore_routes = encore_routes::Desc {
             healthz: encore_routes::healthz::Handler {
                 app_revision: self.app_revision.clone(),
@@ -306,6 +310,15 @@ impl Manager {
         let server = HttpServer::new(encore_routes, gateway, api, fallback);
 
         let listener = self.listener.lock().unwrap().take();
+
+        println!("LISTENER {listener:?}");
+
+        // TODO: rewrite the gateway as a pingola proxy
+        // TODO: setup a new listener for the non-gateway
+        // TODO: remove gateway from the axum setup
+        // TODO: spawn a separate task for the proxy and give it the current listener so traffic
+        // from go daemon goes to it, and add the axum server as upstream
+
         self.runtime.spawn(async move {
             let listener = listener.context("server already started")?;
             listener

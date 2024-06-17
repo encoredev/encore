@@ -77,11 +77,21 @@ where
                     .headers()
                     .contains_key(MetaKey::SvcAuthMethod.header_key()) =>
             {
+                log::warn!("## api with headers");
                 api
             }
-            (Some(gateway), _) => gateway,
-            (_, Some(api)) => api,
-            (None, None) => &mut self.fallback,
+            (Some(gateway), _) => {
+                log::warn!("## gateway");
+                gateway
+            }
+            (_, Some(api)) => {
+                log::warn!("## api");
+                api
+            }
+            (None, None) => {
+                log::warn!("## fallback");
+                &mut self.fallback
+            }
         };
         router.call(req)
     }

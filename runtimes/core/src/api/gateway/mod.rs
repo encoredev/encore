@@ -5,6 +5,12 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
+use axum::async_trait;
+use pingora::http::RequestHeader;
+use pingora::proxy::{ProxyHttp, Session};
+use pingora::upstreams::peer::HttpPeer;
+use pingora::{Error, ErrorType};
+use url::Url;
 
 use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::gateway::reverseproxy::{Director, InboundRequest, ProxyRequest, ReverseProxy};
@@ -16,6 +22,173 @@ use crate::api::{auth, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
 
 mod reverseproxy;
+
+pub struct GatewayProxy {
+    shared: Arc<SharedGatewayData>,
+    upstream: HttpPeer,
+    service_registry: Arc<ServiceRegistry>,
+    service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
+}
+
+impl GatewayProxy {
+    pub fn new(
+        name: EncoreName,
+        upstream_addr: &str,
+        service_registry: Arc<ServiceRegistry>,
+        service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
+        auth_handler: Option<auth::Authenticator>,
+        // TODO: cors layer ? / handle cors?
+    ) -> anyhow::Result<Self> {
+        let shared = Arc::new(SharedGatewayData {
+            name,
+            auth: auth_handler,
+        });
+
+        let upstream = HttpPeer::new(upstream_addr, false, "".to_string());
+
+        Ok(GatewayProxy {
+            shared,
+            upstream,
+            service_routes,
+            service_registry,
+        })
+    }
+
+    fn auth_method_for_path(
+        &self,
+        path: &str,
+    ) -> anyhow::Result<Arc<dyn svcauth::ServiceAuthMethod>> {
+        for (svc, _service_routes) in &self.service_routes.main {
+            let dest_base_url: Url = self
+                .service_registry
+                .service_base_url(svc)
+                .with_context(|| format!("service {} not found", svc))?
+                .parse()
+                .context("invalid service base url")?;
+
+            let svc_auth_method = self
+                .service_registry
+                .service_auth_method(svc)
+                .unwrap_or_else(|| Arc::new(svcauth::Noop));
+
+            if path == dest_base_url.path() {
+                return Ok(svc_auth_method);
+            }
+        }
+
+        anyhow::bail!("not found")
+    }
+}
+
+#[async_trait]
+impl ProxyHttp for GatewayProxy {
+    type CTX = ();
+    fn new_ctx(&self) {}
+
+    // see https://github.com/cloudflare/pingora/blob/main/docs/user_guide/internals.md for
+    // details on when different filters are called.
+
+    async fn upstream_peer(
+        &self,
+        _session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<Box<HttpPeer>> {
+        Ok(Box::new(self.upstream.clone()))
+    }
+
+    async fn request_filter(
+        &self,
+        _session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<bool>
+    where
+        Self::CTX: Send + Sync,
+    {
+        // TODO do auth stuff and add something to ctx, fail request early
+        Ok(false) // false means continue to next phase
+    }
+
+    async fn upstream_request_filter(
+        &self,
+        session: &mut Session,
+        upstream_request: &mut RequestHeader,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<()>
+    where
+        Self::CTX: Send + Sync,
+    {
+        let path = session.req_header().uri.path();
+        let svc_auth_method = self.auth_method_for_path(path).map_err(|e| {
+            Error::because(
+                ErrorType::HTTPStatus(404),
+                "couldn't determine upstream service",
+                e,
+            )
+        })?;
+
+        let headers = &session.req_header().headers;
+
+        let mut call_meta = CallMeta::parse_without_caller(headers).map_err(|e| {
+            Error::because(
+                ErrorType::InternalError,
+                "couldn't parse CallMeta from request",
+                e,
+            )
+        })?;
+        if call_meta.parent_span_id.is_none() {
+            call_meta.parent_span_id = Some(model::SpanId::generate());
+        }
+
+        let caller = Caller::Gateway {
+            gateway: self.shared.name.clone(),
+        };
+        let mut desc = CallDesc {
+            caller: &caller,
+            parent_span: call_meta
+                .parent_span_id
+                .map(|sp| call_meta.trace_id.with_span(sp)),
+            parent_event_id: None,
+            ext_correlation_id: call_meta
+                .ext_correlation_id
+                .as_ref()
+                .map(|s| Cow::Borrowed(s.as_str())),
+            auth_user_id: None,
+            auth_data: None,
+            svc_auth_method: svc_auth_method.as_ref(),
+        };
+
+        if let Some(auth_handler) = &self.shared.auth {
+            let auth_response = auth_handler
+                .authenticate(session.req_header(), call_meta.clone())
+                .await
+                .map_err(|e| {
+                    Error::because(ErrorType::InternalError, "couldn't authenticate request", e)
+                })?;
+
+            if let auth::AuthResponse::Authenticated {
+                auth_uid,
+                auth_data,
+            } = auth_response
+            {
+                desc.auth_user_id = Some(Cow::Owned(auth_uid));
+                desc.auth_data = Some(auth_data);
+            }
+        }
+
+        desc.add_meta(upstream_request);
+        Ok(())
+    }
+}
+
+impl crate::api::auth::InboundRequest for RequestHeader {
+    fn headers(&self) -> &axum::http::HeaderMap {
+        &self.headers
+    }
+
+    fn query(&self) -> Option<&str> {
+        self.uri.query()
+    }
+}
 
 pub struct Gateway {
     shared: Arc<SharedGatewayData>,
@@ -71,6 +244,7 @@ impl Gateway {
              mut router: axum::Router|
              -> anyhow::Result<axum::Router> {
                 for (svc, service_routes) in paths {
+                    println!("gateway registering path: {svc}, {service_routes:?}");
                     let dest_base_url = service_registry
                         .service_base_url(&svc)
                         .with_context(|| format!("service {} not found", svc))?

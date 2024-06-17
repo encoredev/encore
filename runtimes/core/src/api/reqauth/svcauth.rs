@@ -13,11 +13,14 @@ use crate::secrets::Secret;
 
 pub trait ServiceAuthMethod: Debug + Send + Sync + 'static {
     fn name(&self) -> &'static str;
-    fn sign(&self, headers: &mut reqwest::header::HeaderMap, now: SystemTime)
-        -> anyhow::Result<()>;
+    fn sign(
+        &self,
+        upstream_request: &mut pingora::http::RequestHeader,
+        now: SystemTime,
+    ) -> anyhow::Result<()>;
     fn verify(
         &self,
-        headers: &axum::http::header::HeaderMap,
+        upstream_request: &mut pingora::http::RequestHeader,
         now: SystemTime,
     ) -> Result<(), VerifyError>;
 }
@@ -32,7 +35,7 @@ impl ServiceAuthMethod for Noop {
 
     fn sign(
         &self,
-        _headers: &mut reqwest::header::HeaderMap,
+        _upstream_request: &mut pingora::http::RequestHeader,
         _now: SystemTime,
     ) -> anyhow::Result<()> {
         Ok(())
@@ -40,7 +43,7 @@ impl ServiceAuthMethod for Noop {
 
     fn verify(
         &self,
-        _headers: &axum::http::header::HeaderMap,
+        _upstream_request: &mut pingora::http::RequestHeader,
         _now: SystemTime,
     ) -> Result<(), VerifyError> {
         Ok(())
@@ -130,26 +133,30 @@ impl ServiceAuthMethod for EncoreAuth {
 
     fn sign(
         &self,
-        headers: &mut reqwest::header::HeaderMap,
+        upstream_request: &mut pingora::http::RequestHeader,
         now: SystemTime,
     ) -> anyhow::Result<()> {
-        let op_hash = self.build_op_hash(headers);
+        let hash = {
+            let op_hash = self.build_op_hash(&upstream_request.headers);
 
-        let key = &self.keys[self.latest_idx];
-        let key_data = key.data.get().context("unable to resolve auth key data")?;
+            let key = &self.keys[self.latest_idx];
+            let key_data = key.data.get().context("unable to resolve auth key data")?;
 
-        let hash = encoreauth::sign(
-            (key.key_id, key_data),
-            &self.app_slug,
-            &self.env_name,
-            now,
-            &op_hash,
-        );
+            encoreauth::sign(
+                (key.key_id, key_data),
+                &self.app_slug,
+                &self.env_name,
+                now,
+                &op_hash,
+            )
+        };
 
-        headers
+        upstream_request
+            .headers
             .set(MetaKey::SvcAuthEncoreAuthHash, hash)
             .context("set auth hash header")?;
-        headers
+        upstream_request
+            .headers
             .set(MetaKey::SvcAuthEncoreAuthDate, httpdate::fmt_http_date(now))
             .context("set auth date header")?;
 
@@ -158,13 +165,15 @@ impl ServiceAuthMethod for EncoreAuth {
 
     fn verify(
         &self,
-        headers: &axum::http::header::HeaderMap,
+        upstream_request: &mut pingora::http::RequestHeader,
         now: SystemTime,
     ) -> Result<(), VerifyError> {
-        let auth_header = headers
+        let auth_header = upstream_request
+            .headers
             .get_meta(MetaKey::SvcAuthEncoreAuthHash)
             .ok_or(VerifyError::NoAuthorizationHeader)?;
-        let date_header = headers
+        let date_header = upstream_request
+            .headers
             .get_meta(MetaKey::SvcAuthEncoreAuthDate)
             .ok_or(VerifyError::NoDateHeader)?;
 
@@ -201,7 +210,7 @@ impl ServiceAuthMethod for EncoreAuth {
             return Err(VerifyError::SignatureMismatch);
         }
 
-        let expected_op_hash = self.build_op_hash(headers);
+        let expected_op_hash = self.build_op_hash(&upstream_request.headers);
         if !expected_op_hash.ct_eq(&components.operation_hash) {
             return Err(VerifyError::SignatureMismatch);
         }
@@ -281,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_encore_auth() -> anyhow::Result<()> {
-        let mut headers = reqwest::header::HeaderMap::new();
+        let mut upstream_request = pingora::http::RequestHeader::build("GET", b"\\", None).unwrap();
         let auth = EncoreAuth {
             app_slug: "app".into(),
             env_name: "env".into(),
@@ -293,7 +302,7 @@ mod tests {
         };
 
         let now = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1234567890);
-        auth.sign(&mut headers, now)
+        auth.sign(&mut upstream_request, now)
             .context("unable to sign request")?;
 
         let out_headers = convert_header_map(headers);
