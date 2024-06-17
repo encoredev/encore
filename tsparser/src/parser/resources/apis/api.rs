@@ -6,7 +6,7 @@ use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
 
-use litparser::LitParser;
+use litparser::{LitParser, Nullable};
 
 use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
@@ -30,6 +30,11 @@ pub struct Endpoint {
     pub expose: bool,
     pub raw: bool,
     pub require_auth: bool,
+
+    /// Body limit in bytes.
+    /// None means no limit.
+    pub body_limit: Option<u64>,
+
     pub encoding: EndpointEncoding,
 }
 
@@ -190,6 +195,13 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let encoding =
                 describe_endpoint(pass.type_checker, methods, path, request, response, raw)?;
 
+            // Compute the body limit. Null means no limit. No value means 2MiB.
+            let body_limit: Option<u64> = match r.config.bodyLimit {
+                Some(Nullable::Present(val)) => Some(val),
+                Some(Nullable::Null) => None,
+                None => Some(2 * 1024 * 1024),
+            };
+
             let resource = Resource::APIEndpoint(Lrc::new(Endpoint {
                 range: r.range,
                 name: r.endpoint_name,
@@ -198,6 +210,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 expose: r.config.expose.unwrap_or(false),
                 require_auth: r.config.auth.unwrap_or(false),
                 raw,
+                body_limit,
                 encoding,
             }));
 
@@ -260,11 +273,13 @@ enum EndpointKind {
 }
 
 #[derive(LitParser, Debug)]
+#[allow(non_snake_case)]
 struct EndpointConfig {
     method: Option<Methods>,
     path: Option<String>,
     expose: Option<bool>,
     auth: Option<bool>,
+    bodyLimit: Option<Nullable<u64>>,
 }
 
 impl ReferenceParser for APIEndpointLiteral {

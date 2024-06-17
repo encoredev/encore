@@ -24,10 +24,47 @@ export type Query<
 > = TypeOrName extends string ? string : TypeOrName;
 
 export interface APIOptions {
+  /**
+   * The HTTP method(s) to match for this endpoint.
+   * Use "*" to match any method.
+   */
   method?: Method | Method[] | "*";
+
+  /**
+   * The request path to match for this endpoint.
+   *
+   * Use `:` to define single-segment parameters, e.g. `/users/:id`.
+   * Use `*` to match any number of segments, e.g. `/files/*path`.
+   *
+   * If not specified, it defaults to `/<service-name>.<endpoint-name>`.
+   */
   path?: string;
+
+  /**
+   * Whether or not to make this endpoint publicly accessible.
+   * If false, the endpoint is only accessible from the internal network.
+   *
+   * Defaults to false if not specified.
+   */
   expose?: boolean;
+
+  /**
+   * Whether or not the request must contain valid authentication credentials.
+   * If set to true and the request is not authenticated,
+   * Encore returns a 401 Unauthorized error.
+   *
+   * Defaults to false if not specified.
+   */
   auth?: boolean;
+
+  /**
+   * The maximum body size, in bytes. If the request body exceeds this value,
+   * Encore stops request processing and returns an error.
+   *
+   * If left unspecified it defaults to a reasonable default (currently 2MiB).
+   * If set to `null`, the body size is unlimited.
+   **/
+  bodyLimit?: number | null;
 }
 
 type HandlerFn<Params, Response> = Params extends void

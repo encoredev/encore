@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use axum::http::HeaderValue;
-use axum::RequestExt;
 use bytes::{BufMut, BytesMut};
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -128,15 +127,21 @@ pub enum ResponseData {
 pub struct Endpoint {
     pub name: EndpointName,
     pub path: meta::Path,
-    pub raw: bool,
     pub request: Vec<Arc<schema::Request>>,
     pub response: Arc<schema::Response>,
+
+    /// Whether this is a raw endpoint.
+    pub raw: bool,
 
     /// Whether the service is exposed publicly.
     pub exposed: bool,
 
     /// Whether the service requires authentication data.
     pub requires_auth: bool,
+
+    /// The maximum size of the request body.
+    /// If None, no limits are applied.
+    pub body_limit: Option<u64>,
 }
 
 impl Endpoint {
@@ -257,14 +262,15 @@ pub fn endpoints_from_meta(
                     value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
                 }],
             }),
-            exposed,
-            raw,
-            requires_auth: !ep.ep.allow_unauthenticated,
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
                 body: resp_schema.body,
             }),
+            raw,
+            exposed,
+            requires_auth: !ep.ep.allow_unauthenticated,
+            body_limit: ep.ep.body_limit,
         };
 
         endpoint_map.insert(
@@ -315,7 +321,14 @@ impl EndpointHandler {
             .find(|schema| schema.methods.contains(&api_method))
             .expect("request schema must exist for all endpoints");
 
-        let (mut parts, body) = axum_req.with_limited_body().into_parts();
+        let (mut parts, body) = axum_req
+            .map(|b| match self.endpoint.body_limit {
+                None => b,
+                Some(limit) => {
+                    axum::body::Body::new(http_body_util::Limited::new(b, limit as usize))
+                }
+            })
+            .into_parts();
 
         // Authenticate the request from the platform, if applicable.
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {

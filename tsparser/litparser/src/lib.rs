@@ -58,6 +58,39 @@ impl LitParser for u32 {
     }
 }
 
+impl LitParser for i64 {
+    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+        match input {
+            ast::Expr::Lit(ast::Lit::Num(num)) => {
+                let int = num.value as i64;
+                if int as f64 != num.value {
+                    anyhow::bail!("expected integer literal, got {:?}", input)
+                }
+                Ok(int)
+            }
+            _ => anyhow::bail!("expected number literal, got {:?}", input),
+        }
+    }
+}
+
+impl LitParser for u64 {
+    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+        match input {
+            ast::Expr::Lit(ast::Lit::Num(num)) => {
+                if num.value < 0.0 {
+                    anyhow::bail!("expected non-negative integer literal, got {:?}", input)
+                }
+                let int = num.value as u64;
+                if int as f64 != num.value {
+                    anyhow::bail!("expected integer literal, got {:?}", input)
+                }
+                Ok(int)
+            }
+            _ => anyhow::bail!("expected number literal, got {:?}", input),
+        }
+    }
+}
+
 impl LitParser for ast::Expr {
     fn parse_lit(input: &ast::Expr) -> Result<Self> {
         Ok(input.clone())
@@ -111,6 +144,39 @@ impl LitParser for LocalRelPath {
         match input {
             ast::Expr::Lit(ast::Lit::Str(str)) => LocalRelPath::try_from(&str.value),
             _ => anyhow::bail!("expected a local relative path, got {:?}", input),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Nullable<T> {
+    Present(T),
+    Null,
+}
+
+impl<T> LitParser for Nullable<T>
+where
+    T: LitParser,
+{
+    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+        match input {
+            ast::Expr::Lit(ast::Lit::Null(_)) => Ok(Nullable::Null),
+            _ => {
+                let t = T::parse_lit(input)?;
+                Ok(Nullable::Present(t))
+            }
+        }
+    }
+}
+
+impl<T> Clone for Nullable<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        match self {
+            Nullable::Present(t) => Nullable::Present(t.clone()),
+            Nullable::Null => Nullable::Null,
         }
     }
 }

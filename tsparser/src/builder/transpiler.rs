@@ -36,6 +36,7 @@ pub struct TranspileParams<'a> {
     pub cwd: &'a Path,
 
     /// The Encore CLI runtime version
+    #[allow(dead_code)]
     pub runtime_version: &'a String,
 
     /// The services and gateways to transpile.
@@ -51,6 +52,7 @@ pub(super) trait OutputTranspiler {
     fn transpile(&self, params: TranspileParams) -> Result<TranspileResult>;
 }
 
+#[allow(dead_code)]
 pub struct EsbuildCompiler<'a> {
     pub node_modules_dir: &'a Path,
     pub external: ExternalPackages<'a>,
@@ -160,6 +162,7 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
 }
 
 pub struct BunBuildCompiler<'a> {
+    #[allow(dead_code)]
     pub node_modules_dir: &'a Path,
     pub external: ExternalPackages<'a>,
 }
