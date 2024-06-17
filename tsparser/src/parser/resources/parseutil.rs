@@ -114,6 +114,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
 
 pub struct UnnamedClassResource<Config, const CONFIG_IDX: usize = 0> {
     pub range: Range,
+    #[allow(dead_code)]
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
     pub bind_name: Option<ast::Ident>,
@@ -156,7 +157,9 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
 
 pub struct NamedStaticMethod<const NAME_IDX: usize = 0> {
     pub range: Range,
+    #[allow(dead_code)]
     pub constructor_args: Vec<ast::ExprOrSpread>,
+    #[allow(dead_code)]
     pub doc_comment: Option<String>,
     pub resource_name: String,
     pub bind_name: Option<ast::Ident>,

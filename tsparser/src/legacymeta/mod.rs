@@ -150,6 +150,7 @@ impl<'a> MetaBuilder<'a> {
                         sensitive: false,
                         loc: Some(loc_from_range(self.app_root, &self.pc.file_set, ep.range)?),
                         allow_unauthenticated: !ep.require_auth,
+                        body_limit: ep.body_limit,
                         expose: {
                             let mut map = HashMap::new();
                             if ep.expose {
