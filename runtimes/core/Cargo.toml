@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+pingora = { version = "0.2", features = [ "lb" ] }
 anyhow = "1.0.76"
 base64 = "0.21.5"
 gjson = "0.8.1"
@@ -37,8 +38,9 @@ google-cloud-pubsub = "0.22.1"
 google-cloud-googleapis = "0.12.0"
 hyper = { version = "1.1.0", features = ["server", "http1", "http2", "client"] }
 http-body-util = "0.1.0"
+http = "1.0.0"
 matchit = "0.7.3"
-axum = "0.7.5"
+axum = { version = "0.7.5", features = ["ws"] }
 axum-extra = { version = "0.9.1", features = ["cookie"] }
 chrono = { version = "0.4.31", features = ["serde"] }
 once_cell = "1.19.0"
@@ -50,7 +52,7 @@ mime = "0.3.17"
 futures = "0.3.30"
 native-tls = "0.2.11"
 postgres-native-tls = "0.5.0"
-reqwest = { version = "0.11.23", features = ["stream"] }
+reqwest = { version = "0.12.4", features = ["stream", "json"] }
 url = "2.5.0"
 futures-core = { version = "0.3.30", features = [] }
 serde_urlencoded = "0.7.1"
@@ -78,7 +80,6 @@ geo-types = "0.7.12"
 uuid = "1.7.0"
 openssl-probe = "0.1.5"
 jsonwebtoken = "9.2.0"
-tower-http = { version = "0.5.2", features = ["cors"] }
 google-cloud-gax = "0.17.0"
 aws-sdk-sns = "1.20.0"
 aws-config = "1.1.10"
