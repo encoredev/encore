@@ -73,12 +73,6 @@ impl AsStr for &axum::http::header::HeaderName {
     }
 }
 
-impl AsStr for &reqwest::header::HeaderName {
-    fn as_str(&self) -> &str {
-        <reqwest::header::HeaderName>::as_str(self)
-    }
-}
-
 impl ToHeaderStr for &axum::http::header::HeaderValue {
     type Error = axum::http::header::ToStrError;
 
@@ -87,17 +81,6 @@ impl ToHeaderStr for &axum::http::header::HeaderValue {
     }
     fn is_empty(&self) -> bool {
         <axum::http::header::HeaderValue>::is_empty(self)
-    }
-}
-
-impl ToHeaderStr for &reqwest::header::HeaderValue {
-    type Error = reqwest::header::ToStrError;
-
-    fn to_str(&self) -> Result<&str, Self::Error> {
-        <reqwest::header::HeaderValue>::to_str(self)
-    }
-    fn is_empty(&self) -> bool {
-        <reqwest::header::HeaderValue>::is_empty(self)
     }
 }
 
@@ -133,29 +116,6 @@ impl<'a> HTTPHeaders for &'a axum::http::HeaderMap {
 
     fn contains_key(&self, key: &str) -> bool {
         <axum::http::HeaderMap>::contains_key(self, key)
-    }
-}
-
-impl<'a> HTTPHeaders for &'a reqwest::header::HeaderMap {
-    type Name = &'a reqwest::header::HeaderName;
-    type Value = &'a reqwest::header::HeaderValue;
-    type Iter = reqwest::header::Iter<'a, reqwest::header::HeaderValue>;
-    type GetAll = reqwest::header::ValueIter<'a, reqwest::header::HeaderValue>;
-
-    fn headers(&self) -> Self::Iter {
-        self.iter()
-    }
-
-    fn get(&self, key: &str) -> Option<Self::Value> {
-        <reqwest::header::HeaderMap>::get(self, key)
-    }
-
-    fn get_all(&self, key: &str) -> Self::GetAll {
-        <reqwest::header::HeaderMap>::get_all(self, key).iter()
-    }
-
-    fn contains_key(&self, key: &str) -> bool {
-        <reqwest::header::HeaderMap>::contains_key(self, key)
     }
 }
 
