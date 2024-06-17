@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::future::Future;
+use std::future::{Future, IntoFuture};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
@@ -42,26 +42,43 @@ pub struct ManagerConfig<'a> {
 pub struct Manager {
     app_revision: String,
     deploy_id: String,
-    listener: Mutex<Option<std::net::TcpListener>>,
+    listener_external: Mutex<Option<std::net::TcpListener>>,
+    listener_internal: Mutex<Option<std::net::TcpListener>>,
     service_registry: Arc<ServiceRegistry>,
     pubsub_push_registry: pubsub::PushHandlerRegistry,
 
     api_server: Option<server::Server>,
-    gateways: HashMap<EncoreName, Arc<Gateway>>,
     runtime: tokio::runtime::Handle,
+
+    gateways: HashMap<EncoreName, Arc<Gateway>>,
 }
 
 impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
-        let listener = {
+        let listener_external = {
             let addr = listen_addr();
             std::net::TcpListener::bind(addr).context("unable to bind to port")?
         };
 
-        let own_address = listener
-            .local_addr()
-            .context("unable to determine listen address")?
-            .to_string();
+        // if we have a gateway, we create a internal address for the api
+        let listener_internal = if !self.hosted_gateway_rids.is_empty() {
+            let addr = "0.0.0.0:0";
+            Some(std::net::TcpListener::bind(addr).context("unable to bind to port")?)
+        } else {
+            None
+        };
+
+        let own_address = if let Some(ref listener) = listener_internal {
+            listener
+                .local_addr()
+                .context("unable to determine listen address")?
+                .to_string()
+        } else {
+            listener_external
+                .local_addr()
+                .context("unable to determine listen address")?
+                .to_string()
+        };
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
         let (endpoints, hosted_endpoints) = endpoints_from_meta(self.meta, &hosted_services)
@@ -100,7 +117,6 @@ impl ManagerConfig<'_> {
                 self.platform_validator,
                 inbound_svc_auth,
                 self.tracer.clone(),
-                self.runtime.clone(),
             )
             .context("unable to create API server")?;
             Some(server)
@@ -117,53 +133,54 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
-        let gateways = {
-            let routes = paths::compute(
-                endpoints
-                    .iter()
-                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
+        let mut gateways = HashMap::new();
+        let routes = paths::compute(
+            endpoints
+                .iter()
+                .map(|(_, ep)| RoutePerService(ep.to_owned())),
+        );
+        for gw in &self.meta.gateways {
+            let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
+                continue;
+            };
+            let Some(cors_cfg) = &gw_cfg.cors else {
+                anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
+            };
+
+            let auth_handler = build_auth_handler(
+                self.meta,
+                gw,
+                &service_registry,
+                self.http_client.clone(),
+                self.tracer.clone(),
+            )
+            .context("unable to build authenticator")?;
+
+            let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
+            let cors_config = cors::config(cors_cfg, meta_headers)
+                .context("failed to parse CORS configuration")?;
+
+            gateways.insert(
+                gw.encore_name.clone().into(),
+                Arc::new(
+                    Gateway::new(
+                        gw.encore_name.clone().into(),
+                        service_registry.clone(),
+                        routes.clone(),
+                        auth_handler,
+                        cors_config,
+                    )
+                    .context("couldn't create gateway")
+                    .unwrap(),
+                ),
             );
-            let mut gateways = HashMap::new();
-            for gw in &self.meta.gateways {
-                let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
-                    continue;
-                };
-                let Some(cors_cfg) = &gw_cfg.cors else {
-                    anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
-                };
-
-                let auth_handler = build_auth_handler(
-                    self.meta,
-                    gw,
-                    &service_registry,
-                    self.http_client.clone(),
-                    self.tracer.clone(),
-                )
-                .context("unable to build authenticator")?;
-
-                let meta_headers =
-                    cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
-                let cors = cors::layer(cors_cfg, meta_headers)
-                    .context("failed to parse CORS configuration")?;
-
-                let gateway = Gateway::new(
-                    gw.encore_name.clone().into(),
-                    self.http_client.clone(),
-                    service_registry.clone(),
-                    routes.clone(),
-                    auth_handler,
-                    cors,
-                )
-                .context("unable to create gateway")?;
-                gateways.insert(gw.encore_name.clone().into(), Arc::new(gateway));
-            }
-            gateways
-        };
+        }
 
         Ok(Manager {
             app_revision: self.meta.app_revision.clone(),
             deploy_id: self.deploy_id,
-            listener: Mutex::new(Some(listener)),
+            listener_external: Mutex::new(Some(listener_external)),
+            listener_internal: Mutex::new(listener_internal),
             service_registry,
             api_server,
             gateways,
@@ -273,7 +290,6 @@ impl Manager {
 
     /// Starts serving the API.
     pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
-        let gateway = self.gateways.values().next().map(|gw| gw.router());
         let api = self.api_server.as_ref().map(|srv| srv.router());
 
         async fn fallback(
@@ -287,7 +303,6 @@ impl Manager {
             }
             .into_response()
         }
-
         let encore_routes = encore_routes::Desc {
             healthz: encore_routes::healthz::Handler {
                 app_revision: self.app_revision.clone(),
@@ -303,20 +318,37 @@ impl Manager {
         .router();
 
         let fallback = axum::Router::new().fallback(fallback);
-        let server = HttpServer::new(encore_routes, gateway, api, fallback);
+        let server = HttpServer::new(encore_routes, api, fallback);
 
-        let listener = self.listener.lock().unwrap().take();
+        let axum_listener = if self.gateways.is_empty() {
+            self.listener_external.lock().unwrap().take()
+        } else {
+            self.listener_internal.lock().unwrap().take()
+        };
+
+        // TODO handle multiple gateways
+        let api_gateway = self.gateways.values().next().cloned();
+        let gateway_listener = self.listener_external.lock().unwrap().take().unwrap();
+
         self.runtime.spawn(async move {
-            let listener = listener.context("server already started")?;
-            listener
+            let axum_listener = axum_listener.context("server already started")?;
+            axum_listener
                 .set_nonblocking(true)
                 .context("unable to set nonblocking")?;
-            let listener = tokio::net::TcpListener::from_std(listener)
+            let axum_listener = tokio::net::TcpListener::from_std(axum_listener)
                 .context("unable to convert listener to tokio")?;
-            axum::serve(listener, server)
-                .await
-                .context("serve api")
-                .inspect_err(|err| log::error!("api server failed: {:?}", err))?;
+
+            let axum_fut = axum::serve(axum_listener, server).into_future();
+            let gateway_fut = api_gateway.map(|gateway| <api::gateway::Gateway as Clone>::clone(&gateway).serve(gateway_listener));
+
+            tokio::select! {
+                res = async { gateway_fut.unwrap().await }, if gateway_fut.is_some() => {
+                    res.context("serve gateway").inspect_err(|err| log::error!("api gateway failed: {:?}", err))?;
+                },
+                res = axum_fut => {
+                    res.context("serve api").inspect_err(|err| log::error!("api server failed: {:?}", err))?;
+                },
+            };
             Ok(())
         })
     }

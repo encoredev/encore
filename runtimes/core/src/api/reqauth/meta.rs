@@ -57,7 +57,6 @@ impl FromStr for MetaKey {
         })
     }
 }
-
 pub trait MetaMapMut: MetaMap {
     fn set(&mut self, key: MetaKey, value: String) -> anyhow::Result<()>;
 }
@@ -68,29 +67,6 @@ pub trait MetaMap {
 
     /// Returns all meta keys, sorted alphabetically based on MetaKey::header_key.
     fn sorted_meta_keys(&self) -> Vec<MetaKey>;
-}
-
-impl MetaMap for reqwest::header::HeaderMap {
-    fn get_meta(&self, key: MetaKey) -> Option<&str> {
-        self.get(key.header_key()).and_then(|v| v.to_str().ok())
-    }
-
-    fn meta_values<'a>(&'a self, key: MetaKey) -> Box<dyn Iterator<Item = &'a str> + 'a> {
-        Box::new(
-            self.get_all(key.header_key())
-                .iter()
-                .filter_map(|v| v.to_str().ok()),
-        )
-    }
-
-    fn sorted_meta_keys(&self) -> Vec<MetaKey> {
-        let mut keys: Vec<_> = self
-            .keys()
-            .filter_map(|k| MetaKey::from_str(k.as_str()).ok())
-            .collect();
-        keys.sort_by_key(|k| k.header_key());
-        keys
-    }
 }
 
 impl MetaMapMut for reqwest::header::HeaderMap {
@@ -115,6 +91,40 @@ impl MetaMap for axum::http::HeaderMap {
 
     fn sorted_meta_keys(&self) -> Vec<MetaKey> {
         let mut keys: Vec<_> = self
+            .keys()
+            .filter_map(|k| MetaKey::from_str(k.as_str()).ok())
+            .collect();
+        keys.sort_by_key(|k| k.header_key());
+        keys
+    }
+}
+
+impl MetaMapMut for pingora::http::RequestHeader {
+    fn set(&mut self, key: MetaKey, value: String) -> anyhow::Result<()> {
+        self.insert_header(key.header_key(), value)?;
+        Ok(())
+    }
+}
+
+impl MetaMap for pingora::http::RequestHeader {
+    fn get_meta(&self, key: MetaKey) -> Option<&str> {
+        self.headers
+            .get(key.header_key())
+            .and_then(|v| v.to_str().ok())
+    }
+
+    fn meta_values<'a>(&'a self, key: MetaKey) -> Box<dyn Iterator<Item = &'a str> + 'a> {
+        Box::new(
+            self.headers
+                .get_all(key.header_key())
+                .iter()
+                .filter_map(|v| v.to_str().ok()),
+        )
+    }
+
+    fn sorted_meta_keys(&self) -> Vec<MetaKey> {
+        let mut keys: Vec<_> = self
+            .headers
             .keys()
             .filter_map(|k| MetaKey::from_str(k.as_str()).ok())
             .collect();
