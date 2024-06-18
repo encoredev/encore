@@ -90,7 +90,6 @@ impl ServiceRegistry {
         EncoreName: Borrow<Q>,
         Q: Eq + std::hash::Hash + ?Sized,
     {
-        println!("base_urls: {:?}", self.base_urls);
         self.base_urls.get(service_name)
     }
 

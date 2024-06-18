@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::future::Future;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
@@ -23,22 +24,54 @@ use crate::api::schema::Method;
 use crate::api::{auth, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
 
-use super::reqauth::svcauth::ServiceAuthMethod;
-
 mod reverseproxy;
 
+// TODO: does it need to be clone?
 #[derive(Clone)]
 pub struct GatewayProxy {
     shared: Arc<SharedGatewayData>,
-    upstream: HttpPeer,
     service_registry: Arc<ServiceRegistry>,
     service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
+    router: matchit::Router<MethodRoute>,
+}
+
+#[derive(Clone, Default)]
+pub struct MethodRoute {
+    get: Option<Arc<ServiceRoute>>,
+    head: Option<Arc<ServiceRoute>>,
+    post: Option<Arc<ServiceRoute>>,
+    put: Option<Arc<ServiceRoute>>,
+    delete: Option<Arc<ServiceRoute>>,
+    option: Option<Arc<ServiceRoute>>,
+    trace: Option<Arc<ServiceRoute>>,
+    patch: Option<Arc<ServiceRoute>>,
+}
+
+impl MethodRoute {
+    fn for_method(&self, method: api::schema::Method) -> Option<Arc<ServiceRoute>> {
+        match method {
+            Method::GET => self.get.clone(),
+            Method::HEAD => self.head.clone(),
+            Method::POST => self.post.clone(),
+            Method::PUT => self.put.clone(),
+            Method::DELETE => self.delete.clone(),
+            Method::OPTIONS => self.option.clone(),
+            Method::TRACE => self.trace.clone(),
+            Method::PATCH => self.patch.clone(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ServiceRoute {
+    service: EncoreName,
+    upstream: HttpPeer,
+    auth_method: Arc<dyn svcauth::ServiceAuthMethod>,
 }
 
 impl GatewayProxy {
     pub fn new(
         name: EncoreName,
-        upstream_addr: &str,
         service_registry: Arc<ServiceRegistry>,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
@@ -49,13 +82,58 @@ impl GatewayProxy {
             auth: auth_handler,
         });
 
-        let upstream = HttpPeer::new(upstream_addr, false, "".to_string());
+        let mut router = matchit::Router::new();
+        for (svc, routes) in &service_routes.main {
+            let svc_auth_method = service_registry
+                .service_auth_method(svc)
+                .unwrap_or_else(|| Arc::new(svcauth::Noop));
+
+            let Some(upstream) = service_registry.service_base_url(svc) else {
+                anyhow::bail!("no base url for service {}", svc);
+            };
+
+            let upstream_addr: SocketAddr = upstream.split_once("//").unwrap().1.parse()?;
+
+            let svc_route = ServiceRoute {
+                service: svc.clone(),
+                upstream: HttpPeer::new(upstream_addr, false, "".to_string()),
+                auth_method: svc_auth_method,
+            };
+            for (endpoint, paths) in routes {
+                for path in paths {
+                    let method_route = match router.at_mut(path) {
+                        Ok(m) => m.value,
+                        Err(_) => {
+                            router.insert(path, MethodRoute::default())?;
+                            router.at_mut(path).unwrap().value
+                        }
+                    };
+
+                    for method in endpoint.methods() {
+                        match method {
+                            Method::GET => method_route.get = Some(Arc::new(svc_route.clone())),
+                            Method::HEAD => method_route.head = Some(Arc::new(svc_route.clone())),
+                            Method::POST => method_route.post = Some(Arc::new(svc_route.clone())),
+                            Method::PUT => method_route.put = Some(Arc::new(svc_route.clone())),
+                            Method::DELETE => {
+                                method_route.delete = Some(Arc::new(svc_route.clone()))
+                            }
+                            Method::OPTIONS => {
+                                method_route.option = Some(Arc::new(svc_route.clone()))
+                            }
+                            Method::TRACE => method_route.trace = Some(Arc::new(svc_route.clone())),
+                            Method::PATCH => method_route.patch = Some(Arc::new(svc_route.clone())),
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(GatewayProxy {
             shared,
-            upstream,
             service_routes,
             service_registry,
+            router,
         })
     }
 
@@ -73,76 +151,50 @@ impl GatewayProxy {
         proxy.add_tcp("0.0.0.0:8888");
         server.add_service(proxy);
 
-        server.run_forever();
-    }
-
-    fn auth_method_for_path(
-        &self,
-        path: &str,
-    ) -> anyhow::Result<Arc<dyn svcauth::ServiceAuthMethod>> {
-        for (svc, service_routes) in &self.service_routes.main {
-            let dest_base_url: Url = self
-                .service_registry
-                .service_base_url(svc)
-                .with_context(|| format!("service {} not found", svc))?
-                .parse()
-                .context("invalid service base url")?;
-
-            for (endpoint, routes) in service_routes {
-                for route in routes {
-                    //if route == path {
-                    let svc_auth_method = self
-                        .service_registry
-                        .service_auth_method(svc)
-                        .unwrap_or_else(|| Arc::new(svcauth::Noop));
-                    return Ok(svc_auth_method);
-                    //}
-                }
-            }
-        }
-
-        //Ok(Arc::new(svcauth::Noop))
-        anyhow::bail!("OOH NOO");
+        server.run_forever()
     }
 }
 
 #[async_trait]
 impl ProxyHttp for GatewayProxy {
-    type CTX = ();
-    fn new_ctx(&self) {}
+    type CTX = Option<Arc<ServiceRoute>>;
+    fn new_ctx(&self) -> Option<Arc<ServiceRoute>> {
+        None
+    }
 
     // see https://github.com/cloudflare/pingora/blob/main/docs/user_guide/internals.md for
     // details on when different filters are called.
 
     async fn upstream_peer(
         &self,
-        _session: &mut Session,
-        _ctx: &mut Self::CTX,
+        session: &mut Session,
+        ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
-        Ok(Box::new(self.upstream.clone()))
+        let path = session.req_header().uri.path();
+        let method: Method = session.req_header().method.clone().try_into().unwrap();
+        let route = self
+            .router
+            .at(path)
+            .map_err(|e| pingora::Error::because(ErrorType::InternalError, "route not found", e))?;
+        let method_route = route.value;
+        let service_route = method_route.for_method(method).unwrap();
+
+        ctx.replace(service_route.clone());
+
+        Ok(Box::new(service_route.upstream.clone()))
     }
 
     async fn upstream_request_filter(
         &self,
         session: &mut Session,
         upstream_request: &mut RequestHeader,
-        _ctx: &mut Self::CTX,
+        ctx: &mut Self::CTX,
     ) -> pingora::Result<()>
     where
         Self::CTX: Send + Sync,
     {
-        let path = session.req_header().uri.path();
-        println!(
-            "upstream request filter, req header: {:?}",
-            session.req_header()
-        );
-        let svc_auth_method = self.auth_method_for_path(path).map_err(|e| {
-            Error::because(
-                ErrorType::HTTPStatus(404),
-                "couldn't determine upstream service",
-                e,
-            )
-        })?;
+        let service_route = ctx.clone().unwrap();
+        let svc_auth_method = service_route.auth_method.clone();
 
         let headers = &session.req_header().headers;
 

@@ -151,7 +151,6 @@ impl ManagerConfig<'_> {
                 gateway_proxy.replace(
                     GatewayProxy::new(
                         gw.encore_name.clone().into(),
-                        &listen_addr(),
                         service_registry.clone(),
                         routes.clone(),
                         auth_handler,
