@@ -7,22 +7,16 @@ use subtle::ConstantTimeEq;
 
 use crate::api::reqauth::encoreauth;
 use crate::api::reqauth::encoreauth::{OperationHash, SignatureComponents};
-use crate::api::reqauth::meta::{MetaKey, MetaMap, MetaMapMut};
+use crate::api::reqauth::meta::{MetaKey, MetaMapMut};
 use crate::secrets;
 use crate::secrets::Secret;
 
+use super::meta::MetaMap;
+
 pub trait ServiceAuthMethod: Debug + Send + Sync + 'static {
     fn name(&self) -> &'static str;
-    fn sign(
-        &self,
-        upstream_request: &mut pingora::http::RequestHeader,
-        now: SystemTime,
-    ) -> anyhow::Result<()>;
-    fn verify(
-        &self,
-        upstream_request: &mut pingora::http::RequestHeader,
-        now: SystemTime,
-    ) -> Result<(), VerifyError>;
+    fn sign(&self, upstream_request: &mut dyn MetaMapMut, now: SystemTime) -> anyhow::Result<()>;
+    fn verify(&self, upstream_request: &dyn MetaMap, now: SystemTime) -> Result<(), VerifyError>;
 }
 
 #[derive(Debug)]
@@ -33,19 +27,11 @@ impl ServiceAuthMethod for Noop {
         "noop"
     }
 
-    fn sign(
-        &self,
-        _upstream_request: &mut pingora::http::RequestHeader,
-        _now: SystemTime,
-    ) -> anyhow::Result<()> {
+    fn sign(&self, _upstream_request: &mut dyn MetaMapMut, _now: SystemTime) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn verify(
-        &self,
-        _upstream_request: &mut pingora::http::RequestHeader,
-        _now: SystemTime,
-    ) -> Result<(), VerifyError> {
+    fn verify(&self, _upstream_request: &dyn MetaMap, _now: SystemTime) -> Result<(), VerifyError> {
         Ok(())
     }
 }
@@ -131,49 +117,35 @@ impl ServiceAuthMethod for EncoreAuth {
         "encore-auth"
     }
 
-    fn sign(
-        &self,
-        upstream_request: &mut pingora::http::RequestHeader,
-        now: SystemTime,
-    ) -> anyhow::Result<()> {
-        let hash = {
-            let op_hash = self.build_op_hash(&upstream_request.headers);
+    fn sign(&self, headers: &mut dyn MetaMapMut, now: SystemTime) -> anyhow::Result<()> {
+        let op_hash = self.build_op_hash(headers.upcast());
 
-            let key = &self.keys[self.latest_idx];
-            let key_data = key.data.get().context("unable to resolve auth key data")?;
+        let key = &self.keys[self.latest_idx];
+        let key_data = key.data.get().context("unable to resolve auth key data")?;
 
-            encoreauth::sign(
-                (key.key_id, key_data),
-                &self.app_slug,
-                &self.env_name,
-                now,
-                &op_hash,
-            )
-        };
+        let hash = encoreauth::sign(
+            (key.key_id, key_data),
+            &self.app_slug,
+            &self.env_name,
+            now,
+            &op_hash,
+        );
 
-        upstream_request
-            .headers
+        headers
             .set(MetaKey::SvcAuthEncoreAuthHash, hash)
             .context("set auth hash header")?;
-        upstream_request
-            .headers
+        headers
             .set(MetaKey::SvcAuthEncoreAuthDate, httpdate::fmt_http_date(now))
             .context("set auth date header")?;
 
         Ok(())
     }
 
-    fn verify(
-        &self,
-        upstream_request: &mut pingora::http::RequestHeader,
-        now: SystemTime,
-    ) -> Result<(), VerifyError> {
-        let auth_header = upstream_request
-            .headers
+    fn verify(&self, headers: &dyn MetaMap, now: SystemTime) -> Result<(), VerifyError> {
+        let auth_header = headers
             .get_meta(MetaKey::SvcAuthEncoreAuthHash)
             .ok_or(VerifyError::NoAuthorizationHeader)?;
-        let date_header = upstream_request
-            .headers
+        let date_header = headers
             .get_meta(MetaKey::SvcAuthEncoreAuthDate)
             .ok_or(VerifyError::NoDateHeader)?;
 
@@ -210,7 +182,7 @@ impl ServiceAuthMethod for EncoreAuth {
             return Err(VerifyError::SignatureMismatch);
         }
 
-        let expected_op_hash = self.build_op_hash(&upstream_request.headers);
+        let expected_op_hash = self.build_op_hash(headers);
         if !expected_op_hash.ct_eq(&components.operation_hash) {
             return Err(VerifyError::SignatureMismatch);
         }
@@ -220,7 +192,7 @@ impl ServiceAuthMethod for EncoreAuth {
 }
 
 impl EncoreAuth {
-    fn build_op_hash<R: MetaMap>(&self, req: &R) -> OperationHash {
+    fn build_op_hash(&self, req: &dyn MetaMap) -> OperationHash {
         // Build a deterministic hash of the meta keys and values.
         let mut hash = <sha3::Sha3_256 as Digest>::new();
         for key in req.sorted_meta_keys() {
@@ -262,6 +234,8 @@ impl EncoreAuth {
 
 #[cfg(test)]
 mod tests {
+    use crate::api::reqauth::meta::MetaMap;
+
     use super::*;
 
     fn metas<R: MetaMap>(req: &R) -> Vec<(MetaKey, Vec<String>)> {
@@ -305,8 +279,8 @@ mod tests {
         auth.sign(&mut upstream_request, now)
             .context("unable to sign request")?;
 
-        let out_headers = convert_header_map(headers);
-        auth.verify(&out_headers, now)
+        let mut out_headers = convert_header_map(upstream_request.headers.clone());
+        auth.verify(&mut out_headers, now)
             .context("unable to verify request")?;
 
         assert_eq!(

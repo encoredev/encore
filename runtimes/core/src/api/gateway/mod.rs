@@ -7,7 +7,9 @@ use std::sync::{Arc, Mutex};
 use anyhow::Context;
 use axum::async_trait;
 use pingora::http::RequestHeader;
-use pingora::proxy::{ProxyHttp, Session};
+use pingora::proxy::{http_proxy_service, ProxyHttp, Session};
+use pingora::server::configuration::Opt;
+use pingora::server::Server;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::{Error, ErrorType};
 use url::Url;
@@ -21,8 +23,11 @@ use crate::api::schema::Method;
 use crate::api::{auth, schema, APIResult, IntoResponse};
 use crate::{api, model, EncoreName};
 
+use super::reqauth::svcauth::ServiceAuthMethod;
+
 mod reverseproxy;
 
+#[derive(Clone)]
 pub struct GatewayProxy {
     shared: Arc<SharedGatewayData>,
     upstream: HttpPeer,
@@ -54,11 +59,28 @@ impl GatewayProxy {
         })
     }
 
+    pub fn run_forever(self) -> ! {
+        let mut server = Server::new(Some(Opt {
+            upgrade: false,
+            daemon: false,
+            nocapture: false,
+            test: false,
+            conf: None,
+        }))
+        .unwrap();
+        let mut proxy = http_proxy_service(&server.configuration, self);
+
+        proxy.add_tcp("0.0.0.0:8888");
+        server.add_service(proxy);
+
+        server.run_forever();
+    }
+
     fn auth_method_for_path(
         &self,
         path: &str,
     ) -> anyhow::Result<Arc<dyn svcauth::ServiceAuthMethod>> {
-        for (svc, _service_routes) in &self.service_routes.main {
+        for (svc, service_routes) in &self.service_routes.main {
             let dest_base_url: Url = self
                 .service_registry
                 .service_base_url(svc)
@@ -66,17 +88,21 @@ impl GatewayProxy {
                 .parse()
                 .context("invalid service base url")?;
 
-            let svc_auth_method = self
-                .service_registry
-                .service_auth_method(svc)
-                .unwrap_or_else(|| Arc::new(svcauth::Noop));
-
-            if path == dest_base_url.path() {
-                return Ok(svc_auth_method);
+            for (endpoint, routes) in service_routes {
+                for route in routes {
+                    //if route == path {
+                    let svc_auth_method = self
+                        .service_registry
+                        .service_auth_method(svc)
+                        .unwrap_or_else(|| Arc::new(svcauth::Noop));
+                    return Ok(svc_auth_method);
+                    //}
+                }
             }
         }
 
-        anyhow::bail!("not found")
+        //Ok(Arc::new(svcauth::Noop))
+        anyhow::bail!("OOH NOO");
     }
 }
 
@@ -96,18 +122,6 @@ impl ProxyHttp for GatewayProxy {
         Ok(Box::new(self.upstream.clone()))
     }
 
-    async fn request_filter(
-        &self,
-        _session: &mut Session,
-        _ctx: &mut Self::CTX,
-    ) -> pingora::Result<bool>
-    where
-        Self::CTX: Send + Sync,
-    {
-        // TODO do auth stuff and add something to ctx, fail request early
-        Ok(false) // false means continue to next phase
-    }
-
     async fn upstream_request_filter(
         &self,
         session: &mut Session,
@@ -118,6 +132,10 @@ impl ProxyHttp for GatewayProxy {
         Self::CTX: Send + Sync,
     {
         let path = session.req_header().uri.path();
+        println!(
+            "upstream request filter, req header: {:?}",
+            session.req_header()
+        );
         let svc_auth_method = self.auth_method_for_path(path).map_err(|e| {
             Error::because(
                 ErrorType::HTTPStatus(404),
@@ -175,7 +193,10 @@ impl ProxyHttp for GatewayProxy {
             }
         }
 
-        desc.add_meta(upstream_request);
+        desc.add_meta(upstream_request).map_err(|e| {
+            Error::because(ErrorType::InternalError, "couldn't set request meta", e)
+        })?;
+
         Ok(())
     }
 }
@@ -244,7 +265,6 @@ impl Gateway {
              mut router: axum::Router|
              -> anyhow::Result<axum::Router> {
                 for (svc, service_routes) in paths {
-                    println!("gateway registering path: {svc}, {service_routes:?}");
                     let dest_base_url = service_registry
                         .service_base_url(&svc)
                         .with_context(|| format!("service {} not found", svc))?

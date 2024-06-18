@@ -19,6 +19,8 @@ use crate::names::EndpointName;
 use crate::trace::Tracer;
 use crate::{api, encore, model, secrets, EncoreName, Hosted};
 
+use super::reqauth::meta::MetaMapMut;
+
 /// Tracks where services are located and how to call them.
 pub struct ServiceRegistry {
     endpoints: Arc<EndpointMap>,
@@ -88,6 +90,7 @@ impl ServiceRegistry {
         EncoreName: Borrow<Q>,
         Q: Eq + std::hash::Hash + ?Sized,
     {
+        println!("base_urls: {:?}", self.base_urls);
         self.base_urls.get(service_name)
     }
 
@@ -332,19 +335,26 @@ pub struct CallDesc<'a, AuthData> {
     pub svc_auth_method: &'a dyn svcauth::ServiceAuthMethod,
 }
 
+pub trait Headers {
+    fn set_header(&mut self, key: MetaKey, value: String) -> anyhow::Result<()>;
+}
+
+impl Headers for pingora::http::RequestHeader {
+    fn set_header(&mut self, key: MetaKey, value: String) -> anyhow::Result<()> {
+        Ok(self.insert_header(key.header_key(), value)?)
+    }
+}
+
 impl<'a, AuthData> CallDesc<'a, AuthData>
 where
     AuthData: serde::ser::Serialize + 'a,
 {
-    pub fn add_meta(
-        self,
-        upstream_request: &mut pingora::http::RequestHeader,
-    ) -> anyhow::Result<()> {
-        upstream_request.insert_header(MetaKey::Version.header_key(), "1".to_string())?;
+    pub fn add_meta(self, headers: &mut dyn MetaMapMut) -> anyhow::Result<()> {
+        headers.set(MetaKey::Version, "1".to_string())?;
 
         if let Some(span) = self.parent_span {
-            upstream_request.insert_header(
-                MetaKey::TraceParent.header_key(),
+            headers.set(
+                MetaKey::TraceParent,
                 format!(
                     "00-{}-{}-01",
                     span.0.serialize_std(),
@@ -358,38 +368,37 @@ where
                 trace_state.push_str(",encore/event-id=");
                 trace_state.push_str(event_id.to_string().as_str());
             }
-            upstream_request.insert_header(MetaKey::TraceState.header_key(), trace_state)?;
+            headers.set(MetaKey::TraceState, trace_state)?;
         }
 
         // TODO handle GCP span propagation with tracestate key.
         // headers.set(MetaKey::TraceState, "")?;
 
         if let Some(corr_id) = self.ext_correlation_id {
-            upstream_request
-                .insert_header(MetaKey::XCorrelationId.header_key(), corr_id.into_owned())?;
+            headers.set(MetaKey::XCorrelationId, corr_id.into_owned())?;
         }
 
         // Add auth data.
         if let Some(auth_uid) = self.auth_user_id {
-            upstream_request.insert_header(MetaKey::UserId.header_key(), auth_uid.into_owned())?;
+            headers.set(MetaKey::UserId, auth_uid.into_owned())?;
             if let Some(auth_data) = self.auth_data {
                 if let Ok(auth_data) = serde_json::to_string(&auth_data) {
-                    upstream_request.insert_header(MetaKey::UserData.header_key(), auth_data)?;
+                    headers.set(MetaKey::UserData, auth_data)?;
                 }
             }
         }
 
         // Caller.
-        upstream_request.insert_header(MetaKey::Caller.header_key(), self.caller.serialize())?;
+        headers.set(MetaKey::Caller, self.caller.serialize())?;
 
         let now = SystemTime::now();
 
         self.svc_auth_method
-            .sign(upstream_request, now)
+            .sign(headers, now)
             .map_err(api::Error::internal)?;
 
-        upstream_request.insert_header(
-            MetaKey::SvcAuthMethod.header_key(),
+        headers.set(
+            MetaKey::SvcAuthMethod,
             self.svc_auth_method.name().to_string(),
         )?;
 

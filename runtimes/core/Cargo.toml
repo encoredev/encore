@@ -54,7 +54,7 @@ mime = "0.3.17"
 futures = "0.3.30"
 native-tls = "0.2.11"
 postgres-native-tls = "0.5.0"
-reqwest = { version = "0.12.4", features = ["stream"] }
+reqwest = { version = "0.12.4", features = ["stream", "json"] }
 url = "2.5.0"
 futures-core = { version = "0.3.30", features = [] }
 serde_urlencoded = "0.7.1"

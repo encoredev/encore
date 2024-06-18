@@ -70,22 +70,6 @@ impl From<Method> for axum::http::Method {
     }
 }
 
-impl From<Method> for reqwest::Method {
-    fn from(val: Method) -> Self {
-        match val {
-            Method::GET => reqwest::Method::GET,
-            Method::HEAD => reqwest::Method::HEAD,
-            Method::POST => reqwest::Method::POST,
-            Method::PUT => reqwest::Method::PUT,
-            Method::DELETE => reqwest::Method::DELETE,
-            // Method::CONNECT => reqwest::Method::CONNECT,
-            Method::OPTIONS => reqwest::Method::OPTIONS,
-            Method::TRACE => reqwest::Method::TRACE,
-            Method::PATCH => reqwest::Method::PATCH,
-        }
-    }
-}
-
 impl TryFrom<axum::http::Method> for Method {
     type Error = anyhow::Error;
     fn try_from(m: axum::http::Method) -> anyhow::Result<Self> {

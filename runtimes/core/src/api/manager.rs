@@ -6,7 +6,7 @@ use anyhow::Context;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
-use crate::api::gateway::Gateway;
+use crate::api::gateway::{Gateway, GatewayProxy};
 use crate::api::http_server::HttpServer;
 use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
@@ -49,6 +49,8 @@ pub struct Manager {
     api_server: Option<server::Server>,
     gateways: HashMap<EncoreName, Arc<Gateway>>,
     runtime: tokio::runtime::Handle,
+
+    gateway_proxy: Option<GatewayProxy>,
 }
 
 impl ManagerConfig<'_> {
@@ -62,8 +64,6 @@ impl ManagerConfig<'_> {
             .local_addr()
             .context("unable to determine listen address")?
             .to_string();
-
-        println!("BUILDING {listener:?}, {own_address:?}");
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
         let (endpoints, hosted_endpoints) = endpoints_from_meta(self.meta, &hosted_services)
@@ -118,6 +118,7 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
+        let mut gateway_proxy = None;
         let gateways = {
             let routes = paths::compute(
                 endpoints
@@ -147,6 +148,25 @@ impl ManagerConfig<'_> {
                 let cors = cors::layer(cors_cfg, meta_headers)
                     .context("failed to parse CORS configuration")?;
 
+                gateway_proxy.replace(
+                    GatewayProxy::new(
+                        gw.encore_name.clone().into(),
+                        &listen_addr(),
+                        service_registry.clone(),
+                        routes.clone(),
+                        auth_handler,
+                    )
+                    .unwrap(),
+                );
+
+                let auth_handler = build_auth_handler(
+                    self.meta,
+                    gw,
+                    &service_registry,
+                    self.http_client.clone(),
+                    self.tracer.clone(),
+                )
+                .context("unable to build authenticator")?;
                 let gateway = Gateway::new(
                     gw.encore_name.clone().into(),
                     self.http_client.clone(),
@@ -161,9 +181,6 @@ impl ManagerConfig<'_> {
             gateways
         };
 
-        println!("APPREV {:?}", self.meta.app_revision);
-        println!("GATEWAYS {:?}", self.meta.gateways);
-
         Ok(Manager {
             app_revision: self.meta.app_revision.clone(),
             deploy_id: self.deploy_id,
@@ -173,6 +190,7 @@ impl ManagerConfig<'_> {
             gateways,
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
+            gateway_proxy,
         })
     }
 }
@@ -272,7 +290,6 @@ impl Manager {
         data: JSONPayload,
         source: Option<&'a model::Request>,
     ) -> impl Future<Output = APIResult<JSONPayload>> + 'a {
-        println!("### A CALL WAS MADE");
         self.service_registry.api_call(endpoint_name, data, source)
     }
 
@@ -311,13 +328,16 @@ impl Manager {
 
         let listener = self.listener.lock().unwrap().take();
 
-        println!("LISTENER {listener:?}");
-
         // TODO: rewrite the gateway as a pingola proxy
         // TODO: setup a new listener for the non-gateway
         // TODO: remove gateway from the axum setup
         // TODO: spawn a separate task for the proxy and give it the current listener so traffic
         // from go daemon goes to it, and add the axum server as upstream
+
+        let gateway_proxy = self.gateway_proxy.clone().unwrap();
+        std::thread::spawn(|| {
+            gateway_proxy.run_forever();
+        });
 
         self.runtime.spawn(async move {
             let listener = listener.context("server already started")?;
