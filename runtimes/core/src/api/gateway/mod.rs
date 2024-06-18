@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use axum::async_trait;
-use pingora::http::RequestHeader;
+use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::proxy::{http_proxy_service, ProxyHttp, Session};
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
@@ -32,6 +32,7 @@ pub struct GatewayProxy {
     shared: Arc<SharedGatewayData>,
     service_registry: Arc<ServiceRegistry>,
     router: matchit::Router<MethodRoute>,
+    cors: tower_http::cors::CorsLayer,
 }
 
 #[derive(Clone, Default)]
@@ -68,6 +69,7 @@ impl GatewayProxy {
         service_registry: Arc<ServiceRegistry>,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
+        cors: tower_http::cors::CorsLayer,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
             name,
@@ -107,7 +109,18 @@ impl GatewayProxy {
             service_registry,
             router,
             listen_addr,
+            cors,
         })
+    }
+
+    fn insert_cors_headers(&self, resp: &mut ResponseHeader) -> pingora::Result<()> {
+        resp.insert_header("Access-Control-Allow-Credentials", "true")?;
+        resp.insert_header(
+            "Access-Control-Allow-Headers",
+            "accept,authorization,content-type,origin,user-agent,x-correlation-id,x-request-id,x-requested-with",
+        )?;
+
+        Ok(())
     }
 
     pub fn run_forever(self) -> ! {
@@ -188,6 +201,40 @@ impl ProxyHttp for GatewayProxy {
         let peer = HttpPeer::new(upstream_addr, false, "".to_string());
 
         Ok(Box::new(peer))
+    }
+
+    async fn request_filter(
+        &self,
+        session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<bool>
+    where
+        Self::CTX: Send + Sync,
+    {
+        // always retrun options with cors headers
+        if axum::http::Method::OPTIONS == session.req_header().method {
+            let mut resp = ResponseHeader::build(200, None)?;
+            self.insert_cors_headers(&mut resp)?;
+            resp.insert_header(hyper::header::CONTENT_LENGTH, 0)?;
+            session.write_response_header(Box::new(resp)).await?;
+
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    async fn response_filter(
+        &self,
+        _session: &mut Session,
+        upstream_response: &mut ResponseHeader,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<()>
+    where
+        Self::CTX: Send + Sync,
+    {
+        self.insert_cors_headers(upstream_response)?;
+        Ok(())
     }
 
     async fn upstream_request_filter(

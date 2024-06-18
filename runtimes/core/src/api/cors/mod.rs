@@ -6,6 +6,8 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use tower_http::cors;
 
+use super::reqauth::meta::MetaMapMut;
+
 /// The default set of allowed headers.
 #[allow(clippy::declare_interior_mutable_const)]
 const ALWAYS_ALLOWED_HEADERS: [HeaderName; 8] = [
@@ -25,6 +27,28 @@ pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("x-correlation-id"),
     HeaderName::from_static("x-encore-trace-id"),
 ];
+
+/*
+pub fn set_cors_headers(method: Method, cfg: &pb::gateway::Cors, meta: &mut dyn MetaMapMut) {
+    // These headers are applied to both preflight and subsequent regular CORS requests:
+    // https://fetch.spec.whatwg.org/#http-responses
+    meta.extend(self.layer.allow_origin.to_header(origin, &parts));
+    meta.extend(self.layer.allow_credentials.to_header(origin, &parts));
+    meta.extend(self.layer.allow_private_network.to_header(origin, &parts));
+    meta.extend(self.layer.vary.to_header());
+
+    // Return results immediately upon preflight request
+    if method == Method::OPTIONS {
+        // These headers are applied only to preflight requests
+        meta.extend(self.layer.allow_methods.to_header(&parts));
+        meta.extend(self.layer.allow_headers.to_header(&parts));
+        meta.extend(self.layer.max_age.to_header(origin, &parts));
+    } else {
+        // This header is applied only to non-preflight requests
+        meta.extend(self.layer.expose_headers.to_header(&parts));
+    }
+}
+*/
 
 pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors::CorsLayer> {
     let mut allowed_headers = cfg

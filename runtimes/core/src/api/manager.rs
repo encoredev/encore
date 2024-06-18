@@ -157,6 +157,7 @@ impl ManagerConfig<'_> {
                         service_registry.clone(),
                         routes.clone(),
                         auth_handler,
+                        cors.clone(),
                     )
                     .unwrap(),
                 );
