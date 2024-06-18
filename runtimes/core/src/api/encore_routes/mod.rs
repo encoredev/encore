@@ -11,7 +11,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::ControlFlow;
 
 //allows to extract the IP of connecting user
-use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::CloseFrame;
 
 //allows to split the websocket stream into separate TX and RX branches
@@ -34,7 +33,6 @@ impl Desc {
                 "/__encore/pubsub/push/:subscription_id",
                 routing::any(self.push_registry),
             )
-            .route("/__encore/ws", routing::get(ws_handler))
     }
 }
 

@@ -106,7 +106,7 @@ impl MetaMap for axum::http::HeaderMap {
 
 impl MetaMapMut for pingora::http::RequestHeader {
     fn set(&mut self, key: MetaKey, value: String) -> anyhow::Result<()> {
-        self.insert_header(key.header_key(), value);
+        self.insert_header(key.header_key(), value)?;
         Ok(())
     }
     fn upcast(&self) -> &dyn MetaMap {

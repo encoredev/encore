@@ -246,20 +246,3 @@ where
         }
     }
 }
-
-fn determine_listen_addr() -> anyhow::Result<String> {
-    let candidates = [
-        ("ENCORE_LISTEN_ADDR", false),
-        ("PORT", true),
-        ("HTTP_PORT", true),
-    ];
-    for c in candidates {
-        if let Ok(mut var) = std::env::var(c.0) {
-            if c.1 {
-                var = format!("0.0.0.0:{}", var);
-            }
-            return Ok(var);
-        }
-    }
-    anyhow::bail!("unable to determine listen address")
-}

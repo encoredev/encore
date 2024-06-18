@@ -118,7 +118,7 @@ impl GatewayProxy {
             test: false,
             conf: None,
         }))
-        .context("Couldn't start pingora server")
+        .context("couldn't start gateway proxy")
         .unwrap();
 
         let listen_addr = self.listen_addr.clone();
@@ -147,29 +147,43 @@ impl ProxyHttp for GatewayProxy {
         ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
         let path = session.req_header().uri.path();
-        let method: Method = session.req_header().method.clone().try_into().unwrap();
+        let method: Method = session
+            .req_header()
+            .method
+            .clone()
+            .try_into()
+            .map_err(|e| Error::because(ErrorType::HTTPStatus(400), "invalid http method", e))?;
+
         let route = self
             .router
             .at(path)
-            .map_err(|e| pingora::Error::because(ErrorType::InternalError, "route not found", e))?;
-        let method_route = route.value;
-        let service_name = method_route.for_method(method).unwrap();
+            .map_err(|e| Error::because(ErrorType::HTTPStatus(404), "route not found", e))?;
+        let service_name = route
+            .value
+            .for_method(method)
+            .ok_or_else(|| Error::explain(ErrorType::HTTPStatus(405), "no route for method"))?;
 
         ctx.replace(service_name.clone());
 
-        let Some(upstream) = self.service_registry.service_base_url(service_name) else {
-            // TODO fix
-            panic!("no base url for service {}", service_name);
-        };
+        let upstream = self
+            .service_registry
+            .service_base_url(service_name)
+            .ok_or_else(|| Error::explain(ErrorType::InternalError, "couldn't find upstream"))?;
 
-        let upstream_url: Url = upstream.parse().unwrap();
-        let port = upstream_url.port().unwrap();
+        let upstream_url: Url = upstream
+            .parse()
+            .map_err(|e| Error::because(ErrorType::InternalError, "upstream not a valid url", e))?;
+        let port = upstream_url
+            .port()
+            .ok_or_else(|| Error::explain(ErrorType::InternalError, "no port specified"))?;
         let upstream_addr: SocketAddr = match upstream_url.host() {
-            Some(url::Host::Ipv4(ip)) => (ip, port).into(),
-            Some(url::Host::Ipv6(ip)) => (ip, port).into(),
-            Some(_) => panic!("todo error handling"),
-            None => panic!("todo error handling"),
-        };
+            Some(url::Host::Ipv4(ip)) => Ok((ip, port).into()),
+            Some(url::Host::Ipv6(ip)) => Ok((ip, port).into()),
+            _ => Err(Error::explain(
+                ErrorType::InternalError,
+                "upstream not a valid ipv4 or ipv6 address",
+            )),
+        }?;
 
         let peer = HttpPeer::new(upstream_addr, false, "".to_string());
 
@@ -185,7 +199,10 @@ impl ProxyHttp for GatewayProxy {
     where
         Self::CTX: Send + Sync,
     {
-        let service_name = ctx.as_ref().unwrap();
+        let service_name = ctx
+            .as_ref()
+            .ok_or_else(|| Error::explain(ErrorType::InternalError, "ctx not set"))?;
+
         let svc_auth_method = self
             .service_registry
             .service_auth_method(service_name)
