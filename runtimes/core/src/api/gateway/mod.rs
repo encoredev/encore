@@ -29,53 +29,46 @@ mod reverseproxy;
 // TODO: does it need to be clone?
 #[derive(Clone)]
 pub struct GatewayProxy {
+    listen_addr: String,
     shared: Arc<SharedGatewayData>,
     service_registry: Arc<ServiceRegistry>,
-    service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
     router: matchit::Router<MethodRoute>,
 }
 
 #[derive(Clone, Default)]
 pub struct MethodRoute {
-    get: Option<Arc<ServiceRoute>>,
-    head: Option<Arc<ServiceRoute>>,
-    post: Option<Arc<ServiceRoute>>,
-    put: Option<Arc<ServiceRoute>>,
-    delete: Option<Arc<ServiceRoute>>,
-    option: Option<Arc<ServiceRoute>>,
-    trace: Option<Arc<ServiceRoute>>,
-    patch: Option<Arc<ServiceRoute>>,
+    get: Option<EncoreName>,
+    head: Option<EncoreName>,
+    post: Option<EncoreName>,
+    put: Option<EncoreName>,
+    delete: Option<EncoreName>,
+    option: Option<EncoreName>,
+    trace: Option<EncoreName>,
+    patch: Option<EncoreName>,
 }
 
 impl MethodRoute {
-    fn for_method(&self, method: api::schema::Method) -> Option<Arc<ServiceRoute>> {
+    fn for_method(&self, method: api::schema::Method) -> Option<&EncoreName> {
         match method {
-            Method::GET => self.get.clone(),
-            Method::HEAD => self.head.clone(),
-            Method::POST => self.post.clone(),
-            Method::PUT => self.put.clone(),
-            Method::DELETE => self.delete.clone(),
-            Method::OPTIONS => self.option.clone(),
-            Method::TRACE => self.trace.clone(),
-            Method::PATCH => self.patch.clone(),
+            Method::GET => self.get.as_ref(),
+            Method::HEAD => self.head.as_ref(),
+            Method::POST => self.post.as_ref(),
+            Method::PUT => self.put.as_ref(),
+            Method::DELETE => self.delete.as_ref(),
+            Method::OPTIONS => self.option.as_ref(),
+            Method::TRACE => self.trace.as_ref(),
+            Method::PATCH => self.patch.as_ref(),
         }
     }
-}
-
-#[derive(Clone)]
-pub struct ServiceRoute {
-    service: EncoreName,
-    upstream: HttpPeer,
-    auth_method: Arc<dyn svcauth::ServiceAuthMethod>,
 }
 
 impl GatewayProxy {
     pub fn new(
         name: EncoreName,
+        listen_addr: String,
         service_registry: Arc<ServiceRegistry>,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
-        // TODO: cors layer ? / handle cors?
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
             name,
@@ -84,21 +77,6 @@ impl GatewayProxy {
 
         let mut router = matchit::Router::new();
         for (svc, routes) in &service_routes.main {
-            let svc_auth_method = service_registry
-                .service_auth_method(svc)
-                .unwrap_or_else(|| Arc::new(svcauth::Noop));
-
-            let Some(upstream) = service_registry.service_base_url(svc) else {
-                anyhow::bail!("no base url for service {}", svc);
-            };
-
-            let upstream_addr: SocketAddr = upstream.split_once("//").unwrap().1.parse()?;
-
-            let svc_route = ServiceRoute {
-                service: svc.clone(),
-                upstream: HttpPeer::new(upstream_addr, false, "".to_string()),
-                auth_method: svc_auth_method,
-            };
             for (endpoint, paths) in routes {
                 for path in paths {
                     let method_route = match router.at_mut(path) {
@@ -111,18 +89,14 @@ impl GatewayProxy {
 
                     for method in endpoint.methods() {
                         match method {
-                            Method::GET => method_route.get = Some(Arc::new(svc_route.clone())),
-                            Method::HEAD => method_route.head = Some(Arc::new(svc_route.clone())),
-                            Method::POST => method_route.post = Some(Arc::new(svc_route.clone())),
-                            Method::PUT => method_route.put = Some(Arc::new(svc_route.clone())),
-                            Method::DELETE => {
-                                method_route.delete = Some(Arc::new(svc_route.clone()))
-                            }
-                            Method::OPTIONS => {
-                                method_route.option = Some(Arc::new(svc_route.clone()))
-                            }
-                            Method::TRACE => method_route.trace = Some(Arc::new(svc_route.clone())),
-                            Method::PATCH => method_route.patch = Some(Arc::new(svc_route.clone())),
+                            Method::GET => method_route.get = Some(svc.clone()),
+                            Method::HEAD => method_route.head = Some(svc.clone()),
+                            Method::POST => method_route.post = Some(svc.clone()),
+                            Method::PUT => method_route.put = Some(svc.clone()),
+                            Method::DELETE => method_route.delete = Some(svc.clone()),
+                            Method::OPTIONS => method_route.option = Some(svc.clone()),
+                            Method::TRACE => method_route.trace = Some(svc.clone()),
+                            Method::PATCH => method_route.patch = Some(svc.clone()),
                         }
                     }
                 }
@@ -131,9 +105,9 @@ impl GatewayProxy {
 
         Ok(GatewayProxy {
             shared,
-            service_routes,
             service_registry,
             router,
+            listen_addr,
         })
     }
 
@@ -146,9 +120,9 @@ impl GatewayProxy {
             conf: None,
         }))
         .unwrap();
-        let mut proxy = http_proxy_service(&server.configuration, self);
+        let mut proxy = http_proxy_service(&server.configuration, self.clone());
 
-        proxy.add_tcp("0.0.0.0:8888");
+        proxy.add_tcp(&self.listen_addr);
         server.add_service(proxy);
 
         server.run_forever()
@@ -157,8 +131,8 @@ impl GatewayProxy {
 
 #[async_trait]
 impl ProxyHttp for GatewayProxy {
-    type CTX = Option<Arc<ServiceRoute>>;
-    fn new_ctx(&self) -> Option<Arc<ServiceRoute>> {
+    type CTX = Option<EncoreName>;
+    fn new_ctx(&self) -> Option<EncoreName> {
         None
     }
 
@@ -177,11 +151,27 @@ impl ProxyHttp for GatewayProxy {
             .at(path)
             .map_err(|e| pingora::Error::because(ErrorType::InternalError, "route not found", e))?;
         let method_route = route.value;
-        let service_route = method_route.for_method(method).unwrap();
+        let service_name = method_route.for_method(method).unwrap();
 
-        ctx.replace(service_route.clone());
+        ctx.replace(service_name.clone());
 
-        Ok(Box::new(service_route.upstream.clone()))
+        let Some(upstream) = self.service_registry.service_base_url(service_name) else {
+            // TODO fix
+            panic!("no base url for service {}", service_name);
+        };
+
+        let upstream_url: Url = upstream.parse().unwrap();
+        let port = upstream_url.port().unwrap();
+        let upstream_addr: SocketAddr = match upstream_url.host() {
+            Some(url::Host::Ipv4(ip)) => (ip, port).into(),
+            Some(url::Host::Ipv6(ip)) => (ip, port).into(),
+            Some(_) => panic!("todo error handling"),
+            None => panic!("todo error handling"),
+        };
+
+        let peer = HttpPeer::new(upstream_addr, false, "".to_string());
+
+        Ok(Box::new(peer))
     }
 
     async fn upstream_request_filter(
@@ -193,8 +183,11 @@ impl ProxyHttp for GatewayProxy {
     where
         Self::CTX: Send + Sync,
     {
-        let service_route = ctx.clone().unwrap();
-        let svc_auth_method = service_route.auth_method.clone();
+        let service_name = ctx.as_ref().unwrap();
+        let svc_auth_method = self
+            .service_registry
+            .service_auth_method(service_name)
+            .unwrap_or_else(|| Arc::new(svcauth::Noop));
 
         let headers = &session.req_header().headers;
 

@@ -56,7 +56,7 @@ pub struct Manager {
 impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
         let listener = {
-            let addr = listen_addr();
+            let addr = "0.0.0.0:0";
             std::net::TcpListener::bind(addr).context("unable to bind to port")?
         };
 
@@ -151,6 +151,7 @@ impl ManagerConfig<'_> {
                 gateway_proxy.replace(
                     GatewayProxy::new(
                         gw.encore_name.clone().into(),
+                        listen_addr(),
                         service_registry.clone(),
                         routes.clone(),
                         auth_handler,
