@@ -328,11 +328,10 @@ impl Manager {
 
         let listener = self.listener.lock().unwrap().take();
 
-        // TODO: rewrite the gateway as a pingola proxy
-        // TODO: setup a new listener for the non-gateway
         // TODO: remove gateway from the axum setup
-        // TODO: spawn a separate task for the proxy and give it the current listener so traffic
-        // from go daemon goes to it, and add the axum server as upstream
+        // TODO: handle errors prettier
+        // TODO: move spawning of proxy to somewhere else?
+        // TODO: rename GatewayProxy to Gateway
 
         let gateway_proxy = self.gateway_proxy.clone().unwrap();
         std::thread::spawn(|| {

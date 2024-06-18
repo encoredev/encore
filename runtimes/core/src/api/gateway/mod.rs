@@ -26,7 +26,6 @@ use crate::{api, model, EncoreName};
 
 mod reverseproxy;
 
-// TODO: does it need to be clone?
 #[derive(Clone)]
 pub struct GatewayProxy {
     listen_addr: String,
@@ -119,10 +118,13 @@ impl GatewayProxy {
             test: false,
             conf: None,
         }))
+        .context("Couldn't start pingora server")
         .unwrap();
-        let mut proxy = http_proxy_service(&server.configuration, self.clone());
 
-        proxy.add_tcp(&self.listen_addr);
+        let listen_addr = self.listen_addr.clone();
+
+        let mut proxy = http_proxy_service(&server.configuration, self);
+        proxy.add_tcp(&listen_addr);
         server.add_service(proxy);
 
         server.run_forever()
