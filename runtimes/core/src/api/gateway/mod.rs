@@ -88,10 +88,11 @@ impl GatewayProxy {
                 for path in paths {
                     let method_route = match router.at_mut(path) {
                         Ok(m) => m.value,
-                        Err(_) => {
+                        Err(matchit::MatchError::NotFound) => {
                             router.insert(path, MethodRoute::default())?;
                             router.at_mut(path).unwrap().value
                         }
+                        Err(e) => anyhow::bail!("invalid match path pattern, {}", e),
                     };
 
                     for method in endpoint.methods() {
