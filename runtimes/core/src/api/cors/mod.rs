@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use tower_http::cors;
 
-use self::cors_headers_config::CorsHeadersConfig;
+use self::cors_headers_config::{ensure_usable_cors_rules, CorsHeadersConfig};
 
 pub mod cors_headers_config;
 
@@ -93,6 +93,8 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
         .allow_credentials(!cfg.disable_credentials)
         .allow_methods(cors_headers_config::AllowMethods::mirror_request())
         .allow_origin(cors_headers_config::AllowOrigin::predicate(allow_origin));
+
+    ensure_usable_cors_rules(&config);
     Ok(config)
 }
 

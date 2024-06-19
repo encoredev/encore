@@ -140,13 +140,14 @@ impl From<Vec<HeaderValue>> for AllowOrigin {
     }
 }
 
+type PredicateFn =
+    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>;
+
 #[derive(Clone)]
 enum OriginInner {
     Const(HeaderValue),
     List(Vec<HeaderValue>),
-    Predicate(
-        Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>,
-    ),
+    Predicate(PredicateFn),
 }
 
 impl Default for OriginInner {

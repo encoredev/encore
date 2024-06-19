@@ -61,10 +61,13 @@ impl From<Duration> for MaxAge {
     }
 }
 
+type MaxAgeFn =
+    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> Duration + Send + Sync + 'static>;
+
 #[derive(Clone)]
 enum MaxAgeInner {
     Exact(Option<HeaderValue>),
-    Fn(Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> Duration + Send + Sync + 'static>),
+    Fn(MaxAgeFn),
 }
 
 impl Default for MaxAgeInner {

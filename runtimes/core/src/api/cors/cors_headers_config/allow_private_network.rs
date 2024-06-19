@@ -97,14 +97,14 @@ impl fmt::Debug for AllowPrivateNetwork {
         }
     }
 }
+type PredicateFn =
+    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>;
 
 #[derive(Clone)]
 enum AllowPrivateNetworkInner {
     Yes,
     No,
-    Predicate(
-        Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>,
-    ),
+    Predicate(PredicateFn),
 }
 
 impl Default for AllowPrivateNetworkInner {

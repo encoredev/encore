@@ -80,13 +80,14 @@ impl fmt::Debug for AllowCredentials {
     }
 }
 
+type PredicateFn =
+    Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>;
+
 #[derive(Clone)]
 enum AllowCredentialsInner {
     Yes,
     No,
-    Predicate(
-        Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>,
-    ),
+    Predicate(PredicateFn),
 }
 
 impl Default for AllowCredentialsInner {
