@@ -484,17 +484,17 @@ impl CorsHeadersConfig {
         // These headers are applied to both preflight and subsequent regular CORS requests:
         // https://fetch.spec.whatwg.org/#http-responses
 
-        append_response_header(resp, self.allow_credentials.to_header(origin, &req))?;
-        append_response_header(resp, self.allow_private_network.to_header(origin, &req))?;
+        append_response_header(resp, self.allow_credentials.to_header(origin, req))?;
+        append_response_header(resp, self.allow_private_network.to_header(origin, req))?;
         append_response_header(resp, self.vary.to_header())?;
-        append_response_header(resp, self.allow_origin.to_header(origin, &req))?;
+        append_response_header(resp, self.allow_origin.to_header(origin, req))?;
 
         // Return results immediately upon preflight request
         if req.method == Method::OPTIONS {
             // These headers are applied only to preflight requests
-            append_response_header(resp, self.allow_methods.to_header(&req))?;
-            append_response_header(resp, self.allow_headers.to_header(&req))?;
-            append_response_header(resp, self.max_age.to_header(origin, &req))?;
+            append_response_header(resp, self.allow_methods.to_header(req))?;
+            append_response_header(resp, self.allow_headers.to_header(req))?;
+            append_response_header(resp, self.max_age.to_header(origin, req))?;
         } else {
             // This header is applied only to non-preflight requests
             append_response_header(resp, self.expose_headers.to_header())?;

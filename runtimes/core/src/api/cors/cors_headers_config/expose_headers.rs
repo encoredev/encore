@@ -2,7 +2,6 @@ use std::{array, fmt};
 
 use http::{
     header::{self, HeaderName, HeaderValue},
-    request::Parts as RequestParts,
 };
 
 use super::{separated_by_commas, Any, WILDCARD};
