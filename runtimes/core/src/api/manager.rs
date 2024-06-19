@@ -148,6 +148,11 @@ impl ManagerConfig<'_> {
                 let cors = cors::layer(cors_cfg, meta_headers)
                     .context("failed to parse CORS configuration")?;
 
+                let meta_headers =
+                    cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
+                let cors_config = cors::config(cors_cfg, meta_headers)
+                    .context("failed to parse CORS configuration")?;
+
                 println!("##### regging gatewayproxy {}", gw.encore_name);
                 // TODO should be a hash map, replace the gateway hashmap with this one
                 gateway_proxy.replace(
@@ -157,7 +162,7 @@ impl ManagerConfig<'_> {
                         service_registry.clone(),
                         routes.clone(),
                         auth_handler,
-                        cors.clone(),
+                        cors_config,
                     )
                     .unwrap(),
                 );

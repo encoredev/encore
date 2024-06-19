@@ -6,7 +6,9 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use tower_http::cors;
 
-use super::reqauth::meta::MetaMapMut;
+use self::cors_headers_config::CorsHeadersConfig;
+
+pub mod cors_headers_config;
 
 /// The default set of allowed headers.
 #[allow(clippy::declare_interior_mutable_const)]
@@ -28,27 +30,71 @@ pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("x-encore-trace-id"),
 ];
 
-/*
-pub fn set_cors_headers(method: Method, cfg: &pb::gateway::Cors, meta: &mut dyn MetaMapMut) {
-    // These headers are applied to both preflight and subsequent regular CORS requests:
-    // https://fetch.spec.whatwg.org/#http-responses
-    meta.extend(self.layer.allow_origin.to_header(origin, &parts));
-    meta.extend(self.layer.allow_credentials.to_header(origin, &parts));
-    meta.extend(self.layer.allow_private_network.to_header(origin, &parts));
-    meta.extend(self.layer.vary.to_header());
+pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<CorsHeadersConfig> {
+    let mut allowed_headers = cfg
+        .extra_allowed_headers
+        .iter()
+        .map(|s| HeaderName::from_str(s))
+        .collect::<Result<Vec<_>, _>>()
+        .context("failed to parse extra allowed headers")?;
+    #[allow(clippy::borrow_interior_mutable_const)]
+    allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
+    allowed_headers.extend(meta.allow_headers);
 
-    // Return results immediately upon preflight request
-    if method == Method::OPTIONS {
-        // These headers are applied only to preflight requests
-        meta.extend(self.layer.allow_methods.to_header(&parts));
-        meta.extend(self.layer.allow_headers.to_header(&parts));
-        meta.extend(self.layer.max_age.to_header(origin, &parts));
-    } else {
-        // This header is applied only to non-preflight requests
-        meta.extend(self.layer.expose_headers.to_header(&parts));
-    }
+    let mut exposed_headers = cfg
+        .extra_exposed_headers
+        .iter()
+        .map(|s| HeaderName::from_str(s))
+        .collect::<Result<Vec<_>, _>>()
+        .context("failed to parse extra exposed headers")?;
+    #[allow(clippy::borrow_interior_mutable_const)]
+    exposed_headers.extend_from_slice(&ALWAYS_EXPOSED_HEADERS);
+    exposed_headers.extend(meta.expose_headers);
+
+    // Compute the allowed origins.
+    let allow_origin = {
+        use pb::gateway::cors::AllowedOriginsWithCredentials;
+        let with_creds = match &cfg.allowed_origins_with_credentials {
+            Some(AllowedOriginsWithCredentials::UnsafeAllowAllOriginsWithCredentials(true)) => {
+                OriginSet::All
+            }
+            Some(AllowedOriginsWithCredentials::AllowedOrigins(list)) => {
+                OriginSet::new(list.allowed_origins.clone())
+            }
+            _ => OriginSet::Some(vec![]),
+        };
+        let without_creds = OriginSet::new(
+            cfg.allowed_origins_without_credentials
+                .clone()
+                .unwrap_or_default()
+                .allowed_origins,
+        );
+
+        let pred = move |origin: &HeaderValue, req: &axum::http::request::Parts| {
+            let Ok(origin) = origin.to_str() else {
+                return false;
+            };
+            let headers = &req.headers;
+            if headers.contains_key(axum::http::header::AUTHORIZATION)
+                || headers.contains_key(axum::http::header::COOKIE)
+            {
+                with_creds.allows(origin)
+            } else {
+                without_creds.allows(origin)
+            }
+        };
+        pred
+    };
+
+    let config = CorsHeadersConfig::new()
+        .allow_private_network(cfg.allow_private_network_access)
+        .allow_headers(cors_headers_config::AllowHeaders::list(allowed_headers))
+        .expose_headers(cors_headers_config::ExposeHeaders::list(exposed_headers))
+        .allow_credentials(!cfg.disable_credentials)
+        .allow_methods(cors_headers_config::AllowMethods::mirror_request())
+        .allow_origin(cors_headers_config::AllowOrigin::predicate(allow_origin));
+    Ok(config)
 }
-*/
 
 pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors::CorsLayer> {
     let mut allowed_headers = cfg
