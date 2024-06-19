@@ -497,6 +497,11 @@
 			text: "Use Vercel for frontend hosting"
 			path: "/ts/how-to/vercel"
 			file: "how-to/vercel"
+		}, {
+			kind: "basic"
+			text: "Use NestJS with Encore"
+			path: "/ts/how-to/nestjs"
+			file: "how-to/nestjs"
 		}]
 	}]
 }
