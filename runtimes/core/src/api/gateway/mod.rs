@@ -216,7 +216,7 @@ impl ProxyHttp for GatewayProxy {
     where
         Self::CTX: Send + Sync,
     {
-        // preflight equest, return early TODO should this only be true if the route exist?
+        // preflight request, return early with cors headers
         if axum::http::Method::OPTIONS == session.req_header().method {
             let mut resp = ResponseHeader::build(200, None)?;
             self.cors_config.apply(session.req_header(), &mut resp)?;
