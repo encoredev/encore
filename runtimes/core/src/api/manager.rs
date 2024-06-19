@@ -6,7 +6,7 @@ use anyhow::Context;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
-use crate::api::gateway::{Gateway, GatewayProxy};
+use crate::api::gateway::GatewayProxy;
 use crate::api::http_server::HttpServer;
 use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
@@ -47,7 +47,6 @@ pub struct Manager {
     pubsub_push_registry: pubsub::PushHandlerRegistry,
 
     api_server: Option<server::Server>,
-    gateways: HashMap<EncoreName, Arc<Gateway>>,
     runtime: tokio::runtime::Handle,
 
     gateway_proxies: HashMap<EncoreName, Arc<GatewayProxy>>,
@@ -118,7 +117,6 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
-        let mut gateways = HashMap::new();
         let mut gateway_proxies = HashMap::new();
         let routes = paths::compute(
             endpoints
@@ -143,10 +141,6 @@ impl ManagerConfig<'_> {
             .context("unable to build authenticator")?;
 
             let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
-            let cors = cors::layer(cors_cfg, meta_headers)
-                .context("failed to parse CORS configuration")?;
-
-            let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
             let cors_config = cors::config(cors_cfg, meta_headers)
                 .context("failed to parse CORS configuration")?;
 
@@ -165,25 +159,6 @@ impl ManagerConfig<'_> {
                     .unwrap(),
                 ),
             );
-
-            let auth_handler = build_auth_handler(
-                self.meta,
-                gw,
-                &service_registry,
-                self.http_client.clone(),
-                self.tracer.clone(),
-            )
-            .context("unable to build authenticator")?;
-            let gateway = Gateway::new(
-                gw.encore_name.clone().into(),
-                self.http_client.clone(),
-                service_registry.clone(),
-                routes.clone(),
-                auth_handler,
-                cors,
-            )
-            .context("unable to create gateway")?;
-            gateways.insert(gw.encore_name.clone().into(), Arc::new(gateway));
         }
 
         Ok(Manager {
@@ -192,7 +167,6 @@ impl ManagerConfig<'_> {
             listener: Mutex::new(Some(listener)),
             service_registry,
             api_server,
-            gateways,
             gateway_proxies,
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
@@ -281,8 +255,8 @@ fn build_auth_handler(
 }
 
 impl Manager {
-    pub fn gateway(&self, name: EncoreName) -> Option<Arc<Gateway>> {
-        self.gateways.get(&name).cloned()
+    pub fn gateway(&self, name: EncoreName) -> Option<Arc<GatewayProxy>> {
+        self.gateway_proxies.get(&name).cloned()
     }
 
     pub fn server(&self) -> Option<&server::Server> {
@@ -300,7 +274,6 @@ impl Manager {
 
     /// Starts serving the API.
     pub fn start_serving(&self) -> tokio::task::JoinHandle<anyhow::Result<()>> {
-        let gateway = self.gateways.values().next().map(|gw| gw.router());
         let api = self.api_server.as_ref().map(|srv| srv.router());
 
         async fn fallback(
@@ -329,11 +302,10 @@ impl Manager {
         .router();
 
         let fallback = axum::Router::new().fallback(fallback);
-        let server = HttpServer::new(encore_routes, gateway, api, fallback);
+        let server = HttpServer::new(encore_routes, api, fallback);
 
         let listener = self.listener.lock().unwrap().take();
 
-        // TODO: remove gateway from the axum setup
         // TODO: rename GatewayProxy to Gateway
         //
         if let Some(gateway_proxy) = self.gateway_proxies.values().next() {

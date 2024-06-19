@@ -128,6 +128,10 @@ impl GatewayProxy {
         })
     }
 
+    pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
+        self.shared.auth.as_ref()
+    }
+
     pub fn run_forever(self) -> ! {
         let mut server = Server::new(Some(Opt {
             upgrade: false,

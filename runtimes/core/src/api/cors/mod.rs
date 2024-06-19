@@ -4,7 +4,6 @@ use anyhow::Context;
 use axum::http::{HeaderName, HeaderValue};
 use std::collections::HashSet;
 use std::str::FromStr;
-use tower_http::cors;
 
 use self::cors_headers_config::{ensure_usable_cors_rules, CorsHeadersConfig};
 
@@ -96,72 +95,6 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
 
     ensure_usable_cors_rules(&config);
     Ok(config)
-}
-
-pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors::CorsLayer> {
-    let mut allowed_headers = cfg
-        .extra_allowed_headers
-        .iter()
-        .map(|s| HeaderName::from_str(s))
-        .collect::<Result<Vec<_>, _>>()
-        .context("failed to parse extra allowed headers")?;
-    #[allow(clippy::borrow_interior_mutable_const)]
-    allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
-    allowed_headers.extend(meta.allow_headers);
-
-    let mut exposed_headers = cfg
-        .extra_exposed_headers
-        .iter()
-        .map(|s| HeaderName::from_str(s))
-        .collect::<Result<Vec<_>, _>>()
-        .context("failed to parse extra exposed headers")?;
-    #[allow(clippy::borrow_interior_mutable_const)]
-    exposed_headers.extend_from_slice(&ALWAYS_EXPOSED_HEADERS);
-    exposed_headers.extend(meta.expose_headers);
-
-    // Compute the allowed origins.
-    let allow_origin = {
-        use pb::gateway::cors::AllowedOriginsWithCredentials;
-        let with_creds = match &cfg.allowed_origins_with_credentials {
-            Some(AllowedOriginsWithCredentials::UnsafeAllowAllOriginsWithCredentials(true)) => {
-                OriginSet::All
-            }
-            Some(AllowedOriginsWithCredentials::AllowedOrigins(list)) => {
-                OriginSet::new(list.allowed_origins.clone())
-            }
-            _ => OriginSet::Some(vec![]),
-        };
-        let without_creds = OriginSet::new(
-            cfg.allowed_origins_without_credentials
-                .clone()
-                .unwrap_or_default()
-                .allowed_origins,
-        );
-
-        let pred = move |origin: &HeaderValue, req: &axum::http::request::Parts| {
-            let Ok(origin) = origin.to_str() else {
-                return false;
-            };
-            let headers = &req.headers;
-            if headers.contains_key(axum::http::header::AUTHORIZATION)
-                || headers.contains_key(axum::http::header::COOKIE)
-            {
-                with_creds.allows(origin)
-            } else {
-                without_creds.allows(origin)
-            }
-        };
-        pred
-    };
-
-    let layer = cors::CorsLayer::new()
-        .allow_private_network(cfg.allow_private_network_access)
-        .allow_headers(cors::AllowHeaders::list(allowed_headers))
-        .expose_headers(cors::ExposeHeaders::list(exposed_headers))
-        .allow_credentials(!cfg.disable_credentials)
-        .allow_methods(cors::AllowMethods::mirror_request())
-        .allow_origin(cors::AllowOrigin::predicate(allow_origin));
-    Ok(layer)
 }
 
 enum OriginSet {
