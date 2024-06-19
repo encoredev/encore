@@ -334,10 +334,9 @@ impl Manager {
         let listener = self.listener.lock().unwrap().take();
 
         // TODO: remove gateway from the axum setup
-        // TODO: move spawning of proxy to somewhere else?
         // TODO: rename GatewayProxy to Gateway
         //
-        for gateway_proxy in self.gateway_proxies.values() {
+        if let Some(gateway_proxy) = self.gateway_proxies.values().next() {
             let gateway_proxy = gateway_proxy.clone();
             std::thread::spawn(move || {
                 <GatewayProxy as Clone>::clone(&gateway_proxy).run_forever();
