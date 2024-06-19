@@ -1,4 +1,4 @@
-use std::{array, fmt};
+use std::fmt;
 
 use http::{
     header::{self, HeaderName, HeaderValue},
@@ -88,7 +88,7 @@ impl From<Any> for AllowHeaders {
 
 impl<const N: usize> From<[HeaderName; N]> for AllowHeaders {
     fn from(arr: [HeaderName; N]) -> Self {
-        Self::list(arr.into_iter())
+        Self::list(arr)
     }
 }
 

@@ -1,8 +1,6 @@
-use std::{array, fmt};
+use std::fmt;
 
-use http::{
-    header::{self, HeaderName, HeaderValue},
-};
+use http::header::{self, HeaderName, HeaderValue};
 
 use super::{separated_by_commas, Any, WILDCARD};
 
@@ -70,8 +68,7 @@ impl From<Any> for ExposeHeaders {
 
 impl<const N: usize> From<[HeaderName; N]> for ExposeHeaders {
     fn from(arr: [HeaderName; N]) -> Self {
-        #[allow(deprecated)] // Can be changed when MSRV >= 1.53
-        Self::list(array::IntoIter::new(arr))
+        Self::list(arr)
     }
 }
 

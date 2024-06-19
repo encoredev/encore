@@ -1,5 +1,3 @@
-use std::array;
-
 use http::header::{self, HeaderName, HeaderValue};
 
 use super::preflight_request_headers;
@@ -48,8 +46,7 @@ impl Default for Vary {
 
 impl<const N: usize> From<[HeaderName; N]> for Vary {
     fn from(arr: [HeaderName; N]) -> Self {
-        #[allow(deprecated)] // Can be changed when MSRV >= 1.53
-        Self::list(array::IntoIter::new(arr))
+        Self::list(arr)
     }
 }
 

@@ -55,7 +55,6 @@ use http::{
     HeaderValue, Method,
 };
 use pingora::http::{RequestHeader, ResponseHeader};
-use std::array;
 
 mod allow_credentials;
 mod allow_headers;
@@ -497,8 +496,6 @@ impl CorsHeadersConfig {
     }
 }
 
-// TODO vary header was re-appended in response future, nothing we need to considure?
-
 fn append_response_header(
     resp: &mut ResponseHeader,
     header: Option<(HeaderName, HeaderValue)>,
@@ -542,10 +539,10 @@ pub fn ensure_usable_cors_rules(config: &CorsHeadersConfig) {
 ///
 /// This is the default set of header names returned in the `vary` header
 pub fn preflight_request_headers() -> impl Iterator<Item = HeaderName> {
-    #[allow(deprecated)] // Can be changed when MSRV >= 1.53
-    array::IntoIter::new([
+    [
         header::ORIGIN,
         header::ACCESS_CONTROL_REQUEST_METHOD,
         header::ACCESS_CONTROL_REQUEST_HEADERS,
-    ])
+    ]
+    .into_iter()
 }

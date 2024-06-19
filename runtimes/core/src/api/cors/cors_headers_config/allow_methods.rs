@@ -1,4 +1,4 @@
-use std::{array, fmt};
+use std::fmt;
 
 use http::{
     header::{self, HeaderName, HeaderValue},
@@ -108,7 +108,7 @@ impl From<Method> for AllowMethods {
 
 impl<const N: usize> From<[Method; N]> for AllowMethods {
     fn from(arr: [Method; N]) -> Self {
-        Self::list(array::IntoIter::new(arr))
+        Self::list(arr)
     }
 }
 

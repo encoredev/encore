@@ -3,7 +3,7 @@ use http::{
     request::Parts as RequestParts,
     HeaderName,
 };
-use std::{array, fmt, sync::Arc};
+use std::{fmt, sync::Arc};
 
 use super::{Any, WILDCARD};
 
@@ -129,8 +129,7 @@ impl From<HeaderValue> for AllowOrigin {
 
 impl<const N: usize> From<[HeaderValue; N]> for AllowOrigin {
     fn from(arr: [HeaderValue; N]) -> Self {
-        #[allow(deprecated)] // Can be changed when MSRV >= 1.53
-        Self::list(array::IntoIter::new(arr))
+        Self::list(arr)
     }
 }
 
