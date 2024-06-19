@@ -108,7 +108,6 @@ impl From<Method> for AllowMethods {
 
 impl<const N: usize> From<[Method; N]> for AllowMethods {
     fn from(arr: [Method; N]) -> Self {
-        #[allow(deprecated)] // Can be changed when MSRV >= 1.53
         Self::list(array::IntoIter::new(arr))
     }
 }
