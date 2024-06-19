@@ -9,11 +9,12 @@ use anyhow::Context;
 use axum::async_trait;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
+use pingora::protocols::http::error_resp;
 use pingora::proxy::{http_proxy_service, ProxyHttp, Session};
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
 use pingora::upstreams::peer::HttpPeer;
-use pingora::{Error, ErrorType};
+use pingora::{Error, ErrorSource, ErrorType};
 use url::Url;
 
 use crate::api::call::{CallDesc, ServiceRegistry};
@@ -88,11 +89,10 @@ impl GatewayProxy {
                 for path in paths {
                     let method_route = match router.at_mut(path) {
                         Ok(m) => m.value,
-                        Err(matchit::MatchError::NotFound) => {
+                        Err(_) => {
                             router.insert(path, MethodRoute::default())?;
                             router.at_mut(path).unwrap().value
                         }
-                        Err(e) => anyhow::bail!("invalid match path pattern, {}", e),
                     };
 
                     for method in endpoint.methods() {
@@ -315,6 +315,55 @@ impl ProxyHttp for GatewayProxy {
         })?;
 
         Ok(())
+    }
+
+    async fn fail_to_proxy(&self, session: &mut Session, e: &Error, _ctx: &mut Self::CTX) -> u16
+    where
+        Self::CTX: Send + Sync,
+    {
+        let code = match e.etype() {
+            ErrorType::HTTPStatus(code) => *code,
+            _ => {
+                match e.esource() {
+                    ErrorSource::Upstream => 502,
+                    ErrorSource::Downstream => {
+                        match e.etype() {
+                            ErrorType::WriteError
+                            | ErrorType::ReadError
+                            | ErrorType::ConnectionClosed => {
+                                /* conn already dead */
+                                0
+                            }
+                            _ => 400,
+                        }
+                    }
+                    ErrorSource::Internal | ErrorSource::Unset => 500,
+                }
+            }
+        };
+        if code > 0 {
+            // modified version of `Session::respond_error` that adds cors headers
+            let mut resp = match code {
+                /* common error responses are pre-generated */
+                502 => error_resp::HTTP_502_RESPONSE.clone(),
+                400 => error_resp::HTTP_400_RESPONSE.clone(),
+                _ => error_resp::gen_error_response(code),
+            };
+
+            if let Err(e) = self.cors_config.apply(session.req_header(), &mut resp) {
+                log::error!("failed setting cors header in error response: {e}");
+            }
+
+            session.set_keepalive(None);
+
+            session
+                .write_response_header(Box::new(resp))
+                .await
+                .unwrap_or_else(|e| {
+                    log::error!("failed to send error response to downstream: {e}");
+                });
+        }
+        code
     }
 }
 
