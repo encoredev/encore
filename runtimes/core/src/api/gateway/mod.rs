@@ -95,15 +95,23 @@ impl GatewayProxy {
                     };
 
                     for method in endpoint.methods() {
-                        match method {
-                            Method::GET => method_route.get = Some(svc.clone()),
-                            Method::HEAD => method_route.head = Some(svc.clone()),
-                            Method::POST => method_route.post = Some(svc.clone()),
-                            Method::PUT => method_route.put = Some(svc.clone()),
-                            Method::DELETE => method_route.delete = Some(svc.clone()),
-                            Method::OPTIONS => method_route.option = Some(svc.clone()),
-                            Method::TRACE => method_route.trace = Some(svc.clone()),
-                            Method::PATCH => method_route.patch = Some(svc.clone()),
+                        let prev = match method {
+                            Method::GET => method_route.get.replace(svc.clone()),
+                            Method::HEAD => method_route.head.replace(svc.clone()),
+                            Method::POST => method_route.post.replace(svc.clone()),
+                            Method::PUT => method_route.put.replace(svc.clone()),
+                            Method::DELETE => method_route.delete.replace(svc.clone()),
+                            Method::OPTIONS => method_route.option.replace(svc.clone()),
+                            Method::TRACE => method_route.trace.replace(svc.clone()),
+                            Method::PATCH => method_route.patch.replace(svc.clone()),
+                        };
+
+                        if prev.is_some() {
+                            anyhow::bail!(
+                                "tried to register same route twice {} {}",
+                                method.as_str(),
+                                path
+                            );
                         }
                     }
                 }
