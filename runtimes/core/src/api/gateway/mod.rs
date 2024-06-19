@@ -80,7 +80,10 @@ impl GatewayProxy {
         });
 
         let mut router = matchit::Router::new();
-        for (svc, routes) in &service_routes.main {
+        for (svc, routes) in [&service_routes.main, &service_routes.fallback]
+            .into_iter()
+            .flatten()
+        {
             for (endpoint, paths) in routes {
                 for path in paths {
                     let method_route = match router.at_mut(path) {
