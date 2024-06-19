@@ -50,7 +50,7 @@ pub struct Manager {
     gateways: HashMap<EncoreName, Arc<Gateway>>,
     runtime: tokio::runtime::Handle,
 
-    gateway_proxy: Option<GatewayProxy>,
+    gateway_proxies: HashMap<EncoreName, Arc<GatewayProxy>>,
 }
 
 impl ManagerConfig<'_> {
@@ -118,44 +118,41 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
-        let mut gateway_proxy = None;
-        let gateways = {
-            let routes = paths::compute(
-                endpoints
-                    .iter()
-                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
-            );
-            let mut gateways = HashMap::new();
-            for gw in &self.meta.gateways {
-                let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
-                    continue;
-                };
-                let Some(cors_cfg) = &gw_cfg.cors else {
-                    anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
-                };
+        let mut gateways = HashMap::new();
+        let mut gateway_proxies = HashMap::new();
+        let routes = paths::compute(
+            endpoints
+                .iter()
+                .map(|(_, ep)| RoutePerService(ep.to_owned())),
+        );
+        for gw in &self.meta.gateways {
+            let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
+                continue;
+            };
+            let Some(cors_cfg) = &gw_cfg.cors else {
+                anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
+            };
 
-                let auth_handler = build_auth_handler(
-                    self.meta,
-                    gw,
-                    &service_registry,
-                    self.http_client.clone(),
-                    self.tracer.clone(),
-                )
-                .context("unable to build authenticator")?;
+            let auth_handler = build_auth_handler(
+                self.meta,
+                gw,
+                &service_registry,
+                self.http_client.clone(),
+                self.tracer.clone(),
+            )
+            .context("unable to build authenticator")?;
 
-                let meta_headers =
-                    cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
-                let cors = cors::layer(cors_cfg, meta_headers)
-                    .context("failed to parse CORS configuration")?;
+            let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
+            let cors = cors::layer(cors_cfg, meta_headers)
+                .context("failed to parse CORS configuration")?;
 
-                let meta_headers =
-                    cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
-                let cors_config = cors::config(cors_cfg, meta_headers)
-                    .context("failed to parse CORS configuration")?;
+            let meta_headers = cors::MetaHeaders::from_schema(&endpoints, auth_handler.as_ref());
+            let cors_config = cors::config(cors_cfg, meta_headers)
+                .context("failed to parse CORS configuration")?;
 
-                println!("##### regging gatewayproxy {}", gw.encore_name);
-                // TODO should be a hash map, replace the gateway hashmap with this one
-                gateway_proxy.replace(
+            gateway_proxies.insert(
+                gw.encore_name.clone().into(),
+                Arc::new(
                     GatewayProxy::new(
                         gw.encore_name.clone().into(),
                         listen_addr(),
@@ -164,30 +161,30 @@ impl ManagerConfig<'_> {
                         auth_handler,
                         cors_config,
                     )
+                    .context("couldn't create gateway")
                     .unwrap(),
-                );
+                ),
+            );
 
-                let auth_handler = build_auth_handler(
-                    self.meta,
-                    gw,
-                    &service_registry,
-                    self.http_client.clone(),
-                    self.tracer.clone(),
-                )
-                .context("unable to build authenticator")?;
-                let gateway = Gateway::new(
-                    gw.encore_name.clone().into(),
-                    self.http_client.clone(),
-                    service_registry.clone(),
-                    routes.clone(),
-                    auth_handler,
-                    cors,
-                )
-                .context("unable to create gateway")?;
-                gateways.insert(gw.encore_name.clone().into(), Arc::new(gateway));
-            }
-            gateways
-        };
+            let auth_handler = build_auth_handler(
+                self.meta,
+                gw,
+                &service_registry,
+                self.http_client.clone(),
+                self.tracer.clone(),
+            )
+            .context("unable to build authenticator")?;
+            let gateway = Gateway::new(
+                gw.encore_name.clone().into(),
+                self.http_client.clone(),
+                service_registry.clone(),
+                routes.clone(),
+                auth_handler,
+                cors,
+            )
+            .context("unable to create gateway")?;
+            gateways.insert(gw.encore_name.clone().into(), Arc::new(gateway));
+        }
 
         Ok(Manager {
             app_revision: self.meta.app_revision.clone(),
@@ -196,9 +193,9 @@ impl ManagerConfig<'_> {
             service_registry,
             api_server,
             gateways,
+            gateway_proxies,
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
-            gateway_proxy,
         })
     }
 }
@@ -337,14 +334,15 @@ impl Manager {
         let listener = self.listener.lock().unwrap().take();
 
         // TODO: remove gateway from the axum setup
-        // TODO: handle errors prettier
         // TODO: move spawning of proxy to somewhere else?
         // TODO: rename GatewayProxy to Gateway
-
-        let gateway_proxy = self.gateway_proxy.clone().unwrap();
-        std::thread::spawn(|| {
-            gateway_proxy.run_forever();
-        });
+        //
+        for gateway_proxy in self.gateway_proxies.values() {
+            let gateway_proxy = gateway_proxy.clone();
+            std::thread::spawn(move || {
+                <GatewayProxy as Clone>::clone(&gateway_proxy).run_forever();
+            });
+        }
 
         self.runtime.spawn(async move {
             let listener = listener.context("server already started")?;
