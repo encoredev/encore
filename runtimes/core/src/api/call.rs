@@ -334,16 +334,6 @@ pub struct CallDesc<'a, AuthData> {
     pub svc_auth_method: &'a dyn svcauth::ServiceAuthMethod,
 }
 
-pub trait Headers {
-    fn set_header(&mut self, key: MetaKey, value: String) -> anyhow::Result<()>;
-}
-
-impl Headers for pingora::http::RequestHeader {
-    fn set_header(&mut self, key: MetaKey, value: String) -> anyhow::Result<()> {
-        Ok(self.insert_header(key.header_key(), value)?)
-    }
-}
-
 impl<'a, AuthData> CallDesc<'a, AuthData>
 where
     AuthData: serde::ser::Serialize + 'a,
