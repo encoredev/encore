@@ -3,6 +3,7 @@ use std::fs::DirBuilder;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
+use crate::app::AppDesc;
 use anyhow::{Context, Result};
 use clean_path::Clean;
 use itertools::Itertools;
@@ -14,9 +15,8 @@ use crate::parser::parser::ParseContext;
 use crate::parser::resourceparser::bind::BindKind::Create;
 use crate::parser::resources::apis::api::Methods;
 use crate::parser::resources::Resource;
-use crate::parser::FilePath;
+use crate::parser::{FilePath, Range};
 
-use super::parse::ParseResult;
 use super::{App, Builder};
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct CodegenParams<'a> {
     pub app: &'a App,
     pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
-    pub parse: &'a ParseResult,
+    pub desc: &'a AppDesc,
 }
 
 pub struct CodegenResult {
@@ -87,8 +87,29 @@ impl Builder<'_> {
 
         let mut auth_ctx = Vec::new();
 
+        let get_svc_rel_path = |svc_root: &Path, range: Range, strip_ext: bool| -> String {
+            match range.file(&params.pc.file_set) {
+                FilePath::Real(mut buf) => {
+                    if strip_ext {
+                        buf.set_extension("");
+                    }
+                    let rel = match buf.strip_prefix(svc_root) {
+                        Ok(p) => p,
+                        Err(_) => &buf,
+                    };
+
+                    rel.to_owned()
+                        .as_os_str()
+                        .to_str()
+                        .expect("unicode path")
+                        .to_owned()
+                }
+                FilePath::Custom(str) => str,
+            }
+        };
+
         // Generate the files for each service.
-        for svc in &params.parse.desc.services {
+        for svc in &params.desc.parse.services {
             let mut endpoints = Vec::new();
             let mut gateways = Vec::new();
             let mut auth_handlers = Vec::new();
@@ -118,20 +139,14 @@ impl Builder<'_> {
 
             // Add the auth handlers to the auth context.
             for ah in &auth_handlers {
-                let file_name = match ah.range.file(&params.parse.file_set) {
-                    FilePath::Real(mut buf) => {
-                        buf.set_extension("");
-                        buf.file_name().unwrap().to_owned().into_string().unwrap()
-                    }
-                    FilePath::Custom(str) => str,
-                };
+                let rel_path = get_svc_rel_path(&svc.root, ah.range, true);
                 let import_path = Path::new("../../../")
                     .join(&svc_rel_path)
-                    .join(file_name)
+                    .join(rel_path)
                     .with_extension("js");
                 auth_ctx.push(json!({
-                        "name": ah.name,
-                        "import_path": import_path,
+                    "name": ah.name,
+                    "import_path": import_path,
                 }));
             }
 
@@ -140,18 +155,10 @@ impl Builder<'_> {
                 let mut endpoint_ctx = Vec::new();
 
                 for rpc in &endpoints {
-                    // Compute the import path for the endpoint.
-                    // HACK: Find a better way to do this.
-                    let file_name = match rpc.range.file(&params.parse.file_set) {
-                        FilePath::Real(mut buf) => {
-                            buf.set_extension("");
-                            buf.file_name().unwrap().to_owned().into_string().unwrap()
-                        }
-                        FilePath::Custom(buf) => buf,
-                    };
+                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, false);
                     let import_path = Path::new("../../../../")
                         .join(&node_modules_to_svc)
-                        .join(file_name);
+                        .join(rel_path);
 
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
@@ -182,17 +189,10 @@ impl Builder<'_> {
                 let name = &gw.name;
 
                 // Compute the import path for the endpoint.
-                // HACK: Find a better way to do this.
-                let file_name = match gw.range.file(&params.parse.file_set) {
-                    FilePath::Real(mut buf) => {
-                        buf.set_extension("");
-                        buf.file_name().unwrap().to_owned().into_string().unwrap()
-                    }
-                    FilePath::Custom(buf) => buf,
-                };
+                let rel_path = get_svc_rel_path(&svc.root, gw.range, true);
                 let import_path = Path::new("../../../../")
                     .join(&node_modules_to_svc)
-                    .join(file_name);
+                    .join(rel_path);
 
                 let ctx = &json!({
                     "name": name,
@@ -225,18 +225,10 @@ impl Builder<'_> {
                     let _has_req = rpc.encoding.raw_req_schema.is_some();
                     let _has_resp = rpc.encoding.raw_resp_schema.is_some();
 
-                    // Compute the import path for the endpoint.
-                    // HACK: Find a better way to do this.
-                    let file_name = match rpc.range.file(&params.parse.file_set) {
-                        FilePath::Real(mut buf) => {
-                            buf.set_extension("");
-                            buf.file_name().unwrap().to_owned().into_string().unwrap()
-                        }
-                        FilePath::Custom(str) => str,
-                    };
+                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../../")
                         .join(&svc_rel_path)
-                        .join(file_name)
+                        .join(rel_path)
                         .with_extension("js");
 
                     endpoint_ctx.push(json!({
@@ -312,7 +304,7 @@ impl Builder<'_> {
             let mut endpoint_ctx = Vec::new();
             let mut gateway_ctx = Vec::new();
 
-            for svc in &params.parse.desc.services {
+            for svc in &params.desc.parse.services {
                 let mut endpoints = Vec::new();
                 let mut gateways = Vec::new();
                 for b in &svc.binds {
@@ -337,18 +329,10 @@ impl Builder<'_> {
 
                 // Service Main
                 for rpc in &endpoints {
-                    // Compute the import path for the endpoint.
-                    // HACK: Find a better way to do this.
-                    let file_name = match rpc.range.file(&params.parse.file_set) {
-                        FilePath::Real(mut buf) => {
-                            buf.set_extension("");
-                            buf.file_name().unwrap().to_owned().into_string().unwrap()
-                        }
-                        FilePath::Custom(buf) => buf,
-                    };
+                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../")
                         .join(&node_modules_to_svc)
-                        .join(file_name);
+                        .join(rel_path);
 
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
@@ -361,19 +345,10 @@ impl Builder<'_> {
                 // Gateway Main
                 for (gw, bind_name) in &gateways {
                     let _name = &gw.name;
-
-                    // Compute the import path for the endpoint.
-                    // HACK: Find a better way to do this.
-                    let file_name = match gw.range.file(&params.parse.file_set) {
-                        FilePath::Real(mut buf) => {
-                            buf.set_extension("");
-                            buf.file_name().unwrap().to_owned().into_string().unwrap()
-                        }
-                        FilePath::Custom(buf) => buf,
-                    };
+                    let rel_path = get_svc_rel_path(&svc.root, gw.range, true);
                     let import_path = Path::new("../../../")
                         .join(&node_modules_to_svc)
-                        .join(file_name);
+                        .join(rel_path);
 
                     gateway_ctx.push(json!({
                         "encore_name": gw.name,
@@ -402,7 +377,7 @@ impl Builder<'_> {
         // Catalog Index
         {
             let mut services_ctx = Vec::new();
-            for svc in &params.parse.desc.services {
+            for svc in &params.desc.parse.services {
                 services_ctx.push(json!({
                     "name": svc.name,
                 }));

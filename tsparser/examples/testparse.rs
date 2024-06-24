@@ -8,9 +8,9 @@ use anyhow::Result;
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 
-use encore_tsparser::builder;
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
+use encore_tsparser::{app, builder};
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
     GLOBALS.set(&globals, || -> Result<()> {
         HANDLER.set(&errs, || -> Result<()> {
             let builder = Builder::new()?;
-            let _parse: Option<(builder::App, builder::ParseResult)> = None;
+            let _parse: Option<(builder::App, app::AppDesc)> = None;
 
             {
                 let pp = builder::PrepareParams {

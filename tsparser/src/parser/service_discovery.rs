@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use anyhow::Result;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 
 use crate::parser::resourceparser::bind::Bind;
@@ -41,13 +42,16 @@ struct ServiceDiscoverer<'a> {
 impl<'a> ServiceDiscoverer<'a> {
     fn discover(mut self) -> Result<Vec<DiscoveredService>> {
         for b in self.binds {
-            match b.resource {
-                Resource::APIEndpoint(_) => self.possible_service_root(b.as_ref(), false),
-                Resource::PubSubSubscription(_) => self.possible_service_root(b.as_ref(), false),
-                Resource::Gateway(_) => self.possible_service_root(b.as_ref(), true),
-                Resource::AuthHandler(_) => self.possible_service_root(b.as_ref(), false),
-
-                // TODO: Include service struct, auth handler
+            match &b.resource {
+                Resource::Service(svc) => {
+                    self.possible_service_root(b.as_ref(), true, Some(svc.name.clone()))
+                }
+                Resource::APIEndpoint(_) => self.possible_service_root(b.as_ref(), false, None),
+                Resource::PubSubSubscription(_) => {
+                    self.possible_service_root(b.as_ref(), false, None)
+                }
+                Resource::Gateway(_) => self.possible_service_root(b.as_ref(), false, None),
+                Resource::AuthHandler(_) => self.possible_service_root(b.as_ref(), false, None),
                 _ => {}
             }
         }
@@ -58,19 +62,21 @@ impl<'a> ServiceDiscoverer<'a> {
         for (i, svc) in svcs.iter().enumerate() {
             for other in &svcs[i + 1..] {
                 if svc.root.starts_with(&other.root) {
-                    anyhow::bail!(
-                        "service {} cannot be contained within service {}",
-                        svc.name,
-                        other.name,
-                    )
+                    HANDLER.with(|h| {
+                        h.err(&format!(
+                            "service {} cannot be contained within service {}",
+                            svc.name, other.name
+                        ))
+                    });
                 } else if other.root.starts_with(&svc.root) {
-                    anyhow::bail!(
-                        "service {} cannot be contained within service {}",
-                        other.name,
-                        svc.name,
-                    )
+                    HANDLER.with(|h| {
+                        h.err(&format!(
+                            "service {} cannot be contained within service {}",
+                            other.name, svc.name,
+                        ))
+                    });
                 } else if svc.name == other.name {
-                    anyhow::bail!("duplicate service name {}", svc.name)
+                    HANDLER.with(|h| h.err(&format!("service {} defined twice", svc.name,)));
                 }
             }
         }
@@ -81,7 +87,7 @@ impl<'a> ServiceDiscoverer<'a> {
         Ok(svcs)
     }
 
-    fn possible_service_root(&mut self, bind: &Bind, strong: bool) {
+    fn possible_service_root(&mut self, bind: &Bind, strong: bool, service_name: Option<String>) {
         let Some(range) = bind.range else {
             return;
         };
@@ -94,13 +100,20 @@ impl<'a> ServiceDiscoverer<'a> {
             return;
         };
 
-        // Ensure we have a valid service name.
-        let dir_name = root
-            .file_name()
-            .and_then(|x| x.to_str())
-            .map(|x| x.to_string());
-        let Some(service_name) = dir_name else {
-            return;
+        // Determine the service name.
+        let service_name = match service_name {
+            Some(name) => name,
+            None => {
+                // Ensure we have a valid service name.
+                let dir_name = root
+                    .file_name()
+                    .and_then(|x| x.to_str())
+                    .map(|x| x.to_string());
+                let Some(dir_name) = dir_name else {
+                    return;
+                };
+                dir_name
+            }
         };
 
         if strong {
@@ -125,7 +138,7 @@ impl<'a> ServiceDiscoverer<'a> {
                 } else {
                     // The existing service is a descendant of this one,
                     // so remove it in favor of this one.
-                    to_delete.push(existing_root);
+                    to_delete.push(existing_root.clone());
                 }
             } else if root.starts_with(existing_root) && !strong {
                 // The new service is a descendant of an existing service, and this is not
@@ -133,6 +146,11 @@ impl<'a> ServiceDiscoverer<'a> {
                 // so we're done.
                 return;
             }
+        }
+
+        // Delete ones marked for deletion.
+        for root in to_delete {
+            self.services.remove(&root);
         }
 
         // The new service is not a descendant of any existing service, so add it.
@@ -150,6 +168,7 @@ impl<'a> ServiceDiscoverer<'a> {
 mod tests {
     use std::path::Path;
     use std::rc::Rc;
+
     use swc_common::errors::{Handler, HANDLER};
     use swc_common::{Globals, SourceMap, GLOBALS};
     use tempdir::TempDir;
@@ -194,7 +213,7 @@ mod tests {
                 );
                 let parser = Parser::new(&pc, pass1);
                 let result = parser.parse()?;
-                discover_services(&pc.file_set, &result.binds)
+                discover_services(&pc.file_set, &result.resources)
             })
         })
     }

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::rc::Rc;
 
 use anyhow::Result;
@@ -72,11 +73,37 @@ impl<'a> PassOneParser<'a> {
         self.next_id.into()
     }
 
-    pub fn parse(&mut self, module: Lrc<Module>) -> Result<(Vec<Resource>, Vec<UnresolvedBind>)> {
+    pub fn parse(
+        &mut self,
+        module: Lrc<Module>,
+        service_name: Option<&str>,
+    ) -> Result<(Vec<Resource>, Vec<UnresolvedBind>)> {
         let parsers = self.registry.interested_parsers(&module);
-        let mut ctx = ResourceParseContext::new(&self.file_set, &self.type_checker, module.clone());
+
+        let mut ctx = ResourceParseContext::new(
+            &self.file_set,
+            &self.type_checker,
+            module.clone(),
+            service_name.map(Cow::Borrowed),
+        );
+
+        log::debug!(
+            "parsing module {} with svc name {:?}",
+            module.file_path,
+            ctx.service_name
+        );
+
         for parser in parsers {
+            let num_resources = ctx.resources.len();
             (parser.run)(&mut ctx)?;
+
+            // Look at any new resources to see if we have a new service.
+            for res in &ctx.resources[num_resources..] {
+                if let Resource::Service(svc) = res {
+                    log::debug!("setting service name to {}", svc.name);
+                    ctx.service_name = Some(Cow::Owned(svc.name.clone()));
+                }
+            }
         }
 
         let mut binds = Vec::with_capacity(ctx.binds.len());
@@ -104,17 +131,24 @@ impl<'a> PassOneParser<'a> {
 pub struct ResourceParseContext<'a> {
     pub module: Lrc<Module>,
     pub type_checker: &'a TypeChecker,
+    pub service_name: Option<Cow<'a, str>>,
     file_set: &'a FileSet,
     resources: Vec<Resource>,
     binds: Vec<BindData>,
 }
 
 impl<'a> ResourceParseContext<'a> {
-    pub fn new(file_set: &'a FileSet, type_checker: &'a TypeChecker, module: Lrc<Module>) -> Self {
+    pub fn new(
+        file_set: &'a FileSet,
+        type_checker: &'a TypeChecker,
+        module: Lrc<Module>,
+        service_name: Option<Cow<'a, str>>,
+    ) -> Self {
         Self {
             module,
             type_checker,
             file_set,
+            service_name,
             resources: Vec::new(),
             binds: Vec::new(),
         }
@@ -122,7 +156,7 @@ impl<'a> ResourceParseContext<'a> {
 
     /// Register a resource.
     pub fn add_resource(&mut self, res: Resource) {
-        log::debug!("Found resource {}", res);
+        log::debug!("found resource {}", res);
         self.resources.push(res);
     }
 
