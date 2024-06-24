@@ -24,7 +24,6 @@ use crate::api::schema::Method;
 use crate::{api, model, EncoreName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
-use super::IntoResponse;
 
 #[derive(Clone)]
 pub struct Gateway {
