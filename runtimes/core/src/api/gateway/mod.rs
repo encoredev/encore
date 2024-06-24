@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -26,7 +26,6 @@ use super::cors::cors_headers_config::CorsHeadersConfig;
 
 #[derive(Clone)]
 pub struct Gateway {
-    listen_addr: String,
     shared: Arc<SharedGatewayData>,
     service_registry: Arc<ServiceRegistry>,
     router: matchit::Router<MethodRoute>,
@@ -63,11 +62,10 @@ impl MethodRoute {
 impl Gateway {
     pub fn new(
         name: EncoreName,
-        listen_addr: String,
         service_registry: Arc<ServiceRegistry>,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
-        cors: CorsHeadersConfig,
+        cors_config: CorsHeadersConfig,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
             name,
@@ -117,8 +115,7 @@ impl Gateway {
             shared,
             service_registry,
             router,
-            listen_addr,
-            cors_config: cors,
+            cors_config,
         })
     }
 
@@ -126,7 +123,7 @@ impl Gateway {
         self.shared.auth.as_ref()
     }
 
-    pub fn run_forever(self) -> ! {
+    pub fn run_forever(self, listener: TcpListener) -> ! {
         let mut server = Server::new(Some(Opt {
             upgrade: false,
             daemon: false,
@@ -137,9 +134,11 @@ impl Gateway {
         .context("couldn't start gateway proxy")
         .unwrap();
 
-        let listen_addr = self.listen_addr.clone();
-
         let mut proxy = http_proxy_service(&server.configuration, self);
+        let listen_addr = listener.local_addr().unwrap().to_string();
+
+        // unbind the address and let pingora re-bind it
+        drop(listener);
         proxy.add_tcp(&listen_addr);
         server.add_service(proxy);
 

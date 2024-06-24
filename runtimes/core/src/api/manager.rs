@@ -42,7 +42,8 @@ pub struct ManagerConfig<'a> {
 pub struct Manager {
     app_revision: String,
     deploy_id: String,
-    listener: Mutex<Option<std::net::TcpListener>>,
+    listener_main: Mutex<Option<std::net::TcpListener>>,
+    listener_sub: Mutex<Option<std::net::TcpListener>>,
     service_registry: Arc<ServiceRegistry>,
     pubsub_push_registry: pubsub::PushHandlerRegistry,
 
@@ -54,15 +55,30 @@ pub struct Manager {
 
 impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
-        let listener = {
-            let addr = "0.0.0.0:0";
+        let listener_main = {
+            let addr = listen_addr();
             std::net::TcpListener::bind(addr).context("unable to bind to port")?
         };
 
-        let own_address = listener
-            .local_addr()
-            .context("unable to determine listen address")?
-            .to_string();
+        // if we have a gateway, we create a internal address for the api
+        let listener_sub = if !self.hosted_gateway_rids.is_empty() {
+            let addr = "0.0.0.0:0";
+            Some(std::net::TcpListener::bind(addr).context("unable to bind to port")?)
+        } else {
+            None
+        };
+
+        let own_address = if let Some(ref listener) = listener_sub {
+            listener
+                .local_addr()
+                .context("unable to determine listen address")?
+                .to_string()
+        } else {
+            listener_main
+                .local_addr()
+                .context("unable to determine listen address")?
+                .to_string()
+        };
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
         let (endpoints, hosted_endpoints) = endpoints_from_meta(self.meta, &hosted_services)
@@ -149,7 +165,6 @@ impl ManagerConfig<'_> {
                 Arc::new(
                     Gateway::new(
                         gw.encore_name.clone().into(),
-                        listen_addr(),
                         service_registry.clone(),
                         routes.clone(),
                         auth_handler,
@@ -164,7 +179,8 @@ impl ManagerConfig<'_> {
         Ok(Manager {
             app_revision: self.meta.app_revision.clone(),
             deploy_id: self.deploy_id,
-            listener: Mutex::new(Some(listener)),
+            listener_main: Mutex::new(Some(listener_main)),
+            listener_sub: Mutex::new(listener_sub),
             service_registry,
             api_server,
             gateways,
@@ -304,15 +320,24 @@ impl Manager {
         let fallback = axum::Router::new().fallback(fallback);
         let server = HttpServer::new(encore_routes, api, fallback);
 
-        let listener = self.listener.lock().unwrap().take();
-
         // TODO handle multiple gateways
         if let Some(gateway) = self.gateways.values().next() {
             let gateway = gateway.clone();
+            let listener = self.listener_main.lock().unwrap().take().unwrap();
+            listener
+                .set_nonblocking(true)
+                .context("unable to set nonblocking")
+                .unwrap();
             std::thread::spawn(move || {
-                <Gateway as Clone>::clone(&gateway).run_forever();
+                <Gateway as Clone>::clone(&gateway).run_forever(listener);
             });
         }
+
+        let listener = if self.gateways.is_empty() {
+            self.listener_main.lock().unwrap().take()
+        } else {
+            self.listener_sub.lock().unwrap().take()
+        };
 
         self.runtime.spawn(async move {
             let listener = listener.context("server already started")?;
