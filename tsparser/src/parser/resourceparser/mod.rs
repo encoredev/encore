@@ -87,20 +87,14 @@ impl<'a> PassOneParser<'a> {
             service_name.map(Cow::Borrowed),
         );
 
-        log::debug!(
-            "parsing module {} with svc name {:?}",
-            module.file_path,
-            ctx.service_name
-        );
-
         for parser in parsers {
             let num_resources = ctx.resources.len();
             (parser.run)(&mut ctx)?;
 
             // Look at any new resources to see if we have a new service.
+            // If so, update our ctx so that later parsers have up-to-date information.
             for res in &ctx.resources[num_resources..] {
                 if let Resource::Service(svc) = res {
-                    log::debug!("setting service name to {}", svc.name);
                     ctx.service_name = Some(Cow::Owned(svc.name.clone()));
                 }
             }

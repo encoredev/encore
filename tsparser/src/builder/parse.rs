@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::path::Path;
 
 use anyhow::Result;
@@ -16,6 +17,15 @@ pub struct ParseParams<'a> {
     pub parse_tests: bool,
 }
 
+#[derive(Debug)]
+pub struct ParseError;
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "failed to parse TypeScript code")
+    }
+}
+
 impl Builder<'_> {
     pub fn parse(&self, params: &ParseParams) -> Result<AppDesc> {
         let pc = params.pc;
@@ -30,7 +40,7 @@ impl Builder<'_> {
         let desc = validate_and_describe(pc, result)?;
 
         if pc.errs.has_errors() {
-            anyhow::bail!("parse failed")
+            anyhow::bail!(ParseError);
         }
         Ok(desc)
     }
