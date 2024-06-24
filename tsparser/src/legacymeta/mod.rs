@@ -5,10 +5,9 @@ use std::rc::Rc;
 use anyhow::{Context, Result};
 use swc_common::errors::HANDLER;
 
-use crate::app::Service;
 use crate::encore::parser::meta::v1;
 use crate::legacymeta::schema::{loc_from_range, SchemaBuilder};
-use crate::parser::parser::{ParseContext, ParseResult};
+use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
 use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
@@ -23,24 +22,14 @@ mod schema;
 
 const DEFAULT_API_GATEWAY_NAME: &str = "api-gateway";
 
-pub fn compute_meta(
-    pc: &ParseContext,
-    parse: &ParseResult,
-    services: &[Service],
-) -> Result<v1::Data> {
-    // The metadata assumes there's a single app root since it uses
-    // relative paths to refer to files. Make this assumption for now.
-    if pc.dir_roots.len() != 1 {
-        anyhow::bail!("multiple app roots not supported");
-    }
-    let app_root = pc.dir_roots[0].as_path();
+pub fn compute_meta(pc: &ParseContext, parse: &ParseResult) -> Result<v1::Data> {
+    let app_root = pc.app_root.as_path();
 
     let schema = SchemaBuilder::new(pc, app_root);
     MetaBuilder {
         pc,
         schema,
         parse,
-        services,
         app_root,
         data: new_meta(),
     }
@@ -51,7 +40,6 @@ struct MetaBuilder<'a> {
     pc: &'a ParseContext,
     schema: SchemaBuilder<'a>,
     parse: &'a ParseResult,
-    services: &'a [Service],
     app_root: &'a Path,
 
     data: v1::Data,
@@ -64,7 +52,7 @@ impl<'a> MetaBuilder<'a> {
 
         let mut svc_index = HashMap::new();
         let mut svc_to_pkg_index = HashMap::new();
-        for svc in self.services {
+        for svc in &self.parse.services {
             let rel_path = self.rel_path_string(svc.root.as_path())?;
             svc_to_pkg_index.insert(svc.name.clone(), self.data.pkgs.len());
             self.data.pkgs.push(v1::Package {
@@ -118,6 +106,7 @@ impl<'a> MetaBuilder<'a> {
             }
             match &b.resource {
                 // Do nothing for these resources:
+                Resource::Service(_) => {}
                 Resource::ServiceClient(_) => {}
 
                 Resource::APIEndpoint(ep) => {
@@ -363,8 +352,8 @@ impl<'a> MetaBuilder<'a> {
                         .ok_or(anyhow::anyhow!("unable to determine service for call"))?
                         .name
                         .clone();
-                    let dst_service = call.endpoint.service_name.clone();
-                    let dst_endpoint = call.endpoint.name.clone();
+                    let dst_service = call.endpoint.0.clone();
+                    let dst_endpoint = call.endpoint.1.clone();
 
                     let dst_idx = svc_to_pkg_index
                         .get(&dst_service)
@@ -387,7 +376,6 @@ impl<'a> MetaBuilder<'a> {
                         });
                     }
                 }
-                Usage::ReferenceEndpoint(_) => {}
             }
         }
 
@@ -525,7 +513,8 @@ impl<'a> MetaBuilder<'a> {
             FilePath::Real(path) => path,
             FilePath::Custom(_) => return None,
         };
-        self.services
+        self.parse
+            .services
             .iter()
             .find(|svc| path.starts_with(svc.root.as_path()))
     }
@@ -616,8 +605,6 @@ mod tests {
     use swc_common::{Globals, SourceMap, GLOBALS};
     use tempdir::TempDir;
 
-    use crate::app::collect_services;
-    use crate::app::service_discovery::discover_services;
     use crate::parser::parser::Parser;
     use crate::parser::resourceparser::PassOneParser;
     use crate::testutil::testresolve::TestResolver;
@@ -658,10 +645,7 @@ mod tests {
                 );
                 let parser = Parser::new(&pc, pass1);
                 let parse = parser.parse()?;
-
-                let discovered = discover_services(&pc.file_set, &parse.binds)?;
-                let services = collect_services(&pc.file_set, &parse, discovered)?;
-                compute_meta(&pc, &parse, &services)
+                compute_meta(&pc, &parse)
             })
         })
     }

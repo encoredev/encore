@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::app::AppDesc;
 use anyhow::{Context, Result};
 use serde::Serialize;
 
@@ -10,7 +11,6 @@ use crate::builder::transpiler::{
 };
 use crate::parser::parser::ParseContext;
 
-use super::parse::ParseResult;
 use super::{App, Builder};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ pub struct CompileParams<'a> {
     pub app: &'a App,
     pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
-    pub parse: &'a ParseResult,
+    pub desc: &'a AppDesc,
     pub use_local_runtime: bool,
 }
 
@@ -62,7 +62,7 @@ impl Builder<'_> {
             app: params.app,
             pc: params.pc,
             working_dir: params.working_dir,
-            parse: params.parse,
+            desc: params.desc,
         })
         .context("generate code")?;
 
@@ -80,18 +80,17 @@ impl Builder<'_> {
 
         let inputs = {
             let mut inputs = Vec::with_capacity(
-                params.parse.desc.services.len() + params.parse.desc.meta.gateways.len(),
+                params.desc.parse.services.len() + params.desc.meta.gateways.len(),
             );
 
             let service_names = params
-                .parse
                 .desc
+                .parse
                 .services
                 .iter()
                 .map(|s| s.name.clone())
                 .collect();
             let gateway_names = params
-                .parse
                 .desc
                 .meta
                 .gateways

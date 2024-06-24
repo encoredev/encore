@@ -232,6 +232,22 @@ impl From<swc_common::Span> for Range {
     }
 }
 
+impl From<Range> for swc_common::Span {
+    fn from(range: Range) -> Self {
+        swc_common::Span {
+            lo: range.start.into(),
+            hi: range.end.into(),
+            ctxt: SyntaxContext::empty(),
+        }
+    }
+}
+
+impl From<Range> for swc_common::MultiSpan {
+    fn from(range: Range) -> Self {
+        swc_common::MultiSpan::from_span(range.into())
+    }
+}
+
 impl Default for Range {
     fn default() -> Self {
         ZERO_RANGE

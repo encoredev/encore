@@ -1,12 +1,10 @@
 use std::path::Path;
 
 use anyhow::Result;
-use swc_common::sync::Lrc;
 
 use crate::app::{validate_and_describe, AppDesc};
 use crate::parser::parser::{ParseContext, Parser};
 use crate::parser::resourceparser::PassOneParser;
-use crate::parser::FileSet;
 
 use super::{App, Builder};
 
@@ -18,14 +16,8 @@ pub struct ParseParams<'a> {
     pub parse_tests: bool,
 }
 
-#[derive(Debug)]
-pub struct ParseResult {
-    pub file_set: Lrc<FileSet>,
-    pub desc: AppDesc,
-}
-
 impl Builder<'_> {
-    pub fn parse(&self, params: &ParseParams) -> Result<ParseResult> {
+    pub fn parse(&self, params: &ParseParams) -> Result<AppDesc> {
         let pc = params.pc;
         let pass1 = PassOneParser::new(
             pc.file_set.clone(),
@@ -35,13 +27,11 @@ impl Builder<'_> {
         let parser = Parser::new(pc, pass1);
 
         let result = parser.parse()?;
-        let desc = validate_and_describe(pc, &result)?;
+        let desc = validate_and_describe(pc, result)?;
 
         if pc.errs.has_errors() {
             anyhow::bail!("parse failed")
         }
-
-        let file_set = pc.file_set.clone();
-        Ok(ParseResult { file_set, desc })
+        Ok(desc)
     }
 }

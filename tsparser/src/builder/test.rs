@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+use crate::app::AppDesc;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +11,6 @@ use crate::builder::compile::CmdSpec;
 use crate::builder::package_mgmt::resolve_package_manager;
 use crate::parser::parser::ParseContext;
 
-use super::parse::ParseResult;
 use super::{App, Builder};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ pub struct TestParams<'a> {
     pub app: &'a App,
     pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
-    pub parse: &'a ParseResult,
+    pub parse: &'a AppDesc,
     pub use_local_runtime: bool,
 }
 
@@ -54,7 +54,7 @@ impl Builder<'_> {
             app: params.app,
             pc: params.pc,
             working_dir: params.working_dir,
-            parse: params.parse,
+            desc: params.parse,
         })
         .context("generate code")?;
 

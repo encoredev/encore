@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use anyhow::Result;
-use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
 
 use litparser::{LitParser, Nullable};
+use litparser_derive::LitParser;
 
 use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
@@ -18,7 +18,7 @@ use crate::parser::resources::parseutil::{
 };
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
-use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
+use crate::parser::usageparser::{ResolveUsageData, Usage};
 use crate::parser::{FilePath, Range};
 
 #[derive(Debug, Clone)]
@@ -145,18 +145,25 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 
     run: |pass| {
         let module = pass.module.clone();
-        // TODO handle this in a better way.
-        let service_name = match &module.file_path {
-            FilePath::Real(ref buf) => buf
-                .parent()
-                .and_then(|p| p.file_name())
-                .and_then(|s| s.to_str()),
-            FilePath::Custom(ref str) => {
-                anyhow::bail!("unsupported file path for service: {}", str)
+
+        let service_name = match &pass.service_name {
+            Some(name) => name.to_string(),
+            None => {
+                // TODO handle this in a better way.
+                match &module.file_path {
+                    FilePath::Real(ref buf) => buf
+                        .parent()
+                        .and_then(|p| p.file_name())
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                        .ok_or(anyhow::anyhow!(
+                            "unable to determine service name for endpoint"
+                        ))?,
+                    FilePath::Custom(ref str) => {
+                        anyhow::bail!("unsupported file path for service: {}", str)
+                    }
+                }
             }
-        };
-        let Some(service_name) = service_name else {
-            return Ok(());
         };
 
         let names = TrackedNames::new(&[("encore.dev/api", "api")]);
@@ -166,7 +173,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let path_str = r
                 .config
                 .path
-                .unwrap_or_else(|| format!("/{}.{}", service_name, r.endpoint_name));
+                .unwrap_or_else(|| format!("/{}.{}", &service_name, r.endpoint_name));
 
             let path = Path::parse(&path_str, Default::default())?;
 
@@ -205,7 +212,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let resource = Resource::APIEndpoint(Lrc::new(Endpoint {
                 range: r.range,
                 name: r.endpoint_name,
-                service_name: service_name.to_string(),
+                service_name: service_name.clone(),
                 doc: r.doc_comment,
                 expose: r.config.expose.unwrap_or(false),
                 require_auth: r.config.auth.unwrap_or(false),
@@ -230,7 +237,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 #[derive(Debug)]
 pub struct CallEndpointUsage {
     pub range: Range,
-    pub endpoint: Lrc<Endpoint>,
+    pub endpoint: (String, String),
 }
 
 #[derive(Debug)]
@@ -239,18 +246,19 @@ pub struct ReferenceEndpointUsage {
     pub endpoint: Lrc<Endpoint>,
 }
 
-pub fn resolve_endpoint_usage(data: &ResolveUsageData, endpoint: Lrc<Endpoint>) -> Result<Usage> {
-    Ok(match &data.expr.kind {
-        UsageExprKind::Callee(_callee) => Usage::CallEndpoint(CallEndpointUsage {
-            range: data.expr.range,
-            endpoint,
-        }),
-        UsageExprKind::Other(_other) => Usage::ReferenceEndpoint(ReferenceEndpointUsage {
-            range: data.expr.range,
-            endpoint,
-        }),
-        _ => anyhow::bail!("invalid endpoint usage"),
-    })
+pub fn resolve_endpoint_usage(_data: &ResolveUsageData, _endpoint: Lrc<Endpoint>) -> Option<Usage> {
+    // Endpoints are just normal functions in TS, so no usage to resolve.
+    None
+    // Ok(match &data.expr.kind {
+    //     UsageExprKind::Callee(_) => {
+    //         // Considered just a normal function call.
+    //     },
+    //     UsageExprKind::Other(_other) => Usage::ReferenceEndpoint(ReferenceEndpointUsage {
+    //         range: data.expr.range,
+    //         endpoint,
+    //     }),
+    //     _ => anyhow::bail!("invalid endpoint usage"),
+    // })
 }
 
 #[derive(Debug)]

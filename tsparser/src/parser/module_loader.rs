@@ -71,6 +71,8 @@ impl ModuleLoader {
 
     pub fn resolve_import(&self, module: &Module, import_path: &str) -> Result<Lrc<Module>> {
         // Special case for the generated clients.
+        // TODO: Fix this to do actual import path resolution.
+        // It's a bit tricky because we can't use the resolver since the files may not exist.
         if import_path == "~encore/clients" {
             return Ok(self.encore_app_clients());
         } else if import_path == "~encore/auth" {
