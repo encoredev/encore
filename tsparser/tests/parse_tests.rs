@@ -8,9 +8,9 @@ use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
 use tempdir::TempDir;
 
-use encore_tsparser::builder;
-use encore_tsparser::builder::{Builder, ParseResult};
+use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
+use encore_tsparser::{app, builder};
 
 use crate::common::js_runtime_path;
 
@@ -33,7 +33,7 @@ fn test_parser() {
     });
 }
 
-fn parse_txtar(app_root: &Path) -> Result<ParseResult> {
+fn parse_txtar(app_root: &Path) -> Result<app::AppDesc> {
     let globals = Globals::new();
     let cm: Rc<SourceMap> = Default::default();
     let errs = Rc::new(Handler::with_tty_emitter(
@@ -43,8 +43,8 @@ fn parse_txtar(app_root: &Path) -> Result<ParseResult> {
         Some(cm.clone()),
     ));
 
-    GLOBALS.set(&globals, || -> Result<ParseResult> {
-        HANDLER.set(&errs, || -> Result<ParseResult> {
+    GLOBALS.set(&globals, || -> Result<app::AppDesc> {
+        HANDLER.set(&errs, || -> Result<app::AppDesc> {
             let builder = Builder::new()?;
             let js_runtime_path = js_runtime_path();
 

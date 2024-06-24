@@ -213,7 +213,7 @@ mod tests {
                 );
                 let parser = Parser::new(&pc, pass1);
                 let result = parser.parse()?;
-                discover_services(&pc.file_set, &result.resources)
+                discover_services(&pc.file_set, &result.binds)
             })
         })
     }

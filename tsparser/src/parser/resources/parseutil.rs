@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Result;
 use litparser::LitParser;
 use swc_common::errors::HANDLER;
+use swc_common::Spanned;
 use swc_ecma_ast as ast;
 use swc_ecma_visit::VisitWithPath;
 
@@ -86,11 +87,14 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
             ) = node
             {
                 let Some(args) = &expr.args else {
-                    anyhow::bail!("missing constructor arguments")
+                    HANDLER.with(|h| h.span_err(expr.span, "missing constructor arguments"));
+                    continue;
                 };
 
                 let bind_name = extract_bind_name(path)?;
-                let resource_name = extract_resource_name(args, NAME_IDX)?;
+                let Some(resource_name) = extract_resource_name(expr.span, args, NAME_IDX) else {
+                    continue;
+                };
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
                 let config = args
@@ -201,7 +205,10 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                 };
 
                 let bind_name = extract_bind_name(path)?;
-                let resource_name = extract_resource_name(&call.args, NAME_IDX)?;
+                let Some(resource_name) = extract_resource_name(call.span, &call.args, NAME_IDX)
+                else {
+                    continue;
+                };
                 let doc_comment = module.preceding_comments(call.span.lo.into());
 
                 return Ok(Some(Self {
@@ -217,21 +224,25 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
     }
 }
 
-pub fn extract_resource_name(args: &[ast::ExprOrSpread], idx: usize) -> Result<&str> {
-    let val = args.get(idx).ok_or(anyhow::anyhow!(
-        "missing resource name as argument[{}]",
-        idx
-    ))?;
+/// Extracts the name of a resource.
+/// Returns None if the parse failed.
+pub fn extract_resource_name(
+    span: swc_common::Span,
+    args: &[ast::ExprOrSpread],
+    idx: usize,
+) -> Option<&str> {
+    let Some(val) = args.get(idx) else {
+        HANDLER.with(|h| h.span_err(span, &format!("missing resource name as argument[{}]", idx)));
+        return None;
+    };
     if val.spread.is_none() {
         if let ast::Expr::Lit(ast::Lit::Str(str)) = val.expr.as_ref() {
-            return Ok(str.value.as_ref());
+            return Some(str.value.as_ref());
         }
     }
 
-    Err(anyhow::anyhow!(
-        "expected string literal as argument[{}]",
-        idx
-    ))
+    HANDLER.with(|h| h.span_err(val.span(), "expected string literal"));
+    None
 }
 
 pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> Result<Option<ast::Ident>> {

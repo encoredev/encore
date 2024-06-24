@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -125,8 +125,15 @@ fn main() -> Result<()> {
                                     err_msg.push_str(err);
                                     err_msg.push('\n');
                                 }
-                                err_msg.push_str(&format!("{:?}", err));
-                                write_result(Err(anyhow::anyhow!(err_msg)))?
+
+                                if err.is::<builder::ParseError>() {
+                                    // Don't include stack trace or detailed error info
+                                    // if this is a parse error.
+                                    write_result(Err(anyhow::anyhow!(PlainError(err_msg))))?
+                                } else {
+                                    err_msg.push_str(&format!("{:?}", err));
+                                    write_result(Err(anyhow::anyhow!(err_msg)))?
+                                }
                             }
                         }
                     }
@@ -226,7 +233,11 @@ fn write_result(res: Result<&[u8]>) -> io::Result<()> {
     match res {
         Ok(bytes) => write_data(true, bytes),
         Err(err) => {
-            let s = format!("{:?}", err);
+            // If this is a parse error, don't include a full stack trace.
+            let s = match err.downcast_ref::<PlainError>() {
+                Some(err) => err.0.as_str(),
+                None => &format!("{:?}", err),
+            };
             let bytes = s.as_bytes();
             write_data(false, bytes)
         }
@@ -345,5 +356,14 @@ impl Write for AtomicBuf {
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct PlainError(String);
+
+impl std::fmt::Display for PlainError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
