@@ -32,6 +32,37 @@ pub struct Gateway {
     cors_config: CorsHeadersConfig,
 }
 
+pub struct GatewayCtx {
+    base_path: String,
+    service_name: EncoreName,
+}
+
+impl GatewayCtx {
+    fn prepend_base_path(&self, uri: http::Uri) -> http::Uri {
+        // TODO fix unwraps
+        let base_path = self
+            .base_path
+            .strip_suffix('/')
+            .unwrap_or(self.base_path.as_str());
+
+        let mut parts = uri.into_parts();
+        parts.path_and_query = Some(
+            format!(
+                "{}{}",
+                base_path,
+                parts
+                    .path_and_query
+                    .map(|p| p.to_string())
+                    .unwrap_or_else(|| "/".to_string())
+            )
+            .parse()
+            .unwrap(),
+        );
+
+        http::Uri::from_parts(parts).unwrap()
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct MethodRoute {
     get: Option<EncoreName>,
@@ -148,8 +179,8 @@ impl Gateway {
 
 #[async_trait]
 impl ProxyHttp for Gateway {
-    type CTX = Option<EncoreName>;
-    fn new_ctx(&self) -> Option<EncoreName> {
+    type CTX = Option<GatewayCtx>;
+    fn new_ctx(&self) -> Self::CTX {
         None
     }
 
@@ -177,8 +208,6 @@ impl ProxyHttp for Gateway {
             .value
             .for_method(method)
             .ok_or_else(|| Error::explain(ErrorType::HTTPStatus(405), "no route for method"))?;
-
-        ctx.replace(service_name.clone());
 
         let upstream = self
             .service_registry
@@ -212,6 +241,10 @@ impl ProxyHttp for Gateway {
 
         let peer = HttpPeer::new(upstream_addr, false, "".to_string());
 
+        ctx.replace(GatewayCtx {
+            base_path: upstream_url.path().to_string(),
+            service_name: service_name.clone(),
+        });
         Ok(Box::new(peer))
     }
 
@@ -259,13 +292,15 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
-        let service_name = ctx
+        let gateway_ctx = ctx
             .as_ref()
             .ok_or_else(|| Error::explain(ErrorType::InternalError, "ctx not set"))?;
 
+        upstream_request.set_uri(gateway_ctx.prepend_base_path(upstream_request.uri.clone()));
+
         let svc_auth_method = self
             .service_registry
-            .service_auth_method(service_name)
+            .service_auth_method(&gateway_ctx.service_name)
             .unwrap_or_else(|| Arc::new(svcauth::Noop));
 
         let headers = &session.req_header().headers;
