@@ -38,8 +38,7 @@ pub struct GatewayCtx {
 }
 
 impl GatewayCtx {
-    fn prepend_base_path(&self, uri: http::Uri) -> http::Uri {
-        // TODO fix unwraps
+    fn prepend_base_path(&self, uri: http::Uri) -> anyhow::Result<http::Uri> {
         let base_path = self
             .base_path
             .strip_suffix('/')
@@ -55,11 +54,10 @@ impl GatewayCtx {
                     .map(|p| p.to_string())
                     .unwrap_or_else(|| "/".to_string())
             )
-            .parse()
-            .unwrap(),
+            .parse()?,
         );
 
-        http::Uri::from_parts(parts).unwrap()
+        Ok(http::Uri::from_parts(parts)?)
     }
 }
 
@@ -296,7 +294,17 @@ impl ProxyHttp for Gateway {
             .as_ref()
             .ok_or_else(|| Error::explain(ErrorType::InternalError, "ctx not set"))?;
 
-        upstream_request.set_uri(gateway_ctx.prepend_base_path(upstream_request.uri.clone()));
+        let new_uri = gateway_ctx
+            .prepend_base_path(upstream_request.uri.clone())
+            .map_err(|e| {
+                Error::because(
+                    ErrorType::InternalError,
+                    "failed to prepend upstream base path",
+                    e,
+                )
+            })?;
+
+        upstream_request.set_uri(new_uri);
 
         let svc_auth_method = self
             .service_registry
