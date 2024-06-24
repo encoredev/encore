@@ -121,7 +121,6 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     InputKind::Combined(gateways, services) => (services, gateways),
                 };
 
-                log::warn!("COMMAND: {:?}", command);
                 entrypoints.push(Entrypoint {
                     cmd: CmdSpec {
                         command,
