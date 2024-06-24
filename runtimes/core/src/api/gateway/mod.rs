@@ -25,7 +25,7 @@ use crate::{api, model, EncoreName};
 use super::cors::cors_headers_config::CorsHeadersConfig;
 
 #[derive(Clone)]
-pub struct GatewayProxy {
+pub struct Gateway {
     listen_addr: String,
     shared: Arc<SharedGatewayData>,
     service_registry: Arc<ServiceRegistry>,
@@ -60,7 +60,7 @@ impl MethodRoute {
     }
 }
 
-impl GatewayProxy {
+impl Gateway {
     pub fn new(
         name: EncoreName,
         listen_addr: String,
@@ -113,7 +113,7 @@ impl GatewayProxy {
             }
         }
 
-        Ok(GatewayProxy {
+        Ok(Gateway {
             shared,
             service_registry,
             router,
@@ -148,7 +148,7 @@ impl GatewayProxy {
 }
 
 #[async_trait]
-impl ProxyHttp for GatewayProxy {
+impl ProxyHttp for Gateway {
     type CTX = Option<EncoreName>;
     fn new_ctx(&self) -> Option<EncoreName> {
         None

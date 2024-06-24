@@ -15,13 +15,13 @@ use std::sync::Arc;
 #[napi]
 pub struct Gateway {
     #[allow(dead_code)]
-    gateway: Option<Arc<api::gateway::GatewayProxy>>,
+    gateway: Option<Arc<api::gateway::Gateway>>,
 }
 
 impl Gateway {
     pub fn new(
         env: Env,
-        gateway: Option<Arc<api::gateway::GatewayProxy>>,
+        gateway: Option<Arc<api::gateway::Gateway>>,
         cfg: GatewayConfig,
     ) -> napi::Result<Self> {
         if let Some(gw) = &gateway {

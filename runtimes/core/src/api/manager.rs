@@ -6,7 +6,7 @@ use anyhow::Context;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
-use crate::api::gateway::GatewayProxy;
+use crate::api::gateway::Gateway;
 use crate::api::http_server::HttpServer;
 use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
@@ -49,7 +49,7 @@ pub struct Manager {
     api_server: Option<server::Server>,
     runtime: tokio::runtime::Handle,
 
-    gateway_proxies: HashMap<EncoreName, Arc<GatewayProxy>>,
+    gateways: HashMap<EncoreName, Arc<Gateway>>,
 }
 
 impl ManagerConfig<'_> {
@@ -117,7 +117,7 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
-        let mut gateway_proxies = HashMap::new();
+        let mut gateways = HashMap::new();
         let routes = paths::compute(
             endpoints
                 .iter()
@@ -144,10 +144,10 @@ impl ManagerConfig<'_> {
             let cors_config = cors::config(cors_cfg, meta_headers)
                 .context("failed to parse CORS configuration")?;
 
-            gateway_proxies.insert(
+            gateways.insert(
                 gw.encore_name.clone().into(),
                 Arc::new(
-                    GatewayProxy::new(
+                    Gateway::new(
                         gw.encore_name.clone().into(),
                         listen_addr(),
                         service_registry.clone(),
@@ -167,7 +167,7 @@ impl ManagerConfig<'_> {
             listener: Mutex::new(Some(listener)),
             service_registry,
             api_server,
-            gateway_proxies,
+            gateways,
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
         })
@@ -255,8 +255,8 @@ fn build_auth_handler(
 }
 
 impl Manager {
-    pub fn gateway(&self, name: EncoreName) -> Option<Arc<GatewayProxy>> {
-        self.gateway_proxies.get(&name).cloned()
+    pub fn gateway(&self, name: EncoreName) -> Option<Arc<Gateway>> {
+        self.gateways.get(&name).cloned()
     }
 
     pub fn server(&self) -> Option<&server::Server> {
@@ -306,12 +306,11 @@ impl Manager {
 
         let listener = self.listener.lock().unwrap().take();
 
-        // TODO: rename GatewayProxy to Gateway
-        //
-        if let Some(gateway_proxy) = self.gateway_proxies.values().next() {
-            let gateway_proxy = gateway_proxy.clone();
+        // TODO handle multiple gateways
+        if let Some(gateway) = self.gateways.values().next() {
+            let gateway = gateway.clone();
             std::thread::spawn(move || {
-                <GatewayProxy as Clone>::clone(&gateway_proxy).run_forever();
+                <Gateway as Clone>::clone(&gateway).run_forever();
             });
         }
 
