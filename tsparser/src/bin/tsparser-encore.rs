@@ -11,9 +11,9 @@ use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use encore_tsparser::builder;
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
+use encore_tsparser::{app, builder};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -41,7 +41,7 @@ fn main() -> Result<()> {
     GLOBALS.set(&globals, || -> Result<()> {
         HANDLER.set(&errs, || -> Result<()> {
             let builder = Builder::new()?;
-            let mut parse: Option<(builder::App, builder::ParseResult)> = None;
+            let mut parse: Option<(builder::App, app::AppDesc)> = None;
 
             let prepare = match parse_cmd()? {
                 Some(Command::Prepare(prepare)) => prepare,
@@ -113,7 +113,7 @@ fn main() -> Result<()> {
                         match builder.parse(&pp) {
                             Ok(result) => {
                                 log::info!("parse successful");
-                                write_result(Ok(result.desc.meta.encode_to_vec().as_slice()))?;
+                                write_result(Ok(result.meta.encode_to_vec().as_slice()))?;
                                 parse = Some((app, result));
                             }
                             Err(err) => {
@@ -140,7 +140,7 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse,
+                                desc: parse,
                                 use_local_runtime: input.use_local_runtime,
                             };
 
@@ -193,7 +193,7 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse,
+                                desc: parse,
                             };
 
                             log::info!("starting generate user facing code");

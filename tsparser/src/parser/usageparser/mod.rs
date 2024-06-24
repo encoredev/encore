@@ -202,7 +202,7 @@ impl<'a> UsageResolver<'a> {
 #[derive(Debug)]
 pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
-    ReferenceEndpoint(apis::api::ReferenceEndpointUsage),
+    // ReferenceEndpoint(apis::api::ReferenceEndpointUsage),
     PublishTopic(infra::pubsub_topic::PublishUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
 }
@@ -222,8 +222,9 @@ impl UsageResolver<'_> {
             };
             match &expr.bind.resource {
                 Resource::APIEndpoint(ep) => {
-                    let usage = apis::api::resolve_endpoint_usage(&data, ep.clone())?;
-                    usages.push(usage);
+                    if let Some(usage) = apis::api::resolve_endpoint_usage(&data, ep.clone()) {
+                        usages.push(usage)
+                    }
                 }
                 Resource::ServiceClient(client) => {
                     if let Some(u) =

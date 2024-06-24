@@ -7,7 +7,7 @@ use serde::Serialize;
 
 pub use codegen::{CodegenParams, CodegenResult};
 pub use compile::CompileParams;
-pub use parse::{ParseParams, ParseResult};
+pub use parse::ParseParams;
 pub use prepare::PrepareParams;
 pub use test::TestParams;
 
