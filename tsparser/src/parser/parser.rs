@@ -4,9 +4,9 @@ use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use swc_common::errors::Handler;
+use swc_common::errors::{Handler, HANDLER};
 use swc_common::sync::Lrc;
-use swc_common::SourceMap;
+use swc_common::{SourceMap, Spanned};
 use swc_ecma_loader::resolve::Resolve;
 use swc_ecma_loader::resolvers::node::NodeModulesResolver;
 use swc_ecma_loader::TargetEnv;
@@ -135,11 +135,12 @@ impl<'a> Parser<'a> {
             }
         }
 
+        fn is_service(e: &walkdir::DirEntry) -> bool {
+            e.path().ends_with("encore.service.ts")
+        }
+
         let walker = WalkDir::new(&self.pc.app_root)
             .sort_by(|a, b| {
-                fn is_service(e: &walkdir::DirEntry) -> bool {
-                    e.path().ends_with("encore.service.ts")
-                }
                 if is_service(a) {
                     std::cmp::Ordering::Less
                 } else if is_service(b) {
@@ -189,8 +190,22 @@ impl<'a> Parser<'a> {
 
                 // Parse the module.
                 let module = loader.load_fs_file(entry.path(), None)?;
+                let module_span = module.ast.span();
                 let service_name = curr_service.as_ref().map(|(_, name)| name.as_str());
                 let (resources, binds) = self.pass1.parse(module, service_name)?;
+
+                // Is this a service file? If so, make sure there was a service defined.
+                if is_service(&entry) {
+                    let found = resources.iter().any(|r| matches!(r, Resource::Service(_)));
+                    if !found {
+                        HANDLER.with(|h| {
+                            h.span_err(
+                                module_span.shrink_to_lo(),
+                                "encore.service.ts must define a Service resource",
+                            );
+                        });
+                    }
+                }
 
                 // Check if we should update the service being parsed.
                 for res in &resources {

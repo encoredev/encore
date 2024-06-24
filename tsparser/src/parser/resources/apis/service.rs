@@ -60,6 +60,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                             )
                             .emit();
                         });
+                        continue;
                     }
                 }
 
