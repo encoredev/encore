@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::net::{SocketAddr, TcpListener};
+use std::net::TcpListener;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -189,26 +189,26 @@ impl ProxyHttp for Gateway {
             .parse()
             .map_err(|e| Error::because(ErrorType::InternalError, "upstream not a valid url", e))?;
 
-        let port = upstream_url.port().map_or_else(
-            || match upstream_url.scheme() {
-                "https" => Ok(443),
-                "http" => Ok(80),
-                _ => Err(Error::explain(
+        let upstream_addrs = upstream_url
+            .socket_addrs(|| match upstream_url.scheme() {
+                "https" => Some(443),
+                "http" => Some(80),
+                _ => None,
+            })
+            .map_err(|e| {
+                Error::because(
                     ErrorType::InternalError,
-                    "couldn't determine port",
-                )),
-            },
-            Ok,
-        )?;
+                    "couldn't lookup upstream ip address",
+                    e,
+                )
+            })?;
 
-        let upstream_addr: SocketAddr = match upstream_url.host() {
-            Some(url::Host::Ipv4(ip)) => Ok((ip, port).into()),
-            Some(url::Host::Ipv6(ip)) => Ok((ip, port).into()),
-            _ => Err(Error::explain(
+        let upstream_addr = upstream_addrs.first().ok_or_else(|| {
+            Error::explain(
                 ErrorType::InternalError,
-                "upstream not a valid ipv4 or ipv6 address",
-            )),
-        }?;
+                "didn't find any upstream ip addresses",
+            )
+        })?;
 
         let peer = HttpPeer::new(upstream_addr, false, "".to_string());
 
