@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use axum::async_trait;
+use bytes::{BufMut, BytesMut};
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -23,6 +24,7 @@ use crate::api::schema::Method;
 use crate::{api, model, EncoreName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
+use super::IntoResponse;
 
 #[derive(Clone)]
 pub struct Gateway {
@@ -198,10 +200,13 @@ impl ProxyHttp for Gateway {
             .try_into()
             .map_err(|e| Error::because(ErrorType::HTTPStatus(400), "invalid http method", e))?;
 
-        let route = self
-            .router
-            .at(path)
-            .map_err(|e| Error::because(ErrorType::HTTPStatus(404), "route not found", e))?;
+        let route = self.router.at(path).map_err(|_| api::Error {
+            code: api::ErrCode::NotFound,
+            message: "endpoint not found".to_string(),
+            internal_message: Some(format!("no such endpoint exists: {}", path)),
+            stack: None,
+        })?;
+
         let service_name = route
             .value
             .for_method(method)
@@ -371,6 +376,9 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
+        // modified version of `Session::respond_error` that adds cors headers,
+        // and handles specific errors
+
         let code = match e.etype() {
             ErrorType::HTTPStatus(code) => *code,
             _ => {
@@ -391,30 +399,66 @@ impl ProxyHttp for Gateway {
                 }
             }
         };
+
         if code > 0 {
-            // modified version of `Session::respond_error` that adds cors headers
-            let mut resp = match code {
-                /* common error responses are pre-generated */
-                502 => error_resp::HTTP_502_RESPONSE.clone(),
-                400 => error_resp::HTTP_400_RESPONSE.clone(),
-                _ => error_resp::gen_error_response(code),
+            let (mut resp, body) = if let Some(api_error) = as_api_error(e) {
+                let (resp, body) = api_error_response(api_error);
+                (resp, Some(body))
+            } else {
+                (
+                    match code {
+                        /* common error responses are pre-generated */
+                        502 => error_resp::HTTP_502_RESPONSE.clone(),
+                        400 => error_resp::HTTP_400_RESPONSE.clone(),
+                        _ => error_resp::gen_error_response(code),
+                    },
+                    None,
+                )
             };
 
             if let Err(e) = self.cors_config.apply(session.req_header(), &mut resp) {
                 log::error!("failed setting cors header in error response: {e}");
             }
-
             session.set_keepalive(None);
-
             session
                 .write_response_header(Box::new(resp))
                 .await
                 .unwrap_or_else(|e| {
                     log::error!("failed to send error response to downstream: {e}");
                 });
-        }
+
+            session.write_response_body(body.unwrap()).await.unwrap();
+        };
+
         code
     }
+}
+
+fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
+    if let Some(cause) = &err.cause {
+        cause.downcast_ref::<api::Error>()
+    } else {
+        None
+    }
+}
+
+fn api_error_response(err: &api::Error) -> (ResponseHeader, bytes::Bytes) {
+    let mut buf = BytesMut::with_capacity(128).writer();
+    serde_json::to_writer(&mut buf, &err).unwrap();
+
+    let mut resp = ResponseHeader::build(err.code.status_code(), Some(5)).unwrap();
+    resp.insert_header(header::SERVER, &pingora::protocols::http::SERVER_NAME[..])
+        .unwrap();
+    resp.insert_header(header::DATE, "Sun, 06 Nov 1994 08:49:37 GMT")
+        .unwrap(); // placeholder
+    resp.insert_header(header::CONTENT_LENGTH, buf.get_ref().len())
+        .unwrap();
+    resp.insert_header(header::CACHE_CONTROL, "private, no-store")
+        .unwrap();
+    resp.insert_header(header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+        .unwrap();
+
+    (resp, buf.into_inner().into())
 }
 
 impl crate::api::auth::InboundRequest for RequestHeader {
