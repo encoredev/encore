@@ -188,9 +188,19 @@ impl ProxyHttp for Gateway {
         let upstream_url: Url = upstream
             .parse()
             .map_err(|e| Error::because(ErrorType::InternalError, "upstream not a valid url", e))?;
-        let port = upstream_url
-            .port()
-            .ok_or_else(|| Error::explain(ErrorType::InternalError, "no port specified"))?;
+
+        let port = upstream_url.port().map_or_else(
+            || match upstream_url.scheme() {
+                "https" => Ok(443),
+                "http" => Ok(80),
+                _ => Err(Error::explain(
+                    ErrorType::InternalError,
+                    "couldn't determine port",
+                )),
+            },
+            Ok,
+        )?;
+
         let upstream_addr: SocketAddr = match upstream_url.host() {
             Some(url::Host::Ipv4(ip)) => Ok((ip, port).into()),
             Some(url::Host::Ipv6(ip)) => Ok((ip, port).into()),
