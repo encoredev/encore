@@ -245,7 +245,7 @@ Here's how you can contribute:
 ## Videos
 
 - <a href="https://youtu.be/vvqTGfoXVsw" alt="Intro video: Encore concepts & features" target="_blank">Intro: Encore concepts & features</a>
-- <a href="https://youtu.be/wiLDz-JUuqY" alt="Demo video: Getting started with Encore for TypeScript" target="_blank">Demo video: Getting started with Encore for TypeScript</a>
+- <a href="https://youtu.be/wiLDz-JUuqY" alt="Demo video: Getting started with Encore.ts" target="_blank">Demo video: Getting started with Encore.ts</a>
 - <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service" target="_blank">Demo: Building and deploying a simple Go service</a>
 - <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system in Go</a>
 
