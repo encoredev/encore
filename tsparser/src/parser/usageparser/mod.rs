@@ -202,7 +202,6 @@ impl<'a> UsageResolver<'a> {
 #[derive(Debug)]
 pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
-    // ReferenceEndpoint(apis::api::ReferenceEndpointUsage),
     PublishTopic(infra::pubsub_topic::PublishUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
 }

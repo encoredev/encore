@@ -46,8 +46,6 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     continue;
                 }
 
-                let _cfg = r.config.unwrap_or_default();
-
                 // This resource is only allowed to be defined in a module named "encore.service.ts".
                 // Check that that is the case.
                 match &pass.module.file_path {
