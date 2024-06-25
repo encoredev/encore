@@ -34,16 +34,17 @@ pub struct Gateway {
 }
 
 pub struct GatewayCtx {
-    base_path: String,
-    service_name: EncoreName,
+    upstream_service_name: EncoreName,
+    upstream_base_path: String,
+    upstream_host: Option<String>,
 }
 
 impl GatewayCtx {
     fn prepend_base_path(&self, uri: http::Uri) -> anyhow::Result<http::Uri> {
         let base_path = self
-            .base_path
+            .upstream_base_path
             .strip_suffix('/')
-            .unwrap_or(self.base_path.as_str());
+            .unwrap_or(self.upstream_base_path.as_str());
 
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(
@@ -241,12 +242,16 @@ impl ProxyHttp for Gateway {
             )
         })?;
 
-        let peer = HttpPeer::new(upstream_addr, false, "".to_string());
+        let tls = upstream_url.scheme() == "https";
+        let host = upstream_url.host().map(|h| h.to_string());
+        let peer = HttpPeer::new(upstream_addr, tls, host.clone().unwrap_or_default());
 
         ctx.replace(GatewayCtx {
-            base_path: upstream_url.path().to_string(),
-            service_name: service_name.clone(),
+            upstream_base_path: upstream_url.path().to_string(),
+            upstream_host: host,
+            upstream_service_name: service_name.clone(),
         });
+
         Ok(Box::new(peer))
     }
 
@@ -310,9 +315,13 @@ impl ProxyHttp for Gateway {
 
         upstream_request.set_uri(new_uri);
 
+        if let Some(ref host) = gateway_ctx.upstream_host {
+            upstream_request.insert_header(header::HOST, host)?;
+        }
+
         let svc_auth_method = self
             .service_registry
-            .service_auth_method(&gateway_ctx.service_name)
+            .service_auth_method(&gateway_ctx.upstream_service_name)
             .unwrap_or_else(|| Arc::new(svcauth::Noop));
 
         let headers = &session.req_header().headers;
