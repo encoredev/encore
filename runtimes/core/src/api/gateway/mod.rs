@@ -1,3 +1,5 @@
+mod router;
+
 use std::borrow::Cow;
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -29,7 +31,7 @@ use super::cors::cors_headers_config::CorsHeadersConfig;
 pub struct Gateway {
     shared: Arc<SharedGatewayData>,
     service_registry: Arc<ServiceRegistry>,
-    router: matchit::Router<MethodRoute>,
+    router: router::Router,
     cors_config: CorsHeadersConfig,
 }
 
@@ -63,33 +65,6 @@ impl GatewayCtx {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct MethodRoute {
-    get: Option<EncoreName>,
-    head: Option<EncoreName>,
-    post: Option<EncoreName>,
-    put: Option<EncoreName>,
-    delete: Option<EncoreName>,
-    option: Option<EncoreName>,
-    trace: Option<EncoreName>,
-    patch: Option<EncoreName>,
-}
-
-impl MethodRoute {
-    fn for_method(&self, method: api::schema::Method) -> Option<&EncoreName> {
-        match method {
-            Method::GET => self.get.as_ref(),
-            Method::HEAD => self.head.as_ref(),
-            Method::POST => self.post.as_ref(),
-            Method::PUT => self.put.as_ref(),
-            Method::DELETE => self.delete.as_ref(),
-            Method::OPTIONS => self.option.as_ref(),
-            Method::TRACE => self.trace.as_ref(),
-            Method::PATCH => self.patch.as_ref(),
-        }
-    }
-}
-
 impl Gateway {
     pub fn new(
         name: EncoreName,
@@ -103,43 +78,12 @@ impl Gateway {
             auth: auth_handler,
         });
 
-        let mut router = matchit::Router::new();
+        let mut router = router::Router::new();
         for (svc, routes) in [&service_routes.main, &service_routes.fallback]
             .into_iter()
             .flatten()
         {
-            for (endpoint, paths) in routes {
-                for path in paths {
-                    let method_route = match router.at_mut(path) {
-                        Ok(m) => m.value,
-                        Err(_) => {
-                            router.insert(path, MethodRoute::default())?;
-                            router.at_mut(path).unwrap().value
-                        }
-                    };
-
-                    for method in endpoint.methods() {
-                        let prev = match method {
-                            Method::GET => method_route.get.replace(svc.clone()),
-                            Method::HEAD => method_route.head.replace(svc.clone()),
-                            Method::POST => method_route.post.replace(svc.clone()),
-                            Method::PUT => method_route.put.replace(svc.clone()),
-                            Method::DELETE => method_route.delete.replace(svc.clone()),
-                            Method::OPTIONS => method_route.option.replace(svc.clone()),
-                            Method::TRACE => method_route.trace.replace(svc.clone()),
-                            Method::PATCH => method_route.patch.replace(svc.clone()),
-                        };
-
-                        if prev.is_some() {
-                            anyhow::bail!(
-                                "tried to register same route twice {} {}",
-                                method.as_str(),
-                                path
-                            );
-                        }
-                    }
-                }
-            }
+            router.add_routes(svc, routes)?;
         }
 
         Ok(Gateway {
@@ -200,17 +144,7 @@ impl ProxyHttp for Gateway {
             .try_into()
             .map_err(|e| Error::because(ErrorType::HTTPStatus(400), "invalid http method", e))?;
 
-        let route = self.router.at(path).map_err(|_| api::Error {
-            code: api::ErrCode::NotFound,
-            message: "endpoint not found".to_string(),
-            internal_message: Some(format!("no such endpoint exists: {}", path)),
-            stack: None,
-        })?;
-
-        let service_name = route
-            .value
-            .for_method(method)
-            .ok_or_else(|| Error::explain(ErrorType::HTTPStatus(405), "no route for method"))?;
+        let service_name = self.router.route_to_service(method, path)?;
 
         let upstream = self
             .service_registry
