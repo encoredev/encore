@@ -9,7 +9,7 @@ lang: ts
 Encore uses a monorepo design and it's best to use one Encore app for your entire backend application. This lets Encore build an application model that spans your entire app, necessary to get the most value out of many
 features like [distributed tracing](/docs/observability/tracing) and [Encore Flow](/docs/develop/encore-flow).
 
-If you have a large application, see advice on how to [structure an app with several systems](/docs/ts/develop/app-structure#large-applications-with-several-systems). 
+If you have a large application, see advice on how to [structure an app with several systems](/docs/ts/develop/app-structure#large-applications-with-several-systems).
 
 It's simple to integrate Encore applications with pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/develop/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/how-to/migrate-to-encore) documentation.
 
@@ -19,34 +19,72 @@ Encore is not opinionated about monoliths vs. microservices. It does however let
 
 When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#process-allocation).
 
-## Creating services
+## Defining services
 
-To create an Encore service, you create a folder and [define an API](/docs/ts/primitives/services-and-apis#defining-apis) in a `.ts` file within it.
+To create an Encore service, add a file named `encore.service.ts` in a directory.
 
-On disk it might look like this:
+The file must export a service instance, by calling `new Service`, imported from `encore.dev/service`.
+
+For example:
+
+```ts
+
+import { Service } from "encore.dev/service";
+
+export default new Service("my-service");
+```
+
+That's it! Encore will consider this directory and all its subdirectories as part of the service.
+
+Within the service, you can then [define APIs](/docs/ts/primitives/services-and-apis#defining-apis) and use infrastructure resources like querying databases.
+
+## Examples
+
+Let's take a look at a few different approaches to structuring your Encore application, depending on the size and complexity of your application.
+
+### Single-service application
+
+The best place to start, especially if you're new to Encore, is by having
+a single service in your application. Once you've familiarized yourself with
+the Encore development model, it's easy to break it up into multiple services.
+
+The best way to do this is by defining the `encore.service.ts` in the root
+of your project, next to the `package.json` file.
+
+On disk it might look like this (but feel free to change as you see fit):
 
 ```
 /my-app
-├── encore.app          // ... and other top-level project files
-├── package.json  
+├── package.json
+├── encore.app
+├──  // ... other project files
 │
-├── hello               // hello service (a folder)
-│   ├── hello.ts        // hello service code
-│   └── hello_test.ts   // tests for hello service
-│
-└── world               // world service (a folder)
-    └── world.ts        // world service code
+├── encore.service.ts    // defines your service root
+├── api.ts               // API endpoints
+├── db.ts                // Database definition
 ```
 
-## Structure services using sub-modules
+Services can have subdirectories, so as the complexity of your service grows
+you can add subdirectories as you see fit, to better organize the code base.
 
-Within a service, it's possible to have multiple subdirectories. This is a good way to define components, helper
-functions, or other code for your functions, should you wish to do that. You can create as many subdirectories, in any kind of nested structure within your service, as you want.
+### Multi-service application (Distributed System)
 
-Note that currently all API endpoints must be defined in the top-level directory for the service.
+For larger applications it's often useful to break it apart into multiple
+services. This helps improve reliability, scalability, and lead to clearer
+code organization.
 
-For example, rather than define the entire logic for an endpoint in that endpoint's function, you can call functions
-from sub-packages and divide the logic in any way you want.
+Encore makes it easy to structure your application as multiple services.
+
+Just like before, you add an `encore.service.ts` file to mark a directory
+(and its subdirectories) as a service.
+
+
+<Callout type="info">
+Note that services cannot be nested: each must be defined in its own directory,
+and cannot live in a subdirectory of another service.
+
+If you have a single-service project with a `encore.service.ts` file at the top-level directory of your project, and you want to break it apart, start by moving that service code into a subdirectory.
+</Callout>
 
 On disk it might look like this:
 
@@ -57,16 +95,16 @@ On disk it might look like this:
 ├── hello                            // hello service (directory)
 │   ├── migrations                   // hello service db migrations (directory)
 │   │   └── 1_create_table.up.sql    // hello service db migration
-│   ├── foo                          // sub-package foo (directory)
-│   │   └── foo.ts                   // foo code (cannot define APIs)
-│   ├── hello.ts                     // hello service code
+│   ├── encore.service.ts            // hello service definition
+│   ├── hello.ts                     // hello service APIs
 │   └── hello_test.ts                // tests for hello service
 │
 └── world                            // world service (directory)
-    └── world.ts                     // world service code
+│   ├── encore.service.ts            // world service definition
+    └── world.ts                     // world service APIs
 ```
 
-## Large applications with several systems
+### Large applications with several systems
 
 If you have a large application with several logical domains, each consisting of multiple services, it can be practical
 to separate these into distinct systems.
@@ -91,21 +129,30 @@ On disk it might look like this:
 │
 ├── trello                      // trello system (a directory)
 │   ├── board                   // board service (a directory)
-│   │   └── board.ts            // board service code
+│   │   ├── encore.service.ts   // service definition
+│   │   └── board.ts            // service code
+│   │
 │   └── card                    // card service (a directory)
-│       └── card.ts             // card service code
+│       ├── encore.service.ts   // service definition
+│       └── card.ts             // service code
 │
 ├── premium                     // premium system (a directory)
 │   ├── payment                 // payment service (a directory)
-│   │   └── payment.ts          // payment service code
+│   │   ├── encore.service.ts   // service definition
+│   │   └── payment.ts          // service code
+│   │
 │   └── subscription            // subscription service (a directory)
-│       └── subscription.ts     // subscription service code
+│       ├── encore.service.ts   // service definition
+│       └── subscription.ts     // service code
 │
 └── usr                         // usr system (a directory)
     ├── org                     // org service (a directory)
-    │   └── org.ts              // org service code
+    │   ├── encore.service.ts   // service definition
+    │   └── org.ts              // service code
+    │
     └── user                    // user service (a directory)
-        └── user.ts             // user service code
+        ├── encore.service.ts   // service definition
+        └── user.ts             // service code
 ```
 
 The only refactoring needed to divide an existing Encore application into systems is to move services into their respective

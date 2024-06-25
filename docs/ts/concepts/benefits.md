@@ -1,7 +1,7 @@
 ---
-seotitle: Benefits of using Encore for TypeScript
+seotitle: Benefits of using Encore.ts
 seodesc: Get to know the benefits of using Encore's Backend SDK for TypeScript to build cloud-native backend applications.
-title: Benefits of using Encore for TypeScript
+title: Benefits of using Encore.ts
 toc: false
 lang: ts
 ---
