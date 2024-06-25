@@ -1,10 +1,13 @@
-import { registerGateways, registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
+import { registerGateways, registerHandlers, registerSubscriptions, run, type Handler } from "encore.dev/internal/codegen/appinit";
 
 {{#each gateways}}
 import { {{bind_name}} as {{encoreNameToIdent encore_name}}GW } from {{toJSON import_path}};
 {{/each}}
 {{#each endpoints}}
 import { {{name}} as {{service_name}}_{{name}}Impl } from {{toJSON import_path}};
+{{/each}}
+{{#each subscriptions}}
+import {{toJSON import_path}};
 {{/each}}
 
 

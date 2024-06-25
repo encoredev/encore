@@ -2,6 +2,9 @@ import { registerHandlers, run, type Handler } from "encore.dev/internal/codegen
 {{#each endpoints}}
 import { {{name}} as {{name}}Impl } from {{toJSON import_path}};
 {{/each}}
+{{#each subscriptions}}
+import {{toJSON import_path}};
+{{/each}}
 
 const handlers: Handler[] = [
 {{#each endpoints}}

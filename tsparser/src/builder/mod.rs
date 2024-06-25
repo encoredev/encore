@@ -172,3 +172,13 @@ fn to_json(
     out.write(param.as_ref())?;
     Ok(())
 }
+
+/// An error that is rendered plainly, without a backtrace.
+#[derive(Debug)]
+pub struct PlainError(pub String);
+
+impl std::fmt::Display for PlainError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
