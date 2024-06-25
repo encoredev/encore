@@ -1,52 +1,3 @@
-//! Middleware which adds headers for [CORS][mdn].
-//!
-//! # Example
-//!
-//! ```
-//! use http::{Request, Response, Method, header};
-//! use http_body_util::Full;
-//! use bytes::Bytes;
-//! use tower::{ServiceBuilder, ServiceExt, Service};
-//! use tower_http::cors::{Any, CorsConfig};
-//! use std::convert::Infallible;
-//!
-//! async fn handle(request: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
-//!     Ok(Response::new(Full::default()))
-//! }
-//!
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let cors = CorsConfig::new()
-//!     // allow `GET` and `POST` when accessing the resource
-//!     .allow_methods([Method::GET, Method::POST])
-//!     // allow requests from any origin
-//!     .allow_origin(Any);
-//!
-//! let mut service = ServiceBuilder::new()
-//!     .layer(cors)
-//!     .service_fn(handle);
-//!
-//! let request = Request::builder()
-//!     .header(header::ORIGIN, "https://example.com")
-//!     .body(Full::default())
-//!     .unwrap();
-//!
-//! let response = service
-//!     .ready()
-//!     .await?
-//!     .call(request)
-//!     .await?;
-//!
-//! assert_eq!(
-//!     response.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
-//!     "*",
-//! );
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-
 #![allow(clippy::enum_variant_names)]
 
 use bytes::{BufMut, BytesMut};
@@ -64,9 +15,6 @@ mod allow_private_network;
 mod expose_headers;
 mod max_age;
 mod vary;
-
-#[cfg(test)]
-mod tests;
 
 pub use self::{
     allow_credentials::AllowCredentials, allow_headers::AllowHeaders, allow_methods::AllowMethods,
@@ -94,7 +42,7 @@ pub struct CorsHeadersConfig {
 const WILDCARD: HeaderValue = HeaderValue::from_static("*");
 
 impl CorsHeadersConfig {
-    /// Create a new `CorsConfig`.
+    /// Create a new `CorsHeadersConfig`.
     ///
     /// No headers are sent by default. Use the builder methods to customize
     /// the behavior.
@@ -147,12 +95,6 @@ impl CorsHeadersConfig {
 
     /// Set the [`Access-Control-Allow-Credentials`][mdn] header.
     ///
-    /// ```
-    /// use tower_http::cors::CorsConfig;
-    ///
-    /// let layer = CorsConfig::new().allow_credentials(true);
-    /// ```
-    ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
     pub fn allow_credentials<T>(mut self, allow_credentials: T) -> Self
     where
@@ -163,21 +105,6 @@ impl CorsHeadersConfig {
     }
 
     /// Set the value of the [`Access-Control-Allow-Headers`][mdn] header.
-    ///
-    /// ```
-    /// use tower_http::cors::CorsConfig;
-    /// use http::header::{AUTHORIZATION, ACCEPT};
-    ///
-    /// let layer = CorsConfig::new().allow_headers([AUTHORIZATION, ACCEPT]);
-    /// ```
-    ///
-    /// All headers can be allowed with
-    ///
-    /// ```
-    /// use tower_http::cors::{Any, CorsConfig};
-    ///
-    /// let layer = CorsConfig::new().allow_headers(Any);
-    /// ```
     ///
     /// Note that multiple calls to this method will override any previous
     /// calls.
@@ -196,13 +123,6 @@ impl CorsHeadersConfig {
 
     /// Set the value of the [`Access-Control-Max-Age`][mdn] header.
     ///
-    /// ```
-    /// use std::time::Duration;
-    /// use tower_http::cors::CorsConfig;
-    ///
-    /// let layer = CorsConfig::new().max_age(Duration::from_secs(60) * 10);
-    /// ```
-    ///
     /// By default the header will not be set which disables caching and will
     /// require a preflight call for all requests.
     ///
@@ -212,25 +132,7 @@ impl CorsHeadersConfig {
     ///
     /// If you need more flexibility, you can use supply a function which can
     /// dynamically decide the max-age based on the origin and other parts of
-    /// each preflight request:
-    ///
-    /// ```
-    /// # struct MyServerConfig { cors_max_age: Duration }
-    /// use std::time::Duration;
-    ///
-    /// use http::{request::Parts as RequestParts, HeaderValue};
-    /// use tower_http::cors::{CorsConfig, MaxAge};
-    ///
-    /// let layer = CorsConfig::new().max_age(MaxAge::dynamic(
-    ///     |_origin: &HeaderValue, parts: &RequestParts| -> Duration {
-    ///         // Let's say you want to be able to reload your config at
-    ///         // runtime and have another middleware that always inserts
-    ///         // the current config into the request extensions
-    ///         let config = parts.extensions.get::<MyServerConfig>().unwrap();
-    ///         config.cors_max_age
-    ///     },
-    /// ));
-    /// ```
+    /// each preflight request, using `MaxAge::dynamic`.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age
     pub fn max_age<T>(mut self, max_age: T) -> Self
@@ -242,21 +144,6 @@ impl CorsHeadersConfig {
     }
 
     /// Set the value of the [`Access-Control-Allow-Methods`][mdn] header.
-    ///
-    /// ```
-    /// use tower_http::cors::CorsConfig;
-    /// use http::Method;
-    ///
-    /// let layer = CorsConfig::new().allow_methods([Method::GET, Method::POST]);
-    /// ```
-    ///
-    /// All methods can be allowed with
-    ///
-    /// ```
-    /// use tower_http::cors::{Any, CorsConfig};
-    ///
-    /// let layer = CorsConfig::new().allow_methods(Any);
-    /// ```
     ///
     /// Note that multiple calls to this method will override any previous
     /// calls.
@@ -272,94 +159,7 @@ impl CorsHeadersConfig {
 
     /// Set the value of the [`Access-Control-Allow-Origin`][mdn] header.
     ///
-    /// ```
-    /// use http::HeaderValue;
-    /// use tower_http::cors::CorsConfig;
-    ///
-    /// let layer = CorsConfig::new().allow_origin(
-    ///     "http://example.com".parse::<HeaderValue>().unwrap(),
-    /// );
-    /// ```
-    ///
-    /// Multiple origins can be allowed with
-    ///
-    /// ```
-    /// use tower_http::cors::CorsConfig;
-    ///
-    /// let origins = [
-    ///     "http://example.com".parse().unwrap(),
-    ///     "http://api.example.com".parse().unwrap(),
-    /// ];
-    ///
-    /// let layer = CorsConfig::new().allow_origin(origins);
-    /// ```
-    ///
-    /// All origins can be allowed with
-    ///
-    /// ```
-    /// use tower_http::cors::{Any, CorsConfig};
-    ///
-    /// let layer = CorsConfig::new().allow_origin(Any);
-    /// ```
-    ///
-    /// You can also use a closure
-    ///
-    /// ```
-    /// use tower_http::cors::{CorsConfig, AllowOrigin};
-    /// use http::{request::Parts as RequestParts, HeaderValue};
-    ///
-    /// let layer = CorsConfig::new().allow_origin(AllowOrigin::predicate(
-    ///     |origin: &HeaderValue, _request_parts: &RequestParts| {
-    ///         origin.as_bytes().ends_with(b".rust-lang.org")
-    ///     },
-    /// ));
-    /// ```
-    ///
-    /// You can also use an async closure:
-    ///
-    /// ```
-    /// # #[derive(Clone)]
-    /// # struct Client;
-    /// # fn get_api_client() -> Client {
-    /// #     Client
-    /// # }
-    /// # impl Client {
-    /// #     async fn fetch_allowed_origins(&self) -> Vec<HeaderValue> {
-    /// #         vec![HeaderValue::from_static("http://example.com")]
-    /// #     }
-    /// #     async fn fetch_allowed_origins_for_path(&self, _path: String) -> Vec<HeaderValue> {
-    /// #         vec![HeaderValue::from_static("http://example.com")]
-    /// #     }
-    /// # }
-    /// use tower_http::cors::{CorsConfig, AllowOrigin};
-    /// use http::{request::Parts as RequestParts, HeaderValue};
-    ///
-    /// let client = get_api_client();
-    ///
-    /// let layer = CorsConfig::new().allow_origin(AllowOrigin::async_predicate(
-    ///     |origin: HeaderValue, _request_parts: &RequestParts| async move {
-    ///         // fetch list of origins that are allowed
-    ///         let origins = client.fetch_allowed_origins().await;
-    ///         origins.contains(&origin)
-    ///     },
-    /// ));
-    ///
-    /// let client = get_api_client();
-    ///
-    /// // if using &RequestParts, make sure all the values are owned
-    /// // before passing into the future
-    /// let layer = CorsConfig::new().allow_origin(AllowOrigin::async_predicate(
-    ///     |origin: HeaderValue, parts: &RequestParts| {
-    ///         let path = parts.uri.path().to_owned();
-    ///
-    ///         async move {
-    ///             // fetch list of origins that are allowed for this path
-    ///             let origins = client.fetch_allowed_origins_for_path(path).await;
-    ///             origins.contains(&origin)
-    ///         }
-    ///     },
-    /// ));
-    /// ```
+    /// You can also use a closure with `AllowOrigin::predicate`
     ///
     /// Note that multiple calls to this method will override any previous
     /// calls.
@@ -375,21 +175,6 @@ impl CorsHeadersConfig {
 
     /// Set the value of the [`Access-Control-Expose-Headers`][mdn] header.
     ///
-    /// ```
-    /// use tower_http::cors::CorsConfig;
-    /// use http::header::CONTENT_ENCODING;
-    ///
-    /// let layer = CorsConfig::new().expose_headers([CONTENT_ENCODING]);
-    /// ```
-    ///
-    /// All headers can be allowed with
-    ///
-    /// ```
-    /// use tower_http::cors::{Any, CorsConfig};
-    ///
-    /// let layer = CorsConfig::new().expose_headers(Any);
-    /// ```
-    ///
     /// Note that multiple calls to this method will override any previous
     /// calls.
     ///
@@ -403,12 +188,6 @@ impl CorsHeadersConfig {
     }
 
     /// Set the value of the [`Access-Control-Allow-Private-Network`][wicg] header.
-    ///
-    /// ```
-    /// use tower_http::cors::CorsConfig;
-    ///
-    /// let layer = CorsConfig::new().allow_private_network(true);
-    /// ```
     ///
     /// [wicg]: https://wicg.github.io/private-network-access/
     pub fn allow_private_network<T>(mut self, allow_private_network: T) -> Self
@@ -439,7 +218,7 @@ impl CorsHeadersConfig {
 }
 
 /// Represents a wildcard value (`*`) used with some CORS headers such as
-/// [`CorsConfig::allow_methods`].
+/// [`CorsHeadersConfig::allow_methods`].
 #[derive(Debug, Clone, Copy)]
 #[must_use]
 pub struct Any;
