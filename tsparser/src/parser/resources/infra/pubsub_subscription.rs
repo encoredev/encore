@@ -12,9 +12,11 @@ use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
 use crate::parser::resources::Resource;
 use crate::parser::types::Object;
+use crate::parser::Range;
 
 #[derive(Debug, Clone)]
 pub struct Subscription {
+    pub range: Range,
     pub topic: Rc<Object>,
     pub name: String,
     pub doc: Option<String>,
@@ -79,6 +81,7 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                 .ok_or(anyhow::anyhow!("can't resolve topic"))?;
 
             let resource = Resource::PubSubSubscription(Lrc::new(Subscription {
+                range: r.range,
                 topic,
                 name: r.resource_name.to_owned(),
                 doc: r.doc_comment,

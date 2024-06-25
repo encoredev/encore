@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 
 use crate::builder::compile::{CmdSpec, Entrypoint};
+use crate::builder::PlainError;
 
 #[allow(dead_code)]
 pub enum ExternalPackages<'a> {
@@ -87,7 +88,9 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
             log::info!("running tsbundler-encore: {:?}", cmd);
             let output = cmd.output().context("failed to tsbundler-encore")?;
             if !output.status.success() {
-                anyhow::bail!("failed to bundle: {}", String::from_utf8(output.stderr)?);
+                anyhow::bail!(PlainError(
+                    String::from_utf8_lossy(&output.stderr).to_string()
+                ));
             }
             log::info!("successfully bundled");
 

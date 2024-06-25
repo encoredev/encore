@@ -11,7 +11,7 @@ use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use encore_tsparser::builder::Builder;
+use encore_tsparser::builder::{Builder, PlainError};
 use encore_tsparser::parser::parser::ParseContext;
 use encore_tsparser::{app, builder};
 
@@ -356,14 +356,5 @@ impl Write for AtomicBuf {
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
-    }
-}
-
-#[derive(Debug)]
-struct PlainError(String);
-
-impl std::fmt::Display for PlainError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
