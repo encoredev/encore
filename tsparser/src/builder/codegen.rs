@@ -112,6 +112,7 @@ impl Builder<'_> {
         for svc in &params.desc.parse.services {
             let mut endpoints = Vec::new();
             let mut gateways = Vec::new();
+            let mut subscriptions = Vec::new();
             let mut auth_handlers = Vec::new();
 
             for b in &svc.binds {
@@ -125,6 +126,9 @@ impl Builder<'_> {
                             .as_deref()
                             .context("gateway objects must be assigned to a variable")?;
                         gateways.push((gw, bind_name));
+                    }
+                    Resource::PubSubSubscription(sub) => {
+                        subscriptions.push(sub);
                     }
                     Resource::AuthHandler(ah) if b.kind == Create => {
                         auth_handlers.push(ah);
@@ -153,9 +157,10 @@ impl Builder<'_> {
             // Service Main
             {
                 let mut endpoint_ctx = Vec::new();
+                let mut subscription_ctx = Vec::new();
 
                 for rpc in &endpoints {
-                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, false);
+                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../../")
                         .join(&node_modules_to_svc)
                         .join(rel_path);
@@ -167,9 +172,23 @@ impl Builder<'_> {
                     }));
                 }
 
+                for sub in &subscriptions {
+                    let rel_path = get_svc_rel_path(&svc.root, sub.range, true);
+                    let import_path = Path::new("../../../")
+                        .join(&node_modules_to_svc)
+                        .join(rel_path);
+
+                    subscription_ctx.push(json!({
+                        "topic_name": sub.topic.name,
+                        "sub_name": sub.topic.name,
+                        "import_path": import_path,
+                    }));
+                }
+
                 let ctx = &json!({
                     "name": svc.name,
                     "endpoints": endpoint_ctx,
+                    "subscriptions": subscription_ctx,
                 });
                 let main = self.entrypoint_service_main.render(&self.reg, ctx)?;
 
@@ -303,10 +322,12 @@ impl Builder<'_> {
         {
             let mut endpoint_ctx = Vec::new();
             let mut gateway_ctx = Vec::new();
+            let mut subscription_ctx = Vec::new();
 
             for svc in &params.desc.parse.services {
                 let mut endpoints = Vec::new();
                 let mut gateways = Vec::new();
+                let mut subscriptions = Vec::new();
                 for b in &svc.binds {
                     match &b.resource {
                         Resource::APIEndpoint(ep) => {
@@ -318,6 +339,9 @@ impl Builder<'_> {
                                 .as_deref()
                                 .context("gateway objects must be assigned to a variable")?;
                             gateways.push((gw, bind_name));
+                        }
+                        Resource::PubSubSubscription(sub) => {
+                            subscriptions.push(sub);
                         }
                         _ => {}
                     }
@@ -356,11 +380,26 @@ impl Builder<'_> {
                         "import_path": import_path,
                     }));
                 }
+
+                // Subscriptions
+                for sub in &subscriptions {
+                    let rel_path = get_svc_rel_path(&svc.root, sub.range, true);
+                    let import_path = Path::new("../../../")
+                        .join(&node_modules_to_svc)
+                        .join(rel_path);
+
+                    subscription_ctx.push(json!({
+                        "topic_name": sub.topic.name,
+                        "sub_name": sub.topic.name,
+                        "import_path": import_path,
+                    }));
+                }
             }
 
             let ctx = &json!({
                 "endpoints": endpoint_ctx,
                 "gateways": gateway_ctx,
+                "subscriptions": subscription_ctx,
             });
             let main = self.entrypoint_combined_main.render(&self.reg, ctx)?;
 
