@@ -47,6 +47,7 @@ impl Server {
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
+        // TODO(fredr): remove ws handler
         let mut router =
             axum::Router::new().route("/__ws", routing::get(api::encore_routes::ws_handler));
 

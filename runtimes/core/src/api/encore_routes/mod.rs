@@ -36,6 +36,7 @@ impl Desc {
     }
 }
 
+// TODO(fredr): remove this code, only for testing
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
