@@ -279,8 +279,8 @@ mod tests {
         auth.sign(&mut upstream_request, now)
             .context("unable to sign request")?;
 
-        let mut out_headers = convert_header_map(upstream_request.headers.clone());
-        auth.verify(&mut out_headers, now)
+        let out_headers = convert_header_map(upstream_request.headers.clone());
+        auth.verify(&out_headers, now)
             .context("unable to verify request")?;
 
         assert_eq!(
