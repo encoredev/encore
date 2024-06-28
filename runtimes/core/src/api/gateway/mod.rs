@@ -369,7 +369,12 @@ impl ProxyHttp for Gateway {
                     log::error!("failed to send error response to downstream: {e}");
                 });
 
-            session.write_response_body(body.unwrap()).await.unwrap();
+            if let Some(body) = body {
+                session
+                    .write_response_body(body)
+                    .await
+                    .unwrap_or_else(|e| log::error!("failed to write body: {e}"));
+            }
         };
 
         code
