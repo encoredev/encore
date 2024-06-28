@@ -1,4 +1,4 @@
-use crate::api::{new_api_handler, APIRoute, Request};
+use crate::api::{new_api_handler, new_ws_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
 use crate::meta;
@@ -114,6 +114,23 @@ impl Runtime {
         Ok(PubSubSubscription::new(sub, handler))
     }
 
+    fn register_ws_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
+        let handler = new_ws_handler(env, route.handler)?;
+
+        // If we're not hosting an API server, this is a no-op.
+        let Some(srv) = self.runtime.api().server() else {
+            return Ok(());
+        };
+
+        let endpoint = encore_runtime_core::EndpointName::new(route.service, route.name);
+        srv.register_ws_handler(endpoint, handler).map_err(|e| {
+            Error::new(
+                Status::GenericFailure,
+                format!("failed to register handler: {:?}", e),
+            )
+        })
+    }
+
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
         let handler = new_api_handler(env, route.handler, route.raw)?;
@@ -141,7 +158,11 @@ impl Runtime {
     #[napi]
     pub fn register_handlers(&self, env: Env, routes: Vec<APIRoute>) -> napi::Result<()> {
         for route in routes {
-            self.register_handler(env, route)?;
+            if route.name == "ws" {
+                self.register_ws_handler(env, route)?;
+            } else {
+                self.register_handler(env, route)?;
+            }
         }
         Ok(())
     }

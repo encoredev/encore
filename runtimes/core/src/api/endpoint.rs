@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
+use axum::extract::{FromRequest, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use bytes::{BufMut, BytesMut};
 use indexmap::IndexMap;
 use serde::Serialize;
+use tokio::time::Instant;
 
 use crate::api::reqauth::{platform, svcauth, CallMeta};
 use crate::api::schema::encoding::{
@@ -100,6 +102,15 @@ where
 
 pub type HandlerRequest = Arc<model::Request>;
 pub type HandlerResponse = APIResult<JSONPayload>;
+pub type HandlerSocket = Arc<Mutex<Option<WebSocketUpgrade>>>;
+
+// A trait for accepting an upgraded websocket
+pub trait WsHandler: Send + Sync + 'static {
+    fn call(
+        self: Arc<Self>,
+        socket: HandlerSocket,
+    ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>;
+}
 
 /// A trait for handlers that accept a request and return a response.
 pub trait TypedHandler: Send + Sync + 'static {
@@ -132,6 +143,9 @@ pub struct Endpoint {
 
     /// Whether this is a raw endpoint.
     pub raw: bool,
+
+    /// Wheter this is a ws endpoint
+    pub ws: bool,
 
     /// Whether the service is exposed publicly.
     pub exposed: bool,
@@ -252,16 +266,22 @@ pub fn endpoints_from_meta(
         let raw =
             rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
+        let path = ep.ep.path.clone().unwrap_or_else(|| meta::Path {
+            r#type: meta::path::Type::Url as i32,
+            segments: vec![meta::PathSegment {
+                r#type: meta::path_segment::SegmentType::Literal as i32,
+                value_type: meta::path_segment::ParamType::String as i32,
+                value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+            }],
+        });
+
+        // TODO hack, this needs to be handled differently, fetch from api options, need to be
+        // added to proto?
+        let ws = path.segments.iter().any(|x| x.value == "ws");
+
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
-            path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
-                r#type: meta::path::Type::Url as i32,
-                segments: vec![meta::PathSegment {
-                    r#type: meta::path_segment::SegmentType::Literal as i32,
-                    value_type: meta::path_segment::ParamType::String as i32,
-                    value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
-                }],
-            }),
+            path,
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
@@ -271,6 +291,7 @@ pub fn endpoints_from_meta(
             exposed,
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
+            ws,
         };
 
         endpoint_map.insert(
@@ -282,6 +303,11 @@ pub fn endpoints_from_meta(
     Ok((Arc::new(endpoint_map), hosted_endpoints))
 }
 
+pub(super) struct WsEndpointHandler {
+    pub endpoint: Arc<Endpoint>,
+    pub handler: Arc<dyn WsHandler>,
+    pub shared: Arc<SharedEndpointData>,
+}
 pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,
     pub handler: Arc<dyn BoxedHandler>,
@@ -295,6 +321,16 @@ pub(super) struct SharedEndpointData {
     pub inbound_svc_auth: Vec<Arc<dyn svcauth::ServiceAuthMethod>>,
 }
 
+impl Clone for WsEndpointHandler {
+    fn clone(&self) -> Self {
+        Self {
+            endpoint: self.endpoint.clone(),
+            handler: self.handler.clone(),
+            shared: self.shared.clone(),
+        }
+    }
+}
+
 impl Clone for EndpointHandler {
     fn clone(&self) -> Self {
         Self {
@@ -302,6 +338,76 @@ impl Clone for EndpointHandler {
             handler: self.handler.clone(),
             shared: self.shared.clone(),
         }
+    }
+}
+
+impl WsEndpointHandler {
+    fn handle(
+        self,
+        axum_req: axum::extract::Request,
+    ) -> Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>
+    {
+        Box::pin(async move {
+            let state = ();
+            let socket = WebSocketUpgrade::from_request(axum_req, &state)
+                .await
+                .unwrap();
+
+            let logger = crate::log::root();
+            logger.info(None, "starting ws", None);
+
+            let start = Instant::now();
+
+            let resp: ResponseData = self.handler.call(Arc::new(Mutex::new(Some(socket)))).await;
+
+            let duration = tokio::time::Instant::now().duration_since(start);
+
+            logger.info(None, "ws completed", {
+                let mut fields = crate::log::Fields::new();
+                let dur_ms = (duration.as_secs() as f64 * 1000f64)
+                    + (duration.subsec_nanos() as f64 / 1_000_000f64);
+
+                fields.insert(
+                    "duration".into(),
+                    serde_json::Value::Number(serde_json::Number::from_f64(dur_ms).unwrap_or_else(
+                        || {
+                            // Fall back to integer if the f64 conversion fails
+                            serde_json::Number::from(duration.as_millis() as u64)
+                        },
+                    )),
+                );
+
+                let code = match &resp {
+                    ResponseData::Typed(Ok(_)) => "ok".to_string(),
+                    ResponseData::Typed(Err(err)) => err.code.to_string(),
+                    ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
+                };
+
+                fields.insert("code".into(), serde_json::Value::String(code));
+                Some(fields)
+            });
+
+            let (_status_code, encoded_resp, _resp_payload, _error) = match resp {
+                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None),
+                ResponseData::Typed(Ok(payload)) => (
+                    200,
+                    self.endpoint
+                        .response
+                        .encode(&payload)
+                        .unwrap_or_else(|err| err.into_response()),
+                    Some(payload),
+                    None,
+                ),
+                ResponseData::Typed(Err(err)) => (
+                    err.code.status_code().as_u16(),
+                    (&err).into_response(),
+                    None,
+                    Some(err),
+                ),
+            };
+
+            encoded_resp
+        })
     }
 }
 
@@ -535,6 +641,15 @@ impl EndpointHandler {
 }
 
 impl axum::handler::Handler<(), ()> for EndpointHandler {
+    type Future =
+        Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>;
+
+    fn call(self, axum_req: axum::extract::Request, _state: ()) -> Self::Future {
+        self.handle(axum_req)
+    }
+}
+
+impl axum::handler::Handler<(), ()> for WsEndpointHandler {
     type Future =
         Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>;
 

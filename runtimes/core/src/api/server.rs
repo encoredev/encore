@@ -13,8 +13,11 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
 use crate::trace;
 
+use super::{WsEndpointHandler, WsHandler};
+
 /// An alias for the concrete type of a server handler.
 type ServerHandler = ReplaceableHandler<EndpointHandler>;
+type ServerWsHandler = ReplaceableHandler<WsEndpointHandler>;
 
 /// Server is an API server. It serves the registered API endpoints.
 ///
@@ -28,6 +31,7 @@ pub struct Server {
     endpoints: Arc<EndpointMap>,
 
     hosted_endpoints: Mutex<HashMap<EndpointName, ServerHandler>>,
+    hosted_ws_endpoints: Mutex<HashMap<EndpointName, ServerWsHandler>>,
 
     router: Mutex<Option<axum::Router>>,
 
@@ -62,7 +66,9 @@ impl Server {
         let mut fallback_router = axum::Router::new();
         fallback_router = fallback_router.fallback(not_found_handler);
 
+        let mut ws_handler_map = HashMap::with_capacity(hosted_endpoints.len());
         let mut handler_map = HashMap::with_capacity(hosted_endpoints.len());
+
         let path_set = paths::compute(hosted_endpoints.iter().map(|ep| EndpointPathResolver {
             ep: endpoints.get(ep).unwrap().to_owned(),
         }));
@@ -73,12 +79,21 @@ impl Server {
             for (ep, paths) in paths {
                 match schema::method_filter(ep.methods()) {
                     Some(filter) => {
-                        let server_handler = ServerHandler::default();
-                        let handler = axum::routing::on(filter, server_handler.clone());
-                        for path in paths {
-                            router = router.route(path, handler.clone());
+                        if ep.ws {
+                            let server_handler = ServerWsHandler::default();
+                            let handler = axum::routing::on(filter, server_handler.clone());
+                            for path in paths {
+                                router = router.route(path, handler.clone());
+                            }
+                            ws_handler_map.insert(ep.name.clone(), server_handler);
+                        } else {
+                            let server_handler = ServerHandler::default();
+                            let handler = axum::routing::on(filter, server_handler.clone());
+                            for path in paths {
+                                router = router.route(path, handler.clone());
+                            }
+                            handler_map.insert(ep.name.clone(), server_handler);
                         }
-                        handler_map.insert(ep.name.clone(), server_handler);
                     }
                     None => {
                         log::warn!("no methods for endpoint {}, skipping", ep.name,);
@@ -107,6 +122,7 @@ impl Server {
         Ok(Self {
             endpoints,
             hosted_endpoints: Mutex::new(handler_map),
+            hosted_ws_endpoints: Mutex::new(ws_handler_map),
             router: Mutex::new(Some(router)),
             shared,
         })
@@ -129,6 +145,35 @@ impl Server {
                 let endpoint = self.endpoints.get(&endpoint_name).unwrap().to_owned();
 
                 let handler = EndpointHandler {
+                    endpoint,
+                    handler,
+                    shared: self.shared.clone(),
+                };
+
+                h.set(handler);
+                Ok(())
+            }
+        }
+    }
+
+    /// Registers a ws handler for the given endpoint.
+    /// Reports an error if the handler was not found.
+    pub fn register_ws_handler(
+        &self,
+        endpoint_name: EndpointName,
+        handler: Arc<dyn WsHandler>,
+    ) -> anyhow::Result<()> {
+        match self
+            .hosted_ws_endpoints
+            .lock()
+            .unwrap()
+            .remove(&endpoint_name)
+        {
+            None => Ok(()), // anyhow::bail!("no handler found for endpoint: {}", endpoint_name),
+            Some(h) => {
+                let endpoint = self.endpoints.get(&endpoint_name).unwrap().to_owned();
+
+                let handler = WsEndpointHandler {
                     endpoint,
                     handler,
                     shared: self.shared.clone(),

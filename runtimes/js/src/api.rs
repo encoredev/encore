@@ -5,8 +5,8 @@ use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
 use crate::{raw_api, request_meta};
-use encore_runtime_core::api;
-use encore_runtime_core::api::schema;
+use axum::extract::ws::WebSocket;
+use encore_runtime_core::api::{self, schema, HandlerSocket};
 use encore_runtime_core::model::RequestData;
 use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
@@ -20,6 +20,18 @@ pub struct APIRoute {
     pub name: String,
     pub raw: bool,
     pub handler: JsFunction,
+}
+
+pub fn new_ws_handler(env: Env, func: JsFunction) -> napi::Result<Arc<dyn api::WsHandler>> {
+    let handler = ThreadsafeFunction::create(
+        env.raw(),
+        // SAFETY: `handler` is a valid JS function.
+        unsafe { func.raw() },
+        0,
+        ws_resolve_on_js_thread,
+    )?;
+
+    Ok(Arc::new(JSWsHandler { handler }))
 }
 
 pub fn new_api_handler(
@@ -153,6 +165,75 @@ impl PromiseHandler for APIPromiseHandler {
     }
 }
 
+#[napi]
+pub struct Socket {
+    inner: Arc<tokio::sync::Mutex<WebSocket>>,
+}
+
+#[napi]
+impl Socket {
+    fn new(inner: WebSocket) -> Self {
+        Socket {
+            inner: Arc::new(tokio::sync::Mutex::new(inner)),
+        }
+    }
+
+    #[napi]
+    pub async fn send(&self, msg: String) {
+        self.inner.lock().await.send(msg.into()).await.unwrap();
+    }
+
+    #[napi]
+    pub async fn recv(&self) -> String {
+        self.inner
+            .lock()
+            .await
+            .recv()
+            .await
+            .unwrap()
+            .unwrap()
+            .to_text()
+            .unwrap()
+            .to_string()
+    }
+}
+
+struct WsRequestMessage {
+    socket: Socket,
+    tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
+}
+
+pub struct JSWsHandler {
+    handler: ThreadsafeFunction<WsRequestMessage>,
+}
+
+impl api::WsHandler for JSWsHandler {
+    fn call(
+        self: Arc<Self>,
+        socket: HandlerSocket,
+    ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
+        Box::pin(async move {
+            // Create a one-shot channel
+            let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+            let s = socket.lock().unwrap().take().unwrap();
+            let resp = s.on_upgrade(|ws: WebSocket| async move {
+                let socket = Socket::new(ws);
+
+                // Call the handler.
+                let status = self.handler.call(
+                    WsRequestMessage { tx, socket },
+                    ThreadsafeFunctionCallMode::Blocking,
+                );
+
+                log::debug!("js ws handler responded with status: {status}");
+            });
+
+            api::ResponseData::Raw(resp)
+        })
+    }
+}
+
 struct TypedRequestMessage {
     req: Request,
     tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
@@ -189,6 +270,23 @@ impl api::BoxedHandler for JSTypedHandler {
 
             api::ResponseData::Typed(resp)
         })
+    }
+}
+
+fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi::Result<()> {
+    let socket = ctx.value.socket.into_instance(ctx.env)?;
+    let handler = APIPromiseHandler;
+
+    match ctx.callback.unwrap().call(None, &[socket]) {
+        Ok(result) => {
+            await_promise(ctx.env, result, ctx.value.tx.clone(), handler);
+            Ok(())
+        }
+        Err(err) => {
+            let res = handler.error(ctx.env, err);
+            _ = ctx.value.tx.send(res);
+            Ok(())
+        }
     }
 }
 
