@@ -57,9 +57,9 @@ impl FromStr for MetaKey {
         })
     }
 }
-
 pub trait MetaMapMut: MetaMap {
     fn set(&mut self, key: MetaKey, value: String) -> anyhow::Result<()>;
+    fn upcast(&self) -> &dyn MetaMap;
 }
 
 pub trait MetaMap {
@@ -70,7 +70,18 @@ pub trait MetaMap {
     fn sorted_meta_keys(&self) -> Vec<MetaKey>;
 }
 
-impl MetaMap for reqwest::header::HeaderMap {
+impl MetaMapMut for reqwest::header::HeaderMap {
+    fn set(&mut self, key: MetaKey, value: String) -> anyhow::Result<()> {
+        self.insert(key.header_key(), value.parse()?);
+        Ok(())
+    }
+
+    fn upcast(&self) -> &dyn MetaMap {
+        self
+    }
+}
+
+impl MetaMap for axum::http::HeaderMap {
     fn get_meta(&self, key: MetaKey) -> Option<&str> {
         self.get(key.header_key()).and_then(|v| v.to_str().ok())
     }
@@ -93,21 +104,27 @@ impl MetaMap for reqwest::header::HeaderMap {
     }
 }
 
-impl MetaMapMut for reqwest::header::HeaderMap {
+impl MetaMapMut for pingora::http::RequestHeader {
     fn set(&mut self, key: MetaKey, value: String) -> anyhow::Result<()> {
-        self.insert(key.header_key(), value.parse()?);
+        self.insert_header(key.header_key(), value)?;
         Ok(())
+    }
+    fn upcast(&self) -> &dyn MetaMap {
+        self
     }
 }
 
-impl MetaMap for axum::http::HeaderMap {
+impl MetaMap for pingora::http::RequestHeader {
     fn get_meta(&self, key: MetaKey) -> Option<&str> {
-        self.get(key.header_key()).and_then(|v| v.to_str().ok())
+        self.headers
+            .get(key.header_key())
+            .and_then(|v| v.to_str().ok())
     }
 
     fn meta_values<'a>(&'a self, key: MetaKey) -> Box<dyn Iterator<Item = &'a str> + 'a> {
         Box::new(
-            self.get_all(key.header_key())
+            self.headers
+                .get_all(key.header_key())
                 .iter()
                 .filter_map(|v| v.to_str().ok()),
         )
@@ -115,6 +132,7 @@ impl MetaMap for axum::http::HeaderMap {
 
     fn sorted_meta_keys(&self) -> Vec<MetaKey> {
         let mut keys: Vec<_> = self
+            .headers
             .keys()
             .filter_map(|k| MetaKey::from_str(k.as_str()).ok())
             .collect();

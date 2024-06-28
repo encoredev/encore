@@ -4,7 +4,10 @@ use anyhow::Context;
 use axum::http::{HeaderName, HeaderValue};
 use std::collections::HashSet;
 use std::str::FromStr;
-use tower_http::cors;
+
+use self::cors_headers_config::{ensure_usable_cors_rules, CorsHeadersConfig};
+
+pub mod cors_headers_config;
 
 /// The default set of allowed headers.
 #[allow(clippy::declare_interior_mutable_const)]
@@ -26,7 +29,7 @@ pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("x-encore-trace-id"),
 ];
 
-pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors::CorsLayer> {
+pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<CorsHeadersConfig> {
     let mut allowed_headers = cfg
         .extra_allowed_headers
         .iter()
@@ -82,14 +85,16 @@ pub fn layer(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<cors:
         pred
     };
 
-    let layer = cors::CorsLayer::new()
+    let config = CorsHeadersConfig::new()
         .allow_private_network(cfg.allow_private_network_access)
-        .allow_headers(cors::AllowHeaders::list(allowed_headers))
-        .expose_headers(cors::ExposeHeaders::list(exposed_headers))
+        .allow_headers(cors_headers_config::AllowHeaders::list(allowed_headers))
+        .expose_headers(cors_headers_config::ExposeHeaders::list(exposed_headers))
         .allow_credentials(!cfg.disable_credentials)
-        .allow_methods(cors::AllowMethods::mirror_request())
-        .allow_origin(cors::AllowOrigin::predicate(allow_origin));
-    Ok(layer)
+        .allow_methods(cors_headers_config::AllowMethods::mirror_request())
+        .allow_origin(cors_headers_config::AllowOrigin::predicate(allow_origin));
+
+    ensure_usable_cors_rules(&config);
+    Ok(config)
 }
 
 enum OriginSet {
