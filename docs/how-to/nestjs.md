@@ -36,7 +36,7 @@ In you already have a NestJS project, you can add Encore to it by following thes
 }
 ```
 
-## Running your application using Encore
+## Standalone Nest application
 
 In order for Encore to be able to provision infrastructure resources, generate API documentation etc. we need to run our
 application using Encore. This means that we need to replace the ordinary Nest bootstrapping and instead run our Nest
@@ -58,6 +58,29 @@ export default applicationContext;
 ```
 
 The `applicationContext` variable can then be used to access your Nest modules/services from your Encore your APIs.
+
+## Defining an Encore service
+
+When running an app using Encore you need at least
+one [Encore service](https://encore.dev/docs/ts/primitives/services-and-apis#defining-a-service). You can define a
+service
+in two ways:
+
+1. Create a folder and inside that folder defining one or more APIs. Encore recognizes this as a service, and uses the
+   folder name as the service name.
+2. Add a file named `encore.service.ts` in a directory. The file must export a service instance, by
+   calling `new Service`, imported from `encore.dev/service`:
+
+```ts
+import {Service} from "encore.dev/service";
+
+export default new Service("my-service");
+```
+
+Encore will consider this directory and all its subdirectories as part of the service.
+
+If you already have a Nest app then the easiest way to get going is to go with the second approach and add
+a `encore.service.ts` in the root of your app, then you do not need to change your existing folder structure. 
 
 ## Replacing Nest controllers with Encore APIs
 
@@ -150,7 +173,8 @@ After those steps we are ready to run our app locally:
 $ encore run
 ```
 
-You should see log messages about both Encore and Nest staring up. That means your local development environment is up and
+You should see log messages about both Encore and Nest staring up. That means your local development environment is up
+and
 running and ready to take some requests!
 
 ### Open the Local Development Dashboard
