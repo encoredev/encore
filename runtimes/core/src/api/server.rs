@@ -4,8 +4,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
-use axum::routing;
-
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::paths::Pather;
@@ -47,9 +45,7 @@ impl Server {
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
-        // TODO(fredr): remove ws handler
-        let mut router =
-            axum::Router::new().route("/__ws", routing::get(api::encore_routes::ws_handler));
+        let mut router = axum::Router::new();
 
         async fn not_found_handler(
             req: axum::http::Request<axum::body::Body>,
