@@ -6,7 +6,7 @@ use crate::threadsafe_function::{
 };
 use crate::{raw_api, request_meta};
 use axum::extract::ws::WebSocket;
-use encore_runtime_core::api::{self, schema, HandlerSocket};
+use encore_runtime_core::api::{self, schema, HandlerRequest};
 use encore_runtime_core::model::RequestData;
 use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
@@ -22,7 +22,7 @@ pub struct APIRoute {
     pub handler: JsFunction,
 }
 
-pub fn new_ws_handler(env: Env, func: JsFunction) -> napi::Result<Arc<dyn api::WsHandler>> {
+pub fn new_ws_handler(env: Env, func: JsFunction) -> napi::Result<Arc<dyn api::BoxedHandler>> {
     let handler = ThreadsafeFunction::create(
         env.raw(),
         // SAFETY: `handler` is a valid JS function.
@@ -38,6 +38,7 @@ pub fn new_api_handler(
     env: Env,
     func: JsFunction,
     raw: bool,
+    // TODO: websocket: bool - ?
 ) -> napi::Result<Arc<dyn api::BoxedHandler>> {
     if raw {
         return raw_api::new_handler(env, func);
@@ -207,16 +208,17 @@ pub struct JSWsHandler {
     handler: ThreadsafeFunction<WsRequestMessage>,
 }
 
-impl api::WsHandler for JSWsHandler {
+impl api::BoxedHandler for JSWsHandler {
     fn call(
         self: Arc<Self>,
-        socket: HandlerSocket,
+        (_req, mut socket): HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
             let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
 
-            let s = socket.lock().unwrap().take().unwrap();
+            log::warn!("BoxedHandler for JSWsHandler, socket={socket:?}");
+            let s = socket.take().unwrap();
             let resp = s.on_upgrade(|ws: WebSocket| async move {
                 let socket = Socket::new(ws);
 
@@ -233,7 +235,33 @@ impl api::WsHandler for JSWsHandler {
         })
     }
 }
-
+//impl api::WsHandler for JSWsHandler {
+//    fn call(
+//        self: Arc<Self>,
+//        socket: HandlerSocket,
+//    ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
+//        Box::pin(async move {
+//            // Create a one-shot channel
+//            let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+//
+//            let s = socket.lock().unwrap().take().unwrap();
+//            let resp = s.on_upgrade(|ws: WebSocket| async move {
+//                let socket = Socket::new(ws);
+//
+//                // Call the handler.
+//                let status = self.handler.call(
+//                    WsRequestMessage { tx, socket },
+//                    ThreadsafeFunctionCallMode::Blocking,
+//                );
+//
+//                log::debug!("js ws handler responded with status: {status}");
+//            });
+//
+//            api::ResponseData::Raw(resp)
+//        })
+//    }
+//}
+//
 struct TypedRequestMessage {
     req: Request,
     tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
@@ -246,7 +274,7 @@ pub struct JSTypedHandler {
 impl api::BoxedHandler for JSTypedHandler {
     fn call(
         self: Arc<Self>,
-        req: api::HandlerRequest,
+        (req, _socket): api::HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel

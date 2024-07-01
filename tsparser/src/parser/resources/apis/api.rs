@@ -288,7 +288,6 @@ struct EndpointConfig {
     expose: Option<bool>,
     auth: Option<bool>,
     bodyLimit: Option<Nullable<u64>>,
-    ws: Option<bool>,
 }
 
 impl ReferenceParser for APIEndpointLiteral {

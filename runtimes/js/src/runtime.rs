@@ -123,7 +123,7 @@ impl Runtime {
         };
 
         let endpoint = encore_runtime_core::EndpointName::new(route.service, route.name);
-        srv.register_ws_handler(endpoint, handler).map_err(|e| {
+        srv.register_handler(endpoint, handler).map_err(|e| {
             Error::new(
                 Status::GenericFailure,
                 format!("failed to register handler: {:?}", e),
@@ -159,6 +159,7 @@ impl Runtime {
     pub fn register_handlers(&self, env: Env, routes: Vec<APIRoute>) -> napi::Result<()> {
         for route in routes {
             if route.name == "ws" {
+                // TODO check something else
                 self.register_ws_handler(env, route)?;
             } else {
                 self.register_handler(env, route)?;

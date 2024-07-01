@@ -4,9 +4,11 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
-use axum::extract::{FromRequest, WebSocketUpgrade};
+use axum::extract::{FromRequestParts, Request, WebSocketUpgrade};
 use axum::http::HeaderValue;
+use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
+use http::header;
 use indexmap::IndexMap;
 use serde::Serialize;
 use tokio::time::Instant;
@@ -35,10 +37,6 @@ pub struct SuccessResponse {
 pub type Response = APIResult<SuccessResponse>;
 
 pub type APIResult<T> = Result<T, Error>;
-
-pub trait IntoResponse {
-    fn into_response(self) -> axum::http::Response<axum::body::Body>;
-}
 
 impl IntoResponse for SuccessResponse {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
@@ -71,6 +69,21 @@ impl IntoResponse for SuccessResponse {
     }
 }
 
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::http::Response<axum::body::Body> {
+        let mut buf = BytesMut::with_capacity(128).writer();
+        serde_json::to_writer(&mut buf, &self).unwrap();
+
+        axum::http::Response::builder()
+            .status::<axum::http::status::StatusCode>(self.code.into())
+            .header(
+                axum::http::header::CONTENT_TYPE,
+                HeaderValue::from_static(mime::APPLICATION_JSON.as_ref()),
+            )
+            .body(axum::body::Body::from(buf.into_inner().freeze()))
+            .unwrap()
+    }
+}
 impl IntoResponse for &Error {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
         let mut buf = BytesMut::with_capacity(128).writer();
@@ -87,6 +100,7 @@ impl IntoResponse for &Error {
     }
 }
 
+/*
 impl<A, B> IntoResponse for Result<A, B>
 where
     A: IntoResponse,
@@ -99,8 +113,9 @@ where
         }
     }
 }
+*/
 
-pub type HandlerRequest = Arc<model::Request>;
+pub type HandlerRequest = (Arc<model::Request>, Option<WebSocketUpgrade>);
 pub type HandlerResponse = APIResult<JSONPayload>;
 pub type HandlerSocket = Arc<Mutex<Option<WebSocketUpgrade>>>;
 
@@ -143,9 +158,6 @@ pub struct Endpoint {
 
     /// Whether this is a raw endpoint.
     pub raw: bool,
-
-    /// Wheter this is a ws endpoint
-    pub ws: bool,
 
     /// Whether the service is exposed publicly.
     pub exposed: bool,
@@ -275,10 +287,6 @@ pub fn endpoints_from_meta(
             }],
         });
 
-        // TODO hack, this needs to be handled differently, fetch from api options, need to be
-        // added to proto?
-        let ws = path.segments.iter().any(|x| x.value == "ws");
-
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
             path,
@@ -291,7 +299,6 @@ pub fn endpoints_from_meta(
             exposed,
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
-            ws,
         };
 
         endpoint_map.insert(
@@ -348,10 +355,14 @@ impl WsEndpointHandler {
     ) -> Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>
     {
         Box::pin(async move {
-            let state = ();
-            let socket = WebSocketUpgrade::from_request(axum_req, &state)
-                .await
-                .unwrap();
+            let (mut parts, body) = axum_req.into_parts();
+            let state = &();
+            let socket = match WebSocketUpgrade::from_request_parts(&mut parts, state).await {
+                Ok(socket) => socket,
+                Err(rejection) => return rejection.into_response(),
+            };
+
+            let _req = Request::from_parts(parts, body);
 
             let logger = crate::log::root();
             logger.info(None, "starting ws", None);
@@ -411,11 +422,29 @@ impl WsEndpointHandler {
     }
 }
 
+// Check if this is a websocket upgrade request
+fn is_websocket_upgrade(parts: &axum::http::request::Parts) -> bool {
+    let connection_upgrade = parts
+        .headers
+        .get(header::CONNECTION)
+        .map(|val| val.as_bytes().eq_ignore_ascii_case(b"upgrade"))
+        .unwrap_or(false);
+
+    let upgrade_websocket = parts
+        .headers
+        .get(header::UPGRADE)
+        .map(|val| val.as_bytes().eq_ignore_ascii_case(b"websocket"))
+        .unwrap_or(false);
+
+    connection_upgrade && upgrade_websocket
+}
+
 impl EndpointHandler {
     async fn parse_request(
         &self,
         axum_req: axum::extract::Request,
-    ) -> APIResult<Arc<model::Request>> {
+    ) -> APIResult<(Arc<model::Request>, Option<WebSocketUpgrade>)> {
+        let state = &();
         let method = axum_req.method();
         // Method conversion should never fail since we only register valid methods.
         let api_method = Method::try_from(method.clone()).expect("invalid method");
@@ -435,6 +464,15 @@ impl EndpointHandler {
                 }
             })
             .into_parts();
+
+        let socket = if is_websocket_upgrade(&parts) {
+            match WebSocketUpgrade::from_request_parts(&mut parts, state).await {
+                Ok(socket) => Some(socket),
+                Err(_rejection) => todo!(), // return rejection.into_response(),
+            }
+        } else {
+            None
+        };
 
         // Authenticate the request from the platform, if applicable.
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {
@@ -487,7 +525,7 @@ impl EndpointHandler {
             }),
         });
 
-        Ok(request)
+        Ok((request, socket))
     }
 
     fn handle(
@@ -496,7 +534,7 @@ impl EndpointHandler {
     ) -> Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>
     {
         Box::pin(async move {
-            let request = match self.parse_request(axum_req).await {
+            let (request, socket) = match self.parse_request(axum_req).await {
                 Ok(req) => req,
                 Err(err) => return err.into_response(),
             };
@@ -525,7 +563,7 @@ impl EndpointHandler {
 
             self.shared.tracer.request_span_start(&request);
 
-            let resp: ResponseData = self.handler.call(request.clone()).await;
+            let resp: ResponseData = self.handler.call((request.clone(), socket)).await;
 
             let duration = tokio::time::Instant::now().duration_since(request.start);
 
