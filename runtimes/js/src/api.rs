@@ -200,6 +200,7 @@ impl Socket {
 }
 
 struct WsRequestMessage {
+    req: Request,
     socket: Socket,
     tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
 }
@@ -211,20 +212,20 @@ pub struct JSWsHandler {
 impl api::BoxedHandler for JSWsHandler {
     fn call(
         self: Arc<Self>,
-        (_req, mut socket): HandlerRequest,
+        (req, mut socket): HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
             let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
 
-            log::warn!("BoxedHandler for JSWsHandler, socket={socket:?}");
             let s = socket.take().unwrap();
             let resp = s.on_upgrade(|ws: WebSocket| async move {
                 let socket = Socket::new(ws);
+                let req = Request::new(req);
 
                 // Call the handler.
                 let status = self.handler.call(
-                    WsRequestMessage { tx, socket },
+                    WsRequestMessage { tx, socket, req },
                     ThreadsafeFunctionCallMode::Blocking,
                 );
 
@@ -235,33 +236,7 @@ impl api::BoxedHandler for JSWsHandler {
         })
     }
 }
-//impl api::WsHandler for JSWsHandler {
-//    fn call(
-//        self: Arc<Self>,
-//        socket: HandlerSocket,
-//    ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
-//        Box::pin(async move {
-//            // Create a one-shot channel
-//            let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-//
-//            let s = socket.lock().unwrap().take().unwrap();
-//            let resp = s.on_upgrade(|ws: WebSocket| async move {
-//                let socket = Socket::new(ws);
-//
-//                // Call the handler.
-//                let status = self.handler.call(
-//                    WsRequestMessage { tx, socket },
-//                    ThreadsafeFunctionCallMode::Blocking,
-//                );
-//
-//                log::debug!("js ws handler responded with status: {status}");
-//            });
-//
-//            api::ResponseData::Raw(resp)
-//        })
-//    }
-//}
-//
+
 struct TypedRequestMessage {
     req: Request,
     tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
@@ -302,10 +277,11 @@ impl api::BoxedHandler for JSTypedHandler {
 }
 
 fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi::Result<()> {
-    let socket = ctx.value.socket.into_instance(ctx.env)?;
+    let socket = ctx.value.socket.into_instance(ctx.env)?.as_object(ctx.env);
+    let req = ctx.value.req.into_instance(ctx.env)?.as_object(ctx.env);
     let handler = APIPromiseHandler;
 
-    match ctx.callback.unwrap().call(None, &[socket]) {
+    match ctx.callback.unwrap().call(None, &[req, socket]) {
         Ok(result) => {
             await_promise(ctx.env, result, ctx.value.tx.clone(), handler);
             Ok(())

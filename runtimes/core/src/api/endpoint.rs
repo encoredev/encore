@@ -1,17 +1,16 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::Context;
-use axum::extract::{FromRequestParts, Request, WebSocketUpgrade};
+use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
 use http::header;
 use indexmap::IndexMap;
 use serde::Serialize;
-use tokio::time::Instant;
 
 use crate::api::reqauth::{platform, svcauth, CallMeta};
 use crate::api::schema::encoding::{
@@ -71,17 +70,7 @@ impl IntoResponse for SuccessResponse {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        let mut buf = BytesMut::with_capacity(128).writer();
-        serde_json::to_writer(&mut buf, &self).unwrap();
-
-        axum::http::Response::builder()
-            .status::<axum::http::status::StatusCode>(self.code.into())
-            .header(
-                axum::http::header::CONTENT_TYPE,
-                HeaderValue::from_static(mime::APPLICATION_JSON.as_ref()),
-            )
-            .body(axum::body::Body::from(buf.into_inner().freeze()))
-            .unwrap()
+        (&self).into_response()
     }
 }
 impl IntoResponse for &Error {
@@ -100,32 +89,8 @@ impl IntoResponse for &Error {
     }
 }
 
-/*
-impl<A, B> IntoResponse for Result<A, B>
-where
-    A: IntoResponse,
-    B: IntoResponse,
-{
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        match self {
-            Ok(a) => a.into_response(),
-            Err(b) => b.into_response(),
-        }
-    }
-}
-*/
-
 pub type HandlerRequest = (Arc<model::Request>, Option<WebSocketUpgrade>);
 pub type HandlerResponse = APIResult<JSONPayload>;
-pub type HandlerSocket = Arc<Mutex<Option<WebSocketUpgrade>>>;
-
-// A trait for accepting an upgraded websocket
-pub trait WsHandler: Send + Sync + 'static {
-    fn call(
-        self: Arc<Self>,
-        socket: HandlerSocket,
-    ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>;
-}
 
 /// A trait for handlers that accept a request and return a response.
 pub trait TypedHandler: Send + Sync + 'static {
@@ -310,11 +275,6 @@ pub fn endpoints_from_meta(
     Ok((Arc::new(endpoint_map), hosted_endpoints))
 }
 
-pub(super) struct WsEndpointHandler {
-    pub endpoint: Arc<Endpoint>,
-    pub handler: Arc<dyn WsHandler>,
-    pub shared: Arc<SharedEndpointData>,
-}
 pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,
     pub handler: Arc<dyn BoxedHandler>,
@@ -328,16 +288,6 @@ pub(super) struct SharedEndpointData {
     pub inbound_svc_auth: Vec<Arc<dyn svcauth::ServiceAuthMethod>>,
 }
 
-impl Clone for WsEndpointHandler {
-    fn clone(&self) -> Self {
-        Self {
-            endpoint: self.endpoint.clone(),
-            handler: self.handler.clone(),
-            shared: self.shared.clone(),
-        }
-    }
-}
-
 impl Clone for EndpointHandler {
     fn clone(&self) -> Self {
         Self {
@@ -345,80 +295,6 @@ impl Clone for EndpointHandler {
             handler: self.handler.clone(),
             shared: self.shared.clone(),
         }
-    }
-}
-
-impl WsEndpointHandler {
-    fn handle(
-        self,
-        axum_req: axum::extract::Request,
-    ) -> Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>
-    {
-        Box::pin(async move {
-            let (mut parts, body) = axum_req.into_parts();
-            let state = &();
-            let socket = match WebSocketUpgrade::from_request_parts(&mut parts, state).await {
-                Ok(socket) => socket,
-                Err(rejection) => return rejection.into_response(),
-            };
-
-            let _req = Request::from_parts(parts, body);
-
-            let logger = crate::log::root();
-            logger.info(None, "starting ws", None);
-
-            let start = Instant::now();
-
-            let resp: ResponseData = self.handler.call(Arc::new(Mutex::new(Some(socket)))).await;
-
-            let duration = tokio::time::Instant::now().duration_since(start);
-
-            logger.info(None, "ws completed", {
-                let mut fields = crate::log::Fields::new();
-                let dur_ms = (duration.as_secs() as f64 * 1000f64)
-                    + (duration.subsec_nanos() as f64 / 1_000_000f64);
-
-                fields.insert(
-                    "duration".into(),
-                    serde_json::Value::Number(serde_json::Number::from_f64(dur_ms).unwrap_or_else(
-                        || {
-                            // Fall back to integer if the f64 conversion fails
-                            serde_json::Number::from(duration.as_millis() as u64)
-                        },
-                    )),
-                );
-
-                let code = match &resp {
-                    ResponseData::Typed(Ok(_)) => "ok".to_string(),
-                    ResponseData::Typed(Err(err)) => err.code.to_string(),
-                    ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
-                };
-
-                fields.insert("code".into(), serde_json::Value::String(code));
-                Some(fields)
-            });
-
-            let (_status_code, encoded_resp, _resp_payload, _error) = match resp {
-                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None),
-                ResponseData::Typed(Ok(payload)) => (
-                    200,
-                    self.endpoint
-                        .response
-                        .encode(&payload)
-                        .unwrap_or_else(|err| err.into_response()),
-                    Some(payload),
-                    None,
-                ),
-                ResponseData::Typed(Err(err)) => (
-                    err.code.status_code().as_u16(),
-                    (&err).into_response(),
-                    None,
-                    Some(err),
-                ),
-            };
-
-            encoded_resp
-        })
     }
 }
 
@@ -679,15 +555,6 @@ impl EndpointHandler {
 }
 
 impl axum::handler::Handler<(), ()> for EndpointHandler {
-    type Future =
-        Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>;
-
-    fn call(self, axum_req: axum::extract::Request, _state: ()) -> Self::Future {
-        self.handle(axum_req)
-    }
-}
-
-impl axum::handler::Handler<(), ()> for WsEndpointHandler {
     type Future =
         Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>;
 

@@ -26,8 +26,8 @@ function transformHandler(h: Handler): Handler {
   if (h.name == "ws") {
     return {
       ...h,
-      handler: (socket: runtime.Socket) => {
-        return h.handler(socket);
+      handler: (req: runtime.Request, socket: runtime.Socket) => {
+        return h.handler(req, socket);
       },
     };
   }

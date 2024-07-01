@@ -15,11 +15,8 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
 use crate::trace;
 
-use super::{WsEndpointHandler, WsHandler};
-
 /// An alias for the concrete type of a server handler.
 type ServerHandler = ReplaceableHandler<EndpointHandler>;
-type ServerWsHandler = ReplaceableHandler<WsEndpointHandler>;
 
 /// Server is an API server. It serves the registered API endpoints.
 ///
