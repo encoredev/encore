@@ -17,10 +17,7 @@ Encore’s logging is integrated with the built-in [Distributed Tracing](/docs/o
 First, add `import log  from "encore.dev/log";` to your module. Then call one of the logging functions `error`, `warn`, `info`, `debug`, or `trace` to emit a log message. For example:
 
 ```ts
-log.info("log message", {
-    user_id: 12345, 
-    is_subscriber: true
-  })
+log.info("log message", {is_subscriber: true})
 log.error(err, "something went terribly wrong!")
 ```
 
