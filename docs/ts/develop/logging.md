@@ -14,7 +14,7 @@ Encore offers built-in support for Structured Logging, which combines a free-for
 Encore’s logging is integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality, and all logs are automatically included in the active trace. This dramatically simplifies debugging of your application.
 
 ## Usage
-First, add `import log  from "encore.dev/log";` to your module. Then simply call one of functions `Info`, `Error`, or `Debug`. For example:
+First, add `import log  from "encore.dev/log";` to your module. Then call one of the logging functions `error`, `warn`, `info`, `debug`, or `trace` to emit a log message. For example:
 
 ```ts
 log.info("log message", {
