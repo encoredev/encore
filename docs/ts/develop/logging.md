@@ -5,7 +5,7 @@ title: Logging
 subtitle: Structured logging helps you understand your application
 infobox: {
   title: "Structured Logging",
-  import: "encore.dev/rlog",
+  import: "encore.dev/log",
 }
 ---
 
@@ -14,26 +14,21 @@ Encore offers built-in support for Structured Logging, which combines a free-for
 Encore’s logging is integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality, and all logs are automatically included in the active trace. This dramatically simplifies debugging of your application.
 
 ## Usage
-First, import `encore.dev/rlog` in your package. Then simply call one of the package methods `Info`, `Error`, or `Debug`. For example:
+First, add `import log  from "encore.dev/log";` to your module. Then call one of the logging functions `error`, `warn`, `info`, `debug`, or `trace` to emit a log message. For example:
 
-```go
-rlog.Info("log message",
-	"user_id", 12345,
-	"is_subscriber", true)
-rlog.Error("something went terribly wrong!",
-	"err", err)
+```ts
+log.info("log message", {is_subscriber: true})
+log.error(err, "something went terribly wrong!")
 ```
 
-The first parameter is the log message. After that follows zero or more key-value pairs for structured logging for context.
+The first parameter is the log message (or optionally an error for the error function) . After that follows a single object with key-value pairs for structured logging.
 
-If you’re logging many log messages with the same key-value pairs each time it can be a bit cumbersome. To help with that, use `rlog.With()` to group them into a context object, which then copies the key-value pairs into each log event:
+If you’re logging many log messages with the same key-value pairs each time it can be a bit cumbersome. To help with that, use `log.with()` to group them into a Logger object, which then copies the key-value pairs into each log event:
 
-```go
-ctx := rlog.With("is_subscriber", true)
-ctx.Info("user logged in", "login_method", "oauth") // includes is_subscriber=true
+```ts
+const logger = log.with({is_subscriber: true})
+logger.info("user logged in", {login_method: "oauth"}) // includes is_subscriber=true
 ```
-
-For more information, see the [API Documentation](https://pkg.go.dev/encore.dev/rlog).
 
 ## Live-streaming logs
 
