@@ -4,6 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Context;
+use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
@@ -315,6 +316,17 @@ fn is_websocket_upgrade(parts: &axum::http::request::Parts) -> bool {
     connection_upgrade && upgrade_websocket
 }
 
+impl From<WebSocketUpgradeRejection> for Error {
+    fn from(value: WebSocketUpgradeRejection) -> Self {
+        Error {
+            code: value.status().into(),
+            message: value.body_text(),
+            internal_message: Some(value.body_text()),
+            stack: None,
+        }
+    }
+}
+
 impl EndpointHandler {
     async fn parse_request(
         &self,
@@ -344,7 +356,9 @@ impl EndpointHandler {
         let socket = if is_websocket_upgrade(&parts) {
             match WebSocketUpgrade::from_request_parts(&mut parts, state).await {
                 Ok(socket) => Some(socket),
-                Err(_rejection) => todo!(), // return rejection.into_response(),
+                Err(rejection) => {
+                    return Err(rejection.into());
+                }
             }
         } else {
             None

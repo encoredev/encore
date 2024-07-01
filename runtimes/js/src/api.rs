@@ -5,14 +5,19 @@ use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
 use crate::{raw_api, request_meta};
-use axum::extract::ws::WebSocket;
+use axum::extract::ws::{Message, WebSocket};
 use encore_runtime_core::api::{self, schema, HandlerRequest};
 use encore_runtime_core::model::RequestData;
+use futures::TryFutureExt;
+use napi::sys::Status;
 use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use tokio::select;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
 
 #[napi(object)]
 pub struct APIRoute {
@@ -168,34 +173,79 @@ impl PromiseHandler for APIPromiseHandler {
 
 #[napi]
 pub struct Socket {
-    inner: Arc<tokio::sync::Mutex<WebSocket>>,
+    out_tx: UnboundedSender<Message>,
+    in_rx: tokio::sync::Mutex<UnboundedReceiver<Message>>,
+    notify_close: Arc<tokio::sync::Notify>,
 }
 
 #[napi]
 impl Socket {
-    fn new(inner: WebSocket) -> Self {
+    fn new(mut websocket: WebSocket) -> Self {
+        let (out_tx, mut out_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (in_tx, in_rx) = tokio::sync::mpsc::unbounded_channel();
+        let notify_close = Arc::new(tokio::sync::Notify::new());
+
+        let _handle = tokio::spawn({
+            let notify_close = notify_close.clone();
+            async move {
+                loop {
+                    tokio::select! {
+                        msg = websocket.recv() => {
+                            let msg = msg.unwrap().unwrap();
+                            in_tx.send(msg).unwrap();
+                        }
+                        msg = out_rx.recv() => {
+                            match msg {
+                                Some(msg) => websocket.send(msg).await.unwrap(),
+                                None => todo!(),
+                            }
+                        }
+                        _ = notify_close.notified() => {
+                            websocket.close().await.unwrap();
+                            break;
+                        }
+                    }
+                }
+
+                log::trace!("socket closed");
+            }
+        });
+
         Socket {
-            inner: Arc::new(tokio::sync::Mutex::new(inner)),
+            out_tx,
+            in_rx: tokio::sync::Mutex::new(in_rx),
+            notify_close,
         }
     }
 
     #[napi]
-    pub async fn send(&self, msg: String) {
-        self.inner.lock().await.send(msg.into()).await.unwrap();
+    pub async fn send(&self, msg: String) -> napi::Result<()> {
+        self.out_tx
+            .send(msg.into())
+            .map_err(|_e| napi::Error::new(napi::Status::Unknown, "send channel close"))?;
+        Ok(())
     }
 
     #[napi]
-    pub async fn recv(&self) -> String {
-        self.inner
+    pub async fn recv(&self) -> napi::Result<String> {
+        Ok(self
+            .in_rx
             .lock()
             .await
             .recv()
             .await
-            .unwrap()
-            .unwrap()
+            .ok_or(napi::Error::new(
+                napi::Status::Unknown,
+                "receive channel closed",
+            ))?
             .to_text()
-            .unwrap()
-            .to_string()
+            .map_err(|_e| napi::Error::new(napi::Status::Unknown, "not valid utf-8"))?
+            .to_string())
+    }
+
+    #[napi]
+    pub fn close(&self) {
+        self.notify_close.notify_one()
     }
 }
 
@@ -218,8 +268,8 @@ impl api::BoxedHandler for JSWsHandler {
             // Create a one-shot channel
             let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
 
-            let s = socket.take().unwrap();
-            let resp = s.on_upgrade(|ws: WebSocket| async move {
+            let socket = socket.take().unwrap();
+            let resp = socket.on_upgrade(|ws: WebSocket| async move {
                 let socket = Socket::new(ws);
                 let req = Request::new(req);
 
