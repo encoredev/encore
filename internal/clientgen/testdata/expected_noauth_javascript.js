@@ -86,10 +86,8 @@ const boundFetch = fetch.bind(this)
 class BaseClient {
     constructor(baseURL, options) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
-
+		this.headers = {}
+		
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
         if (typeof window === "undefined") {
@@ -118,6 +116,13 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
+
+		// If the body is not FormData, set the Content-Type to application/json
+		// Otherwise allow fetch to set the Content-Type including the boundary
+		if (!(body instanceof FormData)) {
+            init.headers['Content-Type'] = 'application/json';
+		}
+
 
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''
