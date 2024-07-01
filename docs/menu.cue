@@ -337,6 +337,11 @@
 			text: "Validation"
 			path: "/develop/validation"
 			file: "develop/validation"
+		}, {
+		  kind: "basic"
+		  text: "Logging"
+		  path: "/observability/logging"
+		  file: "observability/logging"
 		}]
 	},
 	{
@@ -488,6 +493,11 @@
 			text: "Testing"
 			path: "/ts/develop/testing"
 			file: "ts/develop/testing"
+		}, {
+		  kind: "basic"
+		  text: "Logging"
+		  path: "/ts/develop/logging"
+		  file: "ts/develop/logging"
 		}]
 	},{
 		kind: "section"
@@ -561,11 +571,6 @@
 		text: "Flow Architecture Diagram"
 		path: "/observability/encore-flow"
 		file: "observability/encore-flow"
-	}, {
-		kind: "basic"
-		text: "Logging"
-		path: "/observability/logging"
-		file: "observability/logging"
 	}, {
 		kind: "basic"
 		text: "Metrics"
