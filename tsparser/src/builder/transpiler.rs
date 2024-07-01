@@ -42,6 +42,9 @@ pub struct TranspileParams<'a> {
 
     /// The services and gateways to transpile.
     pub inputs: Vec<Input>,
+
+    // If we should transpile for debug
+    pub debug: bool,
 }
 
 pub struct TranspileResult {
@@ -111,6 +114,10 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     "--enable-source-maps".into(),
                     "--preserve-symlinks".into(),
                 ];
+
+                if p.debug {
+                    command.push("--inspect-brk".to_string())
+                }
 
                 // Finally we want to add the path to the bundled app
                 command.push(entrypoint_path.clone());

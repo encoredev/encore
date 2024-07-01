@@ -149,6 +149,7 @@ fn main() -> Result<()> {
                                 working_dir: &cwd,
                                 desc: parse,
                                 use_local_runtime: input.use_local_runtime,
+                                debug: input.debug,
                             };
 
                             log::info!("starting compile");
@@ -311,6 +312,7 @@ struct PrepareInput {
 struct CompileInput {
     runtime_version: String,
     use_local_runtime: bool,
+    debug: bool,
 }
 
 #[derive(Deserialize, Debug)]
