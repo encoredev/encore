@@ -29,8 +29,8 @@ The first parameter is the log message. After that follows zero or more key-valu
 If you’re logging many log messages with the same key-value pairs each time it can be a bit cumbersome. To help with that, use `rlog.With()` to group them into a context object, which then copies the key-value pairs into each log event:
 
 ```go
-ctx := rlog.With("user_id", 12345)
-ctx.Info("user logged in", "is_subscriber", true) // includes user_id=12345
+ctx := rlog.With("is_subscriber", true)
+ctx.Info("user logged in", "login_method", "oauth") // includes is_subscriber=true
 ```
 
 For more information, see the [API Documentation](https://pkg.go.dev/encore.dev/rlog).

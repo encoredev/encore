@@ -338,10 +338,10 @@
 			path: "/develop/validation"
 			file: "develop/validation"
 		}, {
-		kind: "basic"
-		text: "Logging"
-		path: "/observability/logging"
-		file: "observability/logging"
+		  kind: "basic"
+		  text: "Logging"
+		  path: "/observability/logging"
+		  file: "observability/logging"
 		}]
 	},
 	{
@@ -494,10 +494,10 @@
 			path: "/ts/develop/testing"
 			file: "ts/develop/testing"
 		}, {
-		kind: "basic"
-		text: "Logging"
-		path: "/ts/develop/logging"
-		file: "ts/develop/logging"
+		  kind: "basic"
+		  text: "Logging"
+		  path: "/ts/develop/logging"
+		  file: "ts/develop/logging"
 		}]
 	},{
 		kind: "section"

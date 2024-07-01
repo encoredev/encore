@@ -5,7 +5,7 @@ title: Logging
 subtitle: Structured logging helps you understand your application
 infobox: {
   title: "Structured Logging",
-  import: "encore.dev/rlog",
+  import: "encore.dev/log",
 }
 ---
 
@@ -29,8 +29,8 @@ The first parameter is the log message (or optionally an error for the error fun
 If you’re logging many log messages with the same key-value pairs each time it can be a bit cumbersome. To help with that, use `log.with()` to group them into a Logger object, which then copies the key-value pairs into each log event:
 
 ```ts
-const logger = log.with({user_id: 12345})
-logger.info("user logged in", {is_subscriber: true}) // includes user_id=12345
+const logger = log.with({is_subscriber: true})
+logger.info("user logged in", {login_method: "oauth"}) // includes is_subscriber=true
 ```
 
 ## Live-streaming logs
