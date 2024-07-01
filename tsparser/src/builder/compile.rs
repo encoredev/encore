@@ -22,6 +22,7 @@ pub struct CompileParams<'a> {
     pub working_dir: &'a Path,
     pub desc: &'a AppDesc,
     pub use_local_runtime: bool,
+    pub debug: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -36,6 +37,7 @@ pub struct JSBuildOutput {
     pub artifact_dir: PathBuf,
     pub entrypoints: Vec<Entrypoint>,
     pub uses_local_runtime: bool,
+    pub debug: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -148,6 +150,7 @@ impl Builder<'_> {
             artifact_dir: build_dir.as_path(),
             runtime_version: params.runtime_version,
             cwd: params.app.root.as_path(),
+            debug: params.debug,
             inputs,
         })?;
 
@@ -158,6 +161,7 @@ impl Builder<'_> {
                 artifact_dir: build_dir,
                 entrypoints: result.entrypoints,
                 uses_local_runtime: params.use_local_runtime,
+                debug: params.debug,
             }],
         })
     }

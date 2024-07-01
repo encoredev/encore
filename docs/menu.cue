@@ -498,6 +498,11 @@
 		  text: "Logging"
 		  path: "/ts/develop/logging"
 		  file: "ts/develop/logging"
+		}, {
+		  kind: "basic"
+		  text: "Debugging"
+		  path: "/ts/develop/debug"
+		  file: "ts/develop/debug"
 		}]
 	},{
 		kind: "section"
