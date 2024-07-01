@@ -46,6 +46,9 @@ func init() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, wd := determineAppRoot()
+			if !cmd.Flag("watch").Changed && debug {
+				watch = false
+			}
 			runApp(appRoot, wd)
 		},
 	}
