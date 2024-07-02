@@ -77,7 +77,7 @@ func runMain() (err error) {
 	defer handleBailout(&err)
 	defer d.closeAll()
 
-	d.init()
+	d.init(ctx)
 	d.serve()
 
 	select {
@@ -115,7 +115,7 @@ type Daemon struct {
 	close []io.Closer
 }
 
-func (d *Daemon) init() {
+func (d *Daemon) init(ctx context.Context) {
 	d.Daemon = d.listenDaemonSocket()
 	d.Dash = d.listenTCPRetry("dashboard", 9400)
 	d.DBProxy = d.listenTCPRetry("dbproxy", 9500)
@@ -142,7 +142,7 @@ func (d *Daemon) init() {
 	d.NS = namespace.NewManager(d.EncoreDB)
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
 
-	d.Trace = sqlite.New(d.EncoreDB)
+	d.Trace = sqlite.New(ctx, d.EncoreDB)
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
 		RuntimePort: d.Runtime.Port(),

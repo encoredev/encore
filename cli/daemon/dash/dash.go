@@ -178,7 +178,16 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		})
 
 		return reply(ctx, apps, nil)
-
+	case "traces/clear":
+		telemetry.Send("traces.clear")
+		var params struct {
+			AppID string `json:"app_id"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+		err := h.tr.Clear(ctx, params.AppID)
+		return reply(ctx, "ok", err)
 	case "traces/list":
 		telemetry.Send("traces.list")
 		var params struct {
