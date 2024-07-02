@@ -4,7 +4,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Context;
-use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
@@ -296,17 +295,6 @@ impl Clone for EndpointHandler {
             endpoint: self.endpoint.clone(),
             handler: self.handler.clone(),
             shared: self.shared.clone(),
-        }
-    }
-}
-
-impl From<WebSocketUpgradeRejection> for Error {
-    fn from(value: WebSocketUpgradeRejection) -> Self {
-        Error {
-            code: value.status().into(),
-            message: value.body_text(),
-            internal_message: Some(value.body_text()),
-            stack: None,
         }
     }
 }

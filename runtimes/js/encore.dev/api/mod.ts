@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import type { IncomingMessage, ServerResponse } from "http";
+import { Socket } from "../internal/runtime/napi/napi.cjs";
 
 export type Method =
   | "GET"
@@ -96,7 +97,10 @@ api.raw = function raw(options: APIOptions, fn: RawHandler) {
   return fn;
 };
 
-export type RawWebSocketHandler = (req: any, socket: any) => void;
+export type RawWebSocketHandler = (
+  req: IncomingMessage,
+  socket: Socket,
+) => void;
 
 api.websocket = function websocket(
   options: APIOptions,

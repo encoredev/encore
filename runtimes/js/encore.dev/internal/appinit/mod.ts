@@ -27,7 +27,12 @@ function transformHandler(h: Handler): Handler {
     return {
       ...h,
       handler: (req: runtime.Request, socket: runtime.Socket) => {
-        return h.handler(req, socket);
+        const fakeBody: runtime.BodyReader = {
+          start(): void {},
+          read(): void {},
+        };
+        const rawReq = new RawRequest(req, fakeBody);
+        return h.handler(rawReq, socket);
       },
     };
   }
