@@ -29,6 +29,7 @@ pub struct Endpoint {
     pub doc: Option<String>,
     pub expose: bool,
     pub raw: bool,
+    pub websocket: bool,
     pub require_auth: bool,
 
     /// Body limit in bytes.
@@ -184,6 +185,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let methods = r.config.method.unwrap_or(Methods::Some(vec![Method::Post]));
 
             let raw = matches!(r.kind, EndpointKind::Raw);
+            let websocket = matches!(r.kind, EndpointKind::RawWebSocket);
             let (request, response) = match r.kind {
                 EndpointKind::Typed { request, response } => {
                     let request = match request {
@@ -197,6 +199,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     (request, response)
                 }
                 EndpointKind::Raw => (None, None),
+                EndpointKind::RawWebSocket => (None, None),
             };
 
             let encoding =
@@ -217,6 +220,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 expose: r.config.expose.unwrap_or(false),
                 require_auth: r.config.auth.unwrap_or(false),
                 raw,
+                websocket,
                 body_limit,
                 encoding,
             }));
@@ -278,6 +282,7 @@ enum EndpointKind {
         response: Option<ast::TsType>,
     },
     Raw,
+    RawWebSocket,
 }
 
 #[derive(LitParser, Debug)]
@@ -321,6 +326,18 @@ impl ReferenceParser for APIEndpointLiteral {
 
                 // Determine what kind of endpoint it is.
                 return Ok(Some(match callee.as_ref() {
+                    ast::Expr::Member(member) if member.prop.is_ident_with("websocket") => {
+                        // Raw endpoint
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::RawWebSocket,
+                        }
+                    }
+
                     ast::Expr::Member(member) if member.prop.is_ident_with("raw") => {
                         // Raw endpoint
                         Self {

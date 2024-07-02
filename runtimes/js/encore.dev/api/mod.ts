@@ -65,11 +65,6 @@ export interface APIOptions {
    * If set to `null`, the body size is unlimited.
    **/
   bodyLimit?: number | null;
-
-  /**
-   * If this is a WebSocket endpoint or not
-   */
-  ws?: boolean;
 }
 
 type HandlerFn<Params, Response> = Params extends void
@@ -98,6 +93,15 @@ export function api(options: APIOptions, fn: any): typeof fn {
 export type RawHandler = (req: IncomingMessage, resp: ServerResponse) => void;
 
 api.raw = function raw(options: APIOptions, fn: RawHandler) {
+  return fn;
+};
+
+export type RawWebSocketHandler = (req: any, socket: any) => void;
+
+api.websocket = function websocket(
+  options: APIOptions,
+  fn: RawWebSocketHandler,
+) {
   return fn;
 };
 

@@ -22,6 +22,7 @@ pub struct APIRoute {
     pub service: String,
     pub name: String,
     pub raw: bool,
+    pub websocket: bool,
     pub handler: JsFunction,
 }
 
@@ -44,8 +45,11 @@ pub fn new_api_handler(
     env: Env,
     func: JsFunction,
     raw: bool,
-    // TODO: websocket: bool - ?
+    websocket: bool,
 ) -> napi::Result<Arc<dyn api::BoxedHandler>> {
+    if websocket {
+        return new_ws_handler(env, func);
+    }
     if raw {
         return raw_api::new_handler(env, func);
     }

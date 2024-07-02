@@ -168,6 +168,7 @@ impl Builder<'_> {
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
+                        "websocket": rpc.websocket,
                         "import_path": import_path,
                     }));
                 }
@@ -253,6 +254,7 @@ impl Builder<'_> {
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
+                        "websocket": rpc.websocket,
                         "import_path": import_path,
                     }));
                 }
@@ -361,6 +363,7 @@ impl Builder<'_> {
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
+                        "websocket": rpc.websocket,
                         "service_name": svc.name,
                         "import_path": import_path,
                     }));

@@ -23,7 +23,7 @@ export async function run() {
 }
 
 function transformHandler(h: Handler): Handler {
-  if (h.name == "ws") {
+  if (h.websocket) {
     return {
       ...h,
       handler: (req: runtime.Request, socket: runtime.Socket) => {
