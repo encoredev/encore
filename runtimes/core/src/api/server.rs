@@ -65,7 +65,6 @@ impl Server {
         fallback_router = fallback_router.fallback(not_found_handler);
 
         let mut handler_map = HashMap::with_capacity(hosted_endpoints.len());
-
         let path_set = paths::compute(hosted_endpoints.iter().map(|ep| EndpointPathResolver {
             ep: endpoints.get(ep).unwrap().to_owned(),
         }));

@@ -51,7 +51,7 @@ function transformHandler(h: Handler): Handler {
     ...h,
     handler: (req: runtime.Request) => {
       setCurrentRequest(req);
-      const payload = req.payload && req.payload();
+      const payload = req.payload();
       return payload !== null ? h.handler(payload) : h.handler();
     },
   };

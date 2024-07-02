@@ -247,18 +247,16 @@ pub fn endpoints_from_meta(
         let raw =
             rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
-        let path = ep.ep.path.clone().unwrap_or_else(|| meta::Path {
-            r#type: meta::path::Type::Url as i32,
-            segments: vec![meta::PathSegment {
-                r#type: meta::path_segment::SegmentType::Literal as i32,
-                value_type: meta::path_segment::ParamType::String as i32,
-                value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
-            }],
-        });
-
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
-            path,
+            path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
+                r#type: meta::path::Type::Url as i32,
+                segments: vec![meta::PathSegment {
+                    r#type: meta::path_segment::SegmentType::Literal as i32,
+                    value_type: meta::path_segment::ParamType::String as i32,
+                    value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                }],
+            }),
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
