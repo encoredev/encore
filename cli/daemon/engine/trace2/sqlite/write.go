@@ -33,6 +33,15 @@ func (s *Store) Listen(ch chan<- trace2.NewSpanEvent) {
 	s.listeners = append(s.listeners, ch)
 }
 
+func (s *Store) Clear(ctx context.Context, appID string) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM trace_event WHERE app_id = ?", appID)
+	if err != nil {
+		return errors.Wrap(err, "failed to clear trace events")
+	}
+	_, err = s.db.ExecContext(ctx, "DELETE FROM trace_span_index WHERE app_id = ?", appID)
+	return errors.Wrap(err, "failed to clear trace spans")
+}
+
 func (s *Store) WriteEvents(ctx context.Context, meta *trace2.Meta, events []*tracepbcli.TraceEvent) error {
 	for _, ev := range events {
 		if err := s.insertEvent(ctx, meta, ev); err != nil {
