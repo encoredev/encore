@@ -81,7 +81,7 @@ impl AuthHandler for LocalAuthHandler {
             logger.info(Some(&req), "running auth handler", None);
 
             self.tracer.request_span_start(&req);
-            let auth_response: APIResult<JSONPayload> = handler.call((req.clone(), None)).await;
+            let auth_response: APIResult<JSONPayload> = handler.call(req.clone()).await;
             let duration = tokio::time::Instant::now().duration_since(req.start);
 
             if let Err(e) = &auth_response {

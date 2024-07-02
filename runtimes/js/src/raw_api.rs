@@ -332,7 +332,7 @@ impl BodyReader {
 impl api::BoxedHandler for JSRawHandler {
     fn call(
         self: Arc<Self>,
-        (req, _socket): api::HandlerRequest,
+        req: api::HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             let (body_tx, mut body_rx) = oneshot::channel();

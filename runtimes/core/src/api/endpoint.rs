@@ -5,11 +5,9 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use axum::extract::ws::rejection::WebSocketUpgradeRejection;
-use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
-use http::header;
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -90,7 +88,7 @@ impl IntoResponse for &Error {
     }
 }
 
-pub type HandlerRequest = (Arc<model::Request>, Option<WebSocketUpgrade>);
+pub type HandlerRequest = Arc<model::Request>;
 pub type HandlerResponse = APIResult<JSONPayload>;
 
 /// A trait for handlers that accept a request and return a response.
@@ -102,11 +100,16 @@ pub trait TypedHandler: Send + Sync + 'static {
 }
 
 /// A trait for handlers that accept a request and return a response.
+#[async_trait::async_trait]
 pub trait BoxedHandler: Send + Sync + 'static {
     fn call(
         self: Arc<Self>,
         req: HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = ResponseData> + Send + 'static>>;
+
+    async fn extract_from_parts(&self, _parts: &mut axum::http::request::Parts) -> APIResult<()> {
+        Ok(())
+    }
 }
 
 pub enum ResponseData {
@@ -299,23 +302,6 @@ impl Clone for EndpointHandler {
     }
 }
 
-// Check if this is a websocket upgrade request
-fn is_websocket_upgrade(parts: &axum::http::request::Parts) -> bool {
-    let connection_upgrade = parts
-        .headers
-        .get(header::CONNECTION)
-        .map(|val| val.as_bytes().eq_ignore_ascii_case(b"upgrade"))
-        .unwrap_or(false);
-
-    let upgrade_websocket = parts
-        .headers
-        .get(header::UPGRADE)
-        .map(|val| val.as_bytes().eq_ignore_ascii_case(b"websocket"))
-        .unwrap_or(false);
-
-    connection_upgrade && upgrade_websocket
-}
-
 impl From<WebSocketUpgradeRejection> for Error {
     fn from(value: WebSocketUpgradeRejection) -> Self {
         Error {
@@ -331,8 +317,7 @@ impl EndpointHandler {
     async fn parse_request(
         &self,
         axum_req: axum::extract::Request,
-    ) -> APIResult<(Arc<model::Request>, Option<WebSocketUpgrade>)> {
-        let state = &();
+    ) -> APIResult<Arc<model::Request>> {
         let method = axum_req.method();
         // Method conversion should never fail since we only register valid methods.
         let api_method = Method::try_from(method.clone()).expect("invalid method");
@@ -353,16 +338,7 @@ impl EndpointHandler {
             })
             .into_parts();
 
-        let socket = if is_websocket_upgrade(&parts) {
-            match WebSocketUpgrade::from_request_parts(&mut parts, state).await {
-                Ok(socket) => Some(socket),
-                Err(rejection) => {
-                    return Err(rejection.into());
-                }
-            }
-        } else {
-            None
-        };
+        self.handler.extract_from_parts(&mut parts).await?;
 
         // Authenticate the request from the platform, if applicable.
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {
@@ -415,7 +391,7 @@ impl EndpointHandler {
             }),
         });
 
-        Ok((request, socket))
+        Ok(request)
     }
 
     fn handle(
@@ -424,7 +400,7 @@ impl EndpointHandler {
     ) -> Pin<Box<dyn Future<Output = axum::http::Response<axum::body::Body>> + Send + 'static>>
     {
         Box::pin(async move {
-            let (request, socket) = match self.parse_request(axum_req).await {
+            let request = match self.parse_request(axum_req).await {
                 Ok(req) => req,
                 Err(err) => return err.into_response(),
             };
@@ -453,7 +429,7 @@ impl EndpointHandler {
 
             self.shared.tracer.request_span_start(&request);
 
-            let resp: ResponseData = self.handler.call((request.clone(), socket)).await;
+            let resp: ResponseData = self.handler.call(request.clone()).await;
 
             let duration = tokio::time::Instant::now().duration_since(request.start);
 

@@ -5,19 +5,17 @@ use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
 use crate::{raw_api, request_meta};
+use anyhow::anyhow;
 use axum::extract::ws::{Message, WebSocket};
+use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use encore_runtime_core::api::{self, schema, HandlerRequest};
 use encore_runtime_core::model::RequestData;
-use futures::TryFutureExt;
-use napi::sys::Status;
 use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
-use tokio::select;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::task::JoinHandle;
 
 #[napi(object)]
 pub struct APIRoute {
@@ -36,7 +34,10 @@ pub fn new_ws_handler(env: Env, func: JsFunction) -> napi::Result<Arc<dyn api::B
         ws_resolve_on_js_thread,
     )?;
 
-    Ok(Arc::new(JSWsHandler { handler }))
+    Ok(Arc::new(JSWebSocketHandler {
+        handler,
+        websocket_upgrade: Mutex::new(None),
+    }))
 }
 
 pub fn new_api_handler(
@@ -255,34 +256,56 @@ struct WsRequestMessage {
     tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
 }
 
-pub struct JSWsHandler {
+pub struct JSWebSocketHandler {
     handler: ThreadsafeFunction<WsRequestMessage>,
+    websocket_upgrade: Mutex<Option<WebSocketUpgrade>>,
 }
 
-impl api::BoxedHandler for JSWsHandler {
+impl JSWebSocketHandler {
+    fn take_websocket_upgrade(&self) -> Option<WebSocketUpgrade> {
+        self.websocket_upgrade.lock().unwrap().take()
+    }
+}
+
+#[async_trait::async_trait]
+impl api::BoxedHandler for JSWebSocketHandler {
+    async fn extract_from_parts(
+        &self,
+        parts: &mut axum::http::request::Parts,
+    ) -> api::APIResult<()> {
+        let state = &();
+        let upgrade = WebSocketUpgrade::from_request_parts(parts, state).await?;
+        self.websocket_upgrade.lock().unwrap().replace(upgrade);
+        Ok(())
+    }
     fn call(
         self: Arc<Self>,
-        (req, mut socket): HandlerRequest,
+        req: HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
             let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
 
-            let socket = socket.take().unwrap();
-            let resp = socket.on_upgrade(|ws: WebSocket| async move {
-                let socket = Socket::new(ws);
-                let req = Request::new(req);
+            if let Some(socket) = self.take_websocket_upgrade() {
+                let resp = socket.on_upgrade(|ws: WebSocket| async move {
+                    let socket = Socket::new(ws);
+                    let req = Request::new(req);
 
-                // Call the handler.
-                let status = self.handler.call(
-                    WsRequestMessage { tx, socket, req },
-                    ThreadsafeFunctionCallMode::Blocking,
-                );
+                    // Call the handler.
+                    let status = self.handler.call(
+                        WsRequestMessage { tx, socket, req },
+                        ThreadsafeFunctionCallMode::Blocking,
+                    );
 
-                log::debug!("js ws handler responded with status: {status}");
-            });
+                    log::debug!("js ws handler responded with status: {status}");
+                });
 
-            api::ResponseData::Raw(resp)
+                api::ResponseData::Raw(resp)
+            } else {
+                api::ResponseData::Typed(Err(api::Error::internal(anyhow!(
+                    "faild to extract websocket upgrade"
+                ))))
+            }
         })
     }
 }
@@ -299,7 +322,7 @@ pub struct JSTypedHandler {
 impl api::BoxedHandler for JSTypedHandler {
     fn call(
         self: Arc<Self>,
-        (req, _socket): api::HandlerRequest,
+        req: api::HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel

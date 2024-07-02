@@ -62,7 +62,7 @@ pub struct JSAuthHandler {
 impl api::TypedHandler for JSAuthHandler {
     fn call(
         self: Arc<Self>,
-        (req, _socket): api::HandlerRequest,
+        req: api::HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::HandlerResponse> + Send + 'static>> {
         Box::pin(async move {
             // Create a one-shot channel
