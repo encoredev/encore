@@ -225,7 +225,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		BuildTags:          builder.LocalBuildTags,
 		CgoEnabled:         true,
 		StaticLink:         false,
-		Debug:              false,
+		DebugMode:          builder.DebugModeNone,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,

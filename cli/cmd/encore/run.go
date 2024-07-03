@@ -22,9 +22,17 @@ import (
 )
 
 var (
-	color    bool
-	noColor  bool // for "--no-color" compatibility
-	debug    bool
+	color   bool
+	noColor bool // for "--no-color" compatibility
+	debug   = cmdutil.Oneof{
+		Value:       "",
+		NoOptDefVal: "enabled",
+		Allowed:     []string{"enabled", "break"},
+		Flag:        "debug",
+		FlagShort:   "", // no short flag
+		Desc:        "Compile for debugging (disables some optimizations)",
+		TypeDesc:    "string",
+	}
 	watch    bool
 	listen   string
 	port     uint
@@ -46,7 +54,7 @@ func init() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, wd := determineAppRoot()
-			if !cmd.Flag("watch").Changed && debug {
+			if !cmd.Flag("watch").Changed && debug.Value != "none" {
 				watch = false
 			}
 			runApp(appRoot, wd)
@@ -56,7 +64,6 @@ func init() {
 	isTerm := term.IsTerminal(int(os.Stdout.Fd()))
 
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().BoolVar(&debug, "debug", false, "Compile for debugging (disables some optimizations)")
 	runCmd.Flags().BoolVarP(&watch, "watch", "w", true, "Watch for changes and live-reload")
 	runCmd.Flags().StringVar(&listen, "listen", "", "Address to listen on (for example \"0.0.0.0:4000\")")
 	runCmd.Flags().UintVarP(&port, "port", "p", 4000, "Port to listen on")
@@ -65,6 +72,7 @@ func init() {
 	runCmd.Flags().BoolVar(&color, "color", isTerm, "Whether to display colorized output")
 	runCmd.Flags().BoolVar(&noColor, "no-color", false, "Equivalent to --color=false")
 	runCmd.Flags().MarkHidden("no-color")
+	debug.AddFlag(runCmd)
 	browser.AddFlag(runCmd)
 }
 
@@ -98,10 +106,18 @@ func runApp(appRoot, wd string) {
 		browserMode = daemonpb.RunRequest_BROWSER_ALWAYS
 	}
 
+	debugMode := daemonpb.RunRequest_DEBUG_NONE
+	switch debug.Value {
+	case "enabled":
+		debugMode = daemonpb.RunRequest_DEBUG_ENABLED
+	case "break":
+		debugMode = daemonpb.RunRequest_DEBUG_BREAK
+	}
+
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.Run(ctx, &daemonpb.RunRequest{
 		AppRoot:    appRoot,
-		Debug:      debug,
+		DebugMode:  debugMode,
 		Watch:      watch,
 		WorkingDir: wd,
 		ListenAddr: listenAddr,

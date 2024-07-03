@@ -191,9 +191,9 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 }
 
 type compileInput struct {
-	RuntimeVersion  string `json:"runtime_version"`
-	UseLocalRuntime bool   `json:"use_local_runtime"`
-	Debug           bool   `json:"debug"`
+	RuntimeVersion  string            `json:"runtime_version"`
+	UseLocalRuntime bool              `json:"use_local_runtime"`
+	Debug           builder.DebugMode `json:"debug"`
 }
 
 func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
@@ -202,7 +202,7 @@ func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*bu
 	input, _ := json.Marshal(compileInput{
 		RuntimeVersion:  version.Version,
 		UseLocalRuntime: p.Build.UseLocalJSRuntime,
-		Debug:           p.Build.Debug,
+		Debug:           p.Build.DebugMode,
 	})
 
 	_, _ = data.stdin.Write([]byte("compile\n"))

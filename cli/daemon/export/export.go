@@ -42,7 +42,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		BuildTags:          []string{"timetzdata"},
 		CgoEnabled:         req.CgoEnabled,
 		StaticLink:         true,
-		Debug:              false,
+		DebugMode:          builder.DebugModeNone,
 		Environ:            req.Environ,
 		GOOS:               req.Goos,
 		GOARCH:             req.Goarch,

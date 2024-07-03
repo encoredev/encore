@@ -22,6 +22,7 @@ import (
 
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/internal/etrace"
+	builderpkg "encr.dev/pkg/builder"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	"encr.dev/pkg/paths"
 	"encr.dev/pkg/xos"
@@ -273,7 +274,7 @@ func (b *builder) buildMain() {
 		}
 		args = append(args, "-ldflags", ldflags.String())
 
-		if b.cfg.Ctx.Build.Debug {
+		if b.cfg.Ctx.Build.Debug > builderpkg.DebugModeNone {
 			// Disable inlining for better debugging.
 			args = append(args, "-gcflags", "all=-N -l")
 		}

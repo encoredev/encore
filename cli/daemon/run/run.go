@@ -95,7 +95,7 @@ type StartParams struct {
 	Browser BrowserMode
 
 	// Debug specifies to compile the application for debugging.
-	Debug bool
+	Debug builder.DebugMode
 }
 
 // BrowserMode specifies how to open the browser when starting 'encore run'.
@@ -117,6 +117,19 @@ func BrowserModeFromProto(b daemonpb.RunRequest_BrowserMode) BrowserMode {
 		return BrowserModeAlways
 	default:
 		return BrowserModeAuto
+	}
+}
+
+func DebugModeFromProto(d daemonpb.RunRequest_DebugMode) builder.DebugMode {
+	switch d {
+	case daemonpb.RunRequest_DEBUG_NONE:
+		return builder.DebugModeNone
+	case daemonpb.RunRequest_DEBUG_ENABLED:
+		return builder.DebugModeOn
+	case daemonpb.RunRequest_DEBUG_BREAK:
+		return builder.DebugModeBreak
+	default:
+		return builder.DebugModeNone
 	}
 }
 
@@ -329,7 +342,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		BuildTags:          builder.LocalBuildTags,
 		CgoEnabled:         true,
 		StaticLink:         false,
-		Debug:              r.Params.Debug,
+		DebugMode:          r.Params.Debug,
 		Environ:            r.Params.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

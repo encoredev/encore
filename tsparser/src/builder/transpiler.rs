@@ -44,7 +44,7 @@ pub struct TranspileParams<'a> {
     pub inputs: Vec<Input>,
 
     // If we should transpile for debug
-    pub debug: bool,
+    pub debug: u8,
 }
 
 pub struct TranspileResult {
@@ -115,8 +115,10 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     "--preserve-symlinks".into(),
                 ];
 
-                if p.debug {
-                    command.push("--inspect-brk".to_string())
+                match p.debug {
+                    1 => command.push("--inspect".to_string()),
+                    2 => command.push("--inspect-brk".to_string()),
+                    _ => {}
                 }
 
                 // Finally we want to add the path to the bundled app

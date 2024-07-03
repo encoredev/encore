@@ -312,7 +312,7 @@ struct PrepareInput {
 struct CompileInput {
     runtime_version: String,
     use_local_runtime: bool,
-    debug: bool,
+    debug: u8,
 }
 
 #[derive(Deserialize, Debug)]

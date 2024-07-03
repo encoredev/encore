@@ -28,11 +28,20 @@ var LocalBuildTags = []string{
 	"encore_no_datadog", "encore_no_prometheus",
 }
 
+// DebugMode specifies how to compile the application for debugging.
+type DebugMode int
+
+const (
+	DebugModeNone DebugMode = iota
+	DebugModeOn
+	DebugModeBreak
+)
+
 type BuildInfo struct {
 	BuildTags          []string
 	CgoEnabled         bool
 	StaticLink         bool
-	Debug              bool
+	DebugMode          DebugMode
 	Environ            []string
 	GOOS, GOARCH       string
 	KeepOutput         bool
@@ -62,7 +71,7 @@ func DefaultBuildInfo() BuildInfo {
 		BuildTags:          slices.Clone(LocalBuildTags),
 		CgoEnabled:         true,
 		StaticLink:         false,
-		Debug:              false,
+		DebugMode:          DebugModeNone,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,

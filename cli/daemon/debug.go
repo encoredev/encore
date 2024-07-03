@@ -35,7 +35,7 @@ func (s *Server) DumpMeta(ctx context.Context, req *daemonpb.DumpMetaRequest) (*
 		BuildTags:          builder.LocalBuildTags,
 		CgoEnabled:         true,
 		StaticLink:         false,
-		Debug:              false,
+		DebugMode:          builder.DebugModeNone,
 		Environ:            req.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
