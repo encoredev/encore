@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -165,8 +166,18 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		}
 
 		exeFile := builder.ArtifactString("${ARTIFACT_DIR}").Join(relExe)
+
+		cmd := builder.ArtifactStrings{exeFile}
+
+		if p.Build.Debug {
+			dlvPath, err := exec.LookPath("dlv")
+			if err == nil {
+				cmd = append(builder.ArtifactStrings{builder.ArtifactString(dlvPath), "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "--wd", builder.ArtifactString(p.App.Root()), "exec"}, cmd...)
+			}
+		}
+
 		spec := builder.CmdSpec{
-			Command:          builder.ArtifactStrings{exeFile},
+			Command:          cmd,
 			PrioritizedFiles: builder.ArtifactStrings{exeFile},
 		}
 		output.Entrypoints = []builder.Entrypoint{{
