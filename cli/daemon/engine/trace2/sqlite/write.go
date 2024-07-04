@@ -6,20 +6,26 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/lib/pq"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"encr.dev/cli/daemon/engine/trace2"
+	"encr.dev/pkg/fns"
 	tracepbcli "encr.dev/proto/encore/engine/trace2"
 )
 
 // New creates a new store backed by the given db.
-func New(db *sql.DB) *Store {
-	return &Store{
+func New(ctx context.Context, db *sql.DB) *Store {
+	s := &Store{
 		db: db,
 	}
+	s.startCleaner(ctx, 1*time.Minute, 500, 100, 10000)
+	return s
 }
 
 type Store struct {
@@ -29,8 +35,101 @@ type Store struct {
 
 var _ trace2.Store = (*Store)(nil)
 
+func scanRows[T any](rows *sql.Rows) ([]T, error) {
+	defer rows.Close()
+	var out []T
+	for rows.Next() {
+		var v T
+		err := rows.Scan(&v)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+func (s *Store) startCleaner(ctx context.Context, freq time.Duration, triggerAt, eventsToKeep, batchSize int) {
+	go func() {
+		for {
+			timer := time.NewTimer(freq)
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				log.Info().Msg("initiating trace event cleanup sweep")
+				rows, err := s.db.QueryContext(ctx, "SELECT app_id FROM trace_event GROUP BY app_id HAVING COUNT(distinct trace_id) > ?", triggerAt)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to get app ids")
+					continue
+				}
+				appIDs, err := scanRows[string](rows)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to scan app ids")
+					continue
+				}
+				for _, appID := range appIDs {
+					row := s.db.QueryRowContext(ctx, `
+						WITH latest_events AS (
+							SELECT trace_id, min(id) as id FROM trace_event WHERE app_id = ? GROUP BY 1 ORDER BY 2 DESC LIMIT ?
+						) SELECT min(id) FROM latest_events;
+					`, appID, eventsToKeep)
+					var traceID int64
+					err := row.Scan(&traceID)
+					if err != nil {
+						log.Error().Err(err).Msg("failed to get trace id")
+						continue
+					}
+					rows, err := s.db.QueryContext(ctx, "SELECT DISTINCT trace_id FROM trace_event WHERE app_id = ? AND id < ? ORDER BY id DESC LIMIT ?", appID, traceID, batchSize)
+					if err != nil {
+						log.Error().Err(err).Msg("failed to get old trace ids")
+						continue
+					}
+					traceIDs, err := scanRows[string](rows)
+					if len(traceIDs) == 0 {
+						continue
+					}
+					idArgs := strings.Join(fns.Map(traceIDs, pq.QuoteLiteral), ",")
+					res, err := s.db.ExecContext(ctx, "DELETE FROM trace_event WHERE app_id = ? AND trace_id IN ("+idArgs+")", appID)
+					if err != nil {
+						log.Error().Err(err).Msg("failed to delete old trace events")
+						continue
+					}
+					rowCount, err := res.RowsAffected()
+					if err != nil {
+						log.Error().Err(err).Msg("failed to get rows affected")
+						continue
+					}
+					log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace events")
+					res, err = s.db.ExecContext(ctx, "DELETE FROM trace_span_index WHERE app_id = ? AND trace_id IN ("+idArgs+")", appID)
+					if err != nil {
+						log.Error().Err(err).Msg("failed to delete old trace spans")
+						continue
+					}
+					rowCount, err = res.RowsAffected()
+					if err != nil {
+						log.Error().Err(err).Msg("failed to get rows affected")
+						continue
+					}
+					log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace spans")
+				}
+			}
+		}
+
+	}()
+}
+
 func (s *Store) Listen(ch chan<- trace2.NewSpanEvent) {
 	s.listeners = append(s.listeners, ch)
+}
+
+func (s *Store) Clear(ctx context.Context, appID string) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM trace_event WHERE app_id = ?", appID)
+	if err != nil {
+		return errors.Wrap(err, "failed to clear trace events")
+	}
+	_, err = s.db.ExecContext(ctx, "DELETE FROM trace_span_index WHERE app_id = ?", appID)
+	return errors.Wrap(err, "failed to clear trace spans")
 }
 
 func (s *Store) WriteEvents(ctx context.Context, meta *trace2.Meta, events []*tracepbcli.TraceEvent) error {
