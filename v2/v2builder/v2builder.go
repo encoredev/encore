@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -71,7 +72,7 @@ func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.P
 				GOOS:               p.Build.GOOS,
 				CgoEnabled:         p.Build.CgoEnabled,
 				StaticLink:         p.Build.StaticLink,
-				Debug:              p.Build.Debug,
+				Debug:              p.Build.DebugMode,
 				BuildTags:          p.Build.BuildTags,
 				Revision:           p.Build.Revision,
 				UncommittedChanges: p.Build.UncommittedChanges,
@@ -165,8 +166,19 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 		}
 
 		exeFile := builder.ArtifactString("${ARTIFACT_DIR}").Join(relExe)
+
+		cmd := builder.ArtifactStrings{exeFile}
+
+		if p.Build.DebugMode == builder.DebugModeBreak {
+			dlvPath, err := exec.LookPath("dlv")
+			if err != nil {
+				return nil, errors.New("unable to find the dlv debugger. Please install and make sure it's in $PATH.")
+			}
+			cmd = append(builder.ArtifactStrings{builder.ArtifactString(dlvPath), "--listen=127.0.0.1:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "--wd", builder.ArtifactString(p.App.Root()), "exec"}, cmd...)
+		}
+
 		spec := builder.CmdSpec{
-			Command:          builder.ArtifactStrings{exeFile},
+			Command:          cmd,
 			PrioritizedFiles: builder.ArtifactStrings{exeFile},
 		}
 		output.Entrypoints = []builder.Entrypoint{{

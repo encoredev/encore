@@ -2,9 +2,8 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-
 use crate::builder::compile::{CmdSpec, Entrypoint};
-use crate::builder::PlainError;
+use crate::builder::{DebugMode, PlainError};
 
 #[allow(dead_code)]
 pub enum ExternalPackages<'a> {
@@ -44,7 +43,7 @@ pub struct TranspileParams<'a> {
     pub inputs: Vec<Input>,
 
     // If we should transpile for debug
-    pub debug: bool,
+    pub debug: DebugMode,
 }
 
 pub struct TranspileResult {
@@ -115,8 +114,10 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     "--preserve-symlinks".into(),
                 ];
 
-                if p.debug {
-                    command.push("--inspect-brk".to_string())
+                match p.debug {
+                    DebugMode::Disabled => {}
+                    DebugMode::Enabled => command.push("--inspect".to_string()),
+                    DebugMode::Break => command.push("--inspect-brk".to_string()),
                 }
 
                 // Finally we want to add the path to the bundled app

@@ -79,8 +79,6 @@ message RunRequest {
   // working_dir is the working directory relative to the app_root,
   // for formatting relative paths in error messages.
   string working_dir = 2;
-  // debug, if true, compiles the app with flags that improve the debugging experience.
-  bool debug = 4;
   // watch, if true, enables live reloading of the app whenever the source changes.
   bool watch = 5;
   // listen_addr is the address to listen on.
@@ -100,10 +98,19 @@ message RunRequest {
   // browser specifies whether and how to open the browser on startup.
   BrowserMode browser = 10;
 
+  // debug_mode specifies the debug mode to use.
+  DebugMode debug_mode = 11;
+
   enum BrowserMode {
     BROWSER_AUTO = 0;
     BROWSER_NEVER = 1;
     BROWSER_ALWAYS = 2;
+  }
+
+  enum DebugMode {
+    DEBUG_DISABLED = 0;
+    DEBUG_ENABLED = 1;
+    DEBUG_BREAK = 2;
   }
 }
 

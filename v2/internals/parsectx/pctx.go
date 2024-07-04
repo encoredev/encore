@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/experiments"
+	"encr.dev/pkg/builder"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
@@ -129,7 +130,7 @@ type BuildInfo struct {
 	StaticLink bool
 
 	// Debug enables compiling in debug mode.
-	Debug bool
+	Debug builder.DebugMode
 
 	// Revision specifies the revision of the build.
 	Revision string
