@@ -8,10 +8,10 @@ lang: ts
 Encore makes it easy to debug your application using your favorite IDE. 
 
 ## Enable debugging mode
-Next, run your Encore application with `encore run --debug`. This will cause Encore to run your app with the `--inspect-brk` flag, which will pause your application until a debugger is attached. Encore will print the URL to the terminal, which you will use to attach your debugger:
+Next, run your Encore application with `encore run --debug=break`. This will cause Encore to run your app with the `--inspect-brk` flag, which will pause your application until a debugger is attached. Encore will print the URL to the terminal, which you will use to attach your debugger:
 
 ```shell
-$ encore run --debug
+$ encore run --debug=break
   Your API is running at:     http://127.0.0.1:4000
   Development Dashboard URL:  http://localhost:9400/ai-chat-ts-qhwi
   Process ID:                 38965
@@ -20,6 +20,8 @@ Debugger listening on ws://127.0.0.1:9229/473dd95f-e71e-4bf2-9eda-6132dd0d6ae3
 ```
 
 (Your process id and url will differ).
+
+If you don't want the application to pause on startup, you can use `encore run --debug` instead. This will start the application and wait for a debugger to attach, but it won't pause the application until the debugger is attached.
 
 ## Attach your debugger
 When your Encore application is running, it’s time to attach the debugger. The instructions differ depending on how you would like to debug. If instructions for your editor aren’t listed below, consult your editor for information on how to attach a debugger to a running process.

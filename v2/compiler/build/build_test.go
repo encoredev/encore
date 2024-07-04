@@ -18,6 +18,7 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 	"github.com/rs/zerolog"
 
+	builderpkg "encr.dev/pkg/builder"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/overlay"
 	"encr.dev/v2/internals/parsectx"
@@ -106,7 +107,7 @@ func build(workdir string, pkgPath paths.Pkg, overlays []overlay.File) *Result {
 			BuildTags:     nil,
 			CgoEnabled:    false,
 			StaticLink:    false,
-			Debug:         false,
+			Debug:         builderpkg.DebugModeDisabled,
 		},
 		FS:            fs,
 		ParseTests:    false,
