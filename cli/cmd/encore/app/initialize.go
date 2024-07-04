@@ -17,6 +17,23 @@ import (
 	"encr.dev/pkg/xos"
 )
 
+const (
+	tsEncoreAppData = `{
+	"id": "%s",
+	"lang": "typescript",
+	"build": {
+		"docker": {
+			"bundle_source": true
+		}
+	}
+}
+`
+	goEncoreAppData = `{
+	"id": "%s",
+}
+`
+)
+
 // Create a new app from scratch: `encore app create`
 // Link an existing app to an existing repo: `encore app link <app-id>`
 // Link an existing repo to a new app: `encore app init <name>`
@@ -63,9 +80,8 @@ func initializeApp(name string) error {
 		}
 	}
 
-	if name == "" {
-		name, _, _ = selectTemplate("", "empty", true)
-	}
+	name, _, lang := selectTemplate(name, "", true)
+
 	if err := validateName(name); err != nil {
 		return err
 	}
@@ -86,10 +102,12 @@ func initializeApp(name string) error {
 	}
 
 	// Create the encore.app file
-	encoreAppData := []byte(`{
-	"id": "` + app.Slug + `",
-}
-`)
+
+	var encoreAppTemplate = goEncoreAppData
+	if lang == "ts" {
+		encoreAppTemplate = tsEncoreAppData
+	}
+	encoreAppData := []byte(fmt.Sprintf(encoreAppTemplate, app.Slug))
 	if err := xos.WriteFile("encore.app", encoreAppData, 0644); err != nil {
 		return err
 	}
