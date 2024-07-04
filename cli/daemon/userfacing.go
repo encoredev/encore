@@ -38,7 +38,7 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 		BuildTags:          builder.LocalBuildTags,
 		CgoEnabled:         true,
 		StaticLink:         false,
-		DebugMode:          builder.DebugModeNone,
+		DebugMode:          builder.DebugModeDisabled,
 		Environ:            nil,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

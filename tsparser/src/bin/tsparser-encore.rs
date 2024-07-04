@@ -11,7 +11,7 @@ use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use encore_tsparser::builder::{Builder, PlainError};
+use encore_tsparser::builder::{Builder, PlainError, DebugMode};
 use encore_tsparser::parser::parser::ParseContext;
 use encore_tsparser::{app, builder};
 
@@ -312,7 +312,7 @@ struct PrepareInput {
 struct CompileInput {
     runtime_version: String,
     use_local_runtime: bool,
-    debug: u8,
+    debug: DebugMode,
 }
 
 #[derive(Deserialize, Debug)]

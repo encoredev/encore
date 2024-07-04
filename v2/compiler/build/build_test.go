@@ -107,7 +107,7 @@ func build(workdir string, pkgPath paths.Pkg, overlays []overlay.File) *Result {
 			BuildTags:     nil,
 			CgoEnabled:    false,
 			StaticLink:    false,
-			Debug:         builderpkg.DebugModeNone,
+			Debug:         builderpkg.DebugModeDisabled,
 		},
 		FS:            fs,
 		ParseTests:    false,

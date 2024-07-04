@@ -106,7 +106,7 @@ func runApp(appRoot, wd string) {
 		browserMode = daemonpb.RunRequest_BROWSER_ALWAYS
 	}
 
-	debugMode := daemonpb.RunRequest_DEBUG_NONE
+	debugMode := daemonpb.RunRequest_DEBUG_DISABLED
 	switch debug.Value {
 	case "enabled":
 		debugMode = daemonpb.RunRequest_DEBUG_ENABLED

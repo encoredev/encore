@@ -122,14 +122,14 @@ func BrowserModeFromProto(b daemonpb.RunRequest_BrowserMode) BrowserMode {
 
 func DebugModeFromProto(d daemonpb.RunRequest_DebugMode) builder.DebugMode {
 	switch d {
-	case daemonpb.RunRequest_DEBUG_NONE:
-		return builder.DebugModeNone
+	case daemonpb.RunRequest_DEBUG_DISABLED:
+		return builder.DebugModeDisabled
 	case daemonpb.RunRequest_DEBUG_ENABLED:
-		return builder.DebugModeOn
+		return builder.DebugModeEnabled
 	case daemonpb.RunRequest_DEBUG_BREAK:
 		return builder.DebugModeBreak
 	default:
-		return builder.DebugModeNone
+		return builder.DebugModeDisabled
 	}
 }
 

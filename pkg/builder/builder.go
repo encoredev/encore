@@ -29,12 +29,12 @@ var LocalBuildTags = []string{
 }
 
 // DebugMode specifies how to compile the application for debugging.
-type DebugMode int
+type DebugMode string
 
 const (
-	DebugModeNone DebugMode = iota
-	DebugModeOn
-	DebugModeBreak
+	DebugModeDisabled DebugMode = "disabled"
+	DebugModeEnabled  DebugMode = "enabled"
+	DebugModeBreak    DebugMode = "break"
 )
 
 type BuildInfo struct {
@@ -71,7 +71,7 @@ func DefaultBuildInfo() BuildInfo {
 		BuildTags:          slices.Clone(LocalBuildTags),
 		CgoEnabled:         true,
 		StaticLink:         false,
-		DebugMode:          DebugModeNone,
+		DebugMode:          DebugModeDisabled,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,
 		KeepOutput:         false,

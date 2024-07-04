@@ -159,7 +159,7 @@ func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
 	}
 	args = append(args, "-ldflags", ldflags.String())
 
-	if b.cfg.Ctx.Build.Debug > builderpkg.DebugModeNone {
+	if b.cfg.Ctx.Build.Debug != builderpkg.DebugModeDisabled {
 		// Disable inlining for better debugging.
 		args = append(args, `-gcflags "all=-N -l"`)
 	}

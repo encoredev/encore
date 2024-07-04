@@ -81,7 +81,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		BuildTags:          builder.LocalBuildTags,
 		CgoEnabled:         true,
 		StaticLink:         false,
-		DebugMode:          builder.DebugModeNone,
+		DebugMode:          builder.DebugModeDisabled,
 		Environ:            p.Environ,
 		GOOS:               runtime.GOOS,
 		GOARCH:             runtime.GOARCH,

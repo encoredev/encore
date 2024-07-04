@@ -108,7 +108,7 @@ message RunRequest {
   }
 
   enum DebugMode {
-    DEBUG_NONE = 0;
+    DEBUG_DISABLED = 0;
     DEBUG_ENABLED = 1;
     DEBUG_BREAK = 2;
   }

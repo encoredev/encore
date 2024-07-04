@@ -11,7 +11,7 @@ use crate::builder::transpiler::{
 };
 use crate::parser::parser::ParseContext;
 
-use super::{App, Builder};
+use super::{App, Builder, DebugMode};
 
 #[derive(Debug)]
 pub struct CompileParams<'a> {
@@ -22,7 +22,7 @@ pub struct CompileParams<'a> {
     pub working_dir: &'a Path,
     pub desc: &'a AppDesc,
     pub use_local_runtime: bool,
-    pub debug: u8,
+    pub debug: DebugMode,
 }
 
 #[derive(Serialize, Debug)]
