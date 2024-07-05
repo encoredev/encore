@@ -114,6 +114,23 @@ type ListBlogPost struct {
 }
 ```
 
+### Cookies
+
+Cookies can be set in the response by using the `header` tag with the `Set-Cookie` header name.
+
+```go
+type LoginResponse struct {
+    SessionID string `header:"Set-Cookie"`
+}
+
+//encore:api public method=POST path=/login
+func Login(ctx context.Context) (*LoginResponse, error) {
+    return &LoginResponse{SessionID: "session=123"}, nil
+}
+````
+
+The cookies can then be read using e.g. [structured auth data](/docs/develop/auth#accepting-structured-auth-information). 
+
 ## Query parameters
 
 For `GET`, `HEAD` and `DELETE` requests, parameters are read from the query string by default.
