@@ -54,7 +54,9 @@ func init() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			appRoot, wd := determineAppRoot()
-			if !cmd.Flag("watch").Changed && debug.Value != "none" {
+			// If the user didn't explicitly set --watch and we're in debug mode, disable watching
+			// as we typically don't want to swap the process when the user is debugging.
+			if !cmd.Flag("watch").Changed && debug.Value != "" {
 				watch = false
 			}
 			runApp(appRoot, wd)
