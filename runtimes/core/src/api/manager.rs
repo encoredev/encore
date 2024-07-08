@@ -42,42 +42,52 @@ pub struct ManagerConfig<'a> {
 pub struct Manager {
     app_revision: String,
     deploy_id: String,
-    listener_external: Mutex<Option<std::net::TcpListener>>,
-    listener_internal: Mutex<Option<std::net::TcpListener>>,
+    gateway_listener: Mutex<Option<std::net::TcpListener>>,
+    api_listener: Mutex<Option<std::net::TcpListener>>,
     service_registry: Arc<ServiceRegistry>,
     pubsub_push_registry: pubsub::PushHandlerRegistry,
 
     api_server: Option<server::Server>,
     runtime: tokio::runtime::Handle,
 
-    gateways: HashMap<EncoreName, Arc<Gateway>>,
+    gateways: HashMap<EncoreName, Gateway>,
 }
 
 impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
-        let listener_external = {
+        let gateway_listener = if !self.hosted_gateway_rids.is_empty() {
+            // We have a gateway. Have the gateway listen on the provided listen_addr.
             let addr = listen_addr();
-            std::net::TcpListener::bind(addr).context("unable to bind to port")?
-        };
-
-        // if we have a gateway, we create a internal address for the api
-        let listener_internal = if !self.hosted_gateway_rids.is_empty() {
-            let addr = "0.0.0.0:0";
-            Some(std::net::TcpListener::bind(addr).context("unable to bind to port")?)
+            let ln = std::net::TcpListener::bind(addr).context("unable to bind to port")?;
+            Some(ln)
         } else {
             None
         };
 
-        let own_address = if let Some(ref listener) = listener_internal {
-            listener
-                .local_addr()
-                .context("unable to determine listen address")?
-                .to_string()
+        let api_listener = if !self.hosted_services.is_empty() {
+            // If we already have a gateway, it's listening on the externally provided listen addr.
+            // Use a random local port in that case.
+            let addr = if gateway_listener.is_some() {
+                "127.0.0.1:0".to_string()
+            } else {
+                listen_addr()
+            };
+            let ln = std::net::TcpListener::bind(addr).context("unable to bind to port")?;
+            Some(ln)
         } else {
-            listener_external
-                .local_addr()
-                .context("unable to determine listen address")?
-                .to_string()
+            None
+        };
+
+        // Get the local address for use by the service registry
+        // for calling services hosted by this instance.
+        let own_address = match api_listener {
+            None => None,
+            Some(ref ln) => {
+                let addr = ln
+                    .local_addr()
+                    .context("unable to determine listen address")?;
+                Some(addr.to_string())
+            }
         };
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
@@ -100,7 +110,7 @@ impl ManagerConfig<'_> {
             endpoints.clone(),
             self.environment,
             self.service_discovery,
-            &own_address,
+            own_address.as_deref(),
             &inbound_svc_auth,
             &hosted_services,
             self.deploy_id.clone(),
@@ -162,25 +172,22 @@ impl ManagerConfig<'_> {
 
             gateways.insert(
                 gw.encore_name.clone().into(),
-                Arc::new(
-                    Gateway::new(
-                        gw.encore_name.clone().into(),
-                        service_registry.clone(),
-                        routes.clone(),
-                        auth_handler,
-                        cors_config,
-                    )
-                    .context("couldn't create gateway")
-                    .unwrap(),
-                ),
+                Gateway::new(
+                    gw.encore_name.clone().into(),
+                    service_registry.clone(),
+                    routes.clone(),
+                    auth_handler,
+                    cors_config,
+                )
+                .context("couldn't create gateway")?,
             );
         }
 
         Ok(Manager {
             app_revision: self.meta.app_revision.clone(),
             deploy_id: self.deploy_id,
-            listener_external: Mutex::new(Some(listener_external)),
-            listener_internal: Mutex::new(listener_internal),
+            gateway_listener: Mutex::new(gateway_listener),
+            api_listener: Mutex::new(api_listener),
             service_registry,
             api_server,
             gateways,
@@ -271,8 +278,8 @@ fn build_auth_handler(
 }
 
 impl Manager {
-    pub fn gateway(&self, name: EncoreName) -> Option<Arc<Gateway>> {
-        self.gateways.get(&name).cloned()
+    pub fn gateway(&self, name: &EncoreName) -> Option<&Gateway> {
+        self.gateways.get(name)
     }
 
     pub fn server(&self) -> Option<&server::Server> {
@@ -320,32 +327,44 @@ impl Manager {
         let fallback = axum::Router::new().fallback(fallback);
         let server = HttpServer::new(encore_routes, api, fallback);
 
-        let axum_listener = if self.gateways.is_empty() {
-            self.listener_external.lock().unwrap().take()
-        } else {
-            self.listener_internal.lock().unwrap().take()
-        };
+        let api_listener = self.api_listener.lock().unwrap().take();
+        let gateway_listener = self.gateway_listener.lock().unwrap().take();
 
         // TODO handle multiple gateways
-        let api_gateway = self.gateways.values().next().cloned();
-        let gateway_listener = self.listener_external.lock().unwrap().take().unwrap();
+        let gateway = self.gateways.values().next().cloned();
 
         self.runtime.spawn(async move {
-            let axum_listener = axum_listener.context("server already started")?;
-            axum_listener
-                .set_nonblocking(true)
-                .context("unable to set nonblocking")?;
-            let axum_listener = tokio::net::TcpListener::from_std(axum_listener)
-                .context("unable to convert listener to tokio")?;
+            let gateway_fut = match (gateway, gateway_listener) {
+                (Some(gw), Some(ln)) => Some(gw.serve(ln)),
+                (Some(_), None) => {
+                    ::log::error!("internal encore error: misconfigured api gateway (missing listener), skipping");
+                    None
+                }
+                (None, Some(_)) => {
+                    ::log::error!("internal encore error: misconfigured api gateway (missing gateway config), skipping");
+                    None
+                }
+                (None, None) => None,
+            };
 
-            let axum_fut = axum::serve(axum_listener, server).into_future();
-            let gateway_fut = api_gateway.map(|gateway| <api::gateway::Gateway as Clone>::clone(&gateway).serve(gateway_listener));
+            let api_fut = match api_listener {
+                Some(ln) => {
+                    ln
+                        .set_nonblocking(true)
+                        .context("unable to set nonblocking")?;
+                    let axum_listener = tokio::net::TcpListener::from_std(ln)
+                        .context("unable to convert listener to tokio")?;
+                    let fut = axum::serve(axum_listener, server).into_future();
+                    Some(fut)
+                }
+                None => None,
+            };
 
             tokio::select! {
                 res = async { gateway_fut.unwrap().await }, if gateway_fut.is_some() => {
                     res.context("serve gateway").inspect_err(|err| log::error!("api gateway failed: {:?}", err))?;
                 },
-                res = axum_fut => {
+                res = async { api_fut.unwrap().await }, if api_fut.is_some() => {
                     res.context("serve api").inspect_err(|err| log::error!("api server failed: {:?}", err))?;
                 },
             };

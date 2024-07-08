@@ -7,6 +7,7 @@ use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
 use encore_runtime_core::api::schema::JSONPayload;
 use encore_runtime_core::pubsub::SubName;
+use encore_runtime_core::EncoreName;
 use napi::bindgen_prelude::*;
 use napi::{Error, Status};
 use napi_derive::napi;
@@ -86,7 +87,8 @@ impl Runtime {
         encore_name: String,
         cfg: GatewayConfig,
     ) -> napi::Result<Gateway> {
-        let gw = self.runtime.api().gateway(encore_name.into());
+        let name: EncoreName = encore_name.into();
+        let gw = self.runtime.api().gateway(&name).cloned();
         Gateway::new(env, gw, cfg)
     }
 

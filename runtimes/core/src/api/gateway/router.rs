@@ -32,24 +32,21 @@ impl Router {
                 };
 
                 for method in endpoint.methods() {
-                    let prev = match method {
-                        Method::GET => method_route.get.replace(service.clone()),
-                        Method::HEAD => method_route.head.replace(service.clone()),
-                        Method::POST => method_route.post.replace(service.clone()),
-                        Method::PUT => method_route.put.replace(service.clone()),
-                        Method::DELETE => method_route.delete.replace(service.clone()),
-                        Method::OPTIONS => method_route.option.replace(service.clone()),
-                        Method::TRACE => method_route.trace.replace(service.clone()),
-                        Method::PATCH => method_route.patch.replace(service.clone()),
+                    let dst = match method {
+                        Method::GET => &mut method_route.get,
+                        Method::HEAD => &mut method_route.head,
+                        Method::POST => &mut method_route.post,
+                        Method::PUT => &mut method_route.put,
+                        Method::DELETE => &mut method_route.delete,
+                        Method::OPTIONS => &mut method_route.option,
+                        Method::TRACE => &mut method_route.trace,
+                        Method::PATCH => &mut method_route.patch,
                     };
-
-                    if prev.is_some() {
-                        anyhow::bail!(
-                            "tried to register same route twice {} {}",
-                            method.as_str(),
-                            path
-                        );
+                    if dst.is_some() {
+                        ::log::error!(method = method.as_str(), path = path; "tried to register same route twice, skipping");
+                        continue;
                     }
+                    dst.replace(service.clone());
                 }
             }
         }
