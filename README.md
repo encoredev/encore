@@ -71,10 +71,18 @@ Using the Go Backend SDK, it looks like so:
 ```go
 package hello
 
-//encore:api public
-func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
-    msg := fmt.Sprintf("Hello, %s!", params.Name)
-    return &PingResponse{Message: msg}, nil
+import (
+	"context"
+)
+
+//encore:api public path=/hello/:name
+func World(ctx context.Context, name string) (*Response, error) {
+	msg := "Hello, " + name + "!"
+	return &Response{Message: msg}, nil
+}
+
+type Response struct {
+	Message string
 }
 ```
 
