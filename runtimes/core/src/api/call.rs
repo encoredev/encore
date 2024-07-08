@@ -38,7 +38,7 @@ impl ServiceRegistry {
         endpoints: Arc<EndpointMap>,
         env: &pb::Environment,
         sd: pb::ServiceDiscovery,
-        own_address: &str,
+        own_address: Option<&str>,
         own_auth_methods: &[Arc<dyn svcauth::ServiceAuthMethod>],
         hosted_services: &Hosted,
         deploy_id: String,
@@ -60,19 +60,26 @@ impl ServiceRegistry {
             service_auth.insert(svc, auth_method);
         }
 
-        let own_address = format!("http://{}", own_address);
-        for svc_name in hosted_services.iter() {
-            if !base_urls.contains_key(svc_name) {
-                let svc = EncoreName::from(svc_name);
-                base_urls.insert(svc.clone(), own_address.clone());
+        if let Some(own_address) = own_address {
+            let own_address = format!("http://{}", own_address);
+            for svc_name in hosted_services.iter() {
+                if !base_urls.contains_key(svc_name) {
+                    let svc = EncoreName::from(svc_name);
+                    base_urls.insert(svc.clone(), own_address.clone());
 
-                let auth_method = if own_auth_methods.is_empty() {
-                    Arc::new(svcauth::Noop)
-                } else {
-                    own_auth_methods[0].clone()
-                };
-                service_auth.insert(svc, auth_method);
+                    let auth_method = if own_auth_methods.is_empty() {
+                        Arc::new(svcauth::Noop)
+                    } else {
+                        own_auth_methods[0].clone()
+                    };
+                    service_auth.insert(svc, auth_method);
+                }
             }
+        } else if !hosted_services.is_empty() {
+            // This shouldn't happen if things are configured correctly.
+            ::log::error!(
+                "internal encore error: cannot host services without provided own address"
+            );
         }
 
         Ok(Self {

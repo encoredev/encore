@@ -4,9 +4,9 @@ use std::borrow::Cow;
 use std::net::TcpListener;
 use std::sync::Arc;
 
+use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, BytesMut};
-use http::uri::PathAndQuery;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -30,6 +30,10 @@ use super::cors::cors_headers_config::CorsHeadersConfig;
 
 #[derive(Clone)]
 pub struct Gateway {
+    inner: Arc<Inner>,
+}
+
+struct Inner {
     shared: Arc<SharedGatewayData>,
     service_registry: Arc<ServiceRegistry>,
     router: router::Router,
@@ -43,23 +47,23 @@ pub struct GatewayCtx {
 }
 
 impl GatewayCtx {
-    fn prepend_base_path(&self, uri: http::Uri) -> anyhow::Result<http::Uri> {
+    fn prepend_base_path(&self, uri: &http::Uri) -> anyhow::Result<http::Uri> {
+        let mut builder = http::Uri::builder();
+        if let Some(scheme) = uri.scheme() {
+            builder = builder.scheme(scheme.clone());
+        }
+        if let Some(authority) = uri.authority() {
+            builder = builder.authority(authority.clone());
+        }
+
         let base_path = self.upstream_base_path.trim_end_matches('/');
+        builder = builder.path_and_query(format!(
+            "{}{}",
+            base_path,
+            uri.path_and_query().map_or("", |pq| pq.as_str())
+        ));
 
-        let mut parts = uri.into_parts();
-        parts.path_and_query = Some(
-            format!(
-                "{}{}",
-                base_path,
-                parts
-                    .path_and_query
-                    .unwrap_or_else(|| PathAndQuery::from_static(""))
-                    .as_str()
-            )
-            .parse()?,
-        );
-
-        Ok(http::Uri::from_parts(parts)?)
+        builder.build().context("failed to build uri")
     }
 }
 
@@ -85,15 +89,17 @@ impl Gateway {
         }
 
         Ok(Gateway {
-            shared,
-            service_registry,
-            router,
-            cors_config,
+            inner: Arc::new(Inner {
+                shared,
+                service_registry,
+                router,
+                cors_config,
+            }),
         })
     }
 
     pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
-        self.shared.auth.as_ref()
+        self.inner.shared.auth.as_ref()
     }
 
     pub async fn serve(self, listener: TcpListener) -> anyhow::Result<()> {
@@ -144,9 +150,10 @@ impl ProxyHttp for Gateway {
             .try_into()
             .map_err(|e| Error::because(ErrorType::HTTPStatus(400), "invalid http method", e))?;
 
-        let service_name = self.router.route_to_service(method, path)?;
+        let service_name = self.inner.router.route_to_service(method, path)?;
 
         let upstream = self
+            .inner
             .service_registry
             .service_base_url(service_name)
             .ok_or_else(|| Error::explain(ErrorType::InternalError, "couldn't find upstream"))?;
@@ -200,7 +207,9 @@ impl ProxyHttp for Gateway {
         // preflight request, return early with cors headers
         if axum::http::Method::OPTIONS == session.req_header().method {
             let mut resp = ResponseHeader::build(200, None)?;
-            self.cors_config.apply(session.req_header(), &mut resp)?;
+            self.inner
+                .cors_config
+                .apply(session.req_header(), &mut resp)?;
             resp.insert_header(header::CONTENT_LENGTH, 0)?;
             session.write_response_header(Box::new(resp)).await?;
 
@@ -219,7 +228,8 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
-        self.cors_config
+        self.inner
+            .cors_config
             .apply(session.req_header(), upstream_response)?;
         Ok(())
     }
@@ -238,7 +248,7 @@ impl ProxyHttp for Gateway {
             .ok_or_else(|| Error::explain(ErrorType::InternalError, "ctx not set"))?;
 
         let new_uri = gateway_ctx
-            .prepend_base_path(upstream_request.uri.clone())
+            .prepend_base_path(&upstream_request.uri)
             .map_err(|e| {
                 Error::because(
                     ErrorType::InternalError,
@@ -249,11 +259,15 @@ impl ProxyHttp for Gateway {
 
         upstream_request.set_uri(new_uri);
 
+        // Do we need to set the host header here?
+        // It means the upstream service won't be able to tell
+        // what the original Host header was, which is sometimes useful.
         if let Some(ref host) = gateway_ctx.upstream_host {
             upstream_request.insert_header(header::HOST, host)?;
         }
 
         let svc_auth_method = self
+            .inner
             .service_registry
             .service_auth_method(&gateway_ctx.upstream_service_name)
             .unwrap_or_else(|| Arc::new(svcauth::Noop));
@@ -272,7 +286,7 @@ impl ProxyHttp for Gateway {
         }
 
         let caller = Caller::Gateway {
-            gateway: self.shared.name.clone(),
+            gateway: self.inner.shared.name.clone(),
         };
         let mut desc = CallDesc {
             caller: &caller,
@@ -289,7 +303,7 @@ impl ProxyHttp for Gateway {
             svc_auth_method: svc_auth_method.as_ref(),
         };
 
-        if let Some(auth_handler) = &self.shared.auth {
+        if let Some(auth_handler) = &self.inner.shared.auth {
             let auth_response = auth_handler
                 .authenticate(session.req_header(), call_meta.clone())
                 .await
@@ -332,7 +346,7 @@ impl ProxyHttp for Gateway {
                             | ErrorType::ReadError
                             | ErrorType::ConnectionClosed => {
                                 /* conn already dead */
-                                0
+                                return 0;
                             }
                             _ => 400,
                         }
@@ -342,40 +356,42 @@ impl ProxyHttp for Gateway {
             }
         };
 
-        if code > 0 {
-            let (mut resp, body) = if let Some(api_error) = as_api_error(e) {
-                let (resp, body) = api_error_response(api_error);
-                (resp, Some(body))
-            } else {
-                (
-                    match code {
-                        /* common error responses are pre-generated */
-                        502 => error_resp::HTTP_502_RESPONSE.clone(),
-                        400 => error_resp::HTTP_400_RESPONSE.clone(),
-                        _ => error_resp::gen_error_response(code),
-                    },
-                    None,
-                )
-            };
-
-            if let Err(e) = self.cors_config.apply(session.req_header(), &mut resp) {
-                log::error!("failed setting cors header in error response: {e}");
-            }
-            session.set_keepalive(None);
-            session
-                .write_response_header(Box::new(resp))
-                .await
-                .unwrap_or_else(|e| {
-                    log::error!("failed to send error response to downstream: {e}");
-                });
-
-            if let Some(body) = body {
-                session
-                    .write_response_body(body)
-                    .await
-                    .unwrap_or_else(|e| log::error!("failed to write body: {e}"));
-            }
+        let (mut resp, body) = if let Some(api_error) = as_api_error(e) {
+            let (resp, body) = api_error_response(api_error);
+            (resp, Some(body))
+        } else {
+            (
+                match code {
+                    /* common error responses are pre-generated */
+                    502 => error_resp::HTTP_502_RESPONSE.clone(),
+                    400 => error_resp::HTTP_400_RESPONSE.clone(),
+                    _ => error_resp::gen_error_response(code),
+                },
+                None,
+            )
         };
+
+        if let Err(e) = self
+            .inner
+            .cors_config
+            .apply(session.req_header(), &mut resp)
+        {
+            log::error!("failed setting cors header in error response: {e}");
+        }
+        session.set_keepalive(None);
+        session
+            .write_response_header(Box::new(resp))
+            .await
+            .unwrap_or_else(|e| {
+                log::error!("failed to send error response to downstream: {e}");
+            });
+
+        if let Some(body) = body {
+            session
+                .write_response_body(body)
+                .await
+                .unwrap_or_else(|e| log::error!("failed to write body: {e}"));
+        }
 
         code
     }
