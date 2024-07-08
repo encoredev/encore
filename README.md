@@ -71,13 +71,9 @@ Using the Go Backend SDK, it looks like so:
 ```go
 package hello
 
-import (
-	"context"
-)
-
 //encore:api public path=/hello/:name
 func World(ctx context.Context, name string) (*Response, error) {
-	msg := "Hello, " + name + "!"
+	msg := fmt.Sprintf("Hello, %s", name)
 	return &Response{Message: msg}, nil
 }
 
