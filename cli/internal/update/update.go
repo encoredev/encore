@@ -259,13 +259,29 @@ func updateBrewTap(stdout, stderr io.Writer) {
 	cmd := exec.Command("brew", "--prefix")
 	cmd.Stdout = &outBuf
 	if err := cmd.Run(); err == nil {
-		dst := filepath.Join(strings.TrimSpace(outBuf.String()), "Library", "Taps", "encoredev", "homebrew-tap")
-		if _, err := os.Stat(dst); err == nil {
-			cmd := exec.Command("git", "fetch", "--all")
-			cmd.Stdout = stdout
-			cmd.Stderr = stderr
-			cmd.Dir = dst
-			_ = cmd.Run()
+		gitDir := filepath.Join(strings.TrimSpace(outBuf.String()), "Library", "Taps", "encoredev", "homebrew-tap")
+		if _, err := os.Stat(gitDir); err == nil {
+			// Get the current branch
+			branchName := "main"
+			{
+				outBuf.Reset()
+				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+				cmd.Stdout = &outBuf
+				cmd.Stderr = stderr
+				cmd.Dir = gitDir
+				if err := cmd.Run(); err == nil {
+					branchName = strings.TrimSpace(outBuf.String())
+				}
+			}
+
+			// Only update if we're on the main branch.
+			if branchName == "main" {
+				cmd := exec.Command("git", "pull", "--rebase", "origin", "main")
+				cmd.Stdout = stdout
+				cmd.Stderr = stderr
+				cmd.Dir = gitDir
+				_ = cmd.Run()
+			}
 		}
 	}
 }
