@@ -8,27 +8,31 @@ pub struct Handler {
     pub deploy_id: String,
 }
 
+impl Handler {
+    pub fn health_check(self) -> Response {
+        log::trace!(code = "ok"; "handling incoming health check request");
+        Response {
+            code: "ok".into(),
+            message: "Your Encore app is up and running!".into(),
+            details: Details {
+                app_revision: self.app_revision,
+                encore_compiler: "".into(),
+                deploy_id: self.deploy_id,
+                checks: vec![],
+                enabled_experiments: vec![],
+            },
+        }
+    }
+}
+
 impl axum::handler::Handler<(), ()> for Handler {
     type Future = std::pin::Pin<
         Box<dyn std::future::Future<Output = axum::response::Response<axum::body::Body>> + Send>,
     >;
 
     fn call(self, _req: Request, _state: ()) -> Self::Future {
-        log::trace!(code = "ok"; "handling incoming health check request");
-        Box::pin(async move {
-            Json(Response {
-                code: "ok".into(),
-                message: "Your Encore app is up and running!".into(),
-                details: Details {
-                    app_revision: self.app_revision,
-                    encore_compiler: "".into(),
-                    deploy_id: self.deploy_id,
-                    checks: vec![],
-                    enabled_experiments: vec![],
-                },
-            })
-            .into_response()
-        })
+        let resp = self.health_check();
+        Box::pin(async move { Json(resp).into_response() })
     }
 }
 

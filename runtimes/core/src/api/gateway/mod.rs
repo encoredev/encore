@@ -1,12 +1,12 @@
 mod router;
 
 use std::borrow::Cow;
-use std::net::TcpListener;
+use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 
 use anyhow::Context;
 use axum::async_trait;
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -27,6 +27,7 @@ use crate::api::schema::Method;
 use crate::{api, model, EncoreName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
+use super::encore_routes::healthz;
 
 #[derive(Clone)]
 pub struct Gateway {
@@ -38,6 +39,8 @@ struct Inner {
     service_registry: Arc<ServiceRegistry>,
     router: router::Router,
     cors_config: CorsHeadersConfig,
+    healthz: healthz::Handler,
+    own_api_address: Option<SocketAddr>,
 }
 
 pub struct GatewayCtx {
@@ -74,6 +77,8 @@ impl Gateway {
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
+        healthz: healthz::Handler,
+        own_api_address: Option<SocketAddr>,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
             name,
@@ -94,6 +99,8 @@ impl Gateway {
                 service_registry,
                 router,
                 cors_config,
+                healthz,
+                own_api_address,
             }),
         })
     }
@@ -137,12 +144,62 @@ impl ProxyHttp for Gateway {
     // see https://github.com/cloudflare/pingora/blob/main/docs/user_guide/internals.md for
     // details on when different filters are called.
 
+    async fn request_filter(
+        &self,
+        session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> pingora::Result<bool>
+    where
+        Self::CTX: Send + Sync,
+    {
+        if session.req_header().uri.path() == "/__encore/healthz" {
+            let healthz_resp = self.inner.healthz.clone().health_check();
+            let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp).map_err(|e| {
+                Error::because(ErrorType::HTTPStatus(500), "could not encode response", e)
+            })?;
+
+            let mut header = ResponseHeader::build(200, None)?;
+            header.insert_header(header::CONTENT_TYPE, "application/json")?;
+            session.write_response_header(Box::new(header)).await?;
+            session
+                .write_response_body(Bytes::from(healthz_bytes))
+                .await?;
+
+            return Ok(true);
+        }
+
+        // preflight request, return early with cors headers
+        if axum::http::Method::OPTIONS == session.req_header().method {
+            let mut resp = ResponseHeader::build(200, None)?;
+            self.inner
+                .cors_config
+                .apply(session.req_header(), &mut resp)?;
+            resp.insert_header(header::CONTENT_LENGTH, 0)?;
+            session.write_response_header(Box::new(resp)).await?;
+
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
     async fn upstream_peer(
         &self,
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
         let path = session.req_header().uri.path();
+
+        if let Some(own_api_addr) = &self.inner.own_api_address {
+            if path.starts_with("/__encore/") {
+                return Ok(Box::new(HttpPeer::new(
+                    own_api_addr.clone(),
+                    false,
+                    "".to_string(),
+                )));
+            }
+        }
+
         let method: Method = session
             .req_header()
             .method
@@ -194,29 +251,6 @@ impl ProxyHttp for Gateway {
         });
 
         Ok(Box::new(peer))
-    }
-
-    async fn request_filter(
-        &self,
-        session: &mut Session,
-        _ctx: &mut Self::CTX,
-    ) -> pingora::Result<bool>
-    where
-        Self::CTX: Send + Sync,
-    {
-        // preflight request, return early with cors headers
-        if axum::http::Method::OPTIONS == session.req_header().method {
-            let mut resp = ResponseHeader::build(200, None)?;
-            self.inner
-                .cors_config
-                .apply(session.req_header(), &mut resp)?;
-            resp.insert_header(header::CONTENT_LENGTH, 0)?;
-            session.write_response_header(Box::new(resp)).await?;
-
-            return Ok(true);
-        }
-
-        Ok(false)
     }
 
     async fn response_filter(
