@@ -21,6 +21,8 @@ use crate::encore::runtime::v1 as runtime;
 use crate::trace::Tracer;
 use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
+use super::encore_routes::healthz;
+
 pub struct ManagerConfig<'a> {
     pub meta: &'a meta::Data,
     pub environment: &'a runtime::Environment,
@@ -40,11 +42,10 @@ pub struct ManagerConfig<'a> {
 }
 
 pub struct Manager {
-    app_revision: String,
-    deploy_id: String,
     gateway_listener: Mutex<Option<std::net::TcpListener>>,
     api_listener: Mutex<Option<std::net::TcpListener>>,
     service_registry: Arc<ServiceRegistry>,
+    healthz: healthz::Handler,
     pubsub_push_registry: pubsub::PushHandlerRegistry,
 
     api_server: Option<server::Server>,
@@ -86,8 +87,18 @@ impl ManagerConfig<'_> {
                 let addr = ln
                     .local_addr()
                     .context("unable to determine listen address")?;
-                Some(addr.to_string())
+                Some(addr)
             }
+        };
+
+        let healthz_handler = encore_routes::healthz::Handler {
+            app_revision: self.meta.app_revision.clone(),
+            // Remove the "roll_" prefix from the deploy_id.
+            deploy_id: self
+                .deploy_id
+                .strip_prefix("roll_")
+                .unwrap_or(&self.deploy_id)
+                .to_string(),
         };
 
         let hosted_services = Hosted::from_iter(self.hosted_services.into_iter().map(|s| s.name));
@@ -110,7 +121,7 @@ impl ManagerConfig<'_> {
             endpoints.clone(),
             self.environment,
             self.service_discovery,
-            own_address.as_deref(),
+            own_address.as_ref().map(|addr| addr.to_string()).as_deref(),
             &inbound_svc_auth,
             &hosted_services,
             self.deploy_id.clone(),
@@ -149,6 +160,7 @@ impl ManagerConfig<'_> {
                 .iter()
                 .map(|(_, ep)| RoutePerService(ep.to_owned())),
         );
+
         for gw in &self.meta.gateways {
             let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
                 continue;
@@ -178,14 +190,14 @@ impl ManagerConfig<'_> {
                     routes.clone(),
                     auth_handler,
                     cors_config,
+                    healthz_handler.clone(),
+                    own_address.clone(),
                 )
                 .context("couldn't create gateway")?,
             );
         }
 
         Ok(Manager {
-            app_revision: self.meta.app_revision.clone(),
-            deploy_id: self.deploy_id,
             gateway_listener: Mutex::new(gateway_listener),
             api_listener: Mutex::new(api_listener),
             service_registry,
@@ -193,6 +205,7 @@ impl ManagerConfig<'_> {
             gateways,
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
+            healthz: healthz_handler,
         })
     }
 }
@@ -310,16 +323,9 @@ impl Manager {
             }
             .into_response()
         }
+
         let encore_routes = encore_routes::Desc {
-            healthz: encore_routes::healthz::Handler {
-                app_revision: self.app_revision.clone(),
-                // Remove the "roll_" prefix from the deploy_id.
-                deploy_id: self
-                    .deploy_id
-                    .strip_prefix("roll_")
-                    .unwrap_or(&self.deploy_id)
-                    .to_string(),
-            },
+            healthz: self.healthz.clone(),
             push_registry: self.pubsub_push_registry.clone(),
         }
         .router();
