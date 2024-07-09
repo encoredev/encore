@@ -191,7 +191,7 @@ impl ManagerConfig<'_> {
                     auth_handler,
                     cors_config,
                     healthz_handler.clone(),
-                    own_address.clone(),
+                    own_address,
                 )
                 .context("couldn't create gateway")?,
             );
