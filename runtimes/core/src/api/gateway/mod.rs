@@ -194,11 +194,7 @@ impl ProxyHttp for Gateway {
 
         if let Some(own_api_addr) = &self.inner.own_api_address {
             if path.starts_with("/__encore/") {
-                return Ok(Box::new(HttpPeer::new(
-                    *own_api_addr,
-                    false,
-                    "".to_string(),
-                )));
+                return Ok(Box::new(HttpPeer::new(own_api_addr, false, "".to_string())));
             }
         }
 
