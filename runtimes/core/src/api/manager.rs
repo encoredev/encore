@@ -42,7 +42,7 @@ pub struct ManagerConfig<'a> {
 }
 
 pub struct Manager {
-    gateway_listener: Mutex<Option<std::net::TcpListener>>,
+    gateway_listener: Option<String>,
     api_listener: Mutex<Option<std::net::TcpListener>>,
     service_registry: Arc<ServiceRegistry>,
     healthz: healthz::Handler,
@@ -58,9 +58,7 @@ impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
         let gateway_listener = if !self.hosted_gateway_rids.is_empty() {
             // We have a gateway. Have the gateway listen on the provided listen_addr.
-            let addr = listen_addr();
-            let ln = std::net::TcpListener::bind(addr).context("unable to bind to port")?;
-            Some(ln)
+            Some(listen_addr())
         } else {
             None
         };
@@ -201,7 +199,7 @@ impl ManagerConfig<'_> {
         }
 
         Ok(Manager {
-            gateway_listener: Mutex::new(gateway_listener),
+            gateway_listener,
             api_listener: Mutex::new(api_listener),
             service_registry,
             api_server,
@@ -337,7 +335,7 @@ impl Manager {
         let server = HttpServer::new(encore_routes, api, fallback);
 
         let api_listener = self.api_listener.lock().unwrap().take();
-        let gateway_listener = self.gateway_listener.lock().unwrap().take();
+        let gateway_listener = self.gateway_listener.clone();
 
         // TODO handle multiple gateways
         let gateway = self.gateways.values().next().cloned();
