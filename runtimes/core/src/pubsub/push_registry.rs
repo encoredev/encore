@@ -50,9 +50,15 @@ impl PushHandlerRegistry {
         let id: String = match req.extract_parts().await {
             Ok(Path(id)) => id,
             Err(e) => {
+                ::log::error!(
+                    "encore pub/sub push handler: unable to extract push id from path: {:?}",
+                    e
+                );
                 return api::Error::internal(e).into_response();
             }
         };
+
+        ::log::trace!("encore pub/sub push handler: handling push request");
 
         let handler = self.inner.handlers.read().unwrap().get(&id).cloned();
 
