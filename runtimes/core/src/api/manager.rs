@@ -81,7 +81,7 @@ impl ManagerConfig<'_> {
 
         // Get the local address for use by the service registry
         // for calling services hosted by this instance.
-        let own_address = match api_listener {
+        let own_api_address = match api_listener {
             None => None,
             Some(ref ln) => {
                 let addr = ln
@@ -121,7 +121,10 @@ impl ManagerConfig<'_> {
             endpoints.clone(),
             self.environment,
             self.service_discovery,
-            own_address.as_ref().map(|addr| addr.to_string()).as_deref(),
+            own_api_address
+                .as_ref()
+                .map(|addr| addr.to_string())
+                .as_deref(),
             &inbound_svc_auth,
             &hosted_services,
             self.deploy_id.clone(),
@@ -191,7 +194,7 @@ impl ManagerConfig<'_> {
                     auth_handler,
                     cors_config,
                     healthz_handler.clone(),
-                    own_address,
+                    own_api_address,
                 )
                 .context("couldn't create gateway")?,
             );
