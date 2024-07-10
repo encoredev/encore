@@ -1,7 +1,7 @@
 mod router;
 
 use std::borrow::Cow;
-use std::net::{SocketAddr, TcpListener};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -109,7 +109,7 @@ impl Gateway {
         self.inner.shared.auth.as_ref()
     }
 
-    pub async fn serve(self, listener: TcpListener) -> anyhow::Result<()> {
+    pub async fn serve(self, listen_addr: String) -> anyhow::Result<()> {
         let conf = Arc::new(
             ServerConf::new_with_opt_override(&Opt {
                 upgrade: false,
@@ -121,10 +121,7 @@ impl Gateway {
             .unwrap(),
         );
         let mut proxy = http_proxy_service(&conf, self);
-        let listen_addr = listener.local_addr().unwrap().to_string();
 
-        // unbind the address and let pingora re-bind it
-        drop(listener);
         proxy.add_tcp(&listen_addr);
 
         let (_tx, rx) = watch::channel(false);
@@ -465,12 +462,6 @@ impl crate::api::auth::InboundRequest for RequestHeader {
     fn query(&self) -> Option<&str> {
         self.uri.query()
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct Route {
-    pub methods: Vec<Method>,
-    pub path: String,
 }
 
 struct SharedGatewayData {
