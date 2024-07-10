@@ -137,6 +137,7 @@ impl Gateway {
 #[async_trait]
 impl ProxyHttp for Gateway {
     type CTX = Option<GatewayCtx>;
+
     fn new_ctx(&self) -> Self::CTX {
         None
     }
@@ -159,6 +160,7 @@ impl ProxyHttp for Gateway {
             })?;
 
             let mut header = ResponseHeader::build(200, None)?;
+            header.insert_header(header::CONTENT_LENGTH, healthz_bytes.len())?;
             header.insert_header(header::CONTENT_TYPE, "application/json")?;
             session.write_response_header(Box::new(header)).await?;
             session
@@ -257,14 +259,17 @@ impl ProxyHttp for Gateway {
         &self,
         session: &mut Session,
         upstream_response: &mut ResponseHeader,
-        _ctx: &mut Self::CTX,
+        ctx: &mut Self::CTX,
     ) -> pingora::Result<()>
     where
         Self::CTX: Send + Sync,
     {
-        self.inner
-            .cors_config
-            .apply(session.req_header(), upstream_response)?;
+        if ctx.is_some() {
+            self.inner
+                .cors_config
+                .apply(session.req_header(), upstream_response)?;
+        }
+
         Ok(())
     }
 
@@ -277,87 +282,85 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
-        let gateway_ctx = ctx
-            .as_ref()
-            .ok_or_else(|| Error::explain(ErrorType::InternalError, "ctx not set"))?;
+        if let Some(gateway_ctx) = ctx.as_ref() {
+            let new_uri = gateway_ctx
+                .prepend_base_path(&upstream_request.uri)
+                .map_err(|e| {
+                    Error::because(
+                        ErrorType::InternalError,
+                        "failed to prepend upstream base path",
+                        e,
+                    )
+                })?;
 
-        let new_uri = gateway_ctx
-            .prepend_base_path(&upstream_request.uri)
-            .map_err(|e| {
+            upstream_request.set_uri(new_uri);
+
+            // Do we need to set the host header here?
+            // It means the upstream service won't be able to tell
+            // what the original Host header was, which is sometimes useful.
+            if let Some(ref host) = gateway_ctx.upstream_host {
+                upstream_request.insert_header(header::HOST, host)?;
+            }
+
+            let svc_auth_method = self
+                .inner
+                .service_registry
+                .service_auth_method(&gateway_ctx.upstream_service_name)
+                .unwrap_or_else(|| Arc::new(svcauth::Noop));
+
+            let headers = &session.req_header().headers;
+
+            let mut call_meta = CallMeta::parse_without_caller(headers).map_err(|e| {
                 Error::because(
                     ErrorType::InternalError,
-                    "failed to prepend upstream base path",
+                    "couldn't parse CallMeta from request",
                     e,
                 )
             })?;
-
-        upstream_request.set_uri(new_uri);
-
-        // Do we need to set the host header here?
-        // It means the upstream service won't be able to tell
-        // what the original Host header was, which is sometimes useful.
-        if let Some(ref host) = gateway_ctx.upstream_host {
-            upstream_request.insert_header(header::HOST, host)?;
-        }
-
-        let svc_auth_method = self
-            .inner
-            .service_registry
-            .service_auth_method(&gateway_ctx.upstream_service_name)
-            .unwrap_or_else(|| Arc::new(svcauth::Noop));
-
-        let headers = &session.req_header().headers;
-
-        let mut call_meta = CallMeta::parse_without_caller(headers).map_err(|e| {
-            Error::because(
-                ErrorType::InternalError,
-                "couldn't parse CallMeta from request",
-                e,
-            )
-        })?;
-        if call_meta.parent_span_id.is_none() {
-            call_meta.parent_span_id = Some(model::SpanId::generate());
-        }
-
-        let caller = Caller::Gateway {
-            gateway: self.inner.shared.name.clone(),
-        };
-        let mut desc = CallDesc {
-            caller: &caller,
-            parent_span: call_meta
-                .parent_span_id
-                .map(|sp| call_meta.trace_id.with_span(sp)),
-            parent_event_id: None,
-            ext_correlation_id: call_meta
-                .ext_correlation_id
-                .as_ref()
-                .map(|s| Cow::Borrowed(s.as_str())),
-            auth_user_id: None,
-            auth_data: None,
-            svc_auth_method: svc_auth_method.as_ref(),
-        };
-
-        if let Some(auth_handler) = &self.inner.shared.auth {
-            let auth_response = auth_handler
-                .authenticate(session.req_header(), call_meta.clone())
-                .await
-                .map_err(|e| {
-                    Error::because(ErrorType::InternalError, "couldn't authenticate request", e)
-                })?;
-
-            if let auth::AuthResponse::Authenticated {
-                auth_uid,
-                auth_data,
-            } = auth_response
-            {
-                desc.auth_user_id = Some(Cow::Owned(auth_uid));
-                desc.auth_data = Some(auth_data);
+            if call_meta.parent_span_id.is_none() {
+                call_meta.parent_span_id = Some(model::SpanId::generate());
             }
-        }
 
-        desc.add_meta(upstream_request).map_err(|e| {
-            Error::because(ErrorType::InternalError, "couldn't set request meta", e)
-        })?;
+            let caller = Caller::Gateway {
+                gateway: self.inner.shared.name.clone(),
+            };
+            let mut desc = CallDesc {
+                caller: &caller,
+                parent_span: call_meta
+                    .parent_span_id
+                    .map(|sp| call_meta.trace_id.with_span(sp)),
+                parent_event_id: None,
+                ext_correlation_id: call_meta
+                    .ext_correlation_id
+                    .as_ref()
+                    .map(|s| Cow::Borrowed(s.as_str())),
+                auth_user_id: None,
+                auth_data: None,
+                svc_auth_method: svc_auth_method.as_ref(),
+            };
+
+            if let Some(auth_handler) = &self.inner.shared.auth {
+                let auth_response = auth_handler
+                    .authenticate(session.req_header(), call_meta.clone())
+                    .await
+                    .map_err(|e| {
+                        Error::because(ErrorType::InternalError, "couldn't authenticate request", e)
+                    })?;
+
+                if let auth::AuthResponse::Authenticated {
+                    auth_uid,
+                    auth_data,
+                } = auth_response
+                {
+                    desc.auth_user_id = Some(Cow::Owned(auth_uid));
+                    desc.auth_data = Some(auth_data);
+                }
+            }
+
+            desc.add_meta(upstream_request).map_err(|e| {
+                Error::because(ErrorType::InternalError, "couldn't set request meta", e)
+            })?;
+        }
 
         Ok(())
     }
