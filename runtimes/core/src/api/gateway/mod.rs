@@ -109,7 +109,7 @@ impl Gateway {
         self.inner.shared.auth.as_ref()
     }
 
-    pub async fn serve(self, listen_addr: String) -> anyhow::Result<()> {
+    pub async fn serve(self, listen_addr: &str) -> anyhow::Result<()> {
         let conf = Arc::new(
             ServerConf::new_with_opt_override(&Opt {
                 upgrade: false,
@@ -122,7 +122,7 @@ impl Gateway {
         );
         let mut proxy = http_proxy_service(&conf, self);
 
-        proxy.add_tcp(&listen_addr);
+        proxy.add_tcp(listen_addr);
 
         let (_tx, rx) = watch::channel(false);
         proxy.start_service(None, rx).await;

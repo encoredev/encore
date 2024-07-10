@@ -42,7 +42,7 @@ pub struct ManagerConfig<'a> {
 }
 
 pub struct Manager {
-    gateway_listener: Option<String>,
+    gateway_listen_addr: Option<String>,
     api_listener: Mutex<Option<std::net::TcpListener>>,
     service_registry: Arc<ServiceRegistry>,
     healthz: healthz::Handler,
@@ -56,7 +56,7 @@ pub struct Manager {
 
 impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
-        let gateway_listener = if !self.hosted_gateway_rids.is_empty() {
+        let gateway_listen_addr = if !self.hosted_gateway_rids.is_empty() {
             // We have a gateway. Have the gateway listen on the provided listen_addr.
             Some(listen_addr())
         } else {
@@ -66,7 +66,7 @@ impl ManagerConfig<'_> {
         let api_listener = if !self.hosted_services.is_empty() {
             // If we already have a gateway, it's listening on the externally provided listen addr.
             // Use a random local port in that case.
-            let addr = if gateway_listener.is_some() {
+            let addr = if gateway_listen_addr.is_some() {
                 "127.0.0.1:0".to_string()
             } else {
                 listen_addr()
@@ -199,7 +199,7 @@ impl ManagerConfig<'_> {
         }
 
         Ok(Manager {
-            gateway_listener,
+            gateway_listen_addr,
             api_listener: Mutex::new(api_listener),
             service_registry,
             api_server,
@@ -335,14 +335,15 @@ impl Manager {
         let server = HttpServer::new(encore_routes, api, fallback);
 
         let api_listener = self.api_listener.lock().unwrap().take();
-        let gateway_listener = self.gateway_listener.clone();
+        let gateway_listener = self.gateway_listen_addr.clone();
 
         // TODO handle multiple gateways
         let gateway = self.gateways.values().next().cloned();
 
         self.runtime.spawn(async move {
-            let gateway_fut = match (gateway, gateway_listener) {
-                (Some(gw), Some(ln)) => Some(gw.serve(ln)),
+            let gateway_parts = (gateway, gateway_listener);
+            let gateway_fut = match gateway_parts {
+                (Some(gw), Some(ref ln)) => Some(gw.serve(ln)),
                 (Some(_), None) => {
                     ::log::error!("internal encore error: misconfigured api gateway (missing listener), skipping");
                     None
