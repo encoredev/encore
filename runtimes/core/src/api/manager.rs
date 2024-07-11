@@ -375,6 +375,10 @@ impl Manager {
                 res = async { api_fut.unwrap().await }, if api_fut.is_some() => {
                     res.context("serve api").inspect_err(|err| log::error!("api server failed: {:?}", err))?;
                 },
+                else => {
+                    // Nothing to serve.
+                    ::log::debug!("no api server or gateway to serve");
+                }
             };
             Ok(())
         })
