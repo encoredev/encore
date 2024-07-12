@@ -86,12 +86,7 @@ impl Gateway {
         });
 
         let mut router = router::Router::new();
-        for (svc, routes) in [&service_routes.main, &service_routes.fallback]
-            .into_iter()
-            .flatten()
-        {
-            router.add_routes(svc, routes)?;
-        }
+        router.add_routes(&service_routes)?;
 
         Ok(Gateway {
             inner: Arc::new(Inner {
