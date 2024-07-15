@@ -150,6 +150,8 @@ impl<'a> MetaBuilder<'a> {
                             }
                             map
                         },
+                        streaming_request: ep.streaming_request,
+                        streaming_response: ep.streaming_response,
                     };
 
                     let service_idx = svc_index

@@ -254,6 +254,9 @@ impl ServiceRegistry {
                     subscription: data.subscription.clone(),
                     message_id: data.message_id.clone(),
                 },
+                model::RequestData::Stream(ref data) => {
+                    Caller::APIEndpoint(data.endpoint.name.clone())
+                }
             },
             None => Caller::App {
                 deploy_id: self.deploy_id.clone(),
@@ -275,6 +278,7 @@ impl ServiceRegistry {
                     model::RequestData::RPC(data) => data.auth_user_id.as_ref(),
                     model::RequestData::Auth(_) => None,
                     model::RequestData::PubSub(_) => None,
+                    model::RequestData::Stream(_) => None,
                 }
                 .map(|id| Cow::Borrowed(id.as_str()))
             }),
@@ -282,6 +286,7 @@ impl ServiceRegistry {
                 model::RequestData::RPC(data) => data.auth_data.as_ref(),
                 model::RequestData::Auth(_) => None,
                 model::RequestData::PubSub(_) => None,
+                model::RequestData::Stream(_) => None,
             }),
         };
 

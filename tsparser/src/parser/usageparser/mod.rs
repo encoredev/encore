@@ -512,6 +512,8 @@ export const Bar = 5;
                     raw_req_schema: None,
                     raw_resp_schema: None,
                 },
+                streaming_request: false,
+                streaming_response: false,
             }));
 
             let bar_binds = vec![Lrc::new(Bind {
@@ -594,6 +596,8 @@ export const Bar = 5;
                     raw_req_schema: None,
                     raw_resp_schema: None,
                 },
+                streaming_request: false,
+                streaming_response: false,
             }));
             let bar_binds = vec![Lrc::new(Bind {
                 kind: BindKind::Create,

@@ -99,6 +99,10 @@ message RPC {
   // If not set, defaults to no limit.
   optional uint64 body_limit = 15;
 
+  // If the endpoint is streaming
+  bool streaming_request = 16;
+  bool streaming_response = 17;
+
   enum AccessType {
     PRIVATE = 0;
     PUBLIC = 1;

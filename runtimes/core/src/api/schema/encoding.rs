@@ -399,11 +399,11 @@ pub fn request_encoding(
 
     let mut schemas = Vec::new();
 
-    for default_loc in split_by_loc(&methods) {
+    if rpc.streaming_request || rpc.streaming_response {
         let mut config = EncodingConfig {
             meta,
             registry_builder,
-            default_loc: Some(default_loc.0),
+            default_loc: Some(DefaultLoc::Body),
             rpc_path: Some(rpc_path),
             supports_body: true,
             supports_query: true,
@@ -412,9 +412,27 @@ pub fn request_encoding(
         };
         let schema = config.compute(request_schema)?;
         schemas.push(ReqSchemaUnderConstruction {
-            methods: default_loc.1.clone(),
+            methods: vec![Method::GET],
             schema,
         });
+    } else {
+        for default_loc in split_by_loc(&methods) {
+            let mut config = EncodingConfig {
+                meta,
+                registry_builder,
+                default_loc: Some(default_loc.0),
+                rpc_path: Some(rpc_path),
+                supports_body: true,
+                supports_query: true,
+                supports_header: true,
+                supports_path: true,
+            };
+            let schema = config.compute(request_schema)?;
+            schemas.push(ReqSchemaUnderConstruction {
+                methods: default_loc.1.clone(),
+                schema,
+            });
+        }
     }
 
     Ok(schemas)

@@ -1,7 +1,7 @@
 import type {
   IncomingHttpHeaders,
   OutgoingHttpHeader,
-  OutgoingHttpHeaders,
+  OutgoingHttpHeaders
 } from "node:http";
 import type { Socket } from "node:net";
 import * as stream from "node:stream";

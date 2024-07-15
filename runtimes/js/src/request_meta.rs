@@ -33,6 +33,26 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
             (Some(api), None)
         }
 
+        model::RequestData::Stream(data) => {
+            let api = APICallData {
+                api: APIDesc {
+                    service: data.endpoint.name.service().to_string(),
+                    endpoint: data.endpoint.name.endpoint().to_string(),
+                    raw: data.endpoint.raw,
+                },
+                method: Default::default(),
+                path: data.path.clone(),
+                path_and_query: data.path_and_query.clone(),
+                path_params: data
+                    .path_params
+                    .as_ref()
+                    .map(serde_json::to_value)
+                    .transpose()?,
+                parsed_payload: None,
+                headers: Default::default(),
+            };
+            (Some(api), None)
+        }
         model::RequestData::PubSub(msg) => {
             let pubsub_message = PubSubMessageData {
                 service: msg.service.to_string(),

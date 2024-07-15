@@ -55,6 +55,9 @@ pub struct Request {
 
     /// Request body.
     pub body: RequestBody,
+
+    /// If this is a streamed request
+    pub stream: bool,
 }
 
 #[derive(Debug)]
@@ -104,6 +107,9 @@ pub struct Response {
 
     /// Response body, if any.
     pub body: Option<Body>,
+
+    /// If this is a streamed response
+    pub stream: bool,
 }
 
 impl Response {

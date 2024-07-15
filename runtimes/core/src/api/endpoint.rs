@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
+use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
+use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -18,6 +20,7 @@ use crate::api::{jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::rpc;
 use crate::log::LogFromRust;
+use crate::model::StreamDirection;
 use crate::names::EndpointName;
 use crate::trace;
 use crate::{model, Hosted};
@@ -33,10 +36,6 @@ pub struct SuccessResponse {
 pub type Response = APIResult<SuccessResponse>;
 
 pub type APIResult<T> = Result<T, Error>;
-
-pub trait IntoResponse {
-    fn into_response(self) -> axum::http::Response<axum::body::Body>;
-}
 
 impl IntoResponse for SuccessResponse {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
@@ -69,6 +68,11 @@ impl IntoResponse for SuccessResponse {
     }
 }
 
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::http::Response<axum::body::Body> {
+        (&self).into_response()
+    }
+}
 impl IntoResponse for &Error {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
         let mut buf = BytesMut::with_capacity(128).writer();
@@ -82,19 +86,6 @@ impl IntoResponse for &Error {
             )
             .body(axum::body::Body::from(buf.into_inner().freeze()))
             .unwrap()
-    }
-}
-
-impl<A, B> IntoResponse for Result<A, B>
-where
-    A: IntoResponse,
-    B: IntoResponse,
-{
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        match self {
-            Ok(a) => a.into_response(),
-            Err(b) => b.into_response(),
-        }
     }
 }
 
@@ -243,6 +234,7 @@ pub fn endpoints_from_meta(
                 } else {
                     schema::RequestBody::Typed(req_schema.schema.body)
                 },
+                stream: ep.ep.streaming_request,
             }));
         }
         let resp_schema = ep.response_schema.build(&registry)?;
@@ -266,6 +258,7 @@ pub fn endpoints_from_meta(
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
                 body: resp_schema.body,
+                stream: ep.ep.streaming_response,
             }),
             raw,
             exposed,
@@ -321,6 +314,16 @@ impl EndpointHandler {
             .find(|schema| schema.methods.contains(&api_method))
             .expect("request schema must exist for all endpoints");
 
+        let streaming_request = req_schema.stream;
+        let streaming_response = self.endpoint.response.stream;
+
+        let stream_direction = match (streaming_request, streaming_response) {
+            (true, true) => Some(StreamDirection::Bidi),
+            (true, false) => Some(StreamDirection::In),
+            (false, true) => Some(StreamDirection::Out),
+            (false, false) => None,
+        };
+
         let (mut parts, body) = axum_req
             .map(|b| match self.endpoint.body_limit {
                 None => b,
@@ -338,9 +341,12 @@ impl EndpointHandler {
 
         let meta = CallMeta::parse_with_caller(&self.shared.inbound_svc_auth, &parts.headers)?;
 
-        let parsed_payload = match req_schema.extract(&mut parts, body).await {
-            Ok(req) => req,
-            Err(err) => return Err(err),
+        let parsed_payload = if stream_direction.is_none() {
+            req_schema.extract(&mut parts, body).await?
+        } else {
+            // the websocket upgrade request should not be parsed,
+            // data will come in messages over the socket.
+            None
         };
 
         // Extract caller information.
@@ -354,17 +360,25 @@ impl EndpointHandler {
         let span = trace_id.with_span(span_id);
         let parent_span = meta.parent_span_id.map(|sp| trace_id.with_span(sp));
 
-        let request = Arc::new(model::Request {
-            span,
-            parent_trace: None,
-            parent_span,
-            caller_event_id: meta.parent_event_id,
-            ext_correlation_id: meta.ext_correlation_id,
-            start: tokio::time::Instant::now(),
-            start_time: std::time::SystemTime::now(),
-            is_platform_request: platform_seal_of_approval.is_some(),
-            internal_caller,
-            data: model::RequestData::RPC(model::RPCRequestData {
+        let data = if let Some(direction) = stream_direction {
+            let websocket_upgrade = Mutex::new(Some(
+                WebSocketUpgrade::from_request_parts(&mut parts, &()).await?,
+            ));
+
+            model::RequestData::Stream(model::StreamRequestData {
+                endpoint: self.endpoint.clone(),
+                path: parts.uri.path().to_string(),
+                path_and_query: parts
+                    .uri
+                    .path_and_query()
+                    .map(|q| q.to_string())
+                    .unwrap_or_default(),
+                path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
+                websocket_upgrade,
+                direction,
+            })
+        } else {
+            model::RequestData::RPC(model::RPCRequestData {
                 endpoint: self.endpoint.clone(),
                 method: api_method,
                 path: parts.uri.path().to_string(),
@@ -378,7 +392,20 @@ impl EndpointHandler {
                 auth_user_id,
                 auth_data,
                 parsed_payload,
-            }),
+            })
+        };
+
+        let request = Arc::new(model::Request {
+            span,
+            parent_trace: None,
+            parent_span,
+            caller_event_id: meta.parent_event_id,
+            ext_correlation_id: meta.ext_correlation_id,
+            start: tokio::time::Instant::now(),
+            start_time: std::time::SystemTime::now(),
+            is_platform_request: platform_seal_of_approval.is_some(),
+            internal_caller,
+            data,
         });
 
         Ok(request)

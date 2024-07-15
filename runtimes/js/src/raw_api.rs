@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
+use axum::response::IntoResponse;
 use bytes::Bytes;
 use napi::bindgen_prelude::{Buffer, Either3};
 use napi::{Either, Env, JsFunction, JsUnknown, NapiRaw};
@@ -12,7 +13,6 @@ use napi_derive::napi;
 use tokio::sync::{mpsc, oneshot};
 
 use encore_runtime_core::api;
-use encore_runtime_core::api::IntoResponse;
 
 use crate::api::Request;
 use crate::log::parse_js_stack;
@@ -339,7 +339,7 @@ impl api::BoxedHandler for JSRawHandler {
 
             let Some(body) = req.take_raw_body() else {
                 let err = api::Error::internal(anyhow::anyhow!("missing body"));
-                return api::ResponseData::Raw(err.into_response());
+                return api::ResponseData::Raw(axum::response::IntoResponse::into_response(err));
             };
 
             // Call the handler.

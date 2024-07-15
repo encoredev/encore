@@ -23,6 +23,21 @@ export async function run() {
 }
 
 function transformHandler(h: Handler): Handler {
+  if (h.streaming) {
+    return {
+      ...h,
+      handler: (req: runtime.Request, request: unknown, response: unknown) => {
+        setCurrentRequest(req);
+
+        if (response === undefined) {
+          return h.handler(request);
+        }
+
+        return h.handler(request, response);
+      }
+    };
+  }
+
   if (h.raw) {
     return {
       ...h,
@@ -35,7 +50,7 @@ function transformHandler(h: Handler): Handler {
         const rawReq = new RawRequest(req, body);
         const rawResp = new RawResponse(rawReq, resp);
         return h.handler(rawReq, rawResp);
-      },
+      }
     };
   }
   return {
@@ -44,6 +59,6 @@ function transformHandler(h: Handler): Handler {
       setCurrentRequest(req);
       const payload = req.payload();
       return payload !== null ? h.handler(payload) : h.handler();
-    },
+    }
   };
 }

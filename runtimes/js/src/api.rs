@@ -4,9 +4,8 @@ use crate::request_meta::RequestMeta;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
-use crate::{raw_api, request_meta};
-use encore_runtime_core::api;
-use encore_runtime_core::api::schema;
+use crate::{raw_api, request_meta, websocket_api};
+use encore_runtime_core::api::{self, schema};
 use encore_runtime_core::model::RequestData;
 use napi::{Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
@@ -19,6 +18,7 @@ pub struct APIRoute {
     pub service: String,
     pub name: String,
     pub raw: bool,
+    pub streaming: bool,
     pub handler: JsFunction,
 }
 
@@ -26,7 +26,11 @@ pub fn new_api_handler(
     env: Env,
     func: JsFunction,
     raw: bool,
+    streaming: bool,
 ) -> napi::Result<Arc<dyn api::BoxedHandler>> {
+    if streaming {
+        return websocket_api::new_handler(env, func);
+    }
     if raw {
         return raw_api::new_handler(env, func);
     }
@@ -57,6 +61,7 @@ impl Request {
             RequestData::RPC(data) => env.to_js_value(&data.parsed_payload),
             RequestData::Auth(data) => env.to_js_value(&data.parsed_payload),
             RequestData::PubSub(data) => env.to_js_value(&data.parsed_payload),
+            RequestData::Stream(_) => env.get_null().map(|val| val.into_unknown()),
         }
     }
 
@@ -70,13 +75,13 @@ impl Request {
         use RequestData::*;
         match &self.inner.data {
             RPC(data) => env.to_js_value(&data.auth_data),
-            Auth(_) | PubSub(_) => env.get_null().map(|val| val.into_unknown()),
+            Auth(_) | PubSub(_) | Stream(_) => env.get_null().map(|val| val.into_unknown()),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-struct APIPromiseHandler;
+pub struct APIPromiseHandler;
 
 impl PromiseHandler for APIPromiseHandler {
     type Output = Result<schema::JSONPayload, api::Error>;

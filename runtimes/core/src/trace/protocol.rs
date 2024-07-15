@@ -199,6 +199,15 @@ impl Tracer {
 
                 EventType::PubsubMessageSpanStart
             }
+            model::RequestData::Stream(data) => {
+                eb.str(data.endpoint.name.service());
+                eb.str(data.endpoint.name.endpoint());
+                eb.str(&data.path);
+
+                eb.opt_str(req.ext_correlation_id.as_deref());
+
+                EventType::RequestSpanStart
+            }
         };
 
         _ = self.send(event_type, req.span, eb);
@@ -235,6 +244,10 @@ impl Tracer {
                 eb.str(&msg_data.service);
                 eb.str(&msg_data.topic);
                 eb.str(&msg_data.subscription);
+            }
+            model::RequestData::Stream(data) => {
+                eb.str(data.endpoint.name.service());
+                eb.str(data.endpoint.name.endpoint());
             }
         }
 

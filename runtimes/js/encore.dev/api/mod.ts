@@ -96,5 +96,34 @@ api.raw = function raw(options: APIOptions, fn: RawHandler) {
   return fn;
 };
 
+interface StreamIn<Request> {
+  recv: () => Promise<Request>;
+}
+interface StreamOut<Response> {
+  send: (msg: Response) => Promise<void>;
+  close: () => Promise<void>;
+}
+
+api.streamBidirectional = function streamBidirectional<Request, Response>(
+  options: APIOptions,
+  fn: (stream: StreamOut<Response> & StreamIn<Request>) => Promise<void>
+) {
+  return fn;
+};
+
+api.streamIn = function streamIn<Request, Response>(
+  options: APIOptions,
+  fn: (stream: StreamIn<Request>) => Promise<Response>
+) {
+  return fn;
+};
+
+api.streamOut = function streamOut<Request, Response>(
+  options: APIOptions,
+  fn: (message: Request, stream: StreamOut<Response>) => Promise<void>
+) {
+  return fn;
+};
+
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";

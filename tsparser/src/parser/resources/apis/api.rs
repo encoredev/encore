@@ -35,6 +35,9 @@ pub struct Endpoint {
     /// None means no limit.
     pub body_limit: Option<u64>,
 
+    pub streaming_request: bool,
+    pub streaming_response: bool,
+
     pub encoding: EndpointEncoding,
 }
 
@@ -184,6 +187,10 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let methods = r.config.method.unwrap_or(Methods::Some(vec![Method::Post]));
 
             let raw = matches!(r.kind, EndpointKind::Raw);
+
+            let mut streaming_request = false;
+            let mut streaming_response = false;
+
             let (request, response) = match r.kind {
                 EndpointKind::Typed { request, response } => {
                     let request = match request {
@@ -194,6 +201,19 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         None => None,
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
+                    (request, response)
+                }
+                EndpointKind::TypedStream { request, response } => {
+                    streaming_request = request.is_stream();
+                    streaming_response = response.is_stream();
+
+                    let request = request
+                        .ts_type()
+                        .map(|t| pass.type_checker.resolve_type(module.clone(), t));
+                    let response = response
+                        .ts_type()
+                        .map(|t| pass.type_checker.resolve_type(module.clone(), t));
+
                     (request, response)
                 }
                 EndpointKind::Raw => (None, None),
@@ -217,6 +237,8 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 expose: r.config.expose.unwrap_or(false),
                 require_auth: r.config.auth.unwrap_or(false),
                 raw,
+                streaming_request,
+                streaming_response,
                 body_limit,
                 encoding,
             }));
@@ -272,10 +294,35 @@ struct APIEndpointLiteral {
 }
 
 #[derive(Debug)]
+enum ParameterType {
+    Stream(ast::TsType),
+    Single(ast::TsType),
+    None,
+}
+
+impl ParameterType {
+    fn is_stream(&self) -> bool {
+        matches!(self, ParameterType::Stream(..))
+    }
+
+    fn ts_type(&self) -> Option<&ast::TsType> {
+        match self {
+            ParameterType::Stream(t) => Some(t),
+            ParameterType::Single(t) => Some(t),
+            ParameterType::None => None,
+        }
+    }
+}
+
+#[derive(Debug)]
 enum EndpointKind {
     Typed {
         request: Option<ast::TsType>,
         response: Option<ast::TsType>,
+    },
+    TypedStream {
+        request: ParameterType,
+        response: ParameterType,
     },
     Raw,
 }
@@ -333,6 +380,71 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
 
+                    ast::Expr::Member(member)
+                        if member.prop.is_ident_with("streamBidirectional") =>
+                    {
+                        let request = extract_type_param(expr.type_args.as_deref(), 0)?
+                            .unwrap()
+                            .clone();
+                        let response = extract_type_param(expr.type_args.as_deref(), 1)?
+                            .unwrap()
+                            .clone();
+                        // Bidirectional stream
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::TypedStream {
+                                request: ParameterType::Stream(request),
+                                response: ParameterType::Stream(response),
+                            },
+                        }
+                    }
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
+                        let request = extract_type_param(expr.type_args.as_deref(), 0)?
+                            .unwrap()
+                            .clone();
+
+                        let response = match extract_type_param(expr.type_args.as_deref(), 1)? {
+                            Some(t) => ParameterType::Single(t.clone()),
+                            None => ParameterType::None,
+                        };
+                        // Incoming stream
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::TypedStream {
+                                request: ParameterType::Stream(request),
+                                response,
+                            },
+                        }
+                    }
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
+                        let request = match extract_type_param(expr.type_args.as_deref(), 0)? {
+                            Some(t) => ParameterType::Single(t.clone()),
+                            None => ParameterType::None,
+                        };
+                        let response = extract_type_param(expr.type_args.as_deref(), 1)?
+                            .unwrap()
+                            .clone();
+                        // Outgoing stream
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::TypedStream {
+                                request,
+                                response: ParameterType::Stream(response),
+                            },
+                        }
+                    }
                     _ => {
                         // Regular endpoint
                         let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
