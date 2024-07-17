@@ -91,7 +91,7 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	seenNs := make(map[string]bool)
 	js.writeClient(p.Services)
 	for _, svc := range p.Meta.Svcs {
-		if err := js.writeService(svc, p.Services); err != nil {
+		if err := js.writeService(svc, p.Services, p.Tags); err != nil {
 			return err
 		}
 		seenNs[svc.Name] = true
@@ -105,7 +105,7 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	return nil
 }
 
-func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet) error {
+func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet, tags []string) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
 	isIncluded := hasPublicRPC(svc) && set.Has(svc.Name)
@@ -134,7 +134,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 
 	// RPCs
 	for _, rpc := range svc.Rpcs {
-		if rpc.AccessType == meta.RPC_PRIVATE {
+		if rpc.AccessType == meta.RPC_PRIVATE || !hasTag(rpc, tags) {
 			continue
 		}
 

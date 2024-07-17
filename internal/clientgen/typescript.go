@@ -93,7 +93,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	seenNs := make(map[string]bool)
 	ts.writeClient(p.Services)
 	for _, svc := range p.Meta.Svcs {
-		if err := ts.writeService(svc, p.Services); err != nil {
+		if err := ts.writeService(svc, p.Services, p.Tags); err != nil {
 			return err
 		}
 		seenNs[svc.Name] = true
@@ -112,7 +112,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	return nil
 }
 
-func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet) error {
+func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet, tags []string) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
 	isIncluded := hasPublicRPC(svc) && p.Has(svc.Name)
@@ -163,7 +163,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 
 	// RPCs
 	for _, rpc := range svc.Rpcs {
-		if rpc.AccessType == meta.RPC_PRIVATE {
+		if rpc.AccessType == meta.RPC_PRIVATE || !hasTag(rpc, tags) {
 			continue
 		}
 

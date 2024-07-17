@@ -82,7 +82,7 @@ func (g *golang) Generate(p clientgentypes.GenerateParams) (err error) {
 		seenNs[nsName] = true
 
 		if hasPublicRPC(service) && p.Services.Has(service.Name) {
-			if err := g.generateServiceClient(file, service); err != nil {
+			if err := g.generateServiceClient(file, service, p.Tags); err != nil {
 				return errors.Wrapf(err, "unable to generate service client for service: %s", service)
 			}
 		}
@@ -322,7 +322,7 @@ func (g *golang) generateOptionFunc(file *File, optionName string, doc string, p
 		)
 }
 
-func (g *golang) generateServiceClient(file *File, service *meta.Service) error {
+func (g *golang) generateServiceClient(file *File, service *meta.Service, tags []string) error {
 	name := g.cleanServiceName(service)
 	interfaceName := fmt.Sprintf("%sClient", name)
 	structName := fmt.Sprintf("%sClient", strings.ToLower(name))
@@ -332,7 +332,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 	file.Comment("It is setup as an interface allowing you to use GoMock to create mock implementations during tests.")
 	var interfaceMethods []Code
 	for _, rpc := range service.Rpcs {
-		if rpc.AccessType == meta.RPC_PRIVATE {
+		if rpc.AccessType == meta.RPC_PRIVATE || !hasTag(rpc, tags) {
 			continue
 		}
 

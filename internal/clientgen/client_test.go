@@ -71,7 +71,7 @@ func TestClientCodeGeneration(t *testing.T) {
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						services := clientgentypes.AllServices(res.Meta)
-						generatedClient, err := Client(language, "app", res.Meta, services)
+						generatedClient, err := Client(language, "app", res.Meta, services, [])
 						c.Assert(err, qt.IsNil)
 
 						golden.TestAgainst(c, file.Name(), string(generatedClient))
