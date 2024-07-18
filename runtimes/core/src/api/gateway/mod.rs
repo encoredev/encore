@@ -1,4 +1,5 @@
 mod router;
+mod websocket;
 
 use std::borrow::Cow;
 use std::net::SocketAddr;
@@ -289,13 +290,25 @@ impl ProxyHttp for Gateway {
                 upstream_request.insert_header(header::HOST, host)?;
             }
 
+            if session.is_upgrade_req() {
+                websocket::update_headers_from_websocket_protocol(upstream_request).map_err(
+                    |e| {
+                        Error::because(
+                            ErrorType::HTTPStatus(400),
+                            "invalid auth data passed in websocket protocol header",
+                            e,
+                        )
+                    },
+                )?;
+            }
+
             let svc_auth_method = self
                 .inner
                 .service_registry
                 .service_auth_method(&gateway_ctx.upstream_service_name)
                 .unwrap_or_else(|| Arc::new(svcauth::Noop));
 
-            let headers = &session.req_header().headers;
+            let headers = &upstream_request.headers;
 
             let mut call_meta = CallMeta::parse_without_caller(headers).or_err(
                 ErrorType::InternalError,
@@ -325,7 +338,7 @@ impl ProxyHttp for Gateway {
 
             if let Some(auth_handler) = &self.inner.shared.auth {
                 let auth_response = auth_handler
-                    .authenticate(session.req_header(), call_meta.clone())
+                    .authenticate(upstream_request, call_meta.clone())
                     .await
                     .or_err(ErrorType::InternalError, "couldn't authenticate request")?;
 

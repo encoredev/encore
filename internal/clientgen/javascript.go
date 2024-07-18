@@ -301,7 +301,7 @@ func (js *javascript) streamingRPCCallSite(w *indentWriter, rpc *meta.RPC, rpcPa
 	}
 	createStream += ")"
 
-	w.WriteStringf("return %s\n", createStream)
+	w.WriteStringf("return await %s\n", createStream)
 
 	return nil
 }
@@ -501,7 +501,7 @@ export function PreviewEnv(pr) {
 }
 
 /**
- * Client is an API client for the ` + js.appSlug + ` Encore application. 
+ * Client is an API client for the ` + js.appSlug + ` Encore application.
  */
 export default class Client {`)
 
@@ -594,20 +594,30 @@ func (js *javascript) writeStreamClasses() error {
 `
 
 	js.WriteString(`
+
+function encodeWebSocketHeaders(headers) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers)).replace('=','').replace('+','-').replace('/','_');
+    return "encore.dev.auth_data." + base64encoded;
+}
+
 class BidiStream {
     buffer = [];
     done = false;
 
-    constructor(url) {
-        this.ws = new WebSocket(url);
+    constructor(url, headers) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+        	protocols.push(encodeWebSocketHeaders(headers))
+        }
 
-        this.ws.addEventListener("open", () => {
-            this.ws.addEventListener("message", (event) => {
-                this.buffer.push(JSON.parse(event.data));
-            });
-            this.ws.addEventListener("close", () => {
-                this.done = true;
-            });
+        this.ws = new WebSocket(url, protocols);
+
+        this.ws.addEventListener("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+        this.ws.addEventListener("close", () => {
+            this.done = true;
         });
     }
 
@@ -619,36 +629,44 @@ class InStream {
     buffer = [];
     done = false;
 
-    constructor(url, body) {
-        this.ws = new WebSocket(url);
+    constructor(url, headers, body) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+    	    protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.ws = new WebSocket(url, protocols);
+
+        this.ws.addEventListener("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+        this.ws.addEventListener("close", () => {
+            this.done = true;
+        });
 
         this.ws.addEventListener("open", () => {
-            this.ws.addEventListener("message", (event) => {
-                this.buffer.push(JSON.parse(event.data));
-            });
-            this.ws.addEventListener("close", () => {
-                this.done = true;
-            });
-
-	    this.ws.send(body);
+            this.ws.send(body);
         });
     }
     ` + receive + `
 }
 class OutStream {
-    constructor(url) {
-        this.ws = new WebSocket(url);
+    constructor(url, headers) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers))
+        }
 
-        this.ws.addEventListener("open", () => {
-            this.ws.addEventListener("message", (event) => {
-                this.response_value = JSON.parse(event.data);
-            }, { once: true });
-        });
+        this.ws = new WebSocket(url, protocols);
+
+        this.ws.addEventListener("message", (event) => {
+            this.response_value = JSON.parse(event.data);
+        }, { once: true });
     }
 
     async response() {
         if (this.response_value !== undefined) return this.response_value
-	else {
+        else {
             return await new Promise((resolve) => {
                 const handler = (event) => {
                     this.ws.removeEventListener("message", handler);
@@ -658,7 +676,7 @@ class OutStream {
                 this.ws.addEventListener("message", handler, { once: true });
                 this.ws.addEventListener("close", handler, { once: true });
             });
-	}
+        }
     }
 
     ` + send + `
@@ -715,17 +733,139 @@ class BaseClient {`)
 	js.WriteString(`
     }
 
+    async getAuthData() {`)
+	if js.hasAuth {
+		js.WriteString(`
+        let authData
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator()
+            if (mayBePromise instanceof Promise) {
+               	authData = await mayBePromise
+            } else {
+                authData = mayBePromise
+            }
+        }
+
+        if (authData) {
+            const data = {};
+
+`)
+
+		w := js.newIdentWriter(3)
+		if js.authIsComplexType {
+			authData, err := encoding.DescribeAuth(js.md, js.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
+			if err != nil {
+				return errors.Wrap(err, "unable to describe auth data")
+			}
+
+			// Write all the query string fields in
+			for i, field := range authData.QueryParameters {
+				if i == 0 {
+					w.WriteString("data.query = {};\n")
+				}
+				w.WriteString("data.query[\"")
+				w.WriteString(field.WireFormat)
+				w.WriteString("\"] = ")
+				if list := field.Type.GetList(); list != nil {
+					w.WriteString(
+						js.Dot("authData", field.SrcName) +
+							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
+					)
+				} else {
+					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
+				}
+				w.WriteString("\n")
+			}
+
+			// Write all the headers
+			for i, field := range authData.HeaderParameters {
+				if i == 0 {
+					w.WriteString("data.headers = {};\n")
+				}
+				w.WriteString("data.headers[\"")
+				w.WriteString(field.WireFormat)
+				w.WriteString("\"] = ")
+				w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
+				w.WriteString("\n")
+			}
+		} else {
+			w.WriteString("data.headers = {}\n")
+			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData\n")
+		}
+		js.WriteString(`
+            return data;
+        }
+    }`)
+
+	}
+
+	js.WriteString(`
     // createBidiStream sets up a stream to a streaming api
-    createBidiStream(path) {
-        return new BidiStream(this.baseURL + path);
+    async createBidiStream(path, params) {
+        let { query } = params ?? {};
+        let headers;
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new BidiStream(this.baseURL + path + queryString, headers);
     }
+
     // createInStream sets up a stream to a streaming api
-    createInStream(path, body) {
-        return new InStream(this.baseURL + path, body);
+    async createInStream(path, body, params) {
+        let { query } = params ?? {};
+        let headers;
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new InStream(this.baseURL + path + queryString, headers, body);
     }
+
     // createOutStream sets up a stream to a streaming api
-    createOutStream(path) {
-        return new OutStream(this.baseURL + path);
+    async createOutStream(path, params) {
+        let { query } = params ?? {};
+        let headers;
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new OutStream(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request
@@ -740,73 +880,20 @@ class BaseClient {`)
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
-`)
-	w := js.newIdentWriter(2)
 
-	if js.hasAuth {
-		w.WriteString(`
-// If authorization data generator is present, call it and add the returned data to the request
-let authData`)
-		w.WriteString("\n")
-		w.WriteString(`if (this.authGenerator) {
-    const mayBePromise = this.authGenerator()
-    if (mayBePromise instanceof Promise) {
-        authData = await mayBePromise
-    } else {
-        authData = mayBePromise
-    }
-}
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
 
-// If we now have authentication data, add it to the request
-if (authData) {
-`)
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
+        }
 
-		{
-			w := w.Indent()
-			if js.authIsComplexType {
-				authData, err := encoding.DescribeAuth(js.md, js.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
-				if err != nil {
-					return errors.Wrap(err, "unable to describe auth data")
-				}
-
-				// Write all the query string fields in
-				for i, field := range authData.QueryParameters {
-					// We need to ensure that the query field is not undefined
-					if i == 0 {
-						w.WriteString("query = query ?? {}\n")
-					}
-
-					w.WriteString("query[\"")
-					w.WriteString(field.WireFormat)
-					w.WriteString("\"] = ")
-					if list := field.Type.GetList(); list != nil {
-						w.WriteString(
-							js.Dot("authData", field.SrcName) +
-								".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
-						)
-					} else {
-						w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-					}
-					w.WriteString("\n")
-				}
-
-				// Write all the headers
-				for _, field := range authData.HeaderParameters {
-					w.WriteString("init.headers[\"")
-					w.WriteString(field.WireFormat)
-					w.WriteString("\"] = ")
-					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-					w.WriteString("\n")
-				}
-			} else {
-				w.WriteString("init.headers[\"Authorization\"] = \"Bearer \" + authData\n")
-			}
-		}
-
-		w.WriteString("}\n")
-	}
-
-	js.WriteString(`
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''
         const response = await this.fetcher(this.baseURL+path+queryString, init)
@@ -1037,7 +1124,7 @@ func (js *javascript) writeCustomErrorType() {
 
 function isAPIErrorResponse(err) {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -1055,7 +1142,7 @@ export class APIError extends Error {
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -1063,14 +1150,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
         if (Object.setPrototypeOf == undefined) {
             this.__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if (Error.captureStackTrace !== undefined) {
             Error.captureStackTrace(this, this.constructor);

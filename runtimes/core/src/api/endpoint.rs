@@ -374,6 +374,9 @@ impl EndpointHandler {
                     .map(|q| q.to_string())
                     .unwrap_or_default(),
                 path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
+                req_headers: parts.headers,
+                auth_user_id,
+                auth_data,
                 websocket_upgrade,
                 direction,
             })

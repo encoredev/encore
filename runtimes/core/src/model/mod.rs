@@ -165,9 +165,9 @@ impl Request {
     pub fn has_authenticated_user(&self) -> bool {
         match &self.data {
             RequestData::RPC(data) => data.auth_user_id.is_some(),
+            RequestData::Stream(data) => data.auth_user_id.is_some(),
             RequestData::Auth(_) => false,
             RequestData::PubSub(_) => false,
-            RequestData::Stream(_) => false,
         }
     }
 
@@ -212,6 +212,15 @@ pub struct StreamRequestData {
 
     /// The request path params, if any.
     pub path_params: Option<IndexMap<String, serde_json::Value>>,
+
+    /// The request headers
+    pub req_headers: axum::http::HeaderMap,
+
+    /// The authenticated user id, if any.
+    pub auth_user_id: Option<String>,
+
+    /// The user data for the authenticated user, if any.
+    pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
 
     /// Stream direction
     pub direction: StreamDirection,

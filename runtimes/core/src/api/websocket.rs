@@ -67,6 +67,7 @@ where
 
     let direction = data.direction;
     Ok(upgrade
+        .protocols(["encore-ws"])
         .on_failed_upgrade(|err| log::debug!("websocket upgrade failed: {err}"))
         .on_upgrade(move |ws| async move {
             let socket = Socket::new(ws, req_schema, resp_schema);

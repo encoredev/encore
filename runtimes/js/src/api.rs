@@ -75,7 +75,8 @@ impl Request {
         use RequestData::*;
         match &self.inner.data {
             RPC(data) => env.to_js_value(&data.auth_data),
-            Auth(_) | PubSub(_) | Stream(_) => env.get_null().map(|val| val.into_unknown()),
+            Stream(data) => env.to_js_value(&data.auth_data),
+            Auth(_) | PubSub(_) => env.get_null().map(|val| val.into_unknown()),
         }
     }
 }
