@@ -97,6 +97,9 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 		seenNs[svc.Name] = true
 	}
 	js.writeExtraTypes()
+	if err := js.writeStreamClasses(); err != nil {
+		return err
+	}
 	if err := js.writeBaseClient(p.AppSlug); err != nil {
 		return err
 	}
@@ -201,9 +204,24 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 
 		js.WriteString(") {\n")
 
-		err := js.rpcCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String())
-		if err != nil {
-			return errors.Wrapf(err, "unable to write RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+		if rpc.StreamingResponse || rpc.StreamingRequest {
+			var direction streamDirection
+
+			if rpc.StreamingRequest && rpc.StreamingResponse {
+				direction = Bidi
+			} else if rpc.StreamingRequest {
+				direction = Out
+			} else {
+				direction = In
+			}
+
+			if err := js.streamingRPCCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String(), direction); err != nil {
+				return errors.Wrapf(err, "unable to write streaming RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+			}
+		} else {
+			if err := js.rpcCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String()); err != nil {
+				return errors.Wrapf(err, "unable to write RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+			}
 		}
 
 		indent()
@@ -220,6 +238,71 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 	numIndent--
 	indent()
 	js.WriteString("}\n\n")
+	return nil
+}
+
+type streamDirection int
+
+const (
+	Bidi streamDirection = iota
+	In
+	Out
+)
+
+func (js *javascript) streamingRPCCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string, direction streamDirection) error {
+	body := ""
+
+	if rpc.RequestSchema != nil {
+		// Work out how we're going to encode and call this RPC
+		reqEncs, err := encoding.DescribeRequest(js.md, rpc.RequestSchema, &encoding.Options{SrcNameTag: "json"}, "POST")
+		if err != nil {
+			return errors.Wrapf(err, "rpc %s", rpc.Name)
+		}
+
+		reqEnc := reqEncs[0]
+		if len(reqEnc.QueryParameters) > 0 {
+			w.WriteString("// Convert our params into the objects we need for the request\n")
+		}
+
+		// Generate the body
+		if !rpc.StreamingRequest && len(reqEnc.BodyParameters) > 0 {
+			// In the simple case we can just encode the params as the body directly
+			body = "JSON.stringify(params)"
+		}
+
+	}
+
+	// Build the call to createStream
+	var method string
+
+	switch direction {
+	case Bidi:
+		method = "createBidiStream"
+	case In:
+		method = "createInStream"
+	case Out:
+		method = "createOutStream"
+	}
+
+	createStream := fmt.Sprintf(
+		"this.baseClient.%s(`%s`",
+		method,
+		rpcPath,
+	)
+	if body != "" {
+		if direction == In {
+			if body == "" {
+				createStream += ", undefined"
+			} else {
+				createStream += ", " + body
+			}
+		}
+
+	}
+	createStream += ")"
+
+	w.WriteStringf("return %s\n", createStream)
+
 	return nil
 }
 
@@ -464,6 +547,126 @@ if (typeof options === "string") {
 	w.WriteString("}\n\n")
 }
 
+func (js *javascript) writeStreamClasses() error {
+
+	send := `
+    async send(msg) {
+        if (this.ws.readyState === WebSocket.CONNECTING) {
+          // await that the socket is opened
+          await new Promise((resolve) => {
+              const handler = () => {
+                  this.ws.removeEventListener("open", handler);
+                  resolve();
+              };
+              this.ws.addEventListener("open", handler);
+          });
+        }
+
+        return this.ws.send(JSON.stringify(msg));
+    }
+
+`
+
+	receive := `
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.done) break;
+                // await until a new message have been received, or the socket is closed
+                await new Promise((resolve) => {
+                    const handler = () => {
+                        this.ws.removeEventListener("message", handler);
+                        this.ws.removeEventListener("close", handler);
+                        resolve();
+                    };
+                    this.ws.addEventListener("message", handler, { once: true });
+                    this.ws.addEventListener("close", handler, { once: true });
+                });
+            }
+        }
+    }
+`
+
+	js.WriteString(`
+class BidiStream {
+    buffer = [];
+    done = false;
+
+    constructor(url) {
+        this.ws = new WebSocket(url);
+
+        this.ws.addEventListener("open", () => {
+            this.ws.addEventListener("message", (event) => {
+                this.buffer.push(JSON.parse(event.data));
+            });
+            this.ws.addEventListener("close", () => {
+                this.done = true;
+            });
+        });
+    }
+
+    ` + send + `
+    ` + receive + `
+
+}
+class InStream {
+    buffer = [];
+    done = false;
+
+    constructor(url, body) {
+        this.ws = new WebSocket(url);
+
+        this.ws.addEventListener("open", () => {
+            this.ws.addEventListener("message", (event) => {
+                this.buffer.push(JSON.parse(event.data));
+            });
+            this.ws.addEventListener("close", () => {
+                this.done = true;
+            });
+
+	    this.ws.send(body);
+        });
+    }
+    ` + receive + `
+}
+class OutStream {
+    constructor(url) {
+        this.ws = new WebSocket(url);
+
+        this.ws.addEventListener("open", () => {
+            this.ws.addEventListener("message", (event) => {
+                this.response_value = JSON.parse(event.data);
+            }, { once: true });
+        });
+    }
+
+    async response() {
+        if (this.response_value !== undefined) return this.response_value
+	else {
+            return await new Promise((resolve) => {
+                const handler = (event) => {
+                    this.ws.removeEventListener("message", handler);
+                    this.ws.removeEventListener("close", handler);
+                    resolve(JSON.parse(event.data));
+                };
+                this.ws.addEventListener("message", handler, { once: true });
+                this.ws.addEventListener("close", handler, { once: true });
+            });
+	}
+    }
+
+    ` + send + `
+}`)
+
+	return nil
+
+}
 func (js *javascript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-JS-Client (Encore/%s)", appSlug, version.Version)
 
@@ -510,6 +713,19 @@ class BaseClient {`)
 	}
 
 	js.WriteString(`
+    }
+
+    // createBidiStream sets up a stream to a streaming api
+    createBidiStream(path) {
+        return new BidiStream(this.baseURL + path);
+    }
+    // createInStream sets up a stream to a streaming api
+    createInStream(path, body) {
+        return new InStream(this.baseURL + path, body);
+    }
+    // createOutStream sets up a stream to a streaming api
+    createOutStream(path) {
+        return new OutStream(this.baseURL + path);
     }
 
     // callAPI is used by each generated API method to actually make the request
