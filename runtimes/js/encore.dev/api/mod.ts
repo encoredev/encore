@@ -67,6 +67,35 @@ export interface APIOptions {
   bodyLimit?: number | null;
 }
 
+export interface StreamOptions {
+  /**
+   * The request path to match for this endpoint.
+   *
+   * Use `:` to define single-segment parameters, e.g. `/users/:id`.
+   * Use `*` to match any number of segments, e.g. `/files/*path`.
+   *
+   * If not specified, it defaults to `/<service-name>.<endpoint-name>`.
+   */
+  path?: string;
+
+  /**
+   * Whether or not to make this endpoint publicly accessible.
+   * If false, the endpoint is only accessible from the internal network.
+   *
+   * Defaults to false if not specified.
+   */
+  expose?: boolean;
+
+  /**
+   * Whether or not the request must contain valid authentication credentials.
+   * If set to true and the request is not authenticated,
+   * Encore returns a 401 Unauthorized error.
+   *
+   * Defaults to false if not specified.
+   */
+  auth?: boolean;
+}
+
 type HandlerFn<Params, Response> = Params extends void
   ? () => Promise<Response>
   : (params: Params) => Promise<Response>;
@@ -105,21 +134,21 @@ interface StreamOut<Response> {
 }
 
 api.streamBidirectional = function streamBidirectional<Request, Response>(
-  options: APIOptions,
+  options: StreamOptions,
   fn: (stream: StreamOut<Response> & StreamIn<Request>) => Promise<void>
 ) {
   return fn;
 };
 
 api.streamIn = function streamIn<Request, Response>(
-  options: APIOptions,
+  options: StreamOptions,
   fn: (stream: StreamIn<Request>) => Promise<Response>
 ) {
   return fn;
 };
 
 api.streamOut = function streamOut<Request, Response>(
-  options: APIOptions,
+  options: StreamOptions,
   fn: (message: Request, stream: StreamOut<Response>) => Promise<void>
 ) {
   return fn;
