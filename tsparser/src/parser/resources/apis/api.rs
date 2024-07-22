@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
@@ -356,7 +356,7 @@ impl ReferenceParser for APIEndpointLiteral {
                 let Some(config) = expr.args.first() else {
                     anyhow::bail!("API Endpoint must have a config object")
                 };
-                let mut config = EndpointConfig::parse_lit(config.expr.as_ref())?;
+                let config = EndpointConfig::parse_lit(config.expr.as_ref())?;
 
                 let Some(handler) = &expr.args.get(1) else {
                     anyhow::bail!("API Endpoint must have a handler function")
@@ -383,12 +383,11 @@ impl ReferenceParser for APIEndpointLiteral {
                     ast::Expr::Member(member)
                         if member.prop.is_ident_with("streamBidirectional") =>
                     {
-                        config.method = Some(Methods::Some(vec![Method::Get]));
                         let request = extract_type_param(expr.type_args.as_deref(), 0)?
-                            .unwrap()
+                            .context("missing type parameter for stream in-type")?
                             .clone();
                         let response = extract_type_param(expr.type_args.as_deref(), 1)?
-                            .unwrap()
+                            .context("missing type parameter for stream out-type")?
                             .clone();
                         // Bidirectional stream
                         Self {
@@ -404,9 +403,8 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
-                        config.method = Some(Methods::Some(vec![Method::Get]));
                         let request = extract_type_param(expr.type_args.as_deref(), 0)?
-                            .unwrap()
+                            .context("missing type parameter for stream in-type")?
                             .clone();
 
                         let response = match extract_type_param(expr.type_args.as_deref(), 1)? {
@@ -427,13 +425,12 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
-                        config.method = Some(Methods::Some(vec![Method::Get]));
                         let request = match extract_type_param(expr.type_args.as_deref(), 0)? {
                             Some(t) => ParameterType::Single(t.clone()),
                             None => ParameterType::None,
                         };
                         let response = extract_type_param(expr.type_args.as_deref(), 1)?
-                            .unwrap()
+                            .context("missing type parameter for stream out-type")?
                             .clone();
                         // Outgoing stream
                         Self {

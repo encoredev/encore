@@ -123,6 +123,7 @@ fn get_message_payload(msg: &Message) -> Option<&[u8]> {
     match msg {
         Message::Text(text) => Some(text.as_bytes()),
         Message::Binary(data) => Some(data),
+        // these message types are handled by axum
         Message::Ping(_) | Message::Pong(_) | Message::Close(_) => None,
     }
 }
@@ -143,8 +144,24 @@ impl Socket {
             async move {
                 loop {
                     tokio::select! {
-                        msg = websocket.recv() => {
-                            if let Err(e) = Socket::handle_incoming_message(&schema, &incoming_messages_tx, msg).await {
+                        msg = websocket.recv() => match msg {
+                            None => {
+                                log::debug!("websocket closed");
+                                break
+                            },
+                            Some(Ok(msg)) => {
+                                if let Err(e) = Socket::handle_incoming_message(
+                                    &schema,
+                                    &incoming_messages_tx,
+                                    msg,
+                                )
+                                .await
+                                {
+                                    log::warn!("failed handling incoming message: {e}");
+                                    break;
+                                }
+                            },
+                            Some(Err(e)) => {
                                 log::debug!("websocket receive failed: {e}");
                                 break;
                             }
@@ -155,8 +172,11 @@ impl Socket {
                                     _ = websocket.close().await;
                                     log::debug!("websocket closed");
                                     break;
-                                },
-                                Some(msg) => Socket::handle_outgoing_message(&schema, &mut websocket, msg).await,
+                                }
+                                Some(msg) => {
+                                    Socket::handle_outgoing_message(&schema, &mut websocket, msg)
+                                        .await
+                                }
                             }
                         },
                         _ = shutdown_watch.changed() => {
@@ -226,30 +246,17 @@ impl Socket {
     async fn handle_incoming_message(
         schema: &SocketSchema,
         incoming: &UnboundedSender<serde_json::Map<String, serde_json::Value>>,
-        msg: Option<Result<Message, axum::Error>>,
+        msg: Message,
     ) -> anyhow::Result<()> {
-        match msg {
-            None => {
-                return Err(anyhow!("websocket receive channel closed"));
-            }
-
-            Some(Ok(msg)) => {
-                if let Some(data) = get_message_payload(&msg) {
-                    match schema.parse_incoming_message(data).await {
-                        Ok(msg) => {
-                            if let Err(e) = incoming.send(msg) {
-                                return Err(anyhow!("tried to send on closed channel: {e}"));
-                            }
-                        }
-                        Err(e) => log::warn!("failed to parse incoming message: {e}"),
-                    };
-                } else {
-                    log::info!("unhandled message type received: {msg:?}")
+        if let Some(data) = get_message_payload(&msg) {
+            match schema.parse_incoming_message(data).await {
+                Ok(msg) => {
+                    if let Err(e) = incoming.send(msg) {
+                        return Err(anyhow!("tried to send on closed channel: {e}"));
+                    }
                 }
-            }
-            Some(Err(e)) => {
-                log::error!("received error on channel: {e}");
-            }
+                Err(e) => log::warn!("failed to parse incoming message: {e}"),
+            };
         }
 
         Ok(())
