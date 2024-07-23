@@ -222,6 +222,9 @@ pub struct StreamRequestData {
     /// The user data for the authenticated user, if any.
     pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
 
+    /// The parsed application payload.
+    pub parsed_payload: Option<api::RequestPayload>,
+
     /// Stream direction
     pub direction: StreamDirection,
 }

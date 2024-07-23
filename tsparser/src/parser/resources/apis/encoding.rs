@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::parser::resources::apis::api::{Method, Methods};
-use crate::parser::respath::Path;
+use crate::parser::respath::{ParseOptions, Path};
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
     drop_empty_or_void, unwrap_promise, Basic, FieldName, Interface, InterfaceField, ResolveState,
@@ -25,6 +25,9 @@ pub struct EndpointEncoding {
 
     pub req: Vec<RequestEncoding>,
     pub resp: ResponseEncoding,
+
+    /// Schema for the websocket handshake, if stream.
+    pub handshake: Option<RequestEncoding>,
 
     /// The raw request and schemas, from the source code.
     pub raw_req_schema: Option<Type>,
@@ -164,6 +167,62 @@ impl ResponseEncoding {
     }
 }
 
+pub fn describe_stream_endpoint(
+    tc: &TypeChecker,
+    methods: Methods,
+    path: Path,
+    req: Option<Type>,
+    resp: Option<Type>,
+    handshake: Option<Type>,
+    raw: bool,
+) -> Result<EndpointEncoding> {
+    let resp = resp
+        .map(|t| unwrap_promise(tc.state(), &t).clone())
+        .and_then(drop_empty_or_void);
+
+    let default_method = default_method(&methods);
+
+    let (handshake_enc, _req_schema) = describe_req(
+        tc,
+        &Methods::Some(vec![Method::Get]),
+        &path,
+        &handshake,
+        false,
+    )?;
+
+    let handshake_enc = match handshake_enc.as_slice() {
+        [] => None,
+        [ref enc] => Some(enc.clone()),
+        _ => bail!("unexpected handshake encoding"),
+    };
+
+    // encoding for messages on the socket TODO do this less hacky
+    let (req_enc, _req_schema) = describe_req(
+        tc,
+        &methods,
+        &Path::parse("/______________", ParseOptions::default())?,
+        &req,
+        raw,
+    )?;
+    let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
+
+    let path = if let Some(ref enc) = handshake_enc {
+        rewrite_path_types(enc, path, raw).context("parse path param types")?
+    } else {
+        path
+    };
+
+    Ok(EndpointEncoding {
+        path,
+        methods,
+        default_method,
+        req: req_enc,
+        resp: resp_enc,
+        handshake: handshake_enc,
+        raw_req_schema: req,
+        raw_resp_schema: resp,
+    })
+}
 pub fn describe_endpoint(
     tc: &TypeChecker,
     methods: Methods,
@@ -177,6 +236,7 @@ pub fn describe_endpoint(
         .and_then(drop_empty_or_void);
 
     let default_method = default_method(&methods);
+
     let (req_enc, _req_schema) = describe_req(tc, &methods, &path, &req, raw)?;
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
@@ -188,6 +248,7 @@ pub fn describe_endpoint(
         default_method,
         req: req_enc,
         resp: resp_enc,
+        handshake: None,
         raw_req_schema: req,
         raw_resp_schema: resp,
     })

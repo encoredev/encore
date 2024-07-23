@@ -344,9 +344,9 @@ impl EndpointHandler {
         let parsed_payload = if stream_direction.is_none() {
             req_schema.extract(&mut parts, body).await?
         } else {
-            // the websocket upgrade request should not be parsed,
-            // data will come in messages over the socket.
-            None
+            // do not try to parse the body of an upgrade request,
+            // that data will comeass messages over the socket.
+            req_schema.extract_parts(&mut parts).await?
         };
 
         // Extract caller information.
@@ -377,6 +377,7 @@ impl EndpointHandler {
                 req_headers: parts.headers,
                 auth_user_id,
                 auth_data,
+                parsed_payload,
                 websocket_upgrade,
                 direction,
             })

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
@@ -12,7 +12,9 @@ use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::apis::encoding::{describe_endpoint, EndpointEncoding};
+use crate::parser::resources::apis::encoding::{
+    describe_endpoint, describe_stream_endpoint, EndpointEncoding,
+};
 use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
 };
@@ -191,7 +193,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let mut streaming_request = false;
             let mut streaming_response = false;
 
-            let (request, response) = match r.kind {
+            let encoding = match r.kind {
                 EndpointKind::Typed { request, response } => {
                     let request = match request {
                         None => None,
@@ -201,11 +203,19 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         None => None,
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
-                    (request, response)
+
+                    describe_endpoint(pass.type_checker, methods, path, request, response, raw)?
                 }
-                EndpointKind::TypedStream { request, response } => {
+                EndpointKind::TypedStream {
+                    handshake,
+                    request,
+                    response,
+                } => {
                     streaming_request = request.is_stream();
                     streaming_response = response.is_stream();
+
+                    // always register as a get endpoint
+                    let methods = Methods::Some(vec![Method::Get]);
 
                     let request = request
                         .ts_type()
@@ -213,14 +223,23 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     let response = response
                         .ts_type()
                         .map(|t| pass.type_checker.resolve_type(module.clone(), t));
+                    let handshake =
+                        handshake.map(|t| pass.type_checker.resolve_type(module.clone(), &t));
 
-                    (request, response)
+                    describe_stream_endpoint(
+                        pass.type_checker,
+                        methods,
+                        path,
+                        request,
+                        response,
+                        handshake,
+                        raw,
+                    )?
                 }
-                EndpointKind::Raw => (None, None),
+                EndpointKind::Raw => {
+                    describe_endpoint(pass.type_checker, methods, path, None, None, raw)?
+                }
             };
-
-            let encoding =
-                describe_endpoint(pass.type_checker, methods, path, request, response, raw)?;
 
             // Compute the body limit. Null means no limit. No value means 2MiB.
             let body_limit: Option<u64> = match r.config.bodyLimit {
@@ -321,6 +340,7 @@ enum EndpointKind {
         response: Option<ast::TsType>,
     },
     TypedStream {
+        handshake: Option<ast::TsType>,
         request: ParameterType,
         response: ParameterType,
     },
@@ -380,15 +400,30 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
 
-                    ast::Expr::Member(member)
-                        if member.prop.is_ident_with("streamBidirectional") =>
-                    {
-                        let request = extract_type_param(expr.type_args.as_deref(), 0)?
-                            .context("missing type parameter for stream in-type")?
-                            .clone();
-                        let response = extract_type_param(expr.type_args.as_deref(), 1)?
-                            .context("missing type parameter for stream out-type")?
-                            .clone();
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamBidi") => {
+                        let type_params = expr
+                            .type_args
+                            .as_deref()
+                            .context("no type parameters found")?;
+
+                        let (handshake, request, response) = match type_params.params.len() {
+                            2 => (
+                                None,
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for request"))?,
+                                extract_type_param(Some(type_params), 1)?
+                                    .ok_or_else(|| anyhow!("missing type for response"))?,
+                            ),
+                            3 => (
+                                extract_type_param(Some(type_params), 0)?,
+                                extract_type_param(Some(type_params), 1)?
+                                    .ok_or_else(|| anyhow!("missing type for request"))?,
+                                extract_type_param(Some(type_params), 2)?
+                                    .ok_or_else(|| anyhow!("missing type for response"))?,
+                            ),
+                            n => bail!("wrong number of type parameters, expected 2 or 3, got {n}"),
+                        };
+
                         // Bidirectional stream
                         Self {
                             range: expr.span.into(),
@@ -397,20 +432,53 @@ impl ReferenceParser for APIEndpointLiteral {
                             bind_name,
                             config,
                             kind: EndpointKind::TypedStream {
-                                request: ParameterType::Stream(request),
-                                response: ParameterType::Stream(response),
+                                handshake: handshake.cloned(),
+                                request: ParameterType::Stream(request.clone()),
+                                response: ParameterType::Stream(response.clone()),
                             },
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
-                        let request = extract_type_param(expr.type_args.as_deref(), 0)?
-                            .context("missing type parameter for stream in-type")?
-                            .clone();
+                        let type_params = expr
+                            .type_args
+                            .as_deref()
+                            .context("no type parameters found")?;
 
-                        let response = match extract_type_param(expr.type_args.as_deref(), 1)? {
-                            Some(t) => ParameterType::Single(t.clone()),
-                            None => ParameterType::None,
+                        let (handshake, request, response) = match type_params.params.len() {
+                            1 => (
+                                None,
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for request"))?,
+                                None,
+                            ),
+                            2 => (
+                                None,
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for request"))?,
+                                Some(
+                                    extract_type_param(Some(type_params), 1)?
+                                        .ok_or_else(|| anyhow!("missing type for response"))?,
+                                ),
+                            ),
+                            3 => (
+                                extract_type_param(Some(type_params), 0)?,
+                                extract_type_param(Some(type_params), 1)?
+                                    .ok_or_else(|| anyhow!("missing type for request"))?,
+                                Some(
+                                    extract_type_param(Some(type_params), 2)?
+                                        .ok_or_else(|| anyhow!("missing type for response"))?,
+                                ),
+                            ),
+                            n => bail!(
+                                "wrong number of type parameters, expected 1, 2 or 3, got {n}"
+                            ),
                         };
+
+                        let response = match response {
+                            None => ParameterType::None,
+                            Some(t) => ParameterType::Single(t.clone()),
+                        };
+
                         // Incoming stream
                         Self {
                             range: expr.span.into(),
@@ -419,19 +487,32 @@ impl ReferenceParser for APIEndpointLiteral {
                             bind_name,
                             config,
                             kind: EndpointKind::TypedStream {
-                                request: ParameterType::Stream(request),
+                                handshake: handshake.cloned(),
+                                request: ParameterType::Stream(request.clone()),
                                 response,
                             },
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
-                        let request = match extract_type_param(expr.type_args.as_deref(), 0)? {
-                            Some(t) => ParameterType::Single(t.clone()),
-                            None => ParameterType::None,
+                        let type_params = expr
+                            .type_args
+                            .as_deref()
+                            .context("no type parameters found")?;
+
+                        let (handshake, response) = match type_params.params.len() {
+                            1 => (
+                                None,
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for response"))?,
+                            ),
+                            2 => (
+                                extract_type_param(Some(type_params), 0)?,
+                                extract_type_param(Some(type_params), 1)?
+                                    .ok_or_else(|| anyhow!("missing type for response"))?,
+                            ),
+                            n => bail!("wrong number of type parameters, expected 1 or 2, got {n}"),
                         };
-                        let response = extract_type_param(expr.type_args.as_deref(), 1)?
-                            .context("missing type parameter for stream out-type")?
-                            .clone();
+
                         // Outgoing stream
                         Self {
                             range: expr.span.into(),
@@ -440,8 +521,9 @@ impl ReferenceParser for APIEndpointLiteral {
                             bind_name,
                             config,
                             kind: EndpointKind::TypedStream {
-                                request,
-                                response: ParameterType::Stream(response),
+                                handshake: handshake.cloned(),
+                                request: ParameterType::None,
+                                response: ParameterType::Stream(response.clone()),
                             },
                         }
                     }

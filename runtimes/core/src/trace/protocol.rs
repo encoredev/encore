@@ -202,9 +202,36 @@ impl Tracer {
             model::RequestData::Stream(data) => {
                 eb.str(data.endpoint.name.service());
                 eb.str(data.endpoint.name.endpoint());
+                eb.str("GET");
                 eb.str(&data.path);
 
-                eb.opt_str(req.ext_correlation_id.as_deref());
+                // Encode path params. We only encode the values since the keys are known in metadata.
+                {
+                    let path_params = data.parsed_payload.as_ref().and_then(|p| p.path.as_ref());
+                    if let Some(path_params) = path_params {
+                        eb.uvarint(path_params.len() as u64);
+                        for (_, v) in path_params {
+                            match &v {
+                                serde_json::Value::String(s) => eb.str(s.as_str()),
+                                other => eb.str(other.to_string().as_str()),
+                            }
+                        }
+                    } else {
+                        eb.uvarint(0u64);
+                    }
+                }
+
+                // Encode request headers. If a header has multiple values it is encoded multiple times.
+                eb.headers(&data.req_headers);
+
+                let payload = data
+                    .parsed_payload
+                    .as_ref()
+                    .and_then(|p| serde_json::to_vec_pretty(p).ok());
+                eb.opt_byte_string(payload.as_deref());
+
+                eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
+                eb.opt_str(data.auth_user_id.as_deref());
 
                 EventType::RequestSpanStart
             }

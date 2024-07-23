@@ -26,14 +26,16 @@ function transformHandler(h: Handler): Handler {
   if (h.streaming) {
     return {
       ...h,
-      handler: (req: runtime.Request, request: unknown, response: unknown) => {
+      // req is the upgrade request.
+      // stream is either a bidi stream, in stream or out stream.
+      handler: (req: runtime.Request, stream: unknown) => {
         setCurrentRequest(req);
 
-        if (response === undefined) {
-          return h.handler(request);
-        }
-
-        return h.handler(request, response);
+        // handshake payload
+        const payload = req.payload();
+        return payload !== null
+          ? h.handler(payload, stream)
+          : h.handler(stream);
       }
     };
   }

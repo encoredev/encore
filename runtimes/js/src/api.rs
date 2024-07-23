@@ -61,7 +61,7 @@ impl Request {
             RequestData::RPC(data) => env.to_js_value(&data.parsed_payload),
             RequestData::Auth(data) => env.to_js_value(&data.parsed_payload),
             RequestData::PubSub(data) => env.to_js_value(&data.parsed_payload),
-            RequestData::Stream(_) => env.get_null().map(|val| val.into_unknown()),
+            RequestData::Stream(data) => env.to_js_value(&data.parsed_payload),
         }
     }
 

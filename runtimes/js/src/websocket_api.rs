@@ -146,40 +146,24 @@ fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi
         .as_object(ctx.env)
         .into_unknown();
 
-    let args = match ctx.value.payload {
-        StreamMessagePayload::Bidi(socket) => {
-            vec![
-                req,
-                Socket::new(socket)
-                    .into_instance(ctx.env)?
-                    .as_object(ctx.env)
-                    .into_unknown(),
-            ]
-        }
-        StreamMessagePayload::Out(request, sink) => {
-            vec![
-                req,
-                ctx.env.to_js_value(&request)?,
-                Sink::new(sink)
-                    .into_instance(ctx.env)?
-                    .as_object(ctx.env)
-                    .into_unknown(),
-            ]
-        }
-        StreamMessagePayload::In(stream) => {
-            vec![
-                req,
-                Stream::new(stream)
-                    .into_instance(ctx.env)?
-                    .as_object(ctx.env)
-                    .into_unknown(),
-            ]
-        }
+    let stream_arg = match ctx.value.payload {
+        StreamMessagePayload::Bidi(socket) => Socket::new(socket)
+            .into_instance(ctx.env)?
+            .as_object(ctx.env)
+            .into_unknown(),
+        StreamMessagePayload::Out(sink) => Sink::new(sink)
+            .into_instance(ctx.env)?
+            .as_object(ctx.env)
+            .into_unknown(),
+        StreamMessagePayload::In(stream) => Stream::new(stream)
+            .into_instance(ctx.env)?
+            .as_object(ctx.env)
+            .into_unknown(),
     };
 
     let handler = APIPromiseHandler;
 
-    match ctx.callback.unwrap().call(None, &args) {
+    match ctx.callback.unwrap().call(None, &[req, stream_arg]) {
         Ok(result) => {
             await_promise(ctx.env, result, ctx.value.tx.clone(), handler);
             Ok(())

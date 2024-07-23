@@ -125,34 +125,58 @@ api.raw = function raw(options: APIOptions, fn: RawHandler) {
   return fn;
 };
 
-interface StreamIn<Request> {
+export interface StreamIn<Request> {
   recv: () => Promise<Request>;
 }
-interface StreamOut<Response> {
+export interface StreamOut<Response> {
   send: (msg: Response) => Promise<void>;
   close: () => Promise<void>;
 }
+export type StreamBidi<Request, Response> = StreamIn<Request> &
+  StreamOut<Response>;
 
-api.streamBidirectional = function streamBidirectional<Request, Response>(
+function streamBidi<HandshakeData, Request, Response>(
   options: StreamOptions,
-  fn: (stream: StreamOut<Response> & StreamIn<Request>) => Promise<void>
-) {
+  fn: (
+    data: HandshakeData,
+    stream: StreamBidi<Request, Response>
+  ) => Promise<void>
+): void;
+function streamBidi<Request, Response>(
+  options: StreamOptions,
+  fn: (stream: StreamBidi<Request, Response>) => Promise<void>
+): void;
+function streamBidi(options: APIOptions, fn: any): typeof fn {
   return fn;
-};
+}
 
-api.streamIn = function streamIn<Request, Response>(
+function streamIn<Request, Response>(
   options: StreamOptions,
   fn: (stream: StreamIn<Request>) => Promise<Response>
-) {
-  return fn;
-};
-
-api.streamOut = function streamOut<Request, Response>(
+): void;
+function streamIn<HandshakeData, Request, Response>(
   options: StreamOptions,
-  fn: (message: Request, stream: StreamOut<Response>) => Promise<void>
-) {
+  fn: (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>
+): void;
+function streamIn(options: APIOptions, fn: any): typeof fn {
   return fn;
-};
+}
+
+function streamOut<HandshakeData, Response>(
+  options: StreamOptions,
+  fn: (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>
+): void;
+function streamOut<Response>(
+  options: StreamOptions,
+  fn: (stream: StreamOut<Response>) => Promise<void>
+): void;
+function streamOut(options: APIOptions, fn: any): typeof fn {
+  return fn;
+}
+
+api.streamBidi = streamBidi;
+api.streamIn = streamIn;
+api.streamOut = streamOut;
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";

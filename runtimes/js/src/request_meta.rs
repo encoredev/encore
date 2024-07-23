@@ -48,7 +48,11 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .as_ref()
                     .map(serde_json::to_value)
                     .transpose()?,
-                parsed_payload: None,
+                parsed_payload: data
+                    .parsed_payload
+                    .as_ref()
+                    .map(serde_json::to_value)
+                    .transpose()?,
                 headers: Default::default(),
             };
             (Some(api), None)

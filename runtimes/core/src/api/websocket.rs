@@ -14,7 +14,7 @@ use super::{schema, APIResult};
 
 pub enum StreamMessagePayload {
     Bidi(Socket),
-    Out(serde_json::Map<String, serde_json::Value>, Sink),
+    Out(Sink),
     In(Stream),
 }
 
@@ -95,16 +95,8 @@ where
                     StreamMessagePayload::In(stream)
                 }
                 model::StreamDirection::Out => {
-                    let (sink, stream) = socket.split();
-                    let payload = match stream.recv().await {
-                        Some(payload) => payload,
-                        None => {
-                            log::debug!("stream channel closed while waiting for first payload");
-                            return;
-                        }
-                    };
-
-                    StreamMessagePayload::Out(payload, sink)
+                    let (sink, _stream) = socket.split();
+                    StreamMessagePayload::Out(sink)
                 }
             };
 
