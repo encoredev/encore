@@ -190,7 +190,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if rpc.RequestSchema != nil {
+		if rpc.RequestSchema != nil || rpc.HandshakeSchema != nil {
 			if nParams > 0 {
 				js.WriteString(", ")
 			}
@@ -250,26 +250,58 @@ const (
 )
 
 func (js *javascript) streamingRPCCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string, direction streamDirection) error {
-	body := ""
+	headers := ""
+	query := ""
 
-	if rpc.RequestSchema != nil {
-		// Work out how we're going to encode and call this RPC
-		reqEncs, err := encoding.DescribeRequest(js.md, rpc.RequestSchema, &encoding.Options{SrcNameTag: "json"}, "POST")
+	if rpc.HandshakeSchema != nil {
+		encs, err := encoding.DescribeRequest(js.md, rpc.HandshakeSchema, &encoding.Options{SrcNameTag: "json"}, "GET")
 		if err != nil {
 			return errors.Wrapf(err, "rpc %s", rpc.Name)
 		}
 
-		reqEnc := reqEncs[0]
-		if len(reqEnc.QueryParameters) > 0 {
+		handshakeEnc := encs[0]
+
+		if len(handshakeEnc.HeaderParameters) > 0 || len(handshakeEnc.QueryParameters) > 0 {
 			w.WriteString("// Convert our params into the objects we need for the request\n")
 		}
 
-		// Generate the body
-		if !rpc.StreamingRequest && len(reqEnc.BodyParameters) > 0 {
-			// In the simple case we can just encode the params as the body directly
-			body = "JSON.stringify(params)"
+		// Generate the headers
+		if len(handshakeEnc.HeaderParameters) > 0 {
+			headers = "headers"
+
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.HeaderParameters {
+				ref := js.Dot("params", field.SrcName)
+				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+			}
+
+			w.WriteString("const headers = makeRecord(")
+			js.Values(w, dict)
+			w.WriteString(")\n\n")
 		}
 
+		// Generate the query string
+		if len(handshakeEnc.QueryParameters) > 0 {
+			query = "query"
+
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.QueryParameters {
+				if list := field.Type.GetList(); list != nil {
+					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
+						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+				} else {
+					dict[field.WireFormat] = js.convertBuiltinToString(
+						field.Type.GetBuiltin(),
+						js.Dot("params", field.SrcName),
+						field.Optional,
+					)
+				}
+			}
+
+			w.WriteString("const query = makeRecord(")
+			js.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
 	}
 
 	// Build the call to createStream
@@ -284,25 +316,29 @@ func (js *javascript) streamingRPCCallSite(w *indentWriter, rpc *meta.RPC, rpcPa
 		method = "createOutStream"
 	}
 
+	// createBidiStream("/blaha/10",{query, header})
 	createStream := fmt.Sprintf(
 		"this.baseClient.%s(`%s`",
 		method,
 		rpcPath,
 	)
-	if body != "" {
-		if direction == In {
-			if body == "" {
-				createStream += ", undefined"
-			} else {
-				createStream += ", " + body
-			}
+
+	if headers != "" || query != "" {
+		createStream += ", {" + headers
+
+		if headers != "" && query != "" {
+			createStream += ", "
 		}
 
+		if query != "" {
+			createStream += query
+		}
+
+		createStream += "}"
 	}
 	createStream += ")"
 
 	w.WriteStringf("return await %s\n", createStream)
-
 	return nil
 }
 
@@ -597,7 +633,10 @@ func (js *javascript) writeStreamClasses() error {
 
 function encodeWebSocketHeaders(headers) {
     // url safe, no pad
-    const base64encoded = btoa(JSON.stringify(headers)).replace('=','').replace('+','-').replace('/','_');
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
     return "encore.dev.headers." + base64encoded;
 }
 
@@ -629,7 +668,7 @@ class InStream {
     buffer = [];
     done = false;
 
-    constructor(url, headers, body) {
+    constructor(url, headers) {
         let protocols = ["encore-ws"];
         if (headers) {
     	    protocols.push(encodeWebSocketHeaders(headers))
@@ -642,10 +681,6 @@ class InStream {
         });
         this.ws.addEventListener("close", () => {
             this.done = true;
-        });
-
-        this.ws.addEventListener("open", () => {
-            this.ws.send(body);
         });
     }
     ` + receive + `
@@ -804,8 +839,7 @@ class BaseClient {`)
 	js.WriteString(`
     // createBidiStream sets up a stream to a streaming api
     async createBidiStream(path, params) {
-        let { query } = params ?? {};
-        let headers;
+        let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
@@ -825,9 +859,8 @@ class BaseClient {`)
     }
 
     // createInStream sets up a stream to a streaming api
-    async createInStream(path, body, params) {
-        let { query } = params ?? {};
-        let headers;
+    async createInStream(path, params) {
+        let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
@@ -843,13 +876,12 @@ class BaseClient {`)
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers, body);
+        return new InStream(this.baseURL + path + queryString, headers);
     }
 
     // createOutStream sets up a stream to a streaming api
     async createOutStream(path, params) {
-        let { query } = params ?? {};
-        let headers;
+        let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
