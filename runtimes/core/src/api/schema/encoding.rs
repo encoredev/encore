@@ -43,6 +43,7 @@ pub struct EncodingConfig<'a, 'b> {
     pub supports_path: bool,
 }
 
+#[derive(Debug)]
 pub struct SchemaUnderConstruction {
     combined: Option<usize>,
     body: Option<usize>,
@@ -357,6 +358,45 @@ pub struct ReqSchema {
     pub schema: Schema,
 }
 
+/// Computes the handshake encoding for the given rpc.
+pub fn handshake_encoding(
+    registry_builder: &mut jsonschema::Builder,
+    meta: &meta::Data,
+    rpc: &meta::Rpc,
+) -> anyhow::Result<Option<ReqSchemaUnderConstruction>> {
+    let default_path = meta::Path {
+        segments: vec![meta::PathSegment {
+            value: format!("{}.{}", rpc.service_name, rpc.name),
+            r#type: SegmentType::Literal as i32,
+            value_type: meta::path_segment::ParamType::String as i32,
+        }],
+        r#type: meta::path::Type::Url as i32,
+    };
+    let rpc_path = rpc.path.as_ref().unwrap_or(&default_path);
+
+    let Some(handshake_schema) = &rpc.handshake_schema else {
+        return Ok(None);
+    };
+
+    let mut config = EncodingConfig {
+        meta,
+        registry_builder,
+        default_loc: Some(DefaultLoc::Query),
+        rpc_path: Some(rpc_path),
+        supports_body: false,
+        supports_query: true,
+        supports_header: true,
+        supports_path: true,
+    };
+
+    let schema = config.compute(handshake_schema)?;
+
+    Ok(Some(ReqSchemaUnderConstruction {
+        methods: vec![Method::GET],
+        schema,
+    }))
+}
+
 /// Computes the request encoding for the given rpc.
 pub fn request_encoding(
     registry_builder: &mut jsonschema::Builder,
@@ -412,7 +452,7 @@ pub fn request_encoding(
         };
         let schema = config.compute(request_schema)?;
         schemas.push(ReqSchemaUnderConstruction {
-            methods: vec![Method::GET],
+            methods: vec![Method::GET], // TODO can I remove this?
             schema,
         });
     } else {

@@ -102,6 +102,7 @@ message RPC {
   // If the endpoint is streaming
   bool streaming_request = 16;
   bool streaming_response = 17;
+  optional schema.v1.Type  handshake_schema = 18; // handshake schema, or nil
 
   enum AccessType {
     PRIVATE = 0;

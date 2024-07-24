@@ -110,6 +110,7 @@ impl<'a> MetaBuilder<'a> {
                 Resource::ServiceClient(_) => {}
 
                 Resource::APIEndpoint(ep) => {
+                    let handshake_schema = self.schema.transform_handshake(ep)?;
                     let request_schema = self.schema.transform_request(ep)?;
                     let response_schema = self
                         .schema
@@ -126,6 +127,7 @@ impl<'a> MetaBuilder<'a> {
                         doc: ep.doc.clone(),
                         service_name: ep.service_name.clone(),
                         access_type,
+                        handshake_schema,
                         request_schema,
                         response_schema,
                         proto: if ep.raw {

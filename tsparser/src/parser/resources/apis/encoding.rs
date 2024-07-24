@@ -30,6 +30,7 @@ pub struct EndpointEncoding {
     pub handshake: Option<RequestEncoding>,
 
     /// The raw request and schemas, from the source code.
+    pub raw_handshake_schema: Option<Type>,
     pub raw_req_schema: Option<Type>,
     pub raw_resp_schema: Option<Type>,
 }
@@ -219,6 +220,7 @@ pub fn describe_stream_endpoint(
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,
+        raw_handshake_schema: handshake,
         raw_req_schema: req,
         raw_resp_schema: resp,
     })
@@ -249,6 +251,7 @@ pub fn describe_endpoint(
         req: req_enc,
         resp: resp_enc,
         handshake: None,
+        raw_handshake_schema: None,
         raw_req_schema: req,
         raw_resp_schema: resp,
     })

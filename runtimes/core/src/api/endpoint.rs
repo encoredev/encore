@@ -13,7 +13,8 @@ use serde::Serialize;
 
 use crate::api::reqauth::{platform, svcauth, CallMeta};
 use crate::api::schema::encoding::{
-    request_encoding, response_encoding, ReqSchemaUnderConstruction, SchemaUnderConstruction,
+    handshake_encoding, request_encoding, response_encoding, ReqSchemaUnderConstruction,
+    SchemaUnderConstruction,
 };
 use crate::api::schema::{JSONPayload, Method};
 use crate::api::{jsonschema, schema, ErrCode, Error};
@@ -118,6 +119,7 @@ pub enum ResponseData {
 pub struct Endpoint {
     pub name: EndpointName,
     pub path: meta::Path,
+    pub handshake: Option<Arc<schema::Request>>,
     pub request: Vec<Arc<schema::Request>>,
     pub response: Arc<schema::Response>,
 
@@ -185,6 +187,7 @@ pub fn endpoints_from_meta(
     struct EndpointUnderConstruction<'a> {
         svc: &'a meta::Service,
         ep: &'a meta::Rpc,
+        handshake_schema: Option<ReqSchemaUnderConstruction>,
         request_schemas: Vec<ReqSchemaUnderConstruction>,
         response_schema: SchemaUnderConstruction,
     }
@@ -201,6 +204,7 @@ pub fn endpoints_from_meta(
             }
 
             let request_schemas = request_encoding(&mut registry_builder, md, ep)?;
+            let handshake_schema = handshake_encoding(&mut registry_builder, md, ep)?;
             let response_schema = response_encoding(&mut registry_builder, md, ep)?;
 
             endpoints.push(EndpointUnderConstruction {
@@ -208,6 +212,7 @@ pub fn endpoints_from_meta(
                 ep,
                 request_schemas,
                 response_schema,
+                handshake_schema,
             });
         }
     }
@@ -238,6 +243,28 @@ pub fn endpoints_from_meta(
             }));
         }
         let resp_schema = ep.response_schema.build(&registry)?;
+        let handshake_schema = ep
+            .handshake_schema
+            .map(|schema| schema.build(&registry))
+            .transpose()?;
+
+        let handshake = handshake_schema
+            .map(|handshake_schema| -> anyhow::Result<Arc<schema::Request>> {
+                let handshake_schema = schema::Request {
+                    methods: handshake_schema.methods,
+                    path: handshake_schema
+                        .schema
+                        .path
+                        .context("endpoint must have a path defined")?,
+                    header: handshake_schema.schema.header,
+                    query: handshake_schema.schema.query,
+                    body: schema::RequestBody::Typed(None),
+                    stream: false,
+                };
+
+                Ok(Arc::new(handshake_schema))
+            })
+            .transpose()?;
 
         // We only support a single gateway right now.
         let exposed = ep.ep.expose.contains_key("api-gateway");
@@ -254,6 +281,7 @@ pub fn endpoints_from_meta(
                     value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
                 }],
             }),
+            handshake,
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
@@ -346,7 +374,11 @@ impl EndpointHandler {
         } else {
             // do not try to parse the body of an upgrade request,
             // that data will comeass messages over the socket.
-            req_schema.extract_parts(&mut parts).await?
+            if let Some(handshake_schema) = &self.endpoint.handshake {
+                handshake_schema.extract_parts(&mut parts).await?
+            } else {
+                None
+            }
         };
 
         // Extract caller information.
