@@ -598,7 +598,7 @@ func (js *javascript) writeStreamClasses() error {
 function encodeWebSocketHeaders(headers) {
     // url safe, no pad
     const base64encoded = btoa(JSON.stringify(headers)).replace('=','').replace('+','-').replace('/','_');
-    return "encore.dev.auth_data." + base64encoded;
+    return "encore.dev.headers." + base64encoded;
 }
 
 class BidiStream {

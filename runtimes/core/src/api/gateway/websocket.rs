@@ -9,7 +9,7 @@ use serde::{
     Deserialize,
 };
 
-const AUTH_DATA_PREFIX: &str = "encore.dev.auth_data.";
+const ENCORE_DEV_HEADERS: &str = "encore.dev.headers.";
 
 // hack to be able to have browsers send request headers when setting up a websocket
 // inspired by https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
@@ -35,8 +35,8 @@ pub fn update_headers_from_websocket_protocol(
 
         for protocol in header_value.to_str()?.split(',') {
             let protocol = protocol.trim();
-            if protocol.starts_with(AUTH_DATA_PREFIX) {
-                let data = protocol.strip_prefix(AUTH_DATA_PREFIX).unwrap();
+            if protocol.starts_with(ENCORE_DEV_HEADERS) {
+                let data = protocol.strip_prefix(ENCORE_DEV_HEADERS).unwrap();
                 let decoded = URL_SAFE_NO_PAD.decode(data)?;
                 let auth_data: AuthHeaderMap = serde_json::from_slice(&decoded)?;
 
