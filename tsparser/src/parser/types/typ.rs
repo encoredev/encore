@@ -204,6 +204,7 @@ impl Interface {
         }
 
         // Collect the fields by name.
+        #[allow(clippy::mutable_key_type)]
         let by_name = self
             .fields
             .iter()
@@ -600,6 +601,7 @@ impl Type {
             }
 
             (Type::Interface(iface), other) => {
+                #[allow(clippy::mutable_key_type)]
                 let this_fields: HashMap<&FieldName, &InterfaceField> =
                     HashMap::from_iter(iface.fields.iter().map(|f| (&f.name, f)));
                 match other {
