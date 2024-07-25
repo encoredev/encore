@@ -125,9 +125,10 @@ api.raw = function raw(options: APIOptions, fn: RawHandler) {
   return fn;
 };
 
-export interface StreamIn<Request> {
+export interface StreamIn<Request> extends AsyncIterable<Request> {
   recv: () => Promise<Request>;
 }
+
 export interface StreamOut<Response> {
   send: (msg: Response) => Promise<void>;
   close: () => Promise<void>;

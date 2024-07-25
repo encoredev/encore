@@ -22,6 +22,57 @@ export async function run() {
   return runtime.RT.runForever();
 }
 
+class IterableStream {
+  private stream: runtime.Stream;
+
+  constructor(stream: runtime.Stream) {
+    this.stream = stream;
+  }
+
+  recv(): Promise<Record<string, any>> {
+    return this.stream.recv();
+  }
+
+  async *[Symbol.asyncIterator]() {
+    while (true) {
+      try {
+        yield await this.stream.recv();
+      } catch (e) {
+        break;
+      }
+    }
+  }
+}
+
+class IterableSocket {
+  private socket: runtime.Socket;
+
+  constructor(socket: runtime.Socket) {
+    this.socket = socket;
+  }
+
+  send(msg: Record<string, any>): void {
+    return this.socket.send(msg);
+  }
+  recv(): Promise<Record<string, any>> {
+    return this.socket.recv();
+  }
+
+  close(): void {
+    this.socket.close();
+  }
+
+  async *[Symbol.asyncIterator]() {
+    while (true) {
+      try {
+        yield await this.socket.recv();
+      } catch (e) {
+        break;
+      }
+    }
+  }
+}
+
 function transformHandler(h: Handler): Handler {
   if (h.streaming) {
     return {
@@ -30,6 +81,14 @@ function transformHandler(h: Handler): Handler {
       // stream is either a bidi stream, in stream or out stream.
       handler: (req: runtime.Request, stream: unknown) => {
         setCurrentRequest(req);
+
+        // make readable streams async iterators
+        if (stream instanceof runtime.Stream) {
+          stream = new IterableStream(stream);
+        }
+        if (stream instanceof runtime.Socket) {
+          stream = new IterableSocket(stream);
+        }
 
         // handshake payload
         const payload = req.payload();
