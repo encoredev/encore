@@ -652,12 +652,21 @@ class BidiStream {
 
         this.ws = new WebSocket(url, protocols);
 
+        this.ws.addEventListener("error", (event) => {
+          console.error(event.error);
+        });
+
         this.ws.addEventListener("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
         });
+
         this.ws.addEventListener("close", () => {
             this.done = true;
         });
+    }
+
+    close() {
+        this.ws.close();
     }
 
     ` + send + `
@@ -676,6 +685,10 @@ class InStream {
 
         this.ws = new WebSocket(url, protocols);
 
+        this.ws.addEventListener("error", (event) => {
+          console.error(event.error);
+        });
+
         this.ws.addEventListener("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
         });
@@ -683,6 +696,11 @@ class InStream {
             this.done = true;
         });
     }
+
+    close() {
+        this.ws.close();
+    }
+
     ` + receive + `
 }
 class OutStream {
@@ -693,6 +711,10 @@ class OutStream {
         }
 
         this.ws = new WebSocket(url, protocols);
+
+        this.ws.addEventListener("error", (event) => {
+          console.error(event.error);
+        });
 
         this.ws.addEventListener("message", (event) => {
             this.response_value = JSON.parse(event.data);
@@ -712,6 +734,10 @@ class OutStream {
                 this.ws.addEventListener("close", handler, { once: true });
             });
         }
+    }
+
+    close() {
+        this.ws.close();
     }
 
     ` + send + `
