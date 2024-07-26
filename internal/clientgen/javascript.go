@@ -724,14 +724,25 @@ class OutStream {
     async response() {
         if (this.response_value !== undefined) return this.response_value
         else {
-            return await new Promise((resolve) => {
+            return await new Promise((resolve, reject) => {
                 const handler = (event) => {
                     this.ws.removeEventListener("message", handler);
                     this.ws.removeEventListener("close", handler);
-                    resolve(JSON.parse(event.data));
+                    this.ws.removeEventListener("error", handler);
+
+                    if (event.type === "message") {
+                        resolve(JSON.parse(event.data));
+                    }
+                    if (event.type === "error") {
+                        reject(new Error(event.error));
+                    }
+                    if (event.type === "close") {
+                        reject(new Error("websocket connection was closed"));
+                    }
                 };
                 this.ws.addEventListener("message", handler, { once: true });
                 this.ws.addEventListener("close", handler, { once: true });
+                this.ws.addEventListener("error", handler, { once: true });
             });
         }
     }
@@ -1434,8 +1445,8 @@ export const ErrCode = {
      * authentication credentials for the operation.
      *
      * The gRPC framework will generate this error code when the
-     * authentication metadata is invalid or a Credentials callback fails,
-     * but also expect authentication middleware to generate it.
+     * authentication metadata is invalid or a Credentials callback fails,				
+     * but also expect authentication middleware to generate it.                 
      */
     Unauthenticated: "unauthenticated"
 }
