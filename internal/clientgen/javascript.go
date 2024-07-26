@@ -97,9 +97,7 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 		seenNs[svc.Name] = true
 	}
 	js.writeExtraTypes()
-	if err := js.writeStreamClasses(); err != nil {
-		return err
-	}
+	js.writeStreamClasses()
 	if err := js.writeBaseClient(p.AppSlug); err != nil {
 		return err
 	}
@@ -215,7 +213,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 				direction = In
 			}
 
-			if err := js.streamingRPCCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String(), direction); err != nil {
+			if err := js.streamCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String(), direction); err != nil {
 				return errors.Wrapf(err, "unable to write streaming RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
 			}
 		} else {
@@ -249,14 +247,14 @@ const (
 	Out
 )
 
-func (js *javascript) streamingRPCCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string, direction streamDirection) error {
+func (js *javascript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string, direction streamDirection) error {
 	headers := ""
 	query := ""
 
 	if rpc.HandshakeSchema != nil {
 		encs, err := encoding.DescribeRequest(js.md, rpc.HandshakeSchema, &encoding.Options{SrcNameTag: "json"}, "GET")
 		if err != nil {
-			return errors.Wrapf(err, "rpc %s", rpc.Name)
+			return errors.Wrapf(err, "stream %s", rpc.Name)
 		}
 
 		handshakeEnc := encs[0]
@@ -316,7 +314,6 @@ func (js *javascript) streamingRPCCallSite(w *indentWriter, rpc *meta.RPC, rpcPa
 		method = "createOutStream"
 	}
 
-	// createBidiStream("/blaha/10",{query, header})
 	createStream := fmt.Sprintf(
 		"this.baseClient.%s(`%s`",
 		method,
@@ -583,8 +580,7 @@ if (typeof options === "string") {
 	w.WriteString("}\n\n")
 }
 
-func (js *javascript) writeStreamClasses() error {
-
+func (js *javascript) writeStreamClasses() {
 	send := `
     async send(msg) {
         if (this.ws.readyState === WebSocket.CONNECTING) {
@@ -753,9 +749,6 @@ class OutStream {
 
     ` + send + `
 }`)
-
-	return nil
-
 }
 func (js *javascript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-JS-Client (Encore/%s)", appSlug, version.Version)

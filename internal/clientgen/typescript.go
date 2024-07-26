@@ -104,6 +104,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 		}
 	}
 	ts.writeExtraTypes()
+	ts.writeStreamClasses()
 	if err := ts.writeBaseClient(p.AppSlug); err != nil {
 		return err
 	}
@@ -116,6 +117,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
 	isIncluded := hasPublicRPC(svc) && p.Has(svc.Name)
+
 	decls := ts.typs.Decls(svc.Name)
 	if !isIncluded && len(decls) == 0 {
 		return nil
@@ -241,12 +243,17 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if rpc.RequestSchema != nil {
+		if rpc.RequestSchema != nil || rpc.HandshakeSchema != nil {
 			if nParams > 0 {
 				ts.WriteString(", ")
 			}
 			ts.WriteString(payloadName + ": ")
-			ts.writeTyp(ns, rpc.RequestSchema, 0)
+			if rpc.HandshakeSchema != nil {
+				ts.writeTyp(ns, rpc.HandshakeSchema, 0)
+			} else {
+				ts.writeTyp(ns, rpc.RequestSchema, 0)
+
+			}
 		} else if rpc.Proto == meta.RPC_RAW {
 			if nParams > 0 {
 				ts.WriteString(", ")
@@ -254,8 +261,46 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			ts.WriteString("body?: BodyInit, options?: CallParameters")
 		}
 
+		var direction streamDirection
+		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
+
+		if rpc.StreamingRequest && rpc.StreamingResponse {
+			direction = Bidi
+		} else if rpc.StreamingRequest {
+			direction = Out
+		} else {
+			direction = In
+		}
+
+		writeTypOrVoid := func(ns string, typ *schema.Type, numIndents int) {
+			if typ != nil {
+				ts.writeTyp(ns, typ, numIndents)
+			} else {
+				ts.WriteString("void")
+			}
+		}
+
 		ts.WriteString("): Promise<")
-		if rpc.ResponseSchema != nil {
+		if isStream {
+			switch direction {
+			case Bidi:
+				ts.WriteString("BidiStream<")
+				writeTypOrVoid(ns, rpc.RequestSchema, 0)
+				ts.WriteString(",")
+				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
+				ts.WriteString(">")
+			case In:
+				ts.WriteString("InStream<")
+				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
+				ts.WriteString(">")
+			case Out:
+				ts.WriteString("OutStream<")
+				writeTypOrVoid(ns, rpc.RequestSchema, 0)
+				ts.WriteString(",")
+				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
+				ts.WriteString(">")
+			}
+		} else if rpc.ResponseSchema != nil {
 			ts.writeTyp(ns, rpc.ResponseSchema, 0)
 		} else if rpc.Proto == meta.RPC_RAW {
 			ts.WriteString("Response")
@@ -264,9 +309,14 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		}
 		ts.WriteString("> {\n")
 
-		err := ts.rpcCallSite(ns, ts.newIdentWriter(numIndent+1), rpc, rpcPath.String())
-		if err != nil {
-			return errors.Wrapf(err, "unable to write RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+		if isStream {
+			if err := ts.streamCallSite(ts.newIdentWriter(numIndent+1), rpc, rpcPath.String(), direction); err != nil {
+				return errors.Wrapf(err, "unable to write streaming RPC call site for %ss.%s", rpc.ServiceName, rpc.Name)
+			}
+		} else {
+			if err := ts.rpcCallSite(ns, ts.newIdentWriter(numIndent+1), rpc, rpcPath.String()); err != nil {
+				return errors.Wrapf(err, "unable to write RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+			}
 		}
 
 		indent()
@@ -278,6 +328,103 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 	return nil
 }
 
+func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string, direction streamDirection) error {
+	headers := ""
+	query := ""
+
+	if rpc.HandshakeSchema != nil {
+		encs, err := encoding.DescribeRequest(ts.md, rpc.HandshakeSchema, &encoding.Options{SrcNameTag: "json"}, "GET")
+		if err != nil {
+			return errors.Wrapf(err, "stream %s", rpc.Name)
+		}
+
+		handshakeEnc := encs[0]
+
+		if len(handshakeEnc.HeaderParameters) > 0 || len(handshakeEnc.QueryParameters) > 0 {
+			w.WriteString("// Convert our params into the objects we need for the request\n")
+		}
+
+		// Generate the headers
+		if len(handshakeEnc.HeaderParameters) > 0 {
+			headers = "headers"
+
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.HeaderParameters {
+				ref := ts.Dot("params", field.SrcName)
+				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+			}
+
+			w.WriteString("const headers = makeRecord<string, string>(")
+			ts.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
+
+		// Generate the query string
+		if len(handshakeEnc.QueryParameters) > 0 {
+			query = "query"
+
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.QueryParameters {
+				if list := field.Type.GetList(); list != nil {
+					dot := ts.Dot("params", field.SrcName)
+					if field.Optional || ts.isRecursive(field.Type) {
+						dot += "?"
+					}
+					dict[field.WireFormat] = dot +
+						".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+				} else {
+					dict[field.WireFormat] = ts.convertBuiltinToString(
+						field.Type.GetBuiltin(),
+						ts.Dot("params", field.SrcName),
+						field.Optional,
+					)
+				}
+			}
+
+			w.WriteString("const query = makeRecord<string, string | string[]>(")
+			ts.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
+
+		// Build the call to createStream
+		var method string
+
+		switch direction {
+		case Bidi:
+			method = "createBidiStream"
+		case In:
+			method = "createInStream"
+		case Out:
+			method = "createOutStream"
+		}
+
+		createStream := fmt.Sprintf(
+			"this.baseClient.%s(`%s`",
+			method,
+			rpcPath,
+		)
+
+		if headers != "" || query != "" {
+			createStream += ", {" + headers
+
+			if headers != "" && query != "" {
+				createStream += ", "
+			}
+
+			if query != "" {
+				createStream += query
+			}
+
+			createStream += "}"
+		}
+		createStream += ")"
+
+		w.WriteStringf("return await %s\n", createStream)
+		return nil
+	}
+
+	return nil
+}
 func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpcPath string) error {
 	// Work out how we're going to encode and call this RPC
 	rpcEncoding, err := encoding.DescribeRPC(ts.md, rpc, &encoding.Options{SrcNameTag: "json"})
@@ -514,6 +661,182 @@ func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
 	ts.WriteString("\n")
 }
 
+func (ts *typescript) writeStreamClasses() {
+	send := `
+	async send(msg: Request) {
+        if (this.ws.readyState === WebSocket.CONNECTING) {
+          // await that the socket is opened
+          await new Promise((resolve) => {
+              const handler = () => {
+                  this.ws.removeEventListener("open", handler);
+                  resolve(null);
+              };
+              this.ws.addEventListener("open", handler);
+          });
+        }
+
+        return this.ws.send(JSON.stringify(msg));
+    }
+
+`
+
+	receive := `
+    async next(): Promise<Response | undefined> {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift() as Response;
+            } else {
+                if (this.done) break;
+                // await until a new message have been received, or the socket is closed
+                await new Promise((resolve) => {
+                    const handler = () => {
+                        this.ws.removeEventListener("message", handler);
+                        this.ws.removeEventListener("close", handler);
+                        resolve(null);
+                    };
+                    this.ws.addEventListener("message", handler, { once: true });
+                    this.ws.addEventListener("close", handler, { once: true });
+                });
+            }
+        }
+    }
+`
+	ts.WriteString(`
+function encodeWebSocketHeaders(headers: Record<string, string>) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
+}
+
+class BidiStream<Request, Response> {
+    private buffer: Response[];
+    private done: boolean = false;
+    private ws: WebSocket;
+
+	constructor(url: string, headers?: Record<string, string>) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+        	protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.buffer = [];
+        this.ws = new WebSocket(url, protocols);
+
+		this.ws.addEventListener("error", (event: any) => {
+          console.error(event.error);
+        });
+
+		this.ws.addEventListener("message", (event: any) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+
+        this.ws.addEventListener("close", () => {
+            this.done = true;
+        });
+    }
+
+    close() {
+        this.ws.close();
+    }
+
+    ` + send + `
+    ` + receive + `
+
+}
+class InStream<Response> {
+    private buffer: Response[];
+    private done: boolean = false;
+    private ws: WebSocket;
+
+	constructor(url: string, headers?: Record<string, string>) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.buffer = [];
+        this.ws = new WebSocket(url, protocols);
+
+		this.ws.addEventListener("error", (event: any) => {
+          console.error(event.error);
+        });
+
+		this.ws.addEventListener("message", (event: any) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+        this.ws.addEventListener("close", () => {
+            this.done = true;
+        });
+    }
+
+    close() {
+        this.ws.close();
+    }
+
+    ` + receive + `
+}
+class OutStream<Request, Response> {
+    private ws: WebSocket;
+    private response_value?: Response;
+
+	constructor(url: string, headers?: Record<string, string>) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.ws = new WebSocket(url, protocols);
+
+		this.ws.addEventListener("error", (event: any) => {
+          console.error(event.error);
+        });
+
+		this.ws.addEventListener("message", (event: any) => {
+            this.response_value = JSON.parse(event.data);
+        }, { once: true });
+    }
+
+	async response(): Promise<Response> {
+        if (this.response_value !== undefined) return this.response_value
+        else {
+            return await new Promise((resolve, reject) => {
+				const handler = (event: any) => {
+                    this.ws.removeEventListener("message", handler);
+                    this.ws.removeEventListener("close", handler);
+                    this.ws.removeEventListener("error", handler);
+
+                    if (event.type === "message") {
+                        resolve(JSON.parse(event.data));
+                    }
+                    if (event.type === "error") {
+                        reject(new Error(event.error));
+                    }
+                    if (event.type === "close") {
+                        reject(new Error("websocket connection was closed"));
+                    }
+                };
+                this.ws.addEventListener("message", handler, { once: true });
+                this.ws.addEventListener("close", handler, { once: true });
+                this.ws.addEventListener("error", handler, { once: true });
+            });
+        }
+    }
+
+    close() {
+        this.ws.close();
+    }
+
+    ` + send + `
+}`)
+}
+
 func (ts *typescript) writeClient(set clientgentypes.ServiceSet) {
 	w := ts.newIdentWriter(0)
 	w.WriteString(`
@@ -740,6 +1063,138 @@ class BaseClient {
 	ts.WriteString(`
     }
 
+	async getAuthData(): Promise<CallParameters | undefined> {`)
+	if ts.hasAuth {
+		ts.WriteString(`
+        let authData
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator()
+            if (mayBePromise instanceof Promise) {
+               	authData = await mayBePromise
+            } else {
+                authData = mayBePromise
+            }
+        }
+
+        if (authData) {
+            const data: CallParameters = {};
+
+`)
+
+		w := ts.newIdentWriter(3)
+		if ts.authIsComplexType {
+			authData, err := encoding.DescribeAuth(ts.md, ts.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
+			if err != nil {
+				return errors.Wrap(err, "unable to describe auth data")
+			}
+
+			// Write all the query string fields in
+			for i, field := range authData.QueryParameters {
+				if i == 0 {
+					w.WriteString("data.query = {};\n")
+				}
+				w.WriteString("data.query[\"")
+				w.WriteString(field.WireFormat)
+				w.WriteString("\"] = ")
+				if list := field.Type.GetList(); list != nil {
+					w.WriteString(
+						ts.Dot("authData", field.SrcName) +
+							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
+					)
+				} else {
+					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
+				}
+				w.WriteString("\n")
+			}
+
+			// Write all the headers
+			for i, field := range authData.HeaderParameters {
+				if i == 0 {
+					w.WriteString("data.headers = {};\n")
+				}
+				w.WriteString("data.headers[\"")
+				w.WriteString(field.WireFormat)
+				w.WriteString("\"] = ")
+				w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
+				w.WriteString("\n")
+			}
+		} else {
+			w.WriteString("data.headers = {}\n")
+			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData\n")
+		}
+		ts.WriteString(`
+            return data;
+        }
+    }`)
+
+	}
+
+	ts.WriteString(`
+    // createBidiStream sets up a stream to a streaming api
+    async createBidiStream<Request, Response>(path: string, params: CallParameters): Promise<BidiStream<Request, Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new BidiStream(this.baseURL + path + queryString, headers);
+    }
+
+    // createInStream sets up a stream to a streaming api
+    async createInStream<Response>(path: string, params: CallParameters): Promise<InStream<Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new InStream(this.baseURL + path + queryString, headers);
+    }
+
+    // createOutStream sets up a stream to a streaming api
+    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new OutStream(this.baseURL + path + queryString, headers);
+    }
+
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
@@ -752,77 +1207,21 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
-`)
-	w := ts.newIdentWriter(2)
 
-	if ts.hasAuth {
-		w.WriteString(`
-// If authorization data generator is present, call it and add the returned data to the request
-let authData: `)
-		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
-		w.WriteString(" | undefined\n")
-		w.WriteString(`if (this.authGenerator) {
-    const mayBePromise = this.authGenerator()
-    if (mayBePromise instanceof Promise) {
-        authData = await mayBePromise
-    } else {
-        authData = mayBePromise
-    }
-}
 
-// If we now have authentication data, add it to the request
-if (authData) {
-`)
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
 
-		{
-			w := w.Indent()
-			if ts.authIsComplexType {
-				authData, err := encoding.DescribeAuth(ts.md, ts.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
-				if err != nil {
-					return errors.Wrap(err, "unable to describe auth data")
-				}
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
+        }
 
-				// Write all the query string fields in
-				for i, field := range authData.QueryParameters {
-					// We need to ensure that the query field is not undefined
-					if i == 0 {
-						w.WriteString("query = query ?? {}\n")
-					}
-
-					w.WriteString("query[\"")
-					w.WriteString(field.WireFormat)
-					w.WriteString("\"] = ")
-					if list := field.Type.GetList(); list != nil {
-						dot := ts.Dot("authData", field.SrcName)
-						if field.Optional || ts.isRecursive(field.Type) {
-							dot += "?"
-						}
-						w.WriteString(dot +
-							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
-						)
-					} else {
-						w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
-					}
-					w.WriteString("\n")
-				}
-
-				// Write all the headers
-				for _, field := range authData.HeaderParameters {
-					w.WriteString("init.headers[\"")
-					w.WriteString(field.WireFormat)
-					w.WriteString("\"] = ")
-					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
-					w.WriteString("\n")
-				}
-			} else {
-				w.WriteString("init.headers[\"Authorization\"] = \"Bearer \" + authData\n")
-			}
-		}
-
-		w.WriteString("}\n")
-	}
-
-	ts.WriteString(`
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''
         const response = await this.fetcher(this.baseURL+path+queryString, init)
