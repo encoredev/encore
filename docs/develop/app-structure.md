@@ -136,7 +136,7 @@ On disk it might look like this:
 │   ├── board                   // board service (a Go package)
 │   │   └── board.go            // board service code
 │   └── card                    // card service (a Go package)
-│       └── card.go             // coard service code
+│       └── card.go             // card service code
 │
 ├── premium                     // premium system (a directory)
 │   ├── payment                 // payment service (a Go package)
