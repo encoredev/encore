@@ -120,7 +120,13 @@ impl Gateway {
         proxy.add_tcp(listen_addr);
 
         let (_tx, rx) = watch::channel(false);
-        proxy.start_service(None, rx).await;
+        proxy
+            .start_service(
+                #[cfg(unix)]
+                None,
+                rx,
+            )
+            .await;
 
         Ok(())
     }
