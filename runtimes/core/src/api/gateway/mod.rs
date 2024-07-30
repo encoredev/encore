@@ -154,9 +154,11 @@ impl ProxyHttp for Gateway {
             let mut header = ResponseHeader::build(200, None)?;
             header.insert_header(header::CONTENT_LENGTH, healthz_bytes.len())?;
             header.insert_header(header::CONTENT_TYPE, "application/json")?;
-            session.write_response_header(Box::new(header)).await?;
             session
-                .write_response_body(Bytes::from(healthz_bytes))
+                .write_response_header(Box::new(header), false)
+                .await?;
+            session
+                .write_response_body(Some(Bytes::from(healthz_bytes)), true)
                 .await?;
 
             return Ok(true);
@@ -169,7 +171,7 @@ impl ProxyHttp for Gateway {
                 .cors_config
                 .apply(session.req_header(), &mut resp)?;
             resp.insert_header(header::CONTENT_LENGTH, 0)?;
-            session.write_response_header(Box::new(resp)).await?;
+            session.write_response_header(Box::new(resp), true).await?;
 
             return Ok(true);
         }
@@ -405,18 +407,16 @@ impl ProxyHttp for Gateway {
         }
         session.set_keepalive(None);
         session
-            .write_response_header(Box::new(resp))
+            .write_response_header(Box::new(resp), false)
             .await
             .unwrap_or_else(|e| {
                 log::error!("failed to send error response to downstream: {e}");
             });
 
-        if let Some(body) = body {
-            session
-                .write_response_body(body)
-                .await
-                .unwrap_or_else(|e| log::error!("failed to write body: {e}"));
-        }
+        session
+            .write_response_body(body, true)
+            .await
+            .unwrap_or_else(|e| log::error!("failed to write body: {e}"));
 
         code
     }
