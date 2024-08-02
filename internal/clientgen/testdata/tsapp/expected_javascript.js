@@ -54,11 +54,16 @@ class SvcServiceClient {
 
         const query = makeRecord({
             bar: params.queryBar,
-            baz: params.baz,
             foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
         })
 
-        await this.baseClient.callAPI("GET", `/dummy`, undefined, {headers, query})
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            baz: params.baz,
+            foo: params.foo,
+        }
+
+        await this.baseClient.callAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
     }
 }
 

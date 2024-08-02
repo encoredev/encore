@@ -12,7 +12,7 @@ interface UnusedType {
 }
 
 export const dummy = api(
-  { expose: true, method: "GET", path: "/dummy" },
+  { expose: true, method: "POST", path: "/dummy" },
   async (req: Request) => {},
 );
 

@@ -94,11 +94,16 @@ export namespace svc {
 
             const query = makeRecord<string, string | string[]>({
                 bar: params.queryBar,
-                baz: params.baz,
                 foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
             })
 
-            await this.baseClient.callAPI("GET", `/dummy`, undefined, {headers, query})
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                baz: params.baz,
+                foo: params.foo,
+            }
+
+            await this.baseClient.callAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
         }
     }
 }

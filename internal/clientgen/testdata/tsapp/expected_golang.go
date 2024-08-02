@@ -104,8 +104,6 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 
 	queryString := url.Values{
 		"bar": {reqEncoder.FromString(params.queryBar)},
-		"baz": {reqEncoder.FromString(params.baz)},
-		"foo": {reqEncoder.FromBool(params.queryFoo)},
 		"foo": {reqEncoder.FromBool(params.queryFoo)},
 	}
 
@@ -113,7 +111,16 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 		return fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
 	}
 
-	_, err := callAPI(ctx, c.base, "GET", fmt.Sprintf("/dummy?%s", queryString.Encode()), headers, nil, nil)
+	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+	body := struct {
+		foo float64 `json:"foo"`
+		baz string  `json:"baz"`
+	}{
+		baz: params.baz,
+		foo: params.foo,
+	}
+
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/dummy?%s", queryString.Encode()), headers, body, nil)
 	return err
 }
 
