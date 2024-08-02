@@ -75,7 +75,7 @@ func TestClientCodeGenerationFromGoApp(t *testing.T) {
 						generatedClient, err := Client(language, "app", res.Meta, services)
 						c.Assert(err, qt.IsNil)
 
-						golden.TestAgainst(c, "goapp", file.Name(), string(generatedClient))
+						golden.TestAgainst(c, "goapp/"+file.Name(), string(generatedClient))
 					})
 				}
 			}
@@ -136,7 +136,7 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 						generatedClient, err := Client(language, "app", res.Meta, services)
 						c.Assert(err, qt.IsNil)
 
-						golden.TestAgainst(c, "tsapp", file.Name(), string(generatedClient))
+						golden.TestAgainst(c, "tsapp/"+file.Name(), string(generatedClient))
 					})
 				}
 			}
