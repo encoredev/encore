@@ -304,7 +304,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
                 .iter()
                 .map(|tag| {
                     let mut s = tag.key.clone();
-                    s.push('=');
+                    s.push(':');
                     s.push('"');
                     s.push_str(&tag.name);
                     for opt in &tag.options {
