@@ -81,7 +81,7 @@ jobs:
           curl --fail -L -o encore-go.tar.gz $URL && tar -C . -xzf ./encore-go.tar.gz
 
       - name: Install tsparser
-        run: cargo install --path encr.dev/tsparser
+        run: cargo install --path encr.dev/tsparser --debug
 
       # If we're not running on a schedule, we only want to run tests on changed code
       - name: Run tests on changed code on the CLI
