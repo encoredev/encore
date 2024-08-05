@@ -205,7 +205,10 @@ func convertJSONLogs(opts ...convertLogOption) outputConverter {
 		logLineBuffer.Reset()
 
 		// Then convert the JSON log line to pretty formatted text
-		_, _ = cout.Write(line)
+		_, err := cout.Write(line)
+		if err != nil {
+			return line
+		}
 		out := make([]byte, len(logLineBuffer.Bytes()))
 		copy(out, logLineBuffer.Bytes())
 		return out
