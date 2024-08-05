@@ -14,7 +14,7 @@ use pingora::proxy::{http_proxy_service, ProxyHttp, Session};
 use pingora::server::configuration::{Opt, ServerConf};
 use pingora::services::Service;
 use pingora::upstreams::peer::HttpPeer;
-use pingora::{Error, ErrorSource, ErrorType};
+use pingora::{Error, ErrorSource, ErrorType, OkOrErr, OrErr};
 use tokio::sync::watch;
 use url::Url;
 
@@ -153,9 +153,8 @@ impl ProxyHttp for Gateway {
     {
         if session.req_header().uri.path() == "/__encore/healthz" {
             let healthz_resp = self.inner.healthz.clone().health_check();
-            let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp).map_err(|e| {
-                Error::because(ErrorType::HTTPStatus(500), "could not encode response", e)
-            })?;
+            let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp)
+                .or_err(ErrorType::HTTPStatus(500), "could not encode response")?;
 
             let mut header = ResponseHeader::build(200, None)?;
             header.insert_header(header::CONTENT_LENGTH, healthz_bytes.len())?;
@@ -203,7 +202,7 @@ impl ProxyHttp for Gateway {
             .method
             .as_ref()
             .try_into()
-            .map_err(|e| Error::because(ErrorType::HTTPStatus(400), "invalid http method", e))?;
+            .or_err(ErrorType::HTTPStatus(400), "invalid http method")?;
 
         let service_name = self.inner.router.route_to_service(method, path)?;
 
@@ -211,11 +210,11 @@ impl ProxyHttp for Gateway {
             .inner
             .service_registry
             .service_base_url(service_name)
-            .ok_or_else(|| Error::explain(ErrorType::InternalError, "couldn't find upstream"))?;
+            .or_err(ErrorType::InternalError, "couldn't find upstream")?;
 
         let upstream_url: Url = upstream
             .parse()
-            .map_err(|e| Error::because(ErrorType::InternalError, "upstream not a valid url", e))?;
+            .or_err(ErrorType::InternalError, "upstream not a valid url")?;
 
         let upstream_addrs = upstream_url
             .socket_addrs(|| match upstream_url.scheme() {
@@ -223,20 +222,15 @@ impl ProxyHttp for Gateway {
                 "http" => Some(80),
                 _ => None,
             })
-            .map_err(|e| {
-                Error::because(
-                    ErrorType::InternalError,
-                    "couldn't lookup upstream ip address",
-                    e,
-                )
-            })?;
-
-        let upstream_addr = upstream_addrs.first().ok_or_else(|| {
-            Error::explain(
+            .or_err(
                 ErrorType::InternalError,
-                "didn't find any upstream ip addresses",
-            )
-        })?;
+                "couldn't lookup upstream ip address",
+            )?;
+
+        let upstream_addr = upstream_addrs.first().or_err(
+            ErrorType::InternalError,
+            "didn't find any upstream ip addresses",
+        )?;
 
         let tls = upstream_url.scheme() == "https";
         let host = upstream_url.host().map(|h| h.to_string());
@@ -281,13 +275,10 @@ impl ProxyHttp for Gateway {
         if let Some(gateway_ctx) = ctx.as_ref() {
             let new_uri = gateway_ctx
                 .prepend_base_path(&upstream_request.uri)
-                .map_err(|e| {
-                    Error::because(
-                        ErrorType::InternalError,
-                        "failed to prepend upstream base path",
-                        e,
-                    )
-                })?;
+                .or_err(
+                    ErrorType::InternalError,
+                    "failed to prepend upstream base path",
+                )?;
 
             upstream_request.set_uri(new_uri);
 
@@ -306,13 +297,10 @@ impl ProxyHttp for Gateway {
 
             let headers = &session.req_header().headers;
 
-            let mut call_meta = CallMeta::parse_without_caller(headers).map_err(|e| {
-                Error::because(
-                    ErrorType::InternalError,
-                    "couldn't parse CallMeta from request",
-                    e,
-                )
-            })?;
+            let mut call_meta = CallMeta::parse_without_caller(headers).or_err(
+                ErrorType::InternalError,
+                "couldn't parse CallMeta from request",
+            )?;
             if call_meta.parent_span_id.is_none() {
                 call_meta.parent_span_id = Some(model::SpanId::generate());
             }
@@ -339,9 +327,7 @@ impl ProxyHttp for Gateway {
                 let auth_response = auth_handler
                     .authenticate(session.req_header(), call_meta.clone())
                     .await
-                    .map_err(|e| {
-                        Error::because(ErrorType::InternalError, "couldn't authenticate request", e)
-                    })?;
+                    .or_err(ErrorType::InternalError, "couldn't authenticate request")?;
 
                 if let auth::AuthResponse::Authenticated {
                     auth_uid,
@@ -353,9 +339,8 @@ impl ProxyHttp for Gateway {
                 }
             }
 
-            desc.add_meta(upstream_request).map_err(|e| {
-                Error::because(ErrorType::InternalError, "couldn't set request meta", e)
-            })?;
+            desc.add_meta(upstream_request)
+                .or_err(ErrorType::InternalError, "couldn't set request meta")?;
         }
 
         Ok(())
