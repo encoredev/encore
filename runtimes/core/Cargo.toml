@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-pingora = { version = "0.2", features = [ "lb" ] }
+pingora = { version = "0.3", features = [ "lb" ] }
 anyhow = "1.0.76"
 base64 = "0.21.5"
 gjson = "0.8.1"
