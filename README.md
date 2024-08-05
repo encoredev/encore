@@ -5,7 +5,7 @@
 
 Encore provides a purpose-built workflow to help you create **event-driven and distributed systems** — from local development to your cloud on **AWS & GCP**.
 
-It consists of a **Backend SDK**, a **Local Development Environment** with tools like tracing, and a **Cloud Platform** for automating CI/CD and cloud infrastructure provisioning.
+It consists of a **Backend Framework** (available for TypeScript / Go), a **Local Development Environment** with tools like tracing, and a **Cloud Platform** for automating CI/CD and cloud infrastructure provisioning.
 
 **🏁 Try Encore:** [Quick Start Guide](https://encore.dev/docs/quick-start)
 
