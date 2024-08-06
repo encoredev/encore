@@ -233,7 +233,7 @@ continue to use the value defined in the CUE files.
 
 ```go
 -- config.cue --
-// By default we want to sent emails
+// By default we want to send emails
 SendEmails: bool | *true
 
 // But in all tests we want to disable emails
@@ -305,7 +305,7 @@ func TestSignup_TestEmails(t *testing.T) {
 
 ## Useful CUE Patterns
 
-If you're new the CUE, we'd recommend checking out the [CUE documentation](https://cuelang.org/docs/) and
+If you're new to the CUE, we'd recommend checking out the [CUE documentation](https://cuelang.org/docs/) and
 [cuetorials](https://cuetorials.com/), however to get you started, here are some useful patterns you can use in your
 CUE files.
 
@@ -336,7 +336,7 @@ if #Meta.Environment.Name == "old-prod" {
 ### Validation within CUE
 
 Any field prefixed with an `_` will not be exported to the concrete configuration once evaluated by CUE and can be used
-to hold intermediate  values. Because CUE allows you to define the same field as many times as you want, as long as the
+to hold intermediate values. Because CUE allows you to define the same field as many times as you want, as long as the
 values unify, we can build complex validation logic.
 
 ```cue
@@ -391,7 +391,7 @@ SendEmailsFrom: [
 
 ### Using Map Keys as Values
 
-CUE allows us to extract map keys and use them as values to simply the config we need to write and minimize duplication.
+CUE allows us to extract map keys and use them as values to simplify the config we need to write and minimize duplication.
 
 ```cue
 // Define the type we want to use
@@ -402,7 +402,7 @@ CUE allows us to extract map keys and use them as values to simply the config we
 }
 
 // Specify that servers is a map of strings to #Server
-// where they key we assign the the variable Name
+// where they key we assign the variable Name
 servers: [Name=string]: #Server & {
 	// Then we union the key with the value of server
 	server: Name
