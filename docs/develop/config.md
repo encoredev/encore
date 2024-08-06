@@ -305,7 +305,7 @@ func TestSignup_TestEmails(t *testing.T) {
 
 ## Useful CUE Patterns
 
-If you're new to the CUE, we'd recommend checking out the [CUE documentation](https://cuelang.org/docs/) and
+If you're new to CUE, we'd recommend checking out the [CUE documentation](https://cuelang.org/docs/) and
 [cuetorials](https://cuetorials.com/), however to get you started, here are some useful patterns you can use in your
 CUE files.
 
