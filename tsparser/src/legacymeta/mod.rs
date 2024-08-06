@@ -166,6 +166,7 @@ impl<'a> MetaBuilder<'a> {
                         let ep_idx = service.rpcs.len();
                         endpoint_idx.insert(obj.id, (service_idx, ep_idx));
                     }
+
                     service.rpcs.push(rpc);
                 }
 

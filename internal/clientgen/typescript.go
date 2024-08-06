@@ -240,15 +240,17 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			}
 		}
 
+		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
+
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if rpc.RequestSchema != nil || rpc.HandshakeSchema != nil {
+		if (rpc.RequestSchema != nil && !isStream) || (rpc.HandshakeSchema != nil && isStream) {
 			if nParams > 0 {
 				ts.WriteString(", ")
 			}
 			ts.WriteString(payloadName + ": ")
-			if rpc.HandshakeSchema != nil {
+			if isStream {
 				ts.writeTyp(ns, rpc.HandshakeSchema, 0)
 			} else {
 				ts.writeTyp(ns, rpc.RequestSchema, 0)
@@ -262,7 +264,6 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		}
 
 		var direction streamDirection
-		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
 
 		if rpc.StreamingRequest && rpc.StreamingResponse {
 			direction = Bidi
@@ -385,44 +386,42 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 			ts.Values(w, dict)
 			w.WriteString(")\n\n")
 		}
-
-		// Build the call to createStream
-		var method string
-
-		switch direction {
-		case Bidi:
-			method = "createBidiStream"
-		case In:
-			method = "createInStream"
-		case Out:
-			method = "createOutStream"
-		}
-
-		createStream := fmt.Sprintf(
-			"this.baseClient.%s(`%s`",
-			method,
-			rpcPath,
-		)
-
-		if headers != "" || query != "" {
-			createStream += ", {" + headers
-
-			if headers != "" && query != "" {
-				createStream += ", "
-			}
-
-			if query != "" {
-				createStream += query
-			}
-
-			createStream += "}"
-		}
-		createStream += ")"
-
-		w.WriteStringf("return await %s\n", createStream)
-		return nil
 	}
 
+	// Build the call to createStream
+	var method string
+
+	switch direction {
+	case Bidi:
+		method = "createBidiStream"
+	case In:
+		method = "createInStream"
+	case Out:
+		method = "createOutStream"
+	}
+
+	createStream := fmt.Sprintf(
+		"this.baseClient.%s(`%s`",
+		method,
+		rpcPath,
+	)
+
+	if headers != "" || query != "" {
+		createStream += ", {" + headers
+
+		if headers != "" && query != "" {
+			createStream += ", "
+		}
+
+		if query != "" {
+			createStream += query
+		}
+
+		createStream += "}"
+	}
+	createStream += ")"
+
+	w.WriteStringf("return await %s\n", createStream)
 	return nil
 }
 func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpcPath string) error {
@@ -715,12 +714,12 @@ function encodeWebSocketHeaders(headers: Record<string, string>) {
     return "encore.dev.headers." + base64encoded;
 }
 
-class BidiStream<Request, Response> {
+export class BidiStream<Request, Response> {
     private buffer: Response[];
     private done: boolean = false;
     private ws: WebSocket;
 
-	constructor(url: string, headers?: Record<string, string>) {
+    constructor(url: string, headers?: Record<string, string>) {
         let protocols = ["encore-ws"];
         if (headers) {
         	protocols.push(encodeWebSocketHeaders(headers))
@@ -729,11 +728,11 @@ class BidiStream<Request, Response> {
         this.buffer = [];
         this.ws = new WebSocket(url, protocols);
 
-		this.ws.addEventListener("error", (event: any) => {
+        this.ws.addEventListener("error", (event: any) => {
           console.error(event.error);
         });
 
-		this.ws.addEventListener("message", (event: any) => {
+        this.ws.addEventListener("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
         });
 
@@ -750,7 +749,7 @@ class BidiStream<Request, Response> {
     ` + receive + `
 
 }
-class InStream<Response> {
+export class InStream<Response> {
     private buffer: Response[];
     private done: boolean = false;
     private ws: WebSocket;
@@ -764,11 +763,11 @@ class InStream<Response> {
         this.buffer = [];
         this.ws = new WebSocket(url, protocols);
 
-		this.ws.addEventListener("error", (event: any) => {
+        this.ws.addEventListener("error", (event: any) => {
           console.error(event.error);
         });
 
-		this.ws.addEventListener("message", (event: any) => {
+        this.ws.addEventListener("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
         });
         this.ws.addEventListener("close", () => {
@@ -782,7 +781,7 @@ class InStream<Response> {
 
     ` + receive + `
 }
-class OutStream<Request, Response> {
+export class OutStream<Request, Response> {
     private ws: WebSocket;
     private response_value?: Response;
 
@@ -794,11 +793,11 @@ class OutStream<Request, Response> {
 
         this.ws = new WebSocket(url, protocols);
 
-		this.ws.addEventListener("error", (event: any) => {
+        this.ws.addEventListener("error", (event: any) => {
           console.error(event.error);
         });
 
-		this.ws.addEventListener("message", (event: any) => {
+        this.ws.addEventListener("message", (event: any) => {
             this.response_value = JSON.parse(event.data);
         }, { once: true });
     }
@@ -807,7 +806,7 @@ class OutStream<Request, Response> {
         if (this.response_value !== undefined) return this.response_value
         else {
             return await new Promise((resolve, reject) => {
-				const handler = (event: any) => {
+                const handler = (event: any) => {
                     this.ws.removeEventListener("message", handler);
                     this.ws.removeEventListener("close", handler);
                     this.ws.removeEventListener("error", handler);
@@ -1133,7 +1132,7 @@ class BaseClient {
 
 	ts.WriteString(`
     // createBidiStream sets up a stream to a streaming api
-    async createBidiStream<Request, Response>(path: string, params: CallParameters): Promise<BidiStream<Request, Response>> {
+    async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1154,7 +1153,7 @@ class BaseClient {
     }
 
     // createInStream sets up a stream to a streaming api
-    async createInStream<Response>(path: string, params: CallParameters): Promise<InStream<Response>> {
+    async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
