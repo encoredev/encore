@@ -101,7 +101,7 @@ A [replay attack](https://en.wikipedia.org/wiki/Replay_attack) occurs when an at
 including the payload and signature, and re-transmits it one or more times, causing unintended side effects.
 
 To mitigate such attacks, Encore includes a timestamp in the `X-Encore-Signature` header.
-This timestamp is part of the the signed payload, which means that it can't be changed by the attacker
+This timestamp is part of the signed payload, which means that it can't be changed by the attacker
 without invalidating the signature. This makes it possible to mitigate replay attacks by ensuring the
 timestamp isn't older than a certain threshold (the `go.encore.dev/webhooks` library defaults to 5 minutes).
 
