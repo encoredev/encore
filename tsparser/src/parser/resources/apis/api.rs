@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, bail, Context, Ok, Result};
 use swc_common::sync::Lrc;
-use swc_ecma_ast as ast;
-use swc_ecma_ast::TsTypeParamInstantiation;
+use swc_ecma_ast::{self as ast, FnExpr};
+use swc_ecma_ast::{Pat, TsTypeParamInstantiation};
 
 use litparser::{LitParser, Nullable};
 use litparser_derive::LitParser;
@@ -406,22 +406,17 @@ impl ReferenceParser for APIEndpointLiteral {
                             .as_deref()
                             .context("no type parameters found")?;
 
-                        let (handshake, request, response) = match type_params.params.len() {
+                        let (handshake, _return_type) =
+                            parse_stream_endpoint_signature(&handler.expr)?;
+
+                        let (request, response) = match type_params.params.len() {
                             2 => (
-                                None,
                                 extract_type_param(Some(type_params), 0)?
                                     .ok_or_else(|| anyhow!("missing type for request"))?,
                                 extract_type_param(Some(type_params), 1)?
                                     .ok_or_else(|| anyhow!("missing type for response"))?,
                             ),
-                            3 => (
-                                extract_type_param(Some(type_params), 0)?,
-                                extract_type_param(Some(type_params), 1)?
-                                    .ok_or_else(|| anyhow!("missing type for request"))?,
-                                extract_type_param(Some(type_params), 2)?
-                                    .ok_or_else(|| anyhow!("missing type for response"))?,
-                            ),
-                            n => bail!("wrong number of type parameters, expected 2 or 3, got {n}"),
+                            n => bail!("wrong number of type parameters, expected 2, found {n}"),
                         };
 
                         // Bidirectional stream
@@ -444,15 +439,16 @@ impl ReferenceParser for APIEndpointLiteral {
                             .as_deref()
                             .context("no type parameters found")?;
 
-                        let (handshake, request, response) = match type_params.params.len() {
+                        let (handshake, return_type) =
+                            parse_stream_endpoint_signature(&handler.expr)?;
+
+                        let (request, response) = match type_params.params.len() {
                             1 => (
-                                None,
                                 extract_type_param(Some(type_params), 0)?
                                     .ok_or_else(|| anyhow!("missing type for request"))?,
-                                None,
+                                return_type,
                             ),
                             2 => (
-                                None,
                                 extract_type_param(Some(type_params), 0)?
                                     .ok_or_else(|| anyhow!("missing type for request"))?,
                                 Some(
@@ -460,18 +456,9 @@ impl ReferenceParser for APIEndpointLiteral {
                                         .ok_or_else(|| anyhow!("missing type for response"))?,
                                 ),
                             ),
-                            3 => (
-                                extract_type_param(Some(type_params), 0)?,
-                                extract_type_param(Some(type_params), 1)?
-                                    .ok_or_else(|| anyhow!("missing type for request"))?,
-                                Some(
-                                    extract_type_param(Some(type_params), 2)?
-                                        .ok_or_else(|| anyhow!("missing type for response"))?,
-                                ),
-                            ),
-                            n => bail!(
-                                "wrong number of type parameters, expected 1, 2 or 3, got {n}"
-                            ),
+                            n => {
+                                bail!("wrong number of type parameters, expected 1 or 2, found {n}")
+                            }
                         };
 
                         let response = match response {
@@ -499,18 +486,13 @@ impl ReferenceParser for APIEndpointLiteral {
                             .as_deref()
                             .context("no type parameters found")?;
 
-                        let (handshake, response) = match type_params.params.len() {
-                            1 => (
-                                None,
-                                extract_type_param(Some(type_params), 0)?
-                                    .ok_or_else(|| anyhow!("missing type for response"))?,
-                            ),
-                            2 => (
-                                extract_type_param(Some(type_params), 0)?,
-                                extract_type_param(Some(type_params), 1)?
-                                    .ok_or_else(|| anyhow!("missing type for response"))?,
-                            ),
-                            n => bail!("wrong number of type parameters, expected 1 or 2, got {n}"),
+                        let (handshake, _return_type) =
+                            parse_stream_endpoint_signature(&handler.expr)?;
+
+                        let response = match type_params.params.len() {
+                            1 => extract_type_param(Some(type_params), 0)?
+                                .ok_or_else(|| anyhow!("missing type for response"))?,
+                            n => bail!("wrong number of type parameters, expected 1, found {n}"),
                         };
 
                         // Outgoing stream
@@ -556,6 +538,54 @@ impl ReferenceParser for APIEndpointLiteral {
 
         Ok(None)
     }
+}
+
+fn get_handshake_param<'a>(p: &[&'a Pat]) -> Option<&'a Pat> {
+    // if we have two params, the first one is the handshake
+    if p.len() == 2 {
+        Some(p[0])
+    } else {
+        None
+    }
+}
+
+fn parse_stream_endpoint_signature(
+    expr: &ast::Expr,
+) -> Result<(Option<&ast::TsType>, Option<&ast::TsType>)> {
+    let (params, type_params, return_type) = match expr {
+        ast::Expr::Fn(FnExpr { function, .. }) => (
+            function.params.iter().map(|p| &p.pat).collect::<Vec<_>>(),
+            function.type_params.as_deref(),
+            function.return_type.as_deref(),
+        ),
+        ast::Expr::Arrow(arrow) => (
+            arrow.params.iter().collect::<Vec<_>>(),
+            arrow.type_params.as_deref(),
+            arrow.return_type.as_deref(),
+        ),
+        _ => return Ok((None, None)),
+    };
+
+    if type_params.is_some() {
+        anyhow::bail!("stream endpoint handler cannot have type parameters");
+    }
+
+    let handshake_type = match get_handshake_param(&params) {
+        None => None,
+        Some(param) => match &param {
+            ast::Pat::Ident(pat) => pat.type_ann.as_deref(),
+            ast::Pat::Array(pat) => pat.type_ann.as_deref(),
+            ast::Pat::Rest(pat) => pat.type_ann.as_deref(),
+            ast::Pat::Object(pat) => pat.type_ann.as_deref(),
+
+            ast::Pat::Assign(_) | ast::Pat::Invalid(_) | ast::Pat::Expr(_) => None,
+        },
+    };
+
+    let handshake_type = handshake_type.map(|t| t.type_ann.as_ref());
+    let return_type = return_type.map(|t| t.type_ann.as_ref());
+
+    Ok((handshake_type, return_type))
 }
 
 fn parse_endpoint_signature(
