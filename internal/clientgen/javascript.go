@@ -583,18 +583,18 @@ if (typeof options === "string") {
 func (js *javascript) writeStreamClasses() {
 	send := `
     async send(msg) {
-        if (this.ws.readyState === WebSocket.CONNECTING) {
+        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
           // await that the socket is opened
           await new Promise((resolve) => {
               const handler = () => {
-                  this.ws.removeEventListener("open", handler);
+                  this.connection.ws.removeEventListener("open", handler);
                   resolve();
               };
-              this.ws.addEventListener("open", handler);
+              this.connection.ws.addEventListener("open", handler);
           });
         }
 
-        return this.ws.send(JSON.stringify(msg));
+        return this.connection.ws.send(JSON.stringify(msg));
     }
 
 `
@@ -609,17 +609,8 @@ func (js *javascript) writeStreamClasses() {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift();
             } else {
-                if (this.done) break;
-                // await until a new message have been received, or the socket is closed
-                await new Promise((resolve) => {
-                    const handler = () => {
-                        this.ws.removeEventListener("message", handler);
-                        this.ws.removeEventListener("close", handler);
-                        resolve();
-                    };
-                    this.ws.addEventListener("message", handler, { once: true });
-                    this.ws.addEventListener("close", handler, { once: true });
-                });
+                if (this.connection.done) break;
+                await this.connection.hasUpdate();
             }
         }
     }
@@ -636,9 +627,14 @@ function encodeWebSocketHeaders(headers) {
     return "encore.dev.headers." + base64encoded;
 }
 
-class BidiStream {
-    buffer = [];
+class WebSocketConnection {
     done = false;
+    retry = 0;
+    minDelayMs = 10;
+    maxDelayMs = 500;
+
+    hasUpdateHandlers = [];
+    msgHandler = undefined;
 
     constructor(url, headers) {
         let protocols = ["encore-ws"];
@@ -646,105 +642,127 @@ class BidiStream {
         	protocols.push(encodeWebSocketHeaders(headers))
         }
 
-        this.ws = new WebSocket(url, protocols);
+        this.protocols = protocols;
+        this.url = url;
 
-        this.ws.addEventListener("error", (event) => {
+        this.ws = this.connect();
+	}
+
+    connect() {
+        const ws = new WebSocket(this.url, this.protocols);
+
+        ws.addEventListener("open", (event) => {
+            this.retry = 0;
+        });
+
+        ws.addEventListener("error", (event) => {
           console.error(event.error);
+          this.ws.close(1002);
         });
 
-        this.ws.addEventListener("message", (event) => {
+        ws.addEventListener("message", (event) => {
+            if (this.msgHandler !== undefined) {
+                this.msgHandler(event);
+            }
+            this.resolveHasUpdateHandlers();
+        });
+
+        ws.addEventListener("close", (event) => {
+            // normal closure, no reconnect needed
+            if (event.code === 1005 || event.code === 1000) {
+                this.done = true;
+            }
+            if (!this.done) {
+                this.retry += 1;
+                const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
+                console.log(` + "`Reconnecting to ${this.url} in ${delay}ms`" + `);
+                setTimeout(() => {
+                    this.ws = this.connect();
+                }, delay);
+            }
+            this.resolveHasUpdateHandlers();
+        });
+
+        return ws
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    setMsgHandler(handler) {
+        this.msgHandler = handler;
+    }
+
+    close() {
+        this.done = true;
+        this.ws.close();
+    }
+}
+
+export class BidiStream {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event) => {
             this.buffer.push(JSON.parse(event.data));
-        });
-
-        this.ws.addEventListener("close", () => {
-            this.done = true;
         });
     }
 
     close() {
-        this.ws.close();
+        this.connection.close();
     }
 
     ` + send + `
     ` + receive + `
 
 }
-class InStream {
+export class InStream {
     buffer = [];
-    done = false;
 
     constructor(url, headers) {
-        let protocols = ["encore-ws"];
-        if (headers) {
-    	    protocols.push(encodeWebSocketHeaders(headers))
-        }
-
-        this.ws = new WebSocket(url, protocols);
-
-        this.ws.addEventListener("error", (event) => {
-          console.error(event.error);
-        });
-
-        this.ws.addEventListener("message", (event) => {
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event) => {
             this.buffer.push(JSON.parse(event.data));
-        });
-        this.ws.addEventListener("close", () => {
-            this.done = true;
         });
     }
 
     close() {
-        this.ws.close();
+        this.connection.close();
     }
 
     ` + receive + `
 }
-class OutStream {
+export class OutStream {
     constructor(url, headers) {
-        let protocols = ["encore-ws"];
-        if (headers) {
-            protocols.push(encodeWebSocketHeaders(headers))
-        }
+        let responseResolver;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
-        this.ws = new WebSocket(url, protocols);
-
-        this.ws.addEventListener("error", (event) => {
-          console.error(event.error);
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event) => {
+            responseResolver(JSON.parse(event.data))
         });
-
-        this.ws.addEventListener("message", (event) => {
-            this.response_value = JSON.parse(event.data);
-        }, { once: true });
     }
 
     async response() {
-        if (this.response_value !== undefined) return this.response_value
-        else {
-            return await new Promise((resolve, reject) => {
-                const handler = (event) => {
-                    this.ws.removeEventListener("message", handler);
-                    this.ws.removeEventListener("close", handler);
-                    this.ws.removeEventListener("error", handler);
-
-                    if (event.type === "message") {
-                        resolve(JSON.parse(event.data));
-                    }
-                    if (event.type === "error") {
-                        reject(new Error(event.error));
-                    }
-                    if (event.type === "close") {
-                        reject(new Error("websocket connection was closed"));
-                    }
-                };
-                this.ws.addEventListener("message", handler, { once: true });
-                this.ws.addEventListener("close", handler, { once: true });
-                this.ws.addEventListener("error", handler, { once: true });
-            });
-        }
+        return this.responseValue;
     }
 
     close() {
-        this.ws.close();
+        this.connection.close();
     }
 
     ` + send + `

@@ -741,7 +741,7 @@ class WebSocketConnection {
 
         ws.addEventListener("error", (event: any) => {
           console.error(event.error);
-          this.ws.close();
+          this.ws.close(1002);
         });
 
         ws.addEventListener("message", (event: any) => {
@@ -751,7 +751,11 @@ class WebSocketConnection {
             this.resolveHasUpdateHandlers();
         });
 
-        ws.addEventListener("close", () => {
+        ws.addEventListener("close", (event: any) => {
+            // normal closure, no reconnect needed
+            if (event.code === 1005 || event.code === 1000) {
+                this.done = true;
+            }
             if (!this.done) {
                 this.retry += 1;
                 const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
@@ -789,10 +793,6 @@ class WebSocketConnection {
     close() {
         this.done = true;
         this.ws.close();
-    }
-
-    isDone(): boolean {
-        return this.done;
     }
 }
 
