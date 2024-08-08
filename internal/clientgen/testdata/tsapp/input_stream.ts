@@ -21,7 +21,7 @@ interface OutMsg {
 }
 
 // Bidi stream type variants
-export const bidiWithHandshake = api.streamBidi<InMsg, OutMsg>(
+export const bidiWithHandshake = api.streamBidi<Handshake, InMsg, OutMsg>(
   { expose: true, path: "/bidi/:pathParam" },
   async (handshake: Handshake, stream) => {},
 );
@@ -31,7 +31,7 @@ export const bidiWithoutHandshake = api.streamBidi<InMsg, OutMsg>(
 );
 
 // Out stream type variants
-export const outWithHandshake = api.streamOut<OutMsg>(
+export const outWithHandshake = api.streamOut<Handshake, OutMsg>(
   { expose: true, path: "/out/:pathParam" },
   async (handshake: Handshake, stream) => {},
 );
@@ -42,7 +42,7 @@ export const outWithoutHandshake = api.streamOut<OutMsg>(
 );
 
 // In stream type variants
-export const inWithHandshake = api.streamIn<InMsg>(
+export const inWithHandshake = api.streamIn<Handshake, InMsg>(
   { expose: true, path: "/in/:pathParam" },
   async (handshake: Handshake, stream) => {},
 );
@@ -57,7 +57,7 @@ export const inWithResponse = api.streamIn<InMsg, OutMsg>(
   async (stream) => {},
 );
 
-export const inWithResponseAndHandshake = api.streamIn<InMsg, OutMsg>(
+export const inWithResponseAndHandshake = api.streamIn<Handshake, InMsg, OutMsg>(
   { expose: true, path: "/in/withResponse" },
   async (handshake: Handshake, stream) => {},
 );
