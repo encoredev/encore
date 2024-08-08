@@ -45,7 +45,7 @@ class SvcServiceClient {
         this.baseClient = baseClient
     }
 
-    async dummy(params) {
+    async dummy1(params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({
             baz: params.headerBaz,
@@ -64,6 +64,47 @@ class SvcServiceClient {
         }
 
         await this.baseClient.callAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
+    }
+
+    async dummy2(params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            baz: params.headerBaz,
+            num: params.headerNum === undefined ? undefined : String(params.headerNum),
+        })
+
+        const query = makeRecord({
+            bar: params.queryBar,
+            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+        })
+
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            baz: params.baz,
+            foo: params.foo,
+        }
+
+        await this.baseClient.callAPI("POST", `/other_dummy`, JSON.stringify(body), {headers, query})
+    }
+
+    async dummy5(foo, params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            baz: params.headerBaz,
+            num: params.headerNum === undefined ? undefined : String(params.headerNum),
+        })
+
+        const query = makeRecord({
+            bar: params.queryBar,
+            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+        })
+
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            baz: params.baz,
+        }
+
+        await this.baseClient.callAPI("POST", `/dummy/${encodeURIComponent(foo)}`, JSON.stringify(body), {headers, query})
     }
 }
 

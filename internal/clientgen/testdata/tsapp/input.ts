@@ -11,8 +11,16 @@ interface UnusedType {
   foo: Foo;
 }
 
-export const dummy = api(
+export const dummy1 = api(
   { expose: true, method: "POST", path: "/dummy" },
+  async (req: Request) => {},
+);
+export const dummy2 = api(
+  { expose: true, method: "POST", path: "/other_dummy" },
+  async (req: Request) => {},
+);
+export const dummy5 = api(
+  { expose: true, method: "POST", path: "/dummy/:foo" },
   async (req: Request) => {},
 );
 
