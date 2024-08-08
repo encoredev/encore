@@ -675,9 +675,7 @@ func (ts *typescript) writeStreamClasses() {
         }
 
         return this.connection.ws.send(JSON.stringify(msg));
-    }
-
-`
+    }`
 
 	receive := `
     async next(): Promise<Response | undefined> {
@@ -723,7 +721,7 @@ class WebSocketConnection {
     constructor(url: string, headers?: Record<string, string>) {
         let protocols = ["encore-ws"];
         if (headers) {
-        	protocols.push(encodeWebSocketHeaders(headers))
+            protocols.push(encodeWebSocketHeaders(headers))
         }
 
         this.protocols = protocols;
@@ -810,9 +808,8 @@ export class BidiStream<Request, Response> {
     close() {
         this.connection.close();
     }
-
-    ` + send + `
-    ` + receive + `
+` + send + `
+` + receive + `
 
 }
 export class InStream<Response> {
@@ -829,8 +826,7 @@ export class InStream<Response> {
     close() {
         this.connection.close();
     }
-
-    ` + receive + `
+` + receive + `
 }
 export class OutStream<Request, Response> {
     private connection: WebSocketConnection;
@@ -853,8 +849,7 @@ export class OutStream<Request, Response> {
     close() {
         this.connection.close();
     }
-
-    ` + send + `
+` + send + `
 }`)
 }
 
@@ -1093,7 +1088,7 @@ class BaseClient {
         if (this.authGenerator) {
             const mayBePromise = this.authGenerator()
             if (mayBePromise instanceof Promise) {
-               	authData = await mayBePromise
+                authData = await mayBePromise
             } else {
                 authData = mayBePromise
             }

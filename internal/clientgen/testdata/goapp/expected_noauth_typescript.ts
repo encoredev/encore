@@ -106,6 +106,221 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     return record as Record<K, V>
 }
 
+function encodeWebSocketHeaders(headers: Record<string, string>) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
+}
+
+class WebSocketConnection {
+    public ws: WebSocket;
+    public done = false;
+
+    private msgHandler?: (event: any) => void;
+
+    private url: string;
+    private protocols: string[];
+
+    private retry: number = 0;
+    private minDelayMs: number = 10;
+    private maxDelayMs: number = 500;
+
+    private hasUpdateHandlers: (() => void)[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.protocols = protocols;
+        this.url = url;
+
+        this.ws = this.connect();
+    }
+
+    connect(): WebSocket {
+        const ws = new WebSocket(this.url, this.protocols)
+
+        ws.addEventListener("open", (event: any) => {
+            this.retry = 0;
+        });
+
+        ws.addEventListener("error", (event: any) => {
+          console.error(event.error);
+          this.ws.close(1002);
+        });
+
+        ws.addEventListener("message", (event: any) => {
+            if (this.msgHandler !== undefined) {
+                this.msgHandler(event);
+            }
+            this.resolveHasUpdateHandlers();
+        });
+
+        ws.addEventListener("close", (event: any) => {
+            // normal closure, no reconnect needed
+            if (event.code === 1005 || event.code === 1000) {
+                this.done = true;
+            }
+            if (!this.done) {
+                this.retry += 1;
+                const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
+                console.log(`Reconnecting to ${this.url} in ${delay}ms`);
+                setTimeout(() => {
+                    this.ws = this.connect();
+                }, delay);
+            }
+            this.resolveHasUpdateHandlers();
+        });
+
+        return ws
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    setMsgHandler(handler: (event: any) => void) {
+        this.msgHandler = handler;
+    }
+
+    close() {
+        this.done = true;
+        this.ws.close();
+    }
+}
+
+export class BidiStream<Request, Response> {
+    private connection: WebSocketConnection;
+    private buffer: Response[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event: any) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+    }
+
+    close() {
+        this.connection.close();
+    }
+
+    async send(msg: Request) {
+        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
+          // await that the socket is opened
+          await new Promise((resolve) => {
+              const handler = () => {
+                  this.connection.ws.removeEventListener("open", handler);
+                  resolve(null);
+              };
+              this.connection.ws.addEventListener("open", handler);
+          });
+        }
+
+        return this.connection.ws.send(JSON.stringify(msg));
+    }
+
+    async next(): Promise<Response | undefined> {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift() as Response;
+            } else {
+                if (this.connection.done) break;
+                await this.connection.hasUpdate();
+            }
+        }
+    }
+
+
+}
+export class InStream<Response> {
+    private connection: WebSocketConnection;
+    private buffer: Response[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event: any) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+    }
+
+    close() {
+        this.connection.close();
+    }
+
+    async next(): Promise<Response | undefined> {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift() as Response;
+            } else {
+                if (this.connection.done) break;
+                await this.connection.hasUpdate();
+            }
+        }
+    }
+
+}
+export class OutStream<Request, Response> {
+    private connection: WebSocketConnection;
+    private responseValue: Promise<Response>;
+
+    constructor(url: string, headers?: Record<string, string>) {
+        let responseResolver: (_: any) => void;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
+
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event: any) => {
+            responseResolver(JSON.parse(event.data))
+        });
+    }
+
+    async response(): Promise<Response> {
+        return this.responseValue;
+    }
+
+    close() {
+        this.connection.close();
+    }
+
+    async send(msg: Request) {
+        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
+          // await that the socket is opened
+          await new Promise((resolve) => {
+              const handler = () => {
+                  this.connection.ws.removeEventListener("open", handler);
+                  resolve(null);
+              };
+              this.connection.ws.addEventListener("open", handler);
+          });
+        }
+
+        return this.connection.ws.send(JSON.stringify(msg));
+    }
+}
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Headers to be sent with the request */
@@ -149,6 +364,70 @@ class BaseClient {
         }
     }
 
+	async getAuthData(): Promise<CallParameters | undefined> {
+    // createBidiStream sets up a stream to a streaming api
+    async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new BidiStream(this.baseURL + path + queryString, headers);
+    }
+
+    // createInStream sets up a stream to a streaming api
+    async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new InStream(this.baseURL + path + queryString, headers);
+    }
+
+    // createOutStream sets up a stream to a streaming api
+    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new OutStream(this.baseURL + path + queryString, headers);
+    }
+
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
@@ -161,6 +440,20 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
+
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
+        }
 
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''

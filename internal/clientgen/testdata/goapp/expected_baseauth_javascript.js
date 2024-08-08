@@ -25,7 +25,7 @@ export function PreviewEnv(pr) {
 }
 
 /**
- * Client is an API client for the app Encore application. 
+ * Client is an API client for the app Encore application.
  */
 export default class Client {
     /**
@@ -97,6 +97,211 @@ function makeRecord(record) {
 }
 
 
+function encodeWebSocketHeaders(headers) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
+}
+
+class WebSocketConnection {
+    done = false;
+    retry = 0;
+    minDelayMs = 10;
+    maxDelayMs = 500;
+
+    hasUpdateHandlers = [];
+    msgHandler = undefined;
+
+    constructor(url, headers) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.protocols = protocols;
+        this.url = url;
+
+        this.ws = this.connect();
+	}
+
+    connect() {
+        const ws = new WebSocket(this.url, this.protocols);
+
+        ws.addEventListener("open", (event) => {
+            this.retry = 0;
+        });
+
+        ws.addEventListener("error", (event) => {
+          console.error(event.error);
+          this.ws.close(1002);
+        });
+
+        ws.addEventListener("message", (event) => {
+            if (this.msgHandler !== undefined) {
+                this.msgHandler(event);
+            }
+            this.resolveHasUpdateHandlers();
+        });
+
+        ws.addEventListener("close", (event) => {
+            // normal closure, no reconnect needed
+            if (event.code === 1005 || event.code === 1000) {
+                this.done = true;
+            }
+            if (!this.done) {
+                this.retry += 1;
+                const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
+                console.log(`Reconnecting to ${this.url} in ${delay}ms`);
+                setTimeout(() => {
+                    this.ws = this.connect();
+                }, delay);
+            }
+            this.resolveHasUpdateHandlers();
+        });
+
+        return ws
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    setMsgHandler(handler) {
+        this.msgHandler = handler;
+    }
+
+    close() {
+        this.done = true;
+        this.ws.close();
+    }
+}
+
+export class BidiStream {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+    }
+
+    close() {
+        this.connection.close();
+    }
+
+    async send(msg) {
+        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
+          // await that the socket is opened
+          await new Promise((resolve) => {
+              const handler = () => {
+                  this.connection.ws.removeEventListener("open", handler);
+                  resolve();
+              };
+              this.connection.ws.addEventListener("open", handler);
+          });
+        }
+
+        return this.connection.ws.send(JSON.stringify(msg));
+    }
+
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.connection.done) break;
+                await this.connection.hasUpdate();
+            }
+        }
+    }
+
+
+}
+export class InStream {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event) => {
+            this.buffer.push(JSON.parse(event.data));
+        });
+    }
+
+    close() {
+        this.connection.close();
+    }
+
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.connection.done) break;
+                await this.connection.hasUpdate();
+            }
+        }
+    }
+
+}
+export class OutStream {
+    constructor(url, headers) {
+        let responseResolver;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
+
+        this.connection = new WebSocketConnection(url, headers);
+        this.connection.setMsgHandler((event) => {
+            responseResolver(JSON.parse(event.data))
+        });
+    }
+
+    async response() {
+        return this.responseValue;
+    }
+
+    close() {
+        this.connection.close();
+    }
+
+    async send(msg) {
+        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
+          // await that the socket is opened
+          await new Promise((resolve) => {
+              const handler = () => {
+                  this.connection.ws.removeEventListener("open", handler);
+                  resolve();
+              };
+              this.connection.ws.addEventListener("open", handler);
+          });
+        }
+
+        return this.connection.ws.send(JSON.stringify(msg));
+    }
+}
+
 const boundFetch = fetch.bind(this)
 
 class BaseClient {
@@ -133,6 +338,91 @@ class BaseClient {
 
     }
 
+    async getAuthData() {
+        let authData
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator()
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise
+            } else {
+                authData = mayBePromise
+            }
+        }
+
+        if (authData) {
+            const data = {};
+
+            data.headers = {}
+            data.headers["Authorization"] = "Bearer " + authData
+
+            return data;
+        }
+    }
+    // createBidiStream sets up a stream to a streaming api
+    async createBidiStream(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new BidiStream(this.baseURL + path + queryString, headers);
+    }
+
+    // createInStream sets up a stream to a streaming api
+    async createInStream(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new InStream(this.baseURL + path + queryString, headers);
+    }
+
+    // createOutStream sets up a stream to a streaming api
+    async createOutStream(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new OutStream(this.baseURL + path + queryString, headers);
+    }
+
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
         let { query, headers, ...rest } = params ?? {}
@@ -146,20 +436,17 @@ class BaseClient {
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
 
-        // If authorization data generator is present, call it and add the returned data to the request
-        let authData
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator()
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise
-            } else {
-                authData = mayBePromise
-            }
-        }
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
 
         // If we now have authentication data, add it to the request
         if (authData) {
-            init.headers["Authorization"] = "Bearer " + authData
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
         }
 
         // Make the actual request
@@ -199,7 +486,7 @@ class BaseClient {
 
 function isAPIErrorResponse(err) {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -217,7 +504,7 @@ export class APIError extends Error {
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -225,14 +512,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
         if (Object.setPrototypeOf == undefined) {
             this.__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if (Error.captureStackTrace !== undefined) {
             Error.captureStackTrace(this, this.constructor);
