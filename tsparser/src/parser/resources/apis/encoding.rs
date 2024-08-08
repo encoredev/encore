@@ -265,7 +265,7 @@ fn describe_req(
     let Some(req_schema) = req_schema else {
         // We don't have any request schema. This is valid if and only if
         // we have no path parameters or it's a raw endpoint.
-        if path.is_some() && !path.unwrap().has_dynamic_segments() || raw {
+        if path.is_none() || !path.unwrap().has_dynamic_segments() || raw {
             return Ok((
                 vec![RequestEncoding {
                     methods: methods.clone(),
