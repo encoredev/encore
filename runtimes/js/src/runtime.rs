@@ -118,7 +118,7 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
-        let handler = new_api_handler(env, route.handler, route.raw)?;
+        let handler = new_api_handler(env, route.handler, route.raw, route.streaming)?;
 
         // If we're not hosting an API server, this is a no-op.
         let Some(srv) = self.runtime.api().server() else {

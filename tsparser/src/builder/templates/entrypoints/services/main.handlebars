@@ -9,10 +9,11 @@ import {{toJSON import_path}};
 const handlers: Handler[] = [
 {{#each endpoints}}
     {
-        service: {{toJSON ../name}},
-        name:    {{toJSON name}},
-        handler: {{name}}Impl,
-        raw:     {{toJSON raw}},
+        service:   {{toJSON ../name}},
+        name:      {{toJSON name}},
+        handler:   {{name}}Impl,
+        raw:       {{toJSON raw}},
+        streaming: {{toJSON streaming}},
     },
 {{/each}}
 ];

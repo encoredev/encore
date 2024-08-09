@@ -503,15 +503,19 @@ export const Bar = 5;
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
+                    handshake: None,
                     req: vec![RequestEncoding {
                         methods: Methods::Some(vec![Method::Post]),
                         params: vec![],
                     }],
                     resp: ResponseEncoding { params: vec![] },
                     path: Path::parse("/svc.Bar", Default::default()).unwrap(),
+                    raw_handshake_schema: None,
                     raw_req_schema: None,
                     raw_resp_schema: None,
                 },
+                streaming_request: false,
+                streaming_response: false,
             }));
 
             let bar_binds = vec![Lrc::new(Bind {
@@ -583,6 +587,7 @@ export const Bar = 5;
                 encoding: EndpointEncoding {
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
+                    handshake: None,
                     req: vec![RequestEncoding {
                         methods: Methods::Some(vec![Method::Post]),
                         params: vec![],
@@ -591,9 +596,12 @@ export const Bar = 5;
                         params: vec![],
                     },
                     path: Path::parse("/svc.Bar", Default::default()).unwrap(),
+                    raw_handshake_schema: None,
                     raw_req_schema: None,
                     raw_resp_schema: None,
                 },
+                streaming_request: false,
+                streaming_response: false,
             }));
             let bar_binds = vec![Lrc::new(Bind {
                 kind: BindKind::Create,

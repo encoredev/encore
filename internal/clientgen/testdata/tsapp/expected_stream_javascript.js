@@ -14,7 +14,7 @@ export const Local = "http://localhost:4000"
  * Environment returns a BaseURL for calling the cloud environment with the given name.
  */
 export function Environment(name) {
-    return `https://${name}-slug.encr.app`
+    return `https://${name}-app.encr.app`
 }
 
 /**
@@ -25,7 +25,7 @@ export function PreviewEnv(pr) {
 }
 
 /**
- * Client is an API client for the slug Encore application.
+ * Client is an API client for the app Encore application.
  */
 export default class Client {
     /**
@@ -36,482 +36,96 @@ export default class Client {
      */
     constructor(target = "prod", options = undefined) {
         const base = new BaseClient(target, options ?? {})
-        this.cache = new cache.ServiceClient(base)
-        this.di = new di.ServiceClient(base)
-        this.echo = new echo.ServiceClient(base)
-        this.emptycfg = new emptycfg.ServiceClient(base)
-        this.endtoend = new endtoend.ServiceClient(base)
-        this.middleware = new middleware.ServiceClient(base)
-        this.test = new test.ServiceClient(base)
-        this.validation = new validation.ServiceClient(base)
+        this.svc = new svc.ServiceClient(base)
     }
 }
 
-class CacheServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async GetList(key) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/cache/list/${encodeURIComponent(key)}`)
-        return await resp.json()
-    }
-
-    async GetStruct(key) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/cache/struct/${encodeURIComponent(key)}`)
-        return await resp.json()
-    }
-
-    async Incr(key) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/cache/incr/${encodeURIComponent(key)}`)
-        return await resp.json()
-    }
-
-    async PostList(key, val) {
-        await this.baseClient.callAPI("POST", `/cache/list/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
-    }
-
-    async PostStruct(key, val) {
-        await this.baseClient.callAPI("POST", `/cache/struct/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
-    }
-}
-
-export const cache = {
-    ServiceClient: CacheServiceClient
-}
-
-class DiServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async One() {
-        await this.baseClient.callAPI("POST", `/di/one`)
-    }
-
-    async Three(method, body, options) {
-        return this.baseClient.callAPI(method, `/di/raw`, body, options)
-    }
-
-    async Two() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/di/two`)
-        return await resp.json()
-    }
-}
-
-export const di = {
-    ServiceClient: DiServiceClient
-}
-
-class EchoServiceClient {
+class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
     }
 
     /**
-     * AppMeta returns app metadata.
+     * Bidi stream type variants
      */
-    async AppMeta() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.AppMeta`)
-        return await resp.json()
-    }
-
-    /**
-     * BasicEcho echoes back the request data.
-     */
-    async BasicEcho(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    async ConfigValues() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.ConfigValues`)
-        return await resp.json()
-    }
-
-    /**
-     * Echo echoes back the request data.
-     */
-    async Echo(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.Echo`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    /**
-     * EmptyEcho echoes back the request data.
-     */
-    async EmptyEcho(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.EmptyEcho`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    /**
-     * Env returns the environment.
-     */
-    async Env() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.Env`)
-        return await resp.json()
-    }
-
-    /**
-     * HeadersEcho echoes back the request headers
-     */
-    async HeadersEcho(params) {
+    async bidiWithHandshake(pathParam, params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({
-            "x-int":    String(params.Int),
-            "x-string": params.String,
-        })
-
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
-
-        //Populate the return object from the JSON body and received headers
-        const rtn = await resp.json()
-        rtn.Int = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
-        rtn.String = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
-        return rtn
-    }
-
-    /**
-     * MuteEcho absorbs a request
-     */
-    async MuteEcho(params) {
-        // Convert our params into the objects we need for the request
-        const query = makeRecord({
-            key:   params.Key,
-            value: params.Value,
-        })
-
-        await this.baseClient.callAPI("GET", `/echo.MuteEcho`, undefined, {query})
-    }
-
-    /**
-     * NilResponse returns a nil response and nil error
-     */
-    async NilResponse() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.NilResponse`)
-        return await resp.json()
-    }
-
-    /**
-     * NonBasicEcho echoes back the request data.
-     */
-    async NonBasicEcho(pathString, pathInt, pathWild, params) {
-        // Convert our params into the objects we need for the request
-        const headers = makeRecord({
-            "x-header-number": String(params.HeaderNumber),
-            "x-header-string": params.HeaderString,
+            "some-header": params.headerValue,
         })
 
         const query = makeRecord({
-            no:     String(params.QueryNumber),
-            optnum: params.OptQueryNumber === undefined ? undefined : String(params.OptQueryNumber),
-            optstr: params.OptQueryString,
-            string: params.QueryString,
+            "some-query": params.queryValue,
         })
 
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            AnonStruct:       params.AnonStruct,
-            AuthHeader:       params.AuthHeader,
-            AuthQuery:        params.AuthQuery,
-            PathInt:          params.PathInt,
-            PathString:       params.PathString,
-            PathWild:         params.PathWild,
-            RawStruct:        params.RawStruct,
-            Struct:           params.Struct,
-            StructMap:        params.StructMap,
-            StructMapPtr:     params.StructMapPtr,
-            StructPtr:        params.StructPtr,
-            StructSlice:      params.StructSlice,
-            "formatted_nest": params["formatted_nest"],
-        }
+        return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
+    }
 
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, JSON.stringify(body), {headers, query})
-
-        //Populate the return object from the JSON body and received headers
-        const rtn = await resp.json()
-        rtn.HeaderString = mustBeSet("Header `x-header-string`", resp.headers.get("x-header-string"))
-        rtn.HeaderNumber = parseInt(mustBeSet("Header `x-header-number`", resp.headers.get("x-header-number")), 10)
-        return rtn
+    async bidiWithoutHandshake() {
+        return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
     }
 
     /**
-     * Noop does nothing
+     * In stream type variants
      */
-    async Noop() {
-        await this.baseClient.callAPI("GET", `/echo.Noop`)
-    }
-
-    /**
-     * Pong returns a bird tuple
-     */
-    async Pong() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/echo.Pong`)
-        return await resp.json()
-    }
-
-    /**
-     * Publish publishes a request on a topic
-     */
-    async Publish() {
-        await this.baseClient.callAPI("POST", `/echo.Publish`)
-    }
-}
-
-export const echo = {
-    ServiceClient: EchoServiceClient
-}
-
-class EmptycfgServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async AnAPI() {
-        await this.baseClient.callAPI("POST", `/emptycfg.AnAPI`)
-    }
-}
-
-export const emptycfg = {
-    ServiceClient: EmptycfgServiceClient
-}
-
-class EndtoendServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async GeneratedWrappersEndToEndTest() {
-        await this.baseClient.callAPI("GET", `/generated-wrappers-end-to-end-test`)
-    }
-}
-
-export const endtoend = {
-    ServiceClient: EndtoendServiceClient
-}
-
-class MiddlewareServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async Error() {
-        await this.baseClient.callAPI("POST", `/middleware.Error`)
-    }
-
-    async ResponseGen(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseGen`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    async ResponseRewrite(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseRewrite`, JSON.stringify(params))
-        return await resp.json()
-    }
-}
-
-export const middleware = {
-    ServiceClient: MiddlewareServiceClient
-}
-
-class TestServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    /**
-     * GetMessage allows us to test an API which takes no parameters,
-     * but returns data. It also tests two API's on the same path with different HTTP methods
-     */
-    async GetMessage(clientID) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/last_message/${encodeURIComponent(clientID)}`)
-        return await resp.json()
-    }
-
-    /**
-     * MarshallerTestHandler allows us to test marshalling of all the inbuilt types in all
-     * the field types. It simply echos all the responses back to the client
-     */
-    async MarshallerTestHandler(params) {
+    async inWithHandshake(pathParam, params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({
-            "x-boolean": String(params.HeaderBoolean),
-            "x-bytes":   String(params.HeaderBytes),
-            "x-float":   String(params.HeaderFloat),
-            "x-int":     String(params.HeaderInt),
-            "x-json":    JSON.stringify(params.HeaderJson),
-            "x-string":  params.HeaderString,
-            "x-time":    String(params.HeaderTime),
-            "x-user-id": String(params.HeaderUserID),
-            "x-uuid":    String(params.HeaderUUID),
+            "some-header": params.headerValue,
         })
 
         const query = makeRecord({
-            boolean:   String(params.QueryBoolean),
-            bytes:     String(params.QueryBytes),
-            float:     String(params.QueryFloat),
-            int:       String(params.QueryInt),
-            json:      JSON.stringify(params.QueryJson),
-            slice:     params.QuerySlice.map((v) => String(v)),
-            string:    params.QueryString,
-            time:      String(params.QueryTime),
-            "user-id": String(params.QueryUserID),
-            uuid:      String(params.QueryUUID),
+            "some-query": params.queryValue,
         })
 
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            boolean:   params.boolean,
-            bytes:     params.bytes,
-            float:     params.float,
-            int:       params.int,
-            json:      params.json,
-            slice:     params.slice,
-            string:    params.string,
-            time:      params.time,
-            "user-id": params["user-id"],
-            uuid:      params.uuid,
-        }
-
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, JSON.stringify(body), {headers, query})
-
-        //Populate the return object from the JSON body and received headers
-        const rtn = await resp.json()
-        rtn.HeaderBoolean = mustBeSet("Header `x-boolean`", resp.headers.get("x-boolean")).toLowerCase() === "true"
-        rtn.HeaderInt = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
-        rtn.HeaderFloat = Number(mustBeSet("Header `x-float`", resp.headers.get("x-float")))
-        rtn.HeaderString = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
-        rtn.HeaderBytes = mustBeSet("Header `x-bytes`", resp.headers.get("x-bytes"))
-        rtn.HeaderTime = mustBeSet("Header `x-time`", resp.headers.get("x-time"))
-        rtn.HeaderJson = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
-        rtn.HeaderUUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
-        rtn.HeaderUserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
-        return rtn
+        return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
-    /**
-     * Noop allows us to test if a simple HTTP request can be made
-     */
-    async Noop() {
-        await this.baseClient.callAPI("POST", `/test.Noop`)
+    async inWithResponse() {
+        return await this.baseClient.createOutStream(`/in/withResponse`)
     }
 
-    /**
-     * NoopWithError allows us to test if the structured errors are returned
-     */
-    async NoopWithError() {
-        await this.baseClient.callAPI("POST", `/test.NoopWithError`)
-    }
-
-    /**
-     * PathMultiSegments allows us to wildcard segments and segment URI encoding
-     */
-    async PathMultiSegments(bool, _int, string, uuid, wildcard) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(_int)}/${encodeURIComponent(string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
-        return await resp.json()
-    }
-
-    /**
-     * RawEndpoint allows us to test the clients' ability to send raw requests
-     * under auth
-     */
-    async RawEndpoint(method, id, body, options) {
-        return this.baseClient.callAPI(method, `/raw/blah/${id.map(encodeURIComponent).join("/")}`, body, options)
-    }
-
-    /**
-     * RestStyleAPI tests all the ways we can get data into and out of the application
-     * using Encore request handlers
-     */
-    async RestStyleAPI(objType, name, params) {
+    async inWithResponseAndHandshake(params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({
-            "some-key": params.HeaderValue,
+            "some-header": params.headerValue,
         })
 
         const query = makeRecord({
-            "Some-Key": params.QueryValue,
+            "path_param": params.pathParam,
+            "some-query": params.queryValue,
         })
 
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            Nested:     params.Nested,
-            "Some-Key": params["Some-Key"],
-        }
+        return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
+    }
 
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, JSON.stringify(body), {headers, query})
-
-        //Populate the return object from the JSON body and received headers
-        const rtn = await resp.json()
-        rtn.HeaderValue = mustBeSet("Header `some-key`", resp.headers.get("some-key"))
-        return rtn
+    async inWithoutHandshake() {
+        return await this.baseClient.createOutStream(`/in/noHandshake`)
     }
 
     /**
-     * SimpleBodyEcho allows us to exercise the body marshalling from JSON
-     * and being returned purely as a body
+     * Out stream type variants
      */
-    async SimpleBodyEcho(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/test.SimpleBodyEcho`, JSON.stringify(params))
-        return await resp.json()
+    async outWithHandshake(pathParam, params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            "some-header": params.headerValue,
+        })
+
+        const query = makeRecord({
+            "some-query": params.queryValue,
+        })
+
+        return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
-    /**
-     * TestAuthHandler allows us to test the clients ability to add tokens to requests
-     */
-    async TestAuthHandler() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/test.TestAuthHandler`)
-        return await resp.json()
-    }
-
-    /**
-     * UpdateMessage allows us to test an API which takes parameters,
-     * but doesn't return anything
-     */
-    async UpdateMessage(clientID, params) {
-        await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, JSON.stringify(params))
+    async outWithoutHandshake() {
+        return await this.baseClient.createInStream(`/out/noHandshake`)
     }
 }
 
-export const test = {
-    ServiceClient: TestServiceClient
-}
-
-class ValidationServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async TestOne(params) {
-        await this.baseClient.callAPI("POST", `/validation.TestOne`, JSON.stringify(params))
-    }
-}
-
-export const validation = {
-    ServiceClient: ValidationServiceClient
+export const svc = {
+    ServiceClient: SvcServiceClient
 }
 
 
@@ -535,20 +149,6 @@ function makeRecord(record) {
         }
     }
     return record
-}
-
-// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
-function mustBeSet(field, value) {
-    if (value === null || value === undefined) {
-        throw new APIError(
-            500,
-            {
-                code: ErrCode.DataLoss,
-                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
-            },
-        )
-    }
-    return value
 }
 
 
@@ -769,7 +369,7 @@ class BaseClient {
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
         if (typeof window === "undefined") {
-            this.headers["User-Agent"] = "slug-Generated-JS-Client (Encore/v0.0.0-develop)";
+            this.headers["User-Agent"] = "app-Generated-JS-Client (Encore/v0.0.0-develop)";
         }
 
         this.requestInit = options.requestInit ?? {}
@@ -780,46 +380,9 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
-
-        // Setup an authentication data generator using the auth data token option
-        if (options.auth !== undefined) {
-            const auth = options.auth
-            if (typeof auth === "function") {
-                this.authGenerator = auth
-            } else {
-                this.authGenerator = () => auth
-            }
-        }
-
     }
 
     async getAuthData() {
-        let authData
-
-        // If authorization data generator is present, call it and add the returned data to the request
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator()
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise
-            } else {
-                authData = mayBePromise
-            }
-        }
-
-        if (authData) {
-            const data = {};
-
-            data.query = {};
-            data.query["query"] = authData.Query.map((v) => String(v))
-            data.query["new-auth"] = String(authData.NewAuth)
-            data.headers = {};
-            data.headers["x-header"] = authData.Header
-            data.headers["x-auth-int"] = String(authData.AuthInt)
-            data.headers["authorization"] = authData.Authorization
-
-            return data;
-        }
-    }
     // createBidiStream sets up a stream to a streaming api
     async createBidiStream(path, params) {
         let { query, headers } = params ?? {};

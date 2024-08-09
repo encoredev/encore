@@ -69,6 +69,19 @@ impl ToOutgoingRequest for Body {
 }
 
 impl Body {
+    pub fn to_outgoing_payload(&self, payload: &JSONPayload) -> APIResult<Vec<u8>> {
+        if payload.is_none() {
+            return Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "missing body payload".to_string(),
+                internal_message: None,
+                stack: None,
+            });
+        };
+
+        let body = self.schema.to_vec(payload).map_err(api::Error::internal)?;
+        Ok(body)
+    }
     pub fn to_response(
         &self,
         payload: &JSONPayload,

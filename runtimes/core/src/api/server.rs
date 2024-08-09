@@ -4,11 +4,13 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
+use axum::response::IntoResponse;
+
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::paths::Pather;
 use crate::api::reqauth::svcauth;
-use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
+use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap};
 use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
 use crate::trace;

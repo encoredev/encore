@@ -3,6 +3,7 @@ use std::future::{Future, IntoFuture};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
+use axum::response::IntoResponse;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
@@ -14,7 +15,7 @@ use crate::api::schema::encoding::EncodingConfig;
 use crate::api::schema::JSONPayload;
 use crate::api::{
     auth, cors, encore_routes, endpoints_from_meta, jsonschema, paths, reqauth, server, APIResult,
-    Endpoint, IntoResponse,
+    Endpoint,
 };
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;

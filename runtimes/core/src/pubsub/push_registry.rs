@@ -1,10 +1,10 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
-use axum::{extract::Path, RequestExt};
+use axum::{extract::Path, response::IntoResponse, RequestExt};
 use futures::Future;
 use std::sync::RwLock;
 
-use crate::api::{self, IntoResponse};
+use crate::api::{self};
 
 use super::PushRequestHandler;
 

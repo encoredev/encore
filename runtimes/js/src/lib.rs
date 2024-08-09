@@ -13,3 +13,4 @@ mod secret;
 mod sqldb;
 mod stream;
 mod threadsafe_function;
+mod websocket_api;

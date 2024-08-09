@@ -61,8 +61,54 @@ export interface ClientOptions {
 }
 
 export namespace svc {
-    export interface Request {
-        listOfUnion: ("a" | "b")[]
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+        pathParam: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface OutMsg {
+        user: number
+        msg: string
     }
 
     export class ServiceClient {
@@ -72,13 +118,82 @@ export namespace svc {
             this.baseClient = baseClient
         }
 
-        public async dummy(params: Request): Promise<void> {
+        /**
+         * Bidi stream type variants
+         */
+        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<BidiStream<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
-            const query = makeRecord<string, string | string[]>({
-                "list_of_union": params.listOfUnion.map((v) => String(v)),
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
             })
 
-            await this.baseClient.callAPI("GET", `/dummy`, undefined, {query})
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async bidiWithoutHandshake(): Promise<BidiStream<InMsg, OutMsg>> {
+            return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
+        }
+
+        /**
+         * In stream type variants
+         */
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<OutStream<InMsg, void>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async inWithResponse(): Promise<OutStream<InMsg, OutMsg>> {
+            return await this.baseClient.createOutStream(`/in/withResponse`)
+        }
+
+        public async inWithResponseAndHandshake(params: Handshake): Promise<OutStream<InMsg, OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "path_param": params.pathParam,
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
+        }
+
+        public async inWithoutHandshake(): Promise<OutStream<InMsg, void>> {
+            return await this.baseClient.createOutStream(`/in/noHandshake`)
+        }
+
+        /**
+         * Out stream type variants
+         */
+        public async outWithHandshake(pathParam: string, params: Handshake): Promise<InStream<OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async outWithoutHandshake(): Promise<InStream<OutMsg>> {
+            return await this.baseClient.createInStream(`/out/noHandshake`)
         }
     }
 }

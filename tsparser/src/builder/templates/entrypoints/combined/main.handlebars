@@ -20,10 +20,11 @@ const gateways: any[] = [
 const handlers: Handler[] = [
 {{#each endpoints}}
     {
-        service: {{toJSON service_name}},
-        name:    {{toJSON name}},
-        handler: {{service_name}}_{{name}}Impl,
-        raw:     {{toJSON raw}},
+        service:   {{toJSON service_name}},
+        name:      {{toJSON name}},
+        handler:   {{service_name}}_{{name}}Impl,
+        raw:       {{toJSON raw}},
+        streaming: {{toJSON streaming}},
     },
 {{/each}}
 ];
