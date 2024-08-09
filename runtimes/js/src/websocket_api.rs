@@ -64,6 +64,7 @@ pub fn new_handler(env: Env, func: JsFunction) -> napi::Result<Arc<dyn api::Boxe
 
 #[napi]
 struct Socket {
+    #[allow(dead_code)]
     inner: api::websocket::Socket,
 }
 
@@ -74,6 +75,7 @@ impl Socket {
     }
 
     #[napi]
+    #[allow(dead_code)]
     pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> napi::Result<()> {
         self.inner
             .send(msg)
@@ -81,6 +83,7 @@ impl Socket {
     }
 
     #[napi]
+    #[allow(dead_code)]
     pub async fn recv(&self) -> napi::Result<serde_json::Map<String, serde_json::Value>> {
         self.inner
             .recv()
@@ -89,6 +92,7 @@ impl Socket {
     }
 
     #[napi]
+    #[allow(dead_code)]
     pub fn close(&self) {
         self.inner.close()
     }
@@ -96,6 +100,7 @@ impl Socket {
 
 #[napi]
 struct Sink {
+    #[allow(dead_code)]
     inner: api::websocket::Sink,
 }
 
@@ -106,6 +111,7 @@ impl Sink {
     }
 
     #[napi]
+    #[allow(dead_code)]
     pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> napi::Result<()> {
         self.inner
             .send(msg)
@@ -113,6 +119,7 @@ impl Sink {
     }
 
     #[napi]
+    #[allow(dead_code)]
     pub fn close(&self) {
         self.inner.close()
     }
@@ -120,6 +127,7 @@ impl Sink {
 
 #[napi]
 struct Stream {
+    #[allow(dead_code)]
     inner: api::websocket::Stream,
 }
 
@@ -130,6 +138,7 @@ impl Stream {
     }
 
     #[napi]
+    #[allow(dead_code)]
     pub async fn recv(&self) -> napi::Result<serde_json::Map<String, serde_json::Value>> {
         self.inner
             .recv()
