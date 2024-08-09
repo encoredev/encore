@@ -680,6 +680,7 @@ func (ts *typescript) writeStreamClasses() {
 	receive := `
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
+        return;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
@@ -687,7 +688,7 @@ func (ts *typescript) writeStreamClasses() {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.connection.done) break;
+                if (this.connection.done) return;
                 await this.connection.hasUpdate();
             }
         }
@@ -733,7 +734,7 @@ class WebSocketConnection {
     connect(): WebSocket {
         const ws = new WebSocket(this.url, this.protocols)
 
-        ws.addEventListener("open", (event: any) => {
+        ws.addEventListener("open", (_event: any) => {
             this.retry = 0;
         });
 
@@ -1143,6 +1144,7 @@ class BaseClient {
 		ts.WriteString(`
             return data;
         }
+        return;
     }`)
 
 	}

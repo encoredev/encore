@@ -508,7 +508,7 @@ class WebSocketConnection {
     connect(): WebSocket {
         const ws = new WebSocket(this.url, this.protocols)
 
-        ws.addEventListener("open", (event: any) => {
+        ws.addEventListener("open", (_event: any) => {
             this.retry = 0;
         });
 
@@ -601,6 +601,7 @@ export class BidiStream<Request, Response> {
 
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
+        return;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
@@ -608,7 +609,7 @@ export class BidiStream<Request, Response> {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.connection.done) break;
+                if (this.connection.done) return;
                 await this.connection.hasUpdate();
             }
         }
@@ -633,6 +634,7 @@ export class InStream<Response> {
 
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
+        return;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
@@ -640,7 +642,7 @@ export class InStream<Response> {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.connection.done) break;
+                if (this.connection.done) return;
                 await this.connection.hasUpdate();
             }
         }
@@ -765,6 +767,7 @@ class BaseClient {
 
             return data;
         }
+        return;
     }
     // createBidiStream sets up a stream to a streaming api
     async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
