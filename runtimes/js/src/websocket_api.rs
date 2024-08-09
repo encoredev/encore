@@ -39,7 +39,7 @@ impl api::BoxedHandler for JSWebSocketHandler {
                     ThreadsafeFunctionCallMode::Blocking,
                 );
 
-                log::debug!("js ws handler responded with status: {status}");
+                log::trace!("js ws handler responded with status: {status}");
             });
 
             match resp {

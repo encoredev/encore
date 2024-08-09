@@ -69,11 +69,18 @@ impl IntoResponse for SuccessResponse {
     }
 }
 
-impl IntoResponse for Error {
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        (&self).into_response()
+impl AsRef<Error> for Error {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::http::Response<axum::body::Body> {
+        self.as_ref().into_response()
+    }
+}
+
 impl IntoResponse for &Error {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
         let mut buf = BytesMut::with_capacity(128).writer();
@@ -203,16 +210,16 @@ pub fn endpoints_from_meta(
                 hosted_endpoints.push(EndpointName::new(&svc.name, &ep.name));
             }
 
-            let request_schemas = request_encoding(&mut registry_builder, md, ep)?;
             let handshake_schema = handshake_encoding(&mut registry_builder, md, ep)?;
+            let request_schemas = request_encoding(&mut registry_builder, md, ep)?;
             let response_schema = response_encoding(&mut registry_builder, md, ep)?;
 
             endpoints.push(EndpointUnderConstruction {
                 svc,
                 ep,
+                handshake_schema,
                 request_schemas,
                 response_schema,
-                handshake_schema,
             });
         }
     }
@@ -371,14 +378,11 @@ impl EndpointHandler {
 
         let parsed_payload = if stream_direction.is_none() {
             req_schema.extract(&mut parts, body).await?
+        } else if let Some(handshake_schema) = &self.endpoint.handshake {
+            // handshake does not have a body
+            handshake_schema.extract_parts(&mut parts).await?
         } else {
-            // do not try to parse the body of an upgrade request,
-            // that data will comeass messages over the socket.
-            if let Some(handshake_schema) = &self.endpoint.handshake {
-                handshake_schema.extract_parts(&mut parts).await?
-            } else {
-                None
-            }
+            None
         };
 
         // Extract caller information.
@@ -537,7 +541,7 @@ impl EndpointHandler {
                 ),
                 ResponseData::Typed(Err(err)) => (
                     err.code.status_code().as_u16(),
-                    (&err).into_response(),
+                    err.as_ref().into_response(),
                     None,
                     Some(err),
                 ),

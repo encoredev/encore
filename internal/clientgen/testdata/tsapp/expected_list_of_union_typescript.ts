@@ -164,14 +164,14 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("close", (event: any) => {
-            // normal closure, no reconnect needed
+            // normal closure, no reconnect
             if (event.code === 1005 || event.code === 1000) {
                 this.done = true;
             }
             if (!this.done) {
-                this.retry += 1;
                 const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
                 console.log(`Reconnecting to ${this.url} in ${delay}ms`);
+                this.retry += 1;
                 setTimeout(() => {
                     this.ws = this.connect();
                 }, delay);

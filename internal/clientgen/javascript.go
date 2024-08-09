@@ -185,10 +185,12 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 			}
 		}
 
+		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
+
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if rpc.RequestSchema != nil || rpc.HandshakeSchema != nil {
+		if (!isStream && rpc.RequestSchema != nil) || (isStream && rpc.HandshakeSchema != nil) {
 			if nParams > 0 {
 				js.WriteString(", ")
 			}
@@ -202,7 +204,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 
 		js.WriteString(") {\n")
 
-		if rpc.StreamingResponse || rpc.StreamingRequest {
+		if isStream {
 			var direction streamDirection
 
 			if rpc.StreamingRequest && rpc.StreamingResponse {
@@ -666,14 +668,14 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("close", (event) => {
-            // normal closure, no reconnect needed
+            // normal closure, no reconnect
             if (event.code === 1005 || event.code === 1000) {
                 this.done = true;
             }
             if (!this.done) {
-                this.retry += 1;
                 const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
                 console.log(` + "`Reconnecting to ${this.url} in ${delay}ms`" + `);
+                this.retry += 1;
                 setTimeout(() => {
                     this.ws = this.connect();
                 }, delay);

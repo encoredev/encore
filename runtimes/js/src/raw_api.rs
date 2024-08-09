@@ -339,7 +339,7 @@ impl api::BoxedHandler for JSRawHandler {
 
             let Some(body) = req.take_raw_body() else {
                 let err = api::Error::internal(anyhow::anyhow!("missing body"));
-                return api::ResponseData::Raw(axum::response::IntoResponse::into_response(err));
+                return api::ResponseData::Raw(err.into_response());
             };
 
             // Call the handler.

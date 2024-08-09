@@ -446,13 +446,13 @@ pub fn request_encoding(
             default_loc: Some(DefaultLoc::Body),
             rpc_path: Some(rpc_path),
             supports_body: true,
-            supports_query: true,
-            supports_header: true,
-            supports_path: true,
+            supports_query: false,
+            supports_header: false,
+            supports_path: false,
         };
         let schema = config.compute(request_schema)?;
         schemas.push(ReqSchemaUnderConstruction {
-            methods: vec![Method::GET], // TODO can I remove this?
+            methods: vec![Method::GET],
             schema,
         });
     } else {

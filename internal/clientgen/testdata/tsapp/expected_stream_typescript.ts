@@ -121,7 +121,7 @@ export namespace svc {
         /**
          * Bidi stream type variants
          */
-        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<BidiStream<InMsg,OutMsg>> {
+        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<BidiStream<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -134,14 +134,14 @@ export namespace svc {
             return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async bidiWithoutHandshake(): Promise<BidiStream<InMsg,OutMsg>> {
+        public async bidiWithoutHandshake(): Promise<BidiStream<InMsg, OutMsg>> {
             return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
         }
 
         /**
          * In stream type variants
          */
-        public async inWithHandshake(pathParam: string, params: Handshake): Promise<OutStream<InMsg,void>> {
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<OutStream<InMsg, void>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -154,11 +154,11 @@ export namespace svc {
             return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async inWithResponse(): Promise<OutStream<InMsg,OutMsg>> {
+        public async inWithResponse(): Promise<OutStream<InMsg, OutMsg>> {
             return await this.baseClient.createOutStream(`/in/withResponse`)
         }
 
-        public async inWithResponseAndHandshake(params: Handshake): Promise<OutStream<InMsg,OutMsg>> {
+        public async inWithResponseAndHandshake(params: Handshake): Promise<OutStream<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -172,7 +172,7 @@ export namespace svc {
             return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
         }
 
-        public async inWithoutHandshake(): Promise<OutStream<InMsg,void>> {
+        public async inWithoutHandshake(): Promise<OutStream<InMsg, void>> {
             return await this.baseClient.createOutStream(`/in/noHandshake`)
         }
 
@@ -279,14 +279,14 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("close", (event: any) => {
-            // normal closure, no reconnect needed
+            // normal closure, no reconnect
             if (event.code === 1005 || event.code === 1000) {
                 this.done = true;
             }
             if (!this.done) {
-                this.retry += 1;
                 const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
                 console.log(`Reconnecting to ${this.url} in ${delay}ms`);
+                this.retry += 1;
                 setTimeout(() => {
                     this.ws = this.connect();
                 }, delay);

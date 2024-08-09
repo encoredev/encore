@@ -245,7 +245,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if (rpc.RequestSchema != nil && !isStream) || (rpc.HandshakeSchema != nil && isStream) {
+		if (!isStream && rpc.RequestSchema != nil) || (isStream && rpc.HandshakeSchema != nil) {
 			if nParams > 0 {
 				ts.WriteString(", ")
 			}
@@ -287,7 +287,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			case Bidi:
 				ts.WriteString("BidiStream<")
 				writeTypOrVoid(ns, rpc.RequestSchema, 0)
-				ts.WriteString(",")
+				ts.WriteString(", ")
 				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
 				ts.WriteString(">")
 			case In:
@@ -297,7 +297,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			case Out:
 				ts.WriteString("OutStream<")
 				writeTypOrVoid(ns, rpc.RequestSchema, 0)
-				ts.WriteString(",")
+				ts.WriteString(", ")
 				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
 				ts.WriteString(">")
 			}
@@ -750,14 +750,14 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("close", (event: any) => {
-            // normal closure, no reconnect needed
+            // normal closure, no reconnect
             if (event.code === 1005 || event.code === 1000) {
                 this.done = true;
             }
             if (!this.done) {
-                this.retry += 1;
                 const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
                 console.log(` + "`Reconnecting to ${this.url} in ${delay}ms`" + `);
+                this.retry += 1;
                 setTimeout(() => {
                     this.ws = this.connect();
                 }, delay);

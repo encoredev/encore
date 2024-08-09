@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_encore_auth_data_header() {
+    fn test_filter_encore_headers() {
         let mut req = RequestHeader::build(http::Method::GET, b"/some/path", None).unwrap();
 
         req.append_header(
@@ -173,12 +173,12 @@ mod tests {
         .unwrap();
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_static("protocol-1, encore.dev.auth_data.e30K, protocol-2"),
+            HeaderValue::from_static("protocol-1, encore.dev.headers.e30K, protocol-2"),
         )
         .unwrap();
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_static("encore.dev.auth_data.e30K"),
+            HeaderValue::from_static("encore.dev.headers.e30K"),
         )
         .unwrap();
 
@@ -212,8 +212,7 @@ mod tests {
 
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_str(&format!("main-protocol, encore.dev.auth_data.{encoded}"))
-                .unwrap(),
+            HeaderValue::from_str(&format!("main-protocol, encore.dev.headers.{encoded}")).unwrap(),
         )
         .unwrap();
 
@@ -247,8 +246,7 @@ mod tests {
 
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_str(&format!("main-protocol, encore.dev.auth_data.{encoded}"))
-                .unwrap(),
+            HeaderValue::from_str(&format!("main-protocol, encore.dev.headers.{encoded}")).unwrap(),
         )
         .unwrap();
         req.append_header(
@@ -283,7 +281,7 @@ mod tests {
 
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_static("main-protocol, encore.dev.auth_data.invalid"),
+            HeaderValue::from_static("main-protocol, encore.dev.headers.invalid"),
         )
         .unwrap();
 
@@ -303,8 +301,7 @@ mod tests {
 
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_str(&format!("main-protocol, encore.dev.auth_data.{encoded}"))
-                .unwrap(),
+            HeaderValue::from_str(&format!("main-protocol, encore.dev.headers.{encoded}")).unwrap(),
         )
         .unwrap();
 
@@ -323,8 +320,7 @@ mod tests {
 
         req.append_header(
             SEC_WEBSOCKET_PROTOCOL,
-            HeaderValue::from_str(&format!("main-protocol, encore.dev.auth_data.{encoded}"))
-                .unwrap(),
+            HeaderValue::from_str(&format!("main-protocol, encore.dev.headers.{encoded}")).unwrap(),
         )
         .unwrap();
 

@@ -291,14 +291,9 @@ impl ProxyHttp for Gateway {
             }
 
             if session.is_upgrade_req() {
-                websocket::update_headers_from_websocket_protocol(upstream_request).map_err(
-                    |e| {
-                        Error::because(
-                            ErrorType::HTTPStatus(400),
-                            "invalid auth data passed in websocket protocol header",
-                            e,
-                        )
-                    },
+                websocket::update_headers_from_websocket_protocol(upstream_request).or_err(
+                    ErrorType::HTTPStatus(400),
+                    "invalid auth data passed in websocket protocol header",
                 )?;
             }
 
