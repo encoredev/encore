@@ -114,7 +114,7 @@ func TestDocker(t *testing.T) {
 				mb.On("ServiceConfigs", mock.Anything, mock.Anything).Return(builder.ServiceConfigsResult{}, nil)
 				mb.On("Compile", mock.Anything, mock.Anything).Return(&builder.CompileResult{}, nil)
 				mb.On("Close").Return(nil)
-				// You might need to mock GenUserFacing as well, depending on your logic
+				// We might need to mock GenUserFacing as well
 				mb.On("GenUserFacing", mock.Anything, mock.Anything).Return(builder.GenUserFacingParams{}, nil)
 			},
 			expectedResult: true,
