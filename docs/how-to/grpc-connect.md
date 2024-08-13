@@ -127,6 +127,15 @@ there are no Encore specific changes required here.
 
 </Callout>
 
+
+<Callout type="warning">
+
+Adding Encore API decorators to these Connect functions won't work (e.g. adding `//encore:api auth method=GET` 
+above `func (s *GreetServer) Greet(`), as you can only use built-in types, 
+or slices of built-in types such as strings, booleans, int, time.Time with these.
+
+</Callout>
+
 ## Mount the service in Encore
 
 Now we'll create an Encore [service struct](/docs/primitives/services-and-apis/service-structs)
