@@ -207,7 +207,7 @@ impl PackageManager for PnpmPackageManager {
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .context("npm install failed")?;
+                .context("pnpm install failed")?;
         }
 
         // If we don't have an `encore.dev` dependency, install it.
