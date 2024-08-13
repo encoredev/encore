@@ -216,7 +216,7 @@ impl PackageManager for PnpmPackageManager {
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .context("npm install failed")?;
+                .context("pnpm install failed")?;
         }
 
         // If we have a local encore.dev path, symlink it.
