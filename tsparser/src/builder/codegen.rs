@@ -52,14 +52,14 @@ impl Builder<'_> {
 
     pub fn generate_code(&self, params: &CodegenParams) -> Result<CodegenResult> {
         // Find the node_modules dir and the relative path back to the app root.
-        let (node_modules, rel_return_path) = self
+        let (node_modules, _rel_return_path) = self
             .find_node_modules_dir(&params.app.root)
             .ok_or_else(|| anyhow::anyhow!("could not find node_modules directory"))?;
 
         // self.symlink_packages(params.js_runtime_root, &node_modules)
         //     .context("link packages")?;
 
-        let files = self.codegen_data(params, &rel_return_path)?;
+        let files = self.codegen_data(params)?;
 
         // write_gen_encore_app_package(&node_modules, &files)
         //     .context("write gen_encore.app package")?;
@@ -68,11 +68,7 @@ impl Builder<'_> {
         Ok(CodegenResult { node_modules })
     }
 
-    fn codegen_data(
-        &self,
-        params: &CodegenParams,
-        node_modules_to_app_root: &Path,
-    ) -> Result<Vec<CodegenFile>> {
+    fn codegen_data(&self, params: &CodegenParams) -> Result<Vec<CodegenFile>> {
         // let mut files = vec![
         //     CodegenFile {
         //         path: PathBuf::from("package.json"),
@@ -138,7 +134,6 @@ impl Builder<'_> {
             }
 
             let svc_rel_path = params.app.rel_path_string(&svc.root)?;
-            let node_modules_to_svc = node_modules_to_app_root.join(&svc_rel_path);
             let _gen_root = params.app.root.join("encore.gen");
 
             // Add the auth handlers to the auth context.
@@ -161,9 +156,7 @@ impl Builder<'_> {
 
                 for rpc in &endpoints {
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
-                    let import_path = Path::new("../../../../")
-                        .join(&node_modules_to_svc)
-                        .join(rel_path);
+                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
@@ -174,9 +167,7 @@ impl Builder<'_> {
 
                 for sub in &subscriptions {
                     let rel_path = get_svc_rel_path(&svc.root, sub.range, true);
-                    let import_path = Path::new("../../../")
-                        .join(&node_modules_to_svc)
-                        .join(rel_path);
+                    let import_path = Path::new("../../../").join(&svc_rel_path).join(rel_path);
 
                     subscription_ctx.push(json!({
                         "topic_name": sub.topic.name,
@@ -209,9 +200,7 @@ impl Builder<'_> {
 
                 // Compute the import path for the endpoint.
                 let rel_path = get_svc_rel_path(&svc.root, gw.range, true);
-                let import_path = Path::new("../../../../")
-                    .join(&node_modules_to_svc)
-                    .join(rel_path);
+                let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
                 let ctx = &json!({
                     "name": name,
@@ -348,15 +337,12 @@ impl Builder<'_> {
                 }
 
                 let svc_rel_path = params.app.rel_path_string(&svc.root)?;
-                let node_modules_to_svc = node_modules_to_app_root.join(&svc_rel_path);
                 let _gen_root = params.app.root.join("encore.gen");
 
                 // Service Main
                 for rpc in &endpoints {
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
-                    let import_path = Path::new("../../../")
-                        .join(&node_modules_to_svc)
-                        .join(rel_path);
+                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
@@ -370,9 +356,7 @@ impl Builder<'_> {
                 for (gw, bind_name) in &gateways {
                     let _name = &gw.name;
                     let rel_path = get_svc_rel_path(&svc.root, gw.range, true);
-                    let import_path = Path::new("../../../")
-                        .join(&node_modules_to_svc)
-                        .join(rel_path);
+                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
                     gateway_ctx.push(json!({
                         "encore_name": gw.name,
@@ -384,9 +368,7 @@ impl Builder<'_> {
                 // Subscriptions
                 for sub in &subscriptions {
                     let rel_path = get_svc_rel_path(&svc.root, sub.range, true);
-                    let import_path = Path::new("../../../")
-                        .join(&node_modules_to_svc)
-                        .join(rel_path);
+                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
                     subscription_ctx.push(json!({
                         "topic_name": sub.topic.name,
