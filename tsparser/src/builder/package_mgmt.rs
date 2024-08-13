@@ -16,12 +16,29 @@ struct PackageJson {
     dependencies: HashMap<String, String>,
 }
 
+fn parse_package_json(package_json_path: &Path) -> Result<PackageJson> {
+    let package_json = std::fs::read_to_string(package_json_path)
+        .with_context(|| format!("failed to read {}", package_json_path.display()))?;
+
+    serde_json::from_str(&package_json)
+        .with_context(|| format!("failed to parse {}", package_json_path.display()))
+}
+
 pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn PackageManager>> {
     let package_json_path = package_dir.join("package.json");
-    let package_json = std::fs::read_to_string(&package_json_path)
-        .with_context(|| format!("failed to read {}", package_json_path.display()))?;
-    let package_json: PackageJson = serde_json::from_str(&package_json)
-        .with_context(|| format!("failed to parse {}", package_json_path.display()))?;
+    let mut package_json = parse_package_json(&package_json_path)?;
+
+    // if no package manager was set, search for a workspace package.json
+    if package_json.package_manager.is_none() {
+        let mut workspace_dir = package_dir.to_path_buf();
+        while workspace_dir.pop() {
+            let package_json_path = workspace_dir.join("package.json");
+            if package_json_path.exists() {
+                package_json = parse_package_json(&package_json_path)?;
+                break;
+            }
+        }
+    }
 
     let package_manager = package_json.package_manager.as_deref().unwrap_or("npm");
     let package_manager = match package_manager.split_once('@') {
