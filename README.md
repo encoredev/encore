@@ -1,11 +1,12 @@
 <p align="center" dir="auto">
 <a href="https://encore.dev"><img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="160px" alt="encore icon"></img></a><br/><br/>
-<b>Encore – Backend Development Platform</b><br/><br/>
+<b>Encore is a Development Platform for building distributed systems with automated infrastructure</b><br/><br/>
 </p>
 
-Encore provides a purpose-built workflow to help you create **event-driven and distributed systems** — from local development to your cloud on **AWS & GCP**.
-
-It consists of a **Backend Framework** (available for TypeScript / Go), a **Local Development Environment** with tools like tracing, and a **Cloud Platform** for automating CI/CD and cloud infrastructure provisioning.
+Encore includes end-to-end tools, from local development to your cloud:
+- **Open Source backend framework** (for TypeScript & Go) that lets you declaratively define APIs and infrastructure semantics directly in application code.
+- **Open Source local development environment** with tools like tracing, service catalog, and much more.
+- **Cloud Platform** that automates DevOps and infrastructure provisioning in your own cloud on AWS and GCP.
 
 **🏁 Try Encore:** [Quick Start Guide](https://encore.dev/docs/quick-start)
 
