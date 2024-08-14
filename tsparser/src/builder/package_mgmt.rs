@@ -38,6 +38,10 @@ pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn Pack
             pkg_json: package_json,
             dir: package_dir.to_path_buf(),
         })),
+        "pnpm" => Ok(Box::new(PnpmPackageManager {
+            pkg_json: package_json,
+            dir: package_dir.to_path_buf(),
+        })),
         _ => Err(anyhow::anyhow!(
             "unsupported package manager: {}",
             package_manager
@@ -187,6 +191,60 @@ impl YarnPackageManager {
             .with_context(|| format!("failed to write {}", file_path.display()))?;
 
         Ok(())
+    }
+}
+
+struct PnpmPackageManager {
+    pkg_json: PackageJson,
+    dir: PathBuf,
+}
+
+impl PackageManager for PnpmPackageManager {
+    fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()> {
+        // If we don't have a node_modules folder, install everything.
+        if !self.dir.join("node_modules").exists() {
+            cmd!("pnpm", "install")
+                .dir(&self.dir)
+                .stdout_to_stderr()
+                .run()
+                .context("pnpm install failed")?;
+        }
+
+        // If we don't have an `encore.dev` dependency, install it.
+        if !self.pkg_json.dependencies.contains_key("encore.dev") {
+            cmd!("pnpm", "install", "encore.dev@latest")
+                .dir(&self.dir)
+                .stdout_to_stderr()
+                .run()
+                .context("pnpm install failed")?;
+        }
+
+        // If we have a local encore.dev path, symlink it.
+        if let Some(encore_dev_path) = encore_dev_path {
+            symlink_encore_dev(&self.dir, encore_dev_path)
+                .context("unable to symlink local encore.dev")?;
+        }
+
+        Ok(())
+    }
+
+    fn run_tests(&self) -> Result<CmdSpec> {
+        Ok(CmdSpec {
+            command: vec![
+                "pnpm".to_string(),
+                "run".to_string(),
+                "test".to_string(),
+                // Specify '--' so that additional arguments added from the test runner
+                // aren't interpreted by npm.
+                "--".to_string(),
+            ],
+            env: vec![],
+            prioritized_files: vec![],
+        })
+    }
+
+    fn mgr_name(&self) -> &'static str {
+        "pnpm"
     }
 }
 
