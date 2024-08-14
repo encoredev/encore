@@ -29,8 +29,10 @@ fn find_workspace_package_manager(mut dir: PathBuf) -> Result<Option<String>> {
         let package_json_path = dir.join("package.json");
         if package_json_path.exists() {
             let package_json = parse_package_json(&package_json_path)?;
-            if package_json.package_manager.is_some() {
-                return Ok(package_json.package_manager);
+            if let Some(pm) = package_json.package_manager.as_deref() {
+                if !pm.is_empty() {
+                    return Ok(package_json.package_manager);
+                }
             }
         }
     }
@@ -43,8 +45,8 @@ pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn Pack
     let package_json = parse_package_json(&package_json_path)?;
 
     let package_manager = match package_json.package_manager {
-        Some(ref pm) => Some(pm.clone()),
-        None => find_workspace_package_manager(package_dir.to_path_buf())?,
+        Some(ref pm) if !pm.is_empty() => Some(pm.clone()),
+        _ => find_workspace_package_manager(package_dir.to_path_buf())?,
     };
 
     let package_manager = package_manager.as_deref().unwrap_or("npm");
