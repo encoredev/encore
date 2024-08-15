@@ -37,9 +37,9 @@ Encore is purpose-built to solve this problem and provides a complete toolset fo
 
 ### How it works
 
-Encore's Open Source Backend SDK, available for [Go](https://encore.dev/docs/primitives/overview) and [TypeScript](https://encore.dev/docs/ts), lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
+Encore's Open Source Backend Framework for [TypeScript](https://encore.dev/docs/ts) and [Go](https://encore.dev/docs/primitives/overview) lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
-With the Backend SDK you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore parses your application and builds a graph of both its logical architecture and its infrastructure requirements, it then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
+With the Backend Framework you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore parses your application and builds a graph of both its logical architecture and its infrastructure requirements, it then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
 
 This completely removes the need for separate infrastructure configuration like Terraform, increases standardization in both your codebase and infrastructure, and makes your application portable across cloud providers by default.
 
@@ -49,7 +49,7 @@ When your application is deployed to your cloud, there are **no runtime dependen
 
 Defining microservices and API endpoints is incredibly simple, requiring less than 10 lines of code to define a production-ready deployable service and API endpoint.
 
-Using the TypeScript Backend SDK, it looks like so:
+Using the TypeScript Backend Framework, it looks like so:
 
 ```typescript
 import { api } from "encore.dev/api";
@@ -67,7 +67,7 @@ interface Response {
 }
 ```
 
-Using the Go Backend SDK, it looks like so:
+Using the Go Backend Framework, it looks like so:
 
 ```go
 package hello
@@ -90,7 +90,7 @@ If you want a Pub/Sub Topic, you declare it directly in your application code an
 - **GCP Pub/Sub** for environments on GCP
 - **SNS/SQS** for environments on AWS
 
-Using the TypeScript Backend SDK, it looks like so:
+Using the TypeScript Backend Framework, it looks like so:
 
 ```typescript
 import { Topic } "encore.dev/pubsub"
@@ -104,7 +104,7 @@ export const signups = new Topic<SignupEvent>("signups", {
 });
 ```
 
-Using the Go Backend SDK, it looks like so:
+Using the Go Backend Framework, it looks like so:
 
 ```go
 import "encore.dev/pubsub"
@@ -121,7 +121,7 @@ Signup.Publish(ctx, &User{...})
 
 ### Learn more in the docs
 
-See how to use the Backend SDK in the docs:
+See how to use the Backend Framework in the docs:
 
 - **Services and APIs:** [Go](https://encore.dev/docs/primitives/services-and-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/services-and-apis)
 - **Databases:** [Go](https://encore.dev/docs/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
@@ -202,7 +202,7 @@ https://github.com/encoredev/encore/assets/78424526/8116b387-d4d4-4e54-8768-3686
 
 ## Why use Encore?
 
-- **Faster Development**: Encore streamlines the development process with its Backend SDK, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
+- **Faster Development**: Encore streamlines the development process with its Backend Framework, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
 - **Reduced Costs**: Encore's automatic infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload, allowing you to work more efficiently.
 - **Scalability & Performance**: Encore simplifies building large-scale microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
 - **Control & Standardization**: Built-in tools like automated architecture diagrams, infrastructure tracking and approval workflows, make it easy for teams and leaders to get an overview of the entire application.
@@ -228,7 +228,7 @@ Encore is designed to give teams a productive and less complex experience when s
 
 ## Open Source
 
-Everything needed to develop and deploy Encore applications is Open Source, including the Backend SDK, parser, compiler, runtime, and CLI.
+Everything needed to develop and deploy Encore applications is Open Source, including the Backend Framework, parser, compiler, runtime, and CLI.
 This includes all code needed for local development and everything that runs in your cloud.
 
 The Open Source CLI also provides a mechanism to generate a standalone Docker image for your application, so you easily self-host your application. [Learn more in the docs](https://encore.dev/docs/how-to/self-host).
@@ -304,9 +304,9 @@ We've found that to meaningfully improve the developer experience, you have to o
 
 ### What if I want to migrate away from Encore?
 
-Encore is designed to let you go outside of the Backend SDK when you want to, and easily drop down in abstraction level when you need to, so you never run into any dead-ends.
+Encore is designed to let you go outside of the Backend Framework when you want to, and easily drop down in abstraction level when you need to, so you never run into any dead-ends.
 
-Should you want to migrate away, it's straightforward and does not require a big rewrite. 99% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the Backend SDK.
+Should you want to migrate away, it's straightforward and does not require a big rewrite. 99% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the Backend Framework.
 
 Encore has support for [self-hosting](https://encore.dev/docs/how-to/self-host) your application, by using the Open Source CLI to produce a standalone Docker image that can be deployed anywhere you'd like.
 
