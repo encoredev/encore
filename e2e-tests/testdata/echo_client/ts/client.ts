@@ -898,14 +898,14 @@ export class BidiStream<Request, Response> {
 
     async send(msg: Request) {
         if (this.connection.ws.readyState === WebSocket.CONNECTING) {
-          // await that the socket is opened
-          await new Promise((resolve) => {
-              const handler = () => {
-                  this.connection.ws.removeEventListener("open", handler);
-                  resolve(null);
-              };
-              this.connection.ws.addEventListener("open", handler);
-          });
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                const handler = () => {
+                    this.connection.ws.removeEventListener("open", handler);
+                    resolve(null);
+                };
+                this.connection.ws.addEventListener("open", handler);
+            });
         }
 
         return this.connection.ws.send(JSON.stringify(msg));
@@ -992,14 +992,14 @@ export class OutStream<Request, Response> {
 
     async send(msg: Request) {
         if (this.connection.ws.readyState === WebSocket.CONNECTING) {
-          // await that the socket is opened
-          await new Promise((resolve) => {
-              const handler = () => {
-                  this.connection.ws.removeEventListener("open", handler);
-                  resolve(null);
-              };
-              this.connection.ws.addEventListener("open", handler);
-          });
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                const handler = () => {
+                    this.connection.ws.removeEventListener("open", handler);
+                    resolve(null);
+                };
+                this.connection.ws.addEventListener("open", handler);
+            });
         }
 
         return this.connection.ws.send(JSON.stringify(msg));
