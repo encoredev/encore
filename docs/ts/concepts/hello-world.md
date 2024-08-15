@@ -40,7 +40,7 @@ Get to know the basics of Encore.ts in this getting started video.
 
 ## Using databases, Pub/Sub, and other primitives
 
-Encore's Backend SDK makes it simple to add more primitives, such as additional microservices, databases, Pub/Sub, etc.
+Encore's Backend Framework makes it simple to add more primitives, such as additional microservices, databases, Pub/Sub, etc.
 See how to use each primitive:
 
 - [Services and APIs](/docs/ts/primitives/services-and-apis)

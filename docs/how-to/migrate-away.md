@@ -13,7 +13,7 @@ In practise Encore is opinionated only in certain areas which are critical for e
 
 ## Accommodating for your unique requirements
 
-Many software projects end up having a few novel requirements, which are highly specific to the problem domain. To accommodate for this, Encore is designed to let you go outside of the standardized Backend SDK when you need to, for example:
+Many software projects end up having a few novel requirements, which are highly specific to the problem domain. To accommodate for this, Encore is designed to let you go outside of the standardized Backend Framework when you need to, for example:
 - You can drop down in abstraction level in the API framework using [raw endpoints](/docs/develop/api-schemas#raw-endpoints)
 - You can use tools like the [Terraform provider](/docs/deploy/terraform) to integrate infrastructure that is not managed by Encore
 
@@ -34,9 +34,9 @@ If you want to migrate away, we want to ensure this is as smooth as possible! He
 
 ### Code changes
 
-Building with Encore doesn't require writing your entire application in an Encore-specific way. Encore applications are normal programs where only 1% of the code is specific to Encore's Open Source Backend SDK.
+Building with Encore doesn't require writing your entire application in an Encore-specific way. Encore applications are normal programs where only 1% of the code is specific to Encore's Open Source Backend Framework.
 
-This means that the changes required to stop using the Backend SDK is almost exactly the same work you would have needed to do if you hadn't used Encore in the first place, e.g. writing infrastructure boilerplate. There is no added migration cost.
+This means that the changes required to stop using the Backend Framework is almost exactly the same work you would have needed to do if you hadn't used Encore in the first place, e.g. writing infrastructure boilerplate. There is no added migration cost.
 
 ### Deployment
 
