@@ -100,6 +100,7 @@ class WebSocketConnection {
 
     hasUpdateHandlers = [];
     msgHandler = undefined;
+    errorHandler = undefined;
 
     constructor(url, headers) {
         let protocols = ["encore-ws"];
@@ -121,7 +122,9 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("error", (event) => {
-            console.error(event.error);
+            if (this.errorHandler !== undefined) {
+                this.errorHandler(event);
+            }
             this.ws.close(1002);
         });
 
@@ -171,6 +174,10 @@ class WebSocketConnection {
         this.msgHandler = handler;
     }
 
+    setErrorHandler(handler) {
+        this.errorHandler = handler;
+    }
+
     close() {
         this.done = true;
         this.ws.close();
@@ -189,6 +196,10 @@ export class BidiStream {
 
     close() {
         this.connection.close();
+    }
+
+    onError(handler) {
+        this.connection.setErrorHandler(handler);
     }
 
     async send(msg) {
@@ -236,6 +247,10 @@ export class InStream {
         this.connection.close();
     }
 
+    onError(handler) {
+        this.connection.setErrorHandler(handler);
+    }
+
     async next() {
         for await (const next of this) return next;
     }
@@ -269,6 +284,10 @@ export class OutStream {
 
     close() {
         this.connection.close();
+    }
+
+    onError(handler) {
+        this.connection.setErrorHandler(handler);
     }
 
     async send(msg) {

@@ -152,6 +152,7 @@ class WebSocketConnection {
     public done = false;
 
     private msgHandler?: (event: any) => void;
+    private errorHandler?: (event: any) => void;
 
     private url: string;
     private protocols: string[];
@@ -182,7 +183,9 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("error", (event: any) => {
-            console.error(event.error);
+            if (this.errorHandler !== undefined) {
+                this.errorHandler(event);
+            }
             this.ws.close(1002);
         });
 
@@ -232,6 +235,10 @@ class WebSocketConnection {
         this.msgHandler = handler;
     }
 
+    setErrorHandler(handler: (event: any) => void) {
+        this.errorHandler = handler;
+    }
+
     close() {
         this.done = true;
         this.ws.close();
@@ -251,6 +258,10 @@ export class BidiStream<Request, Response> {
 
     close() {
         this.connection.close();
+    }
+
+    onError(handler: (event: any) => void) {
+        this.connection.setErrorHandler(handler);
     }
 
     async send(msg: Request) {
@@ -300,6 +311,10 @@ export class InStream<Response> {
         this.connection.close();
     }
 
+    onError(handler: (event: any) => void) {
+        this.connection.setErrorHandler(handler);
+    }
+
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
         return;
@@ -337,6 +352,10 @@ export class OutStream<Request, Response> {
 
     close() {
         this.connection.close();
+    }
+
+    onError(handler: (event: any) => void) {
+        this.connection.setErrorHandler(handler);
     }
 
     async send(msg: Request) {
