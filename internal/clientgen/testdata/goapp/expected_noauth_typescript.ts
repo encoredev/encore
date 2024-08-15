@@ -409,7 +409,7 @@ class BaseClient {
     }
 
     // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response> {
+    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
