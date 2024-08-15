@@ -438,7 +438,7 @@ class BaseClient {
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
-            const mayBePromise = this.authGenerator()
+            const mayBePromise = this.authGenerator();
             if (mayBePromise instanceof Promise) {
                 authData = await mayBePromise;
             } else {
