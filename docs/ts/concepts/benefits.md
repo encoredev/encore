@@ -1,6 +1,6 @@
 ---
 seotitle: Benefits of using Encore.ts
-seodesc: Get to know the benefits of using Encore's Backend SDK for TypeScript to build cloud-native backend applications.
+seodesc: Get to know the benefits of using Encore's Backend Framework for TypeScript to build cloud-native backend applications.
 title: Benefits of using Encore.ts
 toc: false
 lang: ts
@@ -12,7 +12,7 @@ lang: ts
 - **Faster feedback loops:** With type-safe infrastructure you can identify problems as early as in your code editor, instead of learning about issues via the — much slower — deployment cycle.
 - **No manual config required**: There is no need to manually write [IaC](/resources/infrastructure-as-code) configuration, like Terraform, and no need to maintain configuration for multiple environments manually. Encore uses your application code as the source of truth and automatically keeps all environments in sync.
 - **One codebase for all environments**: Encore [automatically provisions](/docs/deploy/infra) your local, [preview](/docs/deploy/preview-environments), and cloud environments (using [your own cloud account](/docs/deploy/own-cloud)) on AWS/GCP.
-- **Cloud-agnostic by default**: The Backend SDK is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
+- **Cloud-agnostic by default**: The Backend Framework is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
 - **Evolve infrastructure without code changes**: As your requirements evolve, you can change and configure the provisioned infrastructure by using Encore's Cloud Dashboard or your cloud provider's console.
   
 ## Incredible performance powered by a custom Rust runtime
@@ -50,4 +50,4 @@ Because Encore orchestrates setting up and configuring cloud services in your cl
 
 ## Simplicity without giving up flexibility
 
-While most requirements are met by a common set of infrastructure primitives, sooner or later you will likely need something highly specific to your problem domain. Encore is designed to ensure you can use any cloud infrastructure, even if it's not built into Encore's Backend SDK. This works seamlessly since Encore [provisions infrastructure](/docs/deploy/infra) in your own cloud account, so you can use any of your cloud provider's services as you traditionally would.
+While most requirements are met by a common set of infrastructure primitives, sooner or later you will likely need something highly specific to your problem domain. Encore is designed to ensure you can use any cloud infrastructure, even if it's not built into Encore's Backend Framework. This works seamlessly since Encore [provisions infrastructure](/docs/deploy/infra) in your own cloud account, so you can use any of your cloud provider's services as you traditionally would.

@@ -9,13 +9,13 @@ you traditionally spend a lot of time on.
 
 <img src="/assets/docs/encore-way.png" title="The Encore Way" className="noshadow"/>
 
-## 1. Develop with the Encore Backend SDK
+## 1. Develop with the Backend Framework
 
 Setting up a productive development environment for building a modern backend application
 is very time-consuming. Many different services need to be integrated; complex
 configuration is required to connect all the pieces together; and there are many manual steps.
 
-The Encore Backend SDK lets you get back to what matters &ndash; building your application.
+Encore's Backend Framework lets you get back to what matters &ndash; building your application.
 With Encore you get a powerful way to write backend APIs using Go, that takes away the pain
 of building production-ready backend applications:
 
