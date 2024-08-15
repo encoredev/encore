@@ -102,25 +102,25 @@ class WebSocketConnection {
     constructor(url, headers) {
         let protocols = ["encore-ws"];
         if (headers) {
-            protocols.push(encodeWebSocketHeaders(headers))
+            protocols.push(encodeWebSocketHeaders(headers));
         }
 
         this.protocols = protocols;
         this.url = url;
 
         this.ws = this.connect();
-	}
+    }
 
     connect() {
         const ws = new WebSocket(this.url, this.protocols);
 
-        ws.addEventListener("open", (event) => {
+        ws.addEventListener("open", (_event) => {
             this.retry = 0;
         });
 
         ws.addEventListener("error", (event) => {
-          console.error(event.error);
-          this.ws.close(1002);
+            console.error(event.error);
+            this.ws.close(1002);
         });
 
         ws.addEventListener("message", (event) => {
@@ -218,9 +218,8 @@ export class BidiStream {
             }
         }
     }
-
-
 }
+
 export class InStream {
     buffer = [];
 
@@ -249,8 +248,8 @@ export class InStream {
             }
         }
     }
-
 }
+
 export class OutStream {
     constructor(url, headers) {
         let responseResolver;
@@ -312,7 +311,7 @@ class BaseClient {
     }
 
     async getAuthData() {
-    // createBidiStream sets up a stream to a streaming api
+    // createBidiStream sets up a stream to a streaming API endpoint.
     async createBidiStream(path, params) {
         let { query, headers } = params ?? {};
 
@@ -329,11 +328,11 @@ class BaseClient {
             }
         }
 
-        const queryString = query ? '?' + encodeQuery(query) : ''
+        const queryString = query ? '?' + encodeQuery(query) : '';
         return new BidiStream(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming api
+    // createInStream sets up a stream to a streaming API endpoint.
     async createInStream(path, params) {
         let { query, headers } = params ?? {};
 
@@ -354,7 +353,7 @@ class BaseClient {
         return new InStream(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming api
+    // createOutStream sets up a stream to a streaming API endpoint.
     async createOutStream(path, params) {
         let { query, headers } = params ?? {};
 

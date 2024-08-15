@@ -120,10 +120,9 @@ fn is_forbidden_request_header(name: &HeaderName) -> bool {
         | VIA => true,
         ref n if n == HeaderName::from_static("keep-alive") => true,
         ref n if n == HeaderName::from_static("permissions-policy") => true,
-        ref n => {
-            let name = n.to_string();
-            name.strip_prefix("sec-").is_some() || name.strip_prefix("proxy-").is_some()
-        }
+        ref n if n.as_str().starts_with("sec-") => true,
+        ref n if n.as_str().starts_with("proxy-") => true,
+        _ => false,
     }
 }
 

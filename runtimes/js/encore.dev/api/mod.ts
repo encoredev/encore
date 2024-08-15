@@ -133,6 +133,7 @@ export interface StreamOut<Response> {
   send: (msg: Response) => Promise<void>;
   close: () => Promise<void>;
 }
+
 export type StreamBidi<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
 
@@ -147,7 +148,7 @@ function streamBidi<Request, Response>(
   options: StreamOptions,
   fn: (stream: StreamBidi<Request, Response>) => Promise<void>
 ): void;
-function streamBidi(options: APIOptions, fn: any): typeof fn {
+function streamBidi(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
 
@@ -159,7 +160,7 @@ function streamIn<HandshakeData, Request, Response>(
   options: StreamOptions,
   fn: (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>
 ): void;
-function streamIn(options: APIOptions, fn: any): typeof fn {
+function streamIn(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
 
@@ -171,7 +172,7 @@ function streamOut<Response>(
   options: StreamOptions,
   fn: (stream: StreamOut<Response>) => Promise<void>
 ): void;
-function streamOut(options: APIOptions, fn: any): typeof fn {
+function streamOut(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
 

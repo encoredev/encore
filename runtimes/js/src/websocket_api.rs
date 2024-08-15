@@ -30,7 +30,7 @@ impl api::BoxedHandler for JSWebSocketHandler {
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
             let resp = api::websocket::upgrade_request(req, |req, payload, tx| async move {
-                let status = self.handler.call(
+                self.handler.call(
                     WsRequestMessage {
                         tx,
                         payload,
@@ -38,8 +38,6 @@ impl api::BoxedHandler for JSWebSocketHandler {
                     },
                     ThreadsafeFunctionCallMode::Blocking,
                 );
-
-                log::trace!("js ws handler responded with status: {status}");
             });
 
             match resp {

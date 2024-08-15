@@ -138,7 +138,7 @@ impl Socket {
                     tokio::select! {
                         msg = websocket.recv() => match msg {
                             None => {
-                                log::debug!("websocket closed");
+                                log::trace!("websocket closed");
                                 break
                             },
                             Some(Ok(msg)) => {
@@ -162,7 +162,7 @@ impl Socket {
                             match msg {
                                 None => {
                                     _ = websocket.close().await;
-                                    log::debug!("websocket closed");
+                                    log::trace!("websocket closed");
                                     break;
                                 }
                                 Some(msg) => {

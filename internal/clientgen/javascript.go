@@ -613,8 +613,7 @@ func (js *javascript) writeStreamClasses() {
                 await this.connection.hasUpdate();
             }
         }
-    }
-`
+    }`
 
 	js.WriteString(`
 
@@ -639,25 +638,25 @@ class WebSocketConnection {
     constructor(url, headers) {
         let protocols = ["encore-ws"];
         if (headers) {
-            protocols.push(encodeWebSocketHeaders(headers))
+            protocols.push(encodeWebSocketHeaders(headers));
         }
 
         this.protocols = protocols;
         this.url = url;
 
         this.ws = this.connect();
-	}
+    }
 
     connect() {
         const ws = new WebSocket(this.url, this.protocols);
 
-        ws.addEventListener("open", (event) => {
+        ws.addEventListener("open", (_event) => {
             this.retry = 0;
         });
 
         ws.addEventListener("error", (event) => {
-          console.error(event.error);
-          this.ws.close(1002);
+            console.error(event.error);
+            this.ws.close(1002);
         });
 
         ws.addEventListener("message", (event) => {
@@ -727,8 +726,8 @@ export class BidiStream {
     }
 ` + send + `
 ` + receive + `
-
 }
+
 export class InStream {
     buffer = [];
 
@@ -744,6 +743,7 @@ export class InStream {
     }
 ` + receive + `
 }
+
 export class OutStream {
     constructor(url, headers) {
         let responseResolver;
@@ -816,15 +816,15 @@ class BaseClient {`)
     async getAuthData() {`)
 	if js.hasAuth {
 		js.WriteString(`
-        let authData
+        let authData;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
-            const mayBePromise = this.authGenerator()
+            const mayBePromise = this.authGenerator();
             if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise
+                authData = await mayBePromise;
             } else {
-                authData = mayBePromise
+                authData = mayBePromise;
             }
         }
 
@@ -856,7 +856,7 @@ class BaseClient {`)
 				} else {
 					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
 				}
-				w.WriteString("\n")
+				w.WriteString(";\n")
 			}
 
 			// Write all the headers
@@ -868,11 +868,11 @@ class BaseClient {`)
 				w.WriteString(field.WireFormat)
 				w.WriteString("\"] = ")
 				w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-				w.WriteString("\n")
+				w.WriteString(";\n")
 			}
 		} else {
-			w.WriteString("data.headers = {}\n")
-			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData\n")
+			w.WriteString("data.headers = {};\n")
+			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData;\n")
 		}
 		js.WriteString(`
             return data;
@@ -882,7 +882,7 @@ class BaseClient {`)
 	}
 
 	js.WriteString(`
-    // createBidiStream sets up a stream to a streaming api
+    // createBidiStream sets up a stream to a streaming API endpoint.
     async createBidiStream(path, params) {
         let { query, headers } = params ?? {};
 
@@ -899,11 +899,11 @@ class BaseClient {`)
             }
         }
 
-        const queryString = query ? '?' + encodeQuery(query) : ''
+        const queryString = query ? '?' + encodeQuery(query) : '';
         return new BidiStream(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming api
+    // createInStream sets up a stream to a streaming API endpoint.
     async createInStream(path, params) {
         let { query, headers } = params ?? {};
 
@@ -924,7 +924,7 @@ class BaseClient {`)
         return new InStream(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming api
+    // createOutStream sets up a stream to a streaming API endpoint.
     async createOutStream(path, params) {
         let { query, headers } = params ?? {};
 

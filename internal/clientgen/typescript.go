@@ -692,8 +692,8 @@ func (ts *typescript) writeStreamClasses() {
                 await this.connection.hasUpdate();
             }
         }
-    }
-`
+    }`
+
 	ts.WriteString(`
 function encodeWebSocketHeaders(headers: Record<string, string>) {
     // url safe, no pad
@@ -739,8 +739,8 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("error", (event: any) => {
-          console.error(event.error);
-          this.ws.close(1002);
+            console.error(event.error);
+            this.ws.close(1002);
         });
 
         ws.addEventListener("message", (event: any) => {
@@ -811,8 +811,8 @@ export class BidiStream<Request, Response> {
     }
 ` + send + `
 ` + receive + `
-
 }
+
 export class InStream<Response> {
     private connection: WebSocketConnection;
     private buffer: Response[] = [];
@@ -829,6 +829,7 @@ export class InStream<Response> {
     }
 ` + receive + `
 }
+
 export class OutStream<Request, Response> {
     private connection: WebSocketConnection;
     private responseValue: Promise<Response>;
@@ -1080,18 +1081,18 @@ class BaseClient {
 	ts.WriteString(`
     }
 
-	async getAuthData(): Promise<CallParameters | undefined> {`)
+    async getAuthData(): Promise<CallParameters | undefined> {`)
 	if ts.hasAuth {
 		ts.WriteString(`
-        let authData
+        let authData;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
             const mayBePromise = this.authGenerator()
             if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise
+                authData = await mayBePromise;
             } else {
-                authData = mayBePromise
+                authData = mayBePromise;
             }
         }
 
@@ -1123,7 +1124,7 @@ class BaseClient {
 				} else {
 					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
 				}
-				w.WriteString("\n")
+				w.WriteString(";\n")
 			}
 
 			// Write all the headers
@@ -1135,22 +1136,23 @@ class BaseClient {
 				w.WriteString(field.WireFormat)
 				w.WriteString("\"] = ")
 				w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
-				w.WriteString("\n")
+				w.WriteString(";\n")
 			}
 		} else {
-			w.WriteString("data.headers = {}\n")
-			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData\n")
+			w.WriteString("data.headers = {};\n")
+			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData;\n")
 		}
 		ts.WriteString(`
             return data;
         }
+
         return;
     }`)
 
 	}
 
 	ts.WriteString(`
-    // createBidiStream sets up a stream to a streaming api
+    // createBidiStream sets up a stream to a streaming API endpoint.
     async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
         let { query, headers } = params ?? {};
 
@@ -1171,7 +1173,7 @@ class BaseClient {
         return new BidiStream(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming api
+    // createInStream sets up a stream to a streaming API endpoint.
     async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
         let { query, headers } = params ?? {};
 
@@ -1192,8 +1194,8 @@ class BaseClient {
         return new InStream(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming api
-    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+    // createOutStream sets up a stream to a streaming API endpoint.
+    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any

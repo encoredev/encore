@@ -152,8 +152,8 @@ class WebSocketConnection {
         });
 
         ws.addEventListener("error", (event: any) => {
-          console.error(event.error);
-          this.ws.close(1002);
+            console.error(event.error);
+            this.ws.close(1002);
         });
 
         ws.addEventListener("message", (event: any) => {
@@ -253,9 +253,8 @@ export class BidiStream<Request, Response> {
             }
         }
     }
-
-
 }
+
 export class InStream<Response> {
     private connection: WebSocketConnection;
     private buffer: Response[] = [];
@@ -286,8 +285,8 @@ export class InStream<Response> {
             }
         }
     }
-
 }
+
 export class OutStream<Request, Response> {
     private connection: WebSocketConnection;
     private responseValue: Promise<Response>;
@@ -368,8 +367,8 @@ class BaseClient {
         }
     }
 
-	async getAuthData(): Promise<CallParameters | undefined> {
-    // createBidiStream sets up a stream to a streaming api
+    async getAuthData(): Promise<CallParameters | undefined> {
+    // createBidiStream sets up a stream to a streaming API endpoint.
     async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
         let { query, headers } = params ?? {};
 
@@ -390,7 +389,7 @@ class BaseClient {
         return new BidiStream(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming api
+    // createInStream sets up a stream to a streaming API endpoint.
     async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
         let { query, headers } = params ?? {};
 
@@ -411,8 +410,8 @@ class BaseClient {
         return new InStream(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming api
-    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+    // createOutStream sets up a stream to a streaming API endpoint.
+    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any

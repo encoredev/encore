@@ -204,7 +204,10 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
 
-                    describe_endpoint(pass.type_checker, methods, path, request, response, raw)?
+                    describe_endpoint(pass.type_checker, methods, path, request, response, false)?
+                }
+                EndpointKind::Raw => {
+                    describe_endpoint(pass.type_checker, methods, path, None, None, true)?
                 }
                 EndpointKind::TypedStream {
                     handshake,
@@ -233,11 +236,8 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         request,
                         response,
                         handshake,
-                        raw,
+                        false,
                     )?
-                }
-                EndpointKind::Raw => {
-                    describe_endpoint(pass.type_checker, methods, path, None, None, raw)?
                 }
             };
 
