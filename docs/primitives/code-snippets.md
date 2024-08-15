@@ -1,6 +1,6 @@
 ---
-seotitle: Code snippets for using the Backend SDK's building blocks in your backend application
-seodesc: Learn how to build cloud-agnostic backend applications using Encore's Backend SDK.
+seotitle: Code snippets for using the Backend Framework's building blocks in your backend application
+seodesc: Learn how to build cloud-agnostic backend applications using Encore's Backend Framework.
 title: Code snippets
 subtitle: Shortcuts for building with Encore
 lang: go

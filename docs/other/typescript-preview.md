@@ -164,7 +164,7 @@ This comes with several, substantial benefits over traditional Infrastructure as
   Encore automatically provisions your local, preview, and cloud environments (using your own cloud account).
 
 * **Cloud-agnostic by default**:
-  The Backend SDK is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
+  The Backend Framework is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
  
 * **Evolve infrastructure without code changes**:
   As your requirements evolve, you can change and configure the provisioned infrastructure by using Encore's Cloud Dashboard or your cloud provider's console.
