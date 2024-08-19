@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/experiments"
 	"encore.dev/pubsub/internal/types"
 	"encore.dev/pubsub/internal/utils"
 )
@@ -18,13 +19,15 @@ type Manager struct {
 	ctxs         *utils.Contexts
 	runtime      *config.Runtime
 	pushRegistry types.PushEndpointRegistry
+	experiments  *experiments.Set // The set of experiments enabled for this runtime
 
 	clientsMu sync.Mutex                // clientsMu protects access to the clients map
 	clients   map[string]*pubsub.Client // A map of project ID to pubsub client
 }
 
-func NewManager(ctxs *utils.Contexts, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
-	return &Manager{ctxs: ctxs, runtime: runtime, pushRegistry: pushRegistry, clients: make(map[string]*pubsub.Client)}
+func NewManager(ctxs *utils.Contexts, static *config.Static, runtime *config.Runtime, pushRegistry types.PushEndpointRegistry) *Manager {
+	experiments := experiments.FromConfig(static, runtime)
+	return &Manager{ctxs: ctxs, runtime: runtime, pushRegistry: pushRegistry, experiments: experiments, clients: make(map[string]*pubsub.Client)}
 }
 
 type topic struct {
@@ -95,6 +98,19 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 			maxConcurrency = 1000 // FIXME(domblack): This retains the old behaviour, but allows user customisation - in a future release we should remove this
 		}
 		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
+
+		if experiments.AdaptiveGCPPubSubGoroutines.Enabled(t.mgr.experiments) {
+			// Compute the number of goroutines to use for this subscription.
+			streamingSubsInProject := 0
+			for _, topic := range t.mgr.runtime.PubsubTopics {
+				for _, sub := range topic.Subscriptions {
+					if !sub.PushOnly && sub.GCP != nil && sub.GCP.ProjectID == gcpCfg.ProjectID {
+						streamingSubsInProject++
+					}
+				}
+			}
+			subscription.ReceiveSettings.NumGoroutines = numGoroutines(streamingSubsInProject)
+		}
 
 		// Start the subscription with the GCP library
 		go func() {
