@@ -732,8 +732,9 @@ export class BidiStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 ` + send + `
 ` + receive + `
@@ -753,8 +754,9 @@ export class InStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 ` + receive + `
 }
@@ -778,8 +780,9 @@ export class OutStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 ` + send + `
 }`)

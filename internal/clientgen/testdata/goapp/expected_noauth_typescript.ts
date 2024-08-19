@@ -213,6 +213,8 @@ class WebSocketConnection {
     }
 }
 
+export type HandlerType = "error";
+
 export class BidiStream<Request, Response> {
     private connection: WebSocketConnection;
     private buffer: Response[] = [];
@@ -228,8 +230,9 @@ export class BidiStream<Request, Response> {
         this.connection.close();
     }
 
-    onError(handler: (event: any) => void) {
-        this.connection.setErrorHandler(handler);
+    on(type: HandlerType, handler: (event: any) => void) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg: Request) {
@@ -279,8 +282,9 @@ export class InStream<Response> {
         this.connection.close();
     }
 
-    onError(handler: (event: any) => void) {
-        this.connection.setErrorHandler(handler);
+    on(type: HandlerType, handler: (event: any) => void) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async next(): Promise<Response | undefined> {
@@ -322,8 +326,9 @@ export class OutStream<Request, Response> {
         this.connection.close();
     }
 
-    onError(handler: (event: any) => void) {
-        this.connection.setErrorHandler(handler);
+    on(type: HandlerType, handler: (event: any) => void) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg: Request) {

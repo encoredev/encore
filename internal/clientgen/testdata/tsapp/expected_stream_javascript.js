@@ -58,11 +58,15 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/bidi/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
+        return await resp.json()
     }
 
-    async bidiWithoutHandshake() {
-        return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
+    async bidiWithoutHandshake(params) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/bidi/noHandshake`, JSON.stringify(params))
+        return await resp.json()
     }
 
     /**
@@ -78,11 +82,15 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/in/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
+        return await resp.json()
     }
 
-    async inWithResponse() {
-        return await this.baseClient.createOutStream(`/in/withResponse`)
+    async inWithResponse(params) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(params))
+        return await resp.json()
     }
 
     async inWithResponseAndHandshake(params) {
@@ -92,15 +100,21 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            "path_param": params.pathParam,
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            pathParam: params.pathParam,
+        }
+
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(body), {headers, query})
+        return await resp.json()
     }
 
-    async inWithoutHandshake() {
-        return await this.baseClient.createOutStream(`/in/noHandshake`)
+    async inWithoutHandshake(params) {
+        await this.baseClient.callAPI("POST", `/in/noHandshake`, JSON.stringify(params))
     }
 
     /**
@@ -116,11 +130,13 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callAPI("POST", `/out/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
+        return await resp.json()
     }
 
-    async outWithoutHandshake() {
-        return await this.baseClient.createInStream(`/out/noHandshake`)
+    async outWithoutHandshake(params) {
+        await this.baseClient.callAPI("POST", `/out/noHandshake`, JSON.stringify(params))
     }
 }
 
@@ -267,8 +283,9 @@ export class BidiStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg) {
@@ -316,8 +333,9 @@ export class InStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async next() {
@@ -355,8 +373,9 @@ export class OutStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg) {

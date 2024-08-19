@@ -395,8 +395,9 @@ export class BidiStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg) {
@@ -444,8 +445,9 @@ export class InStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async next() {
@@ -483,8 +485,9 @@ export class OutStream {
         this.connection.close();
     }
 
-    onError(handler) {
-        this.connection.setErrorHandler(handler);
+    on(type, handler) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg) {

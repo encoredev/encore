@@ -98,12 +98,9 @@ export namespace svc {
         data: string
     }
 
-    export interface InMsg {
-        data: string
-    }
-
-    export interface InMsg {
-        data: string
+    export interface OutMsg {
+        user: number
+        msg: string
     }
 
     export interface OutMsg {
@@ -121,7 +118,7 @@ export namespace svc {
         /**
          * Bidi stream type variants
          */
-        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<BidiStream<InMsg, OutMsg>> {
+        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<InMsg> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -131,17 +128,21 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/bidi/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
+            return await resp.json() as InMsg
         }
 
-        public async bidiWithoutHandshake(): Promise<BidiStream<InMsg, OutMsg>> {
-            return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
+        public async bidiWithoutHandshake(params: InMsg): Promise<OutMsg> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/bidi/noHandshake`, JSON.stringify(params))
+            return await resp.json() as OutMsg
         }
 
         /**
          * In stream type variants
          */
-        public async inWithHandshake(pathParam: string, params: Handshake): Promise<OutStream<InMsg, void>> {
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<InMsg> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -151,35 +152,45 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/in/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
+            return await resp.json() as InMsg
         }
 
-        public async inWithResponse(): Promise<OutStream<InMsg, OutMsg>> {
-            return await this.baseClient.createOutStream(`/in/withResponse`)
+        public async inWithResponse(params: InMsg): Promise<OutMsg> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(params))
+            return await resp.json() as OutMsg
         }
 
-        public async inWithResponseAndHandshake(params: Handshake): Promise<OutStream<InMsg, OutMsg>> {
+        public async inWithResponseAndHandshake(params: Handshake): Promise<InMsg> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
             })
 
             const query = makeRecord<string, string | string[]>({
-                "path_param": params.pathParam,
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                pathParam: params.pathParam,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(body), {headers, query})
+            return await resp.json() as InMsg
         }
 
-        public async inWithoutHandshake(): Promise<OutStream<InMsg, void>> {
-            return await this.baseClient.createOutStream(`/in/noHandshake`)
+        public async inWithoutHandshake(params: InMsg): Promise<void> {
+            await this.baseClient.callAPI("POST", `/in/noHandshake`, JSON.stringify(params))
         }
 
         /**
          * Out stream type variants
          */
-        public async outWithHandshake(pathParam: string, params: Handshake): Promise<InStream<OutMsg>> {
+        public async outWithHandshake(pathParam: string, params: Handshake): Promise<OutMsg> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -189,11 +200,13 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callAPI("POST", `/out/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
+            return await resp.json() as OutMsg
         }
 
-        public async outWithoutHandshake(): Promise<InStream<OutMsg>> {
-            return await this.baseClient.createInStream(`/out/noHandshake`)
+        public async outWithoutHandshake(params: OutMsg): Promise<void> {
+            await this.baseClient.callAPI("POST", `/out/noHandshake`, JSON.stringify(params))
         }
     }
 }
@@ -330,6 +343,8 @@ class WebSocketConnection {
     }
 }
 
+export type HandlerType = "error";
+
 export class BidiStream<Request, Response> {
     private connection: WebSocketConnection;
     private buffer: Response[] = [];
@@ -345,8 +360,9 @@ export class BidiStream<Request, Response> {
         this.connection.close();
     }
 
-    onError(handler: (event: any) => void) {
-        this.connection.setErrorHandler(handler);
+    on(type: HandlerType, handler: (event: any) => void) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg: Request) {
@@ -396,8 +412,9 @@ export class InStream<Response> {
         this.connection.close();
     }
 
-    onError(handler: (event: any) => void) {
-        this.connection.setErrorHandler(handler);
+    on(type: HandlerType, handler: (event: any) => void) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async next(): Promise<Response | undefined> {
@@ -439,8 +456,9 @@ export class OutStream<Request, Response> {
         this.connection.close();
     }
 
-    onError(handler: (event: any) => void) {
-        this.connection.setErrorHandler(handler);
+    on(type: HandlerType, handler: (event: any) => void) {
+        if (type === "error")
+            this.connection.setErrorHandler(handler);
     }
 
     async send(msg: Request) {
