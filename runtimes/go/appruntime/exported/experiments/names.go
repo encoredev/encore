@@ -34,6 +34,10 @@ const (
 	// StreamTraces enables streaming traces to the Encore platform as they're happening,
 	// as opposed to waiting for the request to finish before starting the upload.
 	StreamTraces Name = "stream-traces"
+
+	// AdaptiveGCPPubSubGoroutines enables adaptive configuration of the number of
+	// goroutines to use on GCP. Useful for applications with a large number of subscriptions.
+	AdaptiveGCPPubSubGoroutines Name = "adaptive-gcp-pubsub-goroutines"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -46,7 +50,8 @@ func (x Name) Valid() bool {
 		LocalMultiProcess,
 		AuthDataRoundTrip,
 		TypeScript,
-		StreamTraces:
+		StreamTraces,
+		AdaptiveGCPPubSubGoroutines:
 		return true
 	default:
 		return false
