@@ -480,17 +480,6 @@ function encodeWebSocketHeaders(headers: Record<string, string>) {
 
 class WebSocketConnection {
     public ws: WebSocket;
-    public done = false;
-
-    private msgHandler?: (event: any) => void;
-    private errorHandler?: (event: any) => void;
-
-    private url: string;
-    private protocols: string[];
-
-    private retry: number = 0;
-    private minDelayMs: number = 10;
-    private maxDelayMs: number = 500;
 
     private hasUpdateHandlers: (() => void)[] = [];
 
@@ -500,53 +489,22 @@ class WebSocketConnection {
             protocols.push(encodeWebSocketHeaders(headers))
         }
 
-        this.protocols = protocols;
-        this.url = url;
+        this.ws = new WebSocket(url, protocols)
 
-        this.ws = this.connect();
-    }
-
-    connect(): WebSocket {
-        const ws = new WebSocket(this.url, this.protocols)
-
-        ws.addEventListener("open", (_event: any) => {
-            this.retry = 0;
-        });
-
-        ws.addEventListener("error", (event: any) => {
-            if (this.errorHandler !== undefined) {
-                this.errorHandler(event);
-            }
-            this.ws.close(1002);
-        });
-
-        ws.addEventListener("message", (event: any) => {
-            if (this.msgHandler !== undefined) {
-                this.msgHandler(event);
-            }
+        this.ws.addEventListener("message", () => {
             this.resolveHasUpdateHandlers();
         });
 
-        ws.addEventListener("close", (event: any) => {
-            // normal closure, no reconnect
-            if (event.code === 1005 || event.code === 1000) {
-                this.done = true;
-            }
-            if (!this.done) {
-                const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
-                console.log(`Reconnecting to ${this.url} in ${delay}ms`);
-                this.retry += 1;
-                setTimeout(() => {
-                    this.ws = this.connect();
-                }, delay);
-            }
+        this.ws.addEventListener("error", () => {
             this.resolveHasUpdateHandlers();
         });
 
-        return ws
+        this.ws.addEventListener("close", () => {
+            this.resolveHasUpdateHandlers();
+        });
     }
 
-    resolveHasUpdateHandlers() {
+    private resolveHasUpdateHandlers() {
         const handlers = this.hasUpdateHandlers;
         this.hasUpdateHandlers = [];
 
@@ -562,21 +520,10 @@ class WebSocketConnection {
         });
     }
 
-    setMsgHandler(handler: (event: any) => void) {
-        this.msgHandler = handler;
-    }
-
-    setErrorHandler(handler: (event: any) => void) {
-        this.errorHandler = handler;
-    }
-
     close() {
-        this.done = true;
         this.ws.close();
     }
 }
-
-export type HandlerType = "error";
 
 export class BidiStream<Request, Response> {
     private connection: WebSocketConnection;
@@ -584,7 +531,7 @@ export class BidiStream<Request, Response> {
 
     constructor(url: string, headers?: Record<string, string>) {
         this.connection = new WebSocketConnection(url, headers);
-        this.connection.setMsgHandler((event: any) => {
+        this.on("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
         });
     }
@@ -593,9 +540,12 @@ export class BidiStream<Request, Response> {
         this.connection.close();
     }
 
-    on(type: HandlerType, handler: (event: any) => void) {
-        if (type === "error")
-            this.connection.setErrorHandler(handler);
+    on(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.connection.ws.addEventListener(type, handler);
+    }
+
+    off(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.connection.ws.removeEventListener(type, handler);
     }
 
     async send(msg: Request) {
@@ -623,7 +573,7 @@ export class BidiStream<Request, Response> {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.connection.done) return;
+                if (this.connection.ws.readyState === WebSocket.CLOSED) return;
                 await this.connection.hasUpdate();
             }
         }
@@ -636,7 +586,7 @@ export class InStream<Response> {
 
     constructor(url: string, headers?: Record<string, string>) {
         this.connection = new WebSocketConnection(url, headers);
-        this.connection.setMsgHandler((event: any) => {
+        this.on("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
         });
     }
@@ -645,9 +595,12 @@ export class InStream<Response> {
         this.connection.close();
     }
 
-    on(type: HandlerType, handler: (event: any) => void) {
-        if (type === "error")
-            this.connection.setErrorHandler(handler);
+    on(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.connection.ws.addEventListener(type, handler);
+    }
+
+    off(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.connection.ws.removeEventListener(type, handler);
     }
 
     async next(): Promise<Response | undefined> {
@@ -660,7 +613,7 @@ export class InStream<Response> {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.connection.done) return;
+                if (this.connection.ws.readyState === WebSocket.CLOSED) return;
                 await this.connection.hasUpdate();
             }
         }
@@ -676,7 +629,7 @@ export class OutStream<Request, Response> {
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
         this.connection = new WebSocketConnection(url, headers);
-        this.connection.setMsgHandler((event: any) => {
+        this.on("message", (event: any) => {
             responseResolver(JSON.parse(event.data))
         });
     }
@@ -689,9 +642,12 @@ export class OutStream<Request, Response> {
         this.connection.close();
     }
 
-    on(type: HandlerType, handler: (event: any) => void) {
-        if (type === "error")
-            this.connection.setErrorHandler(handler);
+    on(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.connection.ws.addEventListener(type, handler);
+    }
+
+    off(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.connection.ws.removeEventListener(type, handler);
     }
 
     async send(msg: Request) {

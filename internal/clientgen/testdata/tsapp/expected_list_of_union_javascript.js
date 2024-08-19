@@ -93,14 +93,7 @@ function encodeWebSocketHeaders(headers) {
 }
 
 class WebSocketConnection {
-    done = false;
-    retry = 0;
-    minDelayMs = 10;
-    maxDelayMs = 500;
-
     hasUpdateHandlers = [];
-    msgHandler = undefined;
-    errorHandler = undefined;
 
     constructor(url, headers) {
         let protocols = ["encore-ws"];
@@ -108,50 +101,19 @@ class WebSocketConnection {
             protocols.push(encodeWebSocketHeaders(headers));
         }
 
-        this.protocols = protocols;
-        this.url = url;
+        this.ws = new WebSocket(url, protocols);
 
-        this.ws = this.connect();
-    }
-
-    connect() {
-        const ws = new WebSocket(this.url, this.protocols);
-
-        ws.addEventListener("open", (_event) => {
-            this.retry = 0;
-        });
-
-        ws.addEventListener("error", (event) => {
-            if (this.errorHandler !== undefined) {
-                this.errorHandler(event);
-            }
-            this.ws.close(1002);
-        });
-
-        ws.addEventListener("message", (event) => {
-            if (this.msgHandler !== undefined) {
-                this.msgHandler(event);
-            }
+        ws.addEventListener("error", () => {
             this.resolveHasUpdateHandlers();
         });
 
-        ws.addEventListener("close", (event) => {
-            // normal closure, no reconnect
-            if (event.code === 1005 || event.code === 1000) {
-                this.done = true;
-            }
-            if (!this.done) {
-                const delay = Math.min(this.minDelayMs * 2 ** this.retry, this.maxDelayMs);
-                console.log(`Reconnecting to ${this.url} in ${delay}ms`);
-                this.retry += 1;
-                setTimeout(() => {
-                    this.ws = this.connect();
-                }, delay);
-            }
+        ws.addEventListener("message", () => {
             this.resolveHasUpdateHandlers();
         });
 
-        return ws
+        ws.addEventListener("close", () => {
+            this.resolveHasUpdateHandlers();
+        });
     }
 
     resolveHasUpdateHandlers() {
@@ -170,16 +132,7 @@ class WebSocketConnection {
         });
     }
 
-    setMsgHandler(handler) {
-        this.msgHandler = handler;
-    }
-
-    setErrorHandler(handler) {
-        this.errorHandler = handler;
-    }
-
     close() {
-        this.done = true;
         this.ws.close();
     }
 }
@@ -189,7 +142,7 @@ export class BidiStream {
 
     constructor(url, headers) {
         this.connection = new WebSocketConnection(url, headers);
-        this.connection.setMsgHandler((event) => {
+        this.on("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
         });
     }
@@ -199,8 +152,11 @@ export class BidiStream {
     }
 
     on(type, handler) {
-        if (type === "error")
-            this.connection.setErrorHandler(handler);
+        this.connection.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.connection.ws.removeEventListener(type, handler);
     }
 
     async send(msg) {
@@ -227,7 +183,7 @@ export class BidiStream {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift();
             } else {
-                if (this.connection.done) break;
+                if (this.connection.ws.readyState === WebSocket.CLOSED) break;
                 await this.connection.hasUpdate();
             }
         }
@@ -239,7 +195,7 @@ export class InStream {
 
     constructor(url, headers) {
         this.connection = new WebSocketConnection(url, headers);
-        this.connection.setMsgHandler((event) => {
+        this.on("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
         });
     }
@@ -249,8 +205,11 @@ export class InStream {
     }
 
     on(type, handler) {
-        if (type === "error")
-            this.connection.setErrorHandler(handler);
+        this.connection.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.connection.ws.removeEventListener(type, handler);
     }
 
     async next() {
@@ -262,7 +221,7 @@ export class InStream {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift();
             } else {
-                if (this.connection.done) break;
+                if (this.connection.ws.readyState === WebSocket.CLOSED) break;
                 await this.connection.hasUpdate();
             }
         }
@@ -275,7 +234,7 @@ export class OutStream {
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
         this.connection = new WebSocketConnection(url, headers);
-        this.connection.setMsgHandler((event) => {
+        this.on("message", (event) => {
             responseResolver(JSON.parse(event.data))
         });
     }
@@ -289,8 +248,11 @@ export class OutStream {
     }
 
     on(type, handler) {
-        if (type === "error")
-            this.connection.setErrorHandler(handler);
+        this.connection.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.connection.ws.removeEventListener(type, handler);
     }
 
     async send(msg) {
