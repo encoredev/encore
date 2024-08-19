@@ -28,11 +28,13 @@ In you already have a NestJS project, you can add Encore to it by following thes
 ```json
 -- tsconfig.json --
 {
-  "paths": {
-    "~encore/*": [
-      "./encore.gen/*"
-    ]
-  }
+   "compilerOptions": {
+      "paths": {
+         "~encore/*": [
+            "./encore.gen/*"
+         ]
+      }
+   },
 }
 ```
 
@@ -90,7 +92,7 @@ in order for Encore to be able to manage your APIs, you need to replace your Nes
 Let's assume you have a `cats/cats.controller.ts` in your Nest app that looks like this:
 
 ```ts
---cats / cats.controller.ts--
+--cats/cats.controller.ts--
 
 @Controller('cats')
 export class CatsController {
