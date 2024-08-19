@@ -58,15 +58,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/bidi/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
-        return await resp.json()
+        return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
-    async bidiWithoutHandshake(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/bidi/noHandshake`, JSON.stringify(params))
-        return await resp.json()
+    async bidiWithoutHandshake() {
+        return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
     }
 
     /**
@@ -82,15 +78,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/in/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
-        return await resp.json()
+        return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
-    async inWithResponse(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(params))
-        return await resp.json()
+    async inWithResponse() {
+        return await this.baseClient.createOutStream(`/in/withResponse`)
     }
 
     async inWithResponseAndHandshake(params) {
@@ -100,21 +92,15 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
+            "path_param": params.pathParam,
             "some-query": params.queryValue,
         })
 
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            pathParam: params.pathParam,
-        }
-
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(body), {headers, query})
-        return await resp.json()
+        return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
     }
 
-    async inWithoutHandshake(params) {
-        await this.baseClient.callAPI("POST", `/in/noHandshake`, JSON.stringify(params))
+    async inWithoutHandshake() {
+        return await this.baseClient.createOutStream(`/in/noHandshake`)
     }
 
     /**
@@ -130,13 +116,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/out/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
-        return await resp.json()
+        return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
-    async outWithoutHandshake(params) {
-        await this.baseClient.callAPI("POST", `/out/noHandshake`, JSON.stringify(params))
+    async outWithoutHandshake() {
+        return await this.baseClient.createInStream(`/out/noHandshake`)
     }
 }
 

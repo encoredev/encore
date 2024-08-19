@@ -98,9 +98,12 @@ export namespace svc {
         data: string
     }
 
-    export interface OutMsg {
-        user: number
-        msg: string
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
     }
 
     export interface OutMsg {
@@ -118,7 +121,7 @@ export namespace svc {
         /**
          * Bidi stream type variants
          */
-        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<InMsg> {
+        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<BidiStream<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -128,21 +131,17 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/bidi/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
-            return await resp.json() as InMsg
+            return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async bidiWithoutHandshake(params: InMsg): Promise<OutMsg> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/bidi/noHandshake`, JSON.stringify(params))
-            return await resp.json() as OutMsg
+        public async bidiWithoutHandshake(): Promise<BidiStream<InMsg, OutMsg>> {
+            return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
         }
 
         /**
          * In stream type variants
          */
-        public async inWithHandshake(pathParam: string, params: Handshake): Promise<InMsg> {
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<OutStream<InMsg, void>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -152,45 +151,35 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/in/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
-            return await resp.json() as InMsg
+            return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async inWithResponse(params: InMsg): Promise<OutMsg> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(params))
-            return await resp.json() as OutMsg
+        public async inWithResponse(): Promise<OutStream<InMsg, OutMsg>> {
+            return await this.baseClient.createOutStream(`/in/withResponse`)
         }
 
-        public async inWithResponseAndHandshake(params: Handshake): Promise<InMsg> {
+        public async inWithResponseAndHandshake(params: Handshake): Promise<OutStream<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
             })
 
             const query = makeRecord<string, string | string[]>({
+                "path_param": params.pathParam,
                 "some-query": params.queryValue,
             })
 
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                pathParam: params.pathParam,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/in/withResponse`, JSON.stringify(body), {headers, query})
-            return await resp.json() as InMsg
+            return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
         }
 
-        public async inWithoutHandshake(params: InMsg): Promise<void> {
-            await this.baseClient.callAPI("POST", `/in/noHandshake`, JSON.stringify(params))
+        public async inWithoutHandshake(): Promise<OutStream<InMsg, void>> {
+            return await this.baseClient.createOutStream(`/in/noHandshake`)
         }
 
         /**
          * Out stream type variants
          */
-        public async outWithHandshake(pathParam: string, params: Handshake): Promise<OutMsg> {
+        public async outWithHandshake(pathParam: string, params: Handshake): Promise<InStream<OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -200,13 +189,11 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/out/${encodeURIComponent(pathParam)}`, undefined, {headers, query})
-            return await resp.json() as OutMsg
+            return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async outWithoutHandshake(params: OutMsg): Promise<void> {
-            await this.baseClient.callAPI("POST", `/out/noHandshake`, JSON.stringify(params))
+        public async outWithoutHandshake(): Promise<InStream<OutMsg>> {
+            return await this.baseClient.createInStream(`/out/noHandshake`)
         }
     }
 }
