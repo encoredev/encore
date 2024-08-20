@@ -34,7 +34,7 @@ In you already have a NestJS project, you can add Encore to it by following thes
             "./encore.gen/*"
          ]
       }
-   },
+   }
 }
 ```
 
