@@ -1,4 +1,6 @@
 import { registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
+import { isMainThread } from "node:worker_threads";
+
 {{#each endpoints}}
 import { {{name}} as {{name}}Impl{{@index}} } from {{toJSON import_path}};
 {{/each}}
@@ -19,5 +21,7 @@ const handlers: Handler[] = [
 {{/each}}
 ];
 
-registerHandlers(handlers);
-await run();
+if (isMainThread) {
+    registerHandlers(handlers);
+    await run();
+}
