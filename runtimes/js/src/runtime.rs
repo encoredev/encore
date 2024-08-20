@@ -11,8 +11,10 @@ use encore_runtime_core::EncoreName;
 use napi::bindgen_prelude::*;
 use napi::{Error, Status};
 use napi_derive::napi;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::thread;
+
+static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
 #[napi]
 pub struct Runtime {
@@ -23,7 +25,6 @@ pub struct Runtime {
 #[derive(Default)]
 pub struct RuntimeOptions {
     pub test_mode: Option<bool>,
-    pub is_worker: Option<bool>,
 }
 
 #[napi]
@@ -31,26 +32,30 @@ impl Runtime {
     #[napi(constructor)]
     pub fn new(options: Option<RuntimeOptions>) -> napi::Result<Self> {
         let options = options.unwrap_or_default();
-        // Initialize logging.
-        encore_runtime_core::log::init();
-
         let test_mode = options
             .test_mode
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
-        let is_worker = options.is_worker.unwrap_or(false);
-        let runtime = encore_runtime_core::Runtime::builder()
-            .with_test_mode(test_mode)
-            .with_meta_autodetect()
-            .with_runtime_config_from_env()
-            .with_worker(is_worker)
-            .build()
-            .map_err(|e| {
-                Error::new(
-                    Status::GenericFailure,
-                    format!("failed to initialize runtime: {:?}", e),
-                )
-            })?;
-        let runtime = Arc::new(runtime);
+
+        let runtime = RUNTIME
+            .get_or_init(|| {
+                // Initialize logging.
+                encore_runtime_core::log::init();
+
+                let runtime = encore_runtime_core::Runtime::builder()
+                    .with_test_mode(test_mode)
+                    .with_meta_autodetect()
+                    .with_runtime_config_from_env()
+                    .build()
+                    .map_err(|e| {
+                        Error::new(
+                            Status::GenericFailure,
+                            format!("failed to initialize runtime: {:?}", e),
+                        )
+                    })?;
+
+                Ok(Arc::new(runtime))
+            })
+            .clone()?;
 
         // If we're running tests, there's no specific entrypoint so
         // start the runtime in the background immediately.
@@ -60,7 +65,6 @@ impl Runtime {
                 runtime.run_blocking();
             });
         }
-
         Ok(Self { runtime })
     }
 
