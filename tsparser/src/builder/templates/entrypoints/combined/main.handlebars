@@ -1,4 +1,5 @@
 import { registerGateways, registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
+import { isMainThread } from "node:worker_threads";
 
 {{#each gateways}}
 import { {{bind_name}} as {{encoreNameToIdent encore_name}}GW } from {{toJSON import_path}};
@@ -38,7 +39,8 @@ const handlers: Handler[] = [
 {{/each}}
 ];
 
-registerGateways(gateways);
-registerHandlers(handlers);
-
-await run();
+if (isMainThread) {
+    registerGateways(gateways);
+    registerHandlers(handlers);
+    await run();
+}
