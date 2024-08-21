@@ -30,6 +30,23 @@ pub struct RuntimeOptions {
     pub test_mode: Option<bool>,
 }
 
+fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
+    // Initialize logging.
+    encore_runtime_core::log::init();
+
+    encore_runtime_core::Runtime::builder()
+        .with_test_mode(test_mode)
+        .with_meta_autodetect()
+        .with_runtime_config_from_env()
+        .build()
+        .map_err(|e| {
+            Error::new(
+                Status::GenericFailure,
+                format!("failed to initialize runtime: {:?}", e),
+            )
+        })
+}
+
 #[napi]
 impl Runtime {
     #[napi(constructor)]
@@ -39,35 +56,24 @@ impl Runtime {
             .test_mode
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
 
+        if test_mode {
+            let runtime = Arc::new(init_runtime(test_mode)?);
+            // If we're running tests, there's no specific entrypoint so
+            // start the runtime in the background immediately.
+            if test_mode {
+                let runtime = runtime.clone();
+                thread::spawn(move || {
+                    runtime.run_blocking();
+                });
+            }
+
+            return Ok(Self { runtime });
+        }
+
         let runtime = RUNTIME
-            .get_or_init(|| {
-                // Initialize logging.
-                encore_runtime_core::log::init();
-
-                let runtime = encore_runtime_core::Runtime::builder()
-                    .with_test_mode(test_mode)
-                    .with_meta_autodetect()
-                    .with_runtime_config_from_env()
-                    .build()
-                    .map_err(|e| {
-                        Error::new(
-                            Status::GenericFailure,
-                            format!("failed to initialize runtime: {:?}", e),
-                        )
-                    })?;
-
-                Ok(Arc::new(runtime))
-            })
+            .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
 
-        // If we're running tests, there's no specific entrypoint so
-        // start the runtime in the background immediately.
-        if test_mode {
-            let runtime = runtime.clone();
-            thread::spawn(move || {
-                runtime.run_blocking();
-            });
-        }
         Ok(Self { runtime })
     }
 
