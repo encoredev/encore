@@ -53,7 +53,7 @@ then choose the account, project and branch you want to use.
 
 ## Edit your Neon environment
 Once the environment is created, you can edit the Neon settings by going to Encore's Cloud Dashboard > (Select your app) > Environments > (Select your environment) > Infrastructure. 
-Here you can view and edit your Neon account resources. As a saftety precaution, we've disabled editing of imported
+Here you can view and edit your Neon account resources. As a safety precaution, we've disabled editing of imported
 resources to prevent accidental changes to shared data.
 
 <img src="/assets/docs/edit-neon.png" title="Edit Neon Environment" className="mx-auto"/>
