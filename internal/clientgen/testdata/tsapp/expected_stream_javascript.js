@@ -201,6 +201,14 @@ class WebSocketConnection {
         });
     }
 
+    on(type, handler) {
+        this.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.ws.removeEventListener(type, handler);
+    }
+
     close() {
         this.ws.close();
     }
@@ -210,37 +218,29 @@ export class BidiStream {
     buffer = [];
 
     constructor(url, headers) {
-        this.connection = new WebSocketConnection(url, headers);
-        this.on("message", (event) => {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
         });
     }
 
     close() {
-        this.connection.close();
-    }
-
-    on(type, handler) {
-        this.connection.ws.addEventListener(type, handler);
-    }
-
-    off(type, handler) {
-        this.connection.ws.removeEventListener(type, handler);
+        this.socket.close();
     }
 
     async send(msg) {
-        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
                 const handler = () => {
-                    this.connection.ws.removeEventListener("open", handler);
+                    this.socket.ws.removeEventListener("open", handler);
                     resolve();
                 };
-                this.connection.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", handler);
             });
         }
 
-        return this.connection.ws.send(JSON.stringify(msg));
+        return this.socket.ws.send(JSON.stringify(msg));
     }
 
     async next() {
@@ -252,8 +252,8 @@ export class BidiStream {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift();
             } else {
-                if (this.connection.ws.readyState === WebSocket.CLOSED) break;
-                await this.connection.hasUpdate();
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
             }
         }
     }
@@ -263,22 +263,14 @@ export class InStream {
     buffer = [];
 
     constructor(url, headers) {
-        this.connection = new WebSocketConnection(url, headers);
-        this.on("message", (event) => {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
         });
     }
 
     close() {
-        this.connection.close();
-    }
-
-    on(type, handler) {
-        this.connection.ws.addEventListener(type, handler);
-    }
-
-    off(type, handler) {
-        this.connection.ws.removeEventListener(type, handler);
+        this.socket.close();
     }
 
     async next() {
@@ -290,8 +282,8 @@ export class InStream {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift();
             } else {
-                if (this.connection.ws.readyState === WebSocket.CLOSED) break;
-                await this.connection.hasUpdate();
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
             }
         }
     }
@@ -302,8 +294,8 @@ export class OutStream {
         let responseResolver;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
-        this.connection = new WebSocketConnection(url, headers);
-        this.on("message", (event) => {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
             responseResolver(JSON.parse(event.data))
         });
     }
@@ -313,30 +305,22 @@ export class OutStream {
     }
 
     close() {
-        this.connection.close();
-    }
-
-    on(type, handler) {
-        this.connection.ws.addEventListener(type, handler);
-    }
-
-    off(type, handler) {
-        this.connection.ws.removeEventListener(type, handler);
+        this.socket.close();
     }
 
     async send(msg) {
-        if (this.connection.ws.readyState === WebSocket.CONNECTING) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
                 const handler = () => {
-                    this.connection.ws.removeEventListener("open", handler);
+                    this.socket.ws.removeEventListener("open", handler);
                     resolve();
                 };
-                this.connection.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", handler);
             });
         }
 
-        return this.connection.ws.send(JSON.stringify(msg));
+        return this.socket.ws.send(JSON.stringify(msg));
     }
 }
 
