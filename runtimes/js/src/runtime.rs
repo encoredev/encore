@@ -16,6 +16,7 @@ use std::future::Future;
 use std::sync::{Arc, OnceLock};
 use std::thread;
 
+// TODO: remove storing of result after `get_or_try_init` is stabilized
 static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
 #[napi]
