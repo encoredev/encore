@@ -26,7 +26,7 @@ You can also email your feedback to us at [hello@encore.dev](mailto:hello@encore
 
 If you’ve built something cool using Encore, we’d really like you to talk about it! We love it when developers share their projects on blogs and on Twitter.
 
-Use the hashtag **#builtwithencore** and we’ll have easier time finding your work. – We might also showcase it on the [Encore Twitter account](https://twitter.com/encoredotdev)!
+Use the hashtag **#builtwithencore** and we’ll have an easier time finding your work. – We might also showcase it on the [Encore Twitter account](https://twitter.com/encoredotdev)!
 
 ### Meetups & Workshops
 
