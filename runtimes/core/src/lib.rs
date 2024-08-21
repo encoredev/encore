@@ -167,7 +167,7 @@ impl RuntimeBuilder {
         let cfg = self.cfg.context("runtime config not provided")?;
         let md = self.md.context("metadata not provided")?;
 
-        Runtime::new(cfg, md, self.test_mode, self.is_worker)
+        Runtime::new(cfg, md, self.test_mode)
     }
 }
 
@@ -190,7 +190,6 @@ impl Runtime {
         mut cfg: runtimepb::RuntimeConfig,
         md: metapb::Data,
         testing: bool,
-        is_worker: bool,
     ) -> anyhow::Result<Self> {
         // Initialize OpenSSL system root certificates, so that libraries can find them.
         openssl_probe::init_ssl_cert_env_vars();
@@ -293,7 +292,6 @@ impl Runtime {
             platform_validator,
             pubsub_push_registry: pubsub.push_registry(),
             runtime: tokio_rt.handle().clone(),
-            is_worker,
         }
         .build()
         .context("unable to initialize api manager")?;

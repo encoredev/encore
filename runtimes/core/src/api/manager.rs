@@ -39,7 +39,6 @@ pub struct ManagerConfig<'a> {
     pub platform_validator: Arc<platform::RequestValidator>,
     pub pubsub_push_registry: pubsub::PushHandlerRegistry,
     pub runtime: tokio::runtime::Handle,
-    pub is_worker: bool,
 }
 
 pub struct Manager {
@@ -57,14 +56,14 @@ pub struct Manager {
 
 impl ManagerConfig<'_> {
     pub fn build(mut self) -> anyhow::Result<Manager> {
-        let gateway_listen_addr = if !self.hosted_gateway_rids.is_empty() && !self.is_worker {
+        let gateway_listen_addr = if !self.hosted_gateway_rids.is_empty() {
             // We have a gateway. Have the gateway listen on the provided listen_addr.
             Some(listen_addr())
         } else {
             None
         };
 
-        let api_listener = if !self.hosted_services.is_empty() && !self.is_worker {
+        let api_listener = if !self.hosted_services.is_empty() {
             // If we already have a gateway, it's listening on the externally provided listen addr.
             // Use a random local port in that case.
             let addr = if gateway_listen_addr.is_some() {
@@ -129,12 +128,11 @@ impl ManagerConfig<'_> {
             self.deploy_id.clone(),
             self.http_client.clone(),
             self.tracer.clone(),
-            self.is_worker,
         )
         .context("unable to create service registry")?;
         let service_registry = Arc::new(service_registry);
 
-        let api_server = if !hosted_services.is_empty() && !self.is_worker {
+        let api_server = if !hosted_services.is_empty() {
             let server = server::Server::new(
                 endpoints.clone(),
                 hosted_endpoints,
@@ -165,9 +163,6 @@ impl ManagerConfig<'_> {
         );
 
         for gw in &self.meta.gateways {
-            if self.is_worker {
-                continue;
-            }
             let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
                 continue;
             };
