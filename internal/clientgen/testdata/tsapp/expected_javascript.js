@@ -115,15 +115,11 @@ class WebSocketConnection {
 
         this.ws = new WebSocket(url, protocols);
 
-        ws.addEventListener("error", () => {
+        this.on("error", () => {
             this.resolveHasUpdateHandlers();
         });
 
-        ws.addEventListener("message", () => {
-            this.resolveHasUpdateHandlers();
-        });
-
-        ws.addEventListener("close", () => {
+        this.on("close", () => {
             this.resolveHasUpdateHandlers();
         });
     }
@@ -164,6 +160,7 @@ export class BidiStream {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
         });
     }
 
@@ -175,11 +172,7 @@ export class BidiStream {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
-                const handler = () => {
-                    this.socket.ws.removeEventListener("open", handler);
-                    resolve();
-                };
-                this.socket.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", resolve, { once: true });
             });
         }
 
@@ -209,6 +202,7 @@ export class InStream {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event) => {
             this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
         });
     }
 
@@ -255,11 +249,7 @@ export class OutStream {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
-                const handler = () => {
-                    this.socket.ws.removeEventListener("open", handler);
-                    resolve();
-                };
-                this.socket.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", resolve, { once: true });
             });
         }
 

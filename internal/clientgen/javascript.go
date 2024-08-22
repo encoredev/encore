@@ -588,11 +588,7 @@ func (js *javascript) writeStreamClasses() {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
-                const handler = () => {
-                    this.socket.ws.removeEventListener("open", handler);
-                    resolve();
-                };
-                this.socket.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", resolve, { once: true });
             });
         }
 

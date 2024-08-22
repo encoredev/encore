@@ -130,20 +130,16 @@ class WebSocketConnection {
 
         this.ws = new WebSocket(url, protocols)
 
-        this.ws.addEventListener("message", () => {
+        this.on("error", () => {
             this.resolveHasUpdateHandlers();
         });
 
-        this.ws.addEventListener("error", () => {
-            this.resolveHasUpdateHandlers();
-        });
-
-        this.ws.addEventListener("close", () => {
+        this.on("close", () => {
             this.resolveHasUpdateHandlers();
         });
     }
 
-    private resolveHasUpdateHandlers() {
+    resolveHasUpdateHandlers() {
         const handlers = this.hasUpdateHandlers;
         this.hasUpdateHandlers = [];
 
@@ -180,6 +176,7 @@ export class BidiStream<Request, Response> {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
         });
     }
 
@@ -191,11 +188,7 @@ export class BidiStream<Request, Response> {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
-                const handler = () => {
-                    this.socket.ws.removeEventListener("open", handler);
-                    resolve(null);
-                };
-                this.socket.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", resolve, { once: true });
             });
         }
 
@@ -227,6 +220,7 @@ export class InStream<Response> {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
         });
     }
 
@@ -277,11 +271,7 @@ export class OutStream<Request, Response> {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
-                const handler = () => {
-                    this.socket.ws.removeEventListener("open", handler);
-                    resolve(null);
-                };
-                this.socket.ws.addEventListener("open", handler);
+                this.socket.ws.addEventListener("open", resolve, { once: true });
             });
         }
 
