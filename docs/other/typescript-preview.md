@@ -5,7 +5,7 @@ title: TypeScript (Preview)
 subtitle: Your feedback is welcome!
 lang: ts
 ---
-_This document is deprecated. Please refer to the [the complete TypeScript SDK docs](/docs/ts)._
+_This document is deprecated. Please refer to the [the complete Encore.ts docs](/docs/ts)._
 
 ## Example backend application
 

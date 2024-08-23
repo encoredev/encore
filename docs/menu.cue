@@ -186,8 +186,8 @@
 	}]
 }
 
-#GoSDK: #SubMenu & {
-	title: "Go SDK"
+#EncoreGO: #SubMenu & {
+	title: "Encore.go"
 	presentation: {
 		icon: "golang"
 	}
@@ -401,8 +401,8 @@
 	}]
 }
 
-#TypeScriptSDK: #SubMenu & {
-	title: "TypeScript SDK"
+#EncoreTS: #SubMenu & {
+	title: "Encore.ts"
 	presentation: {
 		icon: "typescript"
 	}
@@ -521,10 +521,10 @@
 	text: "Development"
 	items: [{
 		kind: "nav"
-		text: "Go SDK"
+		text: "Encore.go"
 		path: "/go"
 		file: "go/overview"
-		submenu: #GoSDK
+		submenu: #EncoreGO
 		presentation: {
 			icon: "golang"
 			style: "card"
@@ -532,10 +532,10 @@
 	},
 	{
 		kind: "nav"
-		text: "TypeScript SDK"
+		text: "Encore.ts"
 		path: "/ts"
 		file: "ts/overview"
-		submenu: #TypeScriptSDK
+		submenu: #EncoreTS
 		presentation: {
 			icon: "typescript"
 			style: "card"
