@@ -4,7 +4,7 @@
 </p>
 
 Encore provides Open Source development tools, from local development to your cloud:
-- **Backend frameworks:** Encore.ts and Encore.go simplify defining services and type-safe APIs, and provide a declarative approach to define infrastructure in code.
+- **Backend frameworks:** [Encore.ts](https://encore.dev) and [Encore.go](https://encore.dev/go) simplify defining services and type-safe APIs, and provide a declarative approach to define infrastructure in code.
 - **Local development environment:** Automates local infrastructure and provides a built-in local development dashboard with Tracing, Service Catalog, and API Explorer.
 - **Infrastructure integration:** Encore provides open source tooling to simplify integrating with cloud infrastructure, and offers a [Cloud Platform](https://encore.dev/use-cases/devops-automation) that fully automates DevOps and infrastructure provisioning in your cloud on AWS and GCP.
 
