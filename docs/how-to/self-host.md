@@ -76,9 +76,9 @@ Here's an example configuration you can use.
       "service_auth": { "method": "noop" }
     }
   },
-  "sql_databases": []
+  "sql_databases": [],
   "sql_servers": [],
-  "pubsub_providers": []
+  "pubsub_providers": [],
   "pubsub_topics": {},
   "metrics": {}
 }
