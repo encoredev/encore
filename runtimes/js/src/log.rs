@@ -73,17 +73,27 @@ impl Logger {
         #[napi(ts_arg_type = "Record<string, unknown>")] fields: Option<
             HashMap<String, napi::JsUnknown>,
         >,
-    ) -> napi::Result<()> {
-        self.logger
+    ) {
+        let error = convert_error(env, error).unwrap_or_else(|err| {
+            ::log::error!("couldn't convert error to api error: {err}");
+            None
+        });
+
+        let res = self
+            .logger
             .log(
                 request.map(|r| r.inner.as_ref()),
                 level.into(),
                 msg,
-                convert_error(env, error)?,
+                error,
                 caller,
-                convert_fields(env, fields)?,
+                convert_fields(env, fields),
             )
-            .map_err(Error::from)
+            .map_err(Error::from);
+
+        if let Err(err) = res {
+            ::log::error!("logging failed: {err}");
+        }
     }
 
     /// Returns a new logger with the specified level
@@ -102,7 +112,7 @@ impl Logger {
         env: Env,
         #[napi(ts_arg_type = "Record<string, unknown>")] fields: HashMap<String, napi::JsUnknown>,
     ) -> napi::Result<Self> {
-        let fields = convert_fields(env, Some(fields))?.unwrap();
+        let fields = convert_fields(env, Some(fields)).unwrap();
 
         Ok(Self {
             logger: self.logger.with(fields),
@@ -218,25 +228,33 @@ fn extract_file_line_col(string: &str) -> Option<(String, u32, Option<u32>)> {
 }
 
 /// converts a hash map of unknown JS values to a BTree of serde_json::Value's
-fn convert_fields(
-    env: Env,
-    input: Option<HashMap<String, napi::JsUnknown>>,
-) -> napi::Result<Option<Fields>> {
+fn convert_fields(env: Env, input: Option<HashMap<String, napi::JsUnknown>>) -> Option<Fields> {
     match input {
-        None => Ok(None),
+        None => None,
+        Some(input) if input.is_empty() => None,
         Some(input) => {
-            if input.is_empty() {
-                return Ok(None);
-            }
-
             let mut fields = Fields::new();
 
             for (key, value) in input {
-                let value: serde_json::Value = env.from_js_value(value)?;
-                fields.insert(key, value);
+                let val: napi::Result<serde_json::Value> = env.from_js_value(&value);
+                match val {
+                    Ok(val) => {
+                        fields.insert(key, val);
+                    }
+                    Err(_) => {
+                        // if value is not deserializable (e.g Function), print its type
+                        let value_type = serde_json::Value::from(
+                            value
+                                .get_type()
+                                .unwrap_or(napi::ValueType::Unknown)
+                                .to_string(),
+                        );
+                        fields.insert(key, value_type);
+                    }
+                };
             }
 
-            Ok(Some(fields))
+            Some(fields)
         }
     }
 }
