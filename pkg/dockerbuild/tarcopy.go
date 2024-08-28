@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/v2/compiler/build"
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -239,6 +240,11 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		header.ChangeTime = t
 	}
 
+	// make sure the binary is executable (e.g when cross compiling from windows)
+	if fi.Name() == build.BinaryName {
+		header.Mode = 0755
+	}
+
 	header.Name = filepath.ToSlash(dstPath.String())
 	if err := tc.tw.WriteHeader(header); err != nil {
 		return errors.Wrap(err, "write tar header")
@@ -290,5 +296,5 @@ func (tc *tarCopier) WriteFile(dstPath string, mode fs.FileMode, data []byte) (e
 	}
 
 	_, err = tc.tw.Write(data)
-	return errors.Wrap(err, "copy file")
+	return errors.Wrap(err, "write file")
 }
