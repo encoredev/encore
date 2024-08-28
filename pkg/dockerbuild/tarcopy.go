@@ -6,10 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"encr.dev/v2/compiler/build"
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -239,6 +241,11 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		header.ChangeTime = t
 	}
 
+	// HACK: make the linux binary executable when cross compiling from windows as the unix permissions gets lost.
+	if runtime.GOOS == "windows" && fi.Name() == build.BinaryName {
+		header.Mode = 0755
+	}
+
 	header.Name = filepath.ToSlash(dstPath.String())
 	if err := tc.tw.WriteHeader(header); err != nil {
 		return errors.Wrap(err, "write tar header")
@@ -290,5 +297,5 @@ func (tc *tarCopier) WriteFile(dstPath string, mode fs.FileMode, data []byte) (e
 	}
 
 	_, err = tc.tw.Write(data)
-	return errors.Wrap(err, "copy file")
+	return errors.Wrap(err, "write file")
 }
