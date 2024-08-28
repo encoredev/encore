@@ -2,6 +2,7 @@ package gcp
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 
 	"cloud.google.com/go/pubsub"
@@ -37,6 +38,12 @@ func numGoroutines(numSubs int) int {
 	numConns := min(4, maxProcs)
 	maxStreams := numConns * 100
 
+	// Scale factor
+	scaleFactor := 1.5
+
+	// Calculate the target number of goroutines
+	target := int(math.Sqrt(float64(maxStreams)/float64(numSubs)) * scaleFactor)
+
 	// Clamp to [1, 10].
-	return max(min(maxStreams/numSubs, 10), 1)
+	return max(min(target, 10), 1)
 }
