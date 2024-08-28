@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -240,8 +241,8 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		header.ChangeTime = t
 	}
 
-	// make sure the binary is executable (e.g when cross compiling from windows)
-	if fi.Name() == build.BinaryName {
+	// HACK: make the linux binary executable when cross compiling from windows as the unix permissions gets lost.
+	if runtime.GOOS == "windows" && fi.Name() == build.BinaryName {
 		header.Mode = 0755
 	}
 
