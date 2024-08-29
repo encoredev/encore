@@ -58,7 +58,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
 
             for (_, v) in fields {
                 if !v.is_custom() {
-                    HANDLER.with(|handler| handler.span_err(v.range().to_span(), "authHandler parameter type can only consist of Query and Header fields"));
+                    HANDLER.with(|handler| handler.span_err(v.range(), "authHandler parameter type can only consist of Query and Header fields"));
                 }
             }
 
