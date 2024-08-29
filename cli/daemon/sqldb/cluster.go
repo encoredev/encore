@@ -250,7 +250,7 @@ func (c *Cluster) initDB(encoreName string) *DB {
 func (c *Cluster) Setup(ctx context.Context, appRoot string, md *meta.Data) error {
 	c.log.Debug().Msg("creating cluster")
 	g, ctx := errgroup.WithContext(ctx)
-
+	g.SetLimit(50)
 	c.mu.Lock()
 
 	for _, dbMeta := range md.SqlDatabases {
@@ -269,6 +269,7 @@ func (c *Cluster) Setup(ctx context.Context, appRoot string, md *meta.Data) erro
 func (c *Cluster) SetupAndMigrate(ctx context.Context, appRoot string, md *meta.Data) error {
 	c.log.Debug().Msg("creating and migrating cluster")
 	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(50)
 	c.mu.Lock()
 
 	for _, dbMeta := range md.SqlDatabases {
@@ -304,6 +305,7 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, databaseNames []
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(50)
 	c.mu.Lock()
 	for _, dbMeta := range md.SqlDatabases {
 		dbMeta := dbMeta
