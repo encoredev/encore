@@ -1,4 +1,5 @@
 use anyhow::Result;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
@@ -12,8 +13,9 @@ use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
-
 use crate::parser::{FilePath, Range};
+
+use super::encoding::iface_fields;
 
 #[derive(Debug, Clone)]
 pub struct AuthHandler {
@@ -51,6 +53,14 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
             let r = r?;
             let request = pass.type_checker.resolve_type(module.clone(), &r.request);
             let response = pass.type_checker.resolve_type(module.clone(), &r.response);
+
+            let fields = iface_fields(pass.type_checker, &request)?;
+
+            for (_, v) in fields {
+                if !v.is_custom() {
+                    HANDLER.with(|handler| handler.span_err(v.range(), "authHandler parameter type can only consist of Query and Header fields"));
+                }
+            }
 
             let object = pass
                 .type_checker

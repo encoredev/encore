@@ -9,6 +9,7 @@ use crate::parser::types::{
     drop_empty_or_void, unwrap_promise, Basic, FieldName, Interface, InterfaceField, ResolveState,
     Type, TypeChecker,
 };
+use crate::parser::Range;
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
@@ -319,9 +320,20 @@ pub struct Field {
     typ: Type,
     optional: bool,
     custom: Option<CustomType>,
+    range: Range,
 }
 
-fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
+impl Field {
+    pub fn is_custom(&self) -> bool {
+        self.custom.is_some()
+    }
+
+    pub fn range(&self) -> Range {
+        self.range
+    }
+}
+
+pub(crate) fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
     fn to_fields(state: &ResolveState, iface: &Interface) -> Result<FieldMap> {
         let mut map = HashMap::new();
         for f in &iface.fields {
@@ -451,6 +463,7 @@ fn rewrite_custom_type_field(
         typ: field.typ.clone(),
         optional: field.optional,
         custom: None,
+        range: field.range,
     };
     let Type::Named(named) = &field.typ else {
         return Ok(standard_field);
