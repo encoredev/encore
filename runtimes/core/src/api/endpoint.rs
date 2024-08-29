@@ -353,7 +353,7 @@ impl EndpointHandler {
         let streaming_response = self.endpoint.response.stream;
 
         let stream_direction = match (streaming_request, streaming_response) {
-            (true, true) => Some(StreamDirection::Bidi),
+            (true, true) => Some(StreamDirection::InOut),
             (true, false) => Some(StreamDirection::In),
             (false, true) => Some(StreamDirection::Out),
             (false, false) => None,

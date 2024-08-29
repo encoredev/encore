@@ -20,13 +20,13 @@ interface OutMsg {
     msg: string;
 }
 
-// Bidi stream type variants
-export const bidiWithHandshake = api.streamBidi<Handshake, InMsg, OutMsg>(
-  { expose: true, path: "/bidi/:pathParam" },
+// InOut stream type variants
+export const inOutWithHandshake = api.streamInOut<Handshake, InMsg, OutMsg>(
+  { expose: true, path: "/inout/:pathParam" },
   async (handshake: Handshake, stream) => {},
 );
-export const bidiWithoutHandshake = api.streamBidi<InMsg, OutMsg>(
-  { expose: true, path: "/bidi/noHandshake" },
+export const inOutWithoutHandshake = api.streamInOut<InMsg, OutMsg>(
+  { expose: true, path: "/inout/noHandshake" },
   async (stream) => {},
 );
 

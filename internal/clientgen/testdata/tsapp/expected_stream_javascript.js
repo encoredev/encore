@@ -46,9 +46,9 @@ class SvcServiceClient {
     }
 
     /**
-     * Bidi stream type variants
+     * InOut stream type variants
      */
-    async bidiWithHandshake(pathParam, params) {
+    async inOutWithHandshake(pathParam, params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({
             "some-header": params.headerValue,
@@ -58,11 +58,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
+        return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
-    async bidiWithoutHandshake() {
-        return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
+    async inOutWithoutHandshake() {
+        return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
     }
 
     /**
@@ -78,11 +78,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+        return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
     async inWithResponse() {
-        return await this.baseClient.createOutStream(`/in/withResponse`)
+        return await this.baseClient.createStreamOut(`/in/withResponse`)
     }
 
     async inWithResponseAndHandshake(params) {
@@ -96,11 +96,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
+        return await this.baseClient.createStreamOut(`/in/withResponse`, {headers, query})
     }
 
     async inWithoutHandshake() {
-        return await this.baseClient.createOutStream(`/in/noHandshake`)
+        return await this.baseClient.createStreamOut(`/in/noHandshake`)
     }
 
     /**
@@ -116,11 +116,11 @@ class SvcServiceClient {
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+        return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
     }
 
     async outWithoutHandshake() {
-        return await this.baseClient.createInStream(`/out/noHandshake`)
+        return await this.baseClient.createStreamIn(`/out/noHandshake`)
     }
 }
 
@@ -210,7 +210,7 @@ class WebSocketConnection {
     }
 }
 
-export class BidiStream {
+export class StreamInOut {
     buffer = [];
 
     constructor(url, headers) {
@@ -252,7 +252,7 @@ export class BidiStream {
     }
 }
 
-export class InStream {
+export class StreamIn {
     buffer = [];
 
     constructor(url, headers) {
@@ -283,7 +283,7 @@ export class InStream {
     }
 }
 
-export class OutStream {
+export class StreamOut {
     constructor(url, headers) {
         let responseResolver;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
@@ -340,8 +340,8 @@ class BaseClient {
     }
 
     async getAuthData() {
-    // createBidiStream sets up a stream to a streaming API endpoint.
-    async createBidiStream(path, params) {
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -358,11 +358,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : '';
-        return new BidiStream(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming API endpoint.
-    async createInStream(path, params) {
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -379,11 +379,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream(path, params) {
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -400,7 +400,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new OutStream(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request

@@ -78,7 +78,7 @@ function transformHandler(h: Handler): Handler {
     return {
       ...h,
       // req is the upgrade request.
-      // stream is either a bidi stream, in stream or out stream.
+      // stream is either a bidirectional stream, in stream or out stream.
       handler: (req: runtime.Request, stream: unknown) => {
         setCurrentRequest(req);
 

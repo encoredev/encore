@@ -400,7 +400,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
 
-                    ast::Expr::Member(member) if member.prop.is_ident_with("streamBidi") => {
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamInOut") => {
                         let type_params = expr
                             .type_args
                             .as_deref()

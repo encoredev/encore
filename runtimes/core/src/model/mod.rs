@@ -193,7 +193,7 @@ pub enum RequestData {
 
 #[derive(Debug, Copy, Clone)]
 pub enum StreamDirection {
-    Bidi,
+    InOut,
     In,
     Out,
 }

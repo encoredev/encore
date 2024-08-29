@@ -154,7 +154,7 @@ fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi
         .into_unknown();
 
     let stream_arg = match ctx.value.payload {
-        StreamMessagePayload::Bidi(socket) => Socket::new(socket)
+        StreamMessagePayload::InOut(socket) => Socket::new(socket)
             .into_instance(ctx.env)?
             .as_object(ctx.env)
             .into_unknown(),

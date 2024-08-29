@@ -134,21 +134,21 @@ export interface StreamOut<Response> {
   close: () => Promise<void>;
 }
 
-export type StreamBidi<Request, Response> = StreamIn<Request> &
+export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
 
-function streamBidi<HandshakeData, Request, Response>(
+function streamInOut<HandshakeData, Request, Response>(
   options: StreamOptions,
   fn: (
     data: HandshakeData,
-    stream: StreamBidi<Request, Response>
+    stream: StreamInOut<Request, Response>
   ) => Promise<void>
 ): void;
-function streamBidi<Request, Response>(
+function streamInOut<Request, Response>(
   options: StreamOptions,
-  fn: (stream: StreamBidi<Request, Response>) => Promise<void>
+  fn: (stream: StreamInOut<Request, Response>) => Promise<void>
 ): void;
-function streamBidi(options: StreamOptions, fn: any): typeof fn {
+function streamInOut(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
 
@@ -176,7 +176,7 @@ function streamOut(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
 
-api.streamBidi = streamBidi;
+api.streamInOut = streamInOut;
 api.streamIn = streamIn;
 api.streamOut = streamOut;
 

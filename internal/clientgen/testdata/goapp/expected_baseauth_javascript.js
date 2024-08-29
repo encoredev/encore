@@ -155,7 +155,7 @@ class WebSocketConnection {
     }
 }
 
-export class BidiStream {
+export class StreamInOut {
     buffer = [];
 
     constructor(url, headers) {
@@ -197,7 +197,7 @@ export class BidiStream {
     }
 }
 
-export class InStream {
+export class StreamIn {
     buffer = [];
 
     constructor(url, headers) {
@@ -228,7 +228,7 @@ export class InStream {
     }
 }
 
-export class OutStream {
+export class StreamOut {
     constructor(url, headers) {
         let responseResolver;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
@@ -317,8 +317,8 @@ class BaseClient {
             return data;
         }
     }
-    // createBidiStream sets up a stream to a streaming API endpoint.
-    async createBidiStream(path, params) {
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -335,11 +335,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : '';
-        return new BidiStream(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming API endpoint.
-    async createInStream(path, params) {
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -356,11 +356,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream(path, params) {
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -377,7 +377,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new OutStream(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request

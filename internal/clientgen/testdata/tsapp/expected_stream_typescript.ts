@@ -119,9 +119,9 @@ export namespace svc {
         }
 
         /**
-         * Bidi stream type variants
+         * InOut stream type variants
          */
-        public async bidiWithHandshake(pathParam: string, params: Handshake): Promise<BidiStream<InMsg, OutMsg>> {
+        public async inOutWithHandshake(pathParam: string, params: Handshake): Promise<StreamInOut<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -131,17 +131,17 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createBidiStream(`/bidi/${encodeURIComponent(pathParam)}`, {headers, query})
+            return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async bidiWithoutHandshake(): Promise<BidiStream<InMsg, OutMsg>> {
-            return await this.baseClient.createBidiStream(`/bidi/noHandshake`)
+        public async inOutWithoutHandshake(): Promise<StreamInOut<InMsg, OutMsg>> {
+            return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
         }
 
         /**
          * In stream type variants
          */
-        public async inWithHandshake(pathParam: string, params: Handshake): Promise<OutStream<InMsg, void>> {
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<StreamOut<InMsg, void>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -151,14 +151,14 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createOutStream(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+            return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async inWithResponse(): Promise<OutStream<InMsg, OutMsg>> {
-            return await this.baseClient.createOutStream(`/in/withResponse`)
+        public async inWithResponse(): Promise<StreamOut<InMsg, OutMsg>> {
+            return await this.baseClient.createStreamOut(`/in/withResponse`)
         }
 
-        public async inWithResponseAndHandshake(params: Handshake): Promise<OutStream<InMsg, OutMsg>> {
+        public async inWithResponseAndHandshake(params: Handshake): Promise<StreamOut<InMsg, OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -169,17 +169,17 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createOutStream(`/in/withResponse`, {headers, query})
+            return await this.baseClient.createStreamOut(`/in/withResponse`, {headers, query})
         }
 
-        public async inWithoutHandshake(): Promise<OutStream<InMsg, void>> {
-            return await this.baseClient.createOutStream(`/in/noHandshake`)
+        public async inWithoutHandshake(): Promise<StreamOut<InMsg, void>> {
+            return await this.baseClient.createStreamOut(`/in/noHandshake`)
         }
 
         /**
          * Out stream type variants
          */
-        public async outWithHandshake(pathParam: string, params: Handshake): Promise<InStream<OutMsg>> {
+        public async outWithHandshake(pathParam: string, params: Handshake): Promise<StreamIn<OutMsg>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -189,11 +189,11 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createInStream(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+            return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
         }
 
-        public async outWithoutHandshake(): Promise<InStream<OutMsg>> {
-            return await this.baseClient.createInStream(`/out/noHandshake`)
+        public async outWithoutHandshake(): Promise<StreamIn<OutMsg>> {
+            return await this.baseClient.createStreamIn(`/out/noHandshake`)
         }
     }
 }
@@ -283,7 +283,7 @@ class WebSocketConnection {
     }
 }
 
-export class BidiStream<Request, Response> {
+export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
@@ -327,7 +327,7 @@ export class BidiStream<Request, Response> {
     }
 }
 
-export class InStream<Response> {
+export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
@@ -360,7 +360,7 @@ export class InStream<Response> {
     }
 }
 
-export class OutStream<Request, Response> {
+export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
@@ -437,8 +437,8 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-    // createBidiStream sets up a stream to a streaming API endpoint.
-    async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -455,11 +455,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new BidiStream(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming API endpoint.
-    async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -476,11 +476,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -497,7 +497,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new OutStream(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request

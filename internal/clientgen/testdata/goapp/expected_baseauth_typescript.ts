@@ -198,7 +198,7 @@ class WebSocketConnection {
     }
 }
 
-export class BidiStream<Request, Response> {
+export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
@@ -242,7 +242,7 @@ export class BidiStream<Request, Response> {
     }
 }
 
-export class InStream<Response> {
+export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
@@ -275,7 +275,7 @@ export class InStream<Response> {
     }
 }
 
-export class OutStream<Request, Response> {
+export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
@@ -392,8 +392,8 @@ class BaseClient {
 
         return;
     }
-    // createBidiStream sets up a stream to a streaming API endpoint.
-    async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -410,11 +410,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new BidiStream(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming API endpoint.
-    async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -431,11 +431,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -452,7 +452,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new OutStream(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request

@@ -13,7 +13,7 @@ use crate::model::{self, Request, RequestData};
 use super::{schema, APIResult};
 
 pub enum StreamMessagePayload {
-    Bidi(Socket),
+    InOut(Socket),
     Out(Sink),
     In(Stream),
 }
@@ -73,7 +73,7 @@ where
             let socket = Socket::new(ws, req_schema, resp_schema);
 
             let payload = match direction {
-                model::StreamDirection::Bidi => StreamMessagePayload::Bidi(socket),
+                model::StreamDirection::InOut => StreamMessagePayload::InOut(socket),
                 model::StreamDirection::In => {
                     let (sink, stream) = socket.split();
 

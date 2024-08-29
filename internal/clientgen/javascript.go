@@ -208,7 +208,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 			var direction streamDirection
 
 			if rpc.StreamingRequest && rpc.StreamingResponse {
-				direction = Bidi
+				direction = InOut
 			} else if rpc.StreamingRequest {
 				direction = Out
 			} else {
@@ -244,7 +244,7 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 type streamDirection int
 
 const (
-	Bidi streamDirection = iota
+	InOut streamDirection = iota
 	In
 	Out
 )
@@ -308,12 +308,12 @@ func (js *javascript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 	var method string
 
 	switch direction {
-	case Bidi:
-		method = "createBidiStream"
+	case InOut:
+		method = "createStreamInOut"
 	case In:
-		method = "createInStream"
+		method = "createStreamIn"
 	case Out:
-		method = "createOutStream"
+		method = "createStreamOut"
 	}
 
 	createStream := fmt.Sprintf(
@@ -671,7 +671,7 @@ class WebSocketConnection {
     }
 }
 
-export class BidiStream {
+export class StreamInOut {
     buffer = [];
 
     constructor(url, headers) {
@@ -689,7 +689,7 @@ export class BidiStream {
 ` + receive + `
 }
 
-export class InStream {
+export class StreamIn {
     buffer = [];
 
     constructor(url, headers) {
@@ -706,7 +706,7 @@ export class InStream {
 ` + receive + `
 }
 
-export class OutStream {
+export class StreamOut {
     constructor(url, headers) {
         let responseResolver;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
@@ -844,8 +844,8 @@ class BaseClient {`)
 	}
 
 	js.WriteString(`
-    // createBidiStream sets up a stream to a streaming API endpoint.
-    async createBidiStream(path, params) {
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -862,11 +862,11 @@ class BaseClient {`)
         }
 
         const queryString = query ? '?' + encodeQuery(query) : '';
-        return new BidiStream(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming API endpoint.
-    async createInStream(path, params) {
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -883,11 +883,11 @@ class BaseClient {`)
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream(path, params) {
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut(path, params) {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -904,7 +904,7 @@ class BaseClient {`)
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new OutStream(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request

@@ -266,7 +266,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		var direction streamDirection
 
 		if rpc.StreamingRequest && rpc.StreamingResponse {
-			direction = Bidi
+			direction = InOut
 		} else if rpc.StreamingRequest {
 			direction = Out
 		} else {
@@ -284,18 +284,18 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		ts.WriteString("): Promise<")
 		if isStream {
 			switch direction {
-			case Bidi:
-				ts.WriteString("BidiStream<")
+			case InOut:
+				ts.WriteString("StreamInOut<")
 				writeTypOrVoid(ns, rpc.RequestSchema, 0)
 				ts.WriteString(", ")
 				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
 				ts.WriteString(">")
 			case In:
-				ts.WriteString("InStream<")
+				ts.WriteString("StreamIn<")
 				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
 				ts.WriteString(">")
 			case Out:
-				ts.WriteString("OutStream<")
+				ts.WriteString("StreamOut<")
 				writeTypOrVoid(ns, rpc.RequestSchema, 0)
 				ts.WriteString(", ")
 				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
@@ -392,12 +392,12 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 	var method string
 
 	switch direction {
-	case Bidi:
-		method = "createBidiStream"
+	case InOut:
+		method = "createStreamInOut"
 	case In:
-		method = "createInStream"
+		method = "createStreamIn"
 	case Out:
-		method = "createOutStream"
+		method = "createStreamOut"
 	}
 
 	createStream := fmt.Sprintf(
@@ -751,7 +751,7 @@ class WebSocketConnection {
     }
 }
 
-export class BidiStream<Request, Response> {
+export class StreamInOut<Request, Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
@@ -770,7 +770,7 @@ export class BidiStream<Request, Response> {
 ` + receive + `
 }
 
-export class InStream<Response> {
+export class StreamIn<Response> {
     public socket: WebSocketConnection;
     private buffer: Response[] = [];
 
@@ -788,7 +788,7 @@ export class InStream<Response> {
 ` + receive + `
 }
 
-export class OutStream<Request, Response> {
+export class StreamOut<Request, Response> {
     public socket: WebSocketConnection;
     private responseValue: Promise<Response>;
 
@@ -1110,8 +1110,8 @@ class BaseClient {
 	}
 
 	ts.WriteString(`
-    // createBidiStream sets up a stream to a streaming API endpoint.
-    async createBidiStream<Request, Response>(path: string, params?: CallParameters): Promise<BidiStream<Request, Response>> {
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1128,11 +1128,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new BidiStream(this.baseURL + path + queryString, headers);
+        return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
-    // createInStream sets up a stream to a streaming API endpoint.
-    async createInStream<Response>(path: string, params?: CallParameters): Promise<InStream<Response>> {
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1149,11 +1149,11 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new InStream(this.baseURL + path + queryString, headers);
+        return new StreamIn(this.baseURL + path + queryString, headers);
     }
 
-    // createOutStream sets up a stream to a streaming API endpoint.
-    async createOutStream<Request, Response>(path: string, params?: CallParameters): Promise<OutStream<Request, Response>> {
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -1170,7 +1170,7 @@ class BaseClient {
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
-        return new OutStream(this.baseURL + path + queryString, headers);
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request
