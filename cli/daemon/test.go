@@ -67,7 +67,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 			}
 		}()
 
-		testEnv := append([]string{"ENCORE_RUNTIME_LOG=error", "ENCORE_LOG=error"}, req.Environ...)
+		testEnv := append([]string{"ENCORE_RUNTIME_LOG=error"}, req.Environ...)
 
 		tp := run.TestParams{
 			TestSpecParams: &run.TestSpecParams{
@@ -128,7 +128,7 @@ func (s *Server) TestSpec(ctx context.Context, req *daemonpb.TestSpecRequest) (r
 		}
 	}()
 
-	testEnv := append([]string{"ENCORE_RUNTIME_LOG=error", "ENCORE_LOG=error"}, req.Environ...)
+	testEnv := append([]string{"ENCORE_RUNTIME_LOG=error"}, req.Environ...)
 
 	spec, err := s.mgr.TestSpec(ctx, run.TestSpecParams{
 		App:        app,
