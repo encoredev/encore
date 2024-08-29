@@ -321,7 +321,42 @@ pub struct Field {
     custom: Option<CustomType>,
 }
 
-fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
+impl Field {
+    pub fn is_custom(&self) -> bool {
+        self.custom.is_some()
+    }
+    pub fn type_name(&self) -> &str {
+        match self.typ {
+            Type::Basic(basic) => match basic {
+                Basic::Any => "any",
+                Basic::String => "string",
+                Basic::Boolean => "boolean",
+                Basic::Number => "number",
+                Basic::Object => "object",
+                Basic::BigInt => "biging",
+                Basic::Symbol => "symbol",
+                Basic::Undefined => "undefined",
+                Basic::Null => "null",
+                Basic::Void => "void",
+                Basic::Unknown => "unknown",
+                Basic::Never => "never",
+            },
+            Type::Array(_) => "array",
+            Type::Interface(_) => "interface",
+            Type::Union(_) => "union",
+            Type::Tuple(_) => "tuple",
+            Type::Literal(_) => "literal",
+            Type::Class(_) => "class",
+            Type::Enum(_) => "enum",
+            Type::Named(_) => "named",
+            Type::Optional(_) => "optional",
+            Type::This => "this",
+            Type::Generic(_) => "generic",
+        }
+    }
+}
+
+pub(crate) fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
     fn to_fields(state: &ResolveState, iface: &Interface) -> Result<FieldMap> {
         let mut map = HashMap::new();
         for f in &iface.fields {
