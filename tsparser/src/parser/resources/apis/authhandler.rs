@@ -56,9 +56,9 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
 
             let fields = iface_fields(pass.type_checker, &request)?;
 
-            for (k, v) in fields {
+            for (_, v) in fields {
                 if !v.is_custom() {
-                    HANDLER.with(|handler| handler.span_err(r.range.to_span(), &format!("authHandler parameter type can only consist of Query and Header fields, found field named {k} of type {}", v.type_name())));
+                    HANDLER.with(|handler| handler.span_err(v.range().to_span(), "authHandler parameter type can only consist of Query and Header fields"));
                 }
             }
 
