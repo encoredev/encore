@@ -35,7 +35,7 @@ func numGoroutines(numSubs int) int {
 
 	maxProcs := runtime.GOMAXPROCS(0)
 	numConns := min(4, maxProcs)
-	maxStreams := numConns * 100
+	maxStreams := numConns * 90
 
 	// Clamp to [1, 10].
 	return max(min(maxStreams/numSubs, 10), 1)
