@@ -254,6 +254,9 @@ impl ServiceRegistry {
                     subscription: data.subscription.clone(),
                     message_id: data.message_id.clone(),
                 },
+                model::RequestData::Stream(ref data) => {
+                    Caller::APIEndpoint(data.endpoint.name.clone())
+                }
             },
             None => Caller::App {
                 deploy_id: self.deploy_id.clone(),
@@ -273,6 +276,7 @@ impl ServiceRegistry {
             auth_user_id: source.and_then(|r| {
                 match &r.data {
                     model::RequestData::RPC(data) => data.auth_user_id.as_ref(),
+                    model::RequestData::Stream(data) => data.auth_user_id.as_ref(),
                     model::RequestData::Auth(_) => None,
                     model::RequestData::PubSub(_) => None,
                 }
@@ -280,6 +284,7 @@ impl ServiceRegistry {
             }),
             auth_data: source.and_then(|r| match &r.data {
                 model::RequestData::RPC(data) => data.auth_data.as_ref(),
+                model::RequestData::Stream(data) => data.auth_data.as_ref(),
                 model::RequestData::Auth(_) => None,
                 model::RequestData::PubSub(_) => None,
             }),

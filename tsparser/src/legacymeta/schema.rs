@@ -57,6 +57,13 @@ impl<'a> SchemaBuilder<'a> {
         ctx.typ(typ)
     }
 
+    pub fn transform_handshake(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+        let mut ctx = BuilderCtx {
+            builder: self,
+            decl_id: None,
+        };
+        ctx.transform_handshake(ep)
+    }
     pub fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
         let mut ctx = BuilderCtx {
             builder: self,
@@ -424,8 +431,19 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         Ok(result)
     }
 
+    fn transform_handshake(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+        self.transform_request_type(ep, &ep.encoding.raw_handshake_schema)
+    }
     fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
-        let Some(typ) = ep.encoding.raw_req_schema.clone() else {
+        self.transform_request_type(ep, &ep.encoding.raw_req_schema)
+    }
+
+    fn transform_request_type(
+        &mut self,
+        ep: &Endpoint,
+        raw_schema: &Option<Type>,
+    ) -> Result<Option<schema::Type>> {
+        let Some(typ) = raw_schema.clone() else {
             return Ok(None);
         };
 

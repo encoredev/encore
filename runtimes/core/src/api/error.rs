@@ -2,6 +2,7 @@ use std::fmt::{Debug, Display};
 use std::str::FromStr;
 
 use crate::error::{AppError, StackTrace};
+use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -50,6 +51,17 @@ impl Error {
             code: ErrCode::NotFound,
             message: public_msg.into(),
             internal_message: None,
+            stack: None,
+        }
+    }
+}
+
+impl From<WebSocketUpgradeRejection> for Error {
+    fn from(value: WebSocketUpgradeRejection) -> Self {
+        Error {
+            code: value.status().into(),
+            message: value.body_text(),
+            internal_message: Some(value.body_text()),
             stack: None,
         }
     }

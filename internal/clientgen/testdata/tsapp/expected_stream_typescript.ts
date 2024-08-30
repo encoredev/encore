@@ -6,78 +6,204 @@
 /*jslint-disable*/
 
 /**
- * Local is the base URL for calling the Encore application's API.
+ * BaseURL is the base URL for calling the Encore application's API.
  */
-export const Local = "http://localhost:4000"
+export type BaseURL = string
+
+export const Local: BaseURL = "http://localhost:4000"
 
 /**
  * Environment returns a BaseURL for calling the cloud environment with the given name.
  */
-export function Environment(name) {
+export function Environment(name: string): BaseURL {
     return `https://${name}-app.encr.app`
 }
 
 /**
  * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
  */
-export function PreviewEnv(pr) {
+export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`pr${pr}`)
 }
 
 /**
- * Client is an API client for the app Encore application.
+ * Client is an API client for the app Encore application. 
  */
 export default class Client {
+    public readonly svc: svc.ServiceClient
+
+
     /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target = "prod", options = undefined) {
-        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            target = Environment(target)
-        }
-
-        if (typeof options === "string") {
-            options = { auth: options }
-        }
-
+    constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
         this.svc = new svc.ServiceClient(base)
     }
 }
 
-class SvcServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
+/**
+ * ClientOptions allows you to override any default behaviour within the generated Encore client.
+ */
+export interface ClientOptions {
+    /**
+     * By default the client will use the inbuilt fetch function for making the API requests.
+     * however you can override it with your own implementation here if you want to run custom
+     * code on each API request made or response received.
+     */
+    fetcher?: Fetcher
+
+    /** Default RequestInit to be used for the client */
+    requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+}
+
+export namespace svc {
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
     }
 
-    /**
-     * DummyAPI is a dummy endpoint.
-     */
-    async DummyAPI(params) {
-        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
     }
 
-    /**
-     * Private is a basic auth endpoint.
-     */
-    async Private(params) {
-        await this.baseClient.callAPI("POST", `/svc.Private`, JSON.stringify(params))
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+        pathParam: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface OutMsg {
+        user: number
+        msg: string
+    }
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+        }
+
+        /**
+         * InOut stream type variants
+         */
+        public async inOutWithHandshake(pathParam: string, params: Handshake): Promise<StreamInOut<InMsg, OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async inOutWithoutHandshake(): Promise<StreamInOut<InMsg, OutMsg>> {
+            return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
+        }
+
+        /**
+         * In stream type variants
+         */
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<StreamOut<InMsg, void>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async inWithResponse(): Promise<StreamOut<InMsg, OutMsg>> {
+            return await this.baseClient.createStreamOut(`/in/withResponse`)
+        }
+
+        public async inWithResponseAndHandshake(params: Handshake): Promise<StreamOut<InMsg, OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "path_param": params.pathParam,
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamOut(`/in/withResponse`, {headers, query})
+        }
+
+        public async inWithoutHandshake(): Promise<StreamOut<InMsg, void>> {
+            return await this.baseClient.createStreamOut(`/in/noHandshake`)
+        }
+
+        /**
+         * Out stream type variants
+         */
+        public async outWithHandshake(pathParam: string, params: Handshake): Promise<StreamIn<OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async outWithoutHandshake(): Promise<StreamIn<OutMsg>> {
+            return await this.baseClient.createStreamIn(`/out/noHandshake`)
+        }
     }
 }
 
-export const svc = {
-    ServiceClient: SvcServiceClient
-}
 
 
-function encodeQuery(parts) {
-    const pairs = []
+function encodeQuery(parts: Record<string, string | string[]>): string {
+    const pairs: string[] = []
     for (const key in parts) {
-        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]])
+        const val = (Array.isArray(parts[key]) ?  parts[key] : [parts[key]]) as string[]
         for (const v of val) {
             pairs.push(`${key}=${encodeURIComponent(v)}`)
         }
@@ -87,17 +213,17 @@ function encodeQuery(parts) {
 
 // makeRecord takes a record and strips any undefined values from it,
 // and returns the same record with a narrower type.
-function makeRecord(record) {
+// @ts-ignore - TS ignore because makeRecord is not always used
+function makeRecord<K extends string | number | symbol, V>(record: Record<K, V | undefined>): Record<K, V> {
     for (const key in record) {
         if (record[key] === undefined) {
             delete record[key]
         }
     }
-    return record
+    return record as Record<K, V>
 }
 
-
-function encodeWebSocketHeaders(headers) {
+function encodeWebSocketHeaders(headers: Record<string, string>) {
     // url safe, no pad
     const base64encoded = btoa(JSON.stringify(headers))
       .replaceAll("=", "")
@@ -107,15 +233,17 @@ function encodeWebSocketHeaders(headers) {
 }
 
 class WebSocketConnection {
-    hasUpdateHandlers = [];
+    public ws: WebSocket;
 
-    constructor(url, headers) {
+    private hasUpdateHandlers: (() => void)[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
         let protocols = ["encore-ws"];
         if (headers) {
-            protocols.push(encodeWebSocketHeaders(headers));
+            protocols.push(encodeWebSocketHeaders(headers))
         }
 
-        this.ws = new WebSocket(url, protocols);
+        this.ws = new WebSocket(url, protocols)
 
         this.on("error", () => {
             this.resolveHasUpdateHandlers();
@@ -142,11 +270,11 @@ class WebSocketConnection {
         });
     }
 
-    on(type, handler) {
+    on(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
         this.ws.addEventListener(type, handler);
     }
 
-    off(type, handler) {
+    off(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
         this.ws.removeEventListener(type, handler);
     }
 
@@ -155,12 +283,13 @@ class WebSocketConnection {
     }
 }
 
-export class StreamInOut {
-    buffer = [];
+export class StreamInOut<Request, Response> {
+    public socket: WebSocketConnection;
+    private buffer: Response[] = [];
 
-    constructor(url, headers) {
+    constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
-        this.socket.on("message", (event) => {
+        this.socket.on("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
             this.socket.resolveHasUpdateHandlers();
         });
@@ -170,7 +299,7 @@ export class StreamInOut {
         this.socket.close();
     }
 
-    async send(msg) {
+    async send(msg: Request) {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
@@ -181,28 +310,30 @@ export class StreamInOut {
         return this.socket.ws.send(JSON.stringify(msg));
     }
 
-    async next() {
+    async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
+        return;
     }
 
-    async *[Symbol.asyncIterator]() {
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
         while (true) {
             if (this.buffer.length > 0) {
-                yield this.buffer.shift();
+                yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
                 await this.socket.hasUpdate();
             }
         }
     }
 }
 
-export class StreamIn {
-    buffer = [];
+export class StreamIn<Response> {
+    public socket: WebSocketConnection;
+    private buffer: Response[] = [];
 
-    constructor(url, headers) {
+    constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
-        this.socket.on("message", (event) => {
+        this.socket.on("message", (event: any) => {
             this.buffer.push(JSON.parse(event.data));
             this.socket.resolveHasUpdateHandlers();
         });
@@ -212,34 +343,38 @@ export class StreamIn {
         this.socket.close();
     }
 
-    async next() {
+    async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
+        return;
     }
 
-    async *[Symbol.asyncIterator]() {
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
         while (true) {
             if (this.buffer.length > 0) {
-                yield this.buffer.shift();
+                yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
                 await this.socket.hasUpdate();
             }
         }
     }
 }
 
-export class StreamOut {
-    constructor(url, headers) {
-        let responseResolver;
+export class StreamOut<Request, Response> {
+    public socket: WebSocketConnection;
+    private responseValue: Promise<Response>;
+
+    constructor(url: string, headers?: Record<string, string>) {
+        let responseResolver: (_: any) => void;
         this.responseValue = new Promise((resolve) => responseResolver = resolve);
 
         this.socket = new WebSocketConnection(url, headers);
-        this.socket.on("message", (event) => {
+        this.socket.on("message", (event: any) => {
             responseResolver(JSON.parse(event.data))
         });
     }
 
-    async response() {
+    async response(): Promise<Response> {
         return this.responseValue;
     }
 
@@ -247,7 +382,7 @@ export class StreamOut {
         this.socket.close();
     }
 
-    async send(msg) {
+    async send(msg: Request) {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
             // await that the socket is opened
             await new Promise((resolve) => {
@@ -258,11 +393,28 @@ export class StreamOut {
         return this.socket.ws.send(JSON.stringify(msg));
     }
 }
+// CallParameters is the type of the parameters to a method call, but require headers to be a Record type
+type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+    /** Headers to be sent with the request */
+    headers?: Record<string, string>
 
-const boundFetch = fetch.bind(this)
+    /** Query parameters to be sent with the request */
+    query?: Record<string, string | string[]>
+}
+
+
+// A fetcher is the prototype for the inbuilt Fetch function
+export type Fetcher = typeof fetch;
+
+const boundFetch = fetch.bind(this);
 
 class BaseClient {
-    constructor(baseURL, options) {
+    readonly baseURL: string
+    readonly fetcher: Fetcher
+    readonly headers: Record<string, string>
+    readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+
+    constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
         this.headers = {
             "Content-Type": "application/json",
@@ -271,10 +423,10 @@ class BaseClient {
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
         if (typeof window === "undefined") {
-            this.headers["User-Agent"] = "app-Generated-JS-Client (Encore/v0.0.0-develop)";
+            this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
-        this.requestInit = options.requestInit ?? {}
+        this.requestInit = options.requestInit ?? {};
 
         // Setup what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
@@ -282,43 +434,11 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
-
-        // Setup an authentication data generator using the auth data token option
-        if (options.auth !== undefined) {
-            const auth = options.auth
-            if (typeof auth === "function") {
-                this.authGenerator = auth
-            } else {
-                this.authGenerator = () => auth
-            }
-        }
-
     }
 
-    async getAuthData() {
-        let authData;
-
-        // If authorization data generator is present, call it and add the returned data to the request
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator();
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise;
-            } else {
-                authData = mayBePromise;
-            }
-        }
-
-        if (authData) {
-            const data = {};
-
-            data.headers = {};
-            data.headers["Authorization"] = "Bearer " + authData;
-
-            return data;
-        }
-    }
+    async getAuthData(): Promise<CallParameters | undefined> {
     // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut(path, params) {
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -334,12 +454,12 @@ class BaseClient {
             }
         }
 
-        const queryString = query ? '?' + encodeQuery(query) : '';
+        const queryString = query ? '?' + encodeQuery(query) : ''
         return new StreamInOut(this.baseURL + path + queryString, headers);
     }
 
     // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn(path, params) {
+    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -360,7 +480,7 @@ class BaseClient {
     }
 
     // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut(path, params) {
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
         let { query, headers } = params ?? {};
 
         // Fetch auth data if there is any
@@ -381,7 +501,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    async callAPI(method, path, body, params) {
+    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
@@ -392,6 +512,7 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
+
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
@@ -413,7 +534,7 @@ class BaseClient {
         // handle any error responses
         if (!response.ok) {
             // try and get the error message from the response body
-            let body = { code: ErrCode.Unknown, message: `request failed: status ${response.status}` }
+            let body: APIErrorResponse = { code: ErrCode.Unknown, message: `request failed: status ${response.status}` }
 
             // if we can get the structured error we should, otherwise give a best effort
             try {
@@ -441,16 +562,25 @@ class BaseClient {
     }
 }
 
-function isAPIErrorResponse(err) {
+/**
+ * APIErrorDetails represents the response from an Encore API in the case of an error
+ */
+interface APIErrorResponse {
+    code: ErrCode
+    message: string
+    details?: any
+}
+
+function isAPIErrorResponse(err: any): err is APIErrorResponse {
     return (
-        err !== undefined && err !== null &&
+        err !== undefined && err !== null && 
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
     )
 }
 
-function isErrCode(code) {
+function isErrCode(code: any): code is ErrCode {
     return code !== undefined && Object.values(ErrCode).includes(code)
 }
 
@@ -458,10 +588,25 @@ function isErrCode(code) {
  * APIError represents a structured error as returned from an Encore application.
  */
 export class APIError extends Error {
-    constructor(status, response) {
+    /**
+     * The HTTP status code associated with the error.
+     */
+    public readonly status: number
+
+    /**
+     * The Encore error code
+     */
+    public readonly code: ErrCode
+
+    /**
+     * The error details
+     */
+    public readonly details?: any
+
+    constructor(status: number, response: APIErrorResponse) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-
+        
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -469,32 +614,21 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-
+        
         // fix the prototype chain
-        if (Object.setPrototypeOf == undefined) {
-            this.__proto__ = APIError.prototype
+        if ((Object as any).setPrototypeOf == undefined) { 
+            (this as any).__proto__ = APIError.prototype 
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-
+        
         // capture a stack trace
-        if (Error.captureStackTrace !== undefined) {
-            Error.captureStackTrace(this, this.constructor);
+        if ((Error as any).captureStackTrace !== undefined) {
+            (Error as any).captureStackTrace(this, this.constructor);
         }
 
-        /**
-         * The HTTP status code associated with the error.
-         */
         this.status = status
-
-        /**
-         * The Encore error code
-         */
         this.code = response.code
-
-        /**
-         * The error details
-         */
         this.details = response.details
     }
 }
@@ -502,22 +636,22 @@ export class APIError extends Error {
 /**
  * Typeguard allowing use of an APIError's fields'
  */
-export function isAPIError(err) {
+export function isAPIError(err: any): err is APIError {
     return err instanceof APIError;
 }
 
-export const ErrCode = {
+export enum ErrCode {
     /**
      * OK indicates the operation was successful.
      */
-    OK: "ok",
+    OK = "ok",
 
     /**
      * Canceled indicates the operation was canceled (typically by the caller).
      *
      * Encore will generate this error code when cancellation is requested.
      */
-    Canceled: "canceled",
+    Canceled = "canceled",
 
     /**
      * Unknown error. An example of where this error may be returned is
@@ -528,7 +662,7 @@ export const ErrCode = {
      *
      * Encore will generate this error code in the above two mentioned cases.
      */
-    Unknown: "unknown",
+    Unknown = "unknown",
 
     /**
      * InvalidArgument indicates client specified an invalid argument.
@@ -538,7 +672,7 @@ export const ErrCode = {
      *
      * This error code will not be generated by the gRPC framework.
      */
-    InvalidArgument: "invalid_argument",
+    InvalidArgument = "invalid_argument",
 
     /**
      * DeadlineExceeded means operation expired before completion.
@@ -550,7 +684,7 @@ export const ErrCode = {
      * The gRPC framework will generate this error code when the deadline is
      * exceeded.
      */
-    DeadlineExceeded: "deadline_exceeded",
+    DeadlineExceeded = "deadline_exceeded",
 
     /**
      * NotFound means some requested entity (e.g., file or directory) was
@@ -558,7 +692,7 @@ export const ErrCode = {
      *
      * This error code will not be generated by the gRPC framework.
      */
-    NotFound: "not_found",
+    NotFound = "not_found",
 
     /**
      * AlreadyExists means an attempt to create an entity failed because one
@@ -566,7 +700,7 @@ export const ErrCode = {
      *
      * This error code will not be generated by the gRPC framework.
      */
-    AlreadyExists: "already_exists",
+    AlreadyExists = "already_exists",
 
     /**
      * PermissionDenied indicates the caller does not have permission to
@@ -579,7 +713,7 @@ export const ErrCode = {
      * This error code will not be generated by the gRPC core framework,
      * but expect authentication middleware to use it.
      */
-    PermissionDenied: "permission_denied",
+    PermissionDenied = "permission_denied",
 
     /**
      * ResourceExhausted indicates some resource has been exhausted, perhaps
@@ -589,7 +723,7 @@ export const ErrCode = {
      * out-of-memory and server overload situations, or when a message is
      * larger than the configured maximum size.
      */
-    ResourceExhausted: "resource_exhausted",
+    ResourceExhausted = "resource_exhausted",
 
     /**
      * FailedPrecondition indicates operation was rejected because the
@@ -614,7 +748,7 @@ export const ErrCode = {
      *
      * This error code will not be generated by the gRPC framework.
      */
-    FailedPrecondition: "failed_precondition",
+    FailedPrecondition = "failed_precondition",
 
     /**
      * Aborted indicates the operation was aborted, typically due to a
@@ -624,7 +758,7 @@ export const ErrCode = {
      * See litmus test above for deciding between FailedPrecondition,
      * Aborted, and Unavailable.
      */
-    Aborted: "aborted",
+    Aborted = "aborted",
 
     /**
      * OutOfRange means operation was attempted past the valid range.
@@ -645,7 +779,7 @@ export const ErrCode = {
      *
      * This error code will not be generated by the gRPC framework.
      */
-    OutOfRange: "out_of_range",
+    OutOfRange = "out_of_range",
 
     /**
      * Unimplemented indicates operation is not implemented or not
@@ -657,7 +791,7 @@ export const ErrCode = {
      * compression algorithms or a disagreement as to whether an RPC should
      * be streaming.
      */
-    Unimplemented: "unimplemented",
+    Unimplemented = "unimplemented",
 
     /**
      * Internal errors. Means some invariants expected by underlying
@@ -667,7 +801,7 @@ export const ErrCode = {
      * This error code will be generated by the gRPC framework in several
      * internal error conditions.
      */
-    Internal: "internal",
+    Internal = "internal",
 
     /**
      * Unavailable indicates the service is currently unavailable.
@@ -681,14 +815,14 @@ export const ErrCode = {
      * This error code will be generated by the gRPC framework during
      * abrupt shutdown of a server process or network connection.
      */
-    Unavailable: "unavailable",
+    Unavailable = "unavailable",
 
     /**
      * DataLoss indicates unrecoverable data loss or corruption.
      *
      * This error code will not be generated by the gRPC framework.
      */
-    DataLoss: "data_loss",
+    DataLoss = "data_loss",
 
     /**
      * Unauthenticated indicates the request does not have valid
@@ -698,5 +832,5 @@ export const ErrCode = {
      * authentication metadata is invalid or a Credentials callback fails,
      * but also expect authentication middleware to generate it.
      */
-    Unauthenticated: "unauthenticated"
+    Unauthenticated = "unauthenticated",
 }

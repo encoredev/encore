@@ -35,15 +35,6 @@ export default class Client {
      * @param options Options for the client
      */
     constructor(target = "prod", options = undefined) {
-        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            target = Environment(target)
-        }
-
-        if (typeof options === "string") {
-            options = { auth: options }
-        }
-
         const base = new BaseClient(target, options ?? {})
         this.svc = new svc.ServiceClient(base)
     }
@@ -55,17 +46,81 @@ class SvcServiceClient {
     }
 
     /**
-     * DummyAPI is a dummy endpoint.
+     * InOut stream type variants
      */
-    async DummyAPI(params) {
-        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+    async inOutWithHandshake(pathParam, params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            "some-header": params.headerValue,
+        })
+
+        const query = makeRecord({
+            "some-query": params.queryValue,
+        })
+
+        return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(pathParam)}`, {headers, query})
+    }
+
+    async inOutWithoutHandshake() {
+        return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
     }
 
     /**
-     * Private is a basic auth endpoint.
+     * In stream type variants
      */
-    async Private(params) {
-        await this.baseClient.callAPI("POST", `/svc.Private`, JSON.stringify(params))
+    async inWithHandshake(pathParam, params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            "some-header": params.headerValue,
+        })
+
+        const query = makeRecord({
+            "some-query": params.queryValue,
+        })
+
+        return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+    }
+
+    async inWithResponse() {
+        return await this.baseClient.createStreamOut(`/in/withResponse`)
+    }
+
+    async inWithResponseAndHandshake(params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            "some-header": params.headerValue,
+        })
+
+        const query = makeRecord({
+            "path_param": params.pathParam,
+            "some-query": params.queryValue,
+        })
+
+        return await this.baseClient.createStreamOut(`/in/withResponse`, {headers, query})
+    }
+
+    async inWithoutHandshake() {
+        return await this.baseClient.createStreamOut(`/in/noHandshake`)
+    }
+
+    /**
+     * Out stream type variants
+     */
+    async outWithHandshake(pathParam, params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            "some-header": params.headerValue,
+        })
+
+        const query = makeRecord({
+            "some-query": params.queryValue,
+        })
+
+        return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+    }
+
+    async outWithoutHandshake() {
+        return await this.baseClient.createStreamIn(`/out/noHandshake`)
     }
 }
 
@@ -282,41 +337,9 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
-
-        // Setup an authentication data generator using the auth data token option
-        if (options.auth !== undefined) {
-            const auth = options.auth
-            if (typeof auth === "function") {
-                this.authGenerator = auth
-            } else {
-                this.authGenerator = () => auth
-            }
-        }
-
     }
 
     async getAuthData() {
-        let authData;
-
-        // If authorization data generator is present, call it and add the returned data to the request
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator();
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise;
-            } else {
-                authData = mayBePromise;
-            }
-        }
-
-        if (authData) {
-            const data = {};
-
-            data.headers = {};
-            data.headers["Authorization"] = "Bearer " + authData;
-
-            return data;
-        }
-    }
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut(path, params) {
         let { query, headers } = params ?? {};

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
@@ -26,7 +26,11 @@ pub struct EndpointEncoding {
     pub req: Vec<RequestEncoding>,
     pub resp: ResponseEncoding,
 
+    /// Schema for the websocket handshake, if stream.
+    pub handshake: Option<RequestEncoding>,
+
     /// The raw request and schemas, from the source code.
+    pub raw_handshake_schema: Option<Type>,
     pub raw_req_schema: Option<Type>,
     pub raw_resp_schema: Option<Type>,
 }
@@ -164,6 +168,61 @@ impl ResponseEncoding {
     }
 }
 
+pub fn describe_stream_endpoint(
+    tc: &TypeChecker,
+    methods: Methods,
+    path: Path,
+    req: Option<Type>,
+    resp: Option<Type>,
+    handshake: Option<Type>,
+    raw: bool,
+) -> Result<EndpointEncoding> {
+    let resp = resp
+        .map(|t| unwrap_promise(tc.state(), &t).clone())
+        .and_then(drop_empty_or_void);
+
+    let default_method = default_method(&methods);
+
+    let (handshake_enc, _req_schema) = describe_req(
+        tc,
+        &Methods::Some(vec![Method::Get]),
+        Some(&path),
+        &handshake,
+        false,
+    )?;
+
+    let handshake_enc = match handshake_enc.as_slice() {
+        [] => None,
+        [ref enc] => Some(enc.clone()),
+        _ => bail!("unexpected handshake encoding"),
+    };
+
+    let (req_enc, _req_schema) = if handshake_enc.is_some() {
+        describe_req(tc, &methods, None, &req, raw)?
+    } else {
+        describe_req(tc, &methods, Some(&path), &req, raw)?
+    };
+
+    let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
+
+    let path = if let Some(ref enc) = handshake_enc {
+        rewrite_path_types(enc, path, raw).context("parse path param types")?
+    } else {
+        path
+    };
+
+    Ok(EndpointEncoding {
+        path,
+        methods,
+        default_method,
+        req: req_enc,
+        resp: resp_enc,
+        handshake: handshake_enc,
+        raw_handshake_schema: handshake,
+        raw_req_schema: req,
+        raw_resp_schema: resp,
+    })
+}
 pub fn describe_endpoint(
     tc: &TypeChecker,
     methods: Methods,
@@ -177,7 +236,8 @@ pub fn describe_endpoint(
         .and_then(drop_empty_or_void);
 
     let default_method = default_method(&methods);
-    let (req_enc, _req_schema) = describe_req(tc, &methods, &path, &req, raw)?;
+
+    let (req_enc, _req_schema) = describe_req(tc, &methods, Some(&path), &req, raw)?;
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
     let path = rewrite_path_types(&req_enc[0], path, raw).context("parse path param types")?;
@@ -188,6 +248,8 @@ pub fn describe_endpoint(
         default_method,
         req: req_enc,
         resp: resp_enc,
+        handshake: None,
+        raw_handshake_schema: None,
         raw_req_schema: req,
         raw_resp_schema: resp,
     })
@@ -196,14 +258,14 @@ pub fn describe_endpoint(
 fn describe_req(
     tc: &TypeChecker,
     methods: &Methods,
-    path: &Path,
+    path: Option<&Path>,
     req_schema: &Option<Type>,
     raw: bool,
 ) -> Result<(Vec<RequestEncoding>, Option<FieldMap>)> {
     let Some(req_schema) = req_schema else {
         // We don't have any request schema. This is valid if and only if
         // we have no path parameters or it's a raw endpoint.
-        if !path.has_dynamic_segments() || raw {
+        if path.is_none() || !path.unwrap().has_dynamic_segments() || raw {
             return Ok((
                 vec![RequestEncoding {
                     methods: methods.clone(),
@@ -217,7 +279,11 @@ fn describe_req(
     };
 
     let mut fields = iface_fields(tc, req_schema)?;
-    let path_params = extract_path_params(path, &mut fields)?;
+    let path_params = if let Some(path) = path {
+        extract_path_params(path, &mut fields)?
+    } else {
+        vec![]
+    };
 
     // If there are no fields remaining, we can use this encoding for all methods.
     if fields.is_empty() {

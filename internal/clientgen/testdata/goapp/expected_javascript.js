@@ -25,7 +25,7 @@ export function PreviewEnv(pr) {
 }
 
 /**
- * Client is an API client for the app Encore application. 
+ * Client is an API client for the app Encore application.
  */
 export default class Client {
     /**
@@ -280,6 +280,168 @@ function mustBeSet(field, value) {
 }
 
 
+function encodeWebSocketHeaders(headers) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
+}
+
+class WebSocketConnection {
+    hasUpdateHandlers = [];
+
+    constructor(url, headers) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers));
+        }
+
+        this.ws = new WebSocket(url, protocols);
+
+        this.on("error", () => {
+            this.resolveHasUpdateHandlers();
+        });
+
+        this.on("close", () => {
+            this.resolveHasUpdateHandlers();
+        });
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    on(type, handler) {
+        this.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.ws.removeEventListener(type, handler);
+    }
+
+    close() {
+        this.ws.close();
+    }
+}
+
+export class StreamInOut {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async send(msg) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }
+
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
+            }
+        }
+    }
+}
+
+export class StreamIn {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
+            }
+        }
+    }
+}
+
+export class StreamOut {
+    constructor(url, headers) {
+        let responseResolver;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
+
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            responseResolver(JSON.parse(event.data))
+        });
+    }
+
+    async response() {
+        return this.responseValue;
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async send(msg) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }
+}
+
 const boundFetch = fetch.bind(this)
 
 class BaseClient {
@@ -316,6 +478,91 @@ class BaseClient {
 
     }
 
+    async getAuthData() {
+        let authData;
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator();
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise;
+            } else {
+                authData = mayBePromise;
+            }
+        }
+
+        if (authData) {
+            const data = {};
+
+            data.headers = {};
+            data.headers["x-api-key"] = authData.APIKey;
+
+            return data;
+        }
+    }
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : '';
+        return new StreamInOut(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamIn(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamOut(this.baseURL + path + queryString, headers);
+    }
+
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
         let { query, headers, ...rest } = params ?? {}
@@ -329,20 +576,17 @@ class BaseClient {
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
 
-        // If authorization data generator is present, call it and add the returned data to the request
-        let authData
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator()
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise
-            } else {
-                authData = mayBePromise
-            }
-        }
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
 
         // If we now have authentication data, add it to the request
         if (authData) {
-            init.headers["x-api-key"] = authData.APIKey
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
         }
 
         // Make the actual request
@@ -382,7 +626,7 @@ class BaseClient {
 
 function isAPIErrorResponse(err) {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -400,7 +644,7 @@ export class APIError extends Error {
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -408,14 +652,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
         if (Object.setPrototypeOf == undefined) {
             this.__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if (Error.captureStackTrace !== undefined) {
             Error.captureStackTrace(this, this.constructor);
