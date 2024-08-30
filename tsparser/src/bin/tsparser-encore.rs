@@ -1,8 +1,7 @@
 use std::fmt::{self};
 use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
@@ -142,21 +141,10 @@ fn main() -> Result<()> {
                     Command::Compile(input) => match &parse {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
-                            let mut source_root = app.root.clone();
-
-                            loop {
-                                if source_root.join(".git").exists() {
-                                    break;
-                                }
-
-                                if !source_root.pop() {
-                                    source_root = app.root.clone();
-                                    break;
-                                }
-                            }
+                            let source_root = find_source_root(&app.root);
 
                             let cp = builder::CompileParams {
-                                source_root: &source_root,
+                                source_root,
                                 js_runtime_root: &js_runtime_path,
                                 runtime_version: &input.runtime_version,
                                 app,
@@ -233,6 +221,24 @@ fn main() -> Result<()> {
             }
         })
     })
+}
+
+fn find_source_root(app_root: &Path) -> &Path {
+    let mut source_root = app_root;
+
+    loop {
+        if source_root.join(".git").exists() {
+            break;
+        }
+
+        if let Some(parent) = source_root.parent() {
+            source_root = parent
+        } else {
+            return app_root;
+        }
+    }
+
+    source_root
 }
 
 fn write_data(is_ok: bool, data: &[u8]) -> io::Result<()> {
