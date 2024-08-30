@@ -9,26 +9,17 @@ use axum::serve::IncomingStream;
 use axum::Router;
 use tower_service::Service;
 
-use crate::api::reqauth::meta::MetaKey;
-
 #[derive(Clone)]
 pub struct HttpServer {
     encore_routes: Router,
-    gateway: Option<Router>,
     api: Option<Router>,
     fallback: Router,
 }
 
 impl HttpServer {
-    pub fn new(
-        encore_routes: Router,
-        gateway: Option<Router>,
-        api: Option<Router>,
-        fallback: Router,
-    ) -> Self {
+    pub fn new(encore_routes: Router, api: Option<Router>, fallback: Router) -> Self {
         Self {
             encore_routes,
-            gateway,
             api,
             fallback,
         }
@@ -71,17 +62,9 @@ where
             return self.encore_routes.call(req);
         }
 
-        let router = match (self.gateway.as_mut(), self.api.as_mut()) {
-            (_, Some(api))
-                if req
-                    .headers()
-                    .contains_key(MetaKey::SvcAuthMethod.header_key()) =>
-            {
-                api
-            }
-            (Some(gateway), _) => gateway,
-            (_, Some(api)) => api,
-            (None, None) => &mut self.fallback,
+        let router = match self.api.as_mut() {
+            Some(api) => api,
+            None => &mut self.fallback,
         };
         router.call(req)
     }

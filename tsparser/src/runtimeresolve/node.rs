@@ -8,6 +8,7 @@ use std::{
 use anyhow::{bail, Context, Error};
 use clean_path::Clean;
 use serde::Deserialize;
+use swc_common::sync::Lrc;
 use swc_common::FileName;
 use swc_ecma_loader::resolve::Resolve;
 
@@ -33,7 +34,7 @@ pub struct EncoreRuntimeResolver<R> {
     inner: R,
     js_runtime_path: PathBuf,
     extra_export_conditions: Vec<String>,
-    tsconfig_resolver: Option<TsConfigPathResolver>,
+    tsconfig_resolver: Option<Lrc<TsConfigPathResolver>>,
 }
 
 static DEFAULT_CONDITIONS: &[&str] = &["node-addons", "node", "import", "require", "default"];
@@ -48,7 +49,7 @@ impl<R> EncoreRuntimeResolver<R> {
         }
     }
 
-    pub fn with_tsconfig_resolver(self, resolver: TsConfigPathResolver) -> Self {
+    pub fn with_tsconfig_resolver(self, resolver: Lrc<TsConfigPathResolver>) -> Self {
         Self {
             tsconfig_resolver: Some(resolver),
             ..self

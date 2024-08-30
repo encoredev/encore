@@ -180,8 +180,8 @@ impl EventBuffer {
         // Note: Rust's duration type is for positive durations only, so we only consider
         // the positive range of i64 here.
         let nanos = duration.as_nanos();
-        let nanos: i64 = if nanos > std::i64::MAX as u128 {
-            std::i64::MAX
+        let nanos: i64 = if nanos > i64::MAX as u128 {
+            i64::MAX
         } else {
             nanos as i64
         };

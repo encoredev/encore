@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -11,9 +11,9 @@ use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use encore_tsparser::builder;
-use encore_tsparser::builder::Builder;
+use encore_tsparser::builder::{Builder, DebugMode, PlainError};
 use encore_tsparser::parser::parser::ParseContext;
+use encore_tsparser::{app, builder};
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -41,7 +41,7 @@ fn main() -> Result<()> {
     GLOBALS.set(&globals, || -> Result<()> {
         HANDLER.set(&errs, || -> Result<()> {
             let builder = Builder::new()?;
-            let mut parse: Option<(builder::App, builder::ParseResult)> = None;
+            let mut parse: Option<(builder::App, app::AppDesc)> = None;
 
             let prepare = match parse_cmd()? {
                 Some(Command::Prepare(prepare)) => prepare,
@@ -113,7 +113,7 @@ fn main() -> Result<()> {
                         match builder.parse(&pp) {
                             Ok(result) => {
                                 log::info!("parse successful");
-                                write_result(Ok(result.desc.meta.encode_to_vec().as_slice()))?;
+                                write_result(Ok(result.meta.encode_to_vec().as_slice()))?;
                                 parse = Some((app, result));
                             }
                             Err(err) => {
@@ -125,8 +125,15 @@ fn main() -> Result<()> {
                                     err_msg.push_str(err);
                                     err_msg.push('\n');
                                 }
-                                err_msg.push_str(&format!("{:?}", err));
-                                write_result(Err(anyhow::anyhow!(err_msg)))?
+
+                                if err.is::<builder::ParseError>() {
+                                    // Don't include stack trace or detailed error info
+                                    // if this is a parse error.
+                                    write_result(Err(anyhow::anyhow!(PlainError(err_msg))))?
+                                } else {
+                                    err_msg.push_str(&format!("{:?}", err));
+                                    write_result(Err(anyhow::anyhow!(err_msg)))?
+                                }
                             }
                         }
                     }
@@ -140,8 +147,9 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse,
+                                desc: parse,
                                 use_local_runtime: input.use_local_runtime,
+                                debug: input.debug,
                             };
 
                             log::info!("starting compile");
@@ -193,7 +201,7 @@ fn main() -> Result<()> {
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
-                                parse,
+                                desc: parse,
                             };
 
                             log::info!("starting generate user facing code");
@@ -226,7 +234,11 @@ fn write_result(res: Result<&[u8]>) -> io::Result<()> {
     match res {
         Ok(bytes) => write_data(true, bytes),
         Err(err) => {
-            let s = format!("{:?}", err);
+            // If this is a parse error, don't include a full stack trace.
+            let s = match err.downcast_ref::<PlainError>() {
+                Some(err) => err.0.as_str(),
+                None => &format!("{:?}", err),
+            };
             let bytes = s.as_bytes();
             write_data(false, bytes)
         }
@@ -300,6 +312,7 @@ struct PrepareInput {
 struct CompileInput {
     runtime_version: String,
     use_local_runtime: bool,
+    debug: DebugMode,
 }
 
 #[derive(Deserialize, Debug)]

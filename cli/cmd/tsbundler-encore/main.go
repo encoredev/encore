@@ -101,7 +101,7 @@ func main() {
 		LogLevel:  api.LogLevelWarning - api.LogLevel(logLevel),
 		Banner:    map[string]string{"js": banner},
 		Charset:   api.CharsetUTF8,
-		Sourcemap: api.SourceMapExternal,
+		Sourcemap: api.SourceMapLinked,
 		Packages:  api.PackagesExternal,
 		Plugins:   []api.Plugin{
 			// rewritePlugin,

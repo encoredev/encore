@@ -1,0 +1,6 @@
+// Note: this config is here purely to remove errors about promises not being present in IDE's when viewing the expected_typescript.ts file
+{
+  "compilerOptions": {
+    "target": "es6",
+  }
+}

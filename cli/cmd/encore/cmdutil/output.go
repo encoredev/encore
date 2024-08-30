@@ -7,21 +7,30 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type Oneof struct {
-	Value   string
-	Allowed []string
-
-	Flag      string // defaults to "output" if empty
-	FlagShort string // defaults to "o" if both Flag and FlagShort are empty
-	Desc      string // usage desc
-	TypeDesc  string // type description, defaults to the name of the flag
+	Value       string
+	Allowed     []string
+	Flag        string // defaults to "output" if empty
+	FlagShort   string // defaults to "o" if both Flag and FlagShort are empty
+	Desc        string // usage desc
+	TypeDesc    string // type description, defaults to the name of the flag
+	NoOptDefVal string // default value when no option is provided
 }
 
 func (o *Oneof) AddFlag(cmd *cobra.Command) {
 	name, short := o.FlagName()
-	cmd.Flags().VarP(o, name, short, o.Usage())
+	cmd.Flags().AddFlag(
+		&pflag.Flag{
+			Name:        name,
+			NoOptDefVal: o.NoOptDefVal,
+			Shorthand:   short,
+			Usage:       o.Usage(),
+			Value:       o,
+			DefValue:    o.String(),
+		})
 	_ = cmd.RegisterFlagCompletionFunc(name, func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return o.Allowed, cobra.ShellCompDirectiveNoFileComp
 	})

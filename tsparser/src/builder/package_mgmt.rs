@@ -16,14 +16,40 @@ struct PackageJson {
     dependencies: HashMap<String, String>,
 }
 
+fn parse_package_json(package_json_path: &Path) -> Result<PackageJson> {
+    let package_json = std::fs::read_to_string(package_json_path)
+        .with_context(|| format!("failed to read {}", package_json_path.display()))?;
+
+    serde_json::from_str(&package_json)
+        .with_context(|| format!("failed to parse {}", package_json_path.display()))
+}
+
+fn find_workspace_package_manager(mut dir: PathBuf) -> Result<Option<String>> {
+    while dir.pop() {
+        let package_json_path = dir.join("package.json");
+        if package_json_path.exists() {
+            let package_json = parse_package_json(&package_json_path)?;
+            if let Some(pm) = package_json.package_manager.as_deref() {
+                if !pm.is_empty() {
+                    return Ok(package_json.package_manager);
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn PackageManager>> {
     let package_json_path = package_dir.join("package.json");
-    let package_json = std::fs::read_to_string(&package_json_path)
-        .with_context(|| format!("failed to read {}", package_json_path.display()))?;
-    let package_json: PackageJson = serde_json::from_str(&package_json)
-        .with_context(|| format!("failed to parse {}", package_json_path.display()))?;
+    let package_json = parse_package_json(&package_json_path)?;
 
-    let package_manager = package_json.package_manager.as_deref().unwrap_or("npm");
+    let package_manager = match package_json.package_manager {
+        Some(ref pm) if !pm.is_empty() => Some(pm.clone()),
+        _ => find_workspace_package_manager(package_dir.to_path_buf())?,
+    };
+
+    let package_manager = package_manager.as_deref().unwrap_or("npm");
     let package_manager = match package_manager.split_once('@') {
         Some((name, _)) => name,
         None => package_manager,
@@ -35,6 +61,10 @@ pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn Pack
             dir: package_dir.to_path_buf(),
         })),
         "yarn" => Ok(Box::new(YarnPackageManager {
+            pkg_json: package_json,
+            dir: package_dir.to_path_buf(),
+        })),
+        "pnpm" => Ok(Box::new(PnpmPackageManager {
             pkg_json: package_json,
             dir: package_dir.to_path_buf(),
         })),
@@ -187,6 +217,60 @@ impl YarnPackageManager {
             .with_context(|| format!("failed to write {}", file_path.display()))?;
 
         Ok(())
+    }
+}
+
+struct PnpmPackageManager {
+    pkg_json: PackageJson,
+    dir: PathBuf,
+}
+
+impl PackageManager for PnpmPackageManager {
+    fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()> {
+        // If we don't have a node_modules folder, install everything.
+        if !self.dir.join("node_modules").exists() {
+            cmd!("pnpm", "install")
+                .dir(&self.dir)
+                .stdout_to_stderr()
+                .run()
+                .context("pnpm install failed")?;
+        }
+
+        // If we don't have an `encore.dev` dependency, install it.
+        if !self.pkg_json.dependencies.contains_key("encore.dev") {
+            cmd!("pnpm", "install", "encore.dev@latest")
+                .dir(&self.dir)
+                .stdout_to_stderr()
+                .run()
+                .context("pnpm install failed")?;
+        }
+
+        // If we have a local encore.dev path, symlink it.
+        if let Some(encore_dev_path) = encore_dev_path {
+            symlink_encore_dev(&self.dir, encore_dev_path)
+                .context("unable to symlink local encore.dev")?;
+        }
+
+        Ok(())
+    }
+
+    fn run_tests(&self) -> Result<CmdSpec> {
+        Ok(CmdSpec {
+            command: vec![
+                "pnpm".to_string(),
+                "run".to_string(),
+                "test".to_string(),
+                // Specify '--' so that additional arguments added from the test runner
+                // aren't interpreted by npm.
+                "--".to_string(),
+            ],
+            env: vec![],
+            prioritized_files: vec![],
+        })
+    }
+
+    fn mgr_name(&self) -> &'static str {
+        "pnpm"
     }
 }
 

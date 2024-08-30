@@ -74,6 +74,9 @@ type Store interface {
 
 	// Listen listens for new spans.
 	Listen(ch chan<- NewSpanEvent)
+
+	// Clear removes all traces for an app
+	Clear(ctx context.Context, appID string) error
 }
 
 type NewSpanEvent struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/logrusorgru/aurora/v3"
@@ -92,6 +93,16 @@ var telemetryDisableCommand = &cobra.Command{
 	},
 }
 
+func isCommand(cmd *cobra.Command, name ...string) bool {
+	for cmd != nil {
+		if slices.Contains(name, cmd.Name()) {
+			return true
+		}
+		cmd = cmd.Parent()
+	}
+	return false
+}
+
 func init() {
 	telemetryCommand.AddCommand(telemetryEnableCommand, telemetryDisableCommand)
 	rootCmd.AddCommand(telemetryCommand)
@@ -107,7 +118,7 @@ func init() {
 		if update {
 			go updateTelemetry(cmd.Context())
 		}
-		if telemetry.ShouldShowWarning() && cmd.Use != "version" {
+		if telemetry.ShouldShowWarning() && !isCommand(cmd, "version", "completion") {
 			fmt.Println()
 			fmt.Println(aurora.Sprintf("%s: This CLI tool collects usage data to help us improve Encore.", aurora.Bold("Note")))
 			fmt.Println(aurora.Sprintf("      You can disable this by running '%s'.\n", aurora.Yellow("encore telemetry disable")))

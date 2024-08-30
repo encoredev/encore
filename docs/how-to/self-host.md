@@ -73,12 +73,12 @@ Here's an example configuration you can use.
       "name": "baz",
       "url": "http://baz.svc.cluster.local:8080",
       "protocol": "http",
-      "service_auth": "noop"
+      "service_auth": { "method": "noop" }
     }
   },
-  "sql_databases": []
+  "sql_databases": [],
   "sql_servers": [],
-  "pubsub_providers": []
+  "pubsub_providers": [],
   "pubsub_topics": {},
   "metrics": {}
 }

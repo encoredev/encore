@@ -186,8 +186,8 @@
 	}]
 }
 
-#GoSDK: #SubMenu & {
-	title: "Go SDK"
+#EncoreGO: #SubMenu & {
+	title: "Encore.go"
 	presentation: {
 		icon: "golang"
 	}
@@ -337,6 +337,11 @@
 			text: "Validation"
 			path: "/develop/validation"
 			file: "develop/validation"
+		}, {
+		  kind: "basic"
+		  text: "Logging"
+		  path: "/observability/logging"
+		  file: "observability/logging"
 		}]
 	},
 	{
@@ -396,8 +401,8 @@
 	}]
 }
 
-#TypeScriptSDK: #SubMenu & {
-	title: "TypeScript SDK"
+#EncoreTS: #SubMenu & {
+	title: "Encore.ts"
 	presentation: {
 		icon: "typescript"
 	}
@@ -488,6 +493,16 @@
 			text: "Testing"
 			path: "/ts/develop/testing"
 			file: "ts/develop/testing"
+		}, {
+		  kind: "basic"
+		  text: "Logging"
+		  path: "/ts/develop/logging"
+		  file: "ts/develop/logging"
+		}, {
+		  kind: "basic"
+		  text: "Debugging"
+		  path: "/ts/develop/debug"
+		  file: "ts/develop/debug"
 		}]
 	},{
 		kind: "section"
@@ -511,10 +526,10 @@
 	text: "Development"
 	items: [{
 		kind: "nav"
-		text: "Go SDK"
+		text: "Encore.go"
 		path: "/go"
 		file: "go/overview"
-		submenu: #GoSDK
+		submenu: #EncoreGO
 		presentation: {
 			icon: "golang"
 			style: "card"
@@ -522,10 +537,10 @@
 	},
 	{
 		kind: "nav"
-		text: "TypeScript SDK"
+		text: "Encore.ts"
 		path: "/ts"
 		file: "ts/overview"
-		submenu: #TypeScriptSDK
+		submenu: #EncoreTS
 		presentation: {
 			icon: "typescript"
 			style: "card"
@@ -566,11 +581,6 @@
 		text: "Flow Architecture Diagram"
 		path: "/observability/encore-flow"
 		file: "observability/encore-flow"
-	}, {
-		kind: "basic"
-		text: "Logging"
-		path: "/observability/logging"
-		file: "observability/logging"
 	}, {
 		kind: "basic"
 		text: "Metrics"

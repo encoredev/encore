@@ -1,6 +1,6 @@
 ---
-seotitle: Hello World in Encore for TypeScript
-seodesc: Get to know Encore for TypeScript with this simple Hello World example.
+seotitle: Hello World in Encore.ts
+seodesc: Get to know Encore.ts with this simple Hello World example.
 title: Hello World
 subtitle: Get to know the basics
 toc: false
@@ -34,13 +34,13 @@ To run it, you simply use `encore run` and the Open Source CLI will automaticall
 
 ## Getting started video
 
-Get to know the basics of Encore for TypeScript in this getting started video.
+Get to know the basics of Encore.ts in this getting started video.
 
-<iframe width="360" height="202" src="https://www.youtube.com/embed/wiLDz-JUuqY?si=BxmW0BV1hx2LIvtO" title="Getting Started with Encore for TypeScript" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe width="360" height="202" src="https://www.youtube.com/embed/wiLDz-JUuqY?si=BxmW0BV1hx2LIvtO" title="Getting Started with Encore.ts" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ## Using databases, Pub/Sub, and other primitives
 
-Encore's Backend SDK makes it simple to add more primitives, such as additional microservices, databases, Pub/Sub, etc.
+Encore's Backend Framework makes it simple to add more primitives, such as additional microservices, databases, Pub/Sub, etc.
 See how to use each primitive:
 
 - [Services and APIs](/docs/ts/primitives/services-and-apis)

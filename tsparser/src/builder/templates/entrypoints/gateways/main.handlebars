@@ -1,7 +1,7 @@
 import { registerGateways, run } from "encore.dev/internal/codegen/appinit";
 
 {{#each gateways}}
-import { {{bind_name}} as {{encore_name}}Impl } from {{toJSON import_path}};
+import { {{bind_name}} as {{encoreNameToIdent encore_name}}Impl } from {{toJSON import_path}};
 {{/each}}
 
 const gateways = [

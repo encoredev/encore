@@ -6,7 +6,7 @@ pub mod parser;
 pub mod resourceparser;
 pub mod resources;
 pub mod respath;
-mod scan;
+mod service_discovery;
 pub mod types;
 pub mod usageparser;
 

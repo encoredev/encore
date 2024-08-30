@@ -21,7 +21,7 @@ See the [infra docs](/docs/deploy/infra#preview-environments) if you're curious 
 
 ## Populate databases with data automatically
 
-Encore Cloud, and Encore managed environmens on AWS and GCP, can be provisioned using [Neon](/docs/deploy/neon) as the database provider.
+Encore Cloud, and Encore managed environments on AWS and GCP, can be provisioned using [Neon](/docs/deploy/neon) as the database provider.
 
 Neon is a serverless postgres provider that supports [database branches](https://neon.tech/docs/introduction/branching), which are similar to branches in git.
 Branches enable you to automatically seed your Preview Environments with test data by branching off a populated database, e.g. the database in a staging environment. 

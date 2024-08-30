@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use convert_case::{Case, Casing};
 use handlebars::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub use codegen::{CodegenParams, CodegenResult};
 pub use compile::CompileParams;
-pub use parse::{ParseParams, ParseResult};
+pub use parse::{ParseError, ParseParams};
 pub use prepare::PrepareParams;
 pub use test::TestParams;
 
@@ -171,4 +171,22 @@ fn to_json(
         .unwrap_or_default();
     out.write(param.as_ref())?;
     Ok(())
+}
+
+/// An error that is rendered plainly, without a backtrace.
+#[derive(Debug)]
+pub struct PlainError(pub String);
+
+impl std::fmt::Display for PlainError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Deserialize, Debug, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum DebugMode {
+    Disabled,
+    Enabled,
+    Break,
 }

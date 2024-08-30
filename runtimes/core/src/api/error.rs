@@ -81,6 +81,16 @@ impl From<&Error> for AppError {
     }
 }
 
+impl From<Error> for Box<pingora::Error> {
+    fn from(err: Error) -> Self {
+        pingora::Error::because(
+            pingora::ErrorType::HTTPStatus(err.code.status_code().into()),
+            err.code.to_string(),
+            err,
+        )
+    }
+}
+
 impl std::error::Error for Error {}
 
 impl Display for Error {

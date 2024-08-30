@@ -6,6 +6,9 @@ import { {{bind_name}} as {{encoreNameToIdent encore_name}}GW } from {{toJSON im
 {{#each endpoints}}
 import { {{name}} as {{service_name}}_{{name}}Impl } from {{toJSON import_path}};
 {{/each}}
+{{#each subscriptions}}
+import {{toJSON import_path}};
+{{/each}}
 
 
 const gateways: any[] = [

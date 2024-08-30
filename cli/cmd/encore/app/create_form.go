@@ -305,6 +305,9 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case languageSelectDone:
 		m.step = 1
+		if m.skipShowingTemplate {
+			m.step = 2
+		}
 		m.templates.UpdateFilter(msg.lang)
 
 	case templateSelectDone:
@@ -358,10 +361,10 @@ func (m createFormModel) View() string {
 	if m.appName.predefined != "" {
 		renderNameDone()
 	}
+	if m.templates.predefined == "" && m.step > 0 {
+		renderLangDone()
+	}
 	if !m.skipShowingTemplate {
-		if m.templates.predefined == "" && m.step > 0 {
-			renderLangDone()
-		}
 		if m.templates.predefined != "" || m.step > 1 {
 			renderTemplateDone()
 		}
@@ -526,7 +529,7 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 		template = sel.Template
 	}
 
-	return appName, template, m.lang.Selected()
+	return appName, template, res.lang.Selected()
 }
 
 type langItem struct {

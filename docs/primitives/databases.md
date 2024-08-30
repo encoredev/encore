@@ -234,9 +234,10 @@ See [the full list of available extensions](/docs/primitives/databases/extension
 
 ## Troubleshooting
 
-### Application won't run
+When you run your application locally with `encore run`, Encore will provision local databases using Docker.
+If this fails with a database error, it can often be resolved if you restart the Encore daemon using `encore daemon` and then try `encore run` again.
 
-When you run your application locally with `encore run`, Encore will parse and compile your application, and provision the necessary infrastructure including databases. If this fails with a database error, there are a few common causes.
+If this does not resolve the issue, here are steps to resolve common errors:
 
 ** Error: sqldb: unknown database **
 

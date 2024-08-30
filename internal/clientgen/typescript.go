@@ -1018,7 +1018,17 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		}
 	case *schema.Type_List:
 		elem := typ.List.Elem
+		union, isUnion := elem.Typ.(*schema.Type_Union)
+		paren := isUnion && len(union.Union.Types) > 1
+
+		if paren {
+			ts.WriteString("(")
+		}
 		ts.writeTyp(ns, elem, numIndents)
+		if paren {
+			ts.WriteString(")")
+		}
+
 		ts.WriteString("[]")
 
 	case *schema.Type_Map:

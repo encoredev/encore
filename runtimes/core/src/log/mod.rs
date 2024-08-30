@@ -40,7 +40,7 @@ pub fn root() -> &'static Logger {
                     // Otherwise use ENCORE_RUNTIME_LOG to set the Encore runtime log level,
                     // which defaults
                     let level = std::env::var("ENCORE_RUNTIME_LOG").unwrap_or("debug".to_string());
-                    format!("encore_runtime_core={}", level)
+                    format!("encore_={level},pingora_core::listeners=warn,pingora_core::services::listening=warn")
                 });
                 env_logger::filter::Builder::new().parse(&level).build()
             };

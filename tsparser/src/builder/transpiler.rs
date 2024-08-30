@@ -1,9 +1,9 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-
 use crate::builder::compile::{CmdSpec, Entrypoint};
+use crate::builder::{DebugMode, PlainError};
+use anyhow::{Context, Result};
 
 #[allow(dead_code)]
 pub enum ExternalPackages<'a> {
@@ -36,10 +36,14 @@ pub struct TranspileParams<'a> {
     pub cwd: &'a Path,
 
     /// The Encore CLI runtime version
+    #[allow(dead_code)]
     pub runtime_version: &'a String,
 
     /// The services and gateways to transpile.
     pub inputs: Vec<Input>,
+
+    // If we should transpile for debug
+    pub debug: DebugMode,
 }
 
 pub struct TranspileResult {
@@ -51,6 +55,7 @@ pub(super) trait OutputTranspiler {
     fn transpile(&self, params: TranspileParams) -> Result<TranspileResult>;
 }
 
+#[allow(dead_code)]
 pub struct EsbuildCompiler<'a> {
     pub node_modules_dir: &'a Path,
     pub external: ExternalPackages<'a>,
@@ -85,7 +90,9 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
             log::info!("running tsbundler-encore: {:?}", cmd);
             let output = cmd.output().context("failed to tsbundler-encore")?;
             if !output.status.success() {
-                anyhow::bail!("failed to bundle: {}", String::from_utf8(output.stderr)?);
+                anyhow::bail!(PlainError(
+                    String::from_utf8_lossy(&output.stderr).to_string()
+                ));
             }
             log::info!("successfully bundled");
 
@@ -106,6 +113,12 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     "--enable-source-maps".into(),
                     "--preserve-symlinks".into(),
                 ];
+
+                match p.debug {
+                    DebugMode::Disabled => {}
+                    DebugMode::Enabled => command.push("--inspect".to_string()),
+                    DebugMode::Break => command.push("--inspect-brk".to_string()),
+                }
 
                 // Finally we want to add the path to the bundled app
                 command.push(entrypoint_path.clone());
@@ -160,6 +173,7 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
 }
 
 pub struct BunBuildCompiler<'a> {
+    #[allow(dead_code)]
     pub node_modules_dir: &'a Path,
     pub external: ExternalPackages<'a>,
 }

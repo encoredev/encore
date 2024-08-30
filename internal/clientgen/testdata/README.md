@@ -4,5 +4,5 @@ Instead of manually updating the golden tests, once you've verified the output o
 can simply update all the `expected output files` files by running
 
 ```bash
-go test ./cli/internal/codegen -golden-update
+go test ./internal/clientgen -golden-update
 ```

@@ -10,7 +10,7 @@ use url::Url;
 use encore::runtime::v1 as pb;
 
 use crate::api::reqauth::caller::Caller;
-use crate::api::reqauth::meta::{MetaKey, MetaMapMut};
+use crate::api::reqauth::meta::MetaKey;
 use crate::api::reqauth::{service_auth_method, svcauth};
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{schema, APIResult, Endpoint, EndpointMap};
@@ -18,6 +18,8 @@ use crate::model::{SpanKey, TraceEventId};
 use crate::names::EndpointName;
 use crate::trace::Tracer;
 use crate::{api, encore, model, secrets, EncoreName, Hosted};
+
+use super::reqauth::meta::MetaMapMut;
 
 /// Tracks where services are located and how to call them.
 pub struct ServiceRegistry {
@@ -36,12 +38,13 @@ impl ServiceRegistry {
         endpoints: Arc<EndpointMap>,
         env: &pb::Environment,
         sd: pb::ServiceDiscovery,
-        own_address: &str,
+        own_address: Option<&str>,
         own_auth_methods: &[Arc<dyn svcauth::ServiceAuthMethod>],
         hosted_services: &Hosted,
         deploy_id: String,
         http_client: reqwest::Client,
         tracer: Tracer,
+        is_worker: bool,
     ) -> anyhow::Result<Self> {
         let mut base_urls = HashMap::with_capacity(sd.services.len());
         let mut service_auth = HashMap::with_capacity(sd.services.len());
@@ -58,19 +61,26 @@ impl ServiceRegistry {
             service_auth.insert(svc, auth_method);
         }
 
-        let own_address = format!("http://{}", own_address);
-        for svc_name in hosted_services.iter() {
-            if !base_urls.contains_key(svc_name) {
-                let svc = EncoreName::from(svc_name);
-                base_urls.insert(svc.clone(), own_address.clone());
+        if let Some(own_address) = own_address {
+            let own_address = format!("http://{}", own_address);
+            for svc_name in hosted_services.iter() {
+                if !base_urls.contains_key(svc_name) {
+                    let svc = EncoreName::from(svc_name);
+                    base_urls.insert(svc.clone(), own_address.clone());
 
-                let auth_method = if own_auth_methods.is_empty() {
-                    Arc::new(svcauth::Noop)
-                } else {
-                    own_auth_methods[0].clone()
-                };
-                service_auth.insert(svc, auth_method);
+                    let auth_method = if own_auth_methods.is_empty() {
+                        Arc::new(svcauth::Noop)
+                    } else {
+                        own_auth_methods[0].clone()
+                    };
+                    service_auth.insert(svc, auth_method);
+                }
             }
+        } else if !hosted_services.is_empty() && !is_worker {
+            // This shouldn't happen if things are configured correctly.
+            ::log::error!(
+                "internal encore error: cannot host services without provided own address"
+            );
         }
 
         Ok(Self {
@@ -336,7 +346,7 @@ impl<'a, AuthData> CallDesc<'a, AuthData>
 where
     AuthData: serde::ser::Serialize + 'a,
 {
-    pub fn add_meta(self, headers: &mut reqwest::header::HeaderMap) -> anyhow::Result<()> {
+    pub fn add_meta<R: MetaMapMut>(self, headers: &mut R) -> anyhow::Result<()> {
         headers.set(MetaKey::Version, "1".to_string())?;
 
         if let Some(span) = self.parent_span {

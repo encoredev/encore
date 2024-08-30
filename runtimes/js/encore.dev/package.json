@@ -54,6 +54,11 @@
       "bun": "./pubsub/mod.ts",
       "default": "./dist/pubsub/mod.js"
     },
+    "./service": {
+      "types": "./service/mod.ts",
+      "bun": "./service/mod.ts",
+      "default": "./dist/service/mod.js"
+    },
     "./storage/sqldb": {
       "types": "./storage/sqldb/mod.ts",
       "bun": "./storage/sqldb/mod.ts",

@@ -9,7 +9,7 @@ Encore automatically provisions all necessary infrastructure, in all environment
 
 <img src="/assets/docs/encore_overview.png" title="Infrastructure Overview" className="noshadow"/>
 
-This is powered by Encore's [Backend SDK](/docs/primitives/overview), which lets you declare infrastructure resources (databases, caches, queues, scheduled jobs, etc.) as type-safe objects in application code.
+This is powered by Encore's [Backend Framework](/docs/primitives/overview), which lets you declare infrastructure resources (databases, caches, queues, scheduled jobs, etc.) as type-safe objects in application code.
 
 At compile time, Encore creates an [Application Model](/docs/introduction#meet-the-encore-application-model) with a definition of the infrastructure your application requires. Encore then uses this model to provision the infrastructure in both your cloud account, and development and preview environments in Encore Cloud.
 
