@@ -360,6 +360,11 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 			pkgJsonPath := imageArtifacts.Base.Join("package.json")
 			b.spec.CopyData[pkgJsonPath] = HostPath(jsOut.PackageJson)
 			b.addPrio(pkgJsonPath)
+
+			for _, p := range jsOut.ProjectDeps {
+				imgPath := imageArtifacts.Base.Join(p.ToIO())
+				b.spec.CopyData[imgPath] = HostPath(p)
+			}
 		}
 
 		for _, ep := range out.GetEntrypoints() {

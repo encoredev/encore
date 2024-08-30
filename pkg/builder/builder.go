@@ -207,6 +207,9 @@ type JSBuildOutput struct {
 	// PackageJson is the path to the package.json file to use.
 	PackageJson paths.FS `json:"package_json"`
 
+	// ProjectDeps is a list of other dependencies that need to be included
+	ProjectDeps []paths.FS `json:"project_deps"`
+
 	// The entrypoints that are part of this build output.
 	Entrypoints []Entrypoint `json:"entrypoints"`
 

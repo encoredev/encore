@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::app::AppDesc;
 use anyhow::{Context, Result};
 use serde::Serialize;
+use walkdir::WalkDir;
 
 use crate::builder::codegen::CodegenParams;
 use crate::builder::transpiler::{
@@ -15,6 +16,7 @@ use super::{App, Builder, DebugMode};
 
 #[derive(Debug)]
 pub struct CompileParams<'a> {
+    pub source_root: &'a Path,
     pub js_runtime_root: &'a Path,
     pub runtime_version: &'a String,
     pub app: &'a App,
@@ -34,6 +36,7 @@ pub struct CompileResult {
 pub struct JSBuildOutput {
     pub node_modules: Option<PathBuf>,
     pub package_json: PathBuf,
+    pub project_deps: Vec<PathBuf>,
     pub artifact_dir: PathBuf,
     pub entrypoints: Vec<Entrypoint>,
     pub uses_local_runtime: bool,
@@ -56,6 +59,23 @@ pub struct CmdSpec {
     pub prioritized_files: Vec<ArtifactString>,
 }
 
+// Find all targets of symlinks that point to something within source_root
+fn find_project_deps(node_modules_dir: &Path, source_root: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    let mut deps = Vec::new();
+    for entry in WalkDir::new(node_modules_dir) {
+        let entry = entry?;
+
+        if entry.path_is_symlink() {
+            let target = std::fs::canonicalize(entry.path())?;
+            if target.starts_with(source_root) {
+                deps.push(target)
+            }
+        }
+    }
+
+    Ok(deps)
+}
+
 impl Builder<'_> {
     pub fn compile(&self, params: &CompileParams) -> Result<CompileResult> {
         self.generate_code(&CodegenParams {
@@ -73,6 +93,8 @@ impl Builder<'_> {
         let (node_modules, _) = self
             .find_node_modules_dir(params.app.root.as_path())
             .ok_or_else(|| anyhow::anyhow!("could not find node_modules directory"))?;
+
+        let project_deps = find_project_deps(&node_modules, params.source_root)?;
 
         let transpiler = EsbuildCompiler {
             node_modules_dir: node_modules.as_path(),
@@ -157,6 +179,7 @@ impl Builder<'_> {
             outputs: vec![JSBuildOutput {
                 node_modules: Some(node_modules),
                 package_json: params.app.root.join("package.json"),
+                project_deps,
                 artifact_dir: build_dir,
                 entrypoints: result.entrypoints,
                 uses_local_runtime: params.use_local_runtime,
