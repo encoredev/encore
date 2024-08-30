@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
-use anyhow::Result;
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use swc_common::sync::Lrc;
-use swc_ecma_ast as ast;
 use swc_ecma_ast::TsTypeParamInstantiation;
+use swc_ecma_ast::{self as ast, FnExpr};
 
 use litparser::{LitParser, Nullable};
 use litparser_derive::LitParser;
@@ -12,7 +12,9 @@ use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::apis::encoding::{describe_endpoint, EndpointEncoding};
+use crate::parser::resources::apis::encoding::{
+    describe_endpoint, describe_stream_endpoint, EndpointEncoding,
+};
 use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
 };
@@ -34,6 +36,9 @@ pub struct Endpoint {
     /// Body limit in bytes.
     /// None means no limit.
     pub body_limit: Option<u64>,
+
+    pub streaming_request: bool,
+    pub streaming_response: bool,
 
     pub encoding: EndpointEncoding,
 }
@@ -184,7 +189,11 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let methods = r.config.method.unwrap_or(Methods::Some(vec![Method::Post]));
 
             let raw = matches!(r.kind, EndpointKind::Raw);
-            let (request, response) = match r.kind {
+
+            let mut streaming_request = false;
+            let mut streaming_response = false;
+
+            let encoding = match r.kind {
                 EndpointKind::Typed { request, response } => {
                     let request = match request {
                         None => None,
@@ -194,13 +203,43 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         None => None,
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
-                    (request, response)
-                }
-                EndpointKind::Raw => (None, None),
-            };
 
-            let encoding =
-                describe_endpoint(pass.type_checker, methods, path, request, response, raw)?;
+                    describe_endpoint(pass.type_checker, methods, path, request, response, false)?
+                }
+                EndpointKind::Raw => {
+                    describe_endpoint(pass.type_checker, methods, path, None, None, true)?
+                }
+                EndpointKind::TypedStream {
+                    handshake,
+                    request,
+                    response,
+                } => {
+                    streaming_request = request.is_stream();
+                    streaming_response = response.is_stream();
+
+                    // always register as a get endpoint
+                    let methods = Methods::Some(vec![Method::Get]);
+
+                    let request = request
+                        .ts_type()
+                        .map(|t| pass.type_checker.resolve_type(module.clone(), t));
+                    let response = response
+                        .ts_type()
+                        .map(|t| pass.type_checker.resolve_type(module.clone(), t));
+                    let handshake =
+                        handshake.map(|t| pass.type_checker.resolve_type(module.clone(), &t));
+
+                    describe_stream_endpoint(
+                        pass.type_checker,
+                        methods,
+                        path,
+                        request,
+                        response,
+                        handshake,
+                        false,
+                    )?
+                }
+            };
 
             // Compute the body limit. Null means no limit. No value means 2MiB.
             let body_limit: Option<u64> = match r.config.bodyLimit {
@@ -217,6 +256,8 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 expose: r.config.expose.unwrap_or(false),
                 require_auth: r.config.auth.unwrap_or(false),
                 raw,
+                streaming_request,
+                streaming_response,
                 body_limit,
                 encoding,
             }));
@@ -272,10 +313,36 @@ struct APIEndpointLiteral {
 }
 
 #[derive(Debug)]
+enum ParameterType {
+    Stream(ast::TsType),
+    Single(ast::TsType),
+    None,
+}
+
+impl ParameterType {
+    fn is_stream(&self) -> bool {
+        matches!(self, ParameterType::Stream(..))
+    }
+
+    fn ts_type(&self) -> Option<&ast::TsType> {
+        match self {
+            ParameterType::Stream(t) => Some(t),
+            ParameterType::Single(t) => Some(t),
+            ParameterType::None => None,
+        }
+    }
+}
+
+#[derive(Debug)]
 enum EndpointKind {
     Typed {
         request: Option<ast::TsType>,
         response: Option<ast::TsType>,
+    },
+    TypedStream {
+        handshake: Option<ast::TsType>,
+        request: ParameterType,
+        response: ParameterType,
     },
     Raw,
 }
@@ -333,6 +400,154 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
 
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamInOut") => {
+                        let type_params = expr
+                            .type_args
+                            .as_deref()
+                            .context("no type parameters found")?;
+
+                        let (has_handshake, _return_type) =
+                            parse_stream_endpoint_signature(&handler.expr)?;
+
+                        let type_params_count = type_params.params.len();
+                        let expected_count = if has_handshake { 3 } else { 2 };
+
+                        if type_params_count != expected_count {
+                            bail!("wrong number of type parameters, expected {expected_count}, found {type_params_count}")
+                        }
+
+                        let handshake = has_handshake
+                            .then(|| {
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for handshake"))
+                            })
+                            .transpose()?;
+
+                        let request = extract_type_param(
+                            Some(type_params),
+                            if has_handshake { 1 } else { 0 },
+                        )?
+                        .ok_or_else(|| anyhow!("missing type for request"))?;
+
+                        let response = extract_type_param(
+                            Some(type_params),
+                            if has_handshake { 2 } else { 1 },
+                        )?
+                        .ok_or_else(|| anyhow!("missing type for response"))?;
+
+                        // Bidirectional stream
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::TypedStream {
+                                handshake: handshake.cloned(),
+                                request: ParameterType::Stream(request.clone()),
+                                response: ParameterType::Stream(response.clone()),
+                            },
+                        }
+                    }
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
+                        let type_params = expr
+                            .type_args
+                            .as_deref()
+                            .context("no type parameters found")?;
+
+                        let (has_handshake, return_type) =
+                            parse_stream_endpoint_signature(&handler.expr)?;
+
+                        let type_params_count = type_params.params.len();
+                        let expected_count = if has_handshake { [2, 3] } else { [1, 2] };
+
+                        if !expected_count.contains(&type_params_count) {
+                            bail!("wrong number of type parameters, expected one of {expected_count:?}, found {type_params_count}")
+                        }
+
+                        let handshake = has_handshake
+                            .then(|| {
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for handshake"))
+                            })
+                            .transpose()?;
+
+                        let request = extract_type_param(
+                            Some(type_params),
+                            if has_handshake { 1 } else { 0 },
+                        )?
+                        .ok_or_else(|| anyhow!("missing type for request"))?;
+
+                        let response = extract_type_param(
+                            Some(type_params),
+                            if has_handshake { 2 } else { 1 },
+                        )?;
+
+                        let response = match response {
+                            None => match return_type {
+                                Some(t) => ParameterType::Single(t.clone()),
+                                None => ParameterType::None,
+                            },
+                            Some(t) => ParameterType::Single(t.clone()),
+                        };
+
+                        // Incoming stream
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::TypedStream {
+                                handshake: handshake.cloned(),
+                                request: ParameterType::Stream(request.clone()),
+                                response,
+                            },
+                        }
+                    }
+                    ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
+                        let type_params = expr
+                            .type_args
+                            .as_deref()
+                            .context("no type parameters found")?;
+
+                        let (has_handshake, _return_type) =
+                            parse_stream_endpoint_signature(&handler.expr)?;
+
+                        let type_params_count = type_params.params.len();
+                        let expected_count = if has_handshake { 2 } else { 1 };
+
+                        if type_params_count != expected_count {
+                            bail!("wrong number of type parameters, expected {expected_count}, found {type_params_count}")
+                        }
+
+                        let handshake = has_handshake
+                            .then(|| {
+                                extract_type_param(Some(type_params), 0)?
+                                    .ok_or_else(|| anyhow!("missing type for handshake"))
+                            })
+                            .transpose()?;
+
+                        let response = extract_type_param(
+                            Some(type_params),
+                            if has_handshake { 1 } else { 0 },
+                        )?
+                        .ok_or_else(|| anyhow!("missing type for response"))?;
+
+                        // Outgoing stream
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::TypedStream {
+                                handshake: handshake.cloned(),
+                                request: ParameterType::None,
+                                response: ParameterType::Stream(response.clone()),
+                            },
+                        }
+                    }
                     _ => {
                         // Regular endpoint
                         let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
@@ -362,6 +577,30 @@ impl ReferenceParser for APIEndpointLiteral {
 
         Ok(None)
     }
+}
+
+fn parse_stream_endpoint_signature(expr: &ast::Expr) -> Result<(bool, Option<&ast::TsType>)> {
+    let (has_handshake_param, type_params, return_type) = match expr {
+        ast::Expr::Fn(FnExpr { function, .. }) => (
+            function.params.len() == 2,
+            function.type_params.as_deref(),
+            function.return_type.as_deref(),
+        ),
+        ast::Expr::Arrow(arrow) => (
+            arrow.params.len() == 2,
+            arrow.type_params.as_deref(),
+            arrow.return_type.as_deref(),
+        ),
+        _ => return Ok((false, None)),
+    };
+
+    if type_params.is_some() {
+        anyhow::bail!("stream endpoint handler cannot have type parameters");
+    }
+
+    let return_type = return_type.map(|t| t.type_ann.as_ref());
+
+    Ok((has_handshake_param, return_type))
 }
 
 fn parse_endpoint_signature(
