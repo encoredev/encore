@@ -1,8 +1,9 @@
+use axum::extract::WebSocketUpgrade;
 use chrono::Utc;
 use indexmap::IndexMap;
 use std::fmt::Debug;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use rand::RngCore;
@@ -164,6 +165,7 @@ impl Request {
     pub fn has_authenticated_user(&self) -> bool {
         match &self.data {
             RequestData::RPC(data) => data.auth_user_id.is_some(),
+            RequestData::Stream(data) => data.auth_user_id.is_some(),
             RequestData::Auth(_) => false,
             RequestData::PubSub(_) => false,
         }
@@ -184,8 +186,47 @@ impl Request {
 #[derive(Debug)]
 pub enum RequestData {
     RPC(RPCRequestData),
+    Stream(StreamRequestData),
     Auth(AuthRequestData),
     PubSub(PubSubRequestData),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum StreamDirection {
+    InOut,
+    In,
+    Out,
+}
+
+#[derive(Debug)]
+pub struct StreamRequestData {
+    /// The description of the endpoint.
+    pub endpoint: Arc<Endpoint>,
+
+    /// WebSocket Upgrade
+    pub websocket_upgrade: Mutex<Option<WebSocketUpgrade>>,
+
+    /// The request path.
+    pub path: String,
+    pub path_and_query: String,
+
+    /// The request path params, if any.
+    pub path_params: Option<IndexMap<String, serde_json::Value>>,
+
+    /// The request headers
+    pub req_headers: axum::http::HeaderMap,
+
+    /// The authenticated user id, if any.
+    pub auth_user_id: Option<String>,
+
+    /// The user data for the authenticated user, if any.
+    pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
+
+    /// The parsed application payload.
+    pub parsed_payload: Option<api::RequestPayload>,
+
+    /// Stream direction
+    pub direction: StreamDirection,
 }
 
 #[derive(Debug)]

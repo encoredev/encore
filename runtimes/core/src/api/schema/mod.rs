@@ -55,6 +55,9 @@ pub struct Request {
 
     /// Request body.
     pub body: RequestBody,
+
+    /// If this is a streamed request
+    pub stream: bool,
 }
 
 #[derive(Debug)]
@@ -94,6 +97,28 @@ impl Request {
             body,
         }))
     }
+
+    pub async fn extract_parts(
+        &self,
+        parts: &mut axum::http::request::Parts,
+    ) -> APIResult<Option<RequestPayload>> {
+        let path = self.path.parse_incoming_request_parts(parts)?;
+        let query = match &self.query {
+            None => None,
+            Some(q) => q.parse_incoming_request_parts(parts)?,
+        };
+        let header = match &self.header {
+            None => None,
+            Some(h) => h.parse_incoming_request_parts(parts)?,
+        };
+
+        Ok(Some(RequestPayload {
+            path,
+            query,
+            header,
+            body: endpoint::Body::Typed(None),
+        }))
+    }
 }
 
 /// The response schema for an endpoint.
@@ -104,6 +129,9 @@ pub struct Response {
 
     /// Response body, if any.
     pub body: Option<Body>,
+
+    /// If this is a streamed response
+    pub stream: bool,
 }
 
 impl Response {

@@ -97,6 +97,7 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 		seenNs[svc.Name] = true
 	}
 	js.writeExtraTypes()
+	js.writeStreamClasses()
 	if err := js.writeBaseClient(p.AppSlug); err != nil {
 		return err
 	}
@@ -184,10 +185,12 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 			}
 		}
 
+		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
+
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if rpc.RequestSchema != nil {
+		if (!isStream && rpc.RequestSchema != nil) || (isStream && rpc.HandshakeSchema != nil) {
 			if nParams > 0 {
 				js.WriteString(", ")
 			}
@@ -201,9 +204,24 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 
 		js.WriteString(") {\n")
 
-		err := js.rpcCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String())
-		if err != nil {
-			return errors.Wrapf(err, "unable to write RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+		if isStream {
+			var direction streamDirection
+
+			if rpc.StreamingRequest && rpc.StreamingResponse {
+				direction = InOut
+			} else if rpc.StreamingRequest {
+				direction = Out
+			} else {
+				direction = In
+			}
+
+			if err := js.streamCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String(), direction); err != nil {
+				return errors.Wrapf(err, "unable to write streaming RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+			}
+		} else {
+			if err := js.rpcCallSite(js.newIdentWriter(numIndent+1), rpc, rpcPath.String()); err != nil {
+				return errors.Wrapf(err, "unable to write RPC call site for %s.%s", rpc.ServiceName, rpc.Name)
+			}
 		}
 
 		indent()
@@ -220,6 +238,106 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 	numIndent--
 	indent()
 	js.WriteString("}\n\n")
+	return nil
+}
+
+type streamDirection int
+
+const (
+	InOut streamDirection = iota
+	In
+	Out
+)
+
+func (js *javascript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string, direction streamDirection) error {
+	headers := ""
+	query := ""
+
+	if rpc.HandshakeSchema != nil {
+		encs, err := encoding.DescribeRequest(js.md, rpc.HandshakeSchema, &encoding.Options{SrcNameTag: "json"}, "GET")
+		if err != nil {
+			return errors.Wrapf(err, "stream %s", rpc.Name)
+		}
+
+		handshakeEnc := encs[0]
+
+		if len(handshakeEnc.HeaderParameters) > 0 || len(handshakeEnc.QueryParameters) > 0 {
+			w.WriteString("// Convert our params into the objects we need for the request\n")
+		}
+
+		// Generate the headers
+		if len(handshakeEnc.HeaderParameters) > 0 {
+			headers = "headers"
+
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.HeaderParameters {
+				ref := js.Dot("params", field.SrcName)
+				dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+			}
+
+			w.WriteString("const headers = makeRecord(")
+			js.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
+
+		// Generate the query string
+		if len(handshakeEnc.QueryParameters) > 0 {
+			query = "query"
+
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.QueryParameters {
+				if list := field.Type.GetList(); list != nil {
+					dict[field.WireFormat] = js.Dot("params", field.SrcName) +
+						".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+				} else {
+					dict[field.WireFormat] = js.convertBuiltinToString(
+						field.Type.GetBuiltin(),
+						js.Dot("params", field.SrcName),
+						field.Optional,
+					)
+				}
+			}
+
+			w.WriteString("const query = makeRecord(")
+			js.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
+	}
+
+	// Build the call to createStream
+	var method string
+
+	switch direction {
+	case InOut:
+		method = "createStreamInOut"
+	case In:
+		method = "createStreamIn"
+	case Out:
+		method = "createStreamOut"
+	}
+
+	createStream := fmt.Sprintf(
+		"this.baseClient.%s(`%s`",
+		method,
+		rpcPath,
+	)
+
+	if headers != "" || query != "" {
+		createStream += ", {" + headers
+
+		if headers != "" && query != "" {
+			createStream += ", "
+		}
+
+		if query != "" {
+			createStream += query
+		}
+
+		createStream += "}"
+	}
+	createStream += ")"
+
+	w.WriteStringf("return await %s\n", createStream)
 	return nil
 }
 
@@ -418,7 +536,7 @@ export function PreviewEnv(pr) {
 }
 
 /**
- * Client is an API client for the ` + js.appSlug + ` Encore application. 
+ * Client is an API client for the ` + js.appSlug + ` Encore application.
  */
 export default class Client {`)
 
@@ -464,6 +582,151 @@ if (typeof options === "string") {
 	w.WriteString("}\n\n")
 }
 
+func (js *javascript) writeStreamClasses() {
+	send := `
+    async send(msg) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }`
+
+	receive := `
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
+            }
+        }
+    }`
+
+	js.WriteString(`
+
+function encodeWebSocketHeaders(headers) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
+}
+
+class WebSocketConnection {
+    hasUpdateHandlers = [];
+
+    constructor(url, headers) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers));
+        }
+
+        this.ws = new WebSocket(url, protocols);
+
+        this.on("error", () => {
+            this.resolveHasUpdateHandlers();
+        });
+
+        this.on("close", () => {
+            this.resolveHasUpdateHandlers();
+        });
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    on(type, handler) {
+        this.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.ws.removeEventListener(type, handler);
+    }
+
+    close() {
+        this.ws.close();
+    }
+}
+
+export class StreamInOut {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+` + send + `
+` + receive + `
+}
+
+export class StreamIn {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+` + receive + `
+}
+
+export class StreamOut {
+    constructor(url, headers) {
+        let responseResolver;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
+
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            responseResolver(JSON.parse(event.data))
+        });
+    }
+
+    async response() {
+        return this.responseValue;
+    }
+
+    close() {
+        this.socket.close();
+    }
+` + send + `
+}`)
+}
 func (js *javascript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-JS-Client (Encore/%s)", appSlug, version.Version)
 
@@ -512,6 +775,138 @@ class BaseClient {`)
 	js.WriteString(`
     }
 
+    async getAuthData() {`)
+	if js.hasAuth {
+		js.WriteString(`
+        let authData;
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator();
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise;
+            } else {
+                authData = mayBePromise;
+            }
+        }
+
+        if (authData) {
+            const data = {};
+
+`)
+
+		w := js.newIdentWriter(3)
+		if js.authIsComplexType {
+			authData, err := encoding.DescribeAuth(js.md, js.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
+			if err != nil {
+				return errors.Wrap(err, "unable to describe auth data")
+			}
+
+			// Write all the query string fields in
+			for i, field := range authData.QueryParameters {
+				if i == 0 {
+					w.WriteString("data.query = {};\n")
+				}
+				w.WriteString("data.query[\"")
+				w.WriteString(field.WireFormat)
+				w.WriteString("\"] = ")
+				if list := field.Type.GetList(); list != nil {
+					w.WriteString(
+						js.Dot("authData", field.SrcName) +
+							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
+					)
+				} else {
+					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
+				}
+				w.WriteString(";\n")
+			}
+
+			// Write all the headers
+			for i, field := range authData.HeaderParameters {
+				if i == 0 {
+					w.WriteString("data.headers = {};\n")
+				}
+				w.WriteString("data.headers[\"")
+				w.WriteString(field.WireFormat)
+				w.WriteString("\"] = ")
+				w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
+				w.WriteString(";\n")
+			}
+		} else {
+			w.WriteString("data.headers = {};\n")
+			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData;\n")
+		}
+		js.WriteString(`
+            return data;
+        }
+    }`)
+
+	}
+
+	js.WriteString(`
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : '';
+        return new StreamInOut(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamIn(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamOut(this.baseURL + path + queryString, headers);
+    }
+
     // callAPI is used by each generated API method to actually make the request
     async callAPI(method, path, body, params) {
         let { query, headers, ...rest } = params ?? {}
@@ -524,73 +919,20 @@ class BaseClient {`)
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
-`)
-	w := js.newIdentWriter(2)
 
-	if js.hasAuth {
-		w.WriteString(`
-// If authorization data generator is present, call it and add the returned data to the request
-let authData`)
-		w.WriteString("\n")
-		w.WriteString(`if (this.authGenerator) {
-    const mayBePromise = this.authGenerator()
-    if (mayBePromise instanceof Promise) {
-        authData = await mayBePromise
-    } else {
-        authData = mayBePromise
-    }
-}
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
 
-// If we now have authentication data, add it to the request
-if (authData) {
-`)
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
+        }
 
-		{
-			w := w.Indent()
-			if js.authIsComplexType {
-				authData, err := encoding.DescribeAuth(js.md, js.md.AuthHandler.Params, &encoding.Options{SrcNameTag: "json"})
-				if err != nil {
-					return errors.Wrap(err, "unable to describe auth data")
-				}
-
-				// Write all the query string fields in
-				for i, field := range authData.QueryParameters {
-					// We need to ensure that the query field is not undefined
-					if i == 0 {
-						w.WriteString("query = query ?? {}\n")
-					}
-
-					w.WriteString("query[\"")
-					w.WriteString(field.WireFormat)
-					w.WriteString("\"] = ")
-					if list := field.Type.GetList(); list != nil {
-						w.WriteString(
-							js.Dot("authData", field.SrcName) +
-								".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
-						)
-					} else {
-						w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-					}
-					w.WriteString("\n")
-				}
-
-				// Write all the headers
-				for _, field := range authData.HeaderParameters {
-					w.WriteString("init.headers[\"")
-					w.WriteString(field.WireFormat)
-					w.WriteString("\"] = ")
-					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-					w.WriteString("\n")
-				}
-			} else {
-				w.WriteString("init.headers[\"Authorization\"] = \"Bearer \" + authData\n")
-			}
-		}
-
-		w.WriteString("}\n")
-	}
-
-	js.WriteString(`
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''
         const response = await this.fetcher(this.baseURL+path+queryString, init)
@@ -821,7 +1163,7 @@ func (js *javascript) writeCustomErrorType() {
 
 function isAPIErrorResponse(err) {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -839,7 +1181,7 @@ export class APIError extends Error {
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -847,14 +1189,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
         if (Object.setPrototypeOf == undefined) {
             this.__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if (Error.captureStackTrace !== undefined) {
             Error.captureStackTrace(this, this.constructor);
