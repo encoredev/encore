@@ -19,6 +19,7 @@ use crate::pubsub::Subscription;
 pub struct NsqSubscription {
     addr: String,
     config: NSQConsumerConfig,
+    max_retries: i64,
 }
 
 impl Debug for NsqSubscription {
@@ -42,6 +43,11 @@ impl NsqSubscription {
             .set_sources(NSQConsumerConfigSources::Daemons(vec![addr.clone()]))
             .set_max_in_flight(meta.max_concurrency.map_or(100, |v| v as u32));
 
+        // For local development, default to 2 retries if we don't have a retry policy.
+        // We don't want to retry forever but zero retries might cause surprises when suddenly
+        // things start retrying in other environments.
+        let mut max_retries = 2;
+
         if let Some(retry) = &meta.retry_policy {
             let min_backoff = Duration::from_nanos(retry.min_backoff.max(0) as u64);
             config = config.set_base_requeue_interval(clamp(
@@ -56,9 +62,14 @@ impl NsqSubscription {
                 Duration::from_secs(0),
                 Duration::from_secs(60 * 60),
             ));
+            max_retries = retry.max_retries;
         }
 
-        NsqSubscription { addr, config }
+        NsqSubscription {
+            addr,
+            config,
+            max_retries,
+        }
     }
 }
 
@@ -74,6 +85,16 @@ impl Subscription for NsqSubscription {
                 let Some(msg) = consumer.consume_filtered().await else {
                     continue;
                 };
+
+                // If the attempt exceeds the max retries, drop it.
+                // Attempt starts at 1 for the first delivery, which means
+                // the retry count is (attempt-1).
+                let retry = msg.attempt as i64 - 1;
+                if retry > self.max_retries {
+                    msg.finish().await;
+                    continue;
+                }
+
                 // Process the message asynchronously.
                 let h = handler.clone();
                 tokio::spawn(async move { process_message(msg, h).await });
