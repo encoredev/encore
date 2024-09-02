@@ -17,7 +17,7 @@ Encore supports three types of streams, each designed for a specific data flow d
 
 ## How it works
 
-When you connect to a stream API endpoint, the client and server will do a handshake in the form of a http request. If the server accepts the handshake request, a stream is returned to the client and to the API handler. Under the hood the stream is a websocket that can be used to send and receive messages over.
+When you connect to a streaming API endpoint, the client and server will do a handshake in the form of a http request. If the server accepts the handshake request, a stream is returned to the client and to the API handler. Under the hood the stream is a websocket that can be used to send and receive messages over.
 
 Path parameters, query parameters and headers can be passed via the handshake request. The stream returned to the client and to the API handler are typed with the incoming and outgoing message types that you specify in your api.
 
@@ -119,7 +119,7 @@ You can use `authHandler` in the same way as for regular endpoints, just specify
 
 ## Connecting with the client
 
-Using the generated client, you can connect to a stream API endpoint. The client stream acts as an async iterator, allowing you to retrieve messages by simply iterating over it:
+Using the generated client, you can connect to a streaming API endpoint. The client stream acts as an async iterator, allowing you to retrieve messages by simply iterating over it:
 
 ```typescript
 const stream = client.serviceName.endpointName();
