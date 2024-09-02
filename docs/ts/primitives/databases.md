@@ -137,14 +137,14 @@ Or to query a single todo item by id:
 
 ```ts
 async function getTodoTitle(id: number): string | undefined {
-  const row = await db.query`SELECT title FROM todo_item WHERE id = ${id}`;
+  const row = await db.queryRow`SELECT title FROM todo_item WHERE id = ${id}`;
   return row?.title;
 }
 ```
 
 ### Inserting data
 
-To insert data, or to make database queryies that don't return any rows, use `db.exec`.
+To insert data, or to make database queries that don't return any rows, use `db.exec`.
 
 For example:
 

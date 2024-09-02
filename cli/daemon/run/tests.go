@@ -111,11 +111,14 @@ func (mgr *Manager) TestSpec(ctx context.Context, params TestSpecParams) (*TestS
 
 // testSpec returns how to run the tests.
 func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *experiments.Set, params *TestSpecParams) (*builder.TestSpecResult, error) {
-	secretData, err := params.Secrets.Get(ctx, expSet)
-	if err != nil {
-		return nil, err
+	var secrets map[string]string
+	if params.Secrets != nil {
+		secretData, err := params.Secrets.Get(ctx, expSet)
+		if err != nil {
+			return nil, err
+		}
+		secrets = secretData.Values
 	}
-	secrets := secretData.Values
 
 	vcsRevision := vcs.GetRevision(params.App.Root())
 	buildInfo := builder.BuildInfo{
