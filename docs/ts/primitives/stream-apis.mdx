@@ -107,7 +107,7 @@ These are the different variations that you can use when defining your streaming
 
 Note that if you add a handshake data type you also get two arguments to your handler, one for the handshake data and one for the stream, and if you omit the handshake type you only get the stream.
 
-The type parameters are required for encore to understand your api, we currently do not support inferring the types from the handler functions types.
+The type parameters are required for Encore to understand your api. Encore currently does not support inferring the types from the handler functions types.
 
 In your handler you get a stream class, it is an async iterator for incoming messages, and have an async `send` method for sending data out.
 
