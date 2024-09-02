@@ -450,6 +450,11 @@
 			}]
 		}, {
 			kind: "basic"
+			text: "Streaming APIs"
+			path: "/ts/primitives/streaming-apis"
+			file: "ts/primitives/streaming-apis"
+		}, {
+			kind: "basic"
 			text: "Databases"
 			path: "/ts/primitives/databases"
 			file: "ts/primitives/databases"
