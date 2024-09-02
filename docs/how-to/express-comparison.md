@@ -93,7 +93,7 @@ By iteratively making adjustments, you should relatively quickly be able to get 
 
 ### Incrementally start using Encore's Backend Framework
 
-Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/ts/how-to/express-comparison#apis) and introduce infrastructure declarations for databases and cron jobs etc. This will let Encore.ts understand your application and unlock all Encore.ts features.
+Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/ts/how-to/express-comparison#apis) and introduce infrastructure declarations for databases and cron jobs etc. This will let Encore.ts understand your application and unlock all Encore.ts features. See the [Feature comparison](#feature-comparison) section below for Express.js examples and how to implement the equivalent in Encore.ts.
 
 For more thoughts on migrating an existing backend to Encore.ts, check out our [general migration guide](/docs/how-to/migrate-to-encore). You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
 
