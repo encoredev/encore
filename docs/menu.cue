@@ -512,6 +512,11 @@
 			text: "Use Vercel for frontend hosting"
 			path: "/ts/how-to/vercel"
 			file: "how-to/vercel"
+		}, {
+			kind: "basic"
+			text: "Migrate from Express.js"
+			path: "/ts/how-to/express-comparison"
+			file: "how-to/express-comparison"
 		}]
 	}]
 }
