@@ -117,3 +117,36 @@ The same goes for the generated client, when you call the stream endpoint you wi
 
 You can use `authHandler` the same way you do for all your regular endpoints, just specify `auth: true` in you endpoint options. You can get the auth data in your handler by calling `getAuthData()`.
 
+## Connecting with the client
+
+With the generated client, you can connect to a stream API endpoint. The client stream implements async iterator, so to get the messages just iterate over it:
+
+```typescript
+const stream = client.serviceName.endpointName();
+for await (const msg on stream) {
+  // Do something with each message
+}
+
+```
+
+To send messages to the service, use the `send` method:
+
+```typescript
+const stream = client.serviceName.endpointName();
+await stream.send({ ... });
+```
+
+To handle network errors or do some cleanup after the connection is closed, you can attach event listeners on the underlying socket:
+
+```typescript
+const stream = client.serviceName.endpointName();
+
+stream.socket.on("error", (event) => {
+  // An error occurred
+});
+
+stream.socket.on("close", (event) => {
+  // Connection was closed
+});
+
+```
