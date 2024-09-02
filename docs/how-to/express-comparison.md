@@ -1,16 +1,17 @@
 ---
-seotitle: Migrating your Express backend to Encore.ts
-seodesc: Learn how migrate your Express app over to use Encore.ts for better performance and improved development tools.
-title: Migrating from Express to Encore.ts
+seotitle: Migrating your Express.js backend to Encore.ts
+seodesc: Learn how migrate your Express.js app over to use Encore.ts for better performance and improved development tools.
+title: Migrating from Express.js to Encore.ts
 ---
 
-If you have an existing [Express](https://expressjs.com/) application and want to migrate it to Encore.ts, this guide is
-for you. This guide can also serves as a comparison between the two frameworks.
+If you have an existing app using [Express](https://expressjs.com/) and want to migrate it to Encore.ts, this guide is
+for you. This guide can also serve as a comparison between the two frameworks.
 
 ## Why migrate to Encore.ts?
 
-Express is a great choice for building simple APIs, but as your application grows, you will eventually run into
-limitations. Because of the big community around Express, there are a lot of plugins and middleware available, but this
+Express.js is a great choice for building simple APIs, but as your application grows, you will eventually run into
+limitations. Because of the big community around Express.js, there are a lot of plugins and middleware available, but
+this
 can also make it hard to find the right tools for your use case. This also means that you will need to maintain a
 lot of dependencies.
 
@@ -22,33 +23,27 @@ infrastructure.
 
 ### Performance
 
-Unlike a lot of other Node.js frameworks, Encore.ts is not build a top of Express. Instead, Encore.ts has a
+Unlike a lot of other Node.js frameworks, Encore.ts is not build a top of Express.js. Instead, Encore.ts has a
 high-performance runtime, with a multi-threaded, asynchronous event loop written in Rust. The Encore Runtime handles all
 I/O like accepting and processing incoming HTTP requests. This runs as a completely independent event loop that utilizes
 as many threads as the underlying hardware supports. The result of this is that Encore.ts performs **9x faster** than
-Express. Learn more about the [Encore.ts Runtime](/blog/event-loops).
+Express.js. Learn more about the [Encore.ts Runtime](/blog/event-loops).
 
 ### Built-in benefits
 
-When using Encore.ts you get a lot of built-in features:
+When using Encore.ts you get a lot of built-in features without having to install any additional dependencies:
 
-- [Pub/Sub integrations](/docs/ts/primitives/pubsub)
-- [Type-safe API schemas](/docs/ts/primitives/services-and-apis)
-- [API Client generation](/docs/develop/client-generation)
-- [Secrets management](/docs/ts/primitives/secrets)
-- [CORS handling](/docs/ts/develop/cors)
-- [Infrastructure integrations](/docs/deploy/infra)
-- [Database integrations](/docs/ts/primitives/databases)
-- [Architecture Diagrams](/docs/observability/encore-flow)
-- [Service Catalog](/docs/develop/api-docs)
-- [Request validation](/blog/event-loops)
-- [Cron Jobs](/docs/ts/primitives/cron-jobs)
-- [Local tracing](/docs/observability/tracing)
-- [Local Development Dashboard](/docs/observability/dev-dash)
+| Built-in benefits                                           |                            <!-- -->                            |                                                 <!-- --> |
+|:------------------------------------------------------------|:--------------------------------------------------------------:|---------------------------------------------------------:|
+| [Pub/Sub integrations](/docs/ts/primitives/pubsub)          | [Type-safe API schemas](/docs/ts/primitives/services-and-apis) | [API Client generation](/docs/develop/client-generation) |
+| [Secrets management](/docs/ts/primitives/secrets)           |             [CORS handling](/docs/ts/develop/cors)             |        [Infrastructure integrations](/docs/deploy/infra) |
+| [Database integrations](/docs/ts/primitives/databases)      |    [Architecture Diagrams](/docs/observability/encore-flow)    |                [Service Catalog](/docs/develop/api-docs) |
+| [Request validation](/blog/event-loops)                     |           [Cron Jobs](/docs/ts/primitives/cron-jobs)           |             [Local tracing](/docs/observability/tracing) |
+| [Local Development Dashboard](/docs/observability/dev-dash) |
 
 ## App architecture
 
-Encore.ts is like Express in that it is unopinionated in how you structure your code.
+Encore.ts is like Express.js in that it is unopinionated in how you structure your code.
 
 We recommend however you use one Encore app for your entire backend application. This lets Encore
 build an application model that spans your entire app, necessary to get the most value out of many features like
@@ -67,7 +62,7 @@ type-safety.
 ## Feature comparison
 
 Check out
-our [Express compared to Encore.ts example](https://github.com/encoredev/examples/tree/main/ts/express-comparison) on
+our [Express.js compared to Encore.ts example](https://github.com/encoredev/examples/tree/main/ts/express-comparison) on
 GitHub for
 all of the code snippets in this feature comparison.
 
@@ -76,7 +71,16 @@ all of the code snippets in this feature comparison.
 
 ### APIs
 
-**Express**
+With Express.js, you create APIs using the `app.get`, `app.post`, `app.put`, `app.delete` functions. These functions
+take a path and a callback function. You then use the `req` and `res` objects to handle the request and response.
+
+With Encore.ts, you create APIs using the `api` function. This function takes an options object and a callback function.
+The main difference compared to Express.js is that Encore.ts is type-safe, meaning you define the request and response
+schemas in the callback function. You then return an object matching the response schema. In case you need to operate at
+a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request.
+Learn more in our [API Schemas docs](/docs/ts/develop/api-schemas).
+
+**Express.js**
 
 ```typescript
 import express, {Request, Response} from "express";
@@ -105,8 +109,6 @@ app.post("/order", (req: Request, res: Response) => {
 ```
 
 **Encore.ts**
-
-Learn more in our [API Schemas docs](/docs/ts/develop/api-schemas).
 
 ```typescript
 import {api, Query} from "encore.dev/api";
@@ -150,6 +152,14 @@ export const order = api(
   },
 );
 
+// Raw endpoint
+export const myRawEndpoint = api.raw(
+  {expose: true, path: "/raw", method: "GET"},
+  async (req, resp) => {
+    resp.writeHead(200, {"Content-Type": "text/plain"});
+    resp.end("Hello, raw world!");
+  },
+);
 ```
 
 </Accordion>
@@ -158,10 +168,14 @@ export const order = api(
 
 ### Request validation
 
-**Express**
-
-Express does not have built-in request validation. You have to use a library
+Express.js does not have built-in request validation. You have to use a library
 like [Zod](https://github.com/colinhacks/zod).
+
+With Encore.ts, request validation for headers, query params and body is. You supply a schema for the request object and
+in the request payload does not match the schema the API will return a 400 error.
+Learn more in our [API Schemas docs](/docs/ts/develop/api-schemas).
+
+**Express.js**
 
 ```typescript
 import express, {NextFunction, Request, Response} from "express";
@@ -236,9 +250,6 @@ app.post(
 
 **Encore.ts**
 
-Request validation for headers, query params and body is built-in with Encore.ts. Learn more in
-our [API Schemas docs](/docs/ts/develop/api-schemas).
-
 ```typescript
 import {api, Header, Query} from "encore.dev/api";
 
@@ -277,7 +288,13 @@ export const schema = api(
 
 ### Error handling
 
-**Express**
+In Express.js you either throw an error (which results in a 500 response) or use the `status` function to set the status
+code of the response.
+
+In Encore.ts throwing an error will result in a 500 response. You can also use the `APIError` class to return specific
+error codes. Learn more in our [API Errors docs](/docs/ts/develop/errors).
+
+**Express.js**
 
 ```typescript
 import express, {Request, Response} from "express";
@@ -301,8 +318,6 @@ app.get("/get-user", (req: Request, res: Response) => {
 ```
 
 **Encore.ts**
-
-Learn more in our [API Errors docs](/docs/ts/develop/errors).
 
 ```typescript
 import {api, APIError} from "encore.dev/api"; // Default error handler
@@ -334,7 +349,14 @@ export const brokenWithErrorCode = api(
 
 ### Serving static files
 
-**Express**
+Express.js has a built-in middleware function to serve static files. You can use the `express.static` function to serve
+files from a specific directory.
+
+With Encore.ts you can use the `api.raw` function to serve static files, no third party library is needed. Use the
+Node.js `fs` package to read the file from the file system and send it as a response.
+Learn more in our [Raw Endpoints docs](/docs/ts/primitives/services-and-apis#raw-endpoints)
+
+**Express.js**
 
 ```typescript
 import express from "express";
@@ -345,9 +367,6 @@ app.use("/assets", express.static("assets")); // Serve static files from the ass
 ```
 
 **Encore.ts**
-
-With Encore.ts you can use the `api.raw` function to serve static files.
-Learn more in our [Raw Endpoints docs](/docs/ts/primitives/services-and-apis#raw-endpoints)
 
 ```typescript
 import {api} from "encore.dev/api";
@@ -402,10 +421,16 @@ export const serveAssets = api.raw(
 
 ### Template rendering
 
-**Express**
+Express.js has a built-in support for rendering templates.
+
+With Encore.ts you can use the `api.raw` function to serve HTML templates, in this example we are using Handlebars.js
+but you can use whichever templating engine you prefer. Learn more in
+our [Raw Endpoints docs](/docs/ts/primitives/services-and-apis#raw-endpoints)
+
+**Express.js**
 
 ```typescript
-import express, { Request, Response } from "express";
+import express, {Request, Response} from "express";
 
 const app: Express = express();
 
@@ -413,17 +438,14 @@ app.set("view engine", "pug"); // Set view engine to Pug
 
 // Template engine example. This will render the index.pug file in the views directory
 app.get("/html", (_, res) => {
-  res.render("index", { title: "Hey", message: "Hello there!" });
+  res.render("index", {title: "Hey", message: "Hello there!"});
 });
 ```
 
 **Encore.ts**
 
-With Encore.ts you can use the `api.raw` function to serve HTML templates, in this example we are using Handlebars.js.
-Learn more in our [Raw Endpoints docs](/docs/ts/primitives/services-and-apis#raw-endpoints)
-
 ```typescript
-import { api } from "encore.dev/api";
+import {api} from "encore.dev/api";
 import Handlebars from "handlebars";
 
 const html = `
@@ -442,12 +464,12 @@ const html = `
 // Making use of raw endpoints to serve dynamic templates.
 // https://encore.dev/docs/ts/primitives/services-and-apis#raw-endpoints
 export const serveHTML = api.raw(
-  { expose: true, path: "/html", method: "GET" },
+  {expose: true, path: "/html", method: "GET"},
   async (req, resp) => {
     const template = Handlebars.compile(html);
 
     resp.setHeader("Content-Type", "text/html");
-    resp.end(template({ name: "Simon" }));
+    resp.end(template({name: "Simon"}));
   },
 );
 ```
@@ -458,10 +480,27 @@ export const serveHTML = api.raw(
 
 ### Authentication
 
-**Express**
+In Express.js you can create a middleware function that checks if the user is authenticated. You can then use this
+middleware function in your routes to protect them. You will have to specify the middleware function for each route that
+requires authentication.
+
+With Encore.ts, when an API is defined with `auth: true`, you must define an authentication handler in your application.
+The authentication handler is responsible for inspecting incoming requests to determine what user is authenticated.
+
+The authentication handler is defined similarly to API endpoints, using the `authHandler` function imported from
+`encore.dev/auth`. Like API endpoints, the authentication handler defines what request information it's interested in,
+in the form of HTTP headers, query strings, or cookies.
+
+If a request has been successfully authenticated, the API Gateway forwards the authentication data to the target
+endpoint. The endpoint can query the available auth data from the `getAuthData` function, available from the `~encore/auth`
+module.
+
+Learn more in our [Auth Handler docs](/docs/ts/develop/auth)
+
+**Express.js**
 
 ```typescript
-import express, { NextFunction, Request, Response } from "express";
+import express, {NextFunction, Request, Response} from "express";
 
 const app: Express = express();
 
@@ -471,7 +510,7 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const isInvalidUser = req.headers["authorization"] === undefined;
 
   if (isInvalidUser) {
-    res.status(401).json({ error: "invalid request" });
+    res.status(401).json({error: "invalid request"});
   } else {
     next();
   }
@@ -479,24 +518,23 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
 
 // Endpoint that requires auth
 app.get("/dashboard", authMiddleware, (_, res: Response) => {
-  res.json({ message: "Secret dashboard message" });
+  res.json({message: "Secret dashboard message"});
 });
 ```
 
 **Encore.ts**
-Learn more in our [Auth Handler docs](/docs/ts/develop/auth)
 
 ```typescript
 import { api, APIError, Gateway, Header } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";
+import { getAuthData } from "~encore/auth";
 
 interface AuthParams {
   authorization: Header<"Authorization">;
 }
 
-// The function passed to authHandler will be called for all 
-// incoming API call that requires authentication.
-const myAuthHandler = authHandler(
+// The function passed to authHandler will be called for all incoming API call that requires authentication.
+export const myAuthHandler = authHandler(
   async (params: AuthParams): Promise<{ userID: string }> => {
     // TODO: Validate up auth token and verify that this is an authenticated user
     const isInvalidUser = params.authorization === undefined;
@@ -515,8 +553,11 @@ export const gateway = new Gateway({ authHandler: myAuthHandler });
 export const dashboardEndpoint = api(
   // Setting auth to true will require the user to be authenticated
   { auth: true, method: "GET", path: "/dashboard" },
-  async (): Promise<{ message: string }> => {
-    return { message: "Secret dashboard message" };
+  async (): Promise<{ message: string; userID: string }> => {
+    return {
+      message: "Secret dashboard message",
+      userID: getAuthData()!.userID,
+    };
   },
 );
 ```
@@ -527,19 +568,22 @@ export const dashboardEndpoint = api(
 
 ### Testing
 
-**Express**
-
-Express does not have built-in testing support. You can use libraries like [Vitest](https://vitest.dev/) and
+Express.js does not have built-in testing support. You can use libraries like [Vitest](https://vitest.dev/) and
 [Supertest](https://www.npmjs.com/package/supertest).
 
+With Encore.ts you are able to call the API endpoints directly in your tests, just like any other function. You then run
+the tests using the `encore test` command. Learn more in our [Testing docs](/docs/ts/develop/testing).
+
+**Express.js**
+
 ```typescript
-import { describe, expect, test } from "vitest";
+import {describe, expect, test} from "vitest";
 import request from "supertest";
 import express from "express";
 import getRequestExample from "../get-request-example";
 
 /**
- * We need to add the supertest library to make fake HTTP requests to the Express app without having to
+ * We need to add the supertest library to make fake HTTP requests to the Express.js app without having to
  * start the server. We also use the vitest library to write tests.
  */
 describe("Express App", () => {
@@ -556,11 +600,10 @@ describe("Express App", () => {
 ```
 
 **Encore.ts**
-Learn more in our [Automated Testing docs](/docs/ts/develop/testing).
 
 ```typescript
-import { describe, expect, test } from "vitest";
-import { dynamicPathParamExample } from "../get-request-example";
+import {describe, expect, test} from "vitest";
+import {dynamicPathParamExample} from "../get-request-example";
 
 // This test suite demonstrates how to test an Encore route.
 // Run tests using the `encore test` command.
@@ -568,7 +611,7 @@ describe("Encore app", () => {
   test("should respond with a greeting message", async () => {
     // You can call the Encore.ts endpoint directly in your tests,
     // just like any other function.
-    const resp = await dynamicPathParamExample({ name: "world" });
+    const resp = await dynamicPathParamExample({name: "world"});
     expect(resp.message).toBe("Hello world!");
   });
 });
@@ -581,14 +624,24 @@ describe("Encore app", () => {
 
 ### Database
 
-**Express**
+Express.js does not have built-in database support. You can use libraries like [pg-promise](https://www.npmjs.com/package/pg-promise) to connect to a 
+PostgreSQL database but you also have to manage Docker Compose files for different environments.
 
-Express does not have built-in database support. You can use libraries like [pg-promise](https://www.npmjs.com/package/pg-promise)
-to connect to a PostgreSQL database. But you also have to manage Docker Compose files for different environments.
+With Encore.ts, you create a database by importing `encore.dev/storage/sqldb` and calling `new SQLDatabase`, assigning the result to a top-level variable. 
+
+Database schemas are defined by creating migration files. Each migration runs in order and expresses the change in the database schema from the previous migration.
+
+Encore.ts automatically provisions databases to match what your application requires. Encore.ts provisions databases in an appropriate way depending on the environment. When running locally, Encore creates a database cluster using Docker. In the cloud, it depends on the environment type:
+
+To query data, use the `.query` or `.queryRow` methods. To insert data, or to make database queryies that don't return any rows, use `.exec`.
+
+Learn more in our [Database docs](/docs/ts/primitives/databases).
+
+**Express.js**
 
 ```typescript
 -- db.ts --
-import express, { Request, Response } from "express";
+import express, {Request, Response} from "express";
 import pgPromise from "pg-promise";
 
 const app: Express = express();
@@ -618,11 +671,9 @@ app.get("/user/:id", async (req: Request, res: Response) => {
     req.params.id,
   );
 
-  res.json({ user });
+  res.json({user});
 });
 -- docker-compose.yml --
-# docker-compose.yml for PostgreSQL
-
 version: '3.8'
 
 services:
@@ -665,13 +716,10 @@ RUN echo "CREATE EXTENSION IF NOT EXISTS postgis;" >> /docker-entrypoint-initdb.
 
 **Encore.ts**
 
-Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
-Learn more in our [Database docs](/docs/ts/primitives/databases).
-
 ```typescript
 -- db.ts --
-import { api } from "encore.dev/api";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
+import {api} from "encore.dev/api";
+import {SQLDatabase} from "encore.dev/storage/sqldb";
 
 // Define a database named 'users', using the database migrations in the "./migrations" folder.
 // Encore automatically provisions, migrates, and connects to the database.
@@ -686,15 +734,27 @@ interface User {
 
 // Get one User from DB
 export const getUser = api(
-  { expose: true, method: "GET", path: "/user/:id" },
-  async ({ id }: { id: number }): Promise<{ user: User | null }> => {
+  {expose: true, method: "GET", path: "/user/:id"},
+  async ({id}: { id: number }): Promise<{ user: User | null }> => {
     const user = await DB.queryRow<User>`
         SELECT name
         FROM users
         WHERE id = ${id}
     `;
 
-    return { user };
+    return {user};
+  },
+);
+
+// Add User from DB
+export const addUser = api(
+  { expose: true, method: "POST", path: "/user" },
+  async ({ name }: { name: string }): Promise<void> => {
+    await DB.exec`
+        INSERT INTO users (name)
+        VALUES (${name})
+    `;
+    return;
   },
 );
 -- migrations/1_create_tables.up.sql --
@@ -708,15 +768,36 @@ CREATE TABLE users (
 
 <Accordion>
 
-### Microservices communication
+### Logging
 
-**Express**
+Express.js does not have built-in support for logging. You can use libraries like [Winston](https://www.npmjs.com/package/winston) to log messages.
 
-Express does not have built-in support for service-to-service communication. You will most likely use `fetch` or something 
-equivalent to call another service. 
+Encore.ts offers built-in support for Structured Logging, which combines a free-form log message with structured and type-safe key-value pairs. Logging is integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality, and all logs are automatically included in the active trace.
+
+**Encore.ts**
 
 ```typescript
-import express, { Request, Response } from "express";
+import log from "encore.dev/log";
+
+log.error(err, "something went terribly wrong!");
+log.info("log message", { is_subscriber: true });
+```
+
+</Accordion>
+
+<Accordion>
+
+### Microservices communication
+
+Express.js does not have built-in support for creating microservices or for service-to-service communication. You will most likely use `fetch` or something equivalent to call another service.
+
+With Encore.ts, calling another service is just like calling a local function, with complete type-safety. Under the hood, Encore.ts will translate this function call into an actual service-to-service HTTP call, resulting in trace data being generated for each call.
+Learn more in our [Service-to-Service Communication docs](/docs/ts/develop/app-structure#multi-service-application-distributed-system).
+
+**Express.js**
+
+```typescript
+import express, {Request, Response} from "express";
 
 const app: Express = express();
 
@@ -725,7 +806,7 @@ app.get("/save-post", async (req: Request, res: Response) => {
     // Calling another service using fetch
     const resp = await fetch("https://another-service/posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         title: req.query.title,
         content: req.query.content,
@@ -733,28 +814,25 @@ app.get("/save-post", async (req: Request, res: Response) => {
     });
     res.json(await resp.json());
   } catch (e) {
-    res.status(500).json({ error: "Could not save post" });
+    res.status(500).json({error: "Could not save post"});
   }
 });
 ```
 
 **Encore.ts**
 
-Learn more in our [Service-to-Service Communication docs](/docs/ts/develop/app-structure#multi-service-application-distributed-system).
-
 ```typescript
-import { api } from "encore.dev/api";
-import { anotherService } from "~encore/clients";
+import {api} from "encore.dev/api";
+import {anotherService} from "~encore/clients";
 
 export const microserviceCommunication = api(
-  { expose: true, method: "GET", path: "/call" },
+  {expose: true, method: "GET", path: "/call"},
   async (): Promise<{ message: string }> => {
-    // Calling another service is just like calling a local function, with type-safety.
-    // Encore will translate this function call into a service-to-service HTTP call.
+    // Calling the foo endpoint in anotherService
     const fooResponse = await anotherService.foo();
 
     const msg = `Data from another service ${fooResponse.data}!`;
-    return { message: msg };
+    return {message: msg};
   },
 );
 
