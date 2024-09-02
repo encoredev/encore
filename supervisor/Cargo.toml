@@ -1,0 +1,12 @@
+[package]
+name = "encore_supervisor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger = "0.11.3"
+libc = "0.2.155"
+log = { version = "0.4.22", features = ["kv"] }
+tokio = { version = "1.38.0", features = ["process", "macros", "rt", "rt-multi-thread"] }
+tokio-retry = "0.3.0"
+tokio-util = { version = "0.7.11", features = ["rt"] }
