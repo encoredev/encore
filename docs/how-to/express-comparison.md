@@ -1,33 +1,23 @@
 ---
-seotitle: Migrating your Express.js backend to Encore.ts
+seotitle: Migrate from Express to Encore.ts
 seodesc: Learn how migrate your Express.js app over to use Encore.ts for better performance and improved development tools.
-title: Migrating from Express.js to Encore.ts
+title: Migrating from Express.js
 ---
 
-If you have an existing app using [Express](https://expressjs.com/) and want to migrate it to Encore.ts, this guide is
+If you have an existing app using [Express.js](https://expressjs.com/) and want to migrate it to Encore.ts, this guide is
 for you. This guide can also serve as a comparison between the two frameworks.
 
 ## Why migrate to Encore.ts?
 
-Express.js is a great choice for building simple APIs, but as your application grows, you will eventually run into
-limitations. Because of the big community around Express.js, there are a lot of plugins and middleware available, but
-this
-can also make it hard to find the right tools for your use case. This also means that you will need to maintain a
-lot of dependencies.
+Express.js is a great choice for building simple APIs, but as your application grows you will likely run into limitations. There is a large community around Express.js, providing many plugins and middleware to work around these limitations. However relying heavily on plugins can make it hard to find the right tools for your use case. It also means that you will need to maintain a lot of dependencies.
 
-Encore.ts is a web framework that aims to make it easier to build robust and type-safe backends with
-TypeScript. Encore.ts has 0 npm dependencies, is built with performance in mind and has a lot of built-in features for
-building production ready backends. You can deploy an Encore.ts app to any hosting service that accepts Docker
-containers, or use [Encore Cloud Platform](/use-cases/devops-automation) to fully automate your DevOps and
-infrastructure.
+Encore.ts is a framework that aims to make it easier to build robust and type-safe backends with
+TypeScript. Encore.ts has 0 npm dependencies, is built with performance in mind, and has a lot of built-in features for building production ready backends. You can deploy an Encore.ts app to any hosting service that accepts Docker containers, or use [Encore Cloud Platform](/use-cases/devops-automation) to fully automate your DevOps and infrastructure.
 
 ### Performance
 
-Unlike a lot of other Node.js frameworks, Encore.ts is not build a top of Express.js. Instead, Encore.ts has a
-high-performance runtime, with a multi-threaded, asynchronous event loop written in Rust. The Encore Runtime handles all
-I/O like accepting and processing incoming HTTP requests. This runs as a completely independent event loop that utilizes
-as many threads as the underlying hardware supports. The result of this is that Encore.ts performs **9x faster** than
-Express.js. Learn more about the [Encore.ts Runtime](/blog/event-loops).
+Unlike a lot of other Node.js frameworks, Encore.ts is not built on top of Express.js. Instead, Encore.ts has its own
+high-performance runtime, with a multi-threaded, asynchronous event loop written in Rust. The Encore Runtime handles all I/O like accepting and processing incoming HTTP requests. This runs as a completely independent event loop that utilizes as many threads as the underlying hardware supports. The result of this is that Encore.ts performs **9x faster** than Express.js. Learn more about the [Encore.ts Runtime](/blog/event-loops).
 
 ### Built-in benefits
 
@@ -43,29 +33,73 @@ When using Encore.ts you get a lot of built-in features without having to instal
 
 ## App architecture
 
-Encore.ts is like Express.js in that it is unopinionated in how you structure your code.
-
-We recommend however you use one Encore app for your entire backend application. This lets Encore
-build an application model that spans your entire app, necessary to get the most value out of many features like
-[distributed tracing](https://encore.dev/docs/observability/tracing)
-and [Encore Flow](https://encore.dev/docs/observability/encore-flow).
-
+Like Express, Encore.ts in not opinionated in how you structure your code.
+It is recommended to use one Encore app for your entire backend application, as this lets Encore
+build an application model that spans your entire system. This is necessary to get the most value out of many features like [distributed tracing](https://encore.dev/docs/observability/tracing) and [Encore Flow](https://encore.dev/docs/observability/encore-flow).
 Learn more in our [App Structure docs](https://encore.dev/docs/ts/develop/app-structure).
 
 ### Monolith or Microservices
 
-Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications
-with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls
-between services](https://encore.dev/docs/ts/primitives/services-and-apis#calling-apis), along with cross-service
-type-safety.
+Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](https://encore.dev/docs/ts/primitives/services-and-apis#calling-apis), along with cross-service type-safety.
+
+## Migration guide
+
+You can use a forklift migration strategy and move the entire application over to Encore.ts in one shot by wrapping your existing HTTP router in a catch-all handler.
+
+This can be relatively straightforward if your existing system is a monolith, or smaller distributed system, and does not rely on many unsupported [cloud primitives](/docs/primitives/overview).
+
+The benefits of this approach is that you'll get everything in one place from the start, and you'll be able to quickly use features like Encore's CI/CD system and secrets manager, for your entire backend application.
+
+However, you will not immediately be able to use some of the powerful Encore features, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](/docs/introduction#meet-the-encore-application-model).
+
+
+### 1. Create an app and structure your code
+
+To start, create an Encore application using the `encore app create` command and copy over the code from your existing repository.
+
+### 2. Create a catch-all handler for your HTTP router
+
+Now let's mount your existing app router under a [Raw endpoint](/docs/primitives/services-and-apis#raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
+
+Here's a basic code example:
+
+```typescript
+import { api, RawRequest, RawResponse } from "encore.dev/api";
+import express, { request, response } from "express";
+
+Object.setPrototypeOf(request, RawRequest.prototype);
+Object.setPrototypeOf(response, RawResponse.prototype);
+
+const app = express();
+
+app.get('/foo', (req: any, res) => {
+  res.send('Hello World!')
+})
+
+export const expressApp = api.raw(
+  { expose: true, method: "*", path: "/!rest" },
+  app,
+);
+```
+
+By mounting your existing app router in this way, it will work as a catch-all handler for all HTTP requests and responses. This should make your application deployable through Encore with little refactoring. You will not be able to run your Express.js app locally using the `encore run` command
+
+### 3. Iteratively fix remaining compilation errors
+
+Exactly what remains to make your application deployable with Encore will depend on your specific app.
+As you run your app locally, using `encore run`, Encore will parse and compile it, and give you compilation errors to inform what needs to be adjusted.
+
+By iteratively making adjustments, you should relatively quickly be able to get your application up and running with Encore.
+
+### Incrementally start using Encore's Backend Framework
+
+Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/ts/how-to/express-comparison#apis) and introduce infrastructure declarations for databases and cron jobs etc. This will let Encore.ts understand your application and unlock all Encore.ts features.
+
+For more thoughts on migrating an existing backend to Encore.ts, check out our [general migration guide](/docs/how-to/migrate-to-encore). You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
 
 ## Feature comparison
 
-Check out
-our [Express.js compared to Encore.ts example](https://github.com/encoredev/examples/tree/main/ts/express-comparison) on
-GitHub for
-all of the code snippets in this feature comparison.
-
+Check out our [Express.js compared to Encore.ts example](https://github.com/encoredev/examples/tree/main/ts/express-comparison) on GitHub for all of the code snippets in this feature comparison.
 
 <Accordion>
 
