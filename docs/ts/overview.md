@@ -19,6 +19,7 @@ Get to know the core concepts of Encore.ts in this intro video.
 ### Explore how to use each backend primitive
 
 - [Services and APIs](/docs/ts/primitives/services-and-apis)
+- [Streaming APIs](/docs/ts/primitives/streaming-apis)
 - [Databases](/docs/ts/primitives/databases)
 - [Cron Jobs](/docs/ts/primitives/cron-jobs)
 - [Pub/Sub & Queues](/docs/ts/primitives/pubsub)
