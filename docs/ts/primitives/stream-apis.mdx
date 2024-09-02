@@ -90,11 +90,11 @@ export const pingpongStream = api.streamInOut<PingMessage, PongMessage>(
 );
 ```
 
-The type parameters you need to specify depends on the kind of stream you are using. For a InOut stream you'll need to specify an incoming and outgoing type, while for the other types you need to specify either the incoming or outgoing type depending on the direction of the stream. For incoming stream endpoints you can also specify a optional outgoing type if your api handler responds with some data when it is done with the incoming stream.
+The type parameters you need to specify depends on the kind of stream you are using. For an InOut stream you'll need to specify an incoming and outgoing type, while for the other types you need to specify either the incoming or outgoing type depending on the direction of the stream. For incoming stream endpoints you can also specify a optional outgoing type if your api handler responds with some data when it is done with the incoming stream.
 
 For all stream types the handshake type is optional, and only needs to be used whenever you need data from the initial request, such as path parameters, query parameters or headers.
 
-These are all the different variations that you can use when defining you stream APIs:
+These are the different variations that you can use when defining your streaming APIs:
 
 - `api.streamInOut<Handshake, Incoming, Outgoing>({ ... }, async (handshake, stream) {})`
 - `api.streamInOut<Incoming, Outgoing>({ ... }, async (stream) {})`
