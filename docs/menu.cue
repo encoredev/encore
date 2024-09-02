@@ -514,6 +514,11 @@
 			file: "how-to/vercel"
 		}, {
 			kind: "basic"
+			text: "Migrate from Express.js"
+			path: "/ts/how-to/express-comparison"
+			file: "how-to/express-comparison"
+		}, {
+			kind: "basic"
 			text: "Use NestJS with Encore"
 			path: "/ts/how-to/nestjs"
 			file: "how-to/nestjs"
