@@ -336,6 +336,11 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 			continue
 		}
 
+		// streaming endpoints not supported yet
+		if rpc.StreamingRequest || rpc.StreamingResponse {
+			continue
+		}
+
 		// Add the documentation for the API to the interface method
 		if rpc.Doc != nil && !g.skipDocs {
 			// Add a newline if this is not the first method
@@ -365,6 +370,11 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service) error 
 	// The API functions
 	for _, rpc := range service.Rpcs {
 		if rpc.AccessType == meta.RPC_PRIVATE {
+			continue
+		}
+
+		// streaming endpoints not supported yet
+		if rpc.StreamingRequest || rpc.StreamingResponse {
 			continue
 		}
 
