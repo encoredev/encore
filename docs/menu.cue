@@ -420,6 +420,11 @@
 			file: "ts/concepts/benefits"
 		}, {
 			kind: "basic"
+			text: "App Structure"
+			path: "/ts/develop/app-structure"
+			file: "ts/develop/app-structure"
+		},{
+			kind: "basic"
 			text: "Hello World"
 			path: "/ts/concepts/hello-world"
 			file: "ts/concepts/hello-world"
@@ -429,31 +434,39 @@
 		text: "Infrastructure"
 		items: [{
 			kind: "basic"
-			text: "Services and APIs"
-			path: "/ts/primitives/services-and-apis"
-			file: "ts/primitives/services-and-apis"
-			inline_menu: [{
+			text: "Services"
+			path: "/ts/primitives/services"
+			file: "ts/primitives/services"
+		}, {
+			kind: "accordion"
+			text: "APIs"
+			accordion: [{
 				kind: "basic"
-				text: "App Structure"
-				path: "/ts/develop/app-structure"
-				file: "ts/develop/app-structure"
+				text: "Defining APIs"
+				path: "/ts/primitives/apis"
+				file: "ts/primitives/apis"
 			}, {
 				kind: "basic"
-				text: "API Schemas"
-				path: "/ts/develop/api-schemas"
-				file: "ts/develop/api-schemas"
+				text: "API Calls"
+				path: "/ts/primitives/api-calls"
+				file: "ts/primitives/api-calls"
+			}, {
+				kind: "basic"
+				text: "Raw Endpoints"
+				path: "/ts/primitives/raw-endpoints"
+				file: "ts/primitives/raw-endpoints"
+			}, {
+				kind: "basic"
+				text: "Streaming APIs"
+				path: "/ts/primitives/streaming-apis"
+				file: "ts/primitives/streaming-apis"
 			}, {
 				kind: "basic"
 				text: "API Errors"
 				path: "/ts/develop/errors"
 				file: "ts/develop/errors"
 			}]
-		}, {
-			kind: "basic"
-			text: "Streaming APIs"
-			path: "/ts/primitives/streaming-apis"
-			file: "ts/primitives/streaming-apis"
-		}, {
+		},{
 			kind: "basic"
 			text: "Databases"
 			path: "/ts/primitives/databases"
