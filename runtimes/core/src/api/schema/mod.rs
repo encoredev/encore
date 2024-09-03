@@ -17,12 +17,8 @@ mod query;
 
 pub type JSONPayload = Option<serde_json::Map<String, serde_json::Value>>;
 
-pub trait ToOutgoingRequest {
-    fn to_outgoing_request(
-        &self,
-        payload: &mut JSONPayload,
-        req: &mut reqwest::Request,
-    ) -> APIResult<()>;
+pub trait ToOutgoingRequest<Request> {
+    fn to_outgoing_request(&self, payload: &mut JSONPayload, req: &mut Request) -> APIResult<()>;
 }
 
 pub trait ToResponse {
@@ -97,28 +93,6 @@ impl Request {
             body,
         }))
     }
-
-    pub async fn extract_parts(
-        &self,
-        parts: &mut axum::http::request::Parts,
-    ) -> APIResult<Option<RequestPayload>> {
-        let path = self.path.parse_incoming_request_parts(parts)?;
-        let query = match &self.query {
-            None => None,
-            Some(q) => q.parse_incoming_request_parts(parts)?,
-        };
-        let header = match &self.header {
-            None => None,
-            Some(h) => h.parse_incoming_request_parts(parts)?,
-        };
-
-        Ok(Some(RequestPayload {
-            path,
-            query,
-            header,
-            body: endpoint::Body::Typed(None),
-        }))
-    }
 }
 
 /// The response schema for an endpoint.
@@ -152,8 +126,79 @@ impl Response {
                 .map_err(api::Error::internal),
         }
     }
+}
 
-    // pub fn decode(&self, mut resp: reqwest::Response) -> APIResult<JSONPayload> {
-    //     self.header.to_response()
-    // }
+pub struct Stream {
+    incoming: Box<dyn StreamMessage>,
+    outgoing: Box<dyn StreamMessage>,
+}
+
+impl Stream {
+    pub fn new<I, O>(incoming: I, outgoing: O) -> Self
+    where
+        I: StreamMessage,
+        O: StreamMessage,
+    {
+        Stream {
+            incoming: Box::new(incoming),
+            outgoing: Box::new(outgoing),
+        }
+    }
+
+    pub fn to_outgoing_message(
+        &self,
+        msg: serde_json::Map<String, serde_json::Value>,
+    ) -> APIResult<Vec<u8>> {
+        let body_schema = self.outgoing.body().ok_or_else(|| {
+            super::Error::internal(anyhow::anyhow!("outgoing message body can't be empty"))
+        })?;
+
+        body_schema.to_outgoing_payload(&Some(msg))
+    }
+
+    pub async fn parse_incoming_message(
+        &self,
+        bytes: &[u8],
+    ) -> APIResult<serde_json::Map<String, serde_json::Value>> {
+        let Some(body) = self.incoming.body() else {
+            return Err(super::Error {
+                code: super::ErrCode::InvalidArgument,
+                message: "invalid streaming body type in schema".to_string(),
+                internal_message: None,
+                stack: None,
+            });
+        };
+
+        let value = body
+            .parse_incoming_request_body(bytes.to_vec().into())
+            .await?
+            .ok_or_else(|| super::Error {
+                code: super::ErrCode::InvalidArgument,
+                message: "missing payload".to_string(),
+                internal_message: None,
+                stack: None,
+            })?;
+
+        Ok(value)
+    }
+}
+
+pub trait StreamMessage: Send + Sync + 'static {
+    fn body(&self) -> Option<&Body>;
+}
+
+impl StreamMessage for Arc<Response> {
+    fn body(&self) -> Option<&Body> {
+        self.body.as_ref()
+    }
+}
+
+impl StreamMessage for Arc<Request> {
+    fn body(&self) -> Option<&Body> {
+        if let RequestBody::Typed(body) = &self.body {
+            body.as_ref()
+        } else {
+            None
+        }
+    }
 }

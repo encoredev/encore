@@ -5,6 +5,7 @@ use std::time::SystemTime;
 
 use anyhow::Context;
 use serde::de::DeserializeOwned;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use url::Url;
 
 use encore::runtime::v1 as pb;
@@ -20,6 +21,8 @@ use crate::trace::Tracer;
 use crate::{api, encore, model, secrets, EncoreName, Hosted};
 
 use super::reqauth::meta::MetaMapMut;
+use super::websocket_client::WebSocketClient;
+use super::HandshakeSchema;
 
 /// Tracks where services are located and how to call them.
 pub struct ServiceRegistry {
@@ -136,6 +139,30 @@ impl ServiceRegistry {
         result
     }
 
+    pub async fn connect_stream(
+        &self,
+        endpoint_name: &EndpointName,
+        data: JSONPayload,
+        source: Option<&model::Request>,
+    ) -> APIResult<WebSocketClient> {
+        let call = model::APICall {
+            source,
+            target: endpoint_name,
+        };
+        let start_event_id = self.tracer.rpc_call_start(&call);
+
+        let result = self
+            .do_connect_stream(endpoint_name, data, source, start_event_id)
+            .await;
+
+        if let Some(start_event_id) = start_event_id {
+            self.tracer
+                .rpc_call_end(&call, start_event_id, result.as_ref().err());
+        }
+
+        result
+    }
+
     async fn do_api_call(
         &self,
         endpoint_name: &EndpointName,
@@ -220,6 +247,90 @@ impl ServiceRegistry {
             Ok(resp) => parse_api_response(resp).await,
             Err(e) => Err(api::Error::internal(e)),
         }
+    }
+
+    async fn do_connect_stream(
+        &self,
+        endpoint_name: &EndpointName,
+        mut data: JSONPayload,
+        source: Option<&model::Request>,
+        start_event_id: Option<TraceEventId>,
+    ) -> APIResult<WebSocketClient> {
+        let base_url = self
+            .base_urls
+            .get(endpoint_name.service())
+            .ok_or_else(|| api::Error {
+                code: api::ErrCode::NotFound,
+                message: "service not found".into(),
+                internal_message: Some(format!(
+                    "no service discovery configuration found for service {}",
+                    endpoint_name.service()
+                )),
+                stack: None,
+            })?;
+
+        let Some(endpoint) = self.endpoints.get(endpoint_name) else {
+            return Err(api::Error {
+                code: api::ErrCode::NotFound,
+                message: "endpoint not found".into(),
+                internal_message: Some(format!(
+                    "endpoint {} not found in application metadata",
+                    endpoint_name
+                )),
+                stack: None,
+            });
+        };
+
+        let Some(handshake) = &endpoint.handshake else {
+            return Err(api::Error {
+                code: api::ErrCode::NotFound,
+                message: "no handshake schema found".into(),
+                internal_message: Some(format!(
+                    "endpoint {} doesn't have a handshake schema specified",
+                    endpoint_name
+                )),
+                stack: None,
+            });
+        };
+
+        let req_path = handshake.path().to_request_path(&mut data)?;
+
+        let base_url = base_url
+            .replace("http://", "ws://")
+            .replace("https://", "wss://");
+
+        let req_url = Url::parse(&format!("{}{}", base_url, req_path)).map_err(|_| api::Error {
+            code: api::ErrCode::Internal,
+            message: "failed to build endpoint url".into(),
+            internal_message: Some(format!(
+                "failed to build endpoint url for endpoint {}",
+                endpoint_name
+            )),
+            stack: None,
+        })?;
+
+        let mut req = req_url
+            .into_client_request()
+            .map_err(|e| api::Error::invalid_argument("unable to create request", e))?;
+
+        if let HandshakeSchema::Request(req_schema) = handshake.as_ref() {
+            if let Some(qry) = &req_schema.query {
+                qry.to_outgoing_request(&mut data, &mut req)?;
+            }
+
+            if let Some(hdr) = &req_schema.header {
+                hdr.to_outgoing_request(&mut data, &mut req)?;
+            }
+        }
+
+        self.propagate_call_meta(req.headers_mut(), endpoint, source, start_event_id)
+            .map_err(api::Error::internal)?;
+
+        let incoming = endpoint.response.clone();
+        let outgoing = endpoint.request[0].clone();
+        let schema = schema::Stream::new(incoming, outgoing);
+
+        WebSocketClient::connect(req, schema).await
     }
 
     fn propagate_call_meta(

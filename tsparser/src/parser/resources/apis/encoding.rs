@@ -175,7 +175,6 @@ pub fn describe_stream_endpoint(
     req: Option<Type>,
     resp: Option<Type>,
     handshake: Option<Type>,
-    raw: bool,
 ) -> Result<EndpointEncoding> {
     let resp = resp
         .map(|t| unwrap_promise(tc.state(), &t).clone())
@@ -198,15 +197,15 @@ pub fn describe_stream_endpoint(
     };
 
     let (req_enc, _req_schema) = if handshake_enc.is_some() {
-        describe_req(tc, &methods, None, &req, raw)?
+        describe_req(tc, &methods, None, &req, false)?
     } else {
-        describe_req(tc, &methods, Some(&path), &req, raw)?
+        describe_req(tc, &methods, Some(&path), &req, false)?
     };
 
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
     let path = if let Some(ref enc) = handshake_enc {
-        rewrite_path_types(enc, path, raw).context("parse path param types")?
+        rewrite_path_types(enc, path, false).context("parse path param types")?
     } else {
         path
     };

@@ -18,7 +18,8 @@ pub struct APIRoute {
     pub service: String,
     pub name: String,
     pub raw: bool,
-    pub streaming: bool,
+    pub streaming_request: bool,
+    pub streaming_response: bool,
     pub handler: JsFunction,
 }
 
