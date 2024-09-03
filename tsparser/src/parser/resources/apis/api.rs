@@ -48,6 +48,10 @@ pub struct Endpoint {
     pub encoding: EndpointEncoding,
 }
 
+impl Endpoint {
+    pub fn stream_direction(&self) {}
+}
+
 #[derive(Debug, Clone)]
 pub enum Methods {
     All,
@@ -281,7 +285,6 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         request,
                         response,
                         handshake,
-                        false,
                     ) {
                         Ok(encoding) => encoding,
                         Err(err) => {

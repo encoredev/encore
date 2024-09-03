@@ -168,7 +168,8 @@ impl Builder<'_> {
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
-                        "streaming": rpc.streaming_request || rpc.streaming_response,
+                        "streaming_request": rpc.streaming_request,
+                        "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
                     }));
                 }
@@ -256,7 +257,8 @@ impl Builder<'_> {
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
-                        "streaming": rpc.streaming_request || rpc.streaming_response,
+                        "streaming_request": rpc.streaming_request,
+                        "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
                     }));
                 }
@@ -365,7 +367,8 @@ impl Builder<'_> {
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
-                        "streaming": rpc.streaming_request || rpc.streaming_response,
+                        "streaming_request": rpc.streaming_request,
+                        "streaming_response": rpc.streaming_response,
                         "service_name": svc.name,
                         "import_path": import_path,
                     }));

@@ -1,8 +1,11 @@
+use std::str::FromStr;
+
 use crate::api;
 use crate::api::jsonschema::DecodeConfig;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
 use crate::api::{jsonschema, APIResult};
 use serde::Serialize;
+use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct Query {
@@ -73,7 +76,40 @@ impl Query {
     }
 }
 
-impl ToOutgoingRequest for Query {
+impl ToOutgoingRequest<http::Request<()>> for Query {
+    fn to_outgoing_request(
+        &self,
+        payload: &mut JSONPayload,
+        req: &mut http::Request<()>,
+    ) -> APIResult<()> {
+        let Some(payload) = payload else {
+            return Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "missing query parameters".to_string(),
+                internal_message: Some("missing query parameters".to_string()),
+                stack: None,
+            });
+        };
+
+        // Serialize the payload.
+        let mut url = Url::parse(&req.uri().to_string()).map_err(api::Error::internal)?;
+
+        {
+            let mut pairs = url.query_pairs_mut();
+            let serializer = serde_urlencoded::Serializer::new(&mut pairs);
+
+            payload
+                .serialize(serializer)
+                .map_err(api::Error::internal)?;
+        }
+
+        *req.uri_mut() = http::Uri::from_str(url.as_str()).map_err(api::Error::internal)?;
+
+        Ok(())
+    }
+}
+
+impl ToOutgoingRequest<reqwest::Request> for Query {
     fn to_outgoing_request(
         &self,
         payload: &mut JSONPayload,
