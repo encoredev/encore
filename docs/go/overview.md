@@ -22,7 +22,6 @@ It lets you define these primitives as type-safe objects directly in your applic
 
 By combining these features, Encore.go enables you to focus on writing your application logic while it automates much of the complexities of modern backend development.
 
-
 ### See how to use each primitive
 
 - [Services and APIs](/docs/primitives/services-and-apis)

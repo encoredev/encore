@@ -31,7 +31,6 @@ By combining these features, Encore.ts enables you to focus on writing your appl
 - [Pub/Sub & Queues](/docs/ts/primitives/pubsub)
 - [Secrets](/docs/ts/primitives/secrets)
 
-
 ### Intro video
 
 Get to know the core concepts of Encore.ts in this intro video.
