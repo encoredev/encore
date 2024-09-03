@@ -16,7 +16,10 @@ import (
 )
 
 type Watcher struct {
-	mutex sync.Mutex
+	mutex          sync.Mutex
+	eventCond      *sync.Cond
+	events         *Events
+	signalDebounce func(func())
 
 	log     *zerolog.Logger
 	appRoot string
@@ -24,11 +27,6 @@ type Watcher struct {
 	watcher     *fsnotify.Watcher
 	directories map[string]struct{}
 	stop        chan struct{}
-
-	EventsReady chan struct{}
-
-	events         *Events
-	notifyListener func()
 }
 
 func New(appID string) (*Watcher, error) {
@@ -40,21 +38,15 @@ func New(appID string) (*Watcher, error) {
 	logger := log.With().Str("component", "watcher").Str("app", appID).Logger()
 	logger.Debug().Msg("File system watcher created")
 	w := &Watcher{
-		watcher:     fswatcher,
-		log:         &logger,
-		directories: make(map[string]struct{}),
-		stop:        make(chan struct{}),
-		events:      nil,
-		EventsReady: make(chan struct{}),
+		watcher:        fswatcher,
+		log:            &logger,
+		directories:    make(map[string]struct{}),
+		stop:           make(chan struct{}),
+		events:         nil,
+		signalDebounce: debounce.New(50 * time.Millisecond),
 	}
 
-	// We debounce this to give the system time to process mass file updates
-	d := debounce.New(50 * time.Millisecond)
-	w.notifyListener = func() {
-		d(func() {
-			w.EventsReady <- struct{}{}
-		})
-	}
+	w.eventCond = sync.NewCond(&w.mutex)
 
 	go w.listenForChangeEvents()
 
@@ -101,13 +93,12 @@ func (w *Watcher) listenForChangeEvents() {
 			return
 
 		case event := <-w.watcher.Events:
-			switch {
-			case event.Op&fsnotify.Create == fsnotify.Create:
-				w.handleCreateEvent(event.Name)
-			case event.Op&fsnotify.Write == fsnotify.Write:
-				w.handleWriteEvent(event.Name)
-			case event.Op&fsnotify.Remove == fsnotify.Remove:
+			if event.Has(fsnotify.Remove) {
 				w.handleDeleteEvent(event.Name)
+			} else if event.Has(fsnotify.Create) {
+				w.handleCreateEvent(event.Name)
+			} else if event.Has(fsnotify.Write) {
+				w.handleWriteEvent(event.Name)
 			}
 
 		case err := <-w.watcher.Errors:
@@ -131,10 +122,13 @@ func (w *Watcher) handleCreateEvent(path string) {
 func (w *Watcher) handleDeleteEvent(path string) {
 	path = filepath.Clean(path)
 
+	pathWithSep := path + string(filepath.Separator)
+
 	// If it's a directory we're watching, stop watching it
 	w.mutex.Lock()
 	for watchedFolder := range w.directories {
-		if strings.HasPrefix(watchedFolder, path) || watchedFolder == path {
+		// I sthis the path itself, or a subdirectory thereof?
+		if strings.HasPrefix(watchedFolder, pathWithSep) || watchedFolder == path {
 			if err := w.watcher.Remove(watchedFolder); err != nil {
 				w.log.Err(err).Str("path", watchedFolder).Msg("unable to stop watching deleted directory")
 			}
@@ -160,20 +154,37 @@ func (w *Watcher) recordEventInBatch(path string, event EventType, info os.FileI
 
 	if w.events == nil {
 		w.events = newEventBatch()
-		w.notifyListener()
 	}
 
 	w.events.addEvent(path, event, info)
+
+	// Debounce the signal to avoid waking up on every event in case of a burst of events.
+	w.signalDebounce(func() {
+		w.eventCond.Signal()
+	})
 }
 
-func (w *Watcher) GetEventsBatch() *Events {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
+func (w *Watcher) WaitForEvents() (events []Event, ok bool) {
+	w.eventCond.L.Lock()
+	defer w.eventCond.L.Unlock()
 
-	events := w.events
-	w.events = nil
+	for {
+		select {
+		case <-w.stop:
+			// We're shutting down, so return immediately.
+			return nil, false
 
-	return events
+		default:
+			if w.events == nil || len(w.events.latestEvents) == 0 {
+				w.eventCond.Wait()
+			}
+			// Post-condition: we have at least one event.
+
+			events := w.events.Events()
+			w.events = newEventBatch()
+			return events, true
+		}
+	}
 }
 
 func (w *Watcher) Close() error {
