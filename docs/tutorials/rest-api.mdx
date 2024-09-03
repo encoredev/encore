@@ -505,7 +505,7 @@ You can verify that the database was created by looking at your application's Fl
 🥐 Now let's call the API again from the local development dashboard, or from the terminal:
 
 ```shell
-$ curl http://localhost:4000/url -d '{"URL": "https://encore.dev"}'
+$ curl http://localhost:4000/url -d '{"url": "https://encore.dev"}'
 ```
 
 🥐 Finally, let's verify that it was saved in the database. You can do this by checking the trace in the local development dashboard, or you can run  `encore db shell url` from the app root directory and inputting `select * from url;`:
