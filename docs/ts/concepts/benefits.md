@@ -20,14 +20,14 @@ lang: ts
 To enable Encore's functionality in TypeScript, we’ve created a high-performance distributed systems runtime in Rust.
 It integrates with the standard Node.js runtime for excecuting JavaScript code, ensuring **100% compatability with the Node.js ecosystem**.
 
-It also provides a number of benefits over standard Node.js:
-- **Handles requests, API calls, databases, Pub/Sub, and observability**
+It provides a number of benefits over standard Node.js:
+- **Handles requests validation, provides API type-safety, has built-in observability, and integrates with databases, Pub/Sub, and more**
 - **9x increased throughput and 85% reduced latency** compared to standard Node.js/Express.js [See benchmarks](https://encore.dev/blog/event-loops)
 - **Zero NPM dependencies** for improved security and faster builds
 
 ### How it works
 
-Encore.ts is designed to let the Node.js event loop —which is single-threaded — focus on executing your business logic, while everything else happens in Encore’s multi-threaded Rust runtime. Here's a high-level overview of how this works:
+Encore.ts is designed to let the Node.js event loop — which is single-threaded — focus on executing your business logic, while everything else happens in Encore’s multi-threaded Rust runtime. Here's a high-level overview of how this works:
 
 **1. Node.js starts up and initializes the Encore Rust runtime. The Rust runtime then:**
    - Begins accepting incoming requests
