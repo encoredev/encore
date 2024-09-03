@@ -7,9 +7,24 @@ toc: false
 lang: go
 ---
 
-Modern backend applications rely on a common set of infrastructure primitives for most of the behavior. To improve your development workflow, Encore.go enables you to declare these primitives as type-safe objects in application code. Encore.go then takes care of running your local environments, provides observability and documentation, and helps you [integrate with cloud infrastructure](/docs/deploy/infra). Encore also offers a [Cloud Platform](/use-cases/devops-automation) which fully automates infrastructure and DevOps for your cloud on AWS/GCP.
+Encore.go simplifies backend development by providing an application-centric way of using most common infrastructure primitives, things like: databases, queues, cron jobs, and APIs.
+It lets you define these primitives as type-safe objects directly in your application code. This approach streamlines your development process in several ways:
 
-**See how to use each primitive:**
+1. Local Environment Management: Encore.go automatically handles the setup and running of your local development environments.
+
+2. Enhanced Observability: It provides [built-in tools](/docs/observability/dev-dash) for monitoring and understanding your application's behavior.
+
+3. Automatic Documentation: Encore.go generates and maintains [up-to-date documentation](/docs/develop/api-docs) for your APIs and services.
+
+4. Cloud Integration: It simplifies and facilitates [integrating with cloud infrastructure](/docs/how-to/self-host), making deployment and scaling easier.
+
+5. DevOps Automation: For those seeking a fully automated solution, Encore offers an optional [Cloud Platform](/use-cases/devops-automation) that automates infrastructure provisioning, IAM management, and DevOps processes on AWS and GCP.
+
+By combining these features, Encore.go enables you to focus on writing your application logic while it automates much of the complexities of modern backend development.
+
+
+### See how to use each primitive
+
 - [Services and APIs](/docs/primitives/services-and-apis)
 - [Databases](/docs/primitives/databases)
 - [Cron Jobs](/docs/primitives/cron-jobs)
@@ -17,21 +32,34 @@ Modern backend applications rely on a common set of infrastructure primitives fo
 - [Caching](/docs/primitives/caching)
 - [Secrets](/docs/primitives/secrets)
 
+### Tutorials
+
 Check out the [Tutorials](/docs/tutorials) section for examples of complete Encore applications.
 
 <img src="/assets/docs/primitives.png" title="Cloud Primitives" className="noshadow mx-auto d:w-1/2"/>
 
-## Benefits of using Encore
+## Benefits of using Encore.go
 
-Using the Go Backend Framework to declare infrastructure in application code helps unlock these benefits:
+Using Encore.go to declare infrastructure in application code helps unlock these benefits:
 
-- **Develop new features locally as if the infrastructure is already set up**: Encore automatically compiles your app and sets up the necessary infrastructure on the fly.
-- **Faster feedback loops:** With type-safe infrastructure you can identify problems as early as in your code editor, instead of learning about issues via the — much slower — deployment cycle.
-- **No manual maintenance required**: There is no need to manually write [IaC](/resources/infrastructure-as-code) configuration, like Terraform. Encore uses your application code as the source of truth and automatically keeps all environments in sync.
-- **One codebase for all environments**: Encore [automatically provisions](/docs/deploy/infra) your local, [preview](/docs/deploy/preview-environments), and cloud environments (using [your own cloud account](/docs/deploy/own-cloud)) on AWS/GCP.
-- **Cloud-agnostic by default**: The Backend Framework is an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
-- **Evolve infrastructure without code changes**: As your requirements evolve, you can change and configure the provisioned infrastructure by using Encore's Cloud Dashboard or your cloud provider's console.
+- **Local development with instant infrastructure**: Encore.go automatically sets up necessary infrastructure as you develop.
+- **Rapid feedback**: Catch issues early with type-safe infrastructure, avoiding slow deployment cycles.
+- **No manual configuration required**: No need for Infrastrucutre-as-Code. Your code is the single source of truth.
+- **Unified codebase**: One codebase for all environments; local, preview, and cloud.
+- **Cloud-agnostic by default**: Encore.go provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
+- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without making code changes, either using the Open Source [self-hosting tools](/docs/deploy/self-hosting) or fully-automated in your AWS/GCP account using [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation).
+cloud provider's console.
+
+
+## No DevOps experience required
+
+Encore provides open source tools to help you integrate with your cloud infrastructure, enabling you to self-host your application anywhere to supports Docker containers.
+Learn more in the [self-host documentation](/docs/deploy/self-hosting).
+
+You can also use [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully automates provisioning and managing infrastructure in your own cloud on AWS and GCP.
+
+This approach dramatically reduces the level of DevOps expertise required to use scalable, production-ready, cloud services like Kubernetes and Pub/Sub. And because your application code is the source of truth for infrastructure requirements, it ensures the infrastructure in all your environments are always in sync with the application's requirements.
 
 ## Simplicity without giving up flexibility
 
-While most requirements are met by a common set of infrastructure primitives, sooner or later you will likely need something highly specific to your problem domain. Encore is designed to ensure you can use any cloud infrastructure, even if it's not built into Encore's Backend Framework. This works seamlessly since Encore [provisions infrastructure](/docs/deploy/infra) in your own cloud account, so you can use any of your cloud provider's services as you traditionally would.
+Encore.go provides integrations for common infrastructure primitives, but also allows for flexibility. You can always use any cloud infrastructure, even if it's not built into Encore.go. If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/deploy/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
