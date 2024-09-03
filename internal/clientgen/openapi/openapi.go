@@ -78,6 +78,11 @@ func (g *Generator) Generate(p clientgentypes.GenerateParams) (err error) {
 
 func (g *Generator) addService(svc *meta.Service) error {
 	for _, rpc := range svc.Rpcs {
+		// streaming endpoints not supported yet
+		if rpc.StreamingRequest || rpc.StreamingResponse {
+			continue
+		}
+
 		if err := g.addRPC(rpc); err != nil {
 			return err
 		}
