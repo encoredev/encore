@@ -520,8 +520,8 @@
 		}, {
 			kind: "basic"
 			text: "Migrate from Express.js"
-			path: "/ts/how-to/express-comparison"
-			file: "how-to/express-comparison"
+			path: "/ts/how-to/express-migration"
+			file: "how-to/express-migration"
 		}]
 	}]
 }
