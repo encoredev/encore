@@ -13,7 +13,7 @@ Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
 Encore supports both use cases in a simple yet powerful way.
 
-As described in the docs for [defining APIs](/docs/ts/primitives/services-and-apis),
+As described in the docs for [defining APIs](/docs/ts/primitives/apis),
 each API endpoint can be marked as requiring authentication, using the option `auth: true`
 when defining the endpoint.
 

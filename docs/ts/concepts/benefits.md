@@ -13,22 +13,21 @@ lang: ts
 - **No manual configuration required**: No need for Infrastrucutre-as-Code. Your code is the single source of truth.
 - **Unified codebase**: One codebase for all environments; local, preview, and cloud.
 - **Cloud-agnostic by default**: Encore.ts provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
-- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without making code changes, either using the Open Source [self-hosting tools](/docs/deploy/self-hosting) or fully-automated in your AWS/GCP account using [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation).
-cloud provider's console.
+- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/deploy/self-hosting) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
   
 ## High-performance Rust runtime
 
 To enable Encore's functionality in TypeScript, we’ve created a high-performance distributed systems runtime in Rust.
 It integrates with the standard Node.js runtime for excecuting JavaScript code, ensuring **100% compatability with the Node.js ecosystem**.
 
-It also provides a number of benefits over standard Node.js:
-- **Handles requests, API calls, databases, Pub/Sub, and observability**
+It provides a number of benefits over standard Node.js:
+- **Handles requests validation, provides API type-safety, has built-in observability, and integrates with databases, Pub/Sub, and more**
 - **9x increased throughput and 85% reduced latency** compared to standard Node.js/Express.js [See benchmarks](https://encore.dev/blog/event-loops)
 - **Zero NPM dependencies** for improved security and faster builds
 
 ### How it works
 
-Encore.ts is designed to let the Node.js event loop —which is single-threaded — focus on executing your business logic, while everything else happens in Encore’s multi-threaded Rust runtime. Here's a high-level overview of how this works:
+Encore.ts is designed to let the Node.js event loop — which is single-threaded — focus on executing your business logic, while everything else happens in Encore’s multi-threaded Rust runtime. Here's a high-level overview of how this works:
 
 **1. Node.js starts up and initializes the Encore Rust runtime. The Rust runtime then:**
    - Begins accepting incoming requests
@@ -53,13 +52,17 @@ Encore leverages static code analysis to parse the API schema and TypeScript typ
 
 ## No DevOps experience required
 
-Encore provides open source tools to help you integrate with your cloud infrastructure, enabling you to self-host your application anywhere to supports Docker containers.
+Encore provides open source tools to help you integrate with your cloud infrastructure, enabling you to self-host your application anywhere that supports Docker containers.
 Learn more in the [self-host documentation](/docs/deploy/self-hosting).
 
 You can also use [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully automates provisioning and managing infrastructure in your own cloud on AWS and GCP.
 
-This approach dramatically reduces the level of DevOps expertise required to use scalable, production-ready, cloud services like Kubernetes and Pub/Sub. And because your application code is the source of truth for infrastructure requirements, it ensures the infrastructure in all your environments are always in sync with the application's requirements.
+This approach dramatically reduces the level of DevOps expertise required to use scalable, production-ready, cloud services like Kubernetes and Pub/Sub. And because your application code is the source of truth for infrastructure requirements, it ensures the infrastructure in all environments is always in sync with the application's current requirements.
 
 ## Simplicity without giving up flexibility
 
-Encore.ts provides integrations for common infrastructure primitives, but also allows for flexibility. You can always use any cloud infrastructure, even if it's not built into Encore.ts. If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/deploy/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
+Encore.ts provides integrations for common infrastructure primitives, but also allows for flexibility.
+
+For example, you can always use any cloud infrastructure, even if it's not built into the Encore.ts framework. You can use any database, message broker, or other service that your application needs, just set up the infrastructure and then reference it in your code as you would do traditionally.
+
+If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/deploy/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
