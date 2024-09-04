@@ -35,7 +35,7 @@ export const ping = api(
 When you define an API, by default it is not exposed to the outside world, and it can only be called
 by other APIs within the same Encore application.
 
-To expose an API to the internet, add the `expose: true` field to the `APIOptions` object passed in
+To expose an API to the internet, add the `expose: true` field to the options object passed in
 as the first argument to `api`.
 
 - `{ expose: false }` &ndash; defines a private API that is never accessible to the outside world. It can only be called from other services in your app and via cron jobs. This is default value if the `expose` field isn't set.
