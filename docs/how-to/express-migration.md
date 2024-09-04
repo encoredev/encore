@@ -164,7 +164,9 @@ For more thoughts on migrating an existing backend to Encore.ts, check out our [
 
 ### Full migration
 
-This approach aims to replace your apps dependency on Express.js with Encore.ts. Below you find two examples that you can use to identify the refactoring you will need to do. In the next section you will find a [Feature-by-feature migration](#feature-by-feature-migration) guide to help you with the refactoring details.
+This approach aims to fully replace your applications dependency on Express.js with Encore.ts, unlocking all the features and performance of Encore.ts.
+
+Below are two examples that you can use to identify the refactoring you will need to do. In the next section you will find a [Feature-by-feature migration](#feature-by-feature-migration) guide to help you with the refactoring details.
 
 **Approach benefits**
 
