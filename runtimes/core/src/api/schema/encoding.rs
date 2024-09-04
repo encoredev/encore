@@ -364,6 +364,10 @@ pub fn handshake_encoding(
     meta: &meta::Data,
     rpc: &meta::Rpc,
 ) -> anyhow::Result<Option<ReqSchemaUnderConstruction>> {
+    if !rpc.streaming_request && !rpc.streaming_response {
+        return Ok(None);
+    }
+
     let default_path = meta::Path {
         segments: vec![meta::PathSegment {
             value: format!("{}.{}", rpc.service_name, rpc.name),
@@ -375,7 +379,25 @@ pub fn handshake_encoding(
     let rpc_path = rpc.path.as_ref().unwrap_or(&default_path);
 
     let Some(handshake_schema) = &rpc.handshake_schema else {
-        return Ok(None);
+        let has_dynamic_segments = rpc_path
+            .segments
+            .iter()
+            .any(|segment| segment.r#type() != SegmentType::Literal);
+
+        if !has_dynamic_segments {
+            return Ok(None);
+        }
+
+        return Ok(Some(ReqSchemaUnderConstruction {
+            methods: vec![Method::GET],
+            schema: SchemaUnderConstruction {
+                combined: None,
+                body: None,
+                query: None,
+                header: None,
+                rpc_path: Some(rpc_path.clone()),
+            },
+        }));
     };
 
     let mut config = EncodingConfig {
