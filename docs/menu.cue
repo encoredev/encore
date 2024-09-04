@@ -326,12 +326,11 @@
 			text: "Testing"
 			path: "/develop/testing"
 			file: "develop/testing"
-			inline_menu: [{
-				kind: "basic"
-				text: "Mocking"
-				path: "/develop/testing/mocking"
-				file: "develop/mocking"
-			}]
+		}, {
+			kind: "basic"
+			text: "Mocking"
+			path: "/develop/testing/mocking"
+			file: "develop/mocking"
 		}, {
 			kind: "basic"
 			text: "Validation"
@@ -599,12 +598,7 @@
 		text: "Flow Architecture Diagram"
 		path: "/observability/encore-flow"
 		file: "observability/encore-flow"
-	}, {
-		kind: "basic"
-		text: "Metrics"
-		path: "/observability/metrics"
-		file: "observability/metrics"
-	}, {
+	},{
 		kind: "basic"
 		text: "Service Catalog"
 		path: "/develop/api-docs"
@@ -635,6 +629,11 @@
 		text: "Preview Environments"
 		path: "/deploy/preview-environments"
 		file: "deploy/preview-environments"
+	}, {
+		kind: "basic"
+		text: "Metrics"
+		path: "/observability/metrics"
+		file: "observability/metrics"
 	}, {
 		kind: "basic"
 		text: "Connect your cloud account"
@@ -679,11 +678,6 @@
 		text: "Webhooks"
 		path: "/deploy/webhooks"
 		file: "deploy/webhooks"
-	}, {
-		kind: "basic"
-		text: "Integrating with Terraform"
-		path: "/deploy/terraform"
-		file: "deploy/terraform"
 	}]
 }
 
@@ -713,6 +707,11 @@
 			text: "Integrate with a web frontend"
 			path: "/how-to/integrate-frontend"
 			file: "how-to/integrate-frontend"
+		}, {
+			kind: "basic"
+			text: "Integrate with Terraform"
+			path: "/deploy/terraform"
+			file: "deploy/terraform"
 		}, {
 			kind: "basic"
 			text: "Use Temporal with Encore"
