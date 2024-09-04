@@ -75,7 +75,6 @@ interface PingResponse {
 }
 
 // hello is an API endpoint that responds with a simple response.
-// This is exposed as "hello.ping".
 export const hello = api(
   { method: "POST", path: "/hello" },
   async (p: PingParams): Promise<PingResponse> => {
