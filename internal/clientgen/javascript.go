@@ -838,10 +838,12 @@ class BaseClient {`)
 		}
 		js.WriteString(`
             return data;
-        }
-    }`)
-
+        }`)
 	}
+	js.WriteString(`
+        return;
+    }
+`)
 
 	js.WriteString(`
     // createStreamInOut sets up a stream to a streaming API endpoint.
