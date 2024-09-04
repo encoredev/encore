@@ -1102,12 +1102,13 @@ class BaseClient {
 		}
 		ts.WriteString(`
             return data;
-        }
-
-        return;
-    }`)
-
+        }`)
 	}
+
+	ts.WriteString(`
+        return;
+    }
+`)
 
 	ts.WriteString(`
     // createStreamInOut sets up a stream to a streaming API endpoint.
