@@ -841,7 +841,7 @@ class BaseClient {`)
         }`)
 	}
 	js.WriteString(`
-        return;
+        return undefined;
     }
 `)
 

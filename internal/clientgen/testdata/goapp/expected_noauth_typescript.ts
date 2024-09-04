@@ -195,7 +195,7 @@ export class StreamInOut<Request, Response> {
 
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
@@ -203,7 +203,7 @@ export class StreamInOut<Request, Response> {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return undefined;
                 await this.socket.hasUpdate();
             }
         }
@@ -228,7 +228,7 @@ export class StreamIn<Response> {
 
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
@@ -236,7 +236,7 @@ export class StreamIn<Response> {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return undefined;
                 await this.socket.hasUpdate();
             }
         }
@@ -320,7 +320,7 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        return;
+        return undefined;
     }
 
     // createStreamInOut sets up a stream to a streaming API endpoint.

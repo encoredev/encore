@@ -676,7 +676,7 @@ func (ts *typescript) writeStreamClasses() {
 	receive := `
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
@@ -684,7 +684,7 @@ func (ts *typescript) writeStreamClasses() {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return undefined;
                 await this.socket.hasUpdate();
             }
         }
@@ -1108,7 +1108,7 @@ class BaseClient {
 	}
 
 	ts.WriteString(`
-        return;
+        return undefined;
     }
 `)
 
