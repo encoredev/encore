@@ -6,7 +6,7 @@ subtitle: Making API calls is as simple as making function calls
 lang: ts
 ---
 
-Calling an API endpoint looks like a regular function call with Encore.ts. To call an endpoint you first need to import the service from `encore.app/clients` and then call the API endpoint like a regular function.
+Calling an API endpoint looks like a regular function call with Encore.ts. To call an endpoint you first need to import the service from `~encore/clients` and then call the API endpoint like a regular function.
 When compiling your application, Encore uses [static analysis](/docs/introduction#meet-the-encore-application-model) to parse all APIs and make then available through the `encore.app/clients` module for internal calls.
 
 In the example below, we import the service `hello` and call the `ping` endpoint using a function call to `hello.ping`.
