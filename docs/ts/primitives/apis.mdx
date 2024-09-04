@@ -85,30 +85,30 @@ export const hello = api(
 
 Request and response schemas are both optional. There are four different ways of defining an API:
 
-**Using both request and response data:**
+**Using both request and response data:**<br/>
 `api({ ... }, async (params: Params): Promise<Response> => {});`
 
-**Only returning a response:**
+**Only returning a response:**<br/>
 `api({ ... }, async (): Promise<Response> => {});`
 
-**With only request data:**
+**With only request data:**<br/>
 `api({ ... }, async (params: Params): Promise<void> => {});`
 
-**Without any request or response data:**
+**Without any request or response data:**<br/>
 `api({ ... }, async (): Promise<void> => {});`
 
 Alternatively, you can express these using type parameters, since `api` is a generic function:
 
-**Using both request and response data:**
+**Using both request and response data:**<br/>
 `api<Params, Response>({ ... }, async (params) => {});`
 
-**Only returning a response:**
+**Only returning a response:**<br/>
 `api<void, Response>({ ... }, async () => {});`
 
-**With only request data:**
+**With only request data:**<br/>
 `api<Params, void>({ ... }, async (params) => {});`
 
-**Without any request or response data:**
+**Without any request or response data:**<br/>
 `api<void, void>({ ... }, async () => {});`
 
 ### Customizing request and response encoding
