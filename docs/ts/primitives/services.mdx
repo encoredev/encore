@@ -1,0 +1,28 @@
+---
+seotitle: Defining Services with Encore.ts
+seodesc: Learn how to create microservices and define APIs for your cloud backend application using TypeScript and Encore. The easiest way of building cloud backends.
+title: Defining Services
+subtitle: Simplifying (micro-)service development
+lang: ts
+---
+
+Encore.ts makes it simple to build applications with one or many services, without needing to manually handle the typical complexity of developing microservices.
+
+## Defining services
+
+To create an Encore service, add a file named `encore.service.ts` in a directory.
+
+The file must export a service instance, by calling `new Service`, imported from `encore.dev/service`.
+
+For example:
+
+```ts
+
+import { Service } from "encore.dev/service";
+
+export default new Service("my-service");
+```
+
+That's it! Encore will consider this directory and all its subdirectories as part of the service.
+
+For more on how to structure your application, see the [app structure guide](/docs/ts/develop/app-structure).
