@@ -19,9 +19,7 @@ inspiration: https://github.com/encoredev/examples/tree/main/ts/nestjs
 
 In you already have a NestJS project, you can add Encore to it by following these steps:
 
-1. Run `encore app init` in the root of your project to create a new Encore application. Add `"lang": "typescript"` to
-   the
-   `encore.app` file to enable TypeScript support.
+1. Run `encore app init` in the root of your project to create a new Encore application.
 2. Add `encore.dev` as a dependency by running `npm install encore.dev`.
 3. Add the following `paths` to your `tsconfig.json`:
 
@@ -47,7 +45,7 @@ a [standalone application](https://docs.nestjs.com/standalone-applications). We 
 calling `NestFactory.createApplicationContext(AppModule)` and then selecting the modules/services we need:
 
 ```ts
---applicationContext.ts--
+-- applicationContext.ts --
 const applicationContext: Promise<{ catsService: CatsService }> =
   NestFactory.createApplicationContext(AppModule).then((app) => {
     return {
@@ -92,7 +90,7 @@ in order for Encore to be able to manage your APIs, you need to replace your Nes
 Let's assume you have a `cats/cats.controller.ts` in your Nest app that looks like this:
 
 ```ts
---cats/cats.controller.ts--
+-- cats/cats.controller.ts --
 
 @Controller('cats')
 export class CatsController {
@@ -123,7 +121,7 @@ export class CatsController {
 When converting this to using Encore it would look like this:
 
 ```ts
---cats / cats.controller.ts--
+-- cats/cats.controller.ts --
 export const findAll = api(
   {expose: true, method: 'GET', path: '/cats'},
   async (): Promise<{ cats: Cat[] }> => {
