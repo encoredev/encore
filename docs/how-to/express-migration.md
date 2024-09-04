@@ -170,7 +170,7 @@ Below are two examples that you can use to identify the refactoring you will nee
 
 **Approach benefits**
 
-- You will get all the advantages of Encore.ts, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](https://encore.dev/docs/introduction#meet-the-encore-application-model).
+- Get all the advantages of Encore.ts, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](https://encore.dev/docs/introduction#meet-the-encore-application-model).
 - Get the [full performance benefit](https://encore.dev/blog/event-loops) of Encore.ts - **9x faster** than Express.js.
 
 **Approach drawbacks**
