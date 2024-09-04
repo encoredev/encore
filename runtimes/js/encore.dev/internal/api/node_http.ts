@@ -14,6 +14,9 @@ export class RawRequest extends stream.Readable {
   trailersDistinct: NodeJS.Dict<string[]>;
   rawTrailers: string[];
 
+  readonly connection: Socket | null; // deprecated
+  readonly socket: Socket | null;
+
   private body: runtime.BodyReader;
   private req: runtime.Request;
 
@@ -28,6 +31,10 @@ export class RawRequest extends stream.Readable {
 
     this.body = body;
     this.body.start(this.push.bind(this), this.destroy.bind(this));
+
+    // Set the socket to a dummy value for legacy compatibility with Express.js.
+    this.socket = { encrypted: false, destroy: () => { } } as any;
+    this.connection = this.socket; // legacy alias
   }
 
   get method(): string {
@@ -126,9 +133,11 @@ export class RawResponse extends stream.Writable {
     this.headersSent = false;
     this.headers = {};
 
-    this.connection = null;
-    this.socket = null;
     this.w = w;
+
+    // Set the socket to a dummy value for legacy compatibility with Express.js.
+    this.socket = { encrypted: false, destroy: () => { } } as any;
+    this.connection = this.socket; // legacy alias
   }
 
   write(
