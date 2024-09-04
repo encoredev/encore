@@ -676,10 +676,10 @@ func (ts *typescript) writeStreamClasses() {
 	receive := `
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
         while (true) {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
@@ -1108,7 +1108,7 @@ class BaseClient {
 	}
 
 	ts.WriteString(`
-        return;
+        return undefined;
     }
 `)
 
