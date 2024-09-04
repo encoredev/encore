@@ -326,12 +326,11 @@
 			text: "Testing"
 			path: "/develop/testing"
 			file: "develop/testing"
-			inline_menu: [{
-				kind: "basic"
-				text: "Mocking"
-				path: "/develop/testing/mocking"
-				file: "develop/mocking"
-			}]
+		}, {
+			kind: "basic"
+			text: "Mocking"
+			path: "/develop/testing/mocking"
+			file: "develop/mocking"
 		}, {
 			kind: "basic"
 			text: "Validation"
@@ -420,6 +419,11 @@
 			file: "ts/concepts/benefits"
 		}, {
 			kind: "basic"
+			text: "App Structure"
+			path: "/ts/develop/app-structure"
+			file: "ts/develop/app-structure"
+		},{
+			kind: "basic"
 			text: "Hello World"
 			path: "/ts/concepts/hello-world"
 			file: "ts/concepts/hello-world"
@@ -429,31 +433,39 @@
 		text: "Infrastructure"
 		items: [{
 			kind: "basic"
-			text: "Services and APIs"
-			path: "/ts/primitives/services-and-apis"
-			file: "ts/primitives/services-and-apis"
-			inline_menu: [{
+			text: "Services"
+			path: "/ts/primitives/services"
+			file: "ts/primitives/services"
+		}, {
+			kind: "accordion"
+			text: "APIs"
+			accordion: [{
 				kind: "basic"
-				text: "App Structure"
-				path: "/ts/develop/app-structure"
-				file: "ts/develop/app-structure"
+				text: "Defining APIs"
+				path: "/ts/primitives/apis"
+				file: "ts/primitives/apis"
 			}, {
 				kind: "basic"
-				text: "API Schemas"
-				path: "/ts/develop/api-schemas"
-				file: "ts/develop/api-schemas"
+				text: "API Calls"
+				path: "/ts/primitives/api-calls"
+				file: "ts/primitives/api-calls"
+			}, {
+				kind: "basic"
+				text: "Raw Endpoints"
+				path: "/ts/primitives/raw-endpoints"
+				file: "ts/primitives/raw-endpoints"
+			}, {
+				kind: "basic"
+				text: "Streaming APIs"
+				path: "/ts/primitives/streaming-apis"
+				file: "ts/primitives/streaming-apis"
 			}, {
 				kind: "basic"
 				text: "API Errors"
 				path: "/ts/develop/errors"
 				file: "ts/develop/errors"
 			}]
-		}, {
-			kind: "basic"
-			text: "Streaming APIs"
-			path: "/ts/primitives/streaming-apis"
-			file: "ts/primitives/streaming-apis"
-		}, {
+		},{
 			kind: "basic"
 			text: "Databases"
 			path: "/ts/primitives/databases"
@@ -520,8 +532,8 @@
 		}, {
 			kind: "basic"
 			text: "Migrate from Express.js"
-			path: "/ts/how-to/express-comparison"
-			file: "how-to/express-comparison"
+			path: "/ts/how-to/express-migration"
+			file: "how-to/express-migration"
 		}]
 	}]
 }
@@ -586,12 +598,7 @@
 		text: "Flow Architecture Diagram"
 		path: "/observability/encore-flow"
 		file: "observability/encore-flow"
-	}, {
-		kind: "basic"
-		text: "Metrics"
-		path: "/observability/metrics"
-		file: "observability/metrics"
-	}, {
+	},{
 		kind: "basic"
 		text: "Service Catalog"
 		path: "/develop/api-docs"
@@ -622,6 +629,11 @@
 		text: "Preview Environments"
 		path: "/deploy/preview-environments"
 		file: "deploy/preview-environments"
+	}, {
+		kind: "basic"
+		text: "Metrics"
+		path: "/observability/metrics"
+		file: "observability/metrics"
 	}, {
 		kind: "basic"
 		text: "Connect your cloud account"
@@ -666,11 +678,6 @@
 		text: "Webhooks"
 		path: "/deploy/webhooks"
 		file: "deploy/webhooks"
-	}, {
-		kind: "basic"
-		text: "Integrating with Terraform"
-		path: "/deploy/terraform"
-		file: "deploy/terraform"
 	}]
 }
 
@@ -700,6 +707,11 @@
 			text: "Integrate with a web frontend"
 			path: "/how-to/integrate-frontend"
 			file: "how-to/integrate-frontend"
+		}, {
+			kind: "basic"
+			text: "Integrate with Terraform"
+			path: "/deploy/terraform"
+			file: "deploy/terraform"
 		}, {
 			kind: "basic"
 			text: "Use Temporal with Encore"

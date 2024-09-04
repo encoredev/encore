@@ -24,8 +24,8 @@ By combining these features, Encore.ts enables you to focus on writing your appl
 
 ### See how to use each primitive
 
-- [Services and APIs](/docs/ts/primitives/services-and-apis)
-- [Streaming APIs](/docs/ts/primitives/streaming-apis)
+- [Services](/docs/ts/primitives/services)
+- [APIs](/docs/ts/primitives/apis)
 - [Databases](/docs/ts/primitives/databases)
 - [Cron Jobs](/docs/ts/primitives/cron-jobs)
 - [Pub/Sub & Queues](/docs/ts/primitives/pubsub)

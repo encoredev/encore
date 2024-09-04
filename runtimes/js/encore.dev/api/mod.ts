@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import type { IncomingMessage, ServerResponse } from "http";
+export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
   | "GET"

@@ -499,7 +499,7 @@ class BaseClient {
 
             return data;
         }
-        return;
+        return undefined;
     }
 
     // createStreamInOut sets up a stream to a streaming API endpoint.
