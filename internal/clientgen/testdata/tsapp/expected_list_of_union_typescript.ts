@@ -322,6 +322,9 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
+        return;
+    }
+
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};

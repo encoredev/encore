@@ -700,7 +700,7 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        let authData;
+        let authData: authentication.AuthData | undefined;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
@@ -720,9 +720,9 @@ class BaseClient {
 
             return data;
         }
-
         return;
     }
+
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
