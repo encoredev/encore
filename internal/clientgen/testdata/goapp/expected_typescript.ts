@@ -561,12 +561,12 @@ export class StreamInOut<Request, Response> {
         return undefined;
     }
 
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
         while (true) {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return undefined;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
                 await this.socket.hasUpdate();
             }
         }
@@ -594,12 +594,12 @@ export class StreamIn<Response> {
         return undefined;
     }
 
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
         while (true) {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
             } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return undefined;
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
                 await this.socket.hasUpdate();
             }
         }
