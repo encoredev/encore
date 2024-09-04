@@ -44,7 +44,7 @@ When you quickly want to migrate to Encore.ts and don't need all the functionali
 **Approach benefits**
 
 - You can get your application up and running with Encore.ts quickly and start moving features over to Encore.ts while the rest of the application is still untouched.
-- You will see a performance boost right away because the HTTP layer is now running on the Encore Rust runtime. But to get the full performance benefits, you will need to start using Encore's [API declarations](/docs/ts/primitives/services-and-apis) and [infrastructure declarations](/docs/ts#explore-how-to-use-each-backend-primitive).
+- You will see a partial performance boost right away because the HTTP layer is now running on the Encore Rust runtime. But to get the full performance benefits, you will need to start using Encore's [API declarations](/docs/ts/primitives/services-and-apis) and [infrastructure declarations](/docs/ts#explore-how-to-use-each-backend-primitive).
 
 **Approach drawbacks**
 
