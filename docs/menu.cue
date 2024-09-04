@@ -450,6 +450,11 @@
 			}]
 		}, {
 			kind: "basic"
+			text: "Streaming APIs"
+			path: "/ts/primitives/streaming-apis"
+			file: "ts/primitives/streaming-apis"
+		}, {
+			kind: "basic"
 			text: "Databases"
 			path: "/ts/primitives/databases"
 			file: "ts/primitives/databases"
@@ -515,8 +520,8 @@
 		}, {
 			kind: "basic"
 			text: "Migrate from Express.js"
-			path: "/ts/how-to/express-comparison"
-			file: "how-to/express-comparison"
+			path: "/ts/how-to/express-migration"
+			file: "how-to/express-migration"
 		}, {
 			kind: "basic"
 			text: "Use NestJS with Encore"

@@ -676,10 +676,10 @@ func (ts *typescript) writeStreamClasses() {
 	receive := `
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
         while (true) {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
@@ -1042,7 +1042,9 @@ class BaseClient {
     async getAuthData(): Promise<CallParameters | undefined> {`)
 	if ts.hasAuth {
 		ts.WriteString(`
-        let authData;
+        let authData: `)
+		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.WriteString(` | undefined;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
@@ -1102,12 +1104,13 @@ class BaseClient {
 		}
 		ts.WriteString(`
             return data;
-        }
-
-        return;
-    }`)
-
+        }`)
 	}
+
+	ts.WriteString(`
+        return undefined;
+    }
+`)
 
 	ts.WriteString(`
     // createStreamInOut sets up a stream to a streaming API endpoint.

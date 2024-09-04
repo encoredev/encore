@@ -340,6 +340,9 @@ class BaseClient {
     }
 
     async getAuthData() {
+        return undefined;
+    }
+
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut(path, params) {
         let { query, headers } = params ?? {};

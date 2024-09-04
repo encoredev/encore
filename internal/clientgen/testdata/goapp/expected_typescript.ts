@@ -558,10 +558,10 @@ export class StreamInOut<Request, Response> {
 
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
         while (true) {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
@@ -591,10 +591,10 @@ export class StreamIn<Response> {
 
     async next(): Promise<Response | undefined> {
         for await (const next of this) return next;
-        return;
+        return undefined;
     }
 
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void>{
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
         while (true) {
             if (this.buffer.length > 0) {
                 yield this.buffer.shift() as Response;
@@ -700,7 +700,7 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        let authData;
+        let authData: authentication.AuthData | undefined;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {
@@ -720,9 +720,9 @@ class BaseClient {
 
             return data;
         }
-
-        return;
+        return undefined;
     }
+
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
         let { query, headers } = params ?? {};
