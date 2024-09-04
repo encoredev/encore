@@ -39,7 +39,7 @@ Below we've outlined two main strategies you can use to migrate your existing Ex
 
 ### Forklift migration (quick start)
 
-You can use a forklift migration strategy and move the entire application over to Encore.ts in one shot by wrapping your existing HTTP router in a catch-all handler.
+When you quickly want to migrate to Encore.ts and don't need all the functionality to begin with, you can use a forklift migration strategy. This approach moves the entire application over to Encore.ts in one shot, by wrapping your existing HTTP router in a catch-all handler.
 
 **Approach benefits**
 
