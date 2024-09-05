@@ -41,7 +41,7 @@ interface Message {
 
 // messageStream streams out all chat messages for a certain id
 export const messageStream = api.streamOut<Handshake, Message>(
-  { path: "/chat/:roomId" },
+  { path: "/chat/:roomId", expose: true },
   async (handshake, stream) => {
     // Use `handshake.roomId` to fetch messages
     for await (const msg of messages) {
@@ -59,7 +59,7 @@ interface DataChunk {
 }
 
 export const uploadStream = api.streamIn<DataChunk>(
-  { path: "/upload" },
+  { path: "/upload", expose: true },
   async (stream) => {
     for await (const data of stream) {
       // do something with data
@@ -80,7 +80,7 @@ interface PongMessage {
 }
 
 export const pingpongStream = api.streamInOut<PingMessage, PongMessage>(
-  { path: "/pingpong" },
+  { path: "/pingpong", expose: true },
   async (stream) => {
     for await (const ping of stream) {
       // do something with the ping payload
@@ -119,7 +119,7 @@ You can use `authHandler` in the same way as for regular endpoints, just specify
 
 ## Connecting with the client
 
-Using the generated client, you can connect to a streaming API endpoint. The client stream acts as an async iterator, allowing you to retrieve messages by simply iterating over it:
+Using the generated client, you can connect to a streaming API endpoint that have `expose` set to `true`. The client stream acts as an async iterator, allowing you to retrieve messages by simply iterating over it:
 
 ```typescript
 const stream = client.serviceName.endpointName();
@@ -150,3 +150,5 @@ stream.socket.on("close", (event) => {
 });
 
 ```
+
+Learn more in the [Client Library Generation](/docs/develop/client-generation) docs.
