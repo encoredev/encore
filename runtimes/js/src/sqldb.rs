@@ -22,68 +22,77 @@ pub struct QueryArgs {
 impl QueryArgs {
     #[napi(constructor)]
     pub fn new(env: Env, params: Vec<JsUnknown>) -> napi::Result<Self> {
-        use napi::ValueType;
-        let values: napi::Result<Vec<_>> = params
-            .into_iter()
-            .map(|val| -> napi::Result<sqldb::RowValue> {
-                Ok(match val.get_type()? {
-                    ValueType::Null => sqldb::RowValue::Json(serde_json::Value::Null),
-                    ValueType::Number => {
-                        let float = val.coerce_to_number()?.get_double()?;
-                        let int = float as i64;
-                        if float == int as f64 {
-                            sqldb::RowValue::Json(serde_json::Value::Number(int.into()))
-                        } else {
-                            match serde_json::Number::from_f64(float) {
-                                Some(n) => sqldb::RowValue::Json(serde_json::Value::Number(n)),
-                                None => {
-                                    return Err(napi::Error::new(
-                                        napi::Status::GenericFailure,
-                                        "failed to convert float to json number".to_string(),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                    ValueType::Boolean => {
-                        let b = val.coerce_to_bool()?.get_value()?;
-                        sqldb::RowValue::Json(serde_json::Value::Bool(b))
-                    }
-                    ValueType::String => {
-                        let s = val.coerce_to_string()?.into_utf8()?.into_owned()?;
-                        sqldb::RowValue::Json(serde_json::Value::String(s))
-                    }
-                    ValueType::Object => {
-                        let val: serde_json::Value = env.from_js_value(val)?;
-                        sqldb::RowValue::Json(val)
-                    }
-                    ValueType::Unknown => {
-                        return Err(napi::Error::new(
-                            napi::Status::GenericFailure,
-                            "unknown not yet supported".to_string(),
-                        ));
-                    }
-                    ValueType::BigInt => {
-                        return Err(napi::Error::new(
-                            napi::Status::GenericFailure,
-                            "unsupported value type".to_string(),
-                        ));
-                    }
-                    _ => {
-                        return Err(napi::Error::new(
-                            napi::Status::GenericFailure,
-                            "unsupported value type".to_string(),
-                        ));
-                    }
-                })
-            })
-            .collect();
-
-        let values = values?;
+        let values = convert_row_values(env, params)?;
         Ok(Self {
             values: std::sync::Mutex::new(values),
         })
     }
+}
+
+fn convert_row_values(env: Env, params: Vec<JsUnknown>) -> napi::Result<Vec<sqldb::RowValue>> {
+    use napi::{JsBuffer, ValueType};
+    params
+        .into_iter()
+        .map(|val| -> napi::Result<sqldb::RowValue> {
+            Ok(match val.get_type()? {
+                ValueType::Null => sqldb::RowValue::Json(serde_json::Value::Null),
+                ValueType::Number => {
+                    let float = val.coerce_to_number()?.get_double()?;
+                    let int = float as i64;
+                    if float == int as f64 {
+                        sqldb::RowValue::Json(serde_json::Value::Number(int.into()))
+                    } else {
+                        match serde_json::Number::from_f64(float) {
+                            Some(n) => sqldb::RowValue::Json(serde_json::Value::Number(n)),
+                            None => {
+                                return Err(napi::Error::new(
+                                    napi::Status::GenericFailure,
+                                    "failed to convert float to json number".to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                ValueType::Boolean => {
+                    let b = val.coerce_to_bool()?.get_value()?;
+                    sqldb::RowValue::Json(serde_json::Value::Bool(b))
+                }
+                ValueType::String => {
+                    let s = val.coerce_to_string()?.into_utf8()?.into_owned()?;
+                    sqldb::RowValue::Json(serde_json::Value::String(s))
+                }
+                ValueType::Object => {
+                    // Is this a buffer?
+                    if val.is_buffer()? {
+                        let buf: JsBuffer = val.try_into()?;
+                        let buf = buf.into_value()?;
+                        sqldb::RowValue::Bytes(buf.to_vec())
+                    } else {
+                        let val: serde_json::Value = env.from_js_value(val)?;
+                        sqldb::RowValue::Json(val)
+                    }
+                }
+                ValueType::Unknown => {
+                    return Err(napi::Error::new(
+                        napi::Status::GenericFailure,
+                        "unknown not yet supported".to_string(),
+                    ));
+                }
+                ValueType::BigInt => {
+                    return Err(napi::Error::new(
+                        napi::Status::GenericFailure,
+                        "unsupported value type".to_string(),
+                    ));
+                }
+                _ => {
+                    return Err(napi::Error::new(
+                        napi::Status::GenericFailure,
+                        "unsupported value type".to_string(),
+                    ));
+                }
+            })
+        })
+        .collect()
 }
 
 #[napi]
