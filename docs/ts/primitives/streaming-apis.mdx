@@ -13,7 +13,7 @@ Encore makes it easy to create API endpoints that can stream data to and from yo
 Encore supports three types of streams, each designed for a specific data flow direction:
 - **StreamIn**: When you need to stream data into your service.
 - **StreamOut**: When you need to stream data out from your service.
-- **StreamInOut**: When you need to stream data into and out from service.
+- **StreamInOut**: When you need to stream data into and out of service.
 
 ## How it works
 
@@ -23,7 +23,7 @@ Path parameters, query parameters and headers can be passed via the handshake re
 
 ## Defining streaming APIs
 
-Similar to how you can define [RESTful API endpoints](/docs/ts/primitives/services-and-apis#rest-apis) with Encore, you can also easily define type-safe streaming API endpoints. They accept a handshake type, an incoming and an outgoing message type (depending on your choice of stream direction).
+Similar to how you can define [RESTful API endpoints](/docs/ts/primitives/apis) with Encore, you can also easily define type-safe streaming API endpoints. They accept a handshake type, an incoming and an outgoing message type (depending on your choice of stream direction).
 
 If you don't need any data from the handshake, you can ignore that type, and only specify the incoming and outgoing message types.
 
@@ -42,7 +42,7 @@ interface Message {
 // messageStream streams out all chat messages for a certain id
 export const messageStream = api.streamOut<Handshake, Message>(
   { path: "/chat/:roomId" },
-  async (handshake, stream) {
+  async (handshake, stream) => {
     // Use `handshake.roomId` to fetch messages
     for await (const msg of messages) {
       await stream.send(msg);
@@ -60,7 +60,7 @@ interface DataChunk {
 
 export const uploadStream = api.streamIn<DataChunk>(
   { path: "/upload" },
-  async (stream) {
+  async (stream) => {
     for await (const data of stream) {
       // do something with data
     }
@@ -81,7 +81,7 @@ interface PongMessage {
 
 export const pingpongStream = api.streamInOut<PingMessage, PongMessage>(
   { path: "/pingpong" },
-  async (stream) {
+  async (stream) => {
     for await (const ping of stream) {
       // do something with the ping payload
       await stream.send({ /* ... */ })
@@ -96,14 +96,14 @@ For all stream types the handshake type is optional, and only needs to be used w
 
 These are the different variations that you can use when defining your streaming APIs:
 
-- `api.streamInOut<Handshake, Incoming, Outgoing>({ ... }, async (handshake, stream) {})`
-- `api.streamInOut<Incoming, Outgoing>({ ... }, async (stream) {})`
-- `api.streamIn<Handshake, Incoming, Outgoing>({ ... }, async (handshake, stream): Promise<Outgoing> {})`
-- `api.streamIn<Handshake, Incoming>({ ... }, async (handshake, stream) {})`
-- `api.streamIn<Incoming, Outgoing>({ ... }, async (stream): Promise<Outgoing> {})`
-- `api.streamIn<Incoming>({ ... }, async (stream) {})`
-- `api.streamOut<Handshake, Outgoing>({ ... }, async (handshake, stream) {})`
-- `api.streamOut<Outgoing>({ ... }, async (stream) {})`
+- `api.streamInOut<Handshake, Incoming, Outgoing>({ ... }, async (handshake, stream) => {})`
+- `api.streamInOut<Incoming, Outgoing>({ ... }, async (stream) => {})`
+- `api.streamIn<Handshake, Incoming, Outgoing>({ ... }, async (handshake, stream): Promise<Outgoing> => {})`
+- `api.streamIn<Handshake, Incoming>({ ... }, async (handshake, stream) => {})`
+- `api.streamIn<Incoming, Outgoing>({ ... }, async (stream): Promise<Outgoing> => {})`
+- `api.streamIn<Incoming>({ ... }, async (stream) => {})`
+- `api.streamOut<Handshake, Outgoing>({ ... }, async (handshake, stream) => {})`
+- `api.streamOut<Outgoing>({ ... }, async (stream) => {})`
 
 Note that if you add a handshake data type you also get two arguments to your handler, one for the handshake data and one for the stream, and if you omit the handshake type you only get the stream.
 
@@ -115,7 +115,7 @@ The same goes for the generated client, when you call the stream endpoint you wi
 
 ## Requiring authentication
 
-You can use `authHandler` in the same way as for regular endpoints, just specify `auth: true` in you endpoint options. You can get the auth data in your handler by calling `getAuthData()`. See more details in the [auth handler docs](/docs/ts/develop/auth#authentication-handlers).
+You can use `authHandler` in the same way as for regular endpoints, just specify `auth: true` in your endpoint options. You can get the auth data in your handler by calling `getAuthData()`. See more details in the [auth handler docs](/docs/ts/develop/auth#authentication-handlers).
 
 ## Connecting with the client
 
@@ -123,7 +123,7 @@ Using the generated client, you can connect to a streaming API endpoint. The cli
 
 ```typescript
 const stream = client.serviceName.endpointName();
-for await (const msg on stream) {
+for await (const msg of stream) {
   // Do something with each message
 }
 

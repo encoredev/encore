@@ -15,7 +15,7 @@ It's simple to integrate Encore applications with pre-existing systems you might
 
 ## Monolith or Microservices
 
-Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/ts/primitives/services-and-apis#calling-apis), along with cross-service type-safety.
+Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/ts/primitives/api-calls), along with cross-service type-safety.
 
 When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#process-allocation).
 
@@ -36,7 +36,7 @@ export default new Service("my-service");
 
 That's it! Encore will consider this directory and all its subdirectories as part of the service.
 
-Within the service, you can then [define APIs](/docs/ts/primitives/services-and-apis#defining-apis) and use infrastructure resources like querying databases.
+Within the service, you can then [define APIs](/docs/ts/primitives/apis) and use infrastructure resources like querying databases.
 
 ## Examples
 

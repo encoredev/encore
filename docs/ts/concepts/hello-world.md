@@ -43,8 +43,8 @@ Get to know the basics of Encore.ts in this getting started video.
 Encore's Backend Framework makes it simple to add more primitives, such as additional microservices, databases, Pub/Sub, etc.
 See how to use each primitive:
 
-- [Services and APIs](/docs/ts/primitives/services-and-apis)
-- [Streaming APIs](/docs/ts/primitives/streaming-apis)
+- [Services](/docs/ts/primitives/services)
+- [APIs](/docs/ts/primitives/apis)
 - [Databases](/docs/ts/primitives/databases)
 - [Cron Jobs](/docs/ts/primitives/cron-jobs)
 - [Pub/Sub & Queues](/docs/ts/primitives/pubsub)
