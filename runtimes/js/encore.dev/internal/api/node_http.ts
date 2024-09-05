@@ -3,7 +3,7 @@ import type {
   OutgoingHttpHeader,
   OutgoingHttpHeaders
 } from "node:http";
-import type { Socket } from "node:net";
+import type { AddressInfo, Socket, SocketReadyState } from "node:net";
 import * as stream from "node:stream";
 import * as runtime from "../runtime/mod";
 
@@ -33,7 +33,7 @@ export class RawRequest extends stream.Readable {
     this.body.start(this.push.bind(this), this.destroy.bind(this));
 
     // Set the socket to a dummy value for legacy compatibility with Express.js.
-    this.socket = { encrypted: false, destroy: () => { } } as any;
+    this.socket = new DummySocket();
     this.connection = this.socket; // legacy alias
   }
 
@@ -136,7 +136,7 @@ export class RawResponse extends stream.Writable {
     this.w = w;
 
     // Set the socket to a dummy value for legacy compatibility with Express.js.
-    this.socket = { encrypted: false, destroy: () => { } } as any;
+    this.socket = new DummySocket();
     this.connection = this.socket; // legacy alias
   }
 
@@ -295,4 +295,46 @@ export class RawResponse extends stream.Writable {
     this._writeHeaderIfNeeded();
     return this;
   }
+}
+
+// DummySocket is a dummy implementation of the net.Socket class.
+//
+// It's provided because certain libraries like Express expect the `socket` attribute
+// to be non-null on the request and response object.
+class DummySocket extends stream.Duplex {
+  destroySoon(): void { }
+  write(): boolean { return true; }
+  connect(): this { return this; }
+  setEncoding(_encoding?: BufferEncoding): this { return this; }
+  pause(): this { return this; }
+  resetAndDestroy(): this { return this; }
+  resume(): this { return this; }
+  setTimeout(_timeout: number, _callback?: () => void): this { return this; }
+  setNoDelay(_noDelay?: boolean): this { return this; }
+  setKeepAlive(_enable?: boolean, _initialDelay?: number): this { return this; }
+  address(): AddressInfo | {} { return {}; }
+  unref(): this { return this; }
+  ref(): this { return this; }
+  readonly autoSelectFamilyAttemptedAddresses: string[] = [];
+  readonly bufferSize: number = 0;
+  readonly bytesRead: number = 0;
+  readonly bytesWritten: number = 0;
+  readonly connecting: boolean = false;
+  readonly pending: boolean = false;
+  readonly destroyed: boolean = false;
+  readonly localAddress?: string = undefined;
+  readonly localPort?: number = undefined;
+  readonly localFamily?: string = undefined;
+  readonly readyState: SocketReadyState = 'open';
+  readonly remoteAddress?: string | undefined = undefined;
+  readonly remoteFamily?: string | undefined = undefined;
+  readonly remotePort?: number | undefined = undefined;
+  readonly timeout?: number | undefined = undefined;
+  end(): this { return this; }
+  addListener(_event: string, _listener: (...args: any[]) => void): this { return this; }
+  emit(_event: string | symbol, ..._args: any[]): boolean { return true; }
+  on(_event: string, _listener: (...args: any[]) => void): this { return this; }
+  once(_event: string, _listener: (...args: any[]) => void): this { return this; }
+  prependListener(_event: string, _listener: (...args: any[]) => void): this { return this; }
+  prependOnceListener(_event: string, _listener: (...args: any[]) => void): this { return this; }
 }
