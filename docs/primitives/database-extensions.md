@@ -14,65 +14,60 @@ Encore uses the [encoredotdev/postgres](https://github.com/encoredev/postgres-im
 
 The docker image ships with the following PostgreSQL extensions pre-installed and available for use (via `CREATE EXTENSION`):
 
-| Extension                | Version |
-| ------------------------ | ------- |
-| address_standardizer     | 3.3.4   |
-| adminpack                | 2.1     |
-| amcheck                  | 1.3     |
-| autoinc                  | 1.0     |
-| bloom                    | 1.0     |
-| btree_gin                | 1.3     |
-| btree_gist               | 1.7     |
-| citext                   | 1.6     |
-| cube                     | 1.5     |
-| dblink                   | 1.2     |
-| dict_int                 | 1.0     |
-| dict_xsyn                | 1.0     |
-| earthdistance            | 1.1     |
-| file_fdw                 | 1.0     |
-| fuzzystrmatch            | 1.1     |
-| hstore                   | 1.8     |
-| insert_username          | 1.0     |
-| intagg                   | 1.1     |
-| intarray                 | 1.5     |
-| isn                      | 1.2     |
-| lo                       | 1.1     |
-| ltree                    | 1.2     |
-| moddatetime              | 1.0     |
-| old_snapshot             | 1.0     |
-| pageinspect              | 1.11    |
-| pg_buffercache           | 1.3     |
-| pg_freespacemap          | 1.2     |
-| pg_prewarm               | 1.2     |
-| pg_stat_statements       | 1.10    |
-| pg_surgery               | 1.0     |
-| pg_trgm                  | 1.6     |
-| pg_visibility            | 1.2     |
-| pg_walinspect            | 1.0     |
-| pgcrypto                 | 1.3     |
-| pgrowlocks               | 1.2     |
-| pgstattuple              | 1.5     |
-| pgvector                 | -       |
-| plpgsql                  | 1.0     |
-| postgis                  | 3.3.4   |
-| postgis-3                | 3.3.4   |
-| postgis_raster           | 3.3.4   |
-| postgis_raster-3         | 3.3.4   |
-| postgis_sfcgal           | 3.3.4   |
-| postgis_sfcgal-3         | 3.3.4   |
-| postgis_tiger_geocoder   | 3.3.4   |
-| postgis_tiger_geocoder-3 | 3.3.4   |
-| postgis_topology         | 3.3.4   |
-| postgis_topology-3       | 3.3.4   |
-| postgres_fdw             | 1.1     |
-| refint                   | 1.0     |
-| seg                      | 1.4     |
-| sslinfo                  | 1.2     |
-| tablefunc                | 1.0     |
-| tcn                      | 1.0     |
-| tsm_system_rows          | 1.0     |
-| tsm_system_time          | 1.0     |
-| unaccent                 | 1.1     |
-| uuid-ossp                | 1.1     |
-| vector                   | 0.7     |
-| xml2                     | 1.1     |
+| Extension                    | Description                               |
+| ---------------------------- | ----------------------------------------- |
+| refint                       | Implements referential integrity          |
+| pg_buffercache               | Examines shared buffer cache              |
+| pg_freespacemap              | Examines free space map (FSM)             |
+| plpgsql                      | PL/pgSQL procedural language              |
+| citext                       | Case-insensitive character strings        |
+| adminpack                    | Administrative functions                  |
+| moddatetime                  | Tracks last modification time             |
+| amcheck                      | Verifies relation integrity               |
+| seg                          | Represents line segments or intervals     |
+| pg_stat_statements           | Tracks SQL statement statistics           |
+| pg_trgm                      | Text similarity and trigram-based search  |
+| isn                          | International product numbering standards |
+| btree_gist                   | Indexes common datatypes in GiST          |
+| intarray                     | 1-D integer array operations              |
+| pg_surgery                   | Repairs damaged relations                 |
+| uuid-ossp                    | Generates UUIDs                           |
+| insert_username              | Tracks table changes                      |
+| bloom                        | Bloom filter index                        |
+| pgcrypto                     | Cryptographic functions                   |
+| dblink                       | Connects to other PostgreSQL databases    |
+| tsm_system_rows              | Row-based table sampling                  |
+| pg_prewarm                   | Preloads relation data                    |
+| old_snapshot                 | Supports old_snapshot_threshold           |
+| pageinspect                  | Low-level page inspection                 |
+| intagg                       | Integer aggregation (obsolete)            |
+| pg_visibility                | Examines visibility maps                  |
+| cube                         | Multidimensional cube data type           |
+| tablefunc                    | Table manipulation functions              |
+| xml2                         | XPath and XSLT support                    |
+| fuzzystrmatch                | String similarity functions               |
+| pg_walinspect                | Inspects Write-Ahead Log                  |
+| btree_gin                    | Indexes common datatypes in GIN           |
+| sslinfo                      | SSL certificate information               |
+| tcn                          | Triggered change notifications            |
+| hstore                       | Key-value pair storage                    |
+| dict_int                     | Integer text search dictionary            |
+| earthdistance                | Great-circle distance calculations        |
+| file_fdw                     | Flat file foreign data wrapper            |
+| autoinc                      | Auto-incrementing fields                  |
+| ltree                        | Hierarchical tree-like structures         |
+| unaccent                     | Removes accents from text                 |
+| pgrowlocks                   | Shows row-level locking info              |
+| tsm_system_time              | Time-based table sampling                 |
+| dict_xsyn                    | Extended synonym text search              |
+| pgstattuple                  | Tuple-level statistics                    |
+| postgres_fdw                 | PostgreSQL foreign data wrapper           |
+| lo                           | Large Object maintenance                  |
+| postgis_sfcgal               | PostGIS SFCGAL functions                  |
+| address_standardizer_data_us | US address standardization data           |
+| address_standardizer         | Parses addresses into elements            |
+| postgis_topology             | PostGIS topology types and functions      |
+| postgis                      | PostGIS geometry and geography types      |
+| postgis_raster               | PostGIS raster functions                  |
+| postgis_tiger_geocoder       | PostGIS TIGER geocoder                    |
+| vector                       | Vector data type and indexing             |
