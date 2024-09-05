@@ -398,7 +398,7 @@
 		}, {
 			kind: "basic"
 			text: "Use a Pub/Sub Transactional Outbox"
-			path: "/primitives/pubsub/outbox"
+			path: "/primitives/pubsub-outbox"
 			file: "primitives/pubsub-outbox"
 		}, {
 			kind: "basic"
