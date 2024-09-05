@@ -130,7 +130,7 @@ there are no Encore specific changes required here.
 ## Mount the service in Encore
 
 Now we'll create an Encore [service struct](/docs/primitives/services-and-apis/service-structs)
-that initializes the Connect service, and a [raw endpoint](/docs/primitives/services-and-apis#raw-endpoints)
+that initializes the Connect service, and a [raw endpoint](/docs/primitives/raw-endpoints)
 that forwards incoming requests to the Connect service.
 
 Add the file `greet/service.go` with the following contents:

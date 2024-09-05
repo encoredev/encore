@@ -1,15 +1,98 @@
 ---
-seotitle: API Schemas – Path, Query, and Body parameters
-seodesc: See how to design API schemas for your Go based backend application using Encore.
-title: API Schemas
-subtitle: How to design schemas for your APIs
+seotitle: Defining type-safe APIs with Encore.go
+seodesc: Learn how to create APIs for your cloud backend application using Go and Encore.go
+title: Defining Type-Safe APIs
+subtitle: Simplifying type-safe API development
 lang: go
 ---
-APIs in Encore are regular functions with request and response data types.
-These types are structs (or pointers to structs) with optional field tags, which Encore uses to encode API requests to HTTP messages. The same struct can be used for requests and responses, but the `query` tag is ignored when generating responses.
 
-All tags except `json` are ignored for nested tags, which means you can only define
-`header` and `query` parameters for root level fields.
+Encore.go enables you to create type-safe APIs from regular Go functions.
+
+To define an API, add the `//encore:api` annotation to a function in your code.
+This tells Encore that the function is an API endpoint and Encore will automatically generate the necessary boilerplate at compile-time.
+
+In the example below, we define the API endpoint `Ping`, in the `hello` service, which gets exposed as `hello.Ping`.
+
+```go
+package hello // service name
+
+//encore:api public
+func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
+    msg := fmt.Sprintf("Hello, %s!", params.Name)
+    return &PingResponse{Message: msg}, nil
+}
+```
+
+## Access controls
+
+When you define an API, you have three options for how it can be accessed:
+
+* `//encore:api public` &ndash; defines a public API that anybody on the internet can call.
+* `//encore:api private` &ndash; defines a private API that is never accessible to the outside world. It can only be called from other services in your app and via cron jobs.
+* `//encore:api auth` &ndash; defines a public API that anybody can call, but requires valid authentication.
+
+You can optionally send in auth data to `public` and `private` APIs, in which case the auth handler will be used. When used for `private` APIs, they are still not accessible from the outside world.
+
+For more on defining APIs that require authentication, see the [authentication guide](/docs/develop/auth).
+
+## API Schemas
+
+### Request and response schemas
+
+In the example above we defined an API that uses request and response schemas. The request data is of type `PingParams` and the response data of type `PingResponse`. That means we need to define them like so:
+
+```go
+package hello // service name
+
+// PingParams is the request data for the Ping endpoint.
+type PingParams struct {
+    Name string
+}
+
+// PingResponse is the response data for the Ping endpoint.
+type PingResponse struct {
+    Message string
+}
+
+// Ping is an API endpoint that responds with a simple response.
+// This is exposed as "hello.Ping".
+//encore:api public
+func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
+    msg := fmt.Sprintf("Hello, %s!", params.Name)
+    return &PingResponse{Message: msg}, nil
+}
+```
+Request and response schemas are both optional. There are four different ways of defining an API:
+
+**Using both request and response data:**<br/>
+`func Foo(ctx context.Context, p *Params) (*Response, error)`
+
+**Only returning a response:**<br/>
+`func Foo(ctx context.Context) (*Response, error)`
+
+**With only request data:**<br/>
+`func Foo(ctx context.Context, p *Params) error`
+
+**Without any request or response data:**<br/>
+`func Foo(ctx context.Context) error`
+
+As you can see, two parts are always present: the `ctx context.Context` parameter and the `error` return value.
+
+The `ctx` parameter is used for *cancellation*. It lets you detect when the caller is no longer interested in the result,
+and lets you abort the request processing and save resources that nobody needs.
+[Learn more about contexts on the Go blog](https://blog.golang.org/context).
+
+The `error` return type is always required because APIs can always fail from the caller's perspective.
+Therefore even though our simple `Ping` API endpoint above never fails in its implementation, from the perspective of the caller perhaps the service is crashing or the network is down and the service cannot be reached.
+
+This approach is simple but very powerful. It lets Encore use [static analysis](/docs/introduction#meet-the-encore-application-model)
+to understand the request and response schemas of all your APIs, which enables Encore to automatically generate API documentation, type-safe API clients, and much more.
+
+### Request and response data types
+
+Request and response data types are structs (or pointers to structs) with optional field tags, which Encore uses to encode API requests to HTTP messages. The same struct can be used for requests and responses, but the `query` tag is ignored when generating responses.
+
+All tags except `json` are ignored for nested tags, which means you can only define `header` and `query` parameters for root level fields.
 
 For example, this struct:
 ```go
@@ -62,7 +145,7 @@ X-Header: A header
 
 ```
 
-## Path parameters
+### Path parameters
 
 Path parameters are specified by the `path` field in the `//encore:api` annotation.
 To specify a placeholder variable, use `:name` and add a function parameter with the same name to the function signature.
@@ -101,7 +184,7 @@ func (s *Service) Fallback(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-## Headers
+### Headers
 
 Headers are defined by the `header` field tag, which can be used in both request and response data types. The tag name is used to translate between the struct field and http headers.
 In the example below, the `Language` field of `ListBlogPost` will be fetched from the
@@ -131,14 +214,13 @@ func Login(ctx context.Context) (*LoginResponse, error) {
 
 The cookies can then be read using e.g. [structured auth data](/docs/develop/auth#accepting-structured-auth-information). 
 
-## Query parameters
+### Query parameters
 
 For `GET`, `HEAD` and `DELETE` requests, parameters are read from the query string by default.
 The query parameter name defaults to the [snake-case](https://en.wikipedia.org/wiki/Snake_case)
 encoded name of the corresponding struct field (e.g. BlogPost becomes blog_post).
 
-The `query` field tag can be used
-to parse a field from the query string for other HTTP methods (e.g. POST) and to override the default parameter name. 
+The `query` field tag can be used to parse a field from the query string for other HTTP methods (e.g. POST) and to override the default parameter name. 
 
 Query strings are not supported in HTTP responses and therefore `query` tags in response types are ignored.
 
@@ -153,7 +235,35 @@ type ListBlogPost struct {
 }
 ```
 
-## Body parameters
+When fetching data with `GET` endpoints, it's common to receive additional parameters for optional behavior, like filtering a list or changing the sort order.
+
+When you use a struct type as the last argument in the function signature,
+Encore automatically parses these fields from the HTTP query string (for the `GET`, `HEAD`, and `DELETE` methods).
+
+For example, if you want to have a `ListBlogPosts` endpoint:
+
+```go
+type ListParams struct {
+    Limit uint // number of blog posts to return
+    Offset uint // number of blog posts to skip, for pagination
+}
+
+type ListResponse struct {
+    Posts []*BlogPost
+}
+
+//encore:api public method=GET path=/blog
+func ListBlogPosts(ctx context.Context, opts *ListParams) (*ListResponse, error) {
+    // Use limit and offset to query database...
+}
+```
+
+This could then be queried as `/blog?limit=10&offset=20`.
+
+Query parameters are more limited than structured JSON data, and can only consist of basic types (`string`, `bool`, integer and floating point numbers), [Encore's UUID types](https://pkg.go.dev/encore.dev/types/uuid#UUID), and slices of those types.
+
+
+### Body parameters
 
 Encore will default to reading request parameters from the body (as JSON) for all HTTP methods except `GET`, `HEAD` or
 `DELETE`. The name of the body parameter defaults to the field name, but can be overridden by the
@@ -169,7 +279,7 @@ type CreateBlogPost struct {
 }
 ```
 
-## Supported types
+### Supported types
 The table below lists the data types supported by each HTTP message location.
 
 | Type            | Header | Path | Query | Body |
@@ -185,19 +295,11 @@ The table below lists the data types supported by each HTTP message location.
 | map             |        |      |       | X    |
 | pointer         |        |      |       | X    |
 
-## Raw endpoints
-
-In some cases you may need to fulfill an API schema that is defined by someone else, for instance when you want to accept webhooks.
-This often requires you to parse custom HTTP headers and do other low-level things that Encore usually lets you skip.
-
-For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
-
-Learn more in the [raw endpoints documentation](/docs/primitives/raw-endpoints).
 
 ## Sensitive data
 
-Encore's built-in tracing functionality automatically captures request and response payloads
-to simplify debugging. That's not desirable if a request or response payload contains sensitive data, such
+Encore.go comes with built-in tracing functionality that automatically captures request and response payloads
+to simplify debugging. While helpful, that's not always desirable. For instance when a request or response payload contains sensitive data, such
 as API keys or personally identifiable information (PII).
 
 For those use cases Encore supports marking a field as sensitive using the struct tag `encore:"sensitive"`.
@@ -217,7 +319,7 @@ The `encore:"sensitive"` tag is ignored for local development environments to ma
 </Callout>
 
 
-## Example
+### Example
 
 ```go
 package blog // service name
@@ -252,4 +354,48 @@ func BatchUpdate(ctx context.Context, sectionID string, params *BatchUpdateParam
 	return &BatchUpdateResponse{ServedBy: hostname, UpdatedIDs: ids}, nil
 }
 
+```
+
+## REST APIs
+Encore has support for RESTful APIs and lets you easily define resource-oriented API URLs, parse parameters out of them, and more.
+
+To create a REST API, start by defining an endpoint and specify the `method` and `path` fields in the `//encore:api` comment.
+
+To specify a placeholder variable, use `:name` and add a function parameter with the same name to the function signature. Encore parses the incoming request URL and makes sure it matches the type of the parameter.
+
+For example, if you want to have a `GetBlogPost` endpoint that takes a numeric id as a parameter:
+
+```go
+// GetBlogPost retrieves a blog post by id.
+//encore:api public method=GET path=/blog/:id
+func GetBlogPost(ctx context.Context, id int) (*BlogPost, error) {
+    // Use id to query database...
+}
+```
+
+You can also combine path parameters with body payloads. For example, if you want to have an `UpdateBlogPost` endpoint:
+
+```go
+// UpdateBlogPost updates an existing blog post by id.
+//encore:api public method=PUT path=/blog/:id
+func UpdateBlogPost(ctx context.Context, id int, post *BlogPost) error {
+    // Use `post` to update the blog post with the given id.
+}
+```
+
+<Callout type="important">
+
+You cannot define paths that conflict with each other, including paths
+where the static part can be mistaken for a parameter, e.g both `/blog` and `/blog/:id` would conflict with `/:username`.
+
+</Callout>
+
+As a rule of thumb, try to place path parameters at the end of the path and
+prefix them with the service name, e.g:
+
+```
+GET /blog/posts
+GET /blog/posts/:id
+GET /user/profile/:username
+GET /user/me
 ```

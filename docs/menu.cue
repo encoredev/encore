@@ -197,39 +197,59 @@
 	}
 	items: [{
 		kind: "section"
-		text: "Infrastructure"
+		text: "Concepts"
 		items: [{
 			kind: "basic"
-			text: "Services and APIs"
-			path: "/primitives/services-and-apis"
-			file: "primitives/services-and-apis"
-			inline_menu: [{
+			text: "App Structure"
+			path: "/develop/app-structure"
+			file: "develop/app-structure"
+		}]
+	}, {
+		kind: "section"
+		text: "Primitives"
+		items: [{
+			kind: "basic"
+			text: "Services"
+			path: "/primitives/services"
+			file: "primitives/services"
+		}, {
+			kind: "accordion"
+			text: "APIs"
+			accordion: [{
 				kind: "basic"
-				text: "App Structure"
-				path: "/develop/app-structure"
-				file: "develop/app-structure"
+				text: "Defining APIs"
+				path: "/primitives/apis"
+				file: "primitives/apis"
 			}, {
 				kind: "basic"
-				text: "API Schemas"
-				path: "/develop/api-schemas"
-				file: "develop/api-schemas"
+				text: "API Calls"
+				path: "/primitives/api-calls"
+				file: "primitives/api-calls"
 			}, {
 				kind: "basic"
-				text: "API Errors"
-				path: "/develop/errors"
-				file: "develop/errors"
+				text: "Raw Endpoints"
+				path: "/primitives/raw-endpoints"
+				file: "primitives/raw-endpoints"
 			}, {
 				kind: "basic"
 				text: "Service Structs"
 				path: "/primitives/services-and-apis/service-structs"
 				file: "primitives/service-structs"
+			}, {
+				kind: "basic"
+				text: "API Errors"
+				path: "/develop/errors"
+				file: "develop/errors"
 			}]
 		}, {
-			kind: "basic"
+			kind: "accordion"
 			text: "Databases"
-			path: "/primitives/databases"
-			file: "primitives/databases"
-			inline_menu: [{
+			accordion: [{
+				kind: "basic"
+				text: "Using SQL databases"
+				path: "/primitives/databases"
+				file: "primitives/databases"
+			}, {
 				kind: "basic"
 				text: "Change SQL database schema"
 				path: "/how-to/change-db-schema"
@@ -246,7 +266,7 @@
 				file: "how-to/insert-test-data-db"
 			}, {
 				kind: "basic"
-				text: "Share SQL databases between services"
+				text: "Share databases between services"
 				path: "/how-to/share-db-between-services"
 				file: "how-to/share-db-between-services"
 			}, {
@@ -259,6 +279,11 @@
 				text: "PostgreSQL Extensions"
 				path: "/primitives/databases/extensions"
 				file: "primitives/database-extensions"
+			}, {
+				kind: "basic"
+				text: "Troubleshooting"
+				path: "/primitives/databases/troubleshooting"
+				file: "primitives/database-troubleshooting"
 			}]
 		}, {
 			kind: "basic"
@@ -270,12 +295,6 @@
 			text: "Pub/Sub"
 			path: "/primitives/pubsub"
 			file: "primitives/pubsub"
-			inline_menu: [{
-				kind: "basic"
-				text: "Transactional outbox"
-				path: "/primitives/pubsub/outbox"
-				file: "primitives/pubsub-outbox"
-			}]
 		}, {
 			kind: "basic"
 			text: "Caching"
@@ -295,7 +314,7 @@
 	},
 	{
 		kind: "section"
-		text: "Develop"
+		text: "Development"
 		items: [{
 			kind: "basic"
 			text: "Authentication"
@@ -378,6 +397,11 @@
 			file: "how-to/grpc-connect"
 		}, {
 			kind: "basic"
+			text: "Use a Pub/Sub Transactional Outbox"
+			path: "/primitives/pubsub/outbox"
+			file: "primitives/pubsub-outbox"
+		}, {
+			kind: "basic"
 			text: "Use Dependency Injection"
 			path: "/how-to/dependency-injection"
 			file: "how-to/dependency-injection"
@@ -430,7 +454,7 @@
 		}]
 	}, {
 		kind: "section"
-		text: "Infrastructure"
+		text: "Primitives"
 		items: [{
 			kind: "basic"
 			text: "Services"
@@ -489,7 +513,7 @@
 	},
 	{
 		kind: "section"
-		text: "Develop"
+		text: "Development"
 		items: [{
 			kind: "basic"
 			text: "Authentication"
@@ -608,7 +632,7 @@
 
 #PlatformSection: #SectionMenuItem & {
 	kind: "section"
-	text: "Platform"
+	text: "Cloud Platform"
 	items: [{
 		kind: "basic"
 		text: "Deploying & CI/CD"

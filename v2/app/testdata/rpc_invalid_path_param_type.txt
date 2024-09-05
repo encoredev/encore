@@ -38,4 +38,4 @@ hint: valid signatures are:
 	- func(context.Context, *RequestType) (*ResponseData, error)
 
 For more information on how to use APIs, see
-https://encore.dev/docs/primitives/services-and-apis#defining-apis
+https://encore.dev/docs/primitives/apis

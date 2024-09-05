@@ -9,7 +9,7 @@ var (
 		"paths",
 		"Paths must be not be empty and always start with a '/'. You cannot define paths that conflict "+
 			"with each other, including static and parameterized paths. For example `/blog/:id` would conflict with `/:username`.\n\n"+
-			"For more information about configuring Paths, see https://encore.dev/docs/primitives/services-and-apis#rest-apis",
+			"For more information about configuring Paths, see https://encore.dev/docs/primitives/apis#rest-apis",
 
 		errors.WithRangeSize(20),
 	)

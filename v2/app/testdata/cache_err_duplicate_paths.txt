@@ -53,4 +53,4 @@ each other, including static and parameterized paths. For example `/blog/:id` wo
 `/:username`.
 
 For more information about configuring Paths, see
-https://encore.dev/docs/primitives/services-and-apis#rest-apis
+https://encore.dev/docs/primitives/apis#rest-apis

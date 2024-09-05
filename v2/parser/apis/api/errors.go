@@ -6,9 +6,9 @@ import (
 
 const rawHint = `hint: signature must be func(http.ResponseWriter, *http.Request)
 
-For more information on how to use raw APIs see https://encore.dev/docs/primitives/services-and-apis#raw-endpoints`
+For more information on how to use raw APIs see https://encore.dev/docs/primitives/raw-endpoints`
 
-const baseHint = "For more information on how to use APIs see https://encore.dev/docs/primitives/services-and-apis"
+const baseHint = "For more information on how to use APIs see https://encore.dev/docs/primitives/apis"
 
 var (
 	errRange = errors.Range(
@@ -19,7 +19,7 @@ var (
 	- func(context.Context, *RequestData) error
 	- func(context.Context, *RequestType) (*ResponseData, error)
 
-For more information on how to use APIs, see https://encore.dev/docs/primitives/services-and-apis#defining-apis`,
+For more information on how to use APIs, see https://encore.dev/docs/primitives/apis`,
 
 		errors.WithRangeSize(50),
 	)
