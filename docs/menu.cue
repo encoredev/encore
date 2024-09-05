@@ -534,6 +534,11 @@
 			text: "Migrate from Express.js"
 			path: "/ts/how-to/express-migration"
 			file: "how-to/express-migration"
+		}, {
+			kind: "basic"
+			text: "Use NestJS with Encore"
+			path: "/ts/how-to/nestjs"
+			file: "how-to/nestjs"
 		}]
 	}]
 }
