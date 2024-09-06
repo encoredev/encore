@@ -255,6 +255,23 @@ pub fn describe_endpoint(
     })
 }
 
+pub fn describe_static_assets(methods: Methods, path: Path) -> EndpointEncoding {
+    EndpointEncoding {
+        path,
+        methods: methods.clone(),
+        default_method: Method::Get,
+        req: vec![RequestEncoding {
+            methods,
+            params: vec![],
+        }],
+        resp: ResponseEncoding { params: vec![] },
+        handshake: None,
+        raw_handshake_schema: None,
+        raw_req_schema: None,
+        raw_resp_schema: None,
+    }
+}
+
 fn describe_req(
     tc: &TypeChecker,
     methods: &Methods,

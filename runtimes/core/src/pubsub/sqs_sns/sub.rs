@@ -176,7 +176,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
                     let requeue_delay = self
                         .requeue_policy
                         .clone()
-                        .nth((attempt - 1).max(0) as usize)
+                        .nth((attempt.max(1) - 1) as usize)
                         .unwrap_or(Duration::from_secs(1));
 
                     let requeue_action = RequeueMessageAction {
