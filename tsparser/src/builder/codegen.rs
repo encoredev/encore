@@ -114,6 +114,9 @@ impl Builder<'_> {
             for b in &svc.binds {
                 match &b.resource {
                     Resource::APIEndpoint(ep) => {
+                        if ep.static_assets.is_some() {
+                            continue; // Skip static assets.
+                        }
                         endpoints.push(ep);
                     }
                     Resource::Gateway(gw) => {
@@ -322,6 +325,9 @@ impl Builder<'_> {
                 for b in &svc.binds {
                     match &b.resource {
                         Resource::APIEndpoint(ep) => {
+                            if ep.static_assets.is_some() {
+                                continue; // Skip static assets.
+                            }
                             endpoints.push(ep);
                         }
                         Resource::Gateway(gw) => {

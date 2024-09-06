@@ -464,6 +464,12 @@
 				text: "API Errors"
 				path: "/ts/develop/errors"
 				file: "ts/develop/errors"
+			}, {
+				kind: "basic"
+				text: "Static Assets"
+				path: "/ts/develop/static-assets"
+				file: "ts/develop/static-assets"
+			}]
 			}]
 		},{
 			kind: "basic"

@@ -13,6 +13,7 @@ mod paths;
 pub mod reqauth;
 pub mod schema;
 mod server;
+mod static_assets;
 pub mod websocket;
 
 pub use endpoint::*;
