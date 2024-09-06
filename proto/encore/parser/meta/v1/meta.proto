@@ -24,6 +24,7 @@ message Data {
   repeated SQLDatabase    sql_databases       = 14;
   repeated Gateway        gateways            = 15;
   Lang                    language            = 16;
+  repeated Bucket         buckets             = 17;
 }
 
 // Lang describes the language an application is written in.
@@ -58,6 +59,7 @@ message Service {
   repeated DBMigration migrations = 4;
   repeated string      databases  = 5; // databases this service connects to
   bool                 has_config = 6; // true if the service has uses config
+  repeated string      buckets    = 7; // buckets this service uses
 }
 
 message Selector {
@@ -318,6 +320,10 @@ message DBMigration {
   string description = 3; // descriptive name
 }
 
+message Bucket {
+  string name         = 1;
+  optional string doc = 2;
+}
 
 message PubSubTopic {
   string                name               = 1; // The pub sub topic name (unique per application)

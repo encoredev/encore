@@ -8,6 +8,7 @@ use crate::parser::resources::apis::authhandler::AUTHHANDLER_PARSER;
 use crate::parser::resources::apis::gateway::GATEWAY_PARSER;
 use crate::parser::resources::apis::service::SERVICE_PARSER;
 use crate::parser::resources::infra::cron::CRON_PARSER;
+use crate::parser::resources::infra::objects::OBJECTS_PARSER;
 use crate::parser::resources::infra::pubsub_subscription::SUBSCRIPTION_PARSER;
 use crate::parser::resources::infra::pubsub_topic::TOPIC_PARSER;
 use crate::parser::resources::infra::secret::SECRET_PARSER;
@@ -25,6 +26,7 @@ pub enum Resource {
     Gateway(Lrc<apis::gateway::Gateway>),
     Service(Lrc<apis::service::Service>),
     SQLDatabase(Lrc<infra::sqldb::SQLDatabase>),
+    Bucket(Lrc<infra::objects::Bucket>),
     PubSubTopic(Lrc<infra::pubsub_topic::Topic>),
     PubSubSubscription(Lrc<infra::pubsub_subscription::Subscription>),
     CronJob(Lrc<infra::cron::CronJob>),
@@ -34,6 +36,7 @@ pub enum Resource {
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub enum ResourcePath {
     SQLDatabase { name: String },
+    Bucket { name: String },
 }
 
 impl Display for Resource {
@@ -50,6 +53,7 @@ impl Display for Resource {
                 write!(f, "Gateway({})", gw.name)
             }
             Resource::SQLDatabase(db) => write!(f, "SQLDatabase({})", db.name),
+            Resource::Bucket(db) => write!(f, "Bucket({})", db.name),
             Resource::PubSubTopic(topic) => write!(f, "PubSubTopic({})", topic.name),
             Resource::PubSubSubscription(sub) => write!(f, "PubSubSubscription({})", sub.name),
             Resource::CronJob(cron) => write!(f, "CronJob({})", cron.name),
@@ -67,6 +71,7 @@ pub static DEFAULT_RESOURCE_PARSERS: &[&ResourceParser] = &[
     &AUTHHANDLER_PARSER,
     &GATEWAY_PARSER,
     &SQLDB_PARSER,
+    &OBJECTS_PARSER,
     &TOPIC_PARSER,
     &SUBSCRIPTION_PARSER,
     &CRON_PARSER,

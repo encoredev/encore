@@ -11,7 +11,7 @@ use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
 use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
-use crate::parser::resources::infra::{cron, pubsub_subscription, pubsub_topic, sqldb};
+use crate::parser::resources::infra::{cron, pubsub_subscription, pubsub_topic, sqldb, objects};
 use crate::parser::resources::Resource;
 use crate::parser::types::ObjectId;
 use crate::parser::usageparser::Usage;
@@ -72,6 +72,7 @@ impl<'a> MetaBuilder<'a> {
                 rel_path,
                 rpcs: vec![],      // filled in later
                 databases: vec![], // filled in later
+                buckets: vec![], // filled in later
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -196,6 +197,10 @@ impl<'a> MetaBuilder<'a> {
 
                 Resource::SQLDatabase(db) => {
                     self.data.sql_databases.push(self.sql_database(db)?);
+                }
+
+                Resource::Bucket(bkt) => {
+                    self.data.buckets.push(self.bucket(bkt));
                 }
 
                 Resource::PubSubTopic(topic) => {
@@ -371,6 +376,22 @@ impl<'a> MetaBuilder<'a> {
                     let idx = svc_index.get(&svc.name).unwrap();
                     self.data.svcs[*idx].databases.push(access.db.name.clone());
                 }
+
+                Usage::AccessBucket(access) => {
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        HANDLER.with(|h| {
+                            h.span_err(
+                                access.range.to_span(),
+                                "unable to determine which service is accessing this bucket",
+                            )
+                        });
+                        continue;
+                    };
+
+                    let idx = svc_index.get(&svc.name).unwrap();
+                    self.data.svcs[*idx].buckets.push(access.bucket.name.clone());
+                }
+
                 Usage::CallEndpoint(call) => {
                     let src_service = self
                         .service_for_range(&call.range)
@@ -524,6 +545,13 @@ impl<'a> MetaBuilder<'a> {
         })
     }
 
+    fn bucket(&self, bkt: &objects::Bucket) -> v1::Bucket {
+        v1::Bucket {
+            name: bkt.name.clone(),
+            doc: bkt.doc.clone(),
+        }
+    }
+
     /// Compute the relative path from the app root.
     /// It reports an error if the path is not under the app root.
     fn rel_path<'b>(&self, path: &'b Path) -> Result<&'b Path> {
@@ -608,6 +636,7 @@ fn new_meta() -> v1::Data {
         experiments: vec![],
         metrics: vec![],
         sql_databases: vec![],
+        buckets: vec![],
         gateways: vec![],
         language: v1::Lang::Typescript as i32,
     }

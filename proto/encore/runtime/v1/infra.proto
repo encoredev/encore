@@ -21,6 +21,7 @@ message Infrastructure {
     repeated PubSubCluster pubsub_clusters = 3;
     repeated RedisCluster redis_clusters = 4;
     repeated AppSecret app_secrets = 5;
+    repeated BucketCluster bucket_clusters = 6;
   }
 }
 
@@ -303,6 +304,27 @@ message PubSubSubscription {
     // If set, the JWT audience claim must match. If unset, any JWT audience is allowed.
     optional string push_jwt_audience = 3;
   }
+}
+
+message BucketCluster {
+  // The unique resource id for this cluster.
+  string rid = 1;
+
+  repeated Bucket buckets = 2;
+
+  string region = 3;
+  string endpoint = 4;
+}
+
+message Bucket {
+  // The unique resource id for this bucket.
+  string rid = 1;
+
+  // The encore name of the bucket.
+  string encore_name = 2;
+
+  // The cloud name of the bucket.
+  string cloud_name = 3;
 }
 
 message Gateway {
