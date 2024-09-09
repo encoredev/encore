@@ -108,15 +108,23 @@ where
                 match self.stream.next().await.transpose() {
                     Ok(data) => {
                         let is_none = data.is_none();
-                        let push_result = self.push(data).await;
-                        if is_none {
-                            self.notify_close();
-                            return;
-                        }
+                        match self.push(data).await {
+                            // The stream successfully ended.
+                            Ok(_) if is_none => {
+                                // Note: don't notify_close; the node:stream API will handle
+                                // automatically closing the stream when the data has actually been read.
+                                // If we close here we end up destroying the stream too early, preventing
+                                // the last data from being read.
+                                return;
+                            }
 
-                        match push_result {
+                            // We haven't reached the high water mark yet; continue pushing data.
                             Ok(true) => continue 'PushLoop,
+
+                            // We've reached the high water mark; wait for the next read request.
                             Ok(false) => continue 'ReadRequestLoop,
+
+                            // Something went wrong communicating with node. Close the stream with an error.
                             Err(err) => {
                                 self.notify_err(err);
                                 return;
