@@ -125,8 +125,8 @@ Signup.Publish(ctx, &User{...})
 
 See how to use the Backend Frameworks in the docs:
 
-- **Services:** [Go](https://encore.dev/docs/primitives/services-and-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/services)
-- **APIs:** [Go](https://encore.dev/docs/primitives/services-and-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/apis)
+- **Services:** [Go](https://encore.dev/docs/primitives/services) / [TypeScript](https://encore.dev/docs/ts/primitives/services)
+- **APIs:** [Go](https://encore.dev/docs/primitives/apis) / [TypeScript](https://encore.dev/docs/ts/primitives/apis)
 - **Databases:** [Go](https://encore.dev/docs/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
 - **Cron Jobs:** [Go](https://encore.dev/docs/primitives/cron-jobs) / [TypeScript](https://encore.dev/docs/ts/primitives/cron-jobs)
 - **Pub/Sub:** [Go](https://encore.dev/docs/primitives/pubsub) / [TypeScript](https://encore.dev/docs/ts/primitives/pubsub)
@@ -232,7 +232,7 @@ Encore is designed to give teams a productive and less complex experience when s
 - **2.** [Follow a tutorial and build a bigger app](https://encore.dev/docs/tutorials/)
 - **3.** Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
 - **4.** Explore the [Documentation](https://encore.dev/docs) to learn more about Encore's features
-- **5.** [Book a 1:1](https://encore.dev/book) or [join Discord](https://encore.dev/discord) to discuss your use case or how to begin adopting Encore
+- **5.** [Join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers
 
 ## Open Source
 
