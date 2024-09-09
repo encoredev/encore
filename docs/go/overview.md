@@ -24,7 +24,8 @@ By combining these features, Encore.go enables you to focus on writing your appl
 
 ### See how to use each primitive
 
-- [Services and APIs](/docs/primitives/services-and-apis)
+- [Services](/docs/primitives/services)
+- [APIs](/docs/primitives/apis)
 - [Databases](/docs/primitives/databases)
 - [Cron Jobs](/docs/primitives/cron-jobs)
 - [Pub/Sub & Queues](/docs/primitives/pubsub)
