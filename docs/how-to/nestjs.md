@@ -12,8 +12,10 @@ loosely coupled and easily maintainable applications.
 Encore is not opinionated when it comes to application architecture, so you can use it together with NestJS to structure
 your business logic and Encore for creating backend primitives like APIs, Databases, and Cron Jobs.
 
-Take a look at our **Encore + NestJS example** for
-inspiration: https://github.com/encoredev/examples/tree/main/ts/nestjs
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/nestjs" 
+    desc="Encore.ts + NestJS example" 
+/>
 
 ## Adding Encore to a NestJS project
 
