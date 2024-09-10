@@ -630,7 +630,7 @@ export const brokenWithErrorCode = api(
 Express.js has a built-in middleware function to serve static files. You can use the `express.static` function to serve
 files from a specific directory.
 
-Encore.ts also has built-in support for static file serving with the `api.static` method. The files are served directly from the Encore.ts Rust Runtime. This means that zero JavaScript code is executed to serve the files, freeing up the Node.js runtime to focus on executing business logic. This dramatically speeds up both the static file serving, as well as improving the latency of your API endpoints. Learn more in our [Static Assets docs](/docs/ts/develop/static-assets).
+Encore.ts also has built-in support for static file serving with the `api.static` method. The files are served directly from the Encore.ts Rust Runtime. This means that zero JavaScript code is executed to serve the files, freeing up the Node.js runtime to focus on executing business logic. This dramatically speeds up both the static file serving, as well as improving the latency of your API endpoints. Learn more in our [Static Assets docs](/docs/ts/primitives/static-assets).
 
 **Express.js**
 
