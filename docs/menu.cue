@@ -494,7 +494,6 @@
 				path: "/ts/develop/static-assets"
 				file: "ts/develop/static-assets"
 			}]
-			}]
 		},{
 			kind: "basic"
 			text: "Databases"
@@ -559,7 +558,7 @@
 			text: "Handle file uploads"
 			path: "/ts/how-to/file-uploads"
 			file: "how-to/file-uploads"
-		},{
+		}, {
 			kind: "basic"
 			text: "Use Vercel for frontend hosting"
 			path: "/ts/how-to/vercel"
