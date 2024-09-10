@@ -15,7 +15,7 @@ use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{
-    describe_endpoint, describe_stream_endpoint, EndpointEncoding,
+    describe_endpoint, describe_static_assets, describe_stream_endpoint, EndpointEncoding,
 };
 use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
@@ -24,8 +24,6 @@ use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
 use crate::parser::usageparser::{ResolveUsageData, Usage};
 use crate::parser::{FilePath, Range};
-
-use super::encoding::describe_static_assets;
 
 #[derive(Debug, Clone)]
 pub struct Endpoint {
@@ -261,6 +259,35 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     let FilePath::Real(module_file_path) = &module.file_path else {
                         anyhow::bail!("cannot use custom file path for static assets");
                     };
+
+                    // Ensure the path has at most one dynamic segment, at the end.
+                    {
+                        let mut seen_dynamic = false;
+                        for seg in &path.segments {
+                            if seen_dynamic {
+                                if seg.is_dynamic() {
+                                    HANDLER.with(|h| {
+                                        h.span_err(
+                                            r.range,
+                                            "static assets path can only contain must have at most one dynamic segment",
+                                        )
+                                    });
+                                } else {
+                                    HANDLER.with(|h| {
+                                        h.span_err(
+                                            r.range,
+                                            "static assets path cannot have static segments after dynamic segments",
+                                        )
+                                    });
+                                }
+                                break;
+                            }
+
+                            if seg.is_dynamic() {
+                                seen_dynamic = true;
+                            }
+                        }
+                    }
 
                     let assets_dir = module_file_path.parent().unwrap().join(dir.0);
                     if let Err(err) = std::fs::read_dir(&assets_dir) {
