@@ -639,7 +639,7 @@ import express from "express";
 
 const app: Express = express();
 
-app.use("/assets", express.static("assets")); // Serve static files from the assets directory
+app.use("/assets", express.static("assets"));
 ```
 
 **Encore.ts**
