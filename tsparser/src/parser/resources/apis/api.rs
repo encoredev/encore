@@ -1,11 +1,13 @@
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::{anyhow, bail, Context, Ok, Result};
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast::TsTypeParamInstantiation;
 use swc_ecma_ast::{self as ast, FnExpr};
 
-use litparser::{LitParser, Nullable};
+use litparser::{LitParser, LocalRelPath, Nullable};
 use litparser_derive::LitParser;
 
 use crate::parser::module_loader::Module;
@@ -13,7 +15,7 @@ use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{
-    describe_endpoint, describe_stream_endpoint, EndpointEncoding,
+    describe_endpoint, describe_static_assets, describe_stream_endpoint, EndpointEncoding,
 };
 use crate::parser::resources::parseutil::{
     extract_bind_name, iter_references, ReferenceParser, TrackedNames,
@@ -39,6 +41,7 @@ pub struct Endpoint {
 
     pub streaming_request: bool,
     pub streaming_response: bool,
+    pub static_assets: Option<StaticAssets>,
 
     pub encoding: EndpointEncoding,
 }
@@ -144,6 +147,15 @@ impl FromStr for Method {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct StaticAssets {
+    /// Files to serve.
+    pub dir: PathBuf,
+
+    /// File to serve when the path is not found.
+    pub not_found: Option<PathBuf>,
+}
+
 pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
     name: "endpoint",
     interesting_pkgs: &[PkgPath("encore.dev/api")],
@@ -192,6 +204,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 
             let mut streaming_request = false;
             let mut streaming_response = false;
+            let mut static_assets = None;
 
             let encoding = match r.kind {
                 EndpointKind::Typed { request, response } => {
@@ -239,6 +252,68 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         false,
                     )?
                 }
+                EndpointKind::StaticAssets { dir, not_found } => {
+                    // Support HEAD and GET for static assets.
+                    let methods = Methods::Some(vec![Method::Head, Method::Get]);
+
+                    let FilePath::Real(module_file_path) = &module.file_path else {
+                        anyhow::bail!("cannot use custom file path for static assets");
+                    };
+
+                    // Ensure the path has at most one dynamic segment, at the end.
+                    {
+                        let mut seen_dynamic = false;
+                        for seg in &path.segments {
+                            if seen_dynamic {
+                                if seg.is_dynamic() {
+                                    HANDLER.with(|h| {
+                                        h.span_err(
+                                            r.range,
+                                            "static assets path can only contain must have at most one dynamic segment",
+                                        )
+                                    });
+                                } else {
+                                    HANDLER.with(|h| {
+                                        h.span_err(
+                                            r.range,
+                                            "static assets path cannot have static segments after dynamic segments",
+                                        )
+                                    });
+                                }
+                                break;
+                            }
+
+                            if seg.is_dynamic() {
+                                seen_dynamic = true;
+                            }
+                        }
+                    }
+
+                    let assets_dir = module_file_path.parent().unwrap().join(dir.0);
+                    if let Err(err) = std::fs::read_dir(&assets_dir) {
+                        HANDLER.with(|h| {
+                            h.span_err(
+                                r.range,
+                                &format!("unable to read static assets directory: {}", err),
+                            )
+                        });
+                    }
+
+                    // Ensure the not_found file exists.
+                    let not_found = not_found.map(|p| module_file_path.parent().unwrap().join(p.0));
+                    if let Some(not_found) = &not_found {
+                        if !not_found.is_file() {
+                            HANDLER.with(|h| h.span_err(r.range, "not_found file does not exist"));
+                        }
+                    }
+
+                    static_assets = Some(StaticAssets {
+                        dir: assets_dir,
+                        not_found,
+                    });
+
+                    describe_static_assets(methods, path)
+                }
             };
 
             // Compute the body limit. Null means no limit. No value means 2MiB.
@@ -258,6 +333,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 raw,
                 streaming_request,
                 streaming_response,
+                static_assets,
                 body_limit,
                 encoding,
             }));
@@ -344,6 +420,10 @@ enum EndpointKind {
         request: ParameterType,
         response: ParameterType,
     },
+    StaticAssets {
+        dir: LocalRelPath,
+        not_found: Option<LocalRelPath>,
+    },
     Raw,
 }
 
@@ -355,6 +435,10 @@ struct EndpointConfig {
     expose: Option<bool>,
     auth: Option<bool>,
     bodyLimit: Option<Nullable<u64>>,
+
+    // For static assets.
+    dir: Option<LocalRelPath>,
+    notFound: Option<LocalRelPath>,
 }
 
 impl ReferenceParser for APIEndpointLiteral {
@@ -378,10 +462,6 @@ impl ReferenceParser for APIEndpointLiteral {
                 };
                 let config = EndpointConfig::parse_lit(config.expr.as_ref())?;
 
-                let Some(handler) = &expr.args.get(1) else {
-                    anyhow::bail!("API Endpoint must have a handler function")
-                };
-
                 let ast::Callee::Expr(callee) = &expr.callee else {
                     anyhow::bail!("invalid api definition expression")
                 };
@@ -390,6 +470,10 @@ impl ReferenceParser for APIEndpointLiteral {
                 return Ok(Some(match callee.as_ref() {
                     ast::Expr::Member(member) if member.prop.is_ident_with("raw") => {
                         // Raw endpoint
+                        let Some(_) = &expr.args.get(1) else {
+                            anyhow::bail!("API Endpoint must have a handler function")
+                        };
+
                         Self {
                             range: expr.span.into(),
                             doc_comment,
@@ -401,6 +485,11 @@ impl ReferenceParser for APIEndpointLiteral {
                     }
 
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamInOut") => {
+                        // Bidirectional stream
+                        let Some(handler) = &expr.args.get(1) else {
+                            anyhow::bail!("API Endpoint must have a handler function")
+                        };
+
                         let type_params = expr
                             .type_args
                             .as_deref()
@@ -435,7 +524,6 @@ impl ReferenceParser for APIEndpointLiteral {
                         )?
                         .ok_or_else(|| anyhow!("missing type for response"))?;
 
-                        // Bidirectional stream
                         Self {
                             range: expr.span.into(),
                             doc_comment,
@@ -450,6 +538,11 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
+                        // Incoming stream
+                        let Some(handler) = &expr.args.get(1) else {
+                            anyhow::bail!("API Endpoint must have a handler function")
+                        };
+
                         let type_params = expr
                             .type_args
                             .as_deref()
@@ -491,7 +584,6 @@ impl ReferenceParser for APIEndpointLiteral {
                             Some(t) => ParameterType::Single(t.clone()),
                         };
 
-                        // Incoming stream
                         Self {
                             range: expr.span.into(),
                             doc_comment,
@@ -506,6 +598,11 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
+                        // Outgoing stream
+                        let Some(handler) = &expr.args.get(1) else {
+                            anyhow::bail!("API Endpoint must have a handler function")
+                        };
+
                         let type_params = expr
                             .type_args
                             .as_deref()
@@ -534,7 +631,6 @@ impl ReferenceParser for APIEndpointLiteral {
                         )?
                         .ok_or_else(|| anyhow!("missing type for response"))?;
 
-                        // Outgoing stream
                         Self {
                             range: expr.span.into(),
                             doc_comment,
@@ -548,8 +644,32 @@ impl ReferenceParser for APIEndpointLiteral {
                             },
                         }
                     }
+
+                    ast::Expr::Member(member) if member.prop.is_ident_with("static") => {
+                        // Static assets
+                        let Some(dir) = config.dir.clone() else {
+                            HANDLER.with(|h| {
+                                h.span_err(expr.span, "static assets must have the 'dir' field set")
+                            });
+                            continue;
+                        };
+
+                        let not_found = config.notFound.clone();
+
+                        Self {
+                            range: expr.span.into(),
+                            doc_comment,
+                            endpoint_name: bind_name.sym.to_string(),
+                            bind_name,
+                            config,
+                            kind: EndpointKind::StaticAssets { dir, not_found },
+                        }
+                    }
                     _ => {
                         // Regular endpoint
+                        let Some(handler) = &expr.args.get(1) else {
+                            anyhow::bail!("API Endpoint must have a handler function")
+                        };
                         let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
 
                         if req.is_none() {

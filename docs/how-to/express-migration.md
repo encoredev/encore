@@ -23,12 +23,12 @@ high-performance runtime, with a multi-threaded, asynchronous event loop written
 
 When using Encore.ts you get a lot of built-in features without having to install any additional dependencies:
 
-| Built-in benefits                                           |                            <!-- -->                            |                                                 <!-- --> |
-|:------------------------------------------------------------|:--------------------------------------------------------------:|---------------------------------------------------------:|
-| [Pub/Sub integrations](/docs/ts/primitives/pubsub)          | [Type-safe API schemas](/docs/ts/primitives/services-and-apis) | [API Client generation](/docs/develop/client-generation) |
-| [Secrets management](/docs/ts/primitives/secrets)           |             [CORS handling](/docs/ts/develop/cors)             |        [Infrastructure integrations](/docs/deploy/infra) |
-| [Database integrations](/docs/ts/primitives/databases)      |    [Architecture Diagrams](/docs/observability/encore-flow)    |                [Service Catalog](/docs/develop/api-docs) |
-| [Request validation](/blog/event-loops)                     |           [Cron Jobs](/docs/ts/primitives/cron-jobs)           |             [Local tracing](/docs/observability/tracing) |
+| Built-in benefits                                           |                         <!-- -->                         |                                                 <!-- --> |
+| :---------------------------------------------------------- | :------------------------------------------------------: | -------------------------------------------------------: |
+| [Pub/Sub integrations](/docs/ts/primitives/pubsub)          |    [Type-safe API schemas](/docs/ts/primitives/apis)     | [API Client generation](/docs/develop/client-generation) |
+| [Secrets management](/docs/ts/primitives/secrets)           |          [CORS handling](/docs/ts/develop/cors)          |        [Infrastructure integrations](/docs/deploy/infra) |
+| [Database integrations](/docs/ts/primitives/databases)      | [Architecture Diagrams](/docs/observability/encore-flow) |                [Service Catalog](/docs/develop/api-docs) |
+| [Request validation](/blog/event-loops)                     |        [Cron Jobs](/docs/ts/primitives/cron-jobs)        |             [Local tracing](/docs/observability/tracing) |
 | [Local Development Dashboard](/docs/observability/dev-dash) |
 
 ## Migration guide
@@ -44,7 +44,7 @@ When you quickly want to migrate to Encore.ts and don't need all the functionali
 **Approach benefits**
 
 - You can get your application up and running with Encore.ts quickly and start moving features over to Encore.ts while the rest of the application is still untouched.
-- You will see a partial performance boost right away because the HTTP layer is now running on the Encore Rust runtime. But to get the full performance benefits, you will need to start using Encore's [API declarations](/docs/ts/primitives/services-and-apis) and [infrastructure declarations](/docs/ts#explore-how-to-use-each-backend-primitive).
+- You will see a partial performance boost right away because the HTTP layer is now running on the Encore Rust runtime. But to get the full performance benefits, you will need to start using Encore's [API declarations](/docs/ts/primitives/apis) and [infrastructure declarations](/docs/ts#explore-how-to-use-each-backend-primitive).
 
 **Approach drawbacks**
 
@@ -100,7 +100,7 @@ When Encore.ts is parsing your code it will specifically look for `~encore/*` im
 
 #### 5. Define an Encore.ts service
 
-When running an app using Encore.ts you need at least one [Encore service](https://encore.dev/docs/ts/primitives/services-and-apis#defining-a-service). Apart from that, Encore.ts in not opinionated in how you structure your code, you are free to go with a monolith or microservice approach. Learn more in our [App Structure docs](https://encore.dev/docs/ts/develop/app-structure).
+When running an app using Encore.ts you need at least one [Encore service](https://encore.dev/docs/ts/primitives/services). Apart from that, Encore.ts in not opinionated in how you structure your code, you are free to go with a monolith or microservice approach. Learn more in our [App Structure docs](https://encore.dev/docs/ts/develop/app-structure).
 
 In the root of your App, add a file named `encore.service.ts`. The file must export a service instance, by calling `new Service`, imported from `encore.dev/service`:
 
@@ -114,7 +114,7 @@ Encore will consider this directory and all its subdirectories as part of the se
 
 #### 6. Create a catch-all handler for your HTTP router
 
-Now let's mount your existing app router under a [Raw endpoint](/docs/primitives/services-and-apis#raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
+Now let's mount your existing app router under a [Raw endpoint](/docs/ts/primitives/raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
 
 Here's a basic code example:
 
@@ -632,7 +632,7 @@ files from a specific directory.
 
 With Encore.ts you can use the `api.raw` function to serve static files, no third party library is needed. Use the
 Node.js `fs` package to read the file from the file system and send it as a response.
-Learn more in our [Raw Endpoints docs](/docs/ts/primitives/services-and-apis#raw-endpoints)
+Learn more in our [Raw Endpoints docs](/docs/ts/primitives/raw-endpoints)
 
 **Express.js**
 
@@ -703,7 +703,7 @@ Express.js has a built-in support for rendering templates.
 
 With Encore.ts you can use the `api.raw` function to serve HTML templates, in this example we are using Handlebars.js
 but you can use whichever templating engine you prefer. Learn more in
-our [Raw Endpoints docs](/docs/ts/primitives/services-and-apis#raw-endpoints)
+our [Raw Endpoints docs](/docs/ts/primitives/raw-endpoints)
 
 **Express.js**
 
@@ -740,7 +740,7 @@ const html = `
 `;
 
 // Making use of raw endpoints to serve dynamic templates.
-// https://encore.dev/docs/ts/primitives/services-and-apis#raw-endpoints
+// https://encore.dev/docs/ts/primitives/raw-endpoints
 export const serveHTML = api.raw(
   {expose: true, path: "/html", method: "GET"},
   async (req, resp) => {

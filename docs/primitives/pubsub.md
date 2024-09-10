@@ -290,6 +290,12 @@ func Test_Register(t *testing.T) {
 }
 ```
 
+## Ensuring consistency between services
+
+Ensuring consistency between services in event-driven applications can be challenging, especially when database writes and Pub/Sub publishing are not transactional. This can lead to inconsistencies between services.
+
+To address this issue without adding excessive complexity, consider using a transactional outbox pattern. For more information on implementing this pattern with Encore, see the [Pub/Sub Outbox guide](/docs/primitives/pubsub-outbox).
+
 ## The benefits of Pub/Sub
 
 Pub/Sub is a powerful building block in a backend application. It can be used to improve app reliability by reducing the blast radius of faulty components and bottlenecks. It can also be used to increase the speed of response to the user, and even helps reduce cognitive overhead for developers by inverting the dependencies between services.

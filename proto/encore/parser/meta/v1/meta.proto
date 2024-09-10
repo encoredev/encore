@@ -104,6 +104,9 @@ message RPC {
   bool streaming_response = 17;
   optional schema.v1.Type  handshake_schema = 18; // handshake schema, or nil
 
+  // If the endpoint serves static assets.
+  optional StaticAssets static_assets = 19;
+
   enum AccessType {
     PRIVATE = 0;
     PUBLIC = 1;
@@ -116,6 +119,16 @@ message RPC {
   }
 
   message ExposeOptions {}
+
+  message StaticAssets {
+    // dir_rel_path is the slash-separated path to the static files directory,
+    // relative to the app root.
+    string dir_rel_path = 1;
+
+    // not_found_rel_path is the relative path to the file to serve when the requested
+    // file is not found. It is relative to the files_rel_path directory.
+    optional string not_found_rel_path = 2;
+  }
 }
 
 message AuthHandler {
@@ -324,7 +337,7 @@ message PubSubTopic {
     int64  ack_deadline      = 3; // How long has a consumer got to process and ack a message in nanoseconds
     int64  message_retention = 4; // How long is an undelivered message kept in nanoseconds
     RetryPolicy retry_policy = 5; // The retry policy for the subscription
-    
+
     // How many messages each instance can process concurrently.
     // If not set, the default is provider-specific.
     optional int32 max_concurrency = 6;

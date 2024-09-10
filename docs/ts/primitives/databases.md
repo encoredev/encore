@@ -43,9 +43,9 @@ The configuration object specifies the directory containing the database migrati
 
 See the [Defining the database schema](#defining-the-database-schema) section below for more details.
 
-With this code in place Encore will automatically create the database when starting `encore run` (locally)
-or on the next deployment (in the cloud). Encore automatically injects the appropriate configuration to authenticate
-and connect to the database, so once the application starts up the database is ready to be used.
+With this code in place Encore will automatically create the database using Docker when starting `encore run` (locally).
+
+For cloud environments, Encore automatically injects the appropriate configuration to authenticate and connect to the database, so once the application starts up the database is ready to be used.
 
 ## Defining the database schema
 
@@ -96,22 +96,6 @@ CREATE TABLE todo_item (
 );
 ```
 
-## Provisioning databases
-
-Encore automatically provisions databases to match what your application requires.
-When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
-
-Encore provisions databases in an appropriate way depending on the environment.
-When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
-In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
-
-- In `production` environments, the database is provisioned through the Managed SQL Database
-  service offered by the chosen cloud provider.
-- In `development` environments, the database is provisioned as a Kubernetes deployment
-  with a persistent disk attached.
-
-See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
-
 ## Using databases
 
 Once you have created the database using `const db = new SQLDatabase(...)` you can start querying and inserting data into the database by calling methods on the `db` variable.
@@ -154,6 +138,22 @@ await db.exec`
   VALUES (${title}, false)
 `;
 ```
+
+## Provisioning databases
+
+Encore automatically provisions databases to match what your application requires.
+When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
+
+Encore provisions databases in an appropriate way depending on the environment.
+When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
+In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
+
+- In `production` environments, the database is provisioned through the Managed SQL Database
+  service offered by the chosen cloud provider.
+- In `development` environments, the database is provisioned as a Kubernetes deployment
+  with a persistent disk attached.
+
+See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
 
 ## Connecting to databases
 

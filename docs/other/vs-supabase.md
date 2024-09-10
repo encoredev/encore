@@ -39,7 +39,7 @@ You simply use Encore's [Backend Framework](/docs/primitives) to **declare the i
 Here's an example of how to use Encore's [Backend Framework](/docs/primitives) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
 
 To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
-Databases must be created from within an [Encore service](/docs/primitives/services-and-apis).
+Databases must be created from within an [Encore service](/docs/primitives/services).
 
 For example:
 
@@ -75,7 +75,7 @@ and connect to the database, so once the application starts up the database is r
 
 Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support for building microservices backends and event-driven systems.
 
-For example, Encore lets you [define APIs](/docs/primitives/services-and-apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
+For example, Encore lets you [define APIs](/docs/primitives/apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
 
 With Encore's [Backend Framework](/docs/primitives), you can build event-driven systems by defining Pub/Sub topics and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.

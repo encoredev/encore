@@ -285,7 +285,7 @@ func (s *Service) AuthHandler(
 }
 
 // Endpoints annotated with `auth` are public and requires authentication
-// Learn more: encore.dev/docs/primitives/services-and-apis#access-controls
+// Learn more: encore.dev/docs/primitives/apis#access-controls
 //
 //encore:api auth method=GET path=/profile
 func GetProfile(ctx context.Context) (*ProfileData, error) {

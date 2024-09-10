@@ -95,13 +95,13 @@ Encore is designed to give teams a productive and less complex experience when s
 -   Microservices backends and event-driven systems for SaaS applications and mobile apps
 -   And much more...
 
-See the [users stories](/customers) section for more on how teams are using Encore to power their development.
+Check out the [showcase](/showcase) section for some examples of real-world products being built with Encore.
 
 ## Getting started
 
-1. [Sign up and install the Encore CLI](https://encore.dev/signup)
-2. [Follow a tutorial and start building](https://encore.dev/docs/tutorials/)
-3. [Book a 1:1](https://encore.dev/book) or [join Discord](https://encore.dev/discord) to discuss your use case or how to begin adopting Encore
+1. [Install the Encore CLI](https://encore.dev/docs/install)
+2. [Follow a tutorial to start building](https://encore.dev/docs/tutorials/)
+3. [Join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers
 4. Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up to date
 5. Explore the Documentation to learn about Encore's features
 

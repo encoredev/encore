@@ -42,7 +42,7 @@ during request handling.  If no request is processed by the caller, which can ha
 initialization, the Type field returns None. If `CurrentRequest()` is called from a goroutine spawned during request
 processing it will continue to report the same request even if the request handler has already returned.
 
-This can be useful on [raw endpoints](/docs/develop/services-and-apis#raw-endpoints) with [path parameters](/docs/develop/services-and-apis#rest-apis)
+This can be useful on [raw endpoints](/docs/primitives/raw-endpoints) with [path parameters](/docs/primitives/apis#rest-apis)
 as the standard `http.Request` object passed into the raw endpoint does not provide access to the parsed path parameters,
 however by calling `encore.CurrentRequest().PathParams()` you can get access to the parsed path parameters.
 

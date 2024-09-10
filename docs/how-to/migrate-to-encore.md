@@ -11,10 +11,7 @@ Building your backend using Encore's declarative [Backend Framework](/docs/primi
 
 ## Get help with adopting Encore
 
-If you'd like to ask questions or get hands on advice about how to approach adopting Encore, we're happy to chat through your use case in a call. You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
-<a href="/book">
-    <Button className="mt-4" kind="primary" section="white">Book call</Button>
-</a>
+If you'd like to ask questions or get advice about how to approach adopting Encore, we're happy to talk through your project. You can [join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers, or you can also [book a 1:1](/book) with a member of our core team.
 
 ## Incremental adoption: Build or refactor a single service
 
@@ -38,9 +35,9 @@ If you need help or have questions, join the friendly developer community on [Di
 
 #### Design your APIs
 
-Since Encore is designed to build distributed systems, it should be straightforward to build a new system that integrates with your existing backend through APIs. See the [defining APIs documentation](/docs/primitives/services-and-apis#defining-apis) for more details.
+Since Encore is designed to build distributed systems, it should be straightforward to build a new system that integrates with your existing backend through APIs. See the [defining APIs documentation](/docs/primitives/apis) for more details.
 
-Should you want to accept webhooks, that's simple to do using Encore's [Raw endpoints](/docs/primitives/services-and-apis#raw-endpoints) as described in the [webhooks guide](/docs/how-to/webhooks).
+Should you want to accept webhooks, that's simple to do using Encore's [Raw endpoints](/docs/primitives/raw-endpoints) as described in the [webhooks guide](/docs/how-to/webhooks).
 
 You can also generate API clients in several languages, which makes it simple to integrate with frontends or other systems. See the [Client Generation documentation](/docs/develop/client-generation) for more details.
 
@@ -97,7 +94,7 @@ You can also have services nested inside a `backend` folder if you prefer.
 
 ### 2. Create a catch-all handler for your HTTP router
 
-Now let's mount your existing HTTP router under a [Raw endpoint](/docs/primitives/services-and-apis#raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
+Now let's mount your existing HTTP router under a [Raw endpoint](/docs/primitives/raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
 
 Here's a basic code example:
 
@@ -121,4 +118,4 @@ If you need help or have questions, join the developer community on [Discord](ht
 
 ### Incrementally start using Encore's Backend Framework
 
-Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/primitives/services-and-apis) and introduce infrastructure declarations using the [Backend Framework](/docs/primitives/overview). This will let Encore understand your application and unlock all Encore features.
+Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/primitives/apis) and introduce infrastructure declarations using the [Backend Framework](/docs/primitives/overview). This will let Encore understand your application and unlock all Encore features.
