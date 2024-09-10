@@ -491,9 +491,8 @@
 			}, {
 				kind: "basic"
 				text: "Static Assets"
-				path: "/ts/develop/static-assets"
-				file: "ts/develop/static-assets"
-			}]
+				path: "/ts/primitives/static-assets"
+				file: "ts/primitives/static-assets"
 			}]
 		},{
 			kind: "basic"
