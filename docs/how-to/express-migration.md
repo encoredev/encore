@@ -630,9 +630,7 @@ export const brokenWithErrorCode = api(
 Express.js has a built-in middleware function to serve static files. You can use the `express.static` function to serve
 files from a specific directory.
 
-With Encore.ts you can use the `api.raw` function to serve static files, no third party library is needed. Use the
-Node.js `fs` package to read the file from the file system and send it as a response.
-Learn more in our [Raw Endpoints docs](/docs/ts/primitives/raw-endpoints)
+Encore.ts also has built-in support for static file serving with the `api.static` method. The files are served directly from the Encore.ts Rust Runtime. This means that zero JavaScript code is executed to serve the files, freeing up the Node.js runtime to focus on executing business logic. This dramatically speeds up both the static file serving, as well as improving the latency of your API endpoints. Learn more in our [Static Assets docs](/docs/ts/primitives/static-assets).
 
 **Express.js**
 
@@ -641,55 +639,16 @@ import express from "express";
 
 const app: Express = express();
 
-app.use("/assets", express.static("assets")); // Serve static files from the assets directory
+app.use("/assets", express.static("assets"));
 ```
 
 **Encore.ts**
 
 ```typescript
-import {api} from "encore.dev/api";
-import path from "node:path";
-import fs from "node:fs";
-import {APICallMeta, currentRequest} from "encore.dev";
+import { api } from "encore.dev/api";
 
-export const serveAssets = api.raw(
-  {expose: true, path: "/assets/!rest", method: "GET"},
-  async (_, resp) => {
-    const meta = currentRequest() as APICallMeta;
-
-    // extract URL path
-    const fsPath = meta.pathParams.rest;
-    // based on the URL path, extract the file extension. e.g. .js, .doc, ...
-    const ext = path.parse(fsPath).ext;
-    // maps file extension to MIME typere
-    const map: Record<string, string> = {
-      ".html": "text/html",
-      ".js": "text/javascript",
-      ".css": "text/css",
-      // Add the MIME types you need or use a library like mime
-    };
-
-    fs.stat(fsPath, (err) => {
-      if (err) {
-        // if the file is not found, return 404
-        resp.statusCode = 404;
-        resp.end(`File ${fsPath} not found!`);
-        return;
-      }
-
-      // read file from file system
-      fs.readFile(fsPath, (err, data) => {
-        if (err) {
-          resp.statusCode = 500;
-          resp.end(`Error getting the file: ${err}.`);
-        } else {
-          // if the file is found, set Content-type and send data
-          resp.setHeader("Content-type", map[ext]);
-          resp.end(data);
-        }
-      });
-    });
-  },
+export const assets = api.static(
+  { expose: true, path: "/assets/*path", dir: "./assets" },
 );
 ```
 
