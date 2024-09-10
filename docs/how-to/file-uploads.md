@@ -174,7 +174,7 @@ export const saveMultiple = api.raw(
 
 ## Handling large files
 
-In order to not run into a **Maximum request length exceeded**-error when uploading large files you might need to adjust the endpoints `bodyLimit`. You can also set the `bodyLimit` to `null` to allow for unlimited file size uploads.
+In order to not run into a **Maximum request length exceeded**-error when uploading large files you might need to adjust the endpoints `bodyLimit`. You can also set the `bodyLimit` to `null` to allow for unlimited file size uploads. If unset it defaults to 2MiB.
 
 ## Retrieving files from the database
 
