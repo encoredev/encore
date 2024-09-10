@@ -153,7 +153,7 @@ Whenever possible we recommend using a third-party auth provider instead of roll
 
 </Callout>
 
-<RelatedDocsLink paths={["/how-to/auth0-auth", "/how-to/clerk-auth", "/how-to/firebase-auth"]} />
+<RelatedDocsLink paths={["/docs/how-to/auth0-auth", "/docs/how-to/clerk-auth", "/docs/how-to/firebase-auth"]} />
 
 ## Using auth data
 
