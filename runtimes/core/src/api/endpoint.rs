@@ -142,6 +142,10 @@ pub struct Endpoint {
     /// The maximum size of the request body.
     /// If None, no limits are applied.
     pub body_limit: Option<u64>,
+
+    /// The static assets to serve from this endpoint.
+    /// Set only for static asset endpoints.
+    pub static_assets: Option<meta::rpc::StaticAssets>,
 }
 
 impl Endpoint {
@@ -299,6 +303,7 @@ pub fn endpoints_from_meta(
             exposed,
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
+            static_assets: ep.ep.static_assets.clone(),
         };
 
         endpoint_map.insert(
@@ -369,6 +374,7 @@ impl EndpointHandler {
             .into_parts();
 
         // Authenticate the request from the platform, if applicable.
+        #[allow(clippy::manual_unwrap_or_default)]
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {
             Ok(seal) => seal,
             Err(_err) => None,
