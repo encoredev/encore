@@ -15,6 +15,11 @@ Publishers & Subscribers (Pub/Sub) let you build systems that communicate by bro
 
 Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
+    desc="Simple starter (three services) with an event-driven architecture." 
+/>
+
 ## Creating a Topic
 
 The core of Pub/Sub is the **Topic**, a named channel on which you publish events.
