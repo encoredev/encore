@@ -23,6 +23,11 @@ func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
 }
 ```
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/hello-world" 
+    desc="Hello World REST API example application." 
+/>
+
 ## Access controls
 
 When you define an API, you have three options for how it can be accessed:

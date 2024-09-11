@@ -37,6 +37,11 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
 })
 ```
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/uptime" 
+    desc="Event-driven example application using Pub/Sub." 
+/>
+
 ### At-least-once delivery
 
 The above example configures the topic to ensure that, for each subscription, events will be delivered _at least once_.

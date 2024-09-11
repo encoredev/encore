@@ -23,6 +23,11 @@ func MyOtherAPI(ctx context.Context) error {
 }
 ```
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/trello-clone" 
+    desc="Simple microservices example application with service-to-service API calls." 
+/>
+
 This means your development workflow is as simple as building a monolith, even if you use multiple services.
 You also get all the benefits of function calls, like compile-time checking of all the parameters and auto-completion in your editor, while still allowing the division of code into logical components, services, and systems.
 
