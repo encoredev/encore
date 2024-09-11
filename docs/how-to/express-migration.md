@@ -35,6 +35,11 @@ When using Encore.ts you get a lot of built-in features without having to instal
 
 Below we've outlined two main strategies you can use to migrate your existing Express.js application to Encore.ts. Pick the strategy that best suits your situation and application.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/expressjs-migration" 
+    desc="Code examples for migrating an Express.js app to Encore.ts" 
+/>
+
 <Accordion>
 
 ### Forklift migration (quick start)
