@@ -13,6 +13,11 @@ lang: ts
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/url-shortener" 
+    desc="URL Shortener example that uses a PostgreSQL database." 
+/>
+
 ## Creating a database
 
 To create a database, import `encore.dev/storage/sqldb` and call `new SQLDatabase`, assigning the result to a top-level variable.

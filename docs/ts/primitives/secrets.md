@@ -12,6 +12,11 @@ Of course, we can’t do that &ndash; it's horrifyingly insecure!
 
 Encore's built-in secrets manager makes it simple to store secrets in a secure way and lets you use them in your program like regular variables.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
+    desc="Simple event driven example that uses secrets to store an API key" 
+/>
+
 ## Using secrets in your application
 
 To use a secret in your application, define a top-level variable directly in your code by calling the `secret` function from `encore.dev/config`.
