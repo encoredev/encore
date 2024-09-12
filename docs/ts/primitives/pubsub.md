@@ -17,7 +17,7 @@ Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative 
 
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
-    desc="Simple starter (three services) with an event-driven architecture." 
+    desc="Simple example app with an event-driven architecture using Pub/Sub." 
 />
 
 ## Creating a Topic

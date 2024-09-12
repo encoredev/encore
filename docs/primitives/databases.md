@@ -46,6 +46,11 @@ With this code in place Encore will automatically create the database using Dock
 
 For cloud environments, Encore automatically injects the appropriate configuration to authenticate and connect to the database, so once the application starts up the database is ready to be used.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/sql-database" 
+    desc="Simple PostgreSQL example application." 
+/>
+
 ## Defining the database schema
 
 Database schemas are defined by creating *migration files* in a directory named `migrations`
