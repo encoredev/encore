@@ -30,6 +30,11 @@ On disk it might look like this:
 This means building a microservices architecture is as simple as creating multiple Go packages within your application.
 See the [app structure documentation](/docs/develop/app-structure) for more details.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/trello-clone" 
+    desc="Simple microservices example application." 
+/>
+
 ## Service Initialization
 
 Under the hood Encore automatically generates a `main` function that initializes all your infrastructure resources when the application starts up. This means you don't write a `main` function for your Encore application.

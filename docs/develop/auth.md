@@ -69,6 +69,11 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, *Data, error) {
 }
 ```
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/clerk" 
+    desc="Example application showing an auth handler implementation with Clerk." 
+/>
+
 ### Without custom user data
 
 When you don't require custom user data and it's sufficient to use `auth.UID`,

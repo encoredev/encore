@@ -69,6 +69,12 @@ incoming requests to your application, and whenever a request contains
 an `Authorization` header it will first call the authentication handler to
 resolve information about the user.
 
+
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/clerk" 
+    desc="Example application showing an auth handler implementation using Clerk." 
+/>
+
 ### Rejecting authentication
 
 If the auth handler returns an `AuthData` object, Encore will consider the request

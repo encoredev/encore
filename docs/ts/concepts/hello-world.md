@@ -34,7 +34,7 @@ To run it, you simply use `encore run` and the Open Source CLI will automaticall
 
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/ts/hello-world" 
-    desc="Hello World REST API Starter." 
+    desc="Hello World REST API example application." 
 />
 
 ## Getting started video
