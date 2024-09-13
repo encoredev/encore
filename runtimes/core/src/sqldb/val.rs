@@ -63,7 +63,7 @@ impl ToSql for RowValue {
                             val.to_sql(ty, out)
                         }
                         Type::UUID => {
-                            let val = Uuid::parse_str(str).context("couldn't parse uuid")?;
+                            let val = Uuid::parse_str(str).context("unable to parse uuid")?;
                             val.to_sql(ty, out)
                         }
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
