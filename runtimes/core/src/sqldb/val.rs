@@ -1,6 +1,8 @@
+use anyhow::Context;
 use bytes::BytesMut;
 use std::error::Error;
 use tokio_postgres::types::{FromSql, IsNull, ToSql, Type};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub enum RowValue {
@@ -58,6 +60,10 @@ impl ToSql for RowValue {
                         Type::TIME => {
                             let val = chrono::NaiveTime::parse_from_str(str, "%H:%M:%S")
                                 .map_err(Box::new)?;
+                            val.to_sql(ty, out)
+                        }
+                        Type::UUID => {
+                            let val = Uuid::parse_str(str).context("unable to parse uuid")?;
                             val.to_sql(ty, out)
                         }
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
