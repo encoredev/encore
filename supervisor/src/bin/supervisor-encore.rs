@@ -88,7 +88,7 @@ fn create_process_config(
         let parts: Vec<&str> = e.splitn(2, '=').collect();
         (
             parts[0].to_string(),
-            parts.get(1).map_or("".to_string(), |&v| v.to_string()),
+            parts.get(1).unwrap_or(&"").to_string(),
         )
     }));
 
@@ -103,7 +103,7 @@ fn create_process_config(
                     hosted_services: services,
                     local_service_ports: service_ports.clone(),
                 })
-                .unwrap(),
+                .map_err("Failed to serialize ProcessConfig"),
             ),
         ),
     ]);
@@ -268,11 +268,11 @@ pub async fn main() {
         tokio::signal::ctrl_c()
             .await
             .expect("Failed to listen for ctrl+c");
-        println!("Received shutdown signal. Initiating graceful shutdown...");
+        log::info!("Received shutdown signal. Initiating graceful shutdown...");
         root_token.cancel();
     });
 
     // Run the supervisor
     sv.supervise(supervisor_token).await;
-    println!("All processes have exited. Shutting down.");
+    log::info!("All processes have exited. Shutting down.");
 }
