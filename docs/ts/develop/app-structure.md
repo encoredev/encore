@@ -38,6 +38,8 @@ That's it! Encore will consider this directory and all its subdirectories as par
 
 Within the service, you can then [define APIs](/docs/ts/primitives/apis) and use infrastructure resources like querying databases.
 
+<RelatedDocsLink paths={["/docs/ts/primitives/services", "/docs/ts/primitives/apis"]} />
+
 ## Examples
 
 Let's take a look at a few different approaches to structuring your Encore application, depending on the size and complexity of your application.
