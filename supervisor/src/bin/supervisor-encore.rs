@@ -103,7 +103,7 @@ fn create_process_config(
                     hosted_services: services,
                     local_service_ports: service_ports.clone(),
                 })
-                .map_err("Failed to serialize ProcessConfig"),
+                .map_err(|e| format!("Failed to serialize ProcessConfig: {}", e))?,
             ),
         ),
     ]);
