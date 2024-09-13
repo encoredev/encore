@@ -1,3 +1,4 @@
+use anyhow::Context;
 use bytes::BytesMut;
 use std::error::Error;
 use tokio_postgres::types::{FromSql, IsNull, ToSql, Type};
@@ -62,7 +63,7 @@ impl ToSql for RowValue {
                             val.to_sql(ty, out)
                         }
                         Type::UUID => {
-                            let val = Uuid::parse_str(str)?;
+                            let val = Uuid::parse_str(str).context("couldn't parse uuid")?;
                             val.to_sql(ty, out)
                         }
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
