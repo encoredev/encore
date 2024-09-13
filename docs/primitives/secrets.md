@@ -12,6 +12,11 @@ Of course, we can’t do that &ndash; it's horrifyingly insecure!
 
 Encore's built-in secrets manager makes it simple to store secrets in a secure way and lets you use them in your program like regular variables.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/slack-bot" 
+    desc="Slack Bot example application using secrets to store a Slack key." 
+/>
+
 ## Using secrets in your application
 
 To use a secret in your application, first define it directly in your code by creating an unexported struct named `secrets`, where all fields are of type `string`. For example:

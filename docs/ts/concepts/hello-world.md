@@ -32,6 +32,11 @@ interface Response {
 
 To run it, you simply use `encore run` and the Open Source CLI will automatically set up your local infrastructure.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/hello-world" 
+    desc="Hello World REST API example application." 
+/>
+
 ## Getting started video
 
 Get to know the basics of Encore.ts in this getting started video.

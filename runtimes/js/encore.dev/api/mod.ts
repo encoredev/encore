@@ -181,5 +181,59 @@ api.streamInOut = streamInOut;
 api.streamIn = streamIn;
 api.streamOut = streamOut;
 
+export interface StaticOptions {
+  /**
+   * The request path to match for this endpoint.
+   *
+   * Use `:` to define single-segment parameters, e.g. `/users/:id`.
+   * Use `*` to match any number of segments, e.g. `/files/*path`.
+   *
+   * If not specified, it defaults to `/<service-name>.<endpoint-name>`.
+   */
+  path?: string;
+
+  /**
+   * Whether or not to make this endpoint publicly accessible.
+   * If false, the endpoint is only accessible from the internal network.
+   *
+   * Defaults to false if not specified.
+   */
+  expose?: boolean;
+
+  /**
+   * Whether or not the request must contain valid authentication credentials.
+   * If set to true and the request is not authenticated,
+   * Encore returns a 401 Unauthorized error.
+   *
+   * Defaults to false if not specified.
+   */
+  auth?: boolean;
+
+  /**
+   * The relative path to the directory containing the static files to serve.
+   *
+   * The provided path must be a subdirectory from the calling file's directory.
+   */
+  dir: string;
+
+  /**
+   * Path to the file to serve when the requested file is not found.
+   * The path is relative to `dir` and must exist within that directory.
+   */
+  notFound?: string;
+}
+
+export class StaticAssets {
+  public readonly options: StaticOptions;
+
+  constructor(options: StaticOptions) {
+    this.options = options;
+  }
+}
+
+api.static = function staticAssets(options: StaticOptions) {
+  return new StaticAssets(options);
+};
+
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";

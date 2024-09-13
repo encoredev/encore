@@ -13,7 +13,7 @@ Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
 Encore supports both use cases in a simple yet powerful way.
 
-As described in the docs for [defining APIs](/docs/primitives/services-and-apis), Encore offers three access levels
+As described in the docs for [defining APIs](/docs/primitives/apis), Encore offers three access levels
 for APIs:
 
 * `//encore:api public` &ndash; defines a public API that anybody on the internet can call.
@@ -68,6 +68,11 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, *Data, error) {
     // for example by calling Firebase Auth.
 }
 ```
+
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/clerk" 
+    desc="Example application showing an auth handler implementation with Clerk." 
+/>
 
 ### Without custom user data
 
@@ -149,10 +154,11 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, error) {
 
 Note that for security reasons you may not want to reveal too much information about why a request did not pass your auth checks. There are many subtle security considerations when dealing with authentication and we don't have time to go into all of them here.
 
-Whenever possible we recommend using a third-party auth provider.<br/>
-See the guides for using [Firebase Authentication](/docs/how-to/firebase-auth) or [Auth0](/docs/how-to/auth0-auth) for examples of how to do that.
+Whenever possible we recommend using a third-party auth provider instead of rolling your own authentication.
 
 </Callout>
+
+<RelatedDocsLink paths={["/docs/how-to/auth0-auth", "/docs/how-to/clerk-auth", "/docs/how-to/firebase-auth"]} />
 
 ## Using auth data
 

@@ -37,6 +37,11 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
 })
 ```
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/uptime" 
+    desc="Event-driven example application using Pub/Sub." 
+/>
+
 ### At-least-once delivery
 
 The above example configures the topic to ensure that, for each subscription, events will be delivered _at least once_.
@@ -289,6 +294,12 @@ func Test_Register(t *testing.T) {
     assert.Len(t, msgs, 1)
 }
 ```
+
+## Ensuring consistency between services
+
+Ensuring consistency between services in event-driven applications can be challenging, especially when database writes and Pub/Sub publishing are not transactional. This can lead to inconsistencies between services.
+
+To address this issue without adding excessive complexity, consider using a transactional outbox pattern. For more information on implementing this pattern with Encore, see the [Pub/Sub Outbox guide](/docs/primitives/pubsub-outbox).
 
 ## The benefits of Pub/Sub
 

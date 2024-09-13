@@ -93,7 +93,10 @@ impl ResponseWriterState {
 
                 let resp = match resp.body(Body::from_stream(read)) {
                     Ok(resp) => resp,
-                    Err(err) => return Err((Self::Done, err.into())),
+                    Err(err) => {
+                        ::log::error!(err = err.to_string(); "failed to set raw response body to flush header");
+                        return Err((Self::Done, err.into()));
+                    }
                 };
 
                 let _ = sender.send(resp);
@@ -117,7 +120,10 @@ impl ResponseWriterState {
                 };
                 let resp = match resp.body(body) {
                     Ok(resp) => resp,
-                    Err(err) => return Err((Self::Done, err.into())),
+                    Err(err) => {
+                        ::log::error!(err = err.to_string(); "failed to close raw response body");
+                        return Err((Self::Done, err.into()));
+                    }
                 };
                 let _ = sender.send(resp);
                 Ok(Self::Done)
@@ -367,8 +373,8 @@ impl api::BoxedHandler for JSRawHandler {
                     match resp {
                         Ok(resp) => resp,
                         Err(_) => {
-                            let err = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                            err.into_response()
+                            let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
+                            err_resp.into_response()
                         }
                     }
                 }
@@ -380,8 +386,8 @@ impl api::BoxedHandler for JSRawHandler {
                             match body_rx.await {
                                 Ok(resp) => resp,
                                 Err(_) => {
-                                    let err = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                                    err.into_response()
+                                    let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
+                                    err_resp.into_response()
                                 }
                             }
                         }

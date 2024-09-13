@@ -16,6 +16,11 @@ When you need to run periodic and recurring tasks, Encore's Backend Framework pr
 When a Cron Job is defined, Encore will call the API of your choice on the schedule you have defined.
 This means there is no need to maintain any infrastructure, as Encore handles the scheduling, monitoring and execution of Cron Jobs.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/uptime" 
+    desc="Uptime Monitoring app that uses a Cron Job to periodically check the uptime of a website." 
+/>
+
 ## Defining a Cron Job
 
 To define a Cron Job, all you need to do is to import the `encore.dev/cron` [package](https://pkg.go.dev/encore.dev/cron),

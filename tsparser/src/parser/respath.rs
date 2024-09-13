@@ -56,6 +56,14 @@ impl Segment {
             Segment::Fallback { name } => name,
         }
     }
+
+    pub fn is_literal(&self) -> bool {
+        matches!(self, Segment::Literal(_))
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        !self.is_literal()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

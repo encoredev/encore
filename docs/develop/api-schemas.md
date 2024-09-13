@@ -192,7 +192,7 @@ This often requires you to parse custom HTTP headers and do other low-level thin
 
 For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
 
-Learn more in the [raw endpoints documentation](/docs/primitives/services-and-apis#raw-endpoints).
+Learn more in the [raw endpoints documentation](/docs/primitives/raw-endpoints).
 
 ## Sensitive data
 

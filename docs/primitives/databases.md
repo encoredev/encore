@@ -16,7 +16,7 @@ Encore treats SQL databases as logical resources and natively supports **Postgre
 ## Creating a database
 
 To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
-Databases must be created from within an [Encore service](/docs/primitives/services-and-apis).
+Databases must be created from within an [Encore service](/docs/primitives/services).
 
 For example:
 
@@ -39,13 +39,17 @@ CREATE TABLE todo_item (
 );
 ```
 
-As seen above, the `sqldb.DatabaseConfig` specifies the directory containing the database migration files,
-which is how you define the database schema.
+As seen above, the `sqldb.DatabaseConfig` specifies the directory containing the database migration files, which is how you define the database schema.
 See the [Defining the database schema](#defining-the-database-schema) section below for more details.
 
-With this code in place Encore will automatically create the database when starting `encore run` (locally)
-or on the next deployment (in the cloud). Encore automatically injects the appropriate configuration to authenticate
-and connect to the database, so once the application starts up the database is ready to be used.
+With this code in place Encore will automatically create the database using Docker when starting `encore run` (locally).
+
+For cloud environments, Encore automatically injects the appropriate configuration to authenticate and connect to the database, so once the application starts up the database is ready to be used.
+
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/sql-database" 
+    desc="Simple PostgreSQL example application." 
+/>
 
 ## Defining the database schema
 
@@ -85,22 +89,6 @@ CREATE TABLE todo_item (
     done BOOLEAN NOT NULL DEFAULT false
 );
 ```
-
-## Provisioning databases
-
-Encore automatically provisions databases to match what your application requires.
-When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
-
-Encore provisions databases in an appropriate way depending on the environment.
-When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
-In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
-
-- In `production` environments, the database is provisioned through the Managed SQL Database
-  service offered by the chosen cloud provider.
-- In `development` environments, the database is provisioned as a Kubernetes deployment
-  with a persistent disk attached.
-
-See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
 
 ## Inserting data into databases
 
@@ -165,6 +153,22 @@ by importing the standard library `errors` package and calling `errors.Is(err, s
 
 Learn more in the [package docs](https://pkg.go.dev/encore.dev/storage/sqldb).
 
+## Provisioning databases
+
+Encore automatically provisions databases to match what your application requires.
+When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
+
+Encore provisions databases in an appropriate way depending on the environment.
+When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
+In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
+
+- In `production` environments, the database is provisioned through the Managed SQL Database
+  service offered by the chosen cloud provider.
+- In `development` environments, the database is provisioned as a Kubernetes deployment
+  with a persistent disk attached.
+
+See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
+
 ## Connecting to databases
 
 It's often useful to be able to connect to the database from outside the backend application.
@@ -221,49 +225,3 @@ Indexes:
 The `version` column tracks which migration was last applied. If you wish to skip a migration or re-run a migration,
 change the value in this column. For example, to re-run the last migration, run `UPDATE schema_migrations SET version = version - 1;`.
 *Note that Encore does not use the `dirty` flag by default.*
-
-## PostgreSQL Extensions
-
-Encore uses the [encoredotdev/postgres](https://github.com/encoredev/postgres-image) docker image for local development,
-CI/CD, and for databases hosted on Encore Cloud.
-
-This docker image ships with many popular PostgreSQL extensions pre-installed.
-In particular, [pgvector](https://github.com/pgvector/pgvector) and [PostGIS](https://postgis.net) are available.
-
-See [the full list of available extensions](/docs/primitives/databases/extensions).
-
-## Troubleshooting
-
-When you run your application locally with `encore run`, Encore will provision local databases using Docker.
-If this fails with a database error, it can often be resolved if you restart the Encore daemon using `encore daemon` and then try `encore run` again.
-
-If this does not resolve the issue, here are steps to resolve common errors:
-
-** Error: sqldb: unknown database **
-
-This error is often caused by a problem with the initial migration file, such as incorrect naming or location.
-
-- Verify that you've [created the migration file](/docs/develop/databases#defining-a-database-schema) correctly, then try `encore run` again.
-
-** Error: could not connect to the database **
-
-When you can't connect to the database in your local environment, there's likely an issue with Docker:
-
-- Make sure that you have [Docker](https://docker.com) installed and running, then try `encore run` again.
-- If this fails, restart the Encore daemon by running `encore daemon`, then try `encore run` again.
-
-** Error: Creating PostgreSQL database cluster Failed **
-
-This means Encore was not able to create the database. Often this is due to a problem with Docker.
-
-- Check if you have permission to access Docker by running `docker images`.
-- Set the correct permissions with `sudo usermod -aG docker $USER` (Learn more in the [Docker documentation](https://docs.docker.com/engine/install/linux-postinstall/))
-- Then log out and log back in so that your group membership is refreshed.
-
-** Error: unable to add CA to cert pool **
-
-This error is commonly caused by the presence of the file `$HOME/.postgresql/root.crt` on the filesystem.
-When this file is present the PostgreSQL client library will assume the database server has that root certificate,
-which will cause the above error.
-
-- Remove or rename the file, then try `encore run` again.
