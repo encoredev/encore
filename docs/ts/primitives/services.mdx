@@ -14,13 +14,15 @@ To create an Encore service, add a file named `encore.service.ts` in a directory
 
 The file must export a service instance, by calling `new Service`, imported from `encore.dev/service`.
 
+> NOTE: While declaring the service name, use string literals which are valid while declaring a variable. Otherwise the `encore run` might throw a compile error. 
+
 For example:
 
 ```ts
 
 import { Service } from "encore.dev/service";
 
-export default new Service("my-service");
+export default new Service("my_service");
 ```
 
 That's it! Encore will consider this directory and all its subdirectories as part of the service.
