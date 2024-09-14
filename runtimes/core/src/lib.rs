@@ -57,6 +57,7 @@ pub struct RuntimeBuilder {
     md: Option<metapb::Data>,
     err: Option<anyhow::Error>,
     test_mode: bool,
+    is_worker: bool,
 }
 
 impl Default for RuntimeBuilder {
@@ -72,6 +73,7 @@ impl RuntimeBuilder {
             md: None,
             err: None,
             test_mode: false,
+            is_worker: false,
         }
     }
 
@@ -80,6 +82,11 @@ impl RuntimeBuilder {
         if enabled {
             enable_test_mode().unwrap();
         }
+        self
+    }
+
+    pub fn with_worker(mut self, enabled: bool) -> Self {
+        self.is_worker = enabled;
         self
     }
 
@@ -160,7 +167,7 @@ impl RuntimeBuilder {
         let cfg = self.cfg.context("runtime config not provided")?;
         let md = self.md.context("metadata not provided")?;
 
-        Runtime::new(cfg, md, self.test_mode)
+        Runtime::new(cfg, md, self.test_mode, self.is_worker)
     }
 }
 
@@ -183,6 +190,7 @@ impl Runtime {
         mut cfg: runtimepb::RuntimeConfig,
         md: metapb::Data,
         testing: bool,
+        is_worker: bool,
     ) -> anyhow::Result<Self> {
         // Initialize OpenSSL system root certificates, so that libraries can find them.
         openssl_probe::init_ssl_cert_env_vars();
@@ -285,6 +293,7 @@ impl Runtime {
             platform_validator,
             pubsub_push_registry: pubsub.push_registry(),
             runtime: tokio_rt.handle().clone(),
+            is_worker,
         }
         .build()
         .context("unable to initialize api manager")?;

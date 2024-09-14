@@ -23,6 +23,7 @@ func getNamedTypes(md *meta.Data, set clientgentypes.ServiceSet) *typeRegistry {
 		}
 		for _, rpc := range svc.Rpcs {
 			if rpc.AccessType != meta.RPC_PRIVATE {
+				r.Visit(rpc.HandshakeSchema)
 				r.Visit(rpc.RequestSchema)
 				r.Visit(rpc.ResponseSchema)
 			}

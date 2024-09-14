@@ -4,11 +4,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
+use axum::response::IntoResponse;
+
 use crate::api;
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::paths::Pather;
 use crate::api::reqauth::svcauth;
-use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap, IntoResponse};
+use crate::api::static_assets::StaticAssetsHandler;
+use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap};
 use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
 use crate::trace;
@@ -67,6 +70,12 @@ impl Server {
             ep: endpoints.get(ep).unwrap().to_owned(),
         }));
 
+        let shared = Arc::new(SharedEndpointData {
+            tracer,
+            platform_auth,
+            inbound_svc_auth,
+        });
+
         let mut register = |paths: &[(Arc<api::Endpoint>, Vec<String>)],
                             mut router: axum::Router|
          -> axum::Router {
@@ -74,6 +83,20 @@ impl Server {
                 match schema::method_filter(ep.methods()) {
                     Some(filter) => {
                         let server_handler = ServerHandler::default();
+
+                        if let Some(assets) = &ep.static_assets {
+                            // For static asset routes, configure the static asset handler directly.
+                            // There's no need to defer it for dynamic runtime registration.
+                            let static_handler = StaticAssetsHandler::new(assets);
+
+                            let handler = EndpointHandler {
+                                endpoint: ep.clone(),
+                                handler: Arc::new(static_handler),
+                                shared: shared.clone(),
+                            };
+                            server_handler.set(handler);
+                        }
+
                         let handler = axum::routing::on(filter, server_handler.clone());
                         for path in paths {
                             router = router.route(path, handler.clone());
@@ -97,12 +120,6 @@ impl Server {
 
         // Register our fallback route.
         router = router.fallback_service(fallback_router);
-
-        let shared = Arc::new(SharedEndpointData {
-            tracer,
-            platform_auth,
-            inbound_svc_auth,
-        });
 
         Ok(Self {
             endpoints,

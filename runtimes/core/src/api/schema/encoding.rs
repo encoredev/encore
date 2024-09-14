@@ -43,6 +43,7 @@ pub struct EncodingConfig<'a, 'b> {
     pub supports_path: bool,
 }
 
+#[derive(Debug)]
 pub struct SchemaUnderConstruction {
     combined: Option<usize>,
     body: Option<usize>,
@@ -357,6 +358,67 @@ pub struct ReqSchema {
     pub schema: Schema,
 }
 
+/// Computes the handshake encoding for the given rpc.
+pub fn handshake_encoding(
+    registry_builder: &mut jsonschema::Builder,
+    meta: &meta::Data,
+    rpc: &meta::Rpc,
+) -> anyhow::Result<Option<ReqSchemaUnderConstruction>> {
+    if !rpc.streaming_request && !rpc.streaming_response {
+        return Ok(None);
+    }
+
+    let default_path = meta::Path {
+        segments: vec![meta::PathSegment {
+            value: format!("{}.{}", rpc.service_name, rpc.name),
+            r#type: SegmentType::Literal as i32,
+            value_type: meta::path_segment::ParamType::String as i32,
+        }],
+        r#type: meta::path::Type::Url as i32,
+    };
+    let rpc_path = rpc.path.as_ref().unwrap_or(&default_path);
+
+    let Some(handshake_schema) = &rpc.handshake_schema else {
+        let has_dynamic_segments = rpc_path
+            .segments
+            .iter()
+            .any(|segment| segment.r#type() != SegmentType::Literal);
+
+        if !has_dynamic_segments {
+            return Ok(None);
+        }
+
+        return Ok(Some(ReqSchemaUnderConstruction {
+            methods: vec![Method::GET],
+            schema: SchemaUnderConstruction {
+                combined: None,
+                body: None,
+                query: None,
+                header: None,
+                rpc_path: Some(rpc_path.clone()),
+            },
+        }));
+    };
+
+    let mut config = EncodingConfig {
+        meta,
+        registry_builder,
+        default_loc: Some(DefaultLoc::Query),
+        rpc_path: Some(rpc_path),
+        supports_body: false,
+        supports_query: true,
+        supports_header: true,
+        supports_path: true,
+    };
+
+    let schema = config.compute(handshake_schema)?;
+
+    Ok(Some(ReqSchemaUnderConstruction {
+        methods: vec![Method::GET],
+        schema,
+    }))
+}
+
 /// Computes the request encoding for the given rpc.
 pub fn request_encoding(
     registry_builder: &mut jsonschema::Builder,
@@ -399,22 +461,40 @@ pub fn request_encoding(
 
     let mut schemas = Vec::new();
 
-    for default_loc in split_by_loc(&methods) {
+    if rpc.streaming_request || rpc.streaming_response {
         let mut config = EncodingConfig {
             meta,
             registry_builder,
-            default_loc: Some(default_loc.0),
+            default_loc: Some(DefaultLoc::Body),
             rpc_path: Some(rpc_path),
             supports_body: true,
-            supports_query: true,
-            supports_header: true,
-            supports_path: true,
+            supports_query: false,
+            supports_header: false,
+            supports_path: false,
         };
         let schema = config.compute(request_schema)?;
         schemas.push(ReqSchemaUnderConstruction {
-            methods: default_loc.1.clone(),
+            methods: vec![Method::GET],
             schema,
         });
+    } else {
+        for default_loc in split_by_loc(&methods) {
+            let mut config = EncodingConfig {
+                meta,
+                registry_builder,
+                default_loc: Some(default_loc.0),
+                rpc_path: Some(rpc_path),
+                supports_body: true,
+                supports_query: true,
+                supports_header: true,
+                supports_path: true,
+            };
+            let schema = config.compute(request_schema)?;
+            schemas.push(ReqSchemaUnderConstruction {
+                methods: default_loc.1.clone(),
+                schema,
+            });
+        }
     }
 
     Ok(schemas)

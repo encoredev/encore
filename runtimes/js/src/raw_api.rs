@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
+use axum::response::IntoResponse;
 use bytes::Bytes;
 use napi::bindgen_prelude::{Buffer, Either3};
 use napi::{Either, Env, JsFunction, JsUnknown, NapiRaw};
@@ -12,7 +13,6 @@ use napi_derive::napi;
 use tokio::sync::{mpsc, oneshot};
 
 use encore_runtime_core::api;
-use encore_runtime_core::api::IntoResponse;
 
 use crate::api::Request;
 use crate::log::parse_js_stack;
@@ -93,7 +93,10 @@ impl ResponseWriterState {
 
                 let resp = match resp.body(Body::from_stream(read)) {
                     Ok(resp) => resp,
-                    Err(err) => return Err((Self::Done, err.into())),
+                    Err(err) => {
+                        ::log::error!(err = err.to_string(); "failed to set raw response body to flush header");
+                        return Err((Self::Done, err.into()));
+                    }
                 };
 
                 let _ = sender.send(resp);
@@ -117,7 +120,10 @@ impl ResponseWriterState {
                 };
                 let resp = match resp.body(body) {
                     Ok(resp) => resp,
-                    Err(err) => return Err((Self::Done, err.into())),
+                    Err(err) => {
+                        ::log::error!(err = err.to_string(); "failed to close raw response body");
+                        return Err((Self::Done, err.into()));
+                    }
                 };
                 let _ = sender.send(resp);
                 Ok(Self::Done)
@@ -367,8 +373,8 @@ impl api::BoxedHandler for JSRawHandler {
                     match resp {
                         Ok(resp) => resp,
                         Err(_) => {
-                            let err = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                            err.into_response()
+                            let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
+                            err_resp.into_response()
                         }
                     }
                 }
@@ -380,8 +386,8 @@ impl api::BoxedHandler for JSRawHandler {
                             match body_rx.await {
                                 Ok(resp) => resp,
                                 Err(_) => {
-                                    let err = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                                    err.into_response()
+                                    let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
+                                    err_resp.into_response()
                                 }
                             }
                         }

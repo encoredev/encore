@@ -19,18 +19,30 @@ pub struct Runtime {
     pub(crate) runtime: Arc<encore_runtime_core::Runtime>,
 }
 
+#[napi(object)]
+#[derive(Default)]
+pub struct RuntimeOptions {
+    pub test_mode: Option<bool>,
+    pub is_worker: Option<bool>,
+}
+
 #[napi]
 impl Runtime {
     #[napi(constructor)]
-    pub fn new() -> napi::Result<Self> {
+    pub fn new(options: Option<RuntimeOptions>) -> napi::Result<Self> {
+        let options = options.unwrap_or_default();
         // Initialize logging.
         encore_runtime_core::log::init();
 
-        let test_mode_enabled = std::env::var("NODE_ENV").is_ok_and(|val| val == "test");
+        let test_mode = options
+            .test_mode
+            .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
+        let is_worker = options.is_worker.unwrap_or(false);
         let runtime = encore_runtime_core::Runtime::builder()
-            .with_test_mode(test_mode_enabled)
+            .with_test_mode(test_mode)
             .with_meta_autodetect()
             .with_runtime_config_from_env()
+            .with_worker(is_worker)
             .build()
             .map_err(|e| {
                 Error::new(
@@ -42,7 +54,7 @@ impl Runtime {
 
         // If we're running tests, there's no specific entrypoint so
         // start the runtime in the background immediately.
-        if test_mode_enabled {
+        if test_mode {
             let runtime = runtime.clone();
             thread::spawn(move || {
                 runtime.run_blocking();
@@ -118,7 +130,7 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
-        let handler = new_api_handler(env, route.handler, route.raw)?;
+        let handler = new_api_handler(env, route.handler, route.raw, route.streaming)?;
 
         // If we're not hosting an API server, this is a no-op.
         let Some(srv) = self.runtime.api().server() else {

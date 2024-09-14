@@ -44,6 +44,7 @@ impl ServiceRegistry {
         deploy_id: String,
         http_client: reqwest::Client,
         tracer: Tracer,
+        is_worker: bool,
     ) -> anyhow::Result<Self> {
         let mut base_urls = HashMap::with_capacity(sd.services.len());
         let mut service_auth = HashMap::with_capacity(sd.services.len());
@@ -75,7 +76,7 @@ impl ServiceRegistry {
                     service_auth.insert(svc, auth_method);
                 }
             }
-        } else if !hosted_services.is_empty() {
+        } else if !hosted_services.is_empty() && !is_worker {
             // This shouldn't happen if things are configured correctly.
             ::log::error!(
                 "internal encore error: cannot host services without provided own address"
@@ -253,6 +254,9 @@ impl ServiceRegistry {
                     subscription: data.subscription.clone(),
                     message_id: data.message_id.clone(),
                 },
+                model::RequestData::Stream(ref data) => {
+                    Caller::APIEndpoint(data.endpoint.name.clone())
+                }
             },
             None => Caller::App {
                 deploy_id: self.deploy_id.clone(),
@@ -272,6 +276,7 @@ impl ServiceRegistry {
             auth_user_id: source.and_then(|r| {
                 match &r.data {
                     model::RequestData::RPC(data) => data.auth_user_id.as_ref(),
+                    model::RequestData::Stream(data) => data.auth_user_id.as_ref(),
                     model::RequestData::Auth(_) => None,
                     model::RequestData::PubSub(_) => None,
                 }
@@ -279,6 +284,7 @@ impl ServiceRegistry {
             }),
             auth_data: source.and_then(|r| match &r.data {
                 model::RequestData::RPC(data) => data.auth_data.as_ref(),
+                model::RequestData::Stream(data) => data.auth_data.as_ref(),
                 model::RequestData::Auth(_) => None,
                 model::RequestData::PubSub(_) => None,
             }),

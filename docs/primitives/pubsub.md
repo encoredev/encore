@@ -13,7 +13,7 @@ lang: go
 
 Publishers & Subscribers (Pub/Sub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
 
-Encore's Backend SDK lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
+Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
 
 ## Creating a Topic
 
@@ -36,6 +36,11 @@ var Signups = pubsub.NewTopic[*SignupEvent]("signups", pubsub.TopicConfig{
     DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 ```
+
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/uptime" 
+    desc="Event-driven example application using Pub/Sub." 
+/>
 
 ### At-least-once delivery
 
@@ -289,6 +294,12 @@ func Test_Register(t *testing.T) {
     assert.Len(t, msgs, 1)
 }
 ```
+
+## Ensuring consistency between services
+
+Ensuring consistency between services in event-driven applications can be challenging, especially when database writes and Pub/Sub publishing are not transactional. This can lead to inconsistencies between services.
+
+To address this issue without adding excessive complexity, consider using a transactional outbox pattern. For more information on implementing this pattern with Encore, see the [Pub/Sub Outbox guide](/docs/primitives/pubsub-outbox).
 
 ## The benefits of Pub/Sub
 

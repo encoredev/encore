@@ -19,9 +19,9 @@ Encore provides a complete toolset for backend development, from local developme
 
 <img className="noshadow mx-auto d:w-3/4" src="/assets/docs/arch_full.png" title="Encore Overview" />
 
-Much of Encore's functionality is enabled by the Open Source [Backend SDK](/docs/primitives/overview), which lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
+Much of Encore's functionality is enabled by the Open Source [Backend Framework](/docs/primitives/overview), which lets you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
-With the Backend SDK you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP. 
+With the Backend Framework you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP. 
 
 When your application is deployed to your cloud, there are **no runtime dependencies on Encore** and there is **no proprietary code running in your cloud**.
 
@@ -59,7 +59,7 @@ Our goal is that when you use Encore, you can focus your engineering effort on y
 
 To achieve this, the headline feature Encore provides is automatic infrastructure provisioning in your cloud. Instead of writing Terraform, YAML, or clicking in cloud consoles, you [connect your cloud account](/docs/deploy/own-cloud) and hit deploy. At deployment Encore automatically provisions [infrastructure](/docs/deploy/infra) using battle-tested cloud services on AWS or GCP. Such as Cloud Run, Fargate, Kubernetes, CloudSQL, RDS, Pub/Sub, Redis, Cron Jobs, and more.
 
-This is enabled by Encore's Open-Source [Backend SDK](/docs/primitives/overview), which lets you declare infrastructure semantics in application code. This approach lets you modify and swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
+This is enabled by Encore's Open-Source [Backend Framework](/docs/primitives/overview), which lets you declare infrastructure semantics in application code. This approach lets you modify and swap out your infrastructure over time, without needing to make code changes or manually update infrastructure config files.
 
 Here are some of the other benefits and DevOps tools provided by Encore:
 
@@ -78,7 +78,7 @@ We believe Encore's end-to-end workflow is an unfair advantage for teams that wa
 
 Encore is designed to provide engineering teams with all the tools they need to build production-ready cloud backends:
 
-- **Faster Development**: Encore streamlines the development process with its Backend SDK, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
+- **Faster Development**: Encore streamlines the development process with its Backend Framework, clear abstractions, and built-in development tools, enabling you to build and deploy applications more quickly.
 - **Reduced Costs**: Encore's infrastructure management minimizes wasteful cloud expenses and reduces DevOps workload, allowing you to work more efficiently.
 - **Scalability & Performance**: Encore simplifies building microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
 - **Control & Standardization**: Encore enforces standardization and provisions infrastructure consistently according to best practices for each cloud provider.
@@ -95,13 +95,13 @@ Encore is designed to give teams a productive and less complex experience when s
 -   Microservices backends and event-driven systems for SaaS applications and mobile apps
 -   And much more...
 
-See the [users stories](/customers) section for more on how teams are using Encore to power their development.
+Check out the [showcase](/showcase) section for some examples of real-world products being built with Encore.
 
 ## Getting started
 
-1. [Sign up and install the Encore CLI](https://encore.dev/signup)
-2. [Follow a tutorial and start building](https://encore.dev/docs/tutorials/)
-3. [Book a 1:1](https://encore.dev/book) or [join Discord](https://encore.dev/discord) to discuss your use case or how to begin adopting Encore
+1. [Install the Encore CLI](https://encore.dev/docs/install)
+2. [Follow a tutorial to start building](https://encore.dev/docs/tutorials/)
+3. [Join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers
 4. Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up to date
 5. Explore the Documentation to learn about Encore's features
 
@@ -111,13 +111,13 @@ _...or keep reading to learn more about how Encore works._
 
 Encore works by using static analysis to understand your application. This is a fancy term for parsing and analyzing the code you write and creating a graph of how your application works. This graph closely represents your own mental model of the system: boxes and arrows that represent systems and services that communicate with other systems, pass data and connect to infrastructure. We call it the Encore Application Model.
 
-Because Encore's Open Source Backend SDK, parser, and compiler, are all designed together, Encore can ensure 100% accuracy when creating the application model. Any deviation is caught as a compilation error.
+Because Encore's Open Source Backend Framework, parser, and compiler, are all designed together, Encore can ensure 100% accuracy when creating the application model. Any deviation is caught as a compilation error.
 
 Using this model, Encore can provide tools to solve problems that normally would be up to the developer to do manually. From creating architecture diagrams and API documentation to provisioning cloud infrastructure.
 
 We're continuously expanding on Encore's capabilities and are building a new generation of developer tools that are enabled by Encore's understanding of your application.
 
-The Backend SDK, parser, and compiler that enable this are all [Open Source](https://github.com/encoredev/encore).
+The Backend Framework, parser, and compiler that enable this are all [Open Source](https://github.com/encoredev/encore).
 
 <img src="/assets/docs/flow-diagram.png" title="Encore Application Model" className="mx-auto md:max-w-lg"/>
 
@@ -125,4 +125,4 @@ The Backend SDK, parser, and compiler that enable this are all [Open Source](htt
 
 Developers make dozens of decisions when creating a backend application. Deciding how to structure the codebase, defining API schemas, picking underlying infrastructure, etc. The decisions often come down to personal preferences, not technical rationale. This creates a huge problem in the form of fragmentation! When every stack looks different, all tools have to be general purpose.
 
-When you adopt Encore, many of these stylistic decisions are already made for you. Encore's [Backend SDK](/docs/primitives) ensures your application follows modern best practices. And when you run your application, Encore's Open Source parser and compiler check that you're sticking to the standard. This means you're free to focus your energy on what matters: writing your application's business logic.
+When you adopt Encore, many of these stylistic decisions are already made for you. Encore's [Backend Framework](/docs/primitives) ensures your application follows modern best practices. And when you run your application, Encore's Open Source parser and compiler check that you're sticking to the standard. This means you're free to focus your energy on what matters: writing your application's business logic.

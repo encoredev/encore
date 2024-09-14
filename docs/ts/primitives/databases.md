@@ -13,6 +13,11 @@ lang: ts
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/url-shortener" 
+    desc="URL Shortener example that uses a PostgreSQL database." 
+/>
+
 ## Creating a database
 
 To create a database, import `encore.dev/storage/sqldb` and call `new SQLDatabase`, assigning the result to a top-level variable.
@@ -43,9 +48,9 @@ The configuration object specifies the directory containing the database migrati
 
 See the [Defining the database schema](#defining-the-database-schema) section below for more details.
 
-With this code in place Encore will automatically create the database when starting `encore run` (locally)
-or on the next deployment (in the cloud). Encore automatically injects the appropriate configuration to authenticate
-and connect to the database, so once the application starts up the database is ready to be used.
+With this code in place Encore will automatically create the database using Docker when starting `encore run` (locally).
+
+For cloud environments, Encore automatically injects the appropriate configuration to authenticate and connect to the database, so once the application starts up the database is ready to be used.
 
 ## Defining the database schema
 
@@ -96,22 +101,6 @@ CREATE TABLE todo_item (
 );
 ```
 
-## Provisioning databases
-
-Encore automatically provisions databases to match what your application requires.
-When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
-
-Encore provisions databases in an appropriate way depending on the environment.
-When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
-In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
-
-- In `production` environments, the database is provisioned through the Managed SQL Database
-  service offered by the chosen cloud provider.
-- In `development` environments, the database is provisioned as a Kubernetes deployment
-  with a persistent disk attached.
-
-See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
-
 ## Using databases
 
 Once you have created the database using `const db = new SQLDatabase(...)` you can start querying and inserting data into the database by calling methods on the `db` variable.
@@ -137,14 +126,14 @@ Or to query a single todo item by id:
 
 ```ts
 async function getTodoTitle(id: number): string | undefined {
-  const row = await db.query`SELECT title FROM todo_item WHERE id = ${id}`;
+  const row = await db.queryRow`SELECT title FROM todo_item WHERE id = ${id}`;
   return row?.title;
 }
 ```
 
 ### Inserting data
 
-To insert data, or to make database queryies that don't return any rows, use `db.exec`.
+To insert data, or to make database queries that don't return any rows, use `db.exec`.
 
 For example:
 
@@ -154,6 +143,22 @@ await db.exec`
   VALUES (${title}, false)
 `;
 ```
+
+## Provisioning databases
+
+Encore automatically provisions databases to match what your application requires.
+When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
+
+Encore provisions databases in an appropriate way depending on the environment.
+When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
+In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
+
+- In `production` environments, the database is provisioned through the Managed SQL Database
+  service offered by the chosen cloud provider.
+- In `development` environments, the database is provisioned as a Kubernetes deployment
+  with a persistent disk attached.
+
+See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
 
 ## Connecting to databases
 
@@ -224,9 +229,10 @@ See [the full list of available extensions](/docs/primitives/databases/extension
 
 ## Troubleshooting
 
-### Application won't run
+When you run your application locally with `encore run`, Encore will provision local databases using Docker.
+If this fails with a database error, it can often be resolved if you restart the Encore daemon using `encore daemon` and then try `encore run` again.
 
-When you run your application locally with `encore run`, Encore will parse and compile your application, and provision the necessary infrastructure including databases. If this fails with a database error, there are a few common causes.
+If this does not resolve the issue, here are steps to resolve common errors:
 
 ** Error: sqldb: unknown database **
 

@@ -1,6 +1,8 @@
+use anyhow::Context;
 use bytes::BytesMut;
 use std::error::Error;
 use tokio_postgres::types::{FromSql, IsNull, ToSql, Type};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub enum RowValue {
@@ -18,7 +20,7 @@ impl ToSql for RowValue {
             Self::Bytes(val) => val.to_sql(ty, out),
             Self::Uuid(val) => match *ty {
                 Type::UUID => val.to_sql(ty, out),
-                Type::TEXT => val.to_string().to_sql(ty, out),
+                Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
                 _ => Err(format!("uuid not supported for column of type {}", ty).into()),
             },
 
@@ -29,12 +31,12 @@ impl ToSql for RowValue {
                     serde_json::Value::Null => Ok(IsNull::Yes),
                     serde_json::Value::Bool(bool) => match *ty {
                         Type::BOOL => bool.to_sql(ty, out),
-                        Type::TEXT => bool.to_string().to_sql(ty, out),
+                        Type::TEXT | Type::VARCHAR => bool.to_string().to_sql(ty, out),
                         _ => Err(format!("bool not supported for column of type {}", ty).into()),
                     },
 
                     serde_json::Value::String(str) => match *ty {
-                        Type::TEXT => str.to_sql(ty, out),
+                        Type::TEXT | Type::VARCHAR => str.to_sql(ty, out),
                         Type::BYTEA => {
                             let val = str.as_bytes();
                             val.to_sql(ty, out)
@@ -58,6 +60,10 @@ impl ToSql for RowValue {
                         Type::TIME => {
                             let val = chrono::NaiveTime::parse_from_str(str, "%H:%M:%S")
                                 .map_err(Box::new)?;
+                            val.to_sql(ty, out)
+                        }
+                        Type::UUID => {
+                            let val = Uuid::parse_str(str).context("unable to parse uuid")?;
                             val.to_sql(ty, out)
                         }
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
@@ -160,7 +166,7 @@ impl ToSql for RowValue {
                             };
                             val.map_err(Box::new)?.to_sql(ty, out)
                         }
-                        Type::TEXT => val.to_string().to_sql(ty, out),
+                        Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
                         _ => {
                             if num.is_i64() {
                                 num.as_i64().unwrap().to_sql(ty, out)
@@ -196,6 +202,7 @@ impl ToSql for RowValue {
                 | Type::CHAR
                 | Type::NAME
                 | Type::TEXT
+                | Type::VARCHAR
                 | Type::INT2
                 | Type::INT4
                 | Type::INT8
@@ -229,7 +236,7 @@ impl<'a> FromSql<'a> for RowValue {
                 let val: Vec<u8> = FromSql::from_sql(ty, raw)?;
                 Self::Bytes(val)
             }
-            Type::TEXT => {
+            Type::TEXT | Type::VARCHAR => {
                 let val: String = FromSql::from_sql(ty, raw)?;
                 Self::Json(serde_json::Value::String(val))
             }
@@ -311,6 +318,7 @@ impl<'a> FromSql<'a> for RowValue {
             Type::BOOL
                 | Type::BYTEA
                 | Type::TEXT
+                | Type::VARCHAR
                 | Type::INT2
                 | Type::INT4
                 | Type::INT8

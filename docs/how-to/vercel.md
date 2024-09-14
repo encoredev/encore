@@ -7,7 +7,10 @@ title: Use Vercel for frontend hosting
 Encore is not opinionated about where you host your frontend, pick the platform that suits your situation best. In this
 guide, we'll show you how to use Vercel to host your frontend and Encore to host your backend.
 
-Take a look at our **Encore + Next.js starter** for an example: https://github.com/encoredev/nextjs-starter
+<GitHubLink 
+    href="https://github.com/encoredev/nextjs-starter" 
+    desc="Next.js + Encore TS Web App Starter" 
+/>
 
 ## Folder structure
 If you want to go for a monorepo approach, you can place your frontend and backend in separate top-level folders, like so:

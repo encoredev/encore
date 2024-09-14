@@ -1,0 +1,29 @@
+---
+seotitle: API Calls with Encore.ts
+seodesc: Learn how to make type-safe API calls in TypeScript with Encore.ts
+title: API Calls
+subtitle: Making API calls is as simple as making function calls
+lang: ts
+---
+
+Calling an API endpoint looks like a regular function call with Encore.ts. To call an endpoint you first need to import the service from `~encore/clients` and then call the API endpoint like a regular function.
+When compiling your application, Encore uses [static analysis](/docs/introduction#meet-the-encore-application-model) to parse all APIs and make then available through the `~encore/clients` module for internal calls.
+
+In the example below, we import the service `hello` and call the `ping` endpoint using a function call to `hello.ping`.
+
+```typescript
+import { hello } from "~encore/clients"; // import 'hello' service
+
+export const myOtherAPI = api({}, async (): Promise<void> => {
+  const resp = await hello.ping({ name: "World" });
+  console.log(resp.message); // "Hello World!"
+});
+```
+
+This means your development workflow is as simple as building a monolith, even if you use multiple services.
+You get all the benefits of function calls, like compile-time checking of all the parameters and auto-completion in your editor, while still allowing the division of code into logical components, services, and systems.
+
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
+    desc="Simple microservices example application with service-to-service API calls." 
+/>

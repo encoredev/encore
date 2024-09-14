@@ -13,6 +13,11 @@ and then use `encore test` from the CLI.
 The `encore test` command sets up all the necessary infrastructure in test mode before handing over to
 the test runner. 
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/uptime" 
+    desc="Uptime monitoring app with API endpoint unit tests written in Vitest." 
+/>
+
 ## Test Runners
 
 We recommend using [Vitest](https://vitest.dev) as the test runner. It's very fast, has native support for

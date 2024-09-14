@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	serviceHelp = "For more information on services and how to define them, see https://encore.dev/docs/primitives/services-and-apis"
+	serviceHelp = "For more information on services and how to define them, see https://encore.dev/docs/primitives/services"
 )
 
 var (

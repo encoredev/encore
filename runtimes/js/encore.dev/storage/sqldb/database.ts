@@ -15,7 +15,7 @@ const driverName = "node-pg";
 export type Row = Record<string, any>;
 
 /** Represents a type that can be used in query template literals */
-export type Primitive = string | number | boolean | null;
+export type Primitive = string | number | boolean | Buffer | null;
 
 /**
  * Constructing a new database object will result in Encore provisioning a database with

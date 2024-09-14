@@ -66,7 +66,7 @@ type Response struct {
 }
 ```
 
-As you can see, it's all standard Go code except for a few lines specific to Encore's Backend SDK.
+As you can see, it's all standard Go code except for a few lines specific to Encore's Backend Framework.
 
 One such element is the API annotation:
 
@@ -78,9 +78,9 @@ This annotation is all that's needed for Encore to understand that the Go packag
 the `World` function is a public API endpoint. 
 
 To create more services and endpoints, you simply create new Go packages and define endpoints using
-the `//encore:api` annotation. _If you're curious, you can read more about [defining services and APIs](/docs/primitives/services-and-apis)._
+the `//encore:api` annotation. _If you're curious, you can read more about [defining APIs](/docs/primitives/apis)._
 
-Encore's [Backend SDK](/docs/primitives/overview) provides several other declarative ways of using backend
+Encore's [Backend Framework](/docs/primitives/overview) provides several other declarative ways of using backend
 primitives, such as databases, Pub/Sub, and scheduled tasks. All defined in your application code.
 
 ## 3. Start your app & Explore the Local Development Dashboard
@@ -180,13 +180,13 @@ Now you're ready to head to the cloud!
 
 ### Deploy your app to the cloud
 
-The first time you deploy an app, Encore will by default create a staging [environment](/docs/deploy/environments) in
-Encore's free development cloud (Encore Cloud). (Learn about the [usage limits](/docs/about/usage).)
+You can either deploy by following the [self-hosting instructions](/docs/develop/self-hosting) to generate a Dockerfile.
 
-Later, when you are ready to create a production environment, you can connect your AWS or GCP account and Encore will [deploy to your own cloud](/docs/deploy/own-cloud).
-(Or even both of them, Encore makes it seamless to deploy to multiple cloud environments.)
+Optionally, you can use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation) which comes with built-in free hosting and integrations to use your own cloud on AWS or GCP.
 
-🥐 Now push your changes and deploy your application by running:
+Since this is the first time you deploy an Encore app, we'll show you how simple it is using Encore's free development Cloud.
+
+🥐 To deploy, simply push your changes to Encore:
 
 ```shell
 $ git add -A .
@@ -194,8 +194,7 @@ $ git commit -m 'Initial commit'
 $ git push encore
 ```
 
-Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the
-cloud.
+Encore's Cloud Platform will now build and test your app, provision the needed infrastructure, and deploy your application to a staging environment.
 
 _Your app will soon be running in the cloud, isn't this exciting?_
 
@@ -293,9 +292,9 @@ As you can see, it's all standard TypeScript.
 You define an API endpoint by wrapping a regular async function in a call to `api`. Doing this makes Encore identify the `hello` directory as a service,
 and that the `world` function is a public API endpoint. Encore automatically handles authentication, HTTP routing, request validation, error handling, observability, API documentation, and more.
 
-If you want to create more services and endpoints, you simply create new folders and define endpoints by wrapping functions in the `api` function. _If you're curious, you can read more about [defining services and APIs](/docs/ts/primitives/services-and-apis)._
+If you want to create more services and endpoints, you simply create new folders and define endpoints by wrapping functions in the `api` function. _If you're curious, you can read more about defining [services](/docs/ts/primitives/services) and [APIs](/docs/ts/primitives/apis)._
 
-Encore's [Backend SDK](/docs/ts) provides several declarative ways of using backend primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
+The Encore.ts [Backend Framework](/docs/ts) provides several declarative ways of using backend primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
 
 ## 3. Start your app & Explore Local Development Dashboard
 
@@ -392,13 +391,13 @@ Now you're ready to head to the cloud!
 
 ### Deploy your app to the cloud
 
-The first time you deploy an app, Encore will by default create a staging [environment](/docs/deploy/environments) in
-Encore's free development cloud (Encore Cloud). (Learn about the [usage limits](/docs/about/usage).)
+You can either deploy by following the [self-hosting instructions](/docs/develop/self-hosting) to generate a Dockerfile.
 
-Later, when you are ready to create a production environment, you can connect your AWS or GCP account and Encore will [deploy to your own cloud](/docs/deploy/own-cloud).
-(Or even both of them, Encore makes it seamless to deploy to multiple cloud environments.)
+Optionally, you can use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation) which comes with built-in free hosting and integrations to use your own cloud on AWS or GCP.
 
-🥐 Now push your changes and deploy your application by running:
+Since this is the first time you deploy an Encore app, we'll show you how simple it is using Encore's free development Cloud.
+
+🥐 To deploy, simply push your changes to Encore:
 
 ```shell
 $ git add -A .
@@ -406,7 +405,7 @@ $ git commit -m 'Initial commit'
 $ git push encore
 ```
 
-Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
+Encore's Cloud Platform will now build and test your app, provision the needed infrastructure, and deploy your application to a staging environment.
 
 _Your app will soon be running in the cloud, isn't this exciting?_
 

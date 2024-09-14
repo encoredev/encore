@@ -25,7 +25,7 @@ export function PreviewEnv(pr) {
 }
 
 /**
- * Client is an API client for the app Encore application. 
+ * Client is an API client for the app Encore application.
  */
 export default class Client {
     /**
@@ -36,57 +36,8 @@ export default class Client {
      */
     constructor(target = "prod", options = undefined) {
         const base = new BaseClient(target, options ?? {})
-        this.authentication = new authentication.ServiceClient(base)
-        this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
     }
-}
-
-class AuthenticationServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async Docs(params) {
-        await this.baseClient.callAPI("POST", `/authentication.Docs`, JSON.stringify(params))
-    }
-}
-
-export const authentication = {
-    ServiceClient: AuthenticationServiceClient
-}
-
-class ProductsServiceClient {
-    constructor(baseClient) {
-        this.baseClient = baseClient
-    }
-
-    async Create(params) {
-        // Convert our params into the objects we need for the request
-        const headers = makeRecord({
-            "idempotency-key": params.IdempotencyKey,
-        })
-
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            description: params.description,
-            name:        params.name,
-        }
-
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/products.Create`, JSON.stringify(body), {headers})
-        return await resp.json()
-    }
-
-    async List() {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/products.List`)
-        return await resp.json()
-    }
-}
-
-export const products = {
-    ServiceClient: ProductsServiceClient
 }
 
 class SvcServiceClient {
@@ -98,143 +49,7 @@ class SvcServiceClient {
      * DummyAPI is a dummy endpoint.
      */
     async DummyAPI(params) {
-        // Convert our params into the objects we need for the request
-        const headers = makeRecord({
-            baz: params.HeaderBaz,
-            int: params.HeaderInt === undefined ? undefined : String(params.HeaderInt),
-        })
-
-        const query = makeRecord({
-            bar: params.QueryBar,
-            foo: params.QueryFoo === undefined ? undefined : String(params.QueryFoo),
-        })
-
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            Foo: params.Foo,
-            Raw: params.Raw,
-            boo: params.boo,
-        }
-
-        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
-    }
-
-    async FallbackPath(a, b) {
-        await this.baseClient.callAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
-    }
-
-    async Get(params) {
-        // Convert our params into the objects we need for the request
-        const query = makeRecord({
-            boo: String(params.Baz),
-        })
-
-        await this.baseClient.callAPI("GET", `/svc.Get`, undefined, {query})
-    }
-
-    async GetRequestWithAllInputTypes(params) {
-        // Convert our params into the objects we need for the request
-        const headers = makeRecord({
-            "x-alice": String(params.A),
-        })
-
-        const query = makeRecord({
-            Bob:  params.B.map((v) => String(v)),
-            c:    String(params["Charlies-Bool"]),
-            dave: String(params.Dave),
-        })
-
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
-
-        //Populate the return object from the JSON body and received headers
-        const rtn = await resp.json()
-        rtn.Boolean = mustBeSet("Header `x-boolean`", resp.headers.get("x-boolean")).toLowerCase() === "true"
-        rtn.Int = parseInt(mustBeSet("Header `x-int`", resp.headers.get("x-int")), 10)
-        rtn.Float = Number(mustBeSet("Header `x-float`", resp.headers.get("x-float")))
-        rtn.String = mustBeSet("Header `x-string`", resp.headers.get("x-string"))
-        rtn.Bytes = mustBeSet("Header `x-bytes`", resp.headers.get("x-bytes"))
-        rtn.Time = mustBeSet("Header `x-time`", resp.headers.get("x-time"))
-        rtn.Json = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
-        rtn.UUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
-        rtn.UserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
-        return rtn
-    }
-
-    async HeaderOnlyRequest(params) {
-        // Convert our params into the objects we need for the request
-        const headers = makeRecord({
-            "x-boolean": String(params.Boolean),
-            "x-bytes":   String(params.Bytes),
-            "x-float":   String(params.Float),
-            "x-int":     String(params.Int),
-            "x-json":    JSON.stringify(params.Json),
-            "x-string":  params.String,
-            "x-time":    String(params.Time),
-            "x-user-id": String(params.UserID),
-            "x-uuid":    String(params.UUID),
-        })
-
-        await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
-    }
-
-    async Nested(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.Nested`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    async RESTPath(a, b) {
-        await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
-    }
-
-    async Rec(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.Rec`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    async RequestWithAllInputTypes(params) {
-        // Convert our params into the objects we need for the request
-        const headers = makeRecord({
-            "x-alice": String(params.A),
-        })
-
-        const query = makeRecord({
-            Bob: params.B.map((v) => String(v)),
-        })
-
-        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-        const body = {
-            "Charlies-Bool": params["Charlies-Bool"],
-            Dave:            params.Dave,
-        }
-
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, JSON.stringify(body), {headers, query})
-
-        //Populate the return object from the JSON body and received headers
-        const rtn = await resp.json()
-        rtn.A = mustBeSet("Header `x-alice`", resp.headers.get("x-alice"))
-        return rtn
-    }
-
-    /**
-     * TupleInputOutput tests the usage of generics in the client generator
-     * and this comment is also multiline, so multiline comments get tested as well.
-     */
-    async TupleInputOutput(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.TupleInputOutput`, JSON.stringify(params))
-        return await resp.json()
-    }
-
-    async Webhook(method, a, b, body, options) {
-        return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
-    }
-
-    async Webhook2(a, b) {
-        await this.baseClient.callAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
     }
 }
 
@@ -265,20 +80,168 @@ function makeRecord(record) {
     return record
 }
 
-// mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
-function mustBeSet(field, value) {
-    if (value === null || value === undefined) {
-        throw new APIError(
-            500,
-            {
-                code: ErrCode.DataLoss,
-                message: `${field} was unexpectedly ${value}`, // ${value} will create the string "null" or "undefined"
-            },
-        )
-    }
-    return value
+
+function encodeWebSocketHeaders(headers) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
 }
 
+class WebSocketConnection {
+    hasUpdateHandlers = [];
+
+    constructor(url, headers) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers));
+        }
+
+        this.ws = new WebSocket(url, protocols);
+
+        this.on("error", () => {
+            this.resolveHasUpdateHandlers();
+        });
+
+        this.on("close", () => {
+            this.resolveHasUpdateHandlers();
+        });
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    on(type, handler) {
+        this.ws.addEventListener(type, handler);
+    }
+
+    off(type, handler) {
+        this.ws.removeEventListener(type, handler);
+    }
+
+    close() {
+        this.ws.close();
+    }
+}
+
+export class StreamInOut {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async send(msg) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }
+
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
+            }
+        }
+    }
+}
+
+export class StreamIn {
+    buffer = [];
+
+    constructor(url, headers) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async next() {
+        for await (const next of this) return next;
+    }
+
+    async *[Symbol.asyncIterator]() {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift();
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) break;
+                await this.socket.hasUpdate();
+            }
+        }
+    }
+}
+
+export class StreamOut {
+    constructor(url, headers) {
+        let responseResolver;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
+
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event) => {
+            responseResolver(JSON.parse(event.data))
+        });
+    }
+
+    async response() {
+        return this.responseValue;
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async send(msg) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }
+}
 
 const boundFetch = fetch.bind(this)
 
@@ -303,17 +266,73 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
+    }
 
-        // Setup an authentication data generator using the auth data token option
-        if (options.auth !== undefined) {
-            const auth = options.auth
-            if (typeof auth === "function") {
-                this.authGenerator = auth
-            } else {
-                this.authGenerator = () => auth
+    async getAuthData() {
+        return undefined;
+    }
+
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
             }
         }
 
+        const queryString = query ? '?' + encodeQuery(query) : '';
+        return new StreamInOut(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamIn(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut(path, params) {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request
@@ -329,20 +348,17 @@ class BaseClient {
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
 
-        // If authorization data generator is present, call it and add the returned data to the request
-        let authData
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator()
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise
-            } else {
-                authData = mayBePromise
-            }
-        }
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
 
         // If we now have authentication data, add it to the request
         if (authData) {
-            init.headers["x-api-key"] = authData.APIKey
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
         }
 
         // Make the actual request
@@ -382,7 +398,7 @@ class BaseClient {
 
 function isAPIErrorResponse(err) {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -400,7 +416,7 @@ export class APIError extends Error {
     constructor(status, response) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -408,14 +424,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
         if (Object.setPrototypeOf == undefined) {
             this.__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if (Error.captureStackTrace !== undefined) {
             Error.captureStackTrace(this, this.constructor);

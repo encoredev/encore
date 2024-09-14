@@ -1,23 +1,27 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
+use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
+use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
 use indexmap::IndexMap;
 use serde::Serialize;
 
 use crate::api::reqauth::{platform, svcauth, CallMeta};
 use crate::api::schema::encoding::{
-    request_encoding, response_encoding, ReqSchemaUnderConstruction, SchemaUnderConstruction,
+    handshake_encoding, request_encoding, response_encoding, ReqSchemaUnderConstruction,
+    SchemaUnderConstruction,
 };
 use crate::api::schema::{JSONPayload, Method};
 use crate::api::{jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::rpc;
 use crate::log::LogFromRust;
+use crate::model::StreamDirection;
 use crate::names::EndpointName;
 use crate::trace;
 use crate::{model, Hosted};
@@ -33,10 +37,6 @@ pub struct SuccessResponse {
 pub type Response = APIResult<SuccessResponse>;
 
 pub type APIResult<T> = Result<T, Error>;
-
-pub trait IntoResponse {
-    fn into_response(self) -> axum::http::Response<axum::body::Body>;
-}
 
 impl IntoResponse for SuccessResponse {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
@@ -69,6 +69,18 @@ impl IntoResponse for SuccessResponse {
     }
 }
 
+impl AsRef<Error> for Error {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::http::Response<axum::body::Body> {
+        self.as_ref().into_response()
+    }
+}
+
 impl IntoResponse for &Error {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
         let mut buf = BytesMut::with_capacity(128).writer();
@@ -82,19 +94,6 @@ impl IntoResponse for &Error {
             )
             .body(axum::body::Body::from(buf.into_inner().freeze()))
             .unwrap()
-    }
-}
-
-impl<A, B> IntoResponse for Result<A, B>
-where
-    A: IntoResponse,
-    B: IntoResponse,
-{
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        match self {
-            Ok(a) => a.into_response(),
-            Err(b) => b.into_response(),
-        }
     }
 }
 
@@ -127,6 +126,7 @@ pub enum ResponseData {
 pub struct Endpoint {
     pub name: EndpointName,
     pub path: meta::Path,
+    pub handshake: Option<Arc<schema::Request>>,
     pub request: Vec<Arc<schema::Request>>,
     pub response: Arc<schema::Response>,
 
@@ -142,6 +142,10 @@ pub struct Endpoint {
     /// The maximum size of the request body.
     /// If None, no limits are applied.
     pub body_limit: Option<u64>,
+
+    /// The static assets to serve from this endpoint.
+    /// Set only for static asset endpoints.
+    pub static_assets: Option<meta::rpc::StaticAssets>,
 }
 
 impl Endpoint {
@@ -194,6 +198,7 @@ pub fn endpoints_from_meta(
     struct EndpointUnderConstruction<'a> {
         svc: &'a meta::Service,
         ep: &'a meta::Rpc,
+        handshake_schema: Option<ReqSchemaUnderConstruction>,
         request_schemas: Vec<ReqSchemaUnderConstruction>,
         response_schema: SchemaUnderConstruction,
     }
@@ -209,12 +214,14 @@ pub fn endpoints_from_meta(
                 hosted_endpoints.push(EndpointName::new(&svc.name, &ep.name));
             }
 
+            let handshake_schema = handshake_encoding(&mut registry_builder, md, ep)?;
             let request_schemas = request_encoding(&mut registry_builder, md, ep)?;
             let response_schema = response_encoding(&mut registry_builder, md, ep)?;
 
             endpoints.push(EndpointUnderConstruction {
                 svc,
                 ep,
+                handshake_schema,
                 request_schemas,
                 response_schema,
             });
@@ -243,9 +250,32 @@ pub fn endpoints_from_meta(
                 } else {
                     schema::RequestBody::Typed(req_schema.schema.body)
                 },
+                stream: ep.ep.streaming_request,
             }));
         }
         let resp_schema = ep.response_schema.build(&registry)?;
+        let handshake_schema = ep
+            .handshake_schema
+            .map(|schema| schema.build(&registry))
+            .transpose()?;
+
+        let handshake = handshake_schema
+            .map(|handshake_schema| -> anyhow::Result<Arc<schema::Request>> {
+                let handshake_schema = schema::Request {
+                    methods: handshake_schema.methods,
+                    path: handshake_schema
+                        .schema
+                        .path
+                        .context("endpoint must have a path defined")?,
+                    header: handshake_schema.schema.header,
+                    query: handshake_schema.schema.query,
+                    body: schema::RequestBody::Typed(None),
+                    stream: false,
+                };
+
+                Ok(Arc::new(handshake_schema))
+            })
+            .transpose()?;
 
         // We only support a single gateway right now.
         let exposed = ep.ep.expose.contains_key("api-gateway");
@@ -262,15 +292,18 @@ pub fn endpoints_from_meta(
                     value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
                 }],
             }),
+            handshake,
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
                 body: resp_schema.body,
+                stream: ep.ep.streaming_response,
             }),
             raw,
             exposed,
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
+            static_assets: ep.ep.static_assets.clone(),
         };
 
         endpoint_map.insert(
@@ -321,6 +354,16 @@ impl EndpointHandler {
             .find(|schema| schema.methods.contains(&api_method))
             .expect("request schema must exist for all endpoints");
 
+        let streaming_request = req_schema.stream;
+        let streaming_response = self.endpoint.response.stream;
+
+        let stream_direction = match (streaming_request, streaming_response) {
+            (true, true) => Some(StreamDirection::InOut),
+            (true, false) => Some(StreamDirection::In),
+            (false, true) => Some(StreamDirection::Out),
+            (false, false) => None,
+        };
+
         let (mut parts, body) = axum_req
             .map(|b| match self.endpoint.body_limit {
                 None => b,
@@ -331,6 +374,7 @@ impl EndpointHandler {
             .into_parts();
 
         // Authenticate the request from the platform, if applicable.
+        #[allow(clippy::manual_unwrap_or_default)]
         let platform_seal_of_approval = match self.authenticate_platform(&parts) {
             Ok(seal) => seal,
             Err(_err) => None,
@@ -338,9 +382,13 @@ impl EndpointHandler {
 
         let meta = CallMeta::parse_with_caller(&self.shared.inbound_svc_auth, &parts.headers)?;
 
-        let parsed_payload = match req_schema.extract(&mut parts, body).await {
-            Ok(req) => req,
-            Err(err) => return Err(err),
+        let parsed_payload = if stream_direction.is_none() {
+            req_schema.extract(&mut parts, body).await?
+        } else if let Some(handshake_schema) = &self.endpoint.handshake {
+            // handshake does not have a body
+            handshake_schema.extract_parts(&mut parts).await?
+        } else {
+            None
         };
 
         // Extract caller information.
@@ -354,17 +402,29 @@ impl EndpointHandler {
         let span = trace_id.with_span(span_id);
         let parent_span = meta.parent_span_id.map(|sp| trace_id.with_span(sp));
 
-        let request = Arc::new(model::Request {
-            span,
-            parent_trace: None,
-            parent_span,
-            caller_event_id: meta.parent_event_id,
-            ext_correlation_id: meta.ext_correlation_id,
-            start: tokio::time::Instant::now(),
-            start_time: std::time::SystemTime::now(),
-            is_platform_request: platform_seal_of_approval.is_some(),
-            internal_caller,
-            data: model::RequestData::RPC(model::RPCRequestData {
+        let data = if let Some(direction) = stream_direction {
+            let websocket_upgrade = Mutex::new(Some(
+                WebSocketUpgrade::from_request_parts(&mut parts, &()).await?,
+            ));
+
+            model::RequestData::Stream(model::StreamRequestData {
+                endpoint: self.endpoint.clone(),
+                path: parts.uri.path().to_string(),
+                path_and_query: parts
+                    .uri
+                    .path_and_query()
+                    .map(|q| q.to_string())
+                    .unwrap_or_default(),
+                path_params: parsed_payload.as_ref().and_then(|p| p.path.clone()),
+                req_headers: parts.headers,
+                auth_user_id,
+                auth_data,
+                parsed_payload,
+                websocket_upgrade,
+                direction,
+            })
+        } else {
+            model::RequestData::RPC(model::RPCRequestData {
                 endpoint: self.endpoint.clone(),
                 method: api_method,
                 path: parts.uri.path().to_string(),
@@ -378,7 +438,20 @@ impl EndpointHandler {
                 auth_user_id,
                 auth_data,
                 parsed_payload,
-            }),
+            })
+        };
+
+        let request = Arc::new(model::Request {
+            span,
+            parent_trace: None,
+            parent_span,
+            caller_event_id: meta.parent_event_id,
+            ext_correlation_id: meta.ext_correlation_id,
+            start: tokio::time::Instant::now(),
+            start_time: std::time::SystemTime::now(),
+            is_platform_request: platform_seal_of_approval.is_some(),
+            internal_caller,
+            data,
         });
 
         Ok(request)
@@ -474,7 +547,7 @@ impl EndpointHandler {
                 ),
                 ResponseData::Typed(Err(err)) => (
                     err.code.status_code().as_u16(),
-                    (&err).into_response(),
+                    err.as_ref().into_response(),
                     None,
                     Some(err),
                 ),

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
 use anyhow::{anyhow, Result};
 use litparser_derive::LitParser;
 use once_cell::sync::Lazy;
@@ -128,7 +129,7 @@ fn parse_migrations(dir: &Path) -> Result<Vec<DBMigration>> {
     static FILENAME_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)\.(up|down).sql$").unwrap());
 
-    let paths = std::fs::read_dir(dir)?;
+    let paths = std::fs::read_dir(dir).context("read database migration directory")?;
     for entry in paths {
         let entry = entry?;
         if !entry.file_type()?.is_file() {

@@ -330,7 +330,7 @@ func (b *builder) writeStaticConfig(ldflags *strings.Builder) {
 	ldflags.WriteByte('\'')
 }
 
-const binaryName = "encore_app_out"
+const BinaryName = "encore_app_out"
 
 func (b *builder) exe() string {
 	goos := b.cfg.Ctx.Build.GOOS
@@ -344,7 +344,7 @@ func (b *builder) exe() string {
 }
 
 func (b *builder) binaryPath() paths.FS {
-	return b.workdir.Join(binaryName + b.exe())
+	return b.workdir.Join(BinaryName + b.exe())
 }
 
 // convertCompileErrors goes through the errors and converts basic compiler errors into

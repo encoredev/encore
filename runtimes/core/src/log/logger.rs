@@ -190,6 +190,17 @@ impl Logger {
                         serde_json::Value::String(msg.subscription.to_string()),
                     );
                 }
+                model::RequestData::Stream(data) => {
+                    let ep = &data.endpoint.name;
+                    values.insert(
+                        "service".into(),
+                        serde_json::Value::String(ep.service().to_string()),
+                    );
+                    values.insert(
+                        "endpoint".into(),
+                        serde_json::Value::String(ep.endpoint().to_string()),
+                    );
+                }
             };
 
             values.insert(

@@ -32,6 +32,11 @@ func (s *Service) MyAPI(ctx context.Context) error {
 }
 ```
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/uptime" 
+    desc="Event-driven example application using service structs." 
+/>
+
 ## Calling APIs defined on service structs
 
 When using a service struct like above, Encore will create a file named `encore.gen.go`

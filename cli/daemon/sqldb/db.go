@@ -288,6 +288,7 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 	defer fns.CloseIgnore(conn)
 
 	instance, err := postgres.WithInstance(conn, &postgres.Config{})
+	defer fns.CloseIgnore(instance)
 	if err != nil {
 		return err
 	}

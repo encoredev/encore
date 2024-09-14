@@ -17,8 +17,8 @@ part of the `encore.dev` package.
 Calling `appMeta()` from the `encore.dev` package returns an object that
 contains information about the application, including:
 
-- `appID` - the application name.
-- `apiBaseURL` - the URL the application API can be publicly accessed on.
+- `appId` - the application name.
+- `apiBaseUrl` - the URL the application API can be publicly accessed on.
 - `environment` - the [environment](/docs/deploy/environments) the application is currently running in.
 - `build` - the revision information of the build from the version control system.
 - `deploy` - the deployment ID and when this version of the app was deployed.

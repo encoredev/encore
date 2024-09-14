@@ -186,8 +186,8 @@
 	}]
 }
 
-#GoSDK: #SubMenu & {
-	title: "Go SDK"
+#EncoreGO: #SubMenu & {
+	title: "Encore.go"
 	presentation: {
 		icon: "golang"
 	}
@@ -197,39 +197,59 @@
 	}
 	items: [{
 		kind: "section"
-		text: "Infrastructure"
+		text: "Concepts"
 		items: [{
 			kind: "basic"
-			text: "Services and APIs"
-			path: "/primitives/services-and-apis"
-			file: "primitives/services-and-apis"
-			inline_menu: [{
+			text: "App Structure"
+			path: "/develop/app-structure"
+			file: "develop/app-structure"
+		}]
+	}, {
+		kind: "section"
+		text: "Primitives"
+		items: [{
+			kind: "basic"
+			text: "Services"
+			path: "/primitives/services"
+			file: "primitives/services"
+		}, {
+			kind: "accordion"
+			text: "APIs"
+			accordion: [{
 				kind: "basic"
-				text: "App Structure"
-				path: "/develop/app-structure"
-				file: "develop/app-structure"
+				text: "Defining APIs"
+				path: "/primitives/apis"
+				file: "primitives/apis"
 			}, {
 				kind: "basic"
-				text: "API Schemas"
-				path: "/develop/api-schemas"
-				file: "develop/api-schemas"
+				text: "API Calls"
+				path: "/primitives/api-calls"
+				file: "primitives/api-calls"
 			}, {
 				kind: "basic"
-				text: "API Errors"
-				path: "/develop/errors"
-				file: "develop/errors"
+				text: "Raw Endpoints"
+				path: "/primitives/raw-endpoints"
+				file: "primitives/raw-endpoints"
 			}, {
 				kind: "basic"
 				text: "Service Structs"
 				path: "/primitives/services-and-apis/service-structs"
 				file: "primitives/service-structs"
+			}, {
+				kind: "basic"
+				text: "API Errors"
+				path: "/develop/errors"
+				file: "develop/errors"
 			}]
 		}, {
-			kind: "basic"
+			kind: "accordion"
 			text: "Databases"
-			path: "/primitives/databases"
-			file: "primitives/databases"
-			inline_menu: [{
+			accordion: [{
+				kind: "basic"
+				text: "Using SQL databases"
+				path: "/primitives/databases"
+				file: "primitives/databases"
+			}, {
 				kind: "basic"
 				text: "Change SQL database schema"
 				path: "/how-to/change-db-schema"
@@ -246,7 +266,7 @@
 				file: "how-to/insert-test-data-db"
 			}, {
 				kind: "basic"
-				text: "Share SQL databases between services"
+				text: "Share databases between services"
 				path: "/how-to/share-db-between-services"
 				file: "how-to/share-db-between-services"
 			}, {
@@ -259,6 +279,11 @@
 				text: "PostgreSQL Extensions"
 				path: "/primitives/databases/extensions"
 				file: "primitives/database-extensions"
+			}, {
+				kind: "basic"
+				text: "Troubleshooting"
+				path: "/primitives/databases/troubleshooting"
+				file: "primitives/database-troubleshooting"
 			}]
 		}, {
 			kind: "basic"
@@ -270,12 +295,6 @@
 			text: "Pub/Sub"
 			path: "/primitives/pubsub"
 			file: "primitives/pubsub"
-			inline_menu: [{
-				kind: "basic"
-				text: "Transactional outbox"
-				path: "/primitives/pubsub/outbox"
-				file: "primitives/pubsub-outbox"
-			}]
 		}, {
 			kind: "basic"
 			text: "Caching"
@@ -295,7 +314,7 @@
 	},
 	{
 		kind: "section"
-		text: "Develop"
+		text: "Development"
 		items: [{
 			kind: "basic"
 			text: "Authentication"
@@ -326,12 +345,11 @@
 			text: "Testing"
 			path: "/develop/testing"
 			file: "develop/testing"
-			inline_menu: [{
-				kind: "basic"
-				text: "Mocking"
-				path: "/develop/testing/mocking"
-				file: "develop/mocking"
-			}]
+		}, {
+			kind: "basic"
+			text: "Mocking"
+			path: "/develop/testing/mocking"
+			file: "develop/mocking"
 		}, {
 			kind: "basic"
 			text: "Validation"
@@ -379,6 +397,11 @@
 			file: "how-to/grpc-connect"
 		}, {
 			kind: "basic"
+			text: "Use a Pub/Sub Transactional Outbox"
+			path: "/primitives/pubsub-outbox"
+			file: "primitives/pubsub-outbox"
+		}, {
+			kind: "basic"
 			text: "Use Dependency Injection"
 			path: "/how-to/dependency-injection"
 			file: "how-to/dependency-injection"
@@ -401,8 +424,8 @@
 	}]
 }
 
-#TypeScriptSDK: #SubMenu & {
-	title: "TypeScript SDK"
+#EncoreTS: #SubMenu & {
+	title: "Encore.ts"
 	presentation: {
 		icon: "typescript"
 	}
@@ -420,35 +443,58 @@
 			file: "ts/concepts/benefits"
 		}, {
 			kind: "basic"
+			text: "App Structure"
+			path: "/ts/develop/app-structure"
+			file: "ts/develop/app-structure"
+		},{
+			kind: "basic"
 			text: "Hello World"
 			path: "/ts/concepts/hello-world"
 			file: "ts/concepts/hello-world"
 		}]
 	}, {
 		kind: "section"
-		text: "Infrastructure"
+		text: "Primitives"
 		items: [{
 			kind: "basic"
-			text: "Services and APIs"
-			path: "/ts/primitives/services-and-apis"
-			file: "ts/primitives/services-and-apis"
-			inline_menu: [{
+			text: "Services"
+			path: "/ts/primitives/services"
+			file: "ts/primitives/services"
+		}, {
+			kind: "accordion"
+			text: "APIs"
+			accordion: [{
 				kind: "basic"
-				text: "App Structure"
-				path: "/ts/develop/app-structure"
-				file: "ts/develop/app-structure"
+				text: "Defining APIs"
+				path: "/ts/primitives/apis"
+				file: "ts/primitives/apis"
 			}, {
 				kind: "basic"
-				text: "API Schemas"
-				path: "/ts/develop/api-schemas"
-				file: "ts/develop/api-schemas"
+				text: "API Calls"
+				path: "/ts/primitives/api-calls"
+				file: "ts/primitives/api-calls"
+			}, {
+				kind: "basic"
+				text: "Raw Endpoints"
+				path: "/ts/primitives/raw-endpoints"
+				file: "ts/primitives/raw-endpoints"
+			}, {
+				kind: "basic"
+				text: "Streaming APIs"
+				path: "/ts/primitives/streaming-apis"
+				file: "ts/primitives/streaming-apis"
 			}, {
 				kind: "basic"
 				text: "API Errors"
 				path: "/ts/develop/errors"
 				file: "ts/develop/errors"
+			}, {
+				kind: "basic"
+				text: "Static Assets"
+				path: "/ts/primitives/static-assets"
+				file: "ts/primitives/static-assets"
 			}]
-		}, {
+		},{
 			kind: "basic"
 			text: "Databases"
 			path: "/ts/primitives/databases"
@@ -472,7 +518,7 @@
 	},
 	{
 		kind: "section"
-		text: "Develop"
+		text: "Development"
 		items: [{
 			kind: "basic"
 			text: "Authentication"
@@ -509,9 +555,24 @@
 		text: "How to guides"
 		items: [{
 			kind: "basic"
+			text: "Handle file uploads"
+			path: "/ts/how-to/file-uploads"
+			file: "how-to/file-uploads"
+		}, {
+			kind: "basic"
 			text: "Use Vercel for frontend hosting"
 			path: "/ts/how-to/vercel"
 			file: "how-to/vercel"
+		}, {
+			kind: "basic"
+			text: "Migrate from Express.js"
+			path: "/ts/how-to/express-migration"
+			file: "how-to/express-migration"
+		}, {
+			kind: "basic"
+			text: "Use NestJS with Encore"
+			path: "/ts/how-to/nestjs"
+			file: "how-to/nestjs"
 		}]
 	}]
 }
@@ -521,10 +582,10 @@
 	text: "Development"
 	items: [{
 		kind: "nav"
-		text: "Go SDK"
+		text: "Encore.go"
 		path: "/go"
 		file: "go/overview"
-		submenu: #GoSDK
+		submenu: #EncoreGO
 		presentation: {
 			icon: "golang"
 			style: "card"
@@ -532,10 +593,10 @@
 	},
 	{
 		kind: "nav"
-		text: "TypeScript SDK"
+		text: "Encore.ts"
 		path: "/ts"
 		file: "ts/overview"
-		submenu: #TypeScriptSDK
+		submenu: #EncoreTS
 		presentation: {
 			icon: "typescript"
 			style: "card"
@@ -576,12 +637,7 @@
 		text: "Flow Architecture Diagram"
 		path: "/observability/encore-flow"
 		file: "observability/encore-flow"
-	}, {
-		kind: "basic"
-		text: "Metrics"
-		path: "/observability/metrics"
-		file: "observability/metrics"
-	}, {
+	},{
 		kind: "basic"
 		text: "Service Catalog"
 		path: "/develop/api-docs"
@@ -591,7 +647,7 @@
 
 #PlatformSection: #SectionMenuItem & {
 	kind: "section"
-	text: "Platform"
+	text: "Cloud Platform"
 	items: [{
 		kind: "basic"
 		text: "Deploying & CI/CD"
@@ -612,6 +668,11 @@
 		text: "Preview Environments"
 		path: "/deploy/preview-environments"
 		file: "deploy/preview-environments"
+	}, {
+		kind: "basic"
+		text: "Metrics"
+		path: "/observability/metrics"
+		file: "observability/metrics"
 	}, {
 		kind: "basic"
 		text: "Connect your cloud account"
@@ -656,11 +717,6 @@
 		text: "Webhooks"
 		path: "/deploy/webhooks"
 		file: "deploy/webhooks"
-	}, {
-		kind: "basic"
-		text: "Integrating with Terraform"
-		path: "/deploy/terraform"
-		file: "deploy/terraform"
 	}]
 }
 
@@ -690,6 +746,11 @@
 			text: "Integrate with a web frontend"
 			path: "/how-to/integrate-frontend"
 			file: "how-to/integrate-frontend"
+		}, {
+			kind: "basic"
+			text: "Integrate with Terraform"
+			path: "/deploy/terraform"
+			file: "deploy/terraform"
 		}, {
 			kind: "basic"
 			text: "Use Temporal with Encore"

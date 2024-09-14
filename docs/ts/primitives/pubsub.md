@@ -13,7 +13,12 @@ lang: ts
 
 Publishers & Subscribers (Pub/Sub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
 
-Encore's Backend SDK lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
+Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
+
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
+    desc="Simple example app with an event-driven architecture using Pub/Sub." 
+/>
 
 ## Creating a Topic
 

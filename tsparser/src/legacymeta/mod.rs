@@ -110,6 +110,7 @@ impl<'a> MetaBuilder<'a> {
                 Resource::ServiceClient(_) => {}
 
                 Resource::APIEndpoint(ep) => {
+                    let handshake_schema = self.schema.transform_handshake(ep)?;
                     let request_schema = self.schema.transform_request(ep)?;
                     let response_schema = self
                         .schema
@@ -121,11 +122,29 @@ impl<'a> MetaBuilder<'a> {
                         (true, true) => v1::rpc::AccessType::Auth as i32,
                     };
 
+                    let static_assets = ep
+                        .static_assets
+                        .as_ref()
+                        .map(|sa| -> Result<v1::rpc::StaticAssets> {
+                            let dir_rel_path = self.rel_path_string(&sa.dir)?;
+                            let not_found_rel_path = sa
+                                .not_found
+                                .as_ref()
+                                .map(|p| self.rel_path_string(p))
+                                .transpose()?;
+                            Ok(v1::rpc::StaticAssets {
+                                dir_rel_path,
+                                not_found_rel_path,
+                            })
+                        })
+                        .transpose()?;
+
                     let rpc = v1::Rpc {
                         name: ep.name.clone(),
                         doc: ep.doc.clone(),
                         service_name: ep.service_name.clone(),
                         access_type,
+                        handshake_schema,
                         request_schema,
                         response_schema,
                         proto: if ep.raw {
@@ -150,6 +169,9 @@ impl<'a> MetaBuilder<'a> {
                             }
                             map
                         },
+                        streaming_request: ep.streaming_request,
+                        streaming_response: ep.streaming_response,
+                        static_assets,
                     };
 
                     let service_idx = svc_index
@@ -162,6 +184,7 @@ impl<'a> MetaBuilder<'a> {
                         let ep_idx = service.rpcs.len();
                         endpoint_idx.insert(obj.id, (service_idx, ep_idx));
                     }
+
                     service.rpcs.push(rpc);
                 }
 

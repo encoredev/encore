@@ -15,14 +15,14 @@ It's simple to integrate Encore applications with pre-existing systems you might
 
 ## Monolith or Microservices
 
-Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/primitives/services-and-apis#calling-apis), along with cross-service type-safety.
+Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/primitives/api-calls), along with cross-service type-safety.
 
 When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#process-allocation).
 
 ## Creating services
 
 To create an Encore service, you create a Go package and
-[define an API](/docs/develop/services-and-apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/develop/databases).
+[define an API](/docs/develop/apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/develop/databases).
 
 On disk it might look like this:
 
@@ -136,7 +136,7 @@ On disk it might look like this:
 │   ├── board                   // board service (a Go package)
 │   │   └── board.go            // board service code
 │   └── card                    // card service (a Go package)
-│       └── card.go             // coard service code
+│       └── card.go             // card service code
 │
 ├── premium                     // premium system (a directory)
 │   ├── payment                 // payment service (a Go package)

@@ -31,7 +31,7 @@ const (
 
 	metricsHelp = "For more information on metrics, see https://encore.dev/docs/observability/metrics"
 
-	serviceHelp = "For more information on services and how to define them, see https://encore.dev/docs/primitives/services-and-apis"
+	serviceHelp = "For more information on services and how to define them, see https://encore.dev/docs/primitives/services"
 
 	authHelp = "For more information on auth handlers and how to define them, see https://encore.dev/docs/develop/auth"
 )

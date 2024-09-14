@@ -34,12 +34,28 @@ export default class Client {
 
 
     /**
+     * @deprecated This constructor is deprecated, and you should move to using BaseURL with an Options object
+     */
+    constructor(target: string, token?: string)
+
+    /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target: BaseURL, options?: ClientOptions) {
+    constructor(target: BaseURL, options?: ClientOptions)
+    constructor(target: string | BaseURL = "prod", options?: string | ClientOptions) {
+
+        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
+        if (!target.startsWith("http://") && !target.startsWith("https://")) {
+            target = Environment(target)
+        }
+
+        if (typeof options === "string") {
+            options = { auth: options }
+        }
+
         const base = new BaseClient(target, options ?? {})
         this.svc = new svc.ServiceClient(base)
     }
@@ -58,6 +74,15 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+
+    /**
+     * Allows you to set the auth token to be used for each request
+     * either by passing in a static token string or by passing in a function
+     * which returns the auth token.
+     *
+     * These tokens will be sent as bearer tokens in the Authorization header.
+     */
+    auth?: string | AuthDataGenerator
 }
 
 export namespace svc {
@@ -77,6 +102,13 @@ export namespace svc {
          */
         public async DummyAPI(params: Request): Promise<void> {
             await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+        }
+
+        /**
+         * Private is a basic auth endpoint.
+         */
+        public async Private(params: Request): Promise<void> {
+            await this.baseClient.callAPI("POST", `/svc.Private`, JSON.stringify(params))
         }
     }
 }
@@ -106,6 +138,176 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     return record as Record<K, V>
 }
 
+function encodeWebSocketHeaders(headers: Record<string, string>) {
+    // url safe, no pad
+    const base64encoded = btoa(JSON.stringify(headers))
+      .replaceAll("=", "")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_");
+    return "encore.dev.headers." + base64encoded;
+}
+
+class WebSocketConnection {
+    public ws: WebSocket;
+
+    private hasUpdateHandlers: (() => void)[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
+        let protocols = ["encore-ws"];
+        if (headers) {
+            protocols.push(encodeWebSocketHeaders(headers))
+        }
+
+        this.ws = new WebSocket(url, protocols)
+
+        this.on("error", () => {
+            this.resolveHasUpdateHandlers();
+        });
+
+        this.on("close", () => {
+            this.resolveHasUpdateHandlers();
+        });
+    }
+
+    resolveHasUpdateHandlers() {
+        const handlers = this.hasUpdateHandlers;
+        this.hasUpdateHandlers = [];
+
+        for (const handler of handlers) {
+            handler()
+        }
+    }
+
+    async hasUpdate() {
+        // await until a new message have been received, or the socket is closed
+        await new Promise((resolve) => {
+            this.hasUpdateHandlers.push(() => resolve(null))
+        });
+    }
+
+    on(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.ws.addEventListener(type, handler);
+    }
+
+    off(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
+        this.ws.removeEventListener(type, handler);
+    }
+
+    close() {
+        this.ws.close();
+    }
+}
+
+export class StreamInOut<Request, Response> {
+    public socket: WebSocketConnection;
+    private buffer: Response[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event: any) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async send(msg: Request) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }
+
+    async next(): Promise<Response | undefined> {
+        for await (const next of this) return next;
+        return undefined;
+    }
+
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift() as Response;
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
+                await this.socket.hasUpdate();
+            }
+        }
+    }
+}
+
+export class StreamIn<Response> {
+    public socket: WebSocketConnection;
+    private buffer: Response[] = [];
+
+    constructor(url: string, headers?: Record<string, string>) {
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event: any) => {
+            this.buffer.push(JSON.parse(event.data));
+            this.socket.resolveHasUpdateHandlers();
+        });
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async next(): Promise<Response | undefined> {
+        for await (const next of this) return next;
+        return undefined;
+    }
+
+    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
+        while (true) {
+            if (this.buffer.length > 0) {
+                yield this.buffer.shift() as Response;
+            } else {
+                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
+                await this.socket.hasUpdate();
+            }
+        }
+    }
+}
+
+export class StreamOut<Request, Response> {
+    public socket: WebSocketConnection;
+    private responseValue: Promise<Response>;
+
+    constructor(url: string, headers?: Record<string, string>) {
+        let responseResolver: (_: any) => void;
+        this.responseValue = new Promise((resolve) => responseResolver = resolve);
+
+        this.socket = new WebSocketConnection(url, headers);
+        this.socket.on("message", (event: any) => {
+            responseResolver(JSON.parse(event.data))
+        });
+    }
+
+    async response(): Promise<Response> {
+        return this.responseValue;
+    }
+
+    close() {
+        this.socket.close();
+    }
+
+    async send(msg: Request) {
+        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
+            // await that the socket is opened
+            await new Promise((resolve) => {
+                this.socket.ws.addEventListener("open", resolve, { once: true });
+            });
+        }
+
+        return this.socket.ws.send(JSON.stringify(msg));
+    }
+}
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Headers to be sent with the request */
@@ -115,6 +317,11 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     query?: Record<string, string | string[]>
 }
 
+// AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
+export type AuthDataGenerator = () =>
+  | string
+  | Promise<string | undefined>
+  | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
@@ -126,6 +333,7 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
+    readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -147,6 +355,104 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
+
+        // Setup an authentication data generator using the auth data token option
+        if (options.auth !== undefined) {
+            const auth = options.auth
+            if (typeof auth === "function") {
+                this.authGenerator = auth
+            } else {
+                this.authGenerator = () => auth
+            }
+        }
+
+    }
+
+    async getAuthData(): Promise<CallParameters | undefined> {
+        let authData: string | undefined;
+
+        // If authorization data generator is present, call it and add the returned data to the request
+        if (this.authGenerator) {
+            const mayBePromise = this.authGenerator();
+            if (mayBePromise instanceof Promise) {
+                authData = await mayBePromise;
+            } else {
+                authData = mayBePromise;
+            }
+        }
+
+        if (authData) {
+            const data: CallParameters = {};
+
+            data.headers = {};
+            data.headers["Authorization"] = "Bearer " + authData;
+
+            return data;
+        }
+        return undefined;
+    }
+
+    // createStreamInOut sets up a stream to a streaming API endpoint.
+    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamInOut(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamIn sets up a stream to a streaming API endpoint.
+    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamIn(this.baseURL + path + queryString, headers);
+    }
+
+    // createStreamOut sets up a stream to a streaming API endpoint.
+    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
+        let { query, headers } = params ?? {};
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                headers = {...headers, ...authData.headers};
+            }
+        }
+
+        const queryString = query ? '?' + encodeQuery(query) : ''
+        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callAPI is used by each generated API method to actually make the request
@@ -161,6 +467,20 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
+
+
+        // Fetch auth data if there is any
+        const authData = await this.getAuthData();
+
+        // If we now have authentication data, add it to the request
+        if (authData) {
+            if (authData.query) {
+                query = {...query, ...authData.query};
+            }
+            if (authData.headers) {
+                init.headers = {...init.headers, ...authData.headers};
+            }
+        }
 
         // Make the actual request
         const queryString = query ? '?' + encodeQuery(query) : ''
