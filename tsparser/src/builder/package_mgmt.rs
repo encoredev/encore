@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use duct::cmd;
 use serde::Deserialize;
+use std::io;
 
 use crate::builder::compile::CmdSpec;
 
@@ -279,22 +280,20 @@ fn symlink_encore_dev(app_root: &Path, encore_dev_path: &Path) -> Result<()> {
     let node_mod_dst = node_modules.join("encore.dev");
 
     // If the node_modules directory exists, symlink the encore.dev package.
-    if let Ok(meta) = node_mod_dst.symlink_metadata() {
-        // Is this a symlink?
-        if meta.is_symlink() {
-            // If the symlink is already pointing to our desired target, we're done.
-            if let Ok(target) = std::fs::read_link(&node_mod_dst) {
-                if target == encore_dev_path {
-                    log::info!("encore.dev symlink already points to the local runtime, skipping.");
-                    return Ok(());
-                }
+    if let Ok(target) = read_symlink(&node_mod_dst) {
+        if let Some(target) = target {
+            if target == encore_dev_path {
+                log::info!("encore.dev symlink already points to the local runtime, skipping.");
+                return Ok(());
             }
 
             // It's a symlink pointing elsewhere. Remove it.
-            symlink::remove_symlink_auto(&node_mod_dst).with_context(|| {
+            delete_symlink(&node_mod_dst).with_context(|| {
                 format!("remove existing encore.dev symlink at {:?}", node_mod_dst)
             })?;
-        } else {
+        }
+
+        if node_mod_dst.exists() {
             // It's not a symlink. Remove the directory so we can add a symlink.
             std::fs::remove_dir_all(&node_mod_dst).with_context(|| {
                 format!("remove existing encore.dev directory at {:?}", node_mod_dst)
@@ -304,9 +303,58 @@ fn symlink_encore_dev(app_root: &Path, encore_dev_path: &Path) -> Result<()> {
 
     // Create the symlink if the node_modules directory exists.
     if node_modules.exists() {
-        symlink::symlink_dir(encore_dev_path, &node_mod_dst)
+        create_symlink(encore_dev_path, &node_mod_dst)
             .with_context(|| format!("symlink encore.dev directory at {:?}", node_mod_dst))?;
     }
-
     Ok(())
+}
+
+#[cfg(not(windows))]
+fn create_symlink(src: &Path, dst: &Path) -> io::Result<()> {
+    symlink::symlink_dir(src, dst)
+}
+
+#[cfg(windows)]
+fn create_symlink(src: &Path, dst: &Path) -> io::Result<()> {
+    symlink::symlink_dir(src, dst).or_else(|_| junction::create(src, &dst))
+}
+
+#[cfg(not(windows))]
+fn read_symlink(src: &Path) -> io::Result<Option<PathBuf>> {
+    if let Ok(meta) = src.symlink_metadata() {
+        if meta.is_symlink() {
+            return std::fs::read_link(src).map(Some);
+        }
+    }
+    Ok(None)
+}
+
+#[cfg(windows)]
+fn read_symlink(src: &Path) -> io::Result<Option<PathBuf>> {
+    if let Ok(meta) = src.symlink_metadata() {
+        // Is this a symlink?
+        if meta.is_symlink() {
+            return std::fs::read_link(src).map(Some);
+        }
+    }
+
+    // Check if it's a junction.
+    if junction::exists(src)? {
+        return junction::get_target(src).map(Some);
+    }
+
+    Ok(None)
+}
+
+#[cfg(not(windows))]
+fn delete_symlink(src: &Path) -> io::Result<()> {
+    symlink::remove_symlink_auto(src)
+}
+
+#[cfg(windows)]
+fn delete_symlink(src: &Path) -> io::Result<()> {
+    if let Ok(_) = symlink::remove_symlink_auto(src) {
+        return Ok(());
+    }
+    junction::delete(src)
 }
