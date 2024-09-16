@@ -74,6 +74,8 @@ func AuthHandler(ctx context.Context, token string) (auth.UID, *Data, error) {
     desc="Example application showing an auth handler implementation with Clerk." 
 />
 
+<RelatedDocsLink paths={["/docs/how-to/auth0-auth", "/docs/how-to/clerk-auth", "/docs/how-to/firebase-auth"]} />
+
 ### Without custom user data
 
 When you don't require custom user data and it's sufficient to use `auth.UID`,
@@ -157,8 +159,6 @@ Note that for security reasons you may not want to reveal too much information a
 Whenever possible we recommend using a third-party auth provider instead of rolling your own authentication.
 
 </Callout>
-
-<RelatedDocsLink paths={["/docs/how-to/auth0-auth", "/docs/how-to/clerk-auth", "/docs/how-to/firebase-auth"]} />
 
 ## Using auth data
 
