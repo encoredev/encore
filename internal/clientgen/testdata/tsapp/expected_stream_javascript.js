@@ -92,7 +92,7 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            "path_param": params.pathParam,
+            pathParam:    params.pathParam,
             "some-query": params.queryValue,
         })
 

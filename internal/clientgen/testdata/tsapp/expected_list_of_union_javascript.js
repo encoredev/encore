@@ -48,7 +48,7 @@ class SvcServiceClient {
     async dummy(params) {
         // Convert our params into the objects we need for the request
         const query = makeRecord({
-            "list_of_union": params.listOfUnion.map((v) => String(v)),
+            listOfUnion: params.listOfUnion.map((v) => String(v)),
         })
 
         await this.baseClient.callAPI("GET", `/dummy`, undefined, {query})
