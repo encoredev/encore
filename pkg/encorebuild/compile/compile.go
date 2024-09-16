@@ -4,6 +4,7 @@ import (
 	osPkg "os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -78,7 +79,16 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	}
 
 	envs := append(extraEnvVars, osPkg.Environ()...)
-	useZig := cfg.IsCross() || cfg.Release
+	useCross := false
+	if cfg.IsCross() && runtime.GOOS == "darwin" {
+		// check is cross is installed
+		_, err := exec.LookPath("cross")
+		if err == nil {
+			useCross = true
+		}
+	}
+
+	useZig := !useCross
 
 	var target, zigTargetSuffix string
 	switch cfg.OS {
@@ -144,7 +154,14 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 		buildMode = "release"
 	}
 
-	cmd := exec.Command("cargo", cargoArgs...)
+	builder := "cargo"
+	if useCross {
+		builder = "cross"
+	}
+	cmd := exec.Command(builder, cargoArgs...)
+	// forwards the output to the parent process
+	cmd.Stdout = osPkg.Stdout
+	cmd.Stderr = osPkg.Stderr
 	cmd.Dir = cratePath
 	cmd.Env = envs
 
@@ -154,8 +171,8 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	defer cargoLock.Unlock()
 
 	// nosemgrep
-	if out, err := cmd.CombinedOutput(); err != nil {
-		Bailf("failed to compile rust binary: %v: %s", err, string(out))
+	if err := cmd.Run(); err != nil {
+		Bailf("failed to compile rust binary: %v", err)
 	}
 
 	// Copy the binary to the output path

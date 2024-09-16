@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -21,7 +21,7 @@ func init() {
 	p := ejectParams{
 		CgoEnabled: os.Getenv("CGO_ENABLED") == "1",
 		Goos:       or(os.Getenv("GOOS"), "linux"),
-		Goarch:     or(os.Getenv("GOARCH"), runtime.GOARCH),
+		Goarch:     or(os.Getenv("GOARCH"), "amd64"),
 	}
 	dockerEjectCmd := &cobra.Command{
 		Use:   "docker IMAGE_TAG",
@@ -34,8 +34,20 @@ func init() {
 		},
 	}
 
+	lang, err := appfile.AppLang(p.AppRoot)
+	if err != nil {
+		lang = appfile.LangGo
+	}
+	p.BaseImg = "scratch"
+	if lang == appfile.LangTS {
+		p.BaseImg = "node"
+	}
+
 	dockerEjectCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")
-	dockerEjectCmd.Flags().StringVar(&p.BaseImg, "base", "scratch", "base image to build from")
+	dockerEjectCmd.Flags().StringVar(&p.BaseImg, "base", p.BaseImg, "base image to build from")
+	dockerEjectCmd.Flags().StringVar(&p.Goos, "os", p.Goos, "target operating system. One of (linux, darwin, windows)")
+	dockerEjectCmd.Flags().StringVar(&p.Goarch, "arch", p.Goarch, "target architecture. One of (amd64, arm64)")
+	dockerEjectCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", p.CgoEnabled, "enable cgo")
 	rootCmd.AddCommand(ejectCmd)
 	ejectCmd.AddCommand(dockerEjectCmd)
 }

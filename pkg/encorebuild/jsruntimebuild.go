@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -37,11 +38,12 @@ type JSRuntimeBuilder struct {
 }
 
 func (b *JSRuntimeBuilder) Build() {
+	b.log.Info().Msgf("Building local JS runtime targeting %s/%s", b.cfg.OS, b.cfg.Arch)
 	b.buildRustModule()
 	b.genTypeDefWrappers()
 	b.makeDistFolder()
 
-	if b.cfg.CopyNativeModuleToRepo {
+	if b.cfg.CopyToRepo {
 		b.copyNativeModule()
 	}
 }
@@ -73,6 +75,7 @@ func (b *JSRuntimeBuilder) buildRustModule() {
 
 		"TYPE_DEF_TMP_PATH="+b.typeDefPath(),
 		"ENCORE_VERSION="+b.cfg.Version,
+		"ENCORE_WORKDIR="+b.workdir,
 	)
 }
 
@@ -156,7 +159,11 @@ func (b *JSRuntimeBuilder) copyNativeModule() {
 	}
 
 	src := b.NativeModuleOutput()
-	dst := filepath.Join(b.jsRuntimePath(), "encore-runtime.node")
+	suffix := ""
+	if b.cfg.OS != runtime.GOOS || b.cfg.Arch != runtime.GOARCH {
+		suffix = "-" + b.cfg.OS + "-" + b.cfg.Arch
+	}
+	dst := filepath.Join(b.jsRuntimePath(), "encore-runtime.node"+suffix)
 	copyFile(src, dst)
 }
 

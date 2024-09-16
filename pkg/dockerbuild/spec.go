@@ -26,6 +26,12 @@ type ImageSpecFile struct {
 
 // ImageSpec is a specification for how to build a docker image.
 type ImageSpec struct {
+	// The operating system to use for the image.
+	OS string
+
+	// The architecture to use for the image.
+	Arch string
+
 	// The entrypoint to use for the image. It must be non-empty.
 	// The first entry is the executable path, and the rest are the arguments.
 	Entrypoint []string
@@ -122,6 +128,9 @@ type DescribeConfig struct {
 	// The directory containing the runtimes.
 	Runtimes HostPath
 
+	// The path to the node runtime, if any.
+	NodeRuntime option.Option[HostPath]
+
 	// The docker base image to use, if any. If None it defaults to the empty scratch image.
 	DockerBaseImage option.Option[string]
 
@@ -134,6 +143,9 @@ type DescribeConfig struct {
 
 	// BuildInfo contains information about the build.
 	BuildInfo BuildInfo
+
+	// ProcessPerService specifies whether to run each service in a separate process.
+	ProcessPerService bool
 }
 
 type (
@@ -231,37 +243,20 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	}
 
 	// Determine if we should use the supervisor.
-	// We should use it in all cases, except where we have a single Go entrypoint.
-	useSupervisor := true
-	if len(cfg.Compile.Outputs) == 1 && len(cfg.Compile.Outputs[0].GetEntrypoints()) == 1 {
+	// We must use the supervisor if we have more than one service or gateway.
+	useSupervisor := cfg.ProcessPerService || len(cfg.Compile.Outputs) > 1 || len(cfg.Compile.Outputs[0].GetEntrypoints()) > 1
+
+	if !useSupervisor {
 		ep := cfg.Compile.Outputs[0].GetEntrypoints()[0]
-		if out, ok := cfg.Compile.Outputs[0].(*builder.GoBuildOutput); ok {
-			imageArtifacts, ok := b.seenArtifactDirs[HostPath(out.GetArtifactDir())]
-			if !ok {
-				return nil, errors.Errorf("missing image artifact dir for %q", out.GetArtifactDir())
-			}
-
-			cmd := ep.Cmd.Expand(paths.FS(imageArtifacts.BuildArtifacts))
-			b.spec.Entrypoint = cmd.Command
-			b.spec.Env = cmd.Env
-			useSupervisor = false
-		} else if out, ok := cfg.Compile.Outputs[0].(*builder.JSBuildOutput); ok {
-			imageArtifacts, ok := b.seenArtifactDirs[HostPath(out.GetArtifactDir())]
-			if !ok {
-				return nil, errors.Errorf("missing image artifact dir for %q", out.GetArtifactDir())
-			}
-
-			cmd := ep.Cmd.Expand(paths.FS(imageArtifacts.BuildArtifacts))
-			b.spec.Entrypoint = cmd.Command
-			b.spec.Env = cmd.Env
-
-			useSupervisor = false
-			// If we have a supervisor, we need to use the new runtime config.
-			b.spec.FeatureFlags[NewRuntimeConfig] = true
+		out := cfg.Compile.Outputs[0]
+		imageArtifacts, ok := b.seenArtifactDirs[HostPath(out.GetArtifactDir())]
+		if !ok {
+			return nil, errors.Errorf("missing image artifact dir for %q", out.GetArtifactDir())
 		}
-	}
-
-	if useSupervisor {
+		cmd := ep.Cmd.Expand(paths.FS(imageArtifacts.BuildArtifacts))
+		b.spec.Entrypoint = cmd.Command
+		b.spec.Env = cmd.Env
+	} else {
 		config := &supervisor.Config{
 			NoopGateways: make(map[string]*noopgateway.Description),
 		}
@@ -313,8 +308,10 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 		b.spec.Supervisor = option.Some(super)
 		b.spec.Entrypoint = []string{string(super.MountPath), "-c", string(super.ConfigPath)}
 		b.spec.Env = nil // not needed by supervisor
+	}
 
-		// If we have a supervisor, we need to use the new runtime config.
+	// TS apps use runtime config v2.
+	if cfg.Meta.Language == meta.Lang_TYPESCRIPT {
 		b.spec.FeatureFlags[NewRuntimeConfig] = true
 	}
 
@@ -380,7 +377,7 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 				b.spec.CopyData[runtimeSrc.ToImage()] = runtimeSrc
 
 				// Add the encore-runtime.node file, and set the environment variable to point to it.
-				nativeRuntimeHost := cfg.Runtimes.Join("js", "encore-runtime.node")
+				nativeRuntimeHost := cfg.NodeRuntime.GetOrElse(cfg.Runtimes.Join("js", "encore-runtime.node"))
 				nativeRuntimeImg := nativeRuntimeHost.ToImage()
 				b.spec.CopyData[nativeRuntimeImg] = nativeRuntimeHost
 				b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
@@ -391,9 +388,10 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	}
 
 	b.spec.DockerBaseImage = cfg.DockerBaseImage.GetOrElse("scratch")
-
 	b.spec.BundleSource = cfg.BundleSource
 	b.spec.WorkingDir = cfg.WorkingDir.GetOrElse("/")
+	b.spec.OS = cfg.Compile.OS
+	b.spec.Arch = cfg.Compile.Arch
 
 	// Include build information.
 	b.spec.BuildInfo = BuildInfoSpec{

@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::io::Read;
@@ -11,6 +11,7 @@ use anyhow::Context;
 use base64::Engine;
 use duct::cmd;
 use prost::Message;
+use serde::{Deserialize, Serialize};
 
 use crate::api::reqauth::platform;
 pub use names::{CloudName, EncoreName, EndpointName};
@@ -52,8 +53,61 @@ pub mod encore {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProcessConfig {
+    hosted_services: Vec<String>,
+    hosted_gateways: Vec<String>,
+    local_service_ports: HashMap<String, u16>,
+}
+
+impl ProcessConfig {
+    pub fn apply(&self, cfg: &mut runtimepb::RuntimeConfig) {
+        let deployment = cfg.deployment.get_or_insert_with(Default::default);
+
+        deployment.hosted_services = self
+            .hosted_services
+            .iter()
+            .map(|s| runtimepb::HostedService { name: s.clone() })
+            .collect();
+        deployment.hosted_gateways = self
+            .hosted_gateways
+            .iter()
+            .map(|s| {
+                cfg.infra
+                    .as_ref()
+                    .expect("infra not found in runtime config")
+                    .resources
+                    .as_ref()
+                    .expect("resources not found in infra")
+                    .gateways
+                    .iter()
+                    .find(|g| g.encore_name == *s)
+                    .expect("gateway rid not found in infra resources")
+                    .rid
+                    .clone()
+            })
+            .collect();
+
+        let svc_discovery = deployment
+            .service_discovery
+            .get_or_insert_with(Default::default);
+        // Iterate through service_ports and add service_discovery entries
+        for (service_name, port) in &self.local_service_ports {
+            let base_url = format!("http://127.0.0.1:{}", port);
+            svc_discovery.services.insert(
+                service_name.clone(),
+                runtimepb::service_discovery::Location {
+                    base_url: base_url.clone(),
+                    auth_methods: deployment.auth_methods.clone(),
+                },
+            );
+        }
+    }
+}
+
 pub struct RuntimeBuilder {
     cfg: Option<runtimepb::RuntimeConfig>,
+    proc_cfg: Option<ProcessConfig>,
     md: Option<metapb::Data>,
     err: Option<anyhow::Error>,
     test_mode: bool,
@@ -70,6 +124,7 @@ impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
             cfg: None,
+            proc_cfg: None,
             md: None,
             err: None,
             test_mode: false,
@@ -95,12 +150,23 @@ impl RuntimeBuilder {
         self
     }
 
+    pub fn with_proc_config(mut self, proc_cfg: ProcessConfig) -> Self {
+        self.proc_cfg = Some(proc_cfg);
+        self
+    }
+
     pub fn with_runtime_config_from_env(mut self) -> Self {
         if self.err.is_none() {
             match runtime_config_from_env() {
                 Ok(cfg) => self.cfg = Some(cfg),
                 Err(e) => {
                     self.err = Some(anyhow::Error::new(e).context("unable to parse runtime config"))
+                }
+            }
+            match proc_config_from_env() {
+                Ok(cfg) => self.proc_cfg = cfg,
+                Err(e) => {
+                    self.err = Some(anyhow::Error::new(e).context("unable to parse process config"))
                 }
             }
         }
@@ -164,9 +230,11 @@ impl RuntimeBuilder {
         if let Some(err) = self.err {
             return Err(err);
         }
-        let cfg = self.cfg.context("runtime config not provided")?;
+        let mut cfg = self.cfg.context("runtime config not provided")?;
         let md = self.md.context("metadata not provided")?;
-
+        if let Some(proc_config) = self.proc_cfg {
+            proc_config.apply(&mut cfg);
+        }
         Runtime::new(cfg, md, self.test_mode, self.is_worker)
     }
 }
@@ -413,6 +481,26 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
             .map_err(ParseError::Base64)?;
         runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(ParseError::Proto)
     }
+}
+
+fn proc_config_from_env() -> Result<Option<ProcessConfig>, ParseError> {
+    let encoded_config = match std::env::var("ENCORE_PROCESS_CONFIG") {
+        Ok(config) => config,
+        Err(std::env::VarError::NotPresent) => return Ok(None),
+        Err(e) => return Err(ParseError::EnvVar(e)),
+    };
+
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded_config)
+        .map_err(ParseError::Base64)?;
+
+    let json_str = String::from_utf8(decoded)
+        .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+    let config = serde_json::from_str(&json_str)
+        .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+    Ok(Some(config))
 }
 
 fn meta_from_env() -> Result<metapb::Data, ParseError> {

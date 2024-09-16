@@ -48,7 +48,13 @@ type ImageBuildConfig struct {
 
 // BuildImage builds a docker image from the given spec.
 func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.Image, error) {
-	baseImg, err := resolveBaseImage(ctx, spec.DockerBaseImage, cfg.BaseImageOverride)
+	options := []remote.Option{
+		remote.WithPlatform(v1.Platform{
+			OS:           spec.OS,
+			Architecture: spec.Arch,
+		}),
+	}
+	baseImg, err := resolveBaseImage(ctx, spec.DockerBaseImage, cfg.BaseImageOverride, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve base image")
 	}
@@ -117,7 +123,7 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 
 // ResolveRemoteImage resolves the base image with the given reference.
 // If imageRef is the empty string or "scratch" it resolves to the empty image.
-func ResolveRemoteImage(ctx context.Context, imageRef string) (v1.Image, error) {
+func ResolveRemoteImage(ctx context.Context, imageRef string, options ...remote.Option) (v1.Image, error) {
 	if imageRef == "" || imageRef == "scratch" {
 		return empty.Image, nil
 	}
@@ -128,18 +134,18 @@ func ResolveRemoteImage(ctx context.Context, imageRef string) (v1.Image, error) 
 		return nil, errors.Wrap(err, "parse image ref")
 	}
 
-	img, err := remote.Image(baseImgRef, remote.WithContext(ctx))
+	img, err := remote.Image(baseImgRef, append(options, remote.WithContext(ctx))...)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch image")
 	}
 	return img, nil
 }
 
-func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage option.Option[v1.Image]) (v1.Image, error) {
+func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage option.Option[v1.Image], options ...remote.Option) (v1.Image, error) {
 	if override, ok := overrideBaseImage.Get(); ok {
 		return override, nil
 	}
-	return ResolveRemoteImage(ctx, baseImgTag)
+	return ResolveRemoteImage(ctx, baseImgTag, options...)
 }
 
 func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildConfig) (opener tarball.Opener, err error) {
