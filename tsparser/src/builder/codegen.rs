@@ -159,7 +159,9 @@ impl Builder<'_> {
 
                 for rpc in &endpoints {
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
-                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+                    let import_path = Path::new("../../../../../")
+                        .join(&svc_rel_path)
+                        .join(rel_path);
 
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
@@ -171,7 +173,9 @@ impl Builder<'_> {
 
                 for sub in &subscriptions {
                     let rel_path = get_svc_rel_path(&svc.root, sub.range, true);
-                    let import_path = Path::new("../../../").join(&svc_rel_path).join(rel_path);
+                    let import_path = Path::new("../../../../../")
+                        .join(&svc_rel_path)
+                        .join(rel_path);
 
                     subscription_ctx.push(json!({
                         "topic_name": sub.topic.name,
@@ -204,7 +208,9 @@ impl Builder<'_> {
 
                 // Compute the import path for the endpoint.
                 let rel_path = get_svc_rel_path(&svc.root, gw.range, true);
-                let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+                let import_path = Path::new("../../../../../")
+                    .join(&svc_rel_path)
+                    .join(rel_path);
 
                 let ctx = &json!({
                     "name": name,
