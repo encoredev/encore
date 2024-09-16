@@ -75,7 +75,7 @@ export namespace svc {
         public async dummy(params: Request): Promise<void> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
-                "list_of_union": params.listOfUnion.map((v) => String(v)),
+                listOfUnion: params.listOfUnion.map((v) => String(v)),
             })
 
             await this.baseClient.callAPI("GET", `/dummy`, undefined, {query})

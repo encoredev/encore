@@ -165,7 +165,7 @@ export namespace svc {
             })
 
             const query = makeRecord<string, string | string[]>({
-                "path_param": params.pathParam,
+                pathParam:    params.pathParam,
                 "some-query": params.queryValue,
             })
 
