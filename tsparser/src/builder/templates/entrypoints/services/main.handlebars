@@ -1,6 +1,6 @@
 import { registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
 {{#each endpoints}}
-import { {{name}} as {{name}}Impl } from {{toJSON import_path}};
+import { {{name}} as {{name}}Impl{{@index}} } from {{toJSON import_path}};
 {{/each}}
 {{#each subscriptions}}
 import {{toJSON import_path}};
@@ -11,7 +11,7 @@ const handlers: Handler[] = [
     {
         service:   {{toJSON ../name}},
         name:      {{toJSON name}},
-        handler:   {{name}}Impl,
+        handler:   {{name}}Impl{{@index}},
         raw:       {{toJSON raw}},
         streaming: {{toJSON streaming}},
     },
