@@ -191,6 +191,7 @@ export class RawResponse extends stream.Writable {
   }
 
   _final(callback: (error?: Error | null | undefined) => void): void {
+    this._writeHeaderIfNeeded();
     this.w.close(undefined, callback);
   }
 
