@@ -18,7 +18,7 @@ Encore makes it easy to create API endpoints that can stream data to and from yo
 Encore supports three types of streams, each designed for a specific data flow direction:
 - [**StreamIn**](#streamin): When you need to stream data into your service.
 - [**StreamOut**](#streamout): When you need to stream data out from your service.
-- [**StreamInOut**](#streaminout): When you need to stream data into and out of service.
+- [**StreamInOut**](#streaminout): When you need to stream data into and out of your service.
 
 ## How it works
 
@@ -43,6 +43,7 @@ Use `api.streamIn` when you want to have a stream from client to server, for exa
 
 ```typescript
 import { api } from "encore.dev/api";
+import log from "encore.dev/log";
 
 // Used to pass initial data, optional.
 interface Handshake {
@@ -60,27 +61,25 @@ interface Response {
   success: boolean;
 }
 
-export const uploadStream = api.streamIn<
-  Handshake,
-  Message,
-  Response
->({ path: "/upload", expose: true }, async (handshake, stream) => {
-  const chunks: string[] = [];
-  try {
-    // The stream object is an AsyncIterator that yields incoming messages.
-    for await (const data of stream) {
-      chunks.push(data.data);
-      // Stop the stream if the client sends a "done" message
-      if (data.done) break;
+export const uploadStream = api.streamIn<Handshake, Message, Response>(
+  { path: "/upload", expose: true },
+  async (handshake, stream) => {
+    const chunks: string[] = [];
+    try {
+      // The stream object is an AsyncIterator that yields incoming messages.
+      for await (const data of stream) {
+        chunks.push(data.data);
+        // Stop the stream if the client sends a "done" message
+        if (data.done) break;
+      }
+    } catch (err) {
+      log.error(`Upload error by ${handshake.user}:`, err);
+      return { success: false };
     }
-  } catch (err) {
-    console.error(`Upload error by ${handshake.user}:`, err);
-    return { success: false };
-  }
-  console.log(`Upload complete by ${handshake.user}:`, chunks);
-  return { success: true };
-});
-
+    log.info(`Upload complete by ${handshake.user}`);
+    return { success: true };
+  },
+);
 ```
 
 For `api.streamIn` you need to specify the incoming message type, the handshake type is optional. You can also specify a optional outgoing type if your API handler responds with some data when it is done with the incoming stream.
@@ -111,6 +110,7 @@ Use `api.streamOut` if you want to have a stream of messages from the server to 
 
 ```typescript
 import { api, StreamOut } from "encore.dev/api";
+import log from "encore.dev/log";
 
 // Used to pass initial data, optional.
 interface Handshake {
@@ -131,7 +131,7 @@ export const logStream = api.streamOut<Handshake, Message>(
         await stream.send({ row });
       }
     } catch (err) {
-      console.error("Upload error:", err);
+      log.error("Upload error:", err);
     }
   },
 );
