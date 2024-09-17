@@ -34,13 +34,16 @@ func init() {
 		},
 	}
 
-	lang, err := appfile.AppLang(p.AppRoot)
-	if err != nil {
-		lang = appfile.LangGo
-	}
+	lang := appfile.LangGo
 	p.BaseImg = "scratch"
+	file, err := appfile.ParseFile(p.AppRoot)
+	if err == nil {
+		lang = file.Lang
+		p.CgoEnabled = file.Build.CgoEnabled
+	}
+
 	if lang == appfile.LangTS {
-		p.BaseImg = "node"
+		p.BaseImg = "node:latest"
 	}
 
 	dockerEjectCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")

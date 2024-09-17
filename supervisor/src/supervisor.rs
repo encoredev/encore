@@ -24,7 +24,7 @@ impl Supervisor {
     ///
     /// It returns when all processes have exited, due to either
     /// crashing or cancellation.
-    pub async fn supervise(self, token: CancellationToken) {
+    pub async fn supervise(self, token: &CancellationToken) {
         let tracker = TaskTracker::new();
 
         for p in self.procs {

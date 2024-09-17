@@ -72,7 +72,7 @@ func (b *JSRuntimeBuilder) buildRustModule() {
 		compiledBinaryName,
 		b.NativeModuleOutput(),
 		filepath.Join(b.cfg.RepoDir, "runtimes", "js"),
-
+		"gnu",
 		"TYPE_DEF_TMP_PATH="+b.typeDefPath(),
 		"ENCORE_VERSION="+b.cfg.Version,
 		"ENCORE_WORKDIR="+b.workdir,

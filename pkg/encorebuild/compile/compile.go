@@ -70,7 +70,7 @@ func goBaseEnvs(cfg *buildconf.Config) []string {
 // CompileRustBinary compiles a Rust binary for the given OS and architecture
 //
 // We're using zigbuild to perform easy cross compiling
-func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePath string, extraEnvVars ...string) {
+func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePath string, libc string, extraEnvVars ...string) {
 	if cfg.OS == "windows" {
 		if !strings.HasSuffix(artifactPath, ".dll") {
 			outputPath += ".exe"
@@ -110,9 +110,9 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	case "linux":
 		switch cfg.Arch {
 		case "amd64":
-			target = "x86_64-unknown-linux-gnu"
+			target = "x86_64-unknown-linux-" + libc
 		case "arm64":
-			target = "aarch64-unknown-linux-gnu"
+			target = "aarch64-unknown-linux-" + libc
 		default:
 			Bailf("unsupported architecture for linux: %q", cfg.Arch)
 		}

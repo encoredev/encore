@@ -22,6 +22,16 @@ prost-types = "0.12.3"
 serde_json = "1.0"
 flate2 = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+pingora = { version = "0.3", features = [ "lb" ] }
+anyhow = "1.0.76"
+hyper = { version = "1.1.0", features = ["server", "http1", "http2", "client"] }
+url = "2.5.0"
+axum = { version = "0.7.5", features = ["ws"] }
+http = "1.0.0"
+futures = "0.3.30"
+reqwest = { version = "0.12.4", features = ["blocking", "stream", "json"] }
+bytes = { version = "1.5.0", features = [] }
+
 
 [build-dependencies]
 prost-build = { version = "0.12.1" }

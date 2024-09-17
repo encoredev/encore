@@ -20,3 +20,5 @@
 .DS_Store
 
 runtimes/supervisor-encore
+
+runtimes/supervisor-encore-linux-amd64

@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::io::Read;
@@ -11,7 +11,6 @@ use anyhow::Context;
 use base64::Engine;
 use duct::cmd;
 use prost::Message;
-use serde::{Deserialize, Serialize};
 
 use crate::api::reqauth::platform;
 pub use names::{CloudName, EncoreName, EndpointName};
@@ -26,6 +25,7 @@ pub mod log;
 pub mod meta;
 pub mod model;
 mod names;
+pub mod proccfg;
 pub mod pubsub;
 pub mod secrets;
 pub mod sqldb;
@@ -53,61 +53,9 @@ pub mod encore {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProcessConfig {
-    hosted_services: Vec<String>,
-    hosted_gateways: Vec<String>,
-    local_service_ports: HashMap<String, u16>,
-}
-
-impl ProcessConfig {
-    pub fn apply(&self, cfg: &mut runtimepb::RuntimeConfig) {
-        let deployment = cfg.deployment.get_or_insert_with(Default::default);
-
-        deployment.hosted_services = self
-            .hosted_services
-            .iter()
-            .map(|s| runtimepb::HostedService { name: s.clone() })
-            .collect();
-        deployment.hosted_gateways = self
-            .hosted_gateways
-            .iter()
-            .map(|s| {
-                cfg.infra
-                    .as_ref()
-                    .expect("infra not found in runtime config")
-                    .resources
-                    .as_ref()
-                    .expect("resources not found in infra")
-                    .gateways
-                    .iter()
-                    .find(|g| g.encore_name == *s)
-                    .expect("gateway rid not found in infra resources")
-                    .rid
-                    .clone()
-            })
-            .collect();
-
-        let svc_discovery = deployment
-            .service_discovery
-            .get_or_insert_with(Default::default);
-        // Iterate through service_ports and add service_discovery entries
-        for (service_name, port) in &self.local_service_ports {
-            let base_url = format!("http://127.0.0.1:{}", port);
-            svc_discovery.services.insert(
-                service_name.clone(),
-                runtimepb::service_discovery::Location {
-                    base_url: base_url.clone(),
-                    auth_methods: deployment.auth_methods.clone(),
-                },
-            );
-        }
-    }
-}
-
 pub struct RuntimeBuilder {
     cfg: Option<runtimepb::RuntimeConfig>,
-    proc_cfg: Option<ProcessConfig>,
+    proc_cfg: Option<proccfg::ProcessConfig>,
     md: Option<metapb::Data>,
     err: Option<anyhow::Error>,
     test_mode: bool,
@@ -150,7 +98,7 @@ impl RuntimeBuilder {
         self
     }
 
-    pub fn with_proc_config(mut self, proc_cfg: ProcessConfig) -> Self {
+    pub fn with_proc_config(mut self, proc_cfg: proccfg::ProcessConfig) -> Self {
         self.proc_cfg = Some(proc_cfg);
         self
     }
@@ -483,7 +431,7 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
     }
 }
 
-fn proc_config_from_env() -> Result<Option<ProcessConfig>, ParseError> {
+fn proc_config_from_env() -> Result<Option<proccfg::ProcessConfig>, ParseError> {
     let encoded_config = match std::env::var("ENCORE_PROCESS_CONFIG") {
         Ok(config) => config,
         Err(std::env::VarError::NotPresent) => return Ok(None),

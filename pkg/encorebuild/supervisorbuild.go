@@ -51,6 +51,7 @@ func (b *SupervisorBuilder) buildRustModule() {
 		"supervisor-encore",
 		b.BinaryOutput(),
 		filepath.Join(b.cfg.RepoDir, "supervisor"),
+		"musl",
 		"ENCORE_VERSION="+b.cfg.Version,
 		"ENCORE_WORKDIR="+b.workdir,
 	)
