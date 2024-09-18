@@ -59,6 +59,7 @@ pub async fn main() {
     }
 
     let proxy = proxy::GatewayProxy::new(
+        reqwest::Client::new(),
         std::net::SocketAddr::new("127.0.0.1".parse().unwrap(), port),
         service_ports.clone(),
     );

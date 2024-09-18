@@ -20,6 +20,7 @@ use tokio_util::sync::CancellationToken;
 pub struct GatewayProxy {
     services: HashMap<String, u16>,
     upstream: SocketAddr,
+    client: reqwest::Client,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -47,8 +48,16 @@ pub struct HealthzCheckResult {
 }
 
 impl GatewayProxy {
-    pub fn new(upstream: SocketAddr, services: HashMap<String, u16>) -> Self {
-        GatewayProxy { upstream, services }
+    pub fn new(
+        client: reqwest::Client,
+        upstream: SocketAddr,
+        services: HashMap<String, u16>,
+    ) -> Self {
+        GatewayProxy {
+            client,
+            upstream,
+            services,
+        }
     }
 
     pub async fn serve(self, listen_addr: String, token: &CancellationToken) {
@@ -85,69 +94,72 @@ impl GatewayProxy {
     // does not return "ok".
     pub async fn health_check(&self) -> Result<HealthzResponse> {
         let handles = self.services.clone().into_iter().map(|(svc, port)| {
+            let client = self.client.clone();
             let url = format!("http://127.0.0.1:{}/__encore/healthz", port);
             tokio::spawn(async move {
-                let client = reqwest::Client::new();
-                let res = client
+                let err_resp = || HealthzResponse {
+                    code: "unhealthy".to_string(),
+                    message: "healhtcheck failed".to_string(),
+                    details: HealthzDetails {
+                        app_revision: "".to_string(),
+                        encore_compiler: "".to_string(),
+                        deploy_id: "".to_string(),
+                        checks: vec![HealthzCheckResult {
+                            name: format!("service.{}.initialized", svc),
+                            passed: false,
+                            error: None,
+                        }],
+                        enabled_experiments: vec![],
+                    },
+                };
+
+                match client
                     .get(url.as_str())
                     .send()
                     .await
-                    .context(format!("Failed to send request to {}", svc))?;
-                if res.status().is_success() {
-                    let body = res
-                        .json::<HealthzResponse>()
-                        .await
-                        .context("Failed to parse response body")?;
-                    Ok::<(String, Option<HealthzResponse>), anyhow::Error>((svc, Some(body)))
-                } else {
-                    Ok::<(String, Option<HealthzResponse>), anyhow::Error>((svc, None))
+                    .context("failed to get url")
+                    .and_then(|r| {
+                        if r.status().is_success() {
+                            Ok(r)
+                        } else {
+                            Err(anyhow::anyhow!("Unsuccessful request"))
+                        }
+                    }) {
+                    Ok(res) => {
+                        match res
+                            .json::<HealthzResponse>()
+                            .await
+                            .context("Failed to parse response body")
+                        {
+                            Ok(res) => res,
+                            Err(_) => err_resp(),
+                        }
+                    }
+                    Err(_) => err_resp(),
                 }
             })
         });
 
-        let results: Vec<(String, Option<HealthzResponse>)> = futures::future::join_all(handles)
+        let results: Vec<HealthzResponse> = futures::future::join_all(handles)
             .await
             .into_iter()
-            .map(|result| result.context("future failed")?)
-            .map(|result| {
-                Ok::<(String, Option<HealthzResponse>), anyhow::Error>(
-                    result.context("health check failed")?,
-                )
-            })
-            .collect::<Result<Vec<(String, Option<HealthzResponse>)>>>()?;
+            .map(|r| r.context("failed future"))
+            .collect::<Result<Vec<_>>>()
+            .context("http healthcheck failed")?;
 
-        let failed_checks: Vec<HealthzCheckResult> = results
+        results
             .iter()
-            .filter_map(|(svc, resp)| {
-                if resp.is_none() || resp.as_ref().unwrap().code != "ok" {
-                    Some(HealthzCheckResult {
-                        name: format!("service.{}.initialized", svc),
-                        passed: false,
-                        error: None,
-                    })
-                } else {
-                    None
+            .fold(None::<HealthzResponse>, |rtn, resp| match rtn {
+                Some(mut res) => {
+                    if resp.code != "ok" {
+                        res.code = "unhealthy".to_string();
+                        res.details.checks.extend(resp.details.checks.clone())
+                    }
+                    Some(res)
                 }
+                None => Some(resp.clone()),
             })
-            .collect();
-
-        if failed_checks.is_empty() {
-            let (_, response) = results.first().context("no response found")?;
-            let resp = response.as_ref().context("no response found")?;
-            Ok(resp.clone())
-        } else {
-            Ok(HealthzResponse {
-                code: "unhealthy".into(),
-                message: "waiting for processes to start".to_string(),
-                details: HealthzDetails {
-                    app_revision: "".to_string(),
-                    encore_compiler: "".to_string(),
-                    deploy_id: "".to_string(),
-                    checks: failed_checks,
-                    enabled_experiments: vec![],
-                },
-            })
-        }
+            .ok_or(anyhow::anyhow!("No results"))
     }
 }
 
