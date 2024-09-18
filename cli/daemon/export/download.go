@@ -1,6 +1,8 @@
 package export
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -76,6 +78,7 @@ func tryCleanupPreviousVersions(binDir dockerbuild.HostPath) {
 }
 
 func downloadFile(url, dest string) error {
+	// Download the file to a temporary destination
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -86,7 +89,8 @@ func downloadFile(url, dest string) error {
 		return fmt.Errorf("failed to download %s: %s", url, resp.Status)
 	}
 
-	out, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	tmpDest := dest + ".tmp"
+	out, err := os.OpenFile(tmpDest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
@@ -95,6 +99,49 @@ func downloadFile(url, dest string) error {
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		return err
+	}
+	out.Close()
+
+	// Download the checksum
+	sha256url := url + ".sha256"
+	resp, err = http.Get(sha256url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download %s: %s", sha256url, resp.Status)
+	}
+	hash, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	// Validate the checksum
+	if err := validateHash(tmpDest, string(hash)); err != nil {
+		return err
+	}
+
+	// Move the file
+	if err := os.Rename(tmpDest, dest); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateHash(file, hash string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	if fileHash := hex.EncodeToString(h.Sum(nil)); hash != fileHash {
+		return fmt.Errorf("file checksum failed. Expected %s, got %s", hash, fileHash)
 	}
 	return nil
 }

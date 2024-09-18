@@ -181,7 +181,7 @@ impl RuntimeBuilder {
         let mut cfg = self.cfg.context("runtime config not provided")?;
         let md = self.md.context("metadata not provided")?;
         if let Some(proc_config) = self.proc_cfg {
-            proc_config.apply(&mut cfg);
+            proc_config.apply(&mut cfg)?;
         }
         Runtime::new(cfg, md, self.test_mode, self.is_worker)
     }

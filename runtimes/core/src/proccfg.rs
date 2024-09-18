@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::encore::runtime::v1 as runtimepb;
@@ -12,7 +13,7 @@ pub struct ProcessConfig {
 }
 
 impl ProcessConfig {
-    pub fn apply(&self, cfg: &mut runtimepb::RuntimeConfig) {
+    pub fn apply(&self, cfg: &mut runtimepb::RuntimeConfig) -> Result<()> {
         let deployment = cfg.deployment.get_or_insert_with(Default::default);
 
         deployment.hosted_services = self
@@ -26,18 +27,17 @@ impl ProcessConfig {
             .map(|s| {
                 cfg.infra
                     .as_ref()
-                    .expect("infra not found in runtime config")
-                    .resources
-                    .as_ref()
-                    .expect("resources not found in infra")
-                    .gateways
-                    .iter()
-                    .find(|g| g.encore_name == *s)
-                    .expect("gateway rid not found in infra resources")
-                    .rid
-                    .clone()
+                    .context("gateway not found in infra resources")
+                    .and_then(|r| r.resources.as_ref().context("resources not found in infra"))
+                    .and_then(|r| {
+                        r.gateways
+                            .iter()
+                            .find(|g| g.encore_name == *s)
+                            .context("gateway not found in infra resources")
+                            .map(|r| r.rid.clone())
+                    })
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         let svc_discovery = deployment
             .service_discovery
@@ -53,5 +53,6 @@ impl ProcessConfig {
                 },
             );
         }
+        Ok(())
     }
 }
