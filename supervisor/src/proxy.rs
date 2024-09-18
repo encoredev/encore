@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use axum::async_trait;
 use bytes::Bytes;
 use hyper::header;
@@ -47,10 +48,7 @@ pub struct HealthzCheckResult {
 
 impl GatewayProxy {
     pub fn new(upstream: SocketAddr, services: HashMap<String, u16>) -> Self {
-        GatewayProxy {
-            upstream: upstream,
-            services: services,
-        }
+        GatewayProxy { upstream, services }
     }
 
     pub async fn serve(self, listen_addr: String, token: &CancellationToken) {
@@ -85,7 +83,7 @@ impl GatewayProxy {
 
     // concurrently calls /__encore/healthz for all services. Returns "unhealthy" if any of them
     // does not return "ok".
-    pub async fn health_check(&self) -> HealthzResponse {
+    pub async fn health_check(&self) -> Result<HealthzResponse> {
         let handles = self.services.clone().into_iter().map(|(svc, port)| {
             let url = format!("http://127.0.0.1:{}/__encore/healthz", port);
             tokio::spawn(async move {
@@ -94,15 +92,15 @@ impl GatewayProxy {
                     .get(url.as_str())
                     .send()
                     .await
-                    .expect(format!("Failed to send request to {}", svc).as_str());
+                    .context(format!("Failed to send request to {}", svc))?;
                 if res.status().is_success() {
                     let body = res
                         .json::<HealthzResponse>()
                         .await
-                        .expect("Failed to parse response body");
-                    (svc, Some(body))
+                        .context("Failed to parse response body")?;
+                    Ok::<(String, Option<HealthzResponse>), anyhow::Error>((svc, Some(body)))
                 } else {
-                    (svc, None)
+                    Ok::<(String, Option<HealthzResponse>), anyhow::Error>((svc, None))
                 }
             })
         });
@@ -110,8 +108,13 @@ impl GatewayProxy {
         let results: Vec<(String, Option<HealthzResponse>)> = futures::future::join_all(handles)
             .await
             .into_iter()
-            .filter_map(|result| result.ok())
-            .collect();
+            .map(|result| result.context("future failed")?)
+            .map(|result| {
+                Ok::<(String, Option<HealthzResponse>), anyhow::Error>(
+                    result.context("health check failed")?,
+                )
+            })
+            .collect::<Result<Vec<(String, Option<HealthzResponse>)>>>()?;
 
         let failed_checks: Vec<HealthzCheckResult> = results
             .iter()
@@ -129,11 +132,11 @@ impl GatewayProxy {
             .collect();
 
         if failed_checks.is_empty() {
-            let (_, response) = results.first().expect("no response");
-            let resp = response.as_ref().expect("no response found");
-            resp.clone()
+            let (_, response) = results.first().context("no response found")?;
+            let resp = response.as_ref().context("no response found")?;
+            Ok(resp.clone())
         } else {
-            HealthzResponse {
+            Ok(HealthzResponse {
                 code: "unhealthy".into(),
                 message: "waiting for processes to start".to_string(),
                 details: HealthzDetails {
@@ -143,7 +146,7 @@ impl GatewayProxy {
                     checks: failed_checks,
                     enabled_experiments: vec![],
                 },
-            }
+            })
         }
     }
 }
@@ -168,11 +171,15 @@ impl ProxyHttp for GatewayProxy {
         Self::CTX: Send + Sync,
     {
         if session.req_header().uri.path() == "/__encore/healthz" {
-            let healthz_resp = self.health_check().await;
+            let healthz_resp = self
+                .health_check()
+                .await
+                .or_err(ErrorType::HTTPStatus(503), "failed to run health check")?;
             let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp)
-                .or_err(ErrorType::HTTPStatus(500), "could not encode response")?;
+                .or_err(ErrorType::HTTPStatus(503), "could not encode response")?;
 
-            let mut header = ResponseHeader::build(200, None)?;
+            let code = if healthz_resp.code == "ok" { 200 } else { 503 };
+            let mut header = ResponseHeader::build(code, None)?;
             header.insert_header(header::CONTENT_LENGTH, healthz_bytes.len())?;
             header.insert_header(header::CONTENT_TYPE, "application/json")?;
             session

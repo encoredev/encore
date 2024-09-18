@@ -8,7 +8,8 @@ use tokio_util::sync::CancellationToken;
 pub async fn main() {
     env_logger::init();
 
-    let supervisor_config = config::load_supervisor_config();
+    let supervisor_config =
+        config::load_supervisor_config().expect("could not load supervisor config");
 
     // Get the exposed port from the environment variable, defaulting to 8080 if not set
     let exposed_port = env::var("PORT")

@@ -1,10 +1,5 @@
-pub mod runtime {
-    pub mod v1 {
-        include!(concat!(env!("OUT_DIR"), "/encore.runtime.v1.rs"));
-    }
-}
-
 use crate::supervisor::Process;
+use anyhow::{Context, Result};
 use base64::Engine;
 use prost::Message;
 use runtime::v1 as runtimepb;
@@ -13,19 +8,25 @@ use std::time::Duration;
 use std::{collections::HashMap, env, fs::File};
 use tokio_retry::strategy::ExponentialBackoff;
 
+pub mod runtime {
+    pub mod v1 {
+        include!(concat!(env!("OUT_DIR"), "/encore.runtime.v1.rs"));
+    }
+}
+
 // loads the binary config and the runtime config and merges them into a supervisor config
-pub fn load_supervisor_config() -> SupervisorConfig {
-    let (services, gateways) = load_hosted_processes();
-    SupervisorConfig {
-        binary_config: load_binary_config(),
+pub fn load_supervisor_config() -> Result<SupervisorConfig> {
+    let (services, gateways) = load_hosted_processes()?;
+    Ok(SupervisorConfig {
+        binary_config: load_binary_config()?,
         hosted_services: services,
         hosted_gateways: gateways,
-    }
+    })
 }
 
 // loads the binary config (defaults to /encore/supervisor.config.json). It contains
 // information on how to start the available binaries and what services/gateways they contain
-fn load_binary_config() -> BinaryConfig {
+fn load_binary_config() -> Result<BinaryConfig> {
     // Parse config path from args, defaulting to /encore/supervisor.config.json if not specified
     let args: Vec<String> = env::args().collect();
     let config_path = args
@@ -36,54 +37,52 @@ fn load_binary_config() -> BinaryConfig {
         .unwrap_or_else(|| "/encore/supervisor.config.json".to_string());
 
     // Open and read the supervisor config file
-    let mut file = File::open(config_path).expect("Failed to open supervisor_config.json");
+    let mut file = File::open(config_path)?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .expect("Failed to read supervisor_config.json");
-    serde_json::from_str(&contents).expect("Failed to parse SupervisorConfig JSON")
+    file.read_to_string(&mut contents)?;
+    serde_json::from_str(&contents).map_err(|e| anyhow::anyhow!(e))
 }
 
 // attempts to read the encore runtime config either as proto or json. Extracts and returns the
 // hosted services and gateways.
-fn load_hosted_processes() -> (Vec<String>, Vec<String>) {
+fn load_hosted_processes() -> Result<(Vec<String>, Vec<String>)> {
     // Read and decode the runtime config bytes from the environment variable
     let runtime_config = env::var("ENCORE_RUNTIME_CONFIG")
-        .map_err(|e| format!("Failed to read ENCORE_RUNTIME_CONFIG: {}", e))
+        .context("Failed to read ENCORE_RUNTIME_CONFIG env var")
         .and_then(|encoded| {
             if encoded.starts_with("gzip:") {
                 let gzipped = encoded.trim_start_matches("gzip:");
                 base64::engine::general_purpose::STANDARD
                     .decode(gzipped.as_bytes())
-                    .map_err(|e| format!("Failed to decode base64: {}", e))
+                    .context("failed base64 decoding ENCORE_RUNTIME_CONFIG")
                     .and_then(|bytes| {
                         let mut decoder = flate2::read::GzDecoder::new(&bytes[..]);
                         let mut decompressed = Vec::new();
                         decoder
                             .read_to_end(&mut decompressed)
-                            .map_err(|e| format!("Failed to decompress gzip data: {}", e))?;
+                            .context("failed unzipping runtime config")?;
                         Ok(decompressed)
                     })
             } else {
                 base64::engine::general_purpose::STANDARD
                     .decode(encoded.as_bytes())
-                    .map_err(|e| format!("Failed to decode base64: {}", e))
+                    .context("failed base64 decoding ENCORE_RUNTIME_CONFIG")
             }
-        })
-        .expect("Failed to parse RuntimeConfig");
+        })?;
 
     // Decode the runtime config based on its format (protobuf or JSON)
     match runtimepb::RuntimeConfig::decode(&runtime_config[..]) {
         Ok(config) => {
             let deployment = config
                 .deployment
-                .expect("Deployment not found in RuntimeConfig");
+                .context("Deployment not found in RuntimeConfig")?;
             let gateways = config
                 .infra
-                .expect("Infrastructure not found in RuntimeConfig")
+                .context("Infrastructure not found in RuntimeConfig")?
                 .resources
-                .expect("Resources not found in Infrastructure")
+                .context("Resources not found in Infrastructure")?
                 .gateways;
-            (
+            Ok((
                 deployment
                     .hosted_services
                     .iter()
@@ -93,24 +92,24 @@ fn load_hosted_processes() -> (Vec<String>, Vec<String>) {
                     .hosted_gateways
                     .iter()
                     .map(|rid| {
-                        gateways
+                        Ok(gateways
                             .iter()
                             .find(|g| g.rid == *rid)
-                            .expect("Gateway rid not found in infra resources")
+                            .context("Gateway rid not found in infra resources")?
                             .encore_name
-                            .clone()
+                            .clone())
                     })
-                    .collect::<Vec<String>>(),
-            )
+                    .collect::<Result<Vec<String>>>()?,
+            ))
         }
         Err(_) => {
             // If protobuf decoding fails, try JSON decoding
             let config: RuntimeConfig = serde_json::from_slice(&runtime_config)
-                .expect("Failed to parse RuntimeConfig as JSON");
-            (
+                .context("Failed to parse RuntimeConfig as JSON")?;
+            Ok((
                 config.hosted_services,
                 config.gateways.iter().map(|g| g.name.clone()).collect(),
-            )
+            ))
         }
     }
 }
@@ -122,7 +121,7 @@ pub fn create_process_config(
     port: u16,
     service_ports: &HashMap<String, u16>,
     cfg: &BinaryConfig,
-) -> Result<Process, String> {
+) -> Result<Process> {
     // Append all supervisor environment variables
     let mut env = std::env::vars().collect::<HashMap<String, String>>();
 
@@ -134,12 +133,10 @@ pub fn create_process_config(
             (services.iter().all(|s| p.services.contains(s)))
                 && (gateways.iter().all(|g| p.gateways.contains(g)))
         })
-        .ok_or_else(|| {
-            format!(
-                "No matching proc found for services {:?} gateways {:?}",
-                services, gateways
-            )
-        })?;
+        .context(format!(
+            "No matching proc found for services {:?} gateways {:?}",
+            services, gateways
+        ))?;
 
     // Add proc-specific environment variables
     env.extend(binary_config.env.iter().map(|e| {
@@ -161,7 +158,7 @@ pub fn create_process_config(
                     hosted_services: services,
                     local_service_ports: service_ports.clone(),
                 })
-                .map_err(|e| format!("Failed to serialize ProcessConfig: {}", e))?,
+                .context("Failed to serialize ProcessConfig")?,
             ),
         ),
     ]);
@@ -173,11 +170,11 @@ pub fn create_process_config(
         program: binary_config
             .command
             .first()
-            .unwrap_or(&"".to_string())
+            .context("missing binary command")?
             .to_string(),
         args: binary_config.command[1..].to_vec(),
         env: env.into_iter().collect(),
-        cwd: std::env::current_dir().expect("Failed to get current directory"),
+        cwd: std::env::current_dir().context("Failed to get current directory")?,
         restart_policy: Box::new(policy),
     })
 }
