@@ -2,6 +2,8 @@ use encore_supervisor::config;
 use encore_supervisor::proxy;
 use encore_supervisor::supervisor::Supervisor;
 use std::env;
+use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
@@ -60,7 +62,7 @@ pub async fn main() {
 
     let proxy = proxy::GatewayProxy::new(
         reqwest::Client::new(),
-        std::net::SocketAddr::new("127.0.0.1".parse().unwrap(), port),
+        std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port),
         service_ports.clone(),
     );
     let sv = Supervisor::new(procs);
