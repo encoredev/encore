@@ -130,8 +130,15 @@ impl<'a> Parser<'a> {
     pub fn parse(mut self) -> Result<ParseResult> {
         fn ignored(entry: &walkdir::DirEntry) -> bool {
             match entry.file_name().to_str().unwrap_or_default() {
-                "node_modules" | "encore.gen" => true,
-                x => x.starts_with('.'),
+                "node_modules" | "encore.gen" | "__tests__" => true,
+                x => {
+                    // Ignore hidden files and .{test,spec}.{ts,js} files.
+                    x.starts_with('.')
+                        || x.ends_with(".test.ts")
+                        || x.ends_with(".spec.ts")
+                        || x.ends_with(".test.js")
+                        || x.ends_with(".spec.js")
+                }
             }
         }
 
