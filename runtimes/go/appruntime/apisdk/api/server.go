@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -114,17 +115,18 @@ type Server struct {
 	registeredHandlers  []Handler
 	functionsToHandlers map[uintptr]Handler
 
-	public          *httprouter.Router
-	publicFallback  *httprouter.Router
-	private         *httprouter.Router
-	privateFallback *httprouter.Router
-	encore          *httprouter.Router
-	inboundSvcAuth  map[string]svcauth.ServiceAuth // auth methods used to accept inbound service-to-service calls
-	outboundSvcAuth map[string]svcauth.ServiceAuth // auth methods used to make outbound service-to-service calls
-	httpsrv         *http.Server
-	httpCtx         context.Context
-	httpCtxCancel   context.CancelFunc
-	runningHandlers sync.WaitGroup
+	public           *httprouter.Router
+	publicFallback   *httprouter.Router
+	private          *httprouter.Router
+	privateFallback  *httprouter.Router
+	encore           *httprouter.Router
+	inboundSvcAuth   map[string]svcauth.ServiceAuth // auth methods used to accept inbound service-to-service calls
+	outboundSvcAuth  map[string]svcauth.ServiceAuth // auth methods used to make outbound service-to-service calls
+	httpsrv          *http.Server
+	httpCtx          context.Context
+	httpCtxCancel    context.CancelFunc
+	runningHandlers  sync.WaitGroup
+	remotePubSubPush map[string]*remotePubSubPushHandler
 
 	callCtr uint64
 
@@ -174,13 +176,14 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		experiments:         experiments.FromConfig(static, runtime),
 		functionsToHandlers: make(map[uintptr]Handler),
 
-		public:          newRouter(),
-		publicFallback:  newRouter(),
-		private:         newRouter(),
-		privateFallback: newRouter(),
-		encore:          newRouter(),
-		inboundSvcAuth:  inboundSvcAuth,
-		outboundSvcAuth: outboundSvcAuth,
+		public:           newRouter(),
+		publicFallback:   newRouter(),
+		private:          newRouter(),
+		privateFallback:  newRouter(),
+		encore:           newRouter(),
+		inboundSvcAuth:   inboundSvcAuth,
+		outboundSvcAuth:  outboundSvcAuth,
+		remotePubSubPush: make(map[string]*remotePubSubPushHandler),
 	}
 
 	// Create our HTTP server handler chain
@@ -200,7 +203,6 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 			static.CORSExposeHeaders,
 			baseHandler,
 		)
-
 	}
 
 	// Finally, this handler is used to track the number of running handlers
@@ -240,9 +242,44 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		},
 	}
 
+	s.configureRemotePubsubPush()
 	s.registerEncoreRoutes()
 
 	return s
+}
+
+// configureRemotePubsubPush adds pubsub push handlers for push subscriptions that are not hosted by this service.
+// This is only done for gateway services.
+func (s *Server) configureRemotePubsubPush() {
+	if !s.IsGateway() {
+		return
+	}
+	for _, topic := range s.runtime.PubsubTopics {
+		statTop, ok := s.static.PubsubTopics[topic.EncoreName]
+		if !ok {
+			panic(fmt.Errorf("runtime topic %s not found in static config", topic.EncoreName))
+		}
+		for _, sub := range topic.Subscriptions {
+			statSub, ok := statTop.Subscriptions[sub.EncoreName]
+			if !ok {
+				panic(fmt.Errorf("runtime sub %s/%s not found in static config", topic.EncoreName, sub.EncoreName))
+			}
+			if slices.Contains(s.runtime.HostedServices, statSub.Service) {
+				continue
+			}
+			service, found := s.runtime.ServiceDiscovery[statSub.Service]
+			if !found {
+				panic(fmt.Errorf("service %q not found in service discovery, but needed for the remote push handler", statSub.Service))
+			}
+			pushURL := fmt.Sprintf("%s/__encore/pubsub/push/%s", service.URL, sub.ID)
+			s.remotePubSubPush[sub.ID] = &remotePubSubPushHandler{
+				server:         s,
+				hostingService: service,
+				pushURL:        pushURL,
+				logger:         s.rootLogger.With().Str("remote_push_url", pushURL).Logger(),
+			}
+		}
+	}
 }
 
 // setAuthHandler sets the auth handler to use.
