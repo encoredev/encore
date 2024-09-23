@@ -2,6 +2,7 @@ mod router;
 mod websocket;
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -24,7 +25,6 @@ use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
-use crate::api::schema::Method;
 use crate::{api, model, EncoreName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
@@ -42,6 +42,7 @@ struct Inner {
     cors_config: CorsHeadersConfig,
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
+    proxied_push_subs: HashMap<String, EncoreName>,
 }
 
 pub struct GatewayCtx {
@@ -80,6 +81,7 @@ impl Gateway {
         cors_config: CorsHeadersConfig,
         healthz: healthz::Handler,
         own_api_address: Option<SocketAddr>,
+        proxied_push_subs: HashMap<String, EncoreName>,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
             name,
@@ -97,6 +99,7 @@ impl Gateway {
                 cors_config,
                 healthz,
                 own_api_address,
+                proxied_push_subs,
             }),
         })
     }
@@ -192,20 +195,37 @@ impl ProxyHttp for Gateway {
     ) -> pingora::Result<Box<HttpPeer>> {
         let path = session.req_header().uri.path();
 
+        // Check if this is a pubsub push request and if we need to proxy it to another service
+        let push_proxy_svc = path
+            .strip_prefix("/__encore/pubsub/push/")
+            .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id));
+
         if let Some(own_api_addr) = &self.inner.own_api_address {
-            if path.starts_with("/__encore/") {
+            if push_proxy_svc.is_none() && path.starts_with("/__encore/") {
                 return Ok(Box::new(HttpPeer::new(own_api_addr, false, "".to_string())));
             }
         }
-
-        let method: Method = session
-            .req_header()
-            .method
-            .as_ref()
-            .try_into()
-            .or_err(ErrorType::HTTPStatus(400), "invalid http method")?;
-
-        let service_name = self.inner.router.route_to_service(method, path)?;
+        let service_name = push_proxy_svc
+            .map(|o| Ok(o))
+            .or_else(|| {
+                // Find which service handles the path route
+                Some(
+                    session
+                        .req_header()
+                        .method
+                        .as_ref()
+                        .try_into()
+                        .context("failed to find method")
+                        .and_then(|method| {
+                            self.inner
+                                .router
+                                .route_to_service(method, path)
+                                .context("couldn't find upstream")
+                        }),
+                )
+            })
+            .or_err(ErrorType::InternalError, "couldn't find upstream")?
+            .or_err(ErrorType::InternalError, "couldn't find upstream")?;
 
         let upstream = self
             .inner

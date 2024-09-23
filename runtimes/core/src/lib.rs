@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::io::Read;
@@ -282,6 +282,41 @@ impl Runtime {
 
         log::set_tracer(tracer.clone());
 
+        // Find push subscriptions which should be proxied to the subscribing service by the gateway
+        let proxied_push_subs = resources
+            .pubsub_clusters
+            .iter()
+            .flat_map(|c| c.subscriptions.iter())
+            .filter(|s| s.push_only)
+            .filter_map(|s| {
+                let svc_name = (|| -> Result<String, anyhow::Error> {
+                    Ok(md
+                        .pubsub_topics
+                        .iter()
+                        .find(|t| t.name == s.topic_encore_name)
+                        .context("could not find topic")?
+                        .subscriptions
+                        .iter()
+                        .find(|ms| ms.name == s.subscription_encore_name)
+                        .context("could not find sub")?
+                        .service_name
+                        .clone())
+                })();
+                if svc_name.is_err() {
+                    return Some(Err(svc_name.unwrap_err()));
+                }
+                match deployment
+                    .hosted_services
+                    .iter()
+                    .any(|s| s.name == *svc_name.as_ref().unwrap())
+                {
+                    true => None,
+                    false => Some(Ok((s.rid.clone(), EncoreName::from(svc_name.unwrap())))),
+                }
+            })
+            .collect::<Result<HashMap<_, _>, anyhow::Error>>()
+            .context("failed to resolve gateway push subscriptions")?;
+
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md);
         let sqldb = sqldb::ManagerConfig {
             clusters: resources.sql_clusters,
@@ -310,6 +345,7 @@ impl Runtime {
             pubsub_push_registry: pubsub.push_registry(),
             runtime: tokio_rt.handle().clone(),
             is_worker,
+            proxied_push_subs,
         }
         .build()
         .context("unable to initialize api manager")?;

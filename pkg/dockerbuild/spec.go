@@ -378,7 +378,7 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 
 				// Add the encore-runtime.node file, and set the environment variable to point to it.
 				nativeRuntimeHost := cfg.NodeRuntime.GetOrElse(cfg.Runtimes.Join("js", "encore-runtime.node"))
-				nativeRuntimeImg := nativeRuntimeHost.ToImage()
+				nativeRuntimeImg := nativeRuntimeHost.ToImage().Dir().Join("encore-runtime.node")
 				b.spec.CopyData[nativeRuntimeImg] = nativeRuntimeHost
 				b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
 				b.addPrio(nativeRuntimeImg)
