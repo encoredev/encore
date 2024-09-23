@@ -766,16 +766,19 @@ class BaseClient {
         if (authData) {
             const data = {};
 
-            data.query = {};
-            data.query["query"] = authData.Query.map((v) => String(v));
-            data.query["new-auth"] = String(authData.NewAuth);
-            data.headers = {};
-            data.headers["x-header"] = authData.Header;
-            data.headers["x-auth-int"] = String(authData.AuthInt);
-            data.headers["authorization"] = authData.Authorization;
+            data.query = makeRecord({
+                "new-auth": String(authData.NewAuth),
+                query:      authData.Query.map((v) => String(v)),
+            });
+            data.headers = makeRecord({
+                authorization: authData.Authorization,
+                "x-auth-int":  String(authData.AuthInt),
+                "x-header":    authData.Header,
+            })
 
             return data;
         }
+
         return undefined;
     }
 
