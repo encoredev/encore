@@ -316,6 +316,7 @@ class BaseClient {
 
             return data;
         }
+
         return undefined;
     }
 

@@ -802,44 +802,48 @@ class BaseClient {`)
 				return errors.Wrap(err, "unable to describe auth data")
 			}
 
-			// Write all the query string fields in
-			for i, field := range authData.QueryParameters {
-				if i == 0 {
-					w.WriteString("data.query = {};\n")
+			// Generate the query string
+			if len(authData.QueryParameters) > 0 {
+				dict := make(map[string]string)
+				for _, field := range authData.QueryParameters {
+					if list := field.Type.GetList(); list != nil {
+						dict[field.WireFormat] = js.Dot("authData", field.SrcName) +
+							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+					} else {
+						dict[field.WireFormat] = js.convertBuiltinToString(
+							field.Type.GetBuiltin(),
+							js.Dot("authData", field.SrcName),
+							field.Optional,
+						)
+					}
 				}
-				w.WriteString("data.query[\"")
-				w.WriteString(field.WireFormat)
-				w.WriteString("\"] = ")
-				if list := field.Type.GetList(); list != nil {
-					w.WriteString(
-						js.Dot("authData", field.SrcName) +
-							".map((v) => " + js.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
-					)
-				} else {
-					w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-				}
-				w.WriteString(";\n")
+
+				w.WriteString("data.query = makeRecord(")
+				js.Values(w, dict)
+				w.WriteString(");\n")
 			}
 
-			// Write all the headers
-			for i, field := range authData.HeaderParameters {
-				if i == 0 {
-					w.WriteString("data.headers = {};\n")
+			// Generate the headers
+			if len(authData.HeaderParameters) > 0 {
+				dict := make(map[string]string)
+				for _, field := range authData.HeaderParameters {
+					ref := js.Dot("authData", field.SrcName)
+					dict[field.WireFormat] = js.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 				}
-				w.WriteString("data.headers[\"")
-				w.WriteString(field.WireFormat)
-				w.WriteString("\"] = ")
-				w.WriteString(js.convertBuiltinToString(field.Type.GetBuiltin(), js.Dot("authData", field.SrcName), field.Optional))
-				w.WriteString(";\n")
+
+				w.WriteString("data.headers = makeRecord(")
+				js.Values(w, dict)
+				w.WriteString(")\n")
 			}
 		} else {
 			w.WriteString("data.headers = {};\n")
 			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData;\n")
 		}
-		js.WriteString(`
-            return data;
-        }`)
+
+		w.WriteString("\nreturn data;\n")
+		w.Dedent().WriteString("}\n")
 	}
+
 	js.WriteString(`
         return undefined;
     }
