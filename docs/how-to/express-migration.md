@@ -7,6 +7,8 @@ title: Migrating from Express.js
 If you have an existing app using [Express.js](https://expressjs.com/) and want to migrate it to Encore.ts, this guide is
 for you. This guide can also serve as a comparison between the two frameworks.
 
+<iframe width="560" height="315" class="aspect-video" src="https://www.youtube.com/embed/hA9syK_FtZw?si=EScQ-x3qOLdImrMb" title="Express.js vs Encore.ts" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 ## Why migrate to Encore.ts?
 
 Express.js is a great choice for building simple APIs, but as your application grows you will likely run into limitations. There is a large community around Express.js, providing many plugins and middleware to work around these limitations. However relying heavily on plugins can make it hard to find the right tools for your use case. It also means that you will need to maintain a lot of dependencies.
