@@ -340,7 +340,7 @@ func Book(ctx context.Context, p *BookParams) error {
 
 We are now using the generated type-safe `query.InsertBooking` function to make the database operation.
 
-Notice the `encore:"sensitive"` tag on the `Email` field. This tells Encore to scrub this field so that the data is not viewable in the traces for deployed environments. This is useful for fields that contain [sensitive data](/docs/develop/api-schemas#sensitive-data) such as email addresses, passwords, etc.
+Notice the `encore:"sensitive"` tag on the `Email` field. This tells Encore to scrub this field so that the data is not viewable in the traces for deployed environments. This is useful for fields that contain [sensitive data](/docs/primitives/apis#sensitive-data) such as email addresses, passwords, etc.
 
 🥐 Restart `encore run` to cause the database to be created, and then call the `booking.Book` endpoint:
 
