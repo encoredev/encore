@@ -219,7 +219,7 @@ With Encore.ts, you create APIs using the `api` function. This function takes an
 The main difference compared to Express.js is that Encore.ts is type-safe, meaning you define the request and response
 schemas in the callback function. You then return an object matching the response schema. In case you need to operate at
 a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request.
-Learn more in our [API Schemas docs](/docs/ts/develop/api-schemas).
+Learn more in the [API Schemas docs](/docs/ts/primitives/apis#api-schemas).
 
 **Express.js**
 
@@ -458,7 +458,7 @@ like [Zod](https://github.com/colinhacks/zod).
 
 With Encore.ts, request validation for headers, query params and body is. You supply a schema for the request object and
 in the request payload does not match the schema the API will return a 400 error.
-Learn more in our [API Schemas docs](/docs/ts/develop/api-schemas).
+Learn more in the [API Schemas docs](/docs/ts/primitives/apis#api-schemas).
 
 **Express.js**
 

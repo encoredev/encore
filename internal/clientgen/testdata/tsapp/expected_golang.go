@@ -72,6 +72,29 @@ func WithHTTPClient(client HTTPDoer) Option {
 	}
 }
 
+// WithAuth allows you to set the authentication data to be used with each request
+func WithAuth(auth SvcAuthParams) Option {
+	return func(base *baseClient) error {
+		base.authGenerator = func(_ context.Context) (SvcAuthParams, error) {
+			return auth, nil
+		}
+		return nil
+	}
+}
+
+// WithAuthFunc allows you to pass a function which is called for each request to return the authentication data to be used with each request
+func WithAuthFunc(authGenerator func(ctx context.Context) (SvcAuthParams, error)) Option {
+	return func(base *baseClient) error {
+		base.authGenerator = authGenerator
+		return nil
+	}
+}
+
+type SvcAuthParams struct {
+	cookie string `encore:"optional" header:"Cookie,optional"`
+	token  string `encore:"optional" header:"x-api-token,optional"`
+}
+
 type SvcRequest struct {
 	foo       float64 `encore:"optional"` // Foo is good
 	baz       string  // Baz is better
@@ -133,15 +156,34 @@ type HTTPDoer interface {
 
 // baseClient holds all the information we need to make requests to an Encore application
 type baseClient struct {
-	httpClient HTTPDoer // The HTTP client which will be used for all API requests
-	baseURL    *url.URL // The base URL which API requests will be made against
-	userAgent  string   // What user agent we will use in the API requests
+	authGenerator func(ctx context.Context) (SvcAuthParams, error) // The function which will add the authentication data to the requests
+	httpClient    HTTPDoer                                         // The HTTP client which will be used for all API requests
+	baseURL       *url.URL                                         // The base URL which API requests will be made against
+	userAgent     string                                           // What user agent we will use in the API requests
 }
 
 // Do sends the req to the Encore application adding the authorization token as required.
 func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", b.userAgent)
+
+	// If a authorization data generator is present, call it and add the returned token to the request
+	if b.authGenerator != nil {
+		if authData, err := b.authGenerator(req.Context()); err != nil {
+			return nil, fmt.Errorf("unable to create authorization token for api request: %w", err)
+		} else {
+			authEncoder := &serde{}
+
+			// Add the auth fields to the headers
+			req.Header.Set("cookie", authEncoder.FromString(authData.cookie))
+			req.Header.Set("x-api-token", authEncoder.FromString(authData.token))
+
+			if authEncoder.LastError != nil {
+				return nil, fmt.Errorf("unable to marshal authentication data: %w", authEncoder.LastError)
+			}
+
+		}
+	}
 
 	// Merge the base URL and the API URL
 	req.URL = b.baseURL.ResolveReference(req.URL)

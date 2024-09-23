@@ -38,6 +38,15 @@ func (w *indentWriter) Indent() *indentWriter {
 	}
 }
 
+func (w *indentWriter) Dedent() *indentWriter {
+	return &indentWriter{
+		w:                w.w,
+		depth:            max(w.depth-1, 0),
+		indent:           w.indent,
+		firstWriteOnLine: true,
+	}
+}
+
 func (w *indentWriter) WriteString(s string) {
 	parts := strings.Split(s, "\n")
 	for i, part := range parts {

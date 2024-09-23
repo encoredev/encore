@@ -298,6 +298,13 @@ impl Runtime {
         .build()
         .context("unable to initialize api manager")?;
 
+        let sqldb_handle = sqldb.start_serving();
+        tokio_rt.spawn(async move {
+            if let Err(err) = sqldb_handle.await {
+                ::log::error!("sqldb proxy failed: {err}");
+            }
+        });
+
         ::log::debug!("encore runtime successfully initialized");
 
         Ok(Self {
@@ -345,9 +352,8 @@ impl Runtime {
     pub fn run_blocking(&self) {
         self.runtime.block_on(async move {
             let api_handle = self.api().start_serving();
-            let sqldb_handle = self.sqldb().start_serving();
 
-            if let Err(err) = tokio::try_join!(api_handle, sqldb_handle) {
+            if let Err(err) = api_handle.await {
                 ::log::error!("failed to start serving: {:?}", err);
             }
         });
