@@ -27,7 +27,7 @@ export function PreviewEnv(pr: number | string): BaseURL {
 }
 
 /**
- * Client is an API client for the slug Encore application. 
+ * Client is an API client for the slug Encore application.
  */
 export default class Client {
     public readonly cache: cache.ServiceClient
@@ -997,7 +997,6 @@ class BaseClient {
                 this.authGenerator = () => auth
             }
         }
-
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
@@ -1016,16 +1015,19 @@ class BaseClient {
         if (authData) {
             const data: CallParameters = {};
 
-            data.query = {};
-            data.query["query"] = authData.Query.map((v) => String(v));
-            data.query["new-auth"] = String(authData.NewAuth);
-            data.headers = {};
-            data.headers["x-header"] = authData.Header;
-            data.headers["x-auth-int"] = String(authData.AuthInt);
-            data.headers["authorization"] = authData.Authorization;
+            data.query = makeRecord<string, string | string[]>({
+                "new-auth": String(authData.NewAuth),
+                query:      authData.Query.map((v) => String(v)),
+            });
+            data.headers = makeRecord<string, string>({
+                authorization: authData.Authorization,
+                "x-auth-int":  String(authData.AuthInt),
+                "x-header":    authData.Header,
+            });
 
             return data;
         }
+
         return undefined;
     }
 
@@ -1165,7 +1167,7 @@ interface APIErrorResponse {
 
 function isAPIErrorResponse(err: any): err is APIErrorResponse {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -1198,7 +1200,7 @@ export class APIError extends Error {
     constructor(status: number, response: APIErrorResponse) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -1206,14 +1208,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
-        if ((Object as any).setPrototypeOf == undefined) { 
-            (this as any).__proto__ = APIError.prototype 
+        if ((Object as any).setPrototypeOf == undefined) {
+            (this as any).__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if ((Error as any).captureStackTrace !== undefined) {
             (Error as any).captureStackTrace(this, this.constructor);

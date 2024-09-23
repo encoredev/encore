@@ -35,4 +35,4 @@ Encore's tracing automatically captures request and response payloads to simplif
 
 For cases where this is undesirable, such as for passwords or personally identifiable information (PII), Encore supports redacting fields marked as containing sensitive data.
 
-See the documentation on [API Schemas](/docs/develop/api-schemas#sensitive-data) for more information.
+See the documentation on [API Schemas](/docs/primitives/apis#sensitive-data) for more information.

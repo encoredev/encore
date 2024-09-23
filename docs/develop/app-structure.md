@@ -40,7 +40,7 @@ On disk it might look like this:
     └── world.go                     // world service code
 ```
 
-When preferable, you can also [share databases between services](/docs/how-to/share-db-between-services).
+<RelatedDocsLink paths={["/docs/primitives/services", "/docs/primitives/apis", "/docs/docs/how-to/share-db-between-services"]} />
 
 ## Structure services using sub-packages
 

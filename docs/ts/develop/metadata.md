@@ -23,6 +23,105 @@ contains information about the application, including:
 - `build` - the revision information of the build from the version control system.
 - `deploy` - the deployment ID and when this version of the app was deployed.
 
+## Current Request
+
+The `currentRequest()` function, also provided by the `encore.dev` module, can be called from anywhere within your application and returns a
+`Request` object that contains information the current request being processed.
+
+The object contains different fields depending on whether the
+current request is an API call or a Pub/Sub message being processed.
+
+```typescript
+-- API Call --
+/** Describes an API call being processed. */
+export interface APICallMeta {
+  /** Specifies that the request is an API call. */
+  type: "api-call";
+
+  /** Describes the API Endpoint being called. */
+  api: APIDesc;
+
+  /** The HTTP method used in the API call. */
+  method: Method;
+
+  /**
+   * The request URL path used in the API call,
+   * excluding any query string parameters.
+   * For example "/path/to/endpoint".
+   */
+  path: string;
+
+  /**
+   * The request URL path used in the API call,
+   * including any query string parameters.
+   * For example "/path/to/endpoint?with=querystring".
+   */
+  pathAndQuery: string;
+
+  /**
+   * The parsed path parameters for the API endpoint.
+   * The keys are the names of the path parameters,
+   * from the API definition.
+   *
+   * For example {id: 5}.
+   */
+  pathParams: Record<string, any>;
+
+  /**
+   * The request headers from the HTTP request.
+   * The values are arrays if the header contains multiple values,
+   * either separated by ";" or when the header key appears more than once.
+   */
+  headers: Record<string, string | string[]>;
+
+  /**
+   * The parsed request payload, as expected by the application code.
+   * Not provided for raw endpoints or when the API endpoint expects no
+   * request data.
+   */
+  parsedPayload?: Record<string, any>;
+}
+
+-- Pub/Sub Message --
+/** Describes a Pub/Sub message being processed. */
+export interface PubSubMessageMeta {
+  /** Specifies that the request is a Pub/Sub message. */
+  type: "pubsub-message";
+
+  /** The service processing the message. */
+  service: string;
+
+  /** The name of the Pub/Sub topic. */
+  topic: string;
+
+  /** The name of the Pub/Sub subscription. */
+  subscription: string;
+
+  /**
+   * The unique id of the Pub/Sub message.
+   * It is the same id returned by `topic.publish()`.
+   * The message id stays the same across delivery attempts.
+   */
+  messageId: string;
+
+  /**
+   * The delivery attempt. The first attempt starts at 1,
+   * and increases by 1 for each retry.
+   */
+  deliveryAttempt: number;
+
+  /**
+   * The parsed request payload, as expected by the application code.
+   */
+  parsedPayload?: Record<string, any>;
+}
+```
+
+This works automatically as a result of Encore's request tracking.
+If no request is processed by the caller, which can happen if you call it during service
+initialization, `currentRequest()` returns `undefined`.
+
+
 ## Example Use Cases
 
 ### Using Cloud Specific Services
