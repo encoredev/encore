@@ -73,6 +73,7 @@ impl GatewayCtx {
 }
 
 impl Gateway {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: EncoreName,
         service_registry: Arc<ServiceRegistry>,
@@ -206,7 +207,7 @@ impl ProxyHttp for Gateway {
             }
         }
         let service_name = push_proxy_svc
-            .map(|o| Ok(o))
+            .map(Ok)
             .or_else(|| {
                 // Find which service handles the path route
                 Some(

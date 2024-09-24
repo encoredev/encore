@@ -211,7 +211,7 @@ impl ProxyHttp for GatewayProxy {
         _session: &mut Session,
         _ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
-        let peer: HttpPeer = HttpPeer::new(&self.upstream, false, "localhost".to_string());
+        let peer: HttpPeer = HttpPeer::new(self.upstream, false, "localhost".to_string());
         Ok(Box::new(peer))
     }
 
