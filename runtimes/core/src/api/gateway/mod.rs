@@ -207,10 +207,9 @@ impl ProxyHttp for Gateway {
             }
         }
         let service_name = push_proxy_svc
-            .map(Ok)
-            .or_else(|| {
-                // Find which service handles the path route
-                Some(
+            .map_or_else(
+                || {
+                    // Find which service handles the path route
                     session
                         .req_header()
                         .method
@@ -222,12 +221,11 @@ impl ProxyHttp for Gateway {
                                 .router
                                 .route_to_service(method, path)
                                 .context("couldn't find upstream")
-                        }),
-                )
-            })
-            .or_err(ErrorType::InternalError, "couldn't find upstream")?
+                        })
+                },
+                Ok,
+            )
             .or_err(ErrorType::InternalError, "couldn't find upstream")?;
-
         let upstream = self
             .inner
             .service_registry

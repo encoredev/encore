@@ -19,19 +19,20 @@ pub async fn main() {
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(8080);
 
+    let use_proxy =
+        supervisor_config.hosted_gateways.len() + supervisor_config.hosted_services.len() > 1;
+
     // Assign a unique port to each hosted service
     let mut service_ports = std::collections::HashMap::new();
 
-    // Start assigning services to ports from the exposed port (if there are gateways, start at +1)
-    let mut port: u16 = exposed_port + 1;
+    // Start assigning services to ports from the exposed port (reserve the exposed port to the proxy if it's used)
+    let mut port: u16 = exposed_port + if use_proxy { 1 } else { 0 };
     for service in &supervisor_config.hosted_services {
         service_ports.insert(service.clone(), port);
         port += 1;
     }
 
-    // Run all gateways on the first port
     let mut procs = Vec::new();
-
     // Create a process for each service and assign it to the selected port
     for (service_name, service_port) in &service_ports {
         procs.push(
@@ -58,16 +59,27 @@ pub async fn main() {
             )
             .expect("Failed to create process for gateways"),
         );
+        port += 1;
     }
 
-    let proxy = proxy::GatewayProxy::new(
-        reqwest::Client::new(),
-        std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port),
-        service_ports.clone(),
-    );
-    let sv = Supervisor::new(procs);
+    let mut handles = Vec::with_capacity(2);
+    let mut results = Vec::with_capacity(handles.len());
     let root_token = CancellationToken::new();
+
+    let sv = Supervisor::new(procs);
     let supervisor_token = root_token.child_token();
+    handles.push(tokio::spawn(sv.supervise(supervisor_token)));
+
+    if use_proxy {
+        let proxy = proxy::GatewayProxy::new(
+            reqwest::Client::new(),
+            std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port - 1),
+            service_ports.clone(),
+        );
+        let proxy_token = root_token.child_token();
+        let proxy_fut = proxy.serve(format!("0.0.0.0:{}", exposed_port), proxy_token);
+        handles.push(tokio::spawn(proxy_fut));
+    }
 
     // Spawn a task to listen for SIGINT or SIGTERM and cancel the root token
     tokio::spawn(async move {
@@ -78,9 +90,15 @@ pub async fn main() {
         log::info!("Received shutdown signal. Initiating graceful shutdown...");
         root_token.cancel();
     });
-    tokio::join!(
-        sv.supervise(&supervisor_token),
-        proxy.serve(format!("0.0.0.0:{}", exposed_port), &supervisor_token)
-    );
+
+    for handle in handles {
+        results.push(handle.await);
+    }
+
+    for result in results {
+        if let Err(e) = result {
+            log::error!("Error while shutting down process: {:?}", e);
+        }
+    }
     log::info!("All processes have exited. Shutting down.");
 }

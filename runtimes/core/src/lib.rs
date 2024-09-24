@@ -302,8 +302,8 @@ impl Runtime {
                         .service_name
                         .clone())
                 })();
-                if let Err(svc_err) = svc_name {
-                    return Some(Err(svc_err));
+                if svc_name.is_err() {
+                    return None;
                 }
                 match deployment
                     .hosted_services

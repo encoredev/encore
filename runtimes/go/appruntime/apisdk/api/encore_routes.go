@@ -84,9 +84,7 @@ func (s *Server) handlePubsubPush(w http.ResponseWriter, req *http.Request, ps h
 	// Is this a gateway and the pubsub subscription isn't hosted here?
 	// If so forward the request to the target service instead.
 	if remoteSubHandler, ok := s.remotePubSubPush[subscriptionID]; ok {
-		if err := remoteSubHandler.ForwardRequest(w, req); err != nil {
-			errs.HTTPError(w, err)
-		}
+		remoteSubHandler.ServeHTTP(w, req)
 		return
 	}
 

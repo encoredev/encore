@@ -60,7 +60,7 @@ impl GatewayProxy {
         }
     }
 
-    pub async fn serve(self, listen_addr: String, token: &CancellationToken) {
+    pub async fn serve(self, listen_addr: String, token: CancellationToken) {
         let conf = Arc::new(
             ServerConf::new_with_opt_override(&Opt {
                 upgrade: false,

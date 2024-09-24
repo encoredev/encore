@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"reflect"
 	"slices"
@@ -126,7 +127,7 @@ type Server struct {
 	httpCtx          context.Context
 	httpCtxCancel    context.CancelFunc
 	runningHandlers  sync.WaitGroup
-	remotePubSubPush map[string]*remotePubSubPushHandler
+	remotePubSubPush map[string]*httputil.ReverseProxy
 
 	callCtr uint64
 
@@ -183,7 +184,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		encore:           newRouter(),
 		inboundSvcAuth:   inboundSvcAuth,
 		outboundSvcAuth:  outboundSvcAuth,
-		remotePubSubPush: make(map[string]*remotePubSubPushHandler),
+		remotePubSubPush: make(map[string]*httputil.ReverseProxy),
 	}
 
 	// Create our HTTP server handler chain
@@ -271,12 +272,10 @@ func (s *Server) configureRemotePubsubPush() {
 			if !found {
 				panic(fmt.Errorf("service %q not found in service discovery, but needed for the remote push handler", statSub.Service))
 			}
-			pushURL := fmt.Sprintf("%s/__encore/pubsub/push/%s", service.URL, sub.ID)
-			s.remotePubSubPush[sub.ID] = &remotePubSubPushHandler{
-				server:         s,
-				hostingService: service,
-				pushURL:        pushURL,
-				logger:         s.rootLogger.With().Str("remote_push_url", pushURL).Logger(),
+			var err error
+			s.remotePubSubPush[sub.ID], err = s.createPubsubPushProxy(service)
+			if err != nil {
+				panic(fmt.Errorf("error creating remote pubsub push proxy: %w", err))
 			}
 		}
 	}
