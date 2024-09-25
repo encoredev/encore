@@ -20,10 +20,11 @@ var (
 	envName string
 	commit  string
 	branch  string
+	format  string
 )
 
 var deployAppCmd = &cobra.Command{
-	Use:                   "deploy --commit COMMIT_SHA_OR_BRANCH [flags]",
+	Use:                   "deploy --commit COMMIT_SHA | --branch BRANCH_NAME",
 	Short:                 "Deploy an Encore app to a cloud environment",
 	DisableFlagsInUseLine: true,
 	Hidden:                true,
@@ -73,16 +74,28 @@ var deployAppCmd = &cobra.Command{
 			cmdutil.Fatalf("failed to deploy: %v", err)
 		}
 		url := fmt.Sprintf("https://app.encore.dev/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
-		fmt.Println(aurora.Sprintf("\n%s %s\n", aurora.Bold("Started Deploy:"), url))
+		switch format {
+		case "text":
+			fmt.Println(aurora.Sprintf("\n%s %s\n", aurora.Bold("Started Deploy:"), url))
+		case "json":
+			output, _ := json.Marshal(map[string]string{
+				"id":  strings.TrimPrefix(rollout.ID, "roll_"),
+				"env": rollout.EnvName,
+				"app": appSlug,
+				"url": url,
+			})
+			fmt.Println(string(output))
+		}
 	},
 }
 
 func init() {
 	alphaCmd.AddCommand(deployAppCmd)
-	deployAppCmd.Flags().StringVar(&appSlug, "app", "", "app slug to deploy to. Defaults to the app defined in encore.app.")
-	deployAppCmd.Flags().StringVarP(&envName, "env", "e", "", "the environment to deploy to. Defaults to primary environment.")
-	deployAppCmd.Flags().StringVarP(&commit, "commit", "c", "", "commit to deploy.")
-	deployAppCmd.Flags().StringVarP(&branch, "branch", "b", "", "branch to deploy.")
+	deployAppCmd.Flags().StringVar(&appSlug, "app", "", "app slug to deploy to (default current app)")
+	deployAppCmd.Flags().StringVarP(&envName, "env", "e", "", "environment to deploy to (default primary env)")
+	deployAppCmd.Flags().StringVarP(&commit, "commit", "c", "", "commit to deploy")
+	deployAppCmd.Flags().StringVarP(&branch, "branch", "b", "", "branch to deploy")
+	deployAppCmd.Flags().StringVarP(&format, "format", "f", "text", "format of output. One of (text, json)")
 	deployAppCmd.MarkFlagsMutuallyExclusive("commit", "branch")
 	deployAppCmd.MarkFlagsOneRequired("commit", "branch")
 }
