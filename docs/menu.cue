@@ -125,12 +125,12 @@
 		text: "What is Encore?"
 		path: "/introduction"
 		file: "introduction"
-	},  {
+	}, {
 		kind: "basic"
 		text: "FAQ"
 		path: "/faq"
 		file: "faq"
-	},{
+	}, {
 		kind: "basic"
 		text: "Installation"
 		path: "/install"
