@@ -29,6 +29,11 @@ type App struct {
 	MainBranch  *string `json:"main_branch"` // nil if not set
 }
 
+type Rollout struct {
+	ID      string `json:"id"`
+	EnvName string `json:"env_name"`
+}
+
 type Env struct {
 	ID    string `json:"id"`
 	Slug  string `json:"slug"`
@@ -39,6 +44,24 @@ type Env struct {
 func CreateApp(ctx context.Context, p *CreateAppParams) (*App, error) {
 	var resp App
 	err := call(ctx, "POST", "/apps", p, &resp, true)
+	return &resp, err
+}
+
+func Deploy(ctx context.Context, appSlug, env, sha, branch string) (*Rollout, error) {
+	var resp Rollout
+	err := call(
+		ctx,
+		"POST",
+		fmt.Sprintf(
+			"/apps/%s/envs/%s/rollouts",
+			url.PathEscape(appSlug),
+			url.PathEscape(env),
+		), map[string]string{
+			"sha":    sha,
+			"branch": branch,
+		},
+		&resp,
+		true)
 	return &resp, err
 }
 
