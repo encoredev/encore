@@ -5,13 +5,23 @@ title: FAQ
 subtitle: Quick answers to common questions
 ---
 
+## About the project
+
+**Is Encore Open Source?**
+
+Yes, check out the project on [GitHub](https://github.com/encoredev/encore).
+
+**Is there a community?**
+
+Yes, you're welcome to join the developer community on [Discord](https://encore.dev/discord).
+
 ## Can I use X with Encore?
 
 **Can I use Python with Encore?**
 
 Encore currently supports Go and TypeScript. Python support in on the [roadmap](https://encore.dev/roadmap) and will be available around Q1 2025.
 
-**Can use mix TypeScript and Go in one application?**
+**Can mix TypeScript and Go in one application?**
 
 Support for mixing languages in coming. Currently, if you want to use both TypeScript and Go, you need to create a separate application per language and integrate using APIs.
 
