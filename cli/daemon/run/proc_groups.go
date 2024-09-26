@@ -318,6 +318,10 @@ func (pg *ProcGroup) NewProcForGateway(gatewayName string, listenAddr netip.Addr
 	cmd.Env = env
 	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
 
+	// Bound the wait time to esure prompt live reload if something goes wrong
+	// with IO copying.
+	cmd.WaitDelay = 500 * time.Millisecond
+
 	// Proxy stdout and stderr to the given app logger, if any.
 	if l := pg.logger; l != nil {
 		cmd.Stdout = newLogWriter(pg.Run, l.RunStdout)
