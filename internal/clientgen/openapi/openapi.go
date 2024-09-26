@@ -83,11 +83,6 @@ func (g *Generator) addService(svc *meta.Service) error {
 			continue
 		}
 
-		// Skip non-public RPCs
-		if rpc.AccessType == meta.RPC_PRIVATE {
-			continue
-		}
-
 		if err := g.addRPC(rpc); err != nil {
 			return err
 		}
