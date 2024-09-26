@@ -299,7 +299,7 @@ import { Service } from "encore.dev/service";
 export default new Service("hello");
 ```
 
-This is how you create microservices with Encore. Encore will now consider files in the `hello` directory and all its subdirectories as part of the `hello` service. If you want to create more services, simply create a new folders, add a `encore.service.ts` file that is exporting a new `Service`. _If you're curious, you can read more about defining [services](/docs/ts/primitives/services) and [APIs](/docs/ts/primitives/apis)._
+This is how you define services with Encore. Encore will now consider files in the `hello` directory and all its subdirectories as part of the `hello` service. If you want to create more services, simply create a new folders, add a `encore.service.ts` file that is exporting a new `Service`. _If you're curious, you can read more about defining [services](/docs/ts/primitives/services) and [APIs](/docs/ts/primitives/apis)._
 
 The Encore.ts [Backend Framework](/docs/ts) provides several declarative ways of using backend primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
 
