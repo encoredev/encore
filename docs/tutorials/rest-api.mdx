@@ -377,9 +377,29 @@ This is needed when you want Encore to manage functionality like secrets and han
 
 Now let's create a new `url` service.
 
-🥐 In your application's root folder, create a new folder `url` and create a new file `url.ts` that looks like this:
+🥐 In your application's root folder, create a directory named `url` containing a file named `encore.service.ts`.
+
+```shell
+$ mkdir url
+$ touch url/encore.service.ts
+```
+
+🥐 Add the following code to `url/encore.service.ts`:
 
 ```ts
+-- url/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("url");
+```
+
+This is how you define a service with Encore. Encore will now consider files in the `url` directory and all its subdirectories as part of the `url` service.
+
+
+🥐 Create a new file `url.ts` in the `url` directory that looks like this:
+
+```ts
+-- url/url.ts --
 import { api } from "encore.dev/api";
 import { randomBytes } from "node:crypto";
 
