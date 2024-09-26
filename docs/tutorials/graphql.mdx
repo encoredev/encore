@@ -622,7 +622,7 @@ export const graphqlAPI = api.raw(
 
 This creates an [Raw API endpoint](https://encore.dev/docs/ts/primitives/raw-endpoints) available on `/graphql`. In the endpoint we use ApolloServer to handle the GraphQL queries and mutations. We then return the response to the client.
 
-If we were to use another GraphQL library then Apollo the concept still would be the same:
+If we were to use another GraphQL library other than Apollo, the concept would still be the same:
 1. Take client requests with a Raw endpoint.
 2. Pass along the request and response objects to the GraphQL library of your choice.
 3. Use the library to handle the GraphQL queries and mutations.
