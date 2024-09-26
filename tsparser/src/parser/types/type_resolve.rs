@@ -417,6 +417,9 @@ impl<'a> Ctx<'a> {
                 ast::TsTypeElement::TsPropertySignature(p) => {
                     let name = match *p.key {
                         ast::Expr::Ident(ref i) => FieldName::String(i.sym.as_ref().to_string()),
+                        ast::Expr::Lit(ast::Lit::Str(ref str)) => {
+                            FieldName::String(str.value.to_string())
+                        }
                         _ => {
                             HANDLER.with(|handler| {
                                 handler.span_err(p.key.span(), "unsupported property key")

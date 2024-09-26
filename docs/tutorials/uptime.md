@@ -912,12 +912,25 @@ Let's start by creating the functionality to check if a website is currently up 
 Later we'll store this result in a database so we can detect when the status changes and
 send alerts.
 
-🥐 Create an Encore service named `monitor` containing a file named `ping.ts`.
+🥐 Create a directory named `monitor` containing a file named `encore.service.ts`.
 
 ```shell
 $ mkdir monitor
-$ touch monitor/ping.ts
+$ touch monitor/encore.service.ts
 ```
+
+🥐 Add the following code to `monitor/encore.service.ts`:
+
+```ts
+-- monitor/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("monitor");
+```
+
+This is how you create define services with Encore. Encore will now consider files in the `monitor` directory and all its subdirectories as part of the `monitor` service.
+
+🥐 In the `monitor` directory, create a file named `ping.ts`.
 
 🥐 Add an Encore API endpoint named `ping` that takes a URL as input and returns a response
 indicating whether the site is up or down.
@@ -1032,13 +1045,25 @@ PASS  Waiting for file changes...
 
 Next, we want to keep track of a list of websites to monitor.
 
-Since most of these APIs will be simple "CRUD" (Create/Read/Update/Delete) endpoints, let's build this service using [Knex.js](https://knexjs.org/), an ORM
-library that makes building CRUD endpoints really simple.
+Since most of these APIs will be simple "CRUD" (Create/Read/Update/Delete) endpoints, let's build this service using [Knex.js](https://knexjs.org/), an ORM library that makes building CRUD endpoints really simple.
 
-🥐 Let's create a new service named `site` with a SQL database. To do so, create a new directory `site` in the application root with `migrations` folder inside that folder:
+🥐 Let's start with creating a new service named `site`:
 
 ```shell
-$ mkdir site
+$ mkdir site # Create a new directory in the application root
+$ touch site/encore.service.ts
+```
+
+```ts
+-- site/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("site");
+```
+
+🥐 Now we want to add a SQL database to the `site` service. To do so, create a new directory named `migrations` folder inside the `site` folder:
+
+```shell
 $ mkdir site/migrations
 ```
 
@@ -1467,7 +1492,21 @@ a Pub/Sub subscriber that posts these events to Slack.
 
 ## 7. Send Slack notifications when a site goes down
 
-🥐 Start by creating a Slack service containing the following:
+🥐 Start by creating a new service named `slack`:
+
+```shell
+$ mkdir slack # Create a new directory in the application root
+$ touch slack/encore.service.ts
+```
+
+```ts
+-- slack/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("slack");
+```
+
+🥐 Add a `slack.ts` file containing the following:
 
 ```ts
 -- slack/slack.ts --

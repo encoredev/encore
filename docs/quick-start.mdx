@@ -75,7 +75,7 @@ One such element is the API annotation:
 ```
 
 This annotation is all that's needed for Encore to understand that the Go package `hello` is a service, and
-the `World` function is a public API endpoint. 
+the `World` function is a public API endpoint.
 
 To create more services and endpoints, you simply create new Go packages and define endpoints using
 the `//encore:api` annotation. _If you're curious, you can read more about [defining APIs](/docs/primitives/apis)._
@@ -116,7 +116,7 @@ The Local Development Dashboard is a powerful tool to help you move faster when 
 It comes with an API explorer, a Service Catalog with automatically generated documentation, and powerful oberservability features
 like [distributed tracing](/docs/observability/tracing).
 
-Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow), 
+Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow),
 a visual representation of your microservice architecture that updates in real-time as you develop your application.
 
 ### Call your API
@@ -289,10 +289,17 @@ interface Response {
 
 As you can see, it's all standard TypeScript.
 
-You define an API endpoint by wrapping a regular async function in a call to `api`. Doing this makes Encore identify the `hello` directory as a service,
-and that the `world` function is a public API endpoint. Encore automatically handles authentication, HTTP routing, request validation, error handling, observability, API documentation, and more.
+You define an API endpoint by wrapping a regular async function in a call to `api`. Doing this makes Encore identify the `world` function as a public API endpoint. Encore automatically handles authentication, HTTP routing, request validation, error handling, observability, API documentation, and more.
 
-If you want to create more services and endpoints, you simply create new folders and define endpoints by wrapping functions in the `api` function. _If you're curious, you can read more about defining [services](/docs/ts/primitives/services) and [APIs](/docs/ts/primitives/apis)._
+The `world` endpoint is part of the `hello` service because in the same folder you will also find a file named `encore.service.ts` which looks like this:
+
+```ts
+import { Service } from "encore.dev/service";
+
+export default new Service("hello");
+```
+
+This is how you define services with Encore. Encore will now consider files in the `hello` directory and all its subdirectories as part of the `hello` service. If you want to create more services, simply create a new folders, add a `encore.service.ts` file that is exporting a new `Service`. _If you're curious, you can read more about defining [services](/docs/ts/primitives/services) and [APIs](/docs/ts/primitives/apis)._
 
 The Encore.ts [Backend Framework](/docs/ts) provides several declarative ways of using backend primitives like databases, Pub/Sub, and scheduled tasks by simply writing code.
 
@@ -329,7 +336,7 @@ The Local Development Dashboard is a powerful tool to help you move faster when 
 It comes with an API explorer, a Service Catalog with automatically generated documentation, and powerful oberservability features
 like [distributed tracing](/docs/observability/tracing).
 
-Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow), 
+Through the Local Development Dashboard you also have access to [Encore Flow](/docs/develop/encore-flow),
 a visual representation of your microservice architecture that updates in real-time as you develop your application.
 
 ### Call your API
