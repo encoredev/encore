@@ -12,6 +12,7 @@ type GenerateParams struct {
 	AppSlug  string
 	Meta     *meta.Data
 	Services ServiceSet
+	Tags     TagSet
 }
 
 type ServiceSet struct {
@@ -62,4 +63,54 @@ func NewServiceSet(md *meta.Data, include, exclude []string) ServiceSet {
 
 func AllServices(md *meta.Data) ServiceSet {
 	return NewServiceSet(md, []string{"*"}, nil)
+}
+
+type TagSet struct {
+	includedTags []string
+	excludedTags []string
+}
+
+func NewTagSet(tags, excludedTags []string) TagSet {
+	filteredTags := make([]string, 0, len(tags))
+	for _, t := range tags {
+		if !slices.Contains(excludedTags, t) {
+			filteredTags = append(filteredTags, t)
+		}
+	}
+
+	return TagSet{
+		includedTags: filteredTags,
+		excludedTags: excludedTags,
+	}
+}
+
+func (t TagSet) IsRPCIncluded(rpc *meta.RPC) bool {
+	// First check if the RPC has any of the excluded tags.
+	for _, selector := range rpc.Tags {
+		if selector.Type != meta.Selector_TAG {
+			continue
+		}
+
+		if slices.Contains(t.excludedTags, selector.Value) {
+			return false
+		}
+	}
+
+	// If `tags` is empty, all tags are included.
+	if len(t.includedTags) == 0 {
+		return true
+	}
+
+	// Check if the RPC has any of the included tags.
+	for _, selector := range rpc.Tags {
+		if selector.Type != meta.Selector_TAG {
+			continue
+		}
+
+		if slices.Contains(t.includedTags, selector.Value) {
+			return true
+		}
+	}
+
+	return false
 }
