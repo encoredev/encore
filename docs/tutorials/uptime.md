@@ -928,7 +928,7 @@ import { Service } from "encore.dev/service";
 export default new Service("monitor");
 ```
 
-This is how you create microservices with Encore. Encore will now consider files in the `monitor` directory and all its subdirectories as part of the `monitor` service.
+This is how you create define services with Encore. Encore will now consider files in the `monitor` directory and all its subdirectories as part of the `monitor` service.
 
 🥐 In the `monitor` directory, create a file named `ping.ts`.
 
