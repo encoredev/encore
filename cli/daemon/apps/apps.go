@@ -359,6 +359,14 @@ func (i *Instance) Lang() appfile.Lang {
 	return appFile.Lang
 }
 
+func (i *Instance) ProcessPerService() bool {
+	appFile, err := appfile.ParseFile(filepath.Join(i.root, appfile.Name))
+	if err != nil {
+		return false
+	}
+	return appFile.Build.Docker.ProcessPerService
+}
+
 // GlobalCORS returns the CORS configuration for the app which
 // will be applied against all API gateways into the app
 func (i *Instance) GlobalCORS() (appfile.CORS, error) {

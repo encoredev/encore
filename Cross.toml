@@ -1,0 +1,12 @@
+[build]
+pre-build = [
+    "apt-get install unzip &&",
+    "curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v24.4/protoc-24.4-linux-x86_64.zip &&",
+    "unzip protoc-24.4-linux-x86_64.zip -d /usr/local &&",
+    "rm protoc-24.4-linux-x86_64.zip &&",
+    "export PATH=$PATH:/usr/local/bin",
+]
+
+[build.env]
+volumes = ["ENCORE_WORKDIR"]
+passthrough = ["TYPE_DEF_TMP_PATH", "ENCORE_VERSION"]

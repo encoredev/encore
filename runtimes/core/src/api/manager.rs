@@ -41,6 +41,7 @@ pub struct ManagerConfig<'a> {
     pub pubsub_push_registry: pubsub::PushHandlerRegistry,
     pub runtime: tokio::runtime::Handle,
     pub is_worker: bool,
+    pub proxied_push_subs: HashMap<String, EncoreName>,
 }
 
 pub struct Manager {
@@ -199,6 +200,7 @@ impl ManagerConfig<'_> {
                     cors_config,
                     healthz_handler.clone(),
                     own_api_address,
+                    self.proxied_push_subs.clone(),
                 )
                 .context("couldn't create gateway")?,
             );

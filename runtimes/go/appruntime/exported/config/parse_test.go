@@ -23,8 +23,10 @@ func gzipData(data []byte) ([]byte, error) {
 
 func TestGZippedContent(t *testing.T) {
 	var tests = map[string]struct {
-		GZip   bool
-		Config *Runtime
+		GZip          bool
+		Config        *Runtime
+		ProcessConfig *ProcessConfig
+		MergedConfig  *Runtime
 	}{
 		"zipped": {
 			GZip: true,
@@ -51,6 +53,44 @@ func TestGZippedContent(t *testing.T) {
 				},
 			},
 		},
+		"process-config-wo-gw": {
+			GZip: false,
+			Config: &Runtime{
+				AppSlug:        "test",
+				HostedServices: []string{"one", "two", "three"},
+				Gateways: []Gateway{{
+					Name: "test",
+				}},
+			},
+			ProcessConfig: &ProcessConfig{
+				HostedServices: []string{"one"},
+			},
+			MergedConfig: &Runtime{
+				AppSlug:        "test",
+				HostedServices: []string{"one"},
+			},
+		},
+		"process-config-w-gw": {
+			GZip: false,
+			Config: &Runtime{
+				AppSlug:        "test",
+				HostedServices: []string{"one", "two", "three"},
+				Gateways: []Gateway{{
+					Name: "test",
+					Host: "test",
+				}},
+			},
+			ProcessConfig: &ProcessConfig{
+				HostedGateways: []string{"test"},
+			},
+			MergedConfig: &Runtime{
+				AppSlug: "test",
+				Gateways: []Gateway{{
+					Name: "test",
+					Host: "test",
+				}},
+			},
+		},
 	}
 
 	for name, test := range tests {
@@ -69,9 +109,20 @@ func TestGZippedContent(t *testing.T) {
 			} else {
 				cfgString = base64.StdEncoding.EncodeToString(rawData)
 			}
-			resp := ParseRuntime(cfgString, "")
-			if !reflect.DeepEqual(resp, test.Config) {
-				t.Fatalf("expected %v, got %v", test.Config, resp)
+
+			expected := test.Config
+			procCfg := ""
+			if test.ProcessConfig != nil {
+				expected = test.MergedConfig
+				rawData, err := json.Marshal(test.ProcessConfig)
+				if err != nil {
+					t.Fatalf("could not marshal process config: %v", err)
+				}
+				procCfg = base64.StdEncoding.EncodeToString(rawData)
+			}
+			resp := ParseRuntime(cfgString, procCfg, "")
+			if !reflect.DeepEqual(resp, expected) {
+				t.Fatalf("expected %+v, got %+v", test.Config, resp)
 			}
 		})
 	}
