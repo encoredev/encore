@@ -129,11 +129,35 @@ api.raw = function raw(options: APIOptions, fn: RawHandler) {
 export interface StreamIn<Request> extends AsyncIterable<Request> {
   recv: () => Promise<Request>;
 }
+export interface StreamOutWithResponse<Request, Response>
+  extends StreamOut<Request> {
+  response: () => Promise<Response>;
+}
 
 export interface StreamOut<Response> {
   send: (msg: Response) => Promise<void>;
   close: () => Promise<void>;
 }
+
+type StreamInOutHandlerFn<HandshakeData, Request, Response> =
+  HandshakeData extends void
+    ? () => Promise<StreamInOut<Request, Response>>
+    : (data: HandshakeData) => Promise<StreamInOut<Request, Response>>;
+
+type StreamOutHandlerFn<HandshakeData, Response> = HandshakeData extends void
+  ? () => Promise<StreamIn<Response>>
+  : (data: HandshakeData) => Promise<StreamIn<Response>>;
+
+type StreamInHandlerFn<HandshakeData, Request, Response> =
+  HandshakeData extends void
+    ? Response extends void
+      ? () => Promise<StreamOutWithResponse<Request, void>>
+      : () => Promise<StreamOutWithResponse<Request, Response>>
+    : Response extends void
+      ? (data: HandshakeData) => Promise<StreamIn<Request>>
+      : (
+          data: HandshakeData
+        ) => Promise<StreamOutWithResponse<Request, Response>>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
@@ -144,23 +168,27 @@ function streamInOut<HandshakeData, Request, Response>(
     data: HandshakeData,
     stream: StreamInOut<Request, Response>
   ) => Promise<void>
-): void;
+): StreamInOutHandlerFn<HandshakeData, Response, Request>;
 function streamInOut<Request, Response>(
   options: StreamOptions,
   fn: (stream: StreamInOut<Request, Response>) => Promise<void>
-): void;
+): StreamInOutHandlerFn<void, Response, Request>;
 function streamInOut(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
 
+function streamIn<Request>(
+  options: StreamOptions,
+  fn: (stream: StreamIn<Request>) => Promise<void>
+): StreamInHandlerFn<void, Request, void>;
 function streamIn<Request, Response>(
   options: StreamOptions,
   fn: (stream: StreamIn<Request>) => Promise<Response>
-): void;
+): StreamInHandlerFn<void, Request, Response>;
 function streamIn<HandshakeData, Request, Response>(
   options: StreamOptions,
   fn: (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>
-): void;
+): StreamInHandlerFn<HandshakeData, Request, Response>;
 function streamIn(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
@@ -168,11 +196,11 @@ function streamIn(options: StreamOptions, fn: any): typeof fn {
 function streamOut<HandshakeData, Response>(
   options: StreamOptions,
   fn: (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>
-): void;
+): StreamOutHandlerFn<HandshakeData, Response>;
 function streamOut<Response>(
   options: StreamOptions,
   fn: (stream: StreamOut<Response>) => Promise<void>
-): void;
+): StreamOutHandlerFn<void, Response>;
 function streamOut(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }
