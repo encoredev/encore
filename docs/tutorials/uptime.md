@@ -1529,7 +1529,10 @@ export const notify = api<NotifyParams>({}, async ({ text }) => {
 
   const resp = await fetch(url, {
     method: "POST",
-    body: JSON.stringify({ text }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ content: text }),
   });
   if (resp.status >= 400) {
     const body = await resp.text();
