@@ -156,6 +156,8 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 
 		output := &builder.GoBuildOutput{ArtifactDir: buildResult.Dir}
 		res = &builder.CompileResult{
+			OS:      p.Build.GOOS,
+			Arch:    p.Build.GOARCH,
 			Outputs: []builder.BuildOutput{output},
 		}
 

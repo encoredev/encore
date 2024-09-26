@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::io::Read;
@@ -25,6 +25,7 @@ pub mod log;
 pub mod meta;
 pub mod model;
 mod names;
+pub mod proccfg;
 pub mod pubsub;
 pub mod secrets;
 pub mod sqldb;
@@ -54,6 +55,7 @@ pub mod encore {
 
 pub struct RuntimeBuilder {
     cfg: Option<runtimepb::RuntimeConfig>,
+    proc_cfg: Option<proccfg::ProcessConfig>,
     md: Option<metapb::Data>,
     err: Option<anyhow::Error>,
     test_mode: bool,
@@ -70,6 +72,7 @@ impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
             cfg: None,
+            proc_cfg: None,
             md: None,
             err: None,
             test_mode: false,
@@ -95,12 +98,23 @@ impl RuntimeBuilder {
         self
     }
 
+    pub fn with_proc_config(mut self, proc_cfg: proccfg::ProcessConfig) -> Self {
+        self.proc_cfg = Some(proc_cfg);
+        self
+    }
+
     pub fn with_runtime_config_from_env(mut self) -> Self {
         if self.err.is_none() {
             match runtime_config_from_env() {
                 Ok(cfg) => self.cfg = Some(cfg),
                 Err(e) => {
                     self.err = Some(anyhow::Error::new(e).context("unable to parse runtime config"))
+                }
+            }
+            match proc_config_from_env() {
+                Ok(cfg) => self.proc_cfg = cfg,
+                Err(e) => {
+                    self.err = Some(anyhow::Error::new(e).context("unable to parse process config"))
                 }
             }
         }
@@ -164,9 +178,11 @@ impl RuntimeBuilder {
         if let Some(err) = self.err {
             return Err(err);
         }
-        let cfg = self.cfg.context("runtime config not provided")?;
+        let mut cfg = self.cfg.context("runtime config not provided")?;
         let md = self.md.context("metadata not provided")?;
-
+        if let Some(proc_config) = self.proc_cfg {
+            proc_config.apply(&mut cfg)?;
+        }
         Runtime::new(cfg, md, self.test_mode, self.is_worker)
     }
 }
@@ -266,6 +282,41 @@ impl Runtime {
 
         log::set_tracer(tracer.clone());
 
+        // Find push subscriptions which should be proxied to the subscribing service by the gateway
+        let proxied_push_subs = resources
+            .pubsub_clusters
+            .iter()
+            .flat_map(|c| c.subscriptions.iter())
+            .filter(|s| s.push_only)
+            .filter_map(|s| {
+                let svc_name = (|| -> Result<String, anyhow::Error> {
+                    Ok(md
+                        .pubsub_topics
+                        .iter()
+                        .find(|t| t.name == s.topic_encore_name)
+                        .context("could not find topic")?
+                        .subscriptions
+                        .iter()
+                        .find(|ms| ms.name == s.subscription_encore_name)
+                        .context("could not find sub")?
+                        .service_name
+                        .clone())
+                })();
+                if svc_name.is_err() {
+                    return None;
+                }
+                match deployment
+                    .hosted_services
+                    .iter()
+                    .any(|s| s.name == *svc_name.as_ref().unwrap())
+                {
+                    true => None,
+                    false => Some(Ok((s.rid.clone(), EncoreName::from(svc_name.unwrap())))),
+                }
+            })
+            .collect::<Result<HashMap<_, _>, anyhow::Error>>()
+            .context("failed to resolve gateway push subscriptions")?;
+
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md);
         let sqldb = sqldb::ManagerConfig {
             clusters: resources.sql_clusters,
@@ -294,6 +345,7 @@ impl Runtime {
             pubsub_push_registry: pubsub.push_registry(),
             runtime: tokio_rt.handle().clone(),
             is_worker,
+            proxied_push_subs,
         }
         .build()
         .context("unable to initialize api manager")?;
@@ -413,6 +465,26 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
             .map_err(ParseError::Base64)?;
         runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(ParseError::Proto)
     }
+}
+
+fn proc_config_from_env() -> Result<Option<proccfg::ProcessConfig>, ParseError> {
+    let encoded_config = match std::env::var("ENCORE_PROCESS_CONFIG") {
+        Ok(config) => config,
+        Err(std::env::VarError::NotPresent) => return Ok(None),
+        Err(e) => return Err(ParseError::EnvVar(e)),
+    };
+
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded_config)
+        .map_err(ParseError::Base64)?;
+
+    let json_str = String::from_utf8(decoded)
+        .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+    let config = serde_json::from_str(&json_str)
+        .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+    Ok(Some(config))
 }
 
 fn meta_from_env() -> Result<metapb::Data, ParseError> {
