@@ -20,7 +20,13 @@ var (
 	envName string
 	commit  string
 	branch  string
-	format  string
+	format  = cmdutil.Oneof{
+		Value:     "text",
+		Allowed:   []string{"text", "json"},
+		Flag:      "format",
+		FlagShort: "f",
+		Desc:      "Output format",
+	}
 )
 
 var deployAppCmd = &cobra.Command{
@@ -44,9 +50,6 @@ var deployAppCmd = &cobra.Command{
 			if err != nil {
 				cmdutil.Fatalf("no app found. Run deploy inside an encore app directory or specify the app with --app")
 			}
-		}
-		if envName == "" {
-			envName = "@primary"
 		}
 		rollout, err := platform.Deploy(c.Context(), appSlug, envName, commit, branch)
 		var pErr platform.Error
@@ -74,7 +77,7 @@ var deployAppCmd = &cobra.Command{
 			cmdutil.Fatalf("failed to deploy: %v", err)
 		}
 		url := fmt.Sprintf("https://app.encore.dev/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
-		switch format {
+		switch format.Value {
 		case "text":
 			fmt.Println(aurora.Sprintf("\n%s %s\n", aurora.Bold("Started Deploy:"), url))
 		case "json":
@@ -93,9 +96,10 @@ func init() {
 	alphaCmd.AddCommand(deployAppCmd)
 	deployAppCmd.Flags().StringVar(&appSlug, "app", "", "app slug to deploy to (default current app)")
 	deployAppCmd.Flags().StringVarP(&envName, "env", "e", "", "environment to deploy to (default primary env)")
-	deployAppCmd.Flags().StringVarP(&commit, "commit", "c", "", "commit to deploy")
-	deployAppCmd.Flags().StringVarP(&branch, "branch", "b", "", "branch to deploy")
-	deployAppCmd.Flags().StringVarP(&format, "format", "f", "text", "format of output. One of (text, json)")
+	deployAppCmd.Flags().StringVar(&commit, "commit", "", "commit to deploy")
+	deployAppCmd.Flags().StringVar(&branch, "branch", "", "branch to deploy")
+	format.AddFlag(deployAppCmd)
+	_ = deployAppCmd.MarkFlagRequired("env")
 	deployAppCmd.MarkFlagsMutuallyExclusive("commit", "branch")
 	deployAppCmd.MarkFlagsOneRequired("commit", "branch")
 }
