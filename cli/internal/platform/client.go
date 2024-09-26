@@ -26,6 +26,11 @@ type Error struct {
 	Detail     json.RawMessage
 }
 
+type ValidationDetails struct {
+	Field string `json:"field"`
+	Type  string `json:"type"`
+}
+
 func (e Error) Error() string {
 	if len(e.Detail) > 0 {
 		return fmt.Sprintf("http %s: code=%s detail=%s", e.HTTPStatus, e.Code, e.Detail)
