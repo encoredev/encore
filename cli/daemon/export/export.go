@@ -15,6 +15,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/env"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -98,12 +99,23 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, errors.Wrap(err, "compilation failed")
 	}
 
+	var crossNodeRuntime option.Option[dockerbuild.HostPath]
+	if app.Lang() == appfile.LangTS && buildInfo.IsCrossBuild() {
+		binary, err := downloadBinary(req.Goos, req.Goarch, "encore-runtime.node", log)
+		if err != nil {
+			return false, errors.Wrap(err, "download runtime binaries")
+		}
+		crossNodeRuntime = option.Some(binary)
+	}
+
 	spec, err := dockerbuild.Describe(dockerbuild.DescribeConfig{
-		Meta:            parse.Meta,
-		Compile:         result,
-		BundleSource:    option.Option[dockerbuild.BundleSourceSpec]{},
-		DockerBaseImage: option.AsOptional(params.BaseImageTag),
-		Runtimes:        dockerbuild.HostPath(env.EncoreRuntimesPath()),
+		Meta:              parse.Meta,
+		Compile:           result,
+		BundleSource:      option.Option[dockerbuild.BundleSourceSpec]{},
+		DockerBaseImage:   option.AsOptional(params.BaseImageTag),
+		Runtimes:          dockerbuild.HostPath(env.EncoreRuntimesPath()),
+		NodeRuntime:       crossNodeRuntime,
+		ProcessPerService: app.ProcessPerService(),
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "describe docker image")
@@ -111,20 +123,26 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 
 	var baseImgOverride option.Option[v1.Image]
 	if params.BaseImageTag != "" {
-		baseImg, err := resolveBaseImage(ctx, log, params)
+		baseImg, err := resolveBaseImage(ctx, log, params, spec)
 		if err != nil {
 			return false, errors.Wrap(err, "resolve base image")
 		}
 		baseImgOverride = option.Some(baseImg)
 	}
 
+	var supervisorPath option.Option[dockerbuild.HostPath]
+	if spec.Supervisor.Present() {
+		binary, err := downloadBinary(req.Goos, req.Goarch, "supervisor-encore", log)
+		if err != nil {
+			return false, errors.Wrap(err, "download supervisor binaries")
+		}
+		supervisorPath = option.Some(binary)
+	}
 	img, err := dockerbuild.BuildImage(ctx, spec, dockerbuild.ImageBuildConfig{
 		BuildTime:         time.Now(),
 		BaseImageOverride: baseImgOverride,
 		AddCACerts:        option.Some[dockerbuild.ImagePath](""),
-
-		// Not supported yet:
-		SupervisorPath: option.None[dockerbuild.HostPath](),
+		SupervisorPath:    supervisorPath,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "build docker image")
@@ -162,7 +180,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	return true, nil
 }
 
-func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.DockerExportParams) (v1.Image, error) {
+func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.DockerExportParams, spec *dockerbuild.ImageSpec) (v1.Image, error) {
 	baseImgTag := p.BaseImageTag
 	if baseImgTag == "" || baseImgTag == "scratch" {
 		return empty.Image, nil
@@ -175,15 +193,24 @@ func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.Docke
 		return nil, errors.Wrap(err, "parse base image")
 	}
 
+	fetchRemote := true
 	img, err := daemon.Image(baseImgRef)
-	if err != nil {
+	if err == nil {
+		file, err := img.ConfigFile()
+		if err == nil {
+			fetchRemote = file.OS != spec.OS || file.Architecture != spec.Arch
+		}
+	}
+	if fetchRemote {
 		log.Info().Msg("could not get image from local daemon, fetching it remotely")
 		keychain := authn.DefaultKeychain
-		img, err = remote.Image(baseImgRef, remote.WithAuthFromKeychain(keychain), remote.WithContext(ctx))
+		img, err = remote.Image(baseImgRef, remote.WithAuthFromKeychain(keychain), remote.WithContext(ctx), remote.WithPlatform(v1.Platform{
+			OS:           spec.OS,
+			Architecture: spec.Arch,
+		}))
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to fetch image")
 		}
-
 		// If the user requested to push the image locally, save the remote image locally as well.
 		if p.LocalDaemonTag != "" {
 			if tag, err := name.NewTag(baseImgTag, name.WeakValidation); err == nil {

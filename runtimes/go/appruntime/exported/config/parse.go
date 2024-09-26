@@ -5,9 +5,11 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -19,8 +21,14 @@ func gunzip(data []byte) ([]byte, error) {
 	return io.ReadAll(gz)
 }
 
+type ProcessConfig struct {
+	HostedServices    []string       `json:"hosted_services"`
+	HostedGateways    []string       `json:"hosted_gateways"`
+	LocalServicePorts map[string]int `json:"local_service_ports"`
+}
+
 // ParseRuntime parses the Encore runtime config.
-func ParseRuntime(config, deployID string) *Runtime {
+func ParseRuntime(config, processCfg, deployID string) *Runtime {
 	if config == "" {
 		log.Fatalln("encore runtime: fatal error: no encore runtime config provided")
 	}
@@ -51,6 +59,45 @@ func ParseRuntime(config, deployID string) *Runtime {
 
 	if _, err := url.Parse(cfg.APIBaseURL); err != nil {
 		log.Fatalln("encore runtime: fatal error: could not parse api base url from encore runtime config:", err)
+	}
+
+	if processCfg != "" {
+		if bytes, err = base64.StdEncoding.DecodeString(processCfg); err != nil {
+			log.Fatalln("encore runtime: fatal error: could not decode encore process config:", err)
+		}
+		var procCfg ProcessConfig
+		if err := json.Unmarshal(bytes, &procCfg); err != nil {
+			log.Fatalln("encore runtime: fatal error: could not parse encore process config:", err)
+		}
+		cfg.HostedServices = procCfg.HostedServices
+		var hostedGateways []Gateway
+		for _, name := range procCfg.HostedGateways {
+			i := slices.IndexFunc(cfg.Gateways, func(gw Gateway) bool { return gw.Name == name })
+			if i == -1 {
+				log.Fatalf("encore runtime: fatal error: gateway %q not found in runtime config", name)
+			}
+			hostedGateways = append(hostedGateways, cfg.Gateways[i])
+		}
+		cfg.Gateways = hostedGateways
+
+		// Use noop service auth method if not specified
+		svcAuth := ServiceAuth{"noop"}
+		if len(cfg.ServiceAuth) > 0 {
+			// Use the first service auth method from the runtime config
+			svcAuth = cfg.ServiceAuth[0]
+		}
+
+		for name, port := range procCfg.LocalServicePorts {
+			if cfg.ServiceDiscovery == nil {
+				cfg.ServiceDiscovery = make(map[string]Service)
+			}
+			cfg.ServiceDiscovery[name] = Service{
+				Name:        name,
+				URL:         fmt.Sprintf("http://localhost:%d", port),
+				Protocol:    Http,
+				ServiceAuth: svcAuth,
+			}
+		}
 	}
 
 	// If the environment deploy ID is set, use that instead of the one

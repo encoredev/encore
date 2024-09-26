@@ -226,6 +226,8 @@ func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*bu
 	}
 
 	return &builder.CompileResult{
+		OS:   p.Build.GOOS,
+		Arch: p.Build.GOARCH,
 		Outputs: fns.Map(res.Outputs, func(o *builder.JSBuildOutput) builder.BuildOutput {
 			return o
 		}),
