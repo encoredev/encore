@@ -19,21 +19,26 @@ pub async fn main() {
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(8080);
 
-    let use_proxy =
-        supervisor_config.hosted_gateways.len() + supervisor_config.hosted_services.len() > 1;
+    if supervisor_config.hosted_gateways.is_empty() && supervisor_config.hosted_services.len() > 1 {
+        panic!("Cannot run supervisor with no gateways and multiple services.");
+    }
+
+    let use_proxy = !supervisor_config.hosted_gateways.is_empty()
+        && !supervisor_config.hosted_services.is_empty();
 
     // Assign a unique port to each hosted service
     let mut service_ports = std::collections::HashMap::new();
 
-    // Start assigning services to ports from the exposed port (reserve the exposed port to the proxy if it's used)
+    // Start assigning services to ports (reserve the exposed port to the proxy if it's used)
     let mut port: u16 = exposed_port + if use_proxy { 1 } else { 0 };
+
     for service in &supervisor_config.hosted_services {
         service_ports.insert(service.clone(), port);
         port += 1;
     }
 
-    let mut procs = Vec::new();
     // Create a process for each service and assign it to the selected port
+    let mut procs = Vec::new();
     for (service_name, service_port) in &service_ports {
         procs.push(
             config::create_process_config(
@@ -47,6 +52,7 @@ pub async fn main() {
         );
     }
 
+    let upstream_port = port;
     if !supervisor_config.hosted_gateways.is_empty() {
         service_ports.insert("api-gateway".to_string(), port);
         procs.push(
@@ -59,11 +65,10 @@ pub async fn main() {
             )
             .expect("Failed to create process for gateways"),
         );
-        port += 1;
     }
 
-    let mut handles = Vec::with_capacity(2);
-    let mut results = Vec::with_capacity(handles.len());
+    let mut handles = Vec::new();
+    let mut results = Vec::new();
     let root_token = CancellationToken::new();
 
     let sv = Supervisor::new(procs);
@@ -73,7 +78,7 @@ pub async fn main() {
     if use_proxy {
         let proxy = proxy::GatewayProxy::new(
             reqwest::Client::new(),
-            std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port - 1),
+            std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), upstream_port),
             service_ports.clone(),
         );
         let proxy_token = root_token.child_token();
