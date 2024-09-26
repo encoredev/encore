@@ -373,7 +373,25 @@ Since Slack sends custom HTTP headers that we need to pay attention to, we're go
 use a raw endpoint in Encore. For more information on this check out Slack's documentation
 on [Enabling interactivity with Slash Commands](https://api.slack.com/interactivity/slash-commands).
 
-🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.ts` with the following contents:
+🥐 In your Encore app, create a directory named `slack` containing a file named `encore.service.ts`.
+
+```shell
+$ mkdir slack
+$ touch slack/encore.service.ts
+```
+
+🥐 Add the following code to `slack/encore.service.ts`:
+
+```ts
+-- slack/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("slack");
+```
+
+This is how you create microservices with Encore. Encore will now consider files in the `slack` directory and all its subdirectories as part of the `slack` service.
+
+🥐 Create a file `slack/slack.ts` with the following contents:
 
 ```ts
 import { api } from "encore.dev/api";
