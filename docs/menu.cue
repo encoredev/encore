@@ -127,6 +127,11 @@
 		file: "introduction"
 	}, {
 		kind: "basic"
+		text: "FAQ"
+		path: "/faq"
+		file: "faq"
+	}, {
+		kind: "basic"
 		text: "Installation"
 		path: "/install"
 		file: "install"

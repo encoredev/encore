@@ -10,7 +10,7 @@ lang: ts
 
 - **Local development with instant infrastructure**: Encore automatically sets up necessary infrastructure as you develop.
 - **Rapid feedback**: Catch issues early with type-safe infrastructure, avoiding slow deployment cycles.
-- **No manual configuration required**: No need for Infrastrucutre-as-Code. Your code is the single source of truth.
+- **No manual configuration required**: No need for Infrastructure-as-Code. Your code is the single source of truth.
 - **Unified codebase**: One codebase for all environments; local, preview, and cloud.
 - **Cloud-agnostic by default**: Encore.ts provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
 - **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/deploy/self-hosting) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
@@ -18,7 +18,7 @@ lang: ts
 ## High-performance Rust runtime
 
 To enable Encore's functionality in TypeScript, we’ve created a high-performance distributed systems runtime in Rust.
-It integrates with the standard Node.js runtime for excecuting JavaScript code, ensuring **100% compatability with the Node.js ecosystem**.
+It integrates with the standard Node.js runtime for executing JavaScript code, ensuring **100% compatibility with the Node.js ecosystem**.
 
 It provides a number of benefits over standard Node.js:
 - **Handles requests validation, provides API type-safety, has built-in observability, and integrates with databases, Pub/Sub, and more**

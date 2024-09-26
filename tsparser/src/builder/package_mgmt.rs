@@ -280,21 +280,19 @@ fn symlink_encore_dev(app_root: &Path, encore_dev_path: &Path) -> Result<()> {
     let node_mod_dst = node_modules.join("encore.dev");
 
     // If the node_modules directory exists, symlink the encore.dev package.
-    if let Ok(target) = read_symlink(&node_mod_dst) {
-        if let Some(target) = target {
-            if target == encore_dev_path {
-                log::info!("encore.dev symlink already points to the local runtime, skipping.");
-                return Ok(());
-            }
-
-            // It's a symlink pointing elsewhere. Remove it.
-            delete_symlink(&node_mod_dst).with_context(|| {
-                format!("remove existing encore.dev symlink at {:?}", node_mod_dst)
-            })?;
+    if let Ok(Some(target)) = read_symlink(&node_mod_dst) {
+        if target == encore_dev_path {
+            log::info!("encore.dev symlink already points to the local runtime, skipping.");
+            return Ok(());
         }
 
+        // It's a symlink pointing elsewhere. Remove it.
+        delete_symlink(&node_mod_dst)
+            .with_context(|| format!("remove existing encore.dev symlink at {:?}", node_mod_dst))?;
+    } else {
+        // It's not a symlink. Check if it exists as a directory.
         if node_mod_dst.exists() {
-            // It's not a symlink. Remove the directory so we can add a symlink.
+            // Remove the directory so we can add a symlink.
             std::fs::remove_dir_all(&node_mod_dst).with_context(|| {
                 format!("remove existing encore.dev directory at {:?}", node_mod_dst)
             })?;
