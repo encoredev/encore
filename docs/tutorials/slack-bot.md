@@ -389,7 +389,7 @@ import { Service } from "encore.dev/service";
 export default new Service("slack");
 ```
 
-This is how you create microservices with Encore. Encore will now consider files in the `slack` directory and all its subdirectories as part of the `slack` service.
+This is how you create define services with Encore. Encore will now consider files in the `slack` directory and all its subdirectories as part of the `slack` service.
 
 🥐 Create a file `slack/slack.ts` with the following contents:
 
