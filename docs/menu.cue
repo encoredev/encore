@@ -161,8 +161,7 @@
 		text: "Building a REST API"
 		path: "/tutorials/rest-api"
 		file: "tutorials/rest-api"
-	},
-	{
+	}, {
 		kind: "basic"
 		text: "Building a GraphQL API"
 		path: "/tutorials/graphql"
@@ -316,8 +315,7 @@
 			path: "/primitives/code-snippets"
 			file: "primitives/code-snippets"
 		}]
-	},
-	{
+	}, {
 		kind: "section"
 		text: "Development"
 		items: [{
@@ -361,13 +359,12 @@
 			path: "/develop/validation"
 			file: "develop/validation"
 		}, {
-		  kind: "basic"
-		  text: "Logging"
-		  path: "/observability/logging"
-		  file: "observability/logging"
+			kind: "basic"
+			text: "Logging"
+			path: "/observability/logging"
+			file: "observability/logging"
 		}]
-	},
-	{
+	}, {
 		kind: "section"
 		text: "How to guides"
 		items: [{
@@ -451,7 +448,7 @@
 			text: "App Structure"
 			path: "/ts/develop/app-structure"
 			file: "ts/develop/app-structure"
-		},{
+		}, {
 			kind: "basic"
 			text: "Hello World"
 			path: "/ts/concepts/hello-world"
@@ -485,6 +482,11 @@
 				file: "ts/primitives/raw-endpoints"
 			}, {
 				kind: "basic"
+				text: "GraphQL"
+				path: "/ts/primitives/graphql"
+				file: "ts/primitives/graphql"
+			}, {
+				kind: "basic"
 				text: "Streaming APIs"
 				path: "/ts/primitives/streaming-apis"
 				file: "ts/primitives/streaming-apis"
@@ -499,7 +501,7 @@
 				path: "/ts/primitives/static-assets"
 				file: "ts/primitives/static-assets"
 			}]
-		},{
+		}, {
 			kind: "basic"
 			text: "Databases"
 			path: "/ts/primitives/databases"
@@ -520,8 +522,7 @@
 			path: "/ts/primitives/secrets"
 			file: "ts/primitives/secrets"
 		}]
-	},
-	{
+	}, {
 		kind: "section"
 		text: "Development"
 		items: [{
@@ -545,17 +546,17 @@
 			path: "/ts/develop/testing"
 			file: "ts/develop/testing"
 		}, {
-		  kind: "basic"
-		  text: "Logging"
-		  path: "/ts/develop/logging"
-		  file: "ts/develop/logging"
+			kind: "basic"
+			text: "Logging"
+			path: "/ts/develop/logging"
+			file: "ts/develop/logging"
 		}, {
-		  kind: "basic"
-		  text: "Debugging"
-		  path: "/ts/develop/debug"
-		  file: "ts/develop/debug"
+			kind: "basic"
+			text: "Debugging"
+			path: "/ts/develop/debug"
+			file: "ts/develop/debug"
 		}]
-	},{
+	}, {
 		kind: "section"
 		text: "How to guides"
 		items: [{
@@ -586,24 +587,23 @@
 	kind: "section"
 	text: "Development"
 	items: [{
-		kind: "nav"
-		text: "Encore.go"
-		path: "/go"
-		file: "go/overview"
+		kind:    "nav"
+		text:    "Encore.go"
+		path:    "/go"
+		file:    "go/overview"
 		submenu: #EncoreGO
 		presentation: {
-			icon: "golang"
+			icon:  "golang"
 			style: "card"
 		}
-	},
-	{
-		kind: "nav"
-		text: "Encore.ts"
-		path: "/ts"
-		file: "ts/overview"
+	}, {
+		kind:    "nav"
+		text:    "Encore.ts"
+		path:    "/ts"
+		file:    "ts/overview"
 		submenu: #EncoreTS
 		presentation: {
-			icon: "typescript"
+			icon:  "typescript"
 			style: "card"
 		}
 	}, {
@@ -642,7 +642,7 @@
 		text: "Flow Architecture Diagram"
 		path: "/observability/encore-flow"
 		file: "observability/encore-flow"
-	},{
+	}, {
 		kind: "basic"
 		text: "Service Catalog"
 		path: "/develop/api-docs"
