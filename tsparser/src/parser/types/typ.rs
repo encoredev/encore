@@ -1,5 +1,5 @@
 use crate::parser::types::type_resolve::Ctx;
-use crate::parser::types::{object, Object, ResolveState};
+use crate::parser::types::{object, validation, Object, ResolveState};
 use crate::parser::Range;
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -42,6 +42,9 @@ pub enum Type {
     This,
 
     Generic(Generic),
+
+    /// Validation for a type.
+    Validation((Box<Type>, validation::Expr)),
 }
 
 impl Type {
@@ -84,6 +87,15 @@ impl Type {
             {
                 Some(Type::Basic(*basic))
             }
+
+            // TODO need to support unification of validation types
+            // (Type::Validation((a_typ, a_expr)), Type::Validation((b_typ, b_expr))) => {
+            //     // Merge the two types.
+            //     let typ = a_typ.union_merge(b_typ);
+            //     typ
+            // }
+            // (Type::Validation((typ, expr)), other) | (other, Type::Validation((typ, expr))) => {
+            // }
 
             // TODO more rules?
 
@@ -472,6 +484,7 @@ impl Type {
                 tt.iter_unions()
                     .chain(std::iter::once(&Type::Basic(Basic::Undefined))),
             ),
+            Type::Validation((inner, _)) => inner.iter_unions(),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -483,6 +496,7 @@ impl Type {
                 tt.into_iter_unions()
                     .chain(std::iter::once(Type::Basic(Basic::Undefined))),
             ),
+            Type::Validation((inner, _)) => inner.into_iter_unions(),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -516,6 +530,10 @@ impl Type {
                     | (Literal::Number(_), Basic::Number)
                     | (Literal::BigInt(_), Basic::BigInt)
             )),
+
+            (Type::Validation((inner, _)), _) | (_, Type::Validation((inner, _))) => {
+                inner.assignable(state, other)
+            }
 
             (this, Type::Optional(other)) => {
                 if matches!(this, Type::Basic(Basic::Undefined)) {

@@ -14,8 +14,8 @@ use crate::parser::parser::ParseContext;
 use crate::parser::resources::apis::api::Endpoint;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, Basic, EnumValue, FieldName, Generic, Interface, Literal, Named, ObjectId,
-    Type,
+    drop_empty_or_void, validation, Basic, EnumValue, FieldName, Generic, Interface, Literal,
+    Named, ObjectId, Type,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
@@ -91,6 +91,7 @@ impl BuilderCtx<'_, '_> {
                     typ: Some(styp::Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(elem)),
                     }))),
+                    validation: None,
                 }
             }
             Type::Interface(tt) => self.interface(tt)?,
@@ -109,19 +110,23 @@ impl BuilderCtx<'_, '_> {
                                     EnumValue::Number(n) => schema::literal::Value::Int(n),
                                 }),
                             })),
+                            validation: None,
                         })
                         .collect(),
                 })),
+                validation: None,
             },
 
             Type::Union(types) => schema::Type {
                 typ: Some(styp::Typ::Union(schema::Union {
                     types: self.types(types)?,
                 })),
+                validation: None,
             },
             Type::Tuple(_) => anyhow::bail!("tuple types are not yet supported in schemas"),
             Type::Literal(tt) => schema::Type {
                 typ: Some(styp::Typ::Literal(self.literal(tt))),
+                validation: None,
             },
             Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
             Type::Named(tt) => {
@@ -142,6 +147,7 @@ impl BuilderCtx<'_, '_> {
                 } else {
                     schema::Type {
                         typ: Some(styp::Typ::Named(self.named(tt)?)),
+                        validation: None,
                     }
                 }
             }
@@ -157,6 +163,7 @@ impl BuilderCtx<'_, '_> {
                             decl_id,
                             param_idx: param.idx as u32,
                         })),
+                        validation: None,
                     }
                 }
 
@@ -167,12 +174,19 @@ impl BuilderCtx<'_, '_> {
                     )
                 }
             },
+
+            Type::Validation((typ, expr)) => {
+                let mut typ = self.typ(typ)?;
+                typ.validation = Some(validation(expr));
+                typ
+            }
         })
     }
 
     fn basic(&self, typ: &Basic) -> schema::Type {
         let b = |b: schema::Builtin| schema::Type {
             typ: Some(styp::Typ::Builtin(b as i32)),
+            validation: None,
         };
         match typ {
             Basic::Any | Basic::Unknown => b(schema::Builtin::Any),
@@ -187,6 +201,7 @@ impl BuilderCtx<'_, '_> {
                 typ: Some(styp::Typ::Literal(schema::Literal {
                     value: Some(schema::literal::Value::Null(true)),
                 })),
+                validation: None,
             },
 
             Basic::Void
@@ -233,6 +248,7 @@ impl BuilderCtx<'_, '_> {
                     key: Some(Box::new(self.typ(key)?)),
                     value: Some(Box::new(self.typ(value)?)),
                 }))),
+                validation: None,
             });
         }
 
@@ -345,6 +361,7 @@ impl BuilderCtx<'_, '_> {
 
         Ok(schema::Type {
             typ: Some(styp::Typ::Struct(schema::Struct { fields })),
+            validation: None,
         })
     }
 
@@ -475,6 +492,7 @@ impl BuilderCtx<'_, '_> {
 
                     return Ok(Some(schema::Type {
                         typ: Some(styp::Typ::Named(named)),
+                        validation: None,
                     }));
                 } else {
                     match drop_empty_or_void(typ) {
@@ -566,4 +584,34 @@ pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> R
         src_col_start: loc.src_col_start as i32,
         src_col_end: loc.src_col_end as i32,
     })
+}
+
+/// Transforms a validation expression to the schema equivalent.
+fn validation(expr: &validation::Expr) -> schema::ValidationExpr {
+    use schema::validation_expr::Expr as VE;
+    use schema::validation_rule::Rule as VR;
+    use validation::{Expr, Rule};
+
+    fn rule(r: &Rule) -> schema::validation_rule::Rule {
+        match r {
+            Rule::MinLen(n) => VR::MinLen(*n),
+            Rule::MaxLen(n) => VR::MaxLen(*n),
+            Rule::MinVal(n) => VR::MinVal(*n),
+            Rule::MaxVal(n) => VR::MaxVal(*n),
+        }
+    }
+
+    schema::ValidationExpr {
+        expr: Some(match expr {
+            Expr::Rule(r) => VE::Rule(schema::ValidationRule {
+                rule: Some(rule(r)),
+            }),
+            Expr::And(exprs) => VE::And(schema::validation_expr::And {
+                exprs: exprs.iter().map(|e| validation(e)).collect(),
+            }),
+            Expr::Or(exprs) => VE::Or(schema::validation_expr::Or {
+                exprs: exprs.iter().map(|e| validation(e)).collect(),
+            }),
+        }),
+    }
 }

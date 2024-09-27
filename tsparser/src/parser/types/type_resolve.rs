@@ -7,12 +7,12 @@ use std::rc::Rc;
 use litparser::Sp;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::{Span, Spanned};
+use swc_common::{BytePos, Span, Spanned};
 use swc_ecma_ast as ast;
 
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
-use crate::parser::types::Object;
+use crate::parser::types::{typ, validation, Object};
 use crate::parser::{module_loader, Range};
 use crate::span_err::ErrReporter;
 
@@ -293,6 +293,11 @@ impl Ctx<'_> {
                 }
             },
 
+            (Type::Validation((inner, expr)), idx) => {
+                let typ = self.type_index(span, inner, idx);
+                Type::Validation((Box::new(typ), expr.clone()))
+            }
+
             (obj, idx) => {
                 HANDLER.with(|handler| {
                     handler.span_err(
@@ -384,6 +389,7 @@ impl Ctx<'_> {
             Type::Generic(generic) => {
                 Type::Generic(Generic::Keyof(Box::new(Type::Generic(generic.clone()))))
             }
+            Type::Validation((inner, _)) => self.keyof(inner),
         }
     }
 
@@ -1218,27 +1224,28 @@ impl Ctx<'_> {
                 let underlying = self.underlying(obj_type);
                 self.resolve_member_prop(&underlying, prop)
             }
+            Type::Validation((inner, _)) => self.resolve_member_prop(inner, prop),
         }
     }
 
     /// Resolves a prop name to the underlying string literal.
     fn prop_name_to_string<'b>(&self, prop: &'b ast::PropName) -> Cow<'b, str> {
         match prop {
-            ast::PropName::Ident(id) => Cow::Borrowed(id.sym.as_ref()),
-            ast::PropName::Str(str) => Cow::Borrowed(str.value.as_ref()),
-            ast::PropName::Num(num) => Cow::Owned(num.value.to_string()),
-            ast::PropName::BigInt(bigint) => Cow::Owned(bigint.value.to_string()),
+            ast::PropName::Ident(id) => Borrowed(id.sym.as_ref()),
+            ast::PropName::Str(str) => Borrowed(str.value.as_ref()),
+            ast::PropName::Num(num) => Owned(num.value.to_string()),
+            ast::PropName::BigInt(bigint) => Owned(bigint.value.to_string()),
             ast::PropName::Computed(expr) => {
                 if let Type::Literal(lit) = self.expr(&expr.expr) {
                     match lit {
-                        Literal::String(str) => return Cow::Owned(str),
-                        Literal::Number(num) => return Cow::Owned(num.to_string()),
+                        Literal::String(str) => return Owned(str),
+                        Literal::Number(num) => return Owned(num.to_string()),
                         _ => {}
                     }
                 }
 
                 HANDLER.with(|handler| handler.span_err(expr.span, "unsupported computed prop"));
-                Cow::Borrowed("")
+                Borrowed("")
             }
         }
     }
@@ -1706,6 +1713,12 @@ impl Ctx<'_> {
                     None => Same(typ),
                 },
             },
+
+            Type::Validation((inner, rule)) => match self.concrete(inner) {
+                New(inner) => New(Type::Validation((Box::new(inner), rule.clone()))),
+                Changed(inner) => New(Type::Validation((Box::new(inner.clone()), rule.clone()))),
+                Same(_) => Same(typ),
+            },
         }
     }
 
@@ -1762,5 +1775,15 @@ impl Ctx<'_> {
 
         // All types are the same, so we can just return the original list.
         Same(v)
+    }
+
+    fn doc_comment(&self, pos: BytePos) -> Option<String> {
+        self.state
+            .lookup_module(self.module)
+            .and_then(|m| m.base.preceding_comments(pos.into()))
+    }
+
+    fn parse_validation(&self, _named: &Named) -> Option<validation::Expr> {
+        None
     }
 }

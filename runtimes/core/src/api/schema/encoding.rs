@@ -250,6 +250,7 @@ impl<'a> TypeArgResolver<'a> {
                     fields.push(schema::Field {
                         typ: Some(schema::Type {
                             typ: Some(typ.into_owned()),
+                            validation: None,
                         }),
                         ..field.clone()
                     });
@@ -271,9 +272,11 @@ impl<'a> TypeArgResolver<'a> {
                     Ok(Cow::Owned(Typ::Map(Box::new(schema::Map {
                         key: Some(Box::new(schema::Type {
                             typ: Some(key.into_owned()),
+                            validation: None,
                         })),
                         value: Some(Box::new(schema::Type {
                             typ: Some(value.into_owned()),
+                            validation: None,
                         })),
                     }))))
                 }
@@ -289,6 +292,7 @@ impl<'a> TypeArgResolver<'a> {
                     Ok(Cow::Owned(Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(schema::Type {
                             typ: Some(elem.into_owned()),
+                            validation: None,
                         })),
                     }))))
                 }
@@ -300,6 +304,7 @@ impl<'a> TypeArgResolver<'a> {
                     .into_iter()
                     .map(|t| schema::Type {
                         typ: Some(t.into_owned()),
+                        validation: None,
                     })
                     .collect::<Vec<_>>();
 
