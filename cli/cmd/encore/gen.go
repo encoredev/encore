@@ -21,16 +21,17 @@ func init() {
 	rootCmd.AddCommand(genCmd)
 
 	var (
-		output           string
-		lang             string
-		envName          string
-		genServiceNames  []string
-		excludedServices []string
-		endpointTags     map[string]string
+		output               string
+		lang                 string
+		envName              string
+		genServiceNames      []string
+		excludedServices     []string
+		endpointTags         []string
+		excludedEndpointTags []string
 	)
 
 	genClientCmd := &cobra.Command{
-		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--tags=cache=true,internal=false]",
+		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--tags=cache,mobile] [--excluded-tags=internal]",
 		Short: "Generates an API client for your app",
 		Long: `Generates an API client for your app.
 
@@ -85,12 +86,13 @@ To further narrow down the services to generate, use the '--services' flag.
 				genServiceNames = []string{"*"}
 			}
 			resp, err := daemon.GenClient(ctx, &daemonpb.GenClientRequest{
-				AppId:            appID,
-				EnvName:          envName,
-				Lang:             lang,
-				Services:         genServiceNames,
-				ExcludedServices: excludedServices,
-				EndpointTags:     endpointTags,
+				AppId:                appID,
+				EnvName:              envName,
+				Lang:                 lang,
+				Services:             genServiceNames,
+				ExcludedServices:     excludedServices,
+				EndpointTags:         endpointTags,
+				ExcludedEndpointTags: excludedEndpointTags,
 			})
 			if err != nil {
 				fatal(err)
@@ -153,6 +155,7 @@ which may require the user-facing wrapper code to be manually generated.`,
 
 	genClientCmd.Flags().StringSliceVarP(&genServiceNames, "services", "s", nil, "The names of the services to include in the output")
 	genClientCmd.Flags().StringSliceVarP(&excludedServices, "excluded-services", "x", nil, "The names of the services to exclude in the output")
+	genClientCmd.Flags().StringSliceVarP(&endpointTags, "tags", "t", nil, "The names of endpoint tags to include in the output")
 	genClientCmd.Flags().
-		StringToStringVarP(&endpointTags, "tags", "t", nil, "The names of endpoint tags to include or exclude in the output")
+		StringSliceVar(&excludedEndpointTags, "excluded-tags", nil, "The names of endpoint tags to exclude in the output")
 }
