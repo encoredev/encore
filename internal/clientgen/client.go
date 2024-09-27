@@ -57,7 +57,7 @@ func Client(
 	appSlug string,
 	md *meta.Data,
 	services clientgentypes.ServiceSet,
-	tags *clientgentypes.TagSet,
+	tags clientgentypes.TagSet,
 ) (code []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
