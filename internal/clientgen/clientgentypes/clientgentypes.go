@@ -3,7 +3,6 @@ package clientgentypes
 import (
 	"bytes"
 	"slices"
-	"strconv"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -13,7 +12,7 @@ type GenerateParams struct {
 	AppSlug  string
 	Meta     *meta.Data
 	Services ServiceSet
-	Tags     *TagSet
+	Tags     TagSet
 }
 
 type ServiceSet struct {
@@ -71,24 +70,20 @@ type TagSet struct {
 	includedTags []string
 }
 
-func NewTagSet(tags map[string]string) (*TagSet, error) {
+func NewTagSet(tags, excludedTags []string) TagSet {
 	tagSet := TagSet{
 		tagMap:       make(map[string]bool),
-		includedTags: make([]string, 0, len(tags)),
-	}
-	for tag, includedStr := range tags {
-		included, err := strconv.ParseBool(includedStr)
-		if err != nil {
-			return nil, err
-		}
-
-		tagSet.tagMap[tag] = included
-		if included {
-			tagSet.includedTags = append(tagSet.includedTags, tag)
-		}
+		includedTags: tags,
 	}
 
-	return &tagSet, nil
+	for _, tag := range tags {
+		tagSet.tagMap[tag] = true
+	}
+	for _, tag := range excludedTags {
+		tagSet.tagMap[tag] = false
+	}
+
+	return tagSet
 }
 
 func (t TagSet) IsRPCIncluded(rpc *meta.RPC) bool {
