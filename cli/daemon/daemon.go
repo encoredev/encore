@@ -140,8 +140,13 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	lang := clientgen.Lang(params.Lang)
 
 	servicesToGenerate := clientgentypes.NewServiceSet(md, params.Services, params.ExcludedServices)
-	tagsToInclude := clientgentypes.NewTagSet(params.EndpointTags, params.ExcludedEndpointTags)
-	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagsToInclude)
+
+	tagSet, err := clientgentypes.NewTagSet(params.EndpointTags)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

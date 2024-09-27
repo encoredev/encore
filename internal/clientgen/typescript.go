@@ -113,7 +113,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	return nil
 }
 
-func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet, tags clientgentypes.TagSet) error {
+func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet, tags *clientgentypes.TagSet) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
 	isIncluded := hasPublicRPC(svc) && p.Has(svc.Name)
