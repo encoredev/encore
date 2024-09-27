@@ -100,7 +100,7 @@ Encore's authentication process proceeds in two steps:
 1. Determine if the request is authenticated
 2. Call the endpoint, if permissible
 
-#### Step 1: Determinining if the request is authenticated
+#### Step 1: Determining if the request is authenticated
 
 Whenever an incoming request contains any of the authentication parameters (defined by the auth handler),
 Encore's API Gateway calls the auth handler to resolve the authentication data.
