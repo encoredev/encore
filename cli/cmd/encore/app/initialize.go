@@ -3,23 +3,22 @@ package app
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/internal/conf"
 	"encr.dev/pkg/xos"
 )
 
 const (
-	tsEncoreAppData = `{
-	"id": "%s",
+	tsEncoreAppData = `{%s
+	"id": "%s", 
 	"lang": "typescript",
 	"build": {
 		"docker": {
@@ -28,7 +27,7 @@ const (
 	}
 }
 `
-	goEncoreAppData = `{
+	goEncoreAppData = `{%s
 	"id": "%s",
 }
 `
@@ -72,13 +71,7 @@ func initializeApp(name string) error {
 	}
 
 	cyan := color.New(color.FgCyan)
-	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) {
-		_, _ = cyan.Fprint(os.Stderr, "Log in to create your app [press enter to continue]: ")
-		_, _ = fmt.Scanln()
-		if err := auth.DoLogin(auth.AutoFlow); err != nil {
-			cmdutil.Fatal(err)
-		}
-	}
+	promptAccountCreation()
 
 	name, _, lang := selectTemplate(name, "", true)
 
@@ -86,28 +79,35 @@ func initializeApp(name string) error {
 		return err
 	}
 
+	appSlug := ""
+	appSlugComments := ""
 	// Create the app on the server.
-	if _, err := conf.CurrentUser(); err != nil {
-		cmdutil.Fatal("you must be logged in to initialize a new app")
-	}
+	if _, err := conf.CurrentUser(); err == nil {
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Prefix = "Creating app on encore.dev "
+		s.Start()
 
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Prefix = "Creating app on encore.dev "
-	s.Start()
-
-	app, err := createAppOnServer(name, exampleConfig{})
-	s.Stop()
-	if err != nil {
-		return fmt.Errorf("creating app on encore.dev: %v", err)
+		app, err := createAppOnServer(name, exampleConfig{})
+		s.Stop()
+		if err != nil {
+			return fmt.Errorf("creating app on encore.dev: %v", err)
+		}
+		appSlug = app.Slug
 	}
 
 	// Create the encore.app file
-
 	var encoreAppTemplate = goEncoreAppData
 	if lang == "ts" {
 		encoreAppTemplate = tsEncoreAppData
 	}
-	encoreAppData := []byte(fmt.Sprintf(encoreAppTemplate, app.Slug))
+	if appSlug == "" {
+		appSlugComments = strings.Join([]string{
+			"",
+			"The app is not currently linked to the encore.dev platform.",
+			`Use "encore app link" to link it.`,
+		}, "\n\t//")
+	}
+	encoreAppData := []byte(fmt.Sprintf(encoreAppTemplate, appSlugComments, appSlug))
 	if err := xos.WriteFile("encore.app", encoreAppData, 0644); err != nil {
 		return err
 	}
@@ -125,8 +125,13 @@ func initializeApp(name string) error {
 
 	green := color.New(color.FgGreen)
 	_, _ = green.Fprint(os.Stdout, "Successfully initialized application on Encore Cloud!\n")
-	_, _ = fmt.Fprintf(os.Stdout, "- App ID:          %s\n", cyan.Sprint(app.Slug))
-	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprintf("https://app.encore.dev/%s", app.Slug))
+	if appSlug == "" {
+		_, _ = fmt.Fprintf(os.Stdout, "The app is not currently linked to the encore.dev platform.\n")
+		_, _ = fmt.Fprintf(os.Stdout, "Use \"encore app link\" to link it.\n")
+		return nil
+	}
+	_, _ = fmt.Fprintf(os.Stdout, "- App ID:          %s\n", cyan.Sprint(appSlug))
+	_, _ = fmt.Fprintf(os.Stdout, "- Cloud Dashboard: %s\n\n", cyan.Sprintf("https://app.encore.dev/%s", appSlug))
 
 	return nil
 }
