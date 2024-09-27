@@ -57,21 +57,9 @@ func init() {
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
 }
 
-// createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string) (err error) {
-	var lang language
-	defer func() {
-		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
-		telemetry.SendSync("app.create", map[string]any{
-			"template": template,
-			"lang":     lang,
-			"error":    err != nil,
-		})
-	}()
+func promptAccountCreation() {
 	cyan := color.New(color.FgCyan)
-	green := color.New(color.FgGreen)
 	red := color.New(color.FgRed)
-
 	// Prompt the user for creating an account if they're not logged in.
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) && createAppOnPlatform {
 	PromptLoop:
@@ -99,6 +87,23 @@ func createApp(ctx context.Context, name, template string) (err error) {
 			break
 		}
 	}
+}
+
+// createApp is the implementation of the "encore app create" command.
+func createApp(ctx context.Context, name, template string) (err error) {
+	var lang language
+	defer func() {
+		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
+		telemetry.SendSync("app.create", map[string]any{
+			"template": template,
+			"lang":     lang,
+			"error":    err != nil,
+		})
+	}()
+	cyan := color.New(color.FgCyan)
+	green := color.New(color.FgGreen)
+
+	promptAccountCreation()
 
 	if name == "" || template == "" {
 		name, template, lang = selectTemplate(name, template, false)
