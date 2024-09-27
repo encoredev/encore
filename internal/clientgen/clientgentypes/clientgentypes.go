@@ -3,6 +3,7 @@ package clientgentypes
 import (
 	"bytes"
 	"slices"
+	"strconv"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -12,7 +13,7 @@ type GenerateParams struct {
 	AppSlug  string
 	Meta     *meta.Data
 	Services ServiceSet
-	Tags     TagSet
+	Tags     *TagSet
 }
 
 type ServiceSet struct {
@@ -66,22 +67,28 @@ func AllServices(md *meta.Data) ServiceSet {
 }
 
 type TagSet struct {
+	tagMap       map[string]bool
 	includedTags []string
-	excludedTags []string
 }
 
-func NewTagSet(tags, excludedTags []string) TagSet {
-	filteredTags := make([]string, 0, len(tags))
-	for _, t := range tags {
-		if !slices.Contains(excludedTags, t) {
-			filteredTags = append(filteredTags, t)
+func NewTagSet(tags map[string]string) (*TagSet, error) {
+	tagSet := TagSet{
+		tagMap:       make(map[string]bool),
+		includedTags: make([]string, 0, len(tags)),
+	}
+	for tag, includedStr := range tags {
+		included, err := strconv.ParseBool(includedStr)
+		if err != nil {
+			return nil, err
+		}
+
+		tagSet.tagMap[tag] = included
+		if included {
+			tagSet.includedTags = append(tagSet.includedTags, tag)
 		}
 	}
 
-	return TagSet{
-		includedTags: filteredTags,
-		excludedTags: excludedTags,
-	}
+	return &tagSet, nil
 }
 
 func (t TagSet) IsRPCIncluded(rpc *meta.RPC) bool {
@@ -91,12 +98,12 @@ func (t TagSet) IsRPCIncluded(rpc *meta.RPC) bool {
 			continue
 		}
 
-		if slices.Contains(t.excludedTags, selector.Value) {
+		if included, ok := t.tagMap[selector.Value]; ok && !included {
 			return false
 		}
 	}
 
-	// If `tags` is empty, all tags are included.
+	// If no included tags are specified, all tags are included.
 	if len(t.includedTags) == 0 {
 		return true
 	}
@@ -107,10 +114,11 @@ func (t TagSet) IsRPCIncluded(rpc *meta.RPC) bool {
 			continue
 		}
 
-		if slices.Contains(t.includedTags, selector.Value) {
+		if included, ok := t.tagMap[selector.Value]; ok && included {
 			return true
 		}
 	}
 
+	// If no included tags are found, the RPC is not included.
 	return false
 }

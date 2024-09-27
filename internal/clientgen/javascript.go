@@ -106,7 +106,7 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	return nil
 }
 
-func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet, tags clientgentypes.TagSet) error {
+func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet, tags *clientgentypes.TagSet) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
 	isIncluded := hasPublicRPC(svc) && set.Has(svc.Name)
