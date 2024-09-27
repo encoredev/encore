@@ -278,13 +278,10 @@ message GenClientRequest {
   // Takes precedence over 'services' above.
   repeated string excluded_services = 6;
 
-  // Tags of endpoints to include in the output.
-  // Only includes endpoints from services included in 'services' above.
-  repeated string endpoint_tags = 7;
-
-  // Tags of endpoints to exclude from the output.
-  // Takes precedence over 'endpoint_tags' above.
-  repeated string excluded_endpoint_tags = 8;
+  // Tags of endpoints to include or exclude from the output.
+  // Tags mapped to "true" will be included; tags mapped to "false" will
+  // be excluded.
+  map<string, string> endpoint_tags = 7;
 }
 
 message GenClientResponse {

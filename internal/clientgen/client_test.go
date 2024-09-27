@@ -72,7 +72,7 @@ func TestClientCodeGenerationFromGoApp(t *testing.T) {
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						services := clientgentypes.AllServices(res.Meta)
-						generatedClient, err := Client(language, "app", res.Meta, services, clientgentypes.TagSet{})
+						generatedClient, err := Client(language, "app", res.Meta, services, &clientgentypes.TagSet{})
 						c.Assert(err, qt.IsNil)
 
 						golden.TestAgainst(c, "goapp/"+file.Name(), string(generatedClient))
@@ -133,7 +133,7 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						services := clientgentypes.AllServices(res.Meta)
-						generatedClient, err := Client(language, "app", res.Meta, services, clientgentypes.TagSet{})
+						generatedClient, err := Client(language, "app", res.Meta, services, &clientgentypes.TagSet{})
 						c.Assert(err, qt.IsNil)
 
 						golden.TestAgainst(c, "tsapp/"+file.Name(), string(generatedClient))
