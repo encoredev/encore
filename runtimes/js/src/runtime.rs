@@ -175,19 +175,18 @@ impl Runtime {
         endpoint: String,
         data: JSONPayload,
         source: Option<&Request>,
-    ) -> napi::Result<JSONPayload> {
+    ) -> Either<JSONPayload, APICallError> {
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
         let source = source.map(|s| s.inner.as_ref());
-        self.runtime
-            .api()
-            .call(&endpoint, data, source)
-            .await
-            .map_err(|e| {
-                Error::new(
-                    Status::GenericFailure,
-                    format!("failed to make api call: {:?}", e),
-                )
-            })
+        let res = self.runtime.api().call(&endpoint, data, source).await;
+
+        match res {
+            Ok(data) => Either::A(data),
+            Err(e) => Either::B(APICallError {
+                code: e.code.to_string(),
+                message: e.message,
+            }),
+        }
     }
 
     /// Returns the version of the Encore runtime being used
@@ -207,4 +206,10 @@ impl Runtime {
         let md = self.runtime.app_meta();
         md.clone().into()
     }
+}
+
+#[napi]
+pub struct APICallError {
+    pub code: String,
+    pub message: String,
 }
