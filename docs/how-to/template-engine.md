@@ -49,7 +49,7 @@ export const serveSpecificTemplate = api.raw(
 
 ## Serving from a dynamic path
 
-This example is similar from the one above but in this case we use a fallback path to serve a template file based on the path. We use the `currentRequest` function to get the `path` and then render the template file based on the `path`. If no path is provided, we default to `index.html`.
+This example is similar to the one above, but in this case we use a fallback path to serve a template file based on the path. We use the `currentRequest` function to get the `path` and then render the template file based on the `path`. If no path is provided, we default to `index.html`.
 
 ```ts
 import { api } from "encore.dev/api";
