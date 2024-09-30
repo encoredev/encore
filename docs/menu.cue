@@ -579,6 +579,11 @@
 			text: "Use NestJS with Encore"
 			path: "/ts/how-to/nestjs"
 			file: "how-to/nestjs"
+		}, {
+			kind: "basic"
+			text: "Use a template engine"
+			path: "/ts/how-to/template-engine"
+			file: "how-to/template-engine"
 		}]
 	}]
 }
