@@ -225,7 +225,7 @@ Through the provided meta values, your applications configuration can have diffe
 when the application is running. This can be useful to prevent external side effects from your tests, such as emailing
 customers across all test.
 
-Sometimes however, you may want to test specific behaviours based on different configurations (such as disabling user signups),
+Sometimes however, you may want to test specific behaviors based on different configurations (such as disabling user signups),
 in this scenario using the Meta data does not give you fine enough control. To allow you to set a configuration value
 at a per test level, Encore provides the helper function [`et.SetCfg`](https://pkg.go.dev/encore.dev/et#SetCfg). You can
 use this function to set a new value only in the current test and any sub tests, while all other tests will

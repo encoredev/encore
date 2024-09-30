@@ -174,7 +174,7 @@ Generates an API client for your app. For more information about the generated c
 By default generates the API based on your [primary environment](/docs/deploy/environments#primary-environment).
 Use `--env=local` to generate it based on your local development version of the app.
 
-Use `--lang=<lang>` to specificy the language. Supported language codes are:
+Use `--lang=<lang>` to specify the language. Supported language codes are:
 - `go`: A Go client using the net/http package
 - `typescript`: A TypeScript client using the in-browser Fetch API
 - `javascript`: A JavaScript client using the in-browser Fetch API
