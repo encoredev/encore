@@ -105,7 +105,7 @@ export const serveInlineHTML = api.raw(
 
 ## Static files
 
-In the above example we are serving a stylesheet from the `/public` path. We use the `api.static` function to serve all files in the `./assets` directory under the `/public` path prefix.
+In the above example we are fetching a stylesheet from the `/public` path. We can use the `api.static` function to serve all files in the `./assets` directory under the `/public` path prefix:
 
 ```ts
 // Serve all files in the ./assets directory under the /public path prefix.
