@@ -15,4 +15,4 @@ Furthermore, thanks to the Backend Framework, Encore understands which services 
 
 When your application is running, all communication to Encore uses mutual TLSv1.3 connections, and all database access is encrypted with certificate validation and strong security credentials.
 
-For cloud environments, Encore automatically provisions infrastructure using security best practises for each of the supported cloud providers (GCP, AWS). Learn more in the [infrastructure documentation](/docs/deploy/infra).
+For cloud environments, Encore automatically provisions infrastructure using security best practices for each of the supported cloud providers (GCP, AWS). Learn more in the [infrastructure documentation](/docs/deploy/infra).
