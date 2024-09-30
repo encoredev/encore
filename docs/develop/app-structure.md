@@ -22,7 +22,7 @@ When creating a cloud environment on AWS/GCP, Encore enables you to configure if
 ## Creating services
 
 To create an Encore service, you create a Go package and
-[define an API](/docs/develop/apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/develop/databases).
+[define an API](/docs/primitives/apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/develop/databases).
 
 On disk it might look like this:
 
@@ -40,7 +40,7 @@ On disk it might look like this:
     └── world.go                     // world service code
 ```
 
-<RelatedDocsLink paths={["/docs/primitives/services", "/docs/primitives/apis", "/docs/docs/how-to/share-db-between-services"]} />
+<RelatedDocsLink paths={["/docs/primitives/services", "/docs/primitives/apis", "/docs/how-to/share-db-between-services"]} />
 
 ## Structure services using sub-packages
 
