@@ -33,7 +33,6 @@ var deployAppCmd = &cobra.Command{
 	Use:                   "deploy --commit COMMIT_SHA | --branch BRANCH_NAME",
 	Short:                 "Deploy an Encore app to a cloud environment",
 	DisableFlagsInUseLine: true,
-	Hidden:                true,
 	Run: func(c *cobra.Command, args []string) {
 		if commit != "" {
 			hb, err := hex.DecodeString(commit)

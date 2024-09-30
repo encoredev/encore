@@ -44,7 +44,7 @@ Using Encore.go to declare infrastructure in application code helps unlock these
 
 - **Local development with instant infrastructure**: Encore.go automatically sets up necessary infrastructure as you develop.
 - **Rapid feedback**: Catch issues early with type-safe infrastructure, avoiding slow deployment cycles.
-- **No manual configuration required**: No need for Infrastrucutre-as-Code. Your code is the single source of truth.
+- **No manual configuration required**: No need for Infrastructure-as-Code. Your code is the single source of truth.
 - **Unified codebase**: One codebase for all environments; local, preview, and cloud.
 - **Cloud-agnostic by default**: Encore.go provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
 - **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without making code changes, either using the Open Source [self-hosting tools](/docs/deploy/self-hosting) or fully-automated in your AWS/GCP account using [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation).
