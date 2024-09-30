@@ -13,7 +13,7 @@ lang: ts
 - **No manual configuration required**: No need for Infrastructure-as-Code. Your code is the single source of truth.
 - **Unified codebase**: One codebase for all environments; local, preview, and cloud.
 - **Cloud-agnostic by default**: Encore.ts provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
-- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/deploy/self-hosting) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
+- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/how-to/self-host) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
   
 ## High-performance Rust runtime
 
@@ -53,7 +53,7 @@ Encore leverages static code analysis to parse the API schema and TypeScript typ
 ## No DevOps experience required
 
 Encore provides open source tools to help you integrate with your cloud infrastructure, enabling you to self-host your application anywhere that supports Docker containers.
-Learn more in the [self-host documentation](/docs/deploy/self-hosting).
+Learn more in the [self-host documentation](/docs/how-to/self-host).
 
 You can also use [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully automates provisioning and managing infrastructure in your own cloud on AWS and GCP.
 
