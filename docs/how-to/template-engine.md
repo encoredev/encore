@@ -5,7 +5,7 @@ title: Use a template engine
 lang: ts
 ---
 
-In this guide you will learn how to use a template engine, like [EJS](https://ejs.co/) or [Handlebars](https://handlebarsjs.com/) to create server-rendered HTML views.
+In this guide you will learn how to use a template engine, like [EJS](https://ejs.co) and [Handlebars](https://handlebarsjs.com), to create server-rendered HTML views.
 
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/ts/template-engine" 
