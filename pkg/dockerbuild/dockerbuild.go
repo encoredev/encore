@@ -296,7 +296,9 @@ func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
 		return errors.Wrap(err, "get root certs")
 	}
 	defer func() { _ = resp.Body.Close() }()
-
+	if resp.StatusCode != http.StatusOK {
+		return errors.Newf("failed to get root certs: %s", resp.Status)
+	}
 	// We need to populate the body of the tar file before writing the contents.
 	// Use the content length if it was provided. Otherwise, read the whole response
 	// into memory and use its length.
