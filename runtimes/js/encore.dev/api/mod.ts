@@ -154,7 +154,7 @@ type StreamInHandlerFn<HandshakeData, Request, Response> =
       ? () => Promise<StreamOutWithResponse<Request, void>>
       : () => Promise<StreamOutWithResponse<Request, Response>>
     : Response extends void
-      ? (data: HandshakeData) => Promise<StreamIn<Request>>
+      ? (data: HandshakeData) => Promise<StreamOutWithResponse<Request, void>>
       : (
           data: HandshakeData
         ) => Promise<StreamOutWithResponse<Request, Response>>;
