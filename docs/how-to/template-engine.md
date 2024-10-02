@@ -87,7 +87,7 @@ const inlineHTML = `
     <link rel="stylesheet" href="/public/styles.css" >
   </head>
   <body>
-    <h1>Static Inlnie HTML Example</h1>
+    <h1>Static Inline HTML Example</h1>
     <h1>Name: <%= name %>!</h1>
   </body>
 </html>
