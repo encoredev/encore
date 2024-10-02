@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/rs/zerolog/log"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
@@ -281,24 +282,45 @@ func writeBuildInfo(tc *tarCopier, spec BuildInfoSpec) error {
 	return errors.Wrap(err, "write build info")
 }
 
-func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
-	const (
-		mozillaRootStoreWebsiteTrustBitEnabledURL = "https://ccadb-public.secure.force.com/mozilla/IncludedRootsPEMTxt?TrustBitsInclude=Websites"
-	)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", mozillaRootStoreWebsiteTrustBitEnabledURL, nil)
+func tryFetch(ctx context.Context, url string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return errors.Wrap(err, "create request")
+		return nil, errors.Wrap(err, "create request")
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "get root certs")
+		return nil, errors.Wrap(err, "get root certs")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return nil, errors.Newf("root cert url returned status code: %s", resp.Status)
+	}
+	return resp, nil
+}
+
+func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
+	const (
+		encoreCachedRootCerts                     = "https://api.encore.dev/artifacts/build/root-certs"
+		mozillaRootStoreWebsiteTrustBitEnabledURL = "https://ccadb-public.secure.force.com/mozilla/IncludedRootsPEMTxt?TrustBitsInclude=Websites"
+	)
+	var (
+		resp *http.Response
+		err  error
+	)
+	for _, url := range []string{encoreCachedRootCerts, mozillaRootStoreWebsiteTrustBitEnabledURL} {
+		resp, err = tryFetch(ctx, url)
+		if err == nil {
+			break
+		}
+		log.Warn().Err(err).Msgf("failed to fetch root certs from: %s", url)
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch cert file")
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return errors.Newf("failed to get root certs: %s", resp.Status)
-	}
+
 	// We need to populate the body of the tar file before writing the contents.
 	// Use the content length if it was provided. Otherwise, read the whole response
 	// into memory and use its length.
