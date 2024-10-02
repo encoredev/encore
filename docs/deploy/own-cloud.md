@@ -28,6 +28,31 @@ To find your app's Service Account email and configure GCP deployments, head ove
 
 ![Connect GCP account](/assets/docs/connectgcp.png "Connect GCP account")
 
+### Troubleshooting
+
+**I can't access/edit the `Policy for Domain restricted sharing` page**
+
+To edit Organization policies, you need to have the `Organization Policy Administrator` role. If you don't have this role, you can ask your GCP Organization Administrator to grant you the necessary permissions.
+If you're a GCP Organization Administrator, you can grant yourself the necessary permissions by following the steps below:
+
+1. Go to the [IAM & Admin page](https://console.cloud.google.com/iam-admin/iam) in the GCP Console.
+2. Find your user account in the list of members.
+3. Click the pencil icon to edit your user account.
+4. Add the `Organization Policy Administrator` role to your user account.
+5. Click Save.
+
+**I can't grant access to the Encore service account**
+
+If you're unable to grant access to the Encore service account, you may have failed to add Encore to your `Domain restricted sharing` policy. 
+Make sure you've followed all the steps in the Connect Cloud page to add Encore to the policy.
+If you're using several GCP accounts, make sure you're logged in with the correct account and that the correct organization is selected in the GCP Console.
+
+**Encore returns "Could not find Organization ID"**
+
+If you see this error message, it means that Encore was unable to connect to your GCP Organization. Make sure you've followed all the steps in the Connect Cloud page to grant Encore access to your GCP Organization. 
+If you're using several GCP accounts, make sure you're logged in with the correct account and that the correct organization is selected in the GCP Console.
+
+Still having issues? Drop us an email at [support@encore.dev](mailto:support@encore.dev) or chat with us in the [Encore Discord](https://encore.dev/discord.
 
 ## Amazon Web Services (AWS)
 To configure your Encore app to deploy to your AWS account, head over to the Connect Cloud page by going to Encore's
