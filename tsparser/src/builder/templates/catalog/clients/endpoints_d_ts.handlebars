@@ -1,3 +1,75 @@
+import {
+  StreamInOutHandlerFn,
+  StreamInHandlerFn,
+  StreamOutHandlerFn,
+  StreamOutWithResponse,
+  StreamIn,
+  StreamInOut,
+} from "encore.dev/api";
+
 {{#each endpoints}}
-export { {{name}} } from {{toJSON import_path}};
+{{#if (or streaming_request streaming_response)}}
+import { {{name}} as {{name}}_handler } from {{toJSON import_path}};
+{{/if}}
 {{/each}}
+
+type StreamHandshake<Type> = Parameters<Type> extends [H, S] ? H : void;
+
+type StreamRequest<Type> =
+  Type extends StreamInOutHandlerFn<infer H, infer Req, infer Resp>
+    ? Req
+    : Type extends StreamInHandlerFn<infer H, infer Req, infer Resp>
+      ? Req
+      : Type extends StreamOutHandlerFn<infer H, infer Resp>
+        ? void
+        : never;
+
+type StreamResponse<Type> =
+  Type extends StreamInOutHandlerFn<infer H, infer Req, infer Resp>
+    ? Resp
+    : Type extends StreamInHandlerFn<infer H, infer Req, infer Resp>
+      ? Resp
+      : Type extends StreamOutHandlerFn<infer H, infer Resp>
+        ? Resp
+        : never;
+
+{{#each endpoints}}
+{{#if (or streaming_request streaming_response)}}
+
+{{#if (and streaming_request streaming_response)}}
+export function {{name}}(
+  data: StreamHandshake<typeof {{name}}_handler>,
+): Promise<
+  StreamInOut<
+    StreamRequest<typeof {{name}}_handler>,
+    StreamResponse<typeof {{name}}_handler>
+  >
+>;
+{{else}}
+{{#if streaming_request}}
+export function {{name}}(
+  data: StreamHandshake<typeof {{name}}_handler>,
+): Promise<
+  StreamOutWithResponse<
+    StreamRequest<typeof {{name}}_handler>,
+    StreamResponse<typeof {{name}}_handler>
+  >
+>;
+{{/if}}
+{{#if streaming_response}}
+export function {{name}}(
+  data: StreamHandshake<typeof {{name}}_handler>,
+): Promise<
+  StreamIn<
+    StreamRequest<typeof {{name}}_handler>,
+    StreamResponse<typeof {{name}}_handler>
+  >
+>;
+{{/if}}
+{{/if}}
+
+{{else}}
+export { {{name}} } from {{toJSON import_path}};
+{{/if}}
+{{/each}}
+

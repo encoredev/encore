@@ -139,21 +139,40 @@ export interface StreamOut<Response> {
   close: () => Promise<void>;
 }
 
-type StreamInOutHandlerFn<HandshakeData, Request, Response> =
+export type StreamInOutClientFn<HandshakeData, Request, Response> =
   HandshakeData extends void
     ? () => Promise<StreamInOut<Request, Response>>
     : (data: HandshakeData) => Promise<StreamInOut<Request, Response>>;
 
-type StreamOutHandlerFn<HandshakeData, Response> = HandshakeData extends void
-  ? () => Promise<StreamIn<Response>>
-  : (data: HandshakeData) => Promise<StreamIn<Response>>;
+export type StreamOutClientFn<HandshakeData, Response> =
+  HandshakeData extends void
+    ? () => Promise<StreamIn<Response>>
+    : (data: HandshakeData) => Promise<StreamIn<Response>>;
 
-type StreamInHandlerFn<HandshakeData, Request, Response> =
+export type StreamInClientFn<HandshakeData, Request, Response> =
   HandshakeData extends void
     ? () => Promise<StreamOutWithResponse<Request, Response>>
     : (
         data: HandshakeData
       ) => Promise<StreamOutWithResponse<Request, Response>>;
+
+export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
+  HandshakeData extends void
+    ? (stream: StreamInOut<Request, Response>) => Promise<void>
+    : (
+        data: HandshakeData,
+        stream: StreamInOut<Request, Response>
+      ) => Promise<void>;
+
+export type StreamOutHandlerFn<HandshakeData, Response> =
+  HandshakeData extends void
+    ? (stream: StreamOut<Response>) => Promise<void>
+    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+
+export type StreamInHandlerFn<HandshakeData, Request, Response> =
+  HandshakeData extends void
+    ? (stream: StreamIn<Request>) => Promise<Response>
+    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
