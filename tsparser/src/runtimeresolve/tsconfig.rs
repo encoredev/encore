@@ -1,10 +1,11 @@
-use anyhow::Context;
 use std::borrow::Cow;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use indexmap::IndexMap;
 use serde::Deserialize;
 use swc_common::FileName;
+use thiserror::Error;
 
 #[derive(Debug)]
 pub struct TsConfigPathResolver {
@@ -16,18 +17,30 @@ pub struct TsConfigPathResolver {
     paths: Vec<PathEntry>,
 }
 
+#[derive(Error, Debug)]
+pub enum TsConfigError {
+    #[error("reading {0} failed")]
+    Read(PathBuf, #[source] io::Error),
+    #[error("parsing {0} failed")]
+    Parse(PathBuf, #[source] serde_json::Error),
+    #[error("{0} has no parent directory")]
+    NoParent(PathBuf),
+}
+
 impl TsConfigPathResolver {
-    pub fn from_file(tsconfig_path: &Path) -> anyhow::Result<Self> {
+    pub fn from_file(tsconfig_path: &Path) -> Result<Self, TsConfigError> {
         let tsconfig_dir = tsconfig_path
             .parent()
-            .context("tsconfig_path has no parent")?;
-        let tsconfig = std::fs::read_to_string(tsconfig_path)?;
+            .ok_or_else(|| TsConfigError::NoParent(tsconfig_path.to_path_buf()))?;
+        let tsconfig = std::fs::read_to_string(tsconfig_path)
+            .map_err(|e| TsConfigError::Read(tsconfig_path.to_path_buf(), e))?;
         let tsconfig = strip_jsonc_comments(&tsconfig, false);
-        let tsconfig: TSConfig = serde_json::from_str(&tsconfig)?;
-        Self::from_config(tsconfig_dir, tsconfig)
+        let tsconfig: TSConfig = serde_json::from_str(&tsconfig)
+            .map_err(|e| TsConfigError::Parse(tsconfig_path.to_path_buf(), e))?;
+        Ok(Self::from_config(tsconfig_dir, tsconfig))
     }
 
-    pub fn from_config(tsconfig_dir: &Path, tsconfig: TSConfig) -> anyhow::Result<Self> {
+    pub fn from_config(tsconfig_dir: &Path, tsconfig: TSConfig) -> Self {
         let base = tsconfig
             .compiler_options
             .base_url
@@ -54,11 +67,11 @@ impl TsConfigPathResolver {
 
         let base_filename = FileName::Real(base.clone());
 
-        Ok(Self {
+        Self {
             base,
             base_filename,
             paths,
-        })
+        }
     }
 
     pub fn base(&self) -> &FileName {
