@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use swc_common::FileName;
+use thiserror::Error;
 
 #[derive(Debug)]
 pub struct TsConfigPathResolver {
@@ -15,7 +16,6 @@ pub struct TsConfigPathResolver {
     /// The parsed paths, sorted by descending prefix length (before any '*' wildcard).
     paths: Vec<PathEntry>,
 }
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TsConfigError {
