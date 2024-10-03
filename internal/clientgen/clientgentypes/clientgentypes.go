@@ -7,12 +7,18 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
+// Options for the client generator.
+type Options struct {
+	OpenAPIExcludePrivateEndpoints bool
+}
+
 type GenerateParams struct {
 	Buf      *bytes.Buffer
 	AppSlug  string
 	Meta     *meta.Data
 	Services ServiceSet
 	Tags     TagSet
+	Options  Options
 }
 
 type ServiceSet struct {
