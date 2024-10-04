@@ -183,11 +183,11 @@ function streamInOut<HandshakeData, Request, Response>(
     data: HandshakeData,
     stream: StreamInOut<Request, Response>
   ) => Promise<void>
-): StreamInOutHandlerFn<HandshakeData, Response, Request>;
+): StreamInOutHandlerFn<HandshakeData, Request, Response>;
 function streamInOut<Request, Response>(
   options: StreamOptions,
   fn: (stream: StreamInOut<Request, Response>) => Promise<void>
-): StreamInOutHandlerFn<void, Response, Request>;
+): StreamInOutHandlerFn<void, Request, Response>;
 function streamInOut(options: StreamOptions, fn: any): typeof fn {
   return fn;
 }

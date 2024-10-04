@@ -39,8 +39,8 @@ export function {{name}}(
   data: StreamHandshake<typeof {{name}}_handler>,
 ): Promise<
   StreamInOut<
-    StreamRequest<typeof {{name}}_handler>,
-    StreamResponse<typeof {{name}}_handler>
+    StreamResponse<typeof {{name}}_handler>,
+    StreamRequest<typeof {{name}}_handler>
   >
 >;
 {{else}}
