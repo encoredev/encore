@@ -139,23 +139,6 @@ export interface StreamOut<Response> {
   close: () => Promise<void>;
 }
 
-export type StreamInOutClientFn<HandshakeData, Request, Response> =
-  HandshakeData extends void
-    ? () => Promise<StreamInOut<Request, Response>>
-    : (data: HandshakeData) => Promise<StreamInOut<Request, Response>>;
-
-export type StreamOutClientFn<HandshakeData, Response> =
-  HandshakeData extends void
-    ? () => Promise<StreamIn<Response>>
-    : (data: HandshakeData) => Promise<StreamIn<Response>>;
-
-export type StreamInClientFn<HandshakeData, Request, Response> =
-  HandshakeData extends void
-    ? () => Promise<StreamOutWithResponse<Request, Response>>
-    : (
-        data: HandshakeData
-      ) => Promise<StreamOutWithResponse<Request, Response>>;
-
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
     ? (stream: StreamInOut<Request, Response>) => Promise<void>
