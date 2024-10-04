@@ -1,3 +1,4 @@
+{{#if has_streams}}
 import {
   StreamInOutHandlerFn,
   StreamInHandlerFn,
@@ -15,24 +16,21 @@ import { {{name}} as {{name}}_handler } from {{toJSON import_path}};
 
 type StreamHandshake<Type> = Parameters<Type> extends [H, S] ? H : void;
 
-type StreamRequest<Type> =
-  Type extends StreamInOutHandlerFn<any, infer Req, any>
-    ? Req
-    : Type extends StreamInHandlerFn<any, infer Req, any>
-      ? Req
-      : Type extends StreamOutHandlerFn<any, any>
-        ? void
-        : never;
+type StreamRequest<Type> = Type extends
+  | StreamInOutHandlerFn<any, infer Req, any>
+  | StreamInHandlerFn<any, infer Req, any>
+  | StreamOutHandlerFn<any, any>
+  ? Req
+  : never;
 
-type StreamResponse<Type> =
-  Type extends StreamInOutHandlerFn<any, any, infer Resp>
-    ? Resp
-    : Type extends StreamInHandlerFn<any, any, infer Resp>
-      ? Resp
-      : Type extends StreamOutHandlerFn<any, infer Resp>
-        ? Resp
-        : never;
+type StreamResponse<Type> = Type extends
+  | StreamInOutHandlerFn<any, any, infer Resp>
+  | StreamInHandlerFn<any, any, infer Resp>
+  | StreamOutHandlerFn<any, infer Resp>
+  ? Resp
+  : never;
 
+{{/if}}
 {{#each endpoints}}
 {{#if (or streaming_request streaming_response)~}}
 
