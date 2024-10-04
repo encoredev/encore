@@ -240,9 +240,12 @@ impl Builder<'_> {
                 let svc_rel_path = params.app.rel_path_string(&svc.root)?;
                 // let node_modules_to_svc = node_modules_to_app_root.join(&svc_rel_path);
 
+                let mut has_streams = false;
+
                 for rpc in &endpoints {
-                    let _has_req = rpc.encoding.raw_req_schema.is_some();
-                    let _has_resp = rpc.encoding.raw_resp_schema.is_some();
+                    if rpc.streaming_request || rpc.streaming_response {
+                        has_streams = true;
+                    }
 
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../../")
@@ -262,6 +265,7 @@ impl Builder<'_> {
                 let ctx = &json!({
                     "name": svc.name,
                     "endpoints": endpoint_ctx,
+                    "has_streams": has_streams,
                 });
 
                 let service_d_ts = self.catalog_clients_service_d_ts.render(&self.reg, ctx)?;

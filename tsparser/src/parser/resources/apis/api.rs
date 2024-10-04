@@ -46,10 +46,6 @@ pub struct Endpoint {
     pub encoding: EndpointEncoding,
 }
 
-impl Endpoint {
-    pub fn stream_direction(&self) {}
-}
-
 #[derive(Debug, Clone)]
 pub enum Methods {
     All,
