@@ -472,6 +472,11 @@
 				file: "ts/primitives/apis"
 			}, {
 				kind: "basic"
+				text: "Validation"
+				path: "/ts/primitives/validation"
+				file: "ts/primitives/validation"
+			}, {
+				kind: "basic"
 				text: "API Calls"
 				path: "/ts/primitives/api-calls"
 				file: "ts/primitives/api-calls"
