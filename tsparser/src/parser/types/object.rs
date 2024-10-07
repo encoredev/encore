@@ -636,9 +636,13 @@ impl ResolveState {
     }
 
     pub(super) fn resolve_import(&self, module: &Module, imp: &ImportedName) -> Option<Rc<Object>> {
-        let ast_module = self
-            .loader
-            .resolve_import(&module.base, &imp.import_path)
+        let ast_module = match self.loader.resolve_import(&module.base, &imp.import_path) {
+            Ok(None) => return None,
+            Ok(Some(ast_module)) => Ok(ast_module),
+            Err(err) => Err(err),
+        };
+
+        let ast_module = ast_module
             .inspect_err(|err| {
                 HANDLER.with(|handler| {
                     handler.span_err(imp.range.to_span(), &format!("import not found: {}", err))

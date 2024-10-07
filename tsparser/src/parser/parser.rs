@@ -247,7 +247,7 @@ impl<'a> Parser<'a> {
         let mut usages = Vec::new();
 
         for module in self.pc.loader.modules() {
-            let exprs = resolver.scan_usage_exprs(&module)?;
+            let exprs = resolver.scan_usage_exprs(&module);
             let u = resolver.resolve_usage(&exprs)?;
             usages.extend(u);
         }
