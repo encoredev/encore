@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{anyhow, bail, Context, Ok, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast::TsTypeParamInstantiation;
@@ -192,7 +192,13 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 .path
                 .unwrap_or_else(|| format!("/{}.{}", &service_name, r.endpoint_name));
 
-            let path = Path::parse(&path_str, Default::default())?;
+            let path = match Path::parse(&path_str, Default::default()) {
+                Ok(path) => path,
+                Err(err) => {
+                    HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                    continue;
+                }
+            };
 
             let object = pass
                 .type_checker
