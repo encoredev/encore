@@ -44,7 +44,7 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
                 HANDLER.with(|handler| {
                     handler.span_err(
                         r.range,
-                        "Unable to resolve secret. Make sure it is defined as a global variable",
+                        "unable to resolve secret. make sure it is defined as a global variable",
                     )
                 });
             }
