@@ -196,7 +196,19 @@ impl<'a> Parser<'a> {
                 }
 
                 // Parse the module.
-                let module = loader.load_fs_file(entry.path(), None)?;
+                let module = match loader.load_fs_file(entry.path(), None) {
+                    Ok(module) => module,
+                    Err(err) => {
+                        HANDLER.with(|handler| {
+                            if let Some(span) = err.span() {
+                                handler.span_err(span, &err.msg());
+                            } else {
+                                handler.err(&err.msg());
+                            }
+                        });
+                        continue;
+                    }
+                };
                 let module_span = module.ast.span();
                 let service_name = curr_service.as_ref().map(|(_, name)| name.as_str());
                 let (resources, binds) = self.pass1.parse(module, service_name)?;
