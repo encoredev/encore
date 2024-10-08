@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
 use swc_ecma_ast as ast;
@@ -102,8 +103,8 @@ impl<'a> UsageResolver<'a> {
         resolver
     }
 
-    pub fn scan_usage_exprs(&self, module: &Module) -> Result<Vec<UsageExpr>> {
-        let external = self.external_binds_to_scan_for(module)?;
+    pub fn scan_usage_exprs(&self, module: &Module) -> Vec<UsageExpr> {
+        let external = self.external_binds_to_scan_for(module);
         let internal = self.internal_binds_to_scan_for(module);
         let combined: Vec<BindToScan> = external.into_iter().chain(internal).collect();
 
@@ -112,11 +113,11 @@ impl<'a> UsageResolver<'a> {
             .ast
             .visit_with_path(&mut visitor, &mut Default::default());
 
-        Ok(visitor.usages)
+        visitor.usages
     }
 
     /// external_binds_to_scan_for computes the external binds to scan for given a module.
-    fn external_binds_to_scan_for(&self, module: &Module) -> Result<Vec<BindToScan>> {
+    fn external_binds_to_scan_for(&self, module: &Module) -> Vec<BindToScan> {
         let mut external = Vec::new();
 
         for imp in module.imports() {
@@ -126,7 +127,16 @@ impl<'a> UsageResolver<'a> {
             }
 
             // Resolve the module
-            let resolved_module = self.module_loader.resolve_import(module, &imp.src.value)?;
+            let resolved_module = match self.module_loader.resolve_import(module, &imp.src.value) {
+                Ok(None) => continue,
+                Ok(Some(resolved_module)) => resolved_module,
+                Err(err) => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(err.span().unwrap_or_else(|| imp.span()), &err.msg())
+                    });
+                    continue;
+                }
+            };
 
             let resolved_binds = self.binds_by_module.get(&resolved_module.id);
             for names in &imp.specifiers {
@@ -176,7 +186,7 @@ impl<'a> UsageResolver<'a> {
             }
         }
 
-        Ok(external)
+        external
     }
 
     /// internal_binds_to_scan_for computes the internal binds to scan for given a module.
@@ -533,7 +543,7 @@ export const Bar = 5;
             let resources = [res];
             let ur = UsageResolver::new(&pc.loader, &resources, &bar_binds);
 
-            let result = ur.external_binds_to_scan_for(foo_mod).unwrap();
+            let result = ur.external_binds_to_scan_for(foo_mod);
             assert_eq!(result.len(), 1);
             assert_eq!(result[0].bind, bar_binds[0]);
         });
@@ -619,7 +629,7 @@ export const Bar = 5;
             let resources = [res];
             let ur = UsageResolver::new(&pc.loader, &resources, &bar_binds);
 
-            let usages = ur.scan_usage_exprs(foo_mod).unwrap();
+            let usages = ur.scan_usage_exprs(foo_mod);
             assert_eq!(usages.len(), 6);
 
             assert_matches!(&usages[0].kind, UsageExprKind::FieldAccess(field) if field.field.as_ref() == "field");
