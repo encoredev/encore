@@ -9,6 +9,7 @@ use crate::parser::resources::Resource;
 use crate::parser::Range;
 use anyhow::Result;
 use litparser::LitParser;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
@@ -38,6 +39,15 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
             let object = pass
                 .type_checker
                 .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
+
+            if object.is_none() {
+                HANDLER.with(|handler| {
+                    handler.span_err(
+                        r.range,
+                        "Unable to resolve secret. Make sure it is defined as a global variable",
+                    )
+                });
+            }
 
             pass.add_resource(resource.clone());
             pass.add_bind(BindData {
@@ -73,11 +83,17 @@ impl ReferenceParser for SecretLiteral {
             {
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
                 let Some(bind_name) = extract_bind_name(path)? else {
-                    anyhow::bail!("Secrets must be bound to a variable")
+                    HANDLER.with(|handler| {
+                        handler.span_err(expr.span, "Secrets must be bound to a variable")
+                    });
+                    continue;
                 };
 
                 let Some(secret_name) = &expr.args.first() else {
-                    anyhow::bail!("secret() takes a single argument, the name of the secret as a string literal")
+                    HANDLER.with(|handler| {
+                        handler.span_err(expr.span, "secret() takes a single argument, the name of the secret as a string literal")
+                    });
+                    continue;
                 };
                 let secret_name = String::parse_lit(secret_name.expr.as_ref())?;
 
