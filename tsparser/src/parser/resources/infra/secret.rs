@@ -84,7 +84,7 @@ impl ReferenceParser for SecretLiteral {
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
                 let Some(bind_name) = extract_bind_name(path)? else {
                     HANDLER.with(|handler| {
-                        handler.span_err(expr.span, "Secrets must be bound to a variable")
+                        handler.span_err(expr.span, "secrets must be bound to a variable")
                     });
                     continue;
                 };
