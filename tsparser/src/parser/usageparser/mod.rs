@@ -543,7 +543,7 @@ export const Bar = 5;
             let resources = [res];
             let ur = UsageResolver::new(&pc.loader, &resources, &bar_binds);
 
-            let result = ur.external_binds_to_scan_for(foo_mod).unwrap();
+            let result = ur.external_binds_to_scan_for(foo_mod);
             assert_eq!(result.len(), 1);
             assert_eq!(result[0].bind, bar_binds[0]);
         });
@@ -629,7 +629,7 @@ export const Bar = 5;
             let resources = [res];
             let ur = UsageResolver::new(&pc.loader, &resources, &bar_binds);
 
-            let usages = ur.scan_usage_exprs(foo_mod).unwrap();
+            let usages = ur.scan_usage_exprs(foo_mod);
             assert_eq!(usages.len(), 6);
 
             assert_matches!(&usages[0].kind, UsageExprKind::FieldAccess(field) if field.field.as_ref() == "field");
