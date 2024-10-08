@@ -459,10 +459,10 @@ X-Header: this is a header
 
 Encore.ts parses your source code to understand the request and response schema that each API endpoint expects, including things like HTTP headers, query parameters, and so on. The schemas are then processed, optimized, and stored as a Protobuf file.
 
-When the Encore Rust Runtime starts up, it reads this Protobuf file and pre-computes a request decoder and response encoder, optimized for each API endpoint, using the exact type definition each API endpoint expects. In fact, Encore.ts even handles request validation directly in Rust, ensuring invalid requests never have to even touch the JS layer, mitigating many denial of service attacks.
+When the Encore.ts Rust runtime starts up, it reads the Protobuf file and pre-computes a request decoder and response encoder, optimized for each API endpoint, using the exact type definition each API endpoint expects. In fact, Encore.ts even handles request validation directly in Rust, ensuring invalid requests never have to even touch the JavaScript layer, mitigating many denial of service attacks.
 
-Encore’s understanding of the request schema also proves beneficial from a performance perspective. JavaScript runtimes like Deno and Bun use a similar architecture to that of Encore's Rust-based runtime (in fact, Deno also uses Rust+Tokio+Hyper), but lack Encore’s understanding of the request schema. As a result, they need to hand over the un-processed HTTP requests to the single-threaded JavaScript engine for execution.
+Encore’s understanding of the request schema also improves performance. JavaScript runtimes like Deno and Bun use a similar architecture (in fact, Deno also uses Rust+Tokio+Hyper), but lack Encore’s understanding of the request schema. As a result, they need to hand over the un-processed HTTP requests to the single-threaded JavaScript engine for execution.
 
-Encore.ts, on the other hand, handles much more of the request processing inside Rust, and only hands over the decoded request objects. By handling much more of the request life-cycle in multi-threaded Rust, the JavaScript event-loop is freed up to focus on executing application business logic instead of parsing HTTP requests, yielding an even greater performance boost.
+Encore.ts, on the other hand, handles much more of the request processing inside Rust, and only hands over the decoded request objects. By handling much more of the request life-cycle in multi-threaded Rust, the JavaScript event-loop is freed up to focus on executing application business logic instead of parsing HTTP requests, resulting in a significant performance improvement.
 
 
