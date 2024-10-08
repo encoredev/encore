@@ -413,7 +413,7 @@ HTTP/1.1 400 Bad Request
 Encore.ts will not perform runtime validation for response data, but you will get compilation errors if you try to return a value that does not match the expected response type.
 
 ### Reusing the request type as the response type
-It is often the case that you want to return the same data type that you received in the request. In this case, you can reuse the request type as the response type:
+You often want to return the same data type that you received in a request. In this case, you can reuse the request type as the response type:
 
 ```typescript
 import { api, Header, Query } from "encore.dev/api";
