@@ -21,7 +21,7 @@ use crate::parser::fileset::SourceFile;
 use crate::parser::{FilePath, FileSet, Pos};
 
 // File extensions that should be parsed as modules
-const MODULE_EXTENSIONS: &[&str] = &["js", "ts", "mjs", "cjs"];
+const MODULE_EXTENSIONS: &[&str] = &["js", "ts", "mjs", "cjs", "jsx", "tsx"];
 
 /// A unique id for a module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
