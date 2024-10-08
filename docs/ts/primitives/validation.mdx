@@ -8,7 +8,7 @@ lang: ts
 
 When receiving incoming requests it's best practice to validate the payload to ensure it meets your expectations and includes all required fields.
 
-Encore.ts has request validation built in, and it's designed to work seamlessly with TypeScript. It uses the natural TypeScript types directly to validate incoming requests, so you get the best of both worlds: the clean, concise TypeScript syntax, and runtime schema validation. This means that your APIs are type-safe during both on both runtime and compile-time.
+Encore.ts has request validation built in, designed to work seamlessly with TypeScript. It uses the natural TypeScript types directly to validate incoming requests, so you get the best of both worlds: the clean, concise TypeScript syntax, and runtime schema validation. This means your APIs are type-safe during both runtime and compile-time.
 
 Encore.ts makes it easy to define API endpoints that combine data from different sources: some fields from the request body, others from the query parameters, and yet others from the HTTP headers. It looks like this:
 
