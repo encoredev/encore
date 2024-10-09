@@ -58,6 +58,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/sqlc-dev/sqlc v1.25.0
+	github.com/stretchr/testify v1.8.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	go.encore.dev/platform-sdk v1.1.0
 	go.uber.org/goleak v1.2.1
@@ -156,6 +157,7 @@ require (
 	github.com/pingcap/failpoint v0.0.0-20220801062533-2eaa32854a6c // indirect
 	github.com/pingcap/log v1.1.0 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20231103154709-4f00ece106b1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220131092820-39736dd543b4 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
@@ -163,6 +165,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tetratelabs/wazero v1.6.0 // indirect
 	github.com/vbatts/tar-split v0.11.5 // indirect
 	github.com/wasilibs/go-pgquery v0.0.0-20231208014744-de63626a1e99 // indirect
