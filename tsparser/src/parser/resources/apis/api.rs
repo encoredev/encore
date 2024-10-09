@@ -223,10 +223,29 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
 
-                    describe_endpoint(pass.type_checker, methods, path, request, response, false)?
+                    match describe_endpoint(
+                        pass.type_checker,
+                        methods,
+                        path,
+                        request,
+                        response,
+                        false,
+                    ) {
+                        Ok(encoding) => encoding,
+                        Err(err) => {
+                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                            continue;
+                        }
+                    }
                 }
                 EndpointKind::Raw => {
-                    describe_endpoint(pass.type_checker, methods, path, None, None, true)?
+                    match describe_endpoint(pass.type_checker, methods, path, None, None, true) {
+                        Ok(encoding) => encoding,
+                        Err(err) => {
+                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                            continue;
+                        }
+                    }
                 }
                 EndpointKind::TypedStream {
                     handshake,
@@ -248,7 +267,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     let handshake =
                         handshake.map(|t| pass.type_checker.resolve_type(module.clone(), &t));
 
-                    describe_stream_endpoint(
+                    match describe_stream_endpoint(
                         pass.type_checker,
                         methods,
                         path,
@@ -256,7 +275,13 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         response,
                         handshake,
                         false,
-                    )?
+                    ) {
+                        Ok(encoding) => encoding,
+                        Err(err) => {
+                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                            continue;
+                        }
+                    }
                 }
                 EndpointKind::StaticAssets { dir, not_found } => {
                     // Support HEAD and GET for static assets.
