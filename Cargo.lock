@@ -1388,6 +1388,7 @@ dependencies = [
  "prost-types",
  "serde_json",
  "tokio",
+ "tokio-tungstenite",
  "tokio-util",
 ]
 
@@ -1458,6 +1459,7 @@ dependencies = [
  "tokio-nsq",
  "tokio-postgres",
  "tokio-retry",
+ "tokio-tungstenite",
  "tokio-util",
  "tower-http",
  "tower-service",

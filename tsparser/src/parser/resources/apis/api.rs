@@ -255,7 +255,6 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         request,
                         response,
                         handshake,
-                        false,
                     )?
                 }
                 EndpointKind::StaticAssets { dir, not_found } => {

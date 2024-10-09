@@ -157,11 +157,11 @@ impl ParseResponse for Header {
     }
 }
 
-impl ToOutgoingRequest for Header {
+impl ToOutgoingRequest<http::HeaderMap> for Header {
     fn to_outgoing_request(
         &self,
         payload: &mut JSONPayload,
-        req: &mut reqwest::Request,
+        headers: &mut http::HeaderMap,
     ) -> APIResult<()> {
         if self.schema.root().is_empty() {
             return Ok(());
@@ -176,7 +176,6 @@ impl ToOutgoingRequest for Header {
             });
         };
 
-        let headers = req.headers_mut();
         let schema = self.schema.root();
         for (key, value) in payload.iter() {
             let key = key.as_str();
@@ -200,6 +199,28 @@ impl ToOutgoingRequest for Header {
         }
 
         Ok(())
+    }
+}
+
+impl ToOutgoingRequest<reqwest::Request> for Header {
+    fn to_outgoing_request(
+        &self,
+        payload: &mut JSONPayload,
+        req: &mut reqwest::Request,
+    ) -> APIResult<()> {
+        let headers = req.headers_mut();
+        self.to_outgoing_request(payload, headers)
+    }
+}
+
+impl<B> ToOutgoingRequest<http::Request<B>> for Header {
+    fn to_outgoing_request(
+        &self,
+        payload: &mut JSONPayload,
+        req: &mut http::Request<B>,
+    ) -> APIResult<()> {
+        let headers = req.headers_mut();
+        self.to_outgoing_request(payload, headers)
     }
 }
 

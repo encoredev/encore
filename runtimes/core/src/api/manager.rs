@@ -23,6 +23,7 @@ use crate::trace::Tracer;
 use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
 use super::encore_routes::healthz;
+use super::websocket_client::WebSocketClient;
 
 pub struct ManagerConfig<'a> {
     pub meta: &'a meta::Data,
@@ -315,6 +316,16 @@ impl Manager {
         source: Option<&'a model::Request>,
     ) -> impl Future<Output = APIResult<JSONPayload>> + 'a {
         self.service_registry.api_call(endpoint_name, data, source)
+    }
+
+    pub fn stream<'a>(
+        &'a self,
+        endpoint_name: &'a EndpointName,
+        data: JSONPayload,
+        source: Option<&'a model::Request>,
+    ) -> impl Future<Output = APIResult<WebSocketClient>> + 'a {
+        self.service_registry
+            .connect_stream(endpoint_name, data, source)
     }
 
     /// Starts serving the API.

@@ -70,7 +70,7 @@ where
         .protocols(["encore-ws"])
         .on_failed_upgrade(|err| log::debug!("websocket upgrade failed: {err}"))
         .on_upgrade(move |ws| async move {
-            let socket = Socket::new(ws, req_schema, resp_schema);
+            let socket = Socket::new(ws, schema::Stream::new(req_schema, resp_schema).into());
 
             let payload = match direction {
                 model::StreamDirection::InOut => StreamMessagePayload::InOut(socket),
@@ -111,27 +111,13 @@ pub struct Socket {
     shutdown: watch::Sender<bool>,
 }
 
-fn get_message_payload(msg: &Message) -> Option<&[u8]> {
-    match msg {
-        Message::Text(text) => Some(text.as_bytes()),
-        Message::Binary(data) => Some(data),
-        // these message types are handled by axum
-        Message::Ping(_) | Message::Pong(_) | Message::Close(_) => None,
-    }
-}
-
 impl Socket {
-    fn new(
-        mut websocket: WebSocket,
-        incoming: Arc<schema::Request>,
-        outgoing: Arc<schema::Response>,
-    ) -> Self {
+    fn new(mut websocket: WebSocket, schema: Arc<schema::Stream>) -> Self {
         let (shutdown, mut shutdown_watch) = watch::channel(false);
 
         let (outgoing_message_tx, mut outgoing_messages_rx) = mpsc::unbounded_channel();
         let (incoming_messages_tx, incoming_message_rx) = mpsc::unbounded_channel();
 
-        let schema = SocketSchema { incoming, outgoing };
         tokio::spawn({
             async move {
                 loop {
@@ -165,10 +151,7 @@ impl Socket {
                                     log::trace!("websocket closed");
                                     break;
                                 }
-                                Some(msg) => {
-                                    Socket::handle_outgoing_message(&schema, &mut websocket, msg)
-                                        .await
-                                }
+                                Some(msg) => Socket::handle_outgoing_message(&schema, &mut websocket, msg).await
                             }
                         },
                         _ = shutdown_watch.changed() => {
@@ -217,7 +200,7 @@ impl Socket {
     }
 
     async fn handle_outgoing_message(
-        schema: &SocketSchema,
+        schema: &schema::Stream,
         websocket: &mut WebSocket,
         msg: serde_json::Map<String, serde_json::Value>,
     ) {
@@ -235,12 +218,15 @@ impl Socket {
         }
     }
 
-    async fn handle_incoming_message(
-        schema: &SocketSchema,
+    async fn handle_incoming_message<M>(
+        schema: &schema::Stream,
         incoming: &UnboundedSender<serde_json::Map<String, serde_json::Value>>,
-        msg: Message,
-    ) -> anyhow::Result<()> {
-        if let Some(data) = get_message_payload(&msg) {
+        msg: M,
+    ) -> anyhow::Result<()>
+    where
+        M: MessagePayload,
+    {
+        if let Some(data) = msg.payload() {
             match schema.parse_incoming_message(data).await {
                 Ok(msg) => {
                     if let Err(e) = incoming.send(msg) {
@@ -252,6 +238,21 @@ impl Socket {
         }
 
         Ok(())
+    }
+}
+
+trait MessagePayload {
+    fn payload(&self) -> Option<&[u8]>;
+}
+
+impl MessagePayload for axum::extract::ws::Message {
+    fn payload(&self) -> Option<&[u8]> {
+        match self {
+            Message::Text(text) => Some(text.as_bytes()),
+            Message::Binary(data) => Some(data),
+            // these message types are handled by axum
+            Message::Ping(_) | Message::Pong(_) | Message::Close(_) => None,
+        }
     }
 }
 pub struct Sink {
@@ -276,49 +277,5 @@ pub struct Stream {
 impl Stream {
     pub async fn recv(&self) -> Option<serde_json::Map<String, serde_json::Value>> {
         self.rx.lock().await.recv().await
-    }
-}
-
-struct SocketSchema {
-    incoming: Arc<schema::Request>,
-    outgoing: Arc<schema::Response>,
-}
-
-impl SocketSchema {
-    fn to_outgoing_message(
-        &self,
-        msg: serde_json::Map<String, serde_json::Value>,
-    ) -> APIResult<Vec<u8>> {
-        let body_schema = self.outgoing.body.clone().ok_or_else(|| {
-            super::Error::internal(anyhow!("outgoing message body can't be empty"))
-        })?;
-
-        body_schema.to_outgoing_payload(&Some(msg))
-    }
-
-    async fn parse_incoming_message(
-        &self,
-        bytes: &[u8],
-    ) -> APIResult<serde_json::Map<String, serde_json::Value>> {
-        let schema::RequestBody::Typed(Some(ref body)) = self.incoming.body else {
-            return Err(super::Error {
-                code: super::ErrCode::InvalidArgument,
-                message: "invalid streaming body type in schema".to_string(),
-                internal_message: None,
-                stack: None,
-            });
-        };
-
-        let value = body
-            .parse_incoming_request_body(bytes.to_vec().into())
-            .await?
-            .ok_or_else(|| super::Error {
-                code: super::ErrCode::InvalidArgument,
-                message: "missing payload".to_string(),
-                internal_message: None,
-                stack: None,
-            })?;
-
-        Ok(value)
     }
 }

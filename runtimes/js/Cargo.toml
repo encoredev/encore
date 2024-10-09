@@ -28,6 +28,7 @@ futures = "0.3.30"
 mappable-rc = "0.1.1"
 tokio-util = { version = "0.7.10", features = ["io"] }
 chrono = "0.4.38"
+tokio-tungstenite = "0.21.0"
 
 [build-dependencies]
 napi-build = "2.0.1"

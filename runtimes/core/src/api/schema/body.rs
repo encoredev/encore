@@ -41,7 +41,7 @@ impl Body {
     }
 }
 
-impl ToOutgoingRequest for Body {
+impl ToOutgoingRequest<reqwest::Request> for Body {
     fn to_outgoing_request(
         &self,
         payload: &mut JSONPayload,

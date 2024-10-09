@@ -15,6 +15,7 @@ pub mod schema;
 mod server;
 mod static_assets;
 pub mod websocket;
+pub mod websocket_client;
 
 pub use endpoint::*;
 pub use error::*;

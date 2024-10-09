@@ -13,8 +13,8 @@ use serde::Serialize;
 
 use crate::api::reqauth::{platform, svcauth, CallMeta};
 use crate::api::schema::encoding::{
-    handshake_encoding, request_encoding, response_encoding, ReqSchemaUnderConstruction,
-    SchemaUnderConstruction,
+    handshake_encoding, request_encoding, response_encoding, HandshakeSchemaUnderConstruction,
+    ReqSchemaUnderConstruction, SchemaUnderConstruction,
 };
 use crate::api::schema::{JSONPayload, Method};
 use crate::api::{jsonschema, schema, ErrCode, Error};
@@ -121,12 +121,30 @@ pub enum ResponseData {
     Raw(axum::http::Response<axum::body::Body>),
 }
 
+/// Schema variations for stream handshake
+#[derive(Debug)]
+pub enum HandshakeSchema {
+    // Handshake with only a path, no parseable data
+    Path(schema::Path),
+    // Handshake with a request schema
+    Request(schema::Request),
+}
+
+impl HandshakeSchema {
+    pub fn path(&self) -> &schema::Path {
+        match self {
+            HandshakeSchema::Path(path) => path,
+            HandshakeSchema::Request(schema::Request { path, .. }) => path,
+        }
+    }
+}
+
 /// Represents a single API Endpoint.
 #[derive(Debug)]
 pub struct Endpoint {
     pub name: EndpointName,
     pub path: meta::Path,
-    pub handshake: Option<Arc<schema::Request>>,
+    pub handshake: Option<Arc<HandshakeSchema>>,
     pub request: Vec<Arc<schema::Request>>,
     pub response: Arc<schema::Response>,
 
@@ -198,7 +216,7 @@ pub fn endpoints_from_meta(
     struct EndpointUnderConstruction<'a> {
         svc: &'a meta::Service,
         ep: &'a meta::Rpc,
-        handshake_schema: Option<ReqSchemaUnderConstruction>,
+        handshake_schema: Option<HandshakeSchemaUnderConstruction>,
         request_schemas: Vec<ReqSchemaUnderConstruction>,
         response_schema: SchemaUnderConstruction,
     }
@@ -235,14 +253,49 @@ pub fn endpoints_from_meta(
     for ep in endpoints {
         let mut request_schemas = Vec::with_capacity(ep.request_schemas.len());
         let raw = rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|p| p == rpc::Protocol::Raw);
-        for req_schema in ep.request_schemas {
-            let req_schema = req_schema.build(&registry)?;
-            request_schemas.push(Arc::new(schema::Request {
-                methods: req_schema.methods,
-                path: req_schema
+
+        let handshake_schema = ep
+            .handshake_schema
+            .map(|schema| schema.build(&registry))
+            .transpose()?;
+
+        let handshake = handshake_schema
+            .map(|handshake_schema| -> anyhow::Result<Arc<HandshakeSchema>> {
+                let path = handshake_schema
                     .schema
                     .path
-                    .context("endpoint must have path defined")?,
+                    .context("endpoint must have a path defined")?;
+
+                let handshake_schema = if handshake_schema.parse_data {
+                    let handshake_schema = schema::Request {
+                        methods: vec![],
+                        path,
+                        header: handshake_schema.schema.header,
+                        query: handshake_schema.schema.query,
+                        body: schema::RequestBody::Typed(None),
+                        stream: false,
+                    };
+
+                    HandshakeSchema::Request(handshake_schema)
+                } else {
+                    HandshakeSchema::Path(path)
+                };
+
+                Ok(Arc::new(handshake_schema))
+            })
+            .transpose()?;
+
+        for req_schema in ep.request_schemas {
+            let req_schema = req_schema.build(&registry)?;
+            let path = req_schema
+                .schema
+                .path
+                .or_else(|| handshake.as_ref().map(|hs| hs.path().clone()))
+                .context("endpoint must have path defined")?;
+
+            request_schemas.push(Arc::new(schema::Request {
+                methods: req_schema.methods,
+                path,
                 header: req_schema.schema.header,
                 query: req_schema.schema.query,
                 body: if raw {
@@ -254,28 +307,6 @@ pub fn endpoints_from_meta(
             }));
         }
         let resp_schema = ep.response_schema.build(&registry)?;
-        let handshake_schema = ep
-            .handshake_schema
-            .map(|schema| schema.build(&registry))
-            .transpose()?;
-
-        let handshake = handshake_schema
-            .map(|handshake_schema| -> anyhow::Result<Arc<schema::Request>> {
-                let handshake_schema = schema::Request {
-                    methods: handshake_schema.methods,
-                    path: handshake_schema
-                        .schema
-                        .path
-                        .context("endpoint must have a path defined")?,
-                    header: handshake_schema.schema.header,
-                    query: handshake_schema.schema.query,
-                    body: schema::RequestBody::Typed(None),
-                    stream: false,
-                };
-
-                Ok(Arc::new(handshake_schema))
-            })
-            .transpose()?;
 
         // We only support a single gateway right now.
         let exposed = ep.ep.expose.contains_key("api-gateway");
@@ -382,13 +413,15 @@ impl EndpointHandler {
 
         let meta = CallMeta::parse_with_caller(&self.shared.inbound_svc_auth, &parts.headers)?;
 
-        let parsed_payload = if stream_direction.is_none() {
-            req_schema.extract(&mut parts, body).await?
-        } else if let Some(handshake_schema) = &self.endpoint.handshake {
-            // handshake does not have a body
-            handshake_schema.extract_parts(&mut parts).await?
+        let parsed_payload = if let Some(handshake_schema) = &self.endpoint.handshake {
+            match handshake_schema.as_ref() {
+                HandshakeSchema::Request(req_schema) => {
+                    req_schema.extract(&mut parts, body).await?
+                }
+                HandshakeSchema::Path(_) => None,
+            }
         } else {
-            None
+            req_schema.extract(&mut parts, body).await?
         };
 
         // Extract caller information.
