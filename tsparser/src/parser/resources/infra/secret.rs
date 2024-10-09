@@ -7,7 +7,7 @@ use crate::parser::resources::parseutil::{
 };
 use crate::parser::resources::Resource;
 use crate::parser::Range;
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use litparser::LitParser;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
