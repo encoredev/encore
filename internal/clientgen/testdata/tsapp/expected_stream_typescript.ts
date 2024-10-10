@@ -169,7 +169,7 @@ export namespace svc {
                 "some-query": params.queryValue,
             })
 
-            return await this.baseClient.createStreamOut(`/in/withResponse`, {headers, query})
+            return await this.baseClient.createStreamOut(`/in/withResponseAndHandshake`, {headers, query})
         }
 
         public async inWithoutHandshake(): Promise<StreamOut<InMsg, void>> {
