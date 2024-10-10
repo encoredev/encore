@@ -464,5 +464,3 @@ When the Encore.ts Rust runtime starts up, it reads the Protobuf file and pre-co
 Encore’s understanding of the request schema also improves performance. JavaScript runtimes like Deno and Bun use a similar architecture (in fact, Deno also uses Rust+Tokio+Hyper), but lack Encore’s understanding of the request schema. As a result, they need to hand over the un-processed HTTP requests to the single-threaded JavaScript engine for execution.
 
 Encore.ts, on the other hand, handles much more of the request processing inside Rust, and only hands over the decoded request objects. By handling much more of the request life-cycle in multi-threaded Rust, the JavaScript event-loop is freed up to focus on executing application business logic instead of parsing HTTP requests, resulting in a significant performance improvement.
-
-
