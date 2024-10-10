@@ -291,7 +291,7 @@ fn describe_req(
                 None,
             ));
         } else {
-            anyhow::bail!("missing request schema");
+            anyhow::bail!("request schema must be defined when having path parameters");
         }
     };
 
