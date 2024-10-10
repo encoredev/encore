@@ -1,22 +1,27 @@
 use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::io;
 use std::path::Path;
 
-use anyhow::{Context, Result};
 use swc_common::comments::{Comments, NoopComments, SingleThreadedComments};
 use swc_common::errors::Handler;
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
-use swc_common::{FileName, Mark};
+use swc_common::{FileName, Mark, Span, Spanned};
 use swc_ecma_ast as ast;
 use swc_ecma_ast::EsVersion;
 use swc_ecma_loader::resolve::Resolve;
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::{Parser, Syntax};
 use swc_ecma_visit::FoldWith;
+use thiserror::Error;
 
 use crate::parser::fileset::SourceFile;
 use crate::parser::{FilePath, FileSet, Pos};
+
+// File extensions that should be parsed as modules
+const MODULE_EXTENSIONS: &[&str] = &["js", "ts", "mjs", "mts", "cjs", "cts", "jsx", "tsx"];
 
 /// A unique id for a module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -46,6 +51,35 @@ impl std::fmt::Debug for ModuleLoader {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("unable to resolve module {0}")]
+    UnableToResolve(String, #[source] anyhow::Error),
+    #[error("invalid filename {0}")]
+    InvalidFilename(FileName),
+    #[error("unable to load file from filesystem")]
+    LoadFile(#[source] io::Error),
+    #[error("error when parsing module")]
+    ParseError(swc_ecma_parser::error::Error),
+}
+
+impl Error {
+    pub fn span(&self) -> Option<Span> {
+        match self {
+            Error::UnableToResolve(..) | Error::InvalidFilename(_) | Error::LoadFile(_) => None,
+            Error::ParseError(e) => Some(e.span()),
+        }
+    }
+    pub fn msg(&self) -> String {
+        match self {
+            Error::UnableToResolve(..) | Error::InvalidFilename(_) | Error::LoadFile(_) => {
+                self.to_string()
+            }
+            Error::ParseError(e) => e.clone().into_kind().msg().to_string(),
+        }
+    }
+}
+
 impl ModuleLoader {
     pub fn new(errs: Lrc<Handler>, file_set: Lrc<FileSet>, resolver: Box<dyn Resolve>) -> Self {
         Self {
@@ -69,14 +103,18 @@ impl ModuleLoader {
         self.by_path.borrow().get(&path).cloned()
     }
 
-    pub fn resolve_import(&self, module: &Module, import_path: &str) -> Result<Lrc<Module>> {
+    pub fn resolve_import(
+        &self,
+        module: &Module,
+        import_path: &str,
+    ) -> Result<Option<Lrc<Module>>, Error> {
         // Special case for the generated clients.
         // TODO: Fix this to do actual import path resolution.
         // It's a bit tricky because we can't use the resolver since the files may not exist.
         if import_path == "~encore/clients" {
-            return Ok(self.encore_app_clients());
+            return Ok(Some(self.encore_app_clients()));
         } else if import_path == "~encore/auth" {
-            return Ok(self.encore_auth());
+            return Ok(Some(self.encore_auth()));
         }
 
         let target_file_path = {
@@ -85,16 +123,23 @@ impl ModuleLoader {
             let mod_path = self
                 .resolver
                 .resolve(&file_name, import_path)
-                .with_context(|| format!("unable to resolve module {}", import_path))?;
+                .map_err(|err| Error::UnableToResolve(import_path.to_string(), err))?;
             match mod_path {
-                FileName::Real(ref buf) => FilePath::Real(buf.clone()),
+                FileName::Real(ref buf) => {
+                    if let Some(ext) = buf.extension().and_then(OsStr::to_str) {
+                        if !MODULE_EXTENSIONS.contains(&ext) {
+                            return Ok(None);
+                        }
+                    }
+                    FilePath::Real(buf.clone())
+                }
                 FileName::Custom(ref str) => FilePath::Custom(str.clone()),
-                _ => anyhow::bail!("invalid file name {:#?}", mod_path),
+                _ => return Err(Error::InvalidFilename(mod_path)),
             }
         };
 
         if let Some(module) = self.by_path.borrow().get(&target_file_path) {
-            return Ok(module.clone());
+            return Ok(Some(module.clone()));
         }
 
         // Determine the module path.
@@ -109,20 +154,26 @@ impl ModuleLoader {
         };
 
         match target_file_path {
-            FilePath::Real(ref path) => self.load_fs_file(path.as_path(), module_path),
-            FilePath::Custom(_) => self.load_custom_file(target_file_path, "", module_path),
+            FilePath::Real(ref path) => self.load_fs_file(path.as_path(), module_path).map(Some),
+            FilePath::Custom(_) => self
+                .load_custom_file(target_file_path, "", module_path)
+                .map(Some),
         }
     }
 
     /// Load a file from the filesystem into the module loader.
-    pub fn load_fs_file(&self, path: &Path, module_path: Option<String>) -> Result<Lrc<Module>> {
+    pub fn load_fs_file(
+        &self,
+        path: &Path,
+        module_path: Option<String>,
+    ) -> Result<Lrc<Module>, Error> {
         // Is it already stored?
         let file_name = FilePath::from(path.to_owned());
         if let Some(module) = self.by_path.borrow().get(&file_name) {
             return Ok(module.clone());
         }
 
-        let file = self.file_set.load_file(path)?;
+        let file = self.file_set.load_file(path).map_err(Error::LoadFile)?;
         let module = self.parse_and_store(file, module_path)?;
         Ok(module)
     }
@@ -133,7 +184,7 @@ impl ModuleLoader {
         file_name: FilePath,
         src: S,
         module_path: Option<String>,
-    ) -> Result<Lrc<Module>> {
+    ) -> Result<Lrc<Module>, Error> {
         // Is it already stored?
         if let Some(module) = self.by_path.borrow().get(&file_name) {
             return Ok(module.clone());
@@ -186,8 +237,8 @@ impl ModuleLoader {
         &self,
         file: Lrc<SourceFile>,
         module_path: Option<String>,
-    ) -> Result<Lrc<Module>> {
-        let (ast, comments) = self.parse_file(file.clone()).context("parse error")?;
+    ) -> Result<Lrc<Module>, Error> {
+        let (ast, comments) = self.parse_file(file.clone())?;
 
         let mut mods = self.by_path.borrow_mut();
         let id = ModuleId(mods.len() + 1);
@@ -208,7 +259,7 @@ impl ModuleLoader {
     fn parse_file(
         &self,
         file: Lrc<SourceFile>,
-    ) -> Result<(ast::Module, Box<SingleThreadedComments>)> {
+    ) -> Result<(ast::Module, Box<SingleThreadedComments>), Error> {
         let comments: Box<SingleThreadedComments> = Box::default();
 
         let syntax = Syntax::Typescript(swc_ecma_parser::TsConfig {
@@ -230,10 +281,7 @@ impl ModuleLoader {
             e.into_diagnostic(&self.errs).emit();
         }
 
-        let ast = match parser.parse_module() {
-            Ok(ast) => ast,
-            Err(e) => anyhow::bail!("parse error: {:#?}", e),
-        };
+        let ast = parser.parse_module().map_err(Error::ParseError)?;
 
         // Resolve identifiers.
         let mut resolver = swc_ecma_transforms_base::resolver(Mark::new(), Mark::new(), true);
@@ -309,7 +357,7 @@ fn imports_from_mod(ast: &ast::Module) -> Vec<ast::ImportDecl> {
 impl ModuleLoader {
     /// Injects a new file into the module loader.
     /// If a file with that name has already been added it does nothing.
-    pub fn inject_file(&self, path: FilePath, src: &str) -> Result<Lrc<Module>> {
+    pub fn inject_file(&self, path: FilePath, src: &str) -> anyhow::Result<Lrc<Module>> {
         // Check if the file has already been added if the file has a unique identity.
         // For other file types (like anonymous files) don't check for this so that we can inject
         //  multiple anonymous files for testing purposes.
@@ -335,7 +383,7 @@ impl ModuleLoader {
         &self,
         base: &Path,
         ar: &txtar::Archive,
-    ) -> Result<HashMap<FilePath, Lrc<Module>>> {
+    ) -> anyhow::Result<HashMap<FilePath, Lrc<Module>>> {
         let mut result = HashMap::new();
         for file in &ar.files {
             if !file.name.extension().map_or(false, |ext| ext == "ts") {
