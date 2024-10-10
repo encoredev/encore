@@ -21,17 +21,18 @@ func init() {
 	rootCmd.AddCommand(genCmd)
 
 	var (
-		output               string
-		lang                 string
-		envName              string
-		genServiceNames      []string
-		excludedServices     []string
-		endpointTags         []string
-		excludedEndpointTags []string
+		output                         string
+		lang                           string
+		envName                        string
+		genServiceNames                []string
+		excludedServices               []string
+		endpointTags                   []string
+		excludedEndpointTags           []string
+		openAPIExcludePrivateEndpoints bool
 	)
 
 	genClientCmd := &cobra.Command{
-		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--tags=cache,mobile] [--excluded-tags=internal]",
+		Use:   "client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--tags=cache,mobile] [--excluded-tags=internal] [--openapi-exclude-private-endpoints]",
 		Short: "Generates an API client for your app",
 		Long: `Generates an API client for your app.
 
@@ -158,4 +159,6 @@ which may require the user-facing wrapper code to be manually generated.`,
 	genClientCmd.Flags().StringSliceVarP(&endpointTags, "tags", "t", nil, "The names of endpoint tags to include in the output")
 	genClientCmd.Flags().
 		StringSliceVar(&excludedEndpointTags, "excluded-tags", nil, "The names of endpoint tags to exclude in the output")
+	genClientCmd.Flags().
+		BoolVar(&openAPIExcludePrivateEndpoints, "openapi-exclude-private-endpoints", false, "Exclude private endpoints from the OpenAPI spec")
 }

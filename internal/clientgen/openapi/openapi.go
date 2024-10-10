@@ -61,7 +61,7 @@ func (g *Generator) Generate(p clientgentypes.GenerateParams) (err error) {
 
 	for _, svc := range p.Meta.Svcs {
 		if p.Services.Has(svc.Name) {
-			if err := g.addService(svc, p.Tags); err != nil {
+			if err := g.addService(svc, p.Tags, p.Options); err != nil {
 				return err
 			}
 		}
@@ -76,10 +76,15 @@ func (g *Generator) Generate(p clientgentypes.GenerateParams) (err error) {
 	return json.Indent(p.Buf, out, "", "  ")
 }
 
-func (g *Generator) addService(svc *meta.Service, tags clientgentypes.TagSet) error {
+func (g *Generator) addService(svc *meta.Service, tags clientgentypes.TagSet, opts clientgentypes.Options) error {
 	for _, rpc := range svc.Rpcs {
 		// streaming endpoints not supported yet
 		if rpc.StreamingRequest || rpc.StreamingResponse {
+			continue
+		}
+
+		// Skip private endpoints if the flag is set
+		if opts.OpenAPIExcludePrivateEndpoints && rpc.AccessType == meta.RPC_PRIVATE {
 			continue
 		}
 

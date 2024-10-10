@@ -141,7 +141,11 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 
 	servicesToGenerate := clientgentypes.NewServiceSet(md, params.Services, params.ExcludedServices)
 	tagSet := clientgentypes.NewTagSet(params.EndpointTags, params.ExcludedEndpointTags)
-	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet)
+	opts := clientgentypes.Options{}
+	if params.OpenapiExcludePrivateEndpoints != nil {
+		opts.OpenAPIExcludePrivateEndpoints = *params.OpenapiExcludePrivateEndpoints
+	}
+	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet, opts)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

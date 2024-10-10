@@ -58,6 +58,7 @@ func Client(
 	md *meta.Data,
 	services clientgentypes.ServiceSet,
 	tags clientgentypes.TagSet,
+	opts clientgentypes.Options,
 ) (code []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -86,6 +87,7 @@ func Client(
 		Meta:     md,
 		Services: services,
 		Tags:     tags,
+		Options:  opts,
 	}
 
 	if err := gen.Generate(params); err != nil {
