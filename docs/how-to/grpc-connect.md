@@ -57,12 +57,12 @@ Next, add a `buf.gen.yaml` in the repository root, containing:
 
 ```
 -- buf.gen.yaml --
-version: v1
+version: v2
 plugins:
-  - plugin: go
+  - local: protoc-gen-go
     out: gen
     opt: paths=source_relative
-  - plugin: connect-go
+  - local: protoc-gen-connect-go
     out: gen
     opt: paths=source_relative
 ```
