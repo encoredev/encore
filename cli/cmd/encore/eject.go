@@ -50,7 +50,7 @@ func init() {
 	dockerEjectCmd.Flags().StringVar(&p.Goos, "os", p.Goos, "target operating system. One of (linux, darwin, windows)")
 	dockerEjectCmd.Flags().StringVar(&p.Goarch, "arch", p.Goarch, "target architecture. One of (amd64, arm64)")
 	dockerEjectCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", false, "enable cgo")
-	dockerEjectCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-infra-config", false, "do not read or generate a infra configuration file")
+	dockerEjectCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-config", false, "do not read or generate a infra configuration file")
 	dockerEjectCmd.Flags().StringVar(&p.InfraConfPath, "config", "", "infra configuration file path")
 	p.Services = dockerEjectCmd.Flags().StringSlice("services", nil, "services to include in the image")
 	p.Gateways = dockerEjectCmd.Flags().StringSlice("gateways", nil, "gateways to include in the image")

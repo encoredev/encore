@@ -392,7 +392,7 @@ func orDefault[T comparable](val T, def T) T {
 // ParseRuntime parses the Encore runtime config.
 func ParseRuntime(runtimeConfig, processCfg, infraCfgPath, deployID string) *Runtime {
 	var cfg *Runtime
-	if infraCfgPath == "" {
+	if infraCfgPath != "" {
 		cfg = parseInfraConfigEnv(infraCfgPath)
 	} else if runtimeConfig != "" {
 		cfg = parseRuntimeConfigEnv(runtimeConfig)

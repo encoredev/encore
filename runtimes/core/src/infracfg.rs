@@ -555,7 +555,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                             cloud_name: name.clone(),
                             conn_pools: vec![SqlConnectionPool {
                                 is_readonly: false,
-                                role_rid: role_rid,
+                                role_rid,
                                 min_connections: db.min_connections.unwrap_or(0),
                                 max_connections: db.max_connections.unwrap_or(100),
                             }],
@@ -635,7 +635,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     key_prefix: redis.key_prefix.clone(),
                     conn_pools: vec![RedisConnectionPool {
                         is_readonly: false,
-                        role_rid: role_rid,
+                        role_rid,
                         min_connections: redis.min_connections.unwrap_or(0),
                         max_connections: redis.max_connections.unwrap_or(100),
                     }],

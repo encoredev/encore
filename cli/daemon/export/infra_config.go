@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	LEARN_MORE = aurora.Black("Learn More: https://encore.dev/docs/deploy/infra-config").Italic().String()
+	LEARN_MORE = aurora.Black("Learn More: https://encore.dev/docs/how-to/self-host").Italic().String()
 )
 
 // defaultInfraConfigPath is the path in the image where the environment configuration is mounted.

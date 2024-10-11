@@ -454,7 +454,8 @@ impl std::error::Error for ParseError {}
 fn infra_config_from_env() -> Result<Option<runtimepb::RuntimeConfig>, ParseError> {
     let cfg_path = match std::env::var("ENCORE_INFRA_CONFIG_PATH") {
         Ok(cfg) => cfg,
-        Err(_) => return Ok(None),
+        Err(std::env::VarError::NotPresent) => return Ok(None),
+        Err(e) => return Err(ParseError::EnvVar(e)),
     };
     let file_content = std::fs::read_to_string(&cfg_path).map_err(ParseError::IO)?;
     let infra_config: infracfg::InfraConfig = serde_json::from_str(&file_content)

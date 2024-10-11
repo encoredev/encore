@@ -400,5 +400,5 @@ fn listen_addr() -> String {
     if let Ok(port) = std::env::var("PORT") {
         return format!("0.0.0.0:{}", port);
     }
-    "0.0.0.0:0".to_string()
+    "0.0.0.0:8080".to_string()
 }
