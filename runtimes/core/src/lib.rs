@@ -21,6 +21,7 @@ use crate::encore::runtime::v1 as runtimepb;
 pub mod api;
 mod base32;
 pub mod error;
+pub mod infracfg;
 pub mod log;
 pub mod meta;
 pub mod model;
@@ -105,10 +106,20 @@ impl RuntimeBuilder {
 
     pub fn with_runtime_config_from_env(mut self) -> Self {
         if self.err.is_none() {
-            match runtime_config_from_env() {
-                Ok(cfg) => self.cfg = Some(cfg),
+            match infra_config_from_env() {
+                Ok(opt_cfg) => match opt_cfg {
+                    Some(cfg) => self.cfg = Some(cfg),
+                    None => match runtime_config_from_env() {
+                        Ok(cfg) => self.cfg = Some(cfg),
+                        Err(e) => {
+                            self.err = Some(
+                                anyhow::Error::new(e).context("unable to parse runtime config"),
+                            )
+                        }
+                    },
+                },
                 Err(e) => {
-                    self.err = Some(anyhow::Error::new(e).context("unable to parse runtime config"))
+                    self.err = Some(anyhow::Error::new(e).context("unable to parse infra config"))
                 }
             }
             match proc_config_from_env() {
@@ -439,6 +450,18 @@ impl Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
+
+fn infra_config_from_env() -> Result<Option<runtimepb::RuntimeConfig>, ParseError> {
+    let cfg_path = match std::env::var("ENCORE_INFRA_CONFIG_PATH") {
+        Ok(cfg) => cfg,
+        Err(_) => return Ok(None),
+    };
+    let file_content = std::fs::read_to_string(&cfg_path).map_err(ParseError::IO)?;
+    let infra_config: infracfg::InfraConfig = serde_json::from_str(&file_content)
+        .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+    let runtime_config = infracfg::map_infra_to_runtime(infra_config);
+    Ok(Some(runtime_config))
+}
 
 fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
     let cfg = match std::env::var("ENCORE_RUNTIME_CONFIG") {

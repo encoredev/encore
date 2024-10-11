@@ -29,6 +29,9 @@ func downloadBinary(platform, arch string, binary string, log zerolog.Logger) (d
 		if platform != runtime.GOOS || arch != runtime.GOARCH {
 			suffix = "-" + platform + "-" + arch
 		}
+		if binary == "encore-runtime.node" {
+			binary = "js/" + binary
+		}
 		path := filepath.Join(env.EncoreRuntimesPath(), binary+suffix)
 		if _, err := os.Stat(path); err == nil {
 			return dockerbuild.HostPath(path), nil

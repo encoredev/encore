@@ -9,6 +9,7 @@ import (
 
 var singleton = NewManager(
 	appconf.Runtime,
+	encoreenv.Get("ENCORE_INFRA_CONFIG_PATH"),
 	encoreenv.Get("ENCORE_APP_SECRETS"),
 )
 

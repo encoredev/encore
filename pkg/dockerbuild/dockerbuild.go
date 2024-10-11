@@ -185,8 +185,8 @@ func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildC
 		return nil, err
 	}
 
-	// Write app meta.
-	if err := writeMeta(tc, spec); err != nil {
+	// Write additional files
+	if err := writeExtraFiles(tc, spec.WriteFiles); err != nil {
 		return nil, err
 	}
 
@@ -210,9 +210,11 @@ func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildC
 	return opener, nil
 }
 
-func writeMeta(tc *tarCopier, spec *ImageSpec) error {
-	if err := tc.WriteFile(defaultMetaPath.String(), 0644, spec.Meta); err != nil {
-		return errors.Wrap(err, "write meta")
+func writeExtraFiles(tc *tarCopier, files map[ImagePath][]byte) error {
+	for path, data := range files {
+		if err := tc.WriteFile(path.String(), 0644, data); err != nil {
+			return errors.Wrap(err, "write image data")
+		}
 	}
 	return nil
 }

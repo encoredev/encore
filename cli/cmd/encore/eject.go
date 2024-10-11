@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -33,7 +34,7 @@ func init() {
 			file, err := appfile.ParseFile(filepath.Join(p.AppRoot, appfile.Name))
 			if err == nil {
 				if !cmd.Flag("base").Changed && file.Lang == appfile.LangTS {
-					p.BaseImg = "node:latest"
+					p.BaseImg = "node:slim"
 				}
 				if !cmd.Flag("cgo").Changed {
 					p.CgoEnabled = file.Build.CgoEnabled
@@ -49,18 +50,26 @@ func init() {
 	dockerEjectCmd.Flags().StringVar(&p.Goos, "os", p.Goos, "target operating system. One of (linux, darwin, windows)")
 	dockerEjectCmd.Flags().StringVar(&p.Goarch, "arch", p.Goarch, "target architecture. One of (amd64, arm64)")
 	dockerEjectCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", false, "enable cgo")
+	dockerEjectCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-infra-config", false, "do not read or generate a infra configuration file")
+	dockerEjectCmd.Flags().StringVar(&p.InfraConfPath, "config", "", "infra configuration file path")
+	p.Services = dockerEjectCmd.Flags().StringSlice("services", nil, "services to include in the image")
+	p.Gateways = dockerEjectCmd.Flags().StringSlice("gateways", nil, "gateways to include in the image")
 	rootCmd.AddCommand(ejectCmd)
 	ejectCmd.AddCommand(dockerEjectCmd)
 }
 
 type ejectParams struct {
-	AppRoot    string
-	ImageTag   string
-	Push       bool
-	BaseImg    string
-	Goos       string
-	Goarch     string
-	CgoEnabled bool
+	AppRoot       string
+	ImageTag      string
+	Push          bool
+	BaseImg       string
+	Goos          string
+	Goarch        string
+	CgoEnabled    bool
+	SkipInfraConf bool
+	InfraConfPath string
+	Services      *[]string
+	Gateways      *[]string
 }
 
 func dockerEject(p ejectParams) {
@@ -83,6 +92,21 @@ func dockerEject(p ejectParams) {
 		params.LocalDaemonTag = p.ImageTag
 	}
 
+	var services, gateways []string
+	if p.Services != nil {
+		services = *p.Services
+	}
+	if p.Gateways != nil {
+		gateways = *p.Gateways
+	}
+	var err error
+	cfgPath := ""
+	if p.InfraConfPath != "" {
+		cfgPath, err = filepath.Abs(p.InfraConfPath)
+		if err != nil {
+			cmdutil.Fatalf("failed to resolve absolute path for %s: %v", p.InfraConfPath, err)
+		}
+	}
 	stream, err := daemon.Export(ctx, &daemonpb.ExportRequest{
 		AppRoot:    p.AppRoot,
 		CgoEnabled: p.CgoEnabled,
@@ -92,6 +116,10 @@ func dockerEject(p ejectParams) {
 		Format: &daemonpb.ExportRequest_Docker{
 			Docker: params,
 		},
+		InfraConfPath: cfgPath,
+		Services:      services,
+		Gateways:      gateways,
+		SkipInfraConf: p.SkipInfraConf,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
@@ -100,13 +128,6 @@ func dockerEject(p ejectParams) {
 	if code := streamCommandOutput(stream, convertJSONLogs()); code != 0 {
 		os.Exit(code)
 	}
-	fmt.Print(`
-Successfully ejected Encore application.
-To run the container, specify the environment variables ENCORE_RUNTIME_CONFIG and ENCORE_APP_SECRETS
-as documented here: https://encore.dev/docs/how-to/migrate-away.
-
-`)
-
 }
 
 func or(a, b string) string {
