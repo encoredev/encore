@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/rs/zerolog/log"
 
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
@@ -48,7 +49,13 @@ type ImageBuildConfig struct {
 
 // BuildImage builds a docker image from the given spec.
 func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.Image, error) {
-	baseImg, err := resolveBaseImage(ctx, spec.DockerBaseImage, cfg.BaseImageOverride)
+	options := []remote.Option{
+		remote.WithPlatform(v1.Platform{
+			OS:           spec.OS,
+			Architecture: spec.Arch,
+		}),
+	}
+	baseImg, err := resolveBaseImage(ctx, spec.DockerBaseImage, cfg.BaseImageOverride, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve base image")
 	}
@@ -117,7 +124,7 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 
 // ResolveRemoteImage resolves the base image with the given reference.
 // If imageRef is the empty string or "scratch" it resolves to the empty image.
-func ResolveRemoteImage(ctx context.Context, imageRef string) (v1.Image, error) {
+func ResolveRemoteImage(ctx context.Context, imageRef string, options ...remote.Option) (v1.Image, error) {
 	if imageRef == "" || imageRef == "scratch" {
 		return empty.Image, nil
 	}
@@ -128,18 +135,18 @@ func ResolveRemoteImage(ctx context.Context, imageRef string) (v1.Image, error) 
 		return nil, errors.Wrap(err, "parse image ref")
 	}
 
-	img, err := remote.Image(baseImgRef, remote.WithContext(ctx))
+	img, err := remote.Image(baseImgRef, append(options, remote.WithContext(ctx))...)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch image")
 	}
 	return img, nil
 }
 
-func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage option.Option[v1.Image]) (v1.Image, error) {
+func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage option.Option[v1.Image], options ...remote.Option) (v1.Image, error) {
 	if override, ok := overrideBaseImage.Get(); ok {
 		return override, nil
 	}
-	return ResolveRemoteImage(ctx, baseImgTag)
+	return ResolveRemoteImage(ctx, baseImgTag, options...)
 }
 
 func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildConfig) (opener tarball.Opener, err error) {
@@ -275,19 +282,42 @@ func writeBuildInfo(tc *tarCopier, spec BuildInfoSpec) error {
 	return errors.Wrap(err, "write build info")
 }
 
-func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
-	const (
-		mozillaRootStoreWebsiteTrustBitEnabledURL = "https://ccadb-public.secure.force.com/mozilla/IncludedRootsPEMTxt?TrustBitsInclude=Websites"
-	)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", mozillaRootStoreWebsiteTrustBitEnabledURL, nil)
+func tryFetch(ctx context.Context, url string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return errors.Wrap(err, "create request")
+		return nil, errors.Wrap(err, "create request")
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "get root certs")
+		return nil, errors.Wrap(err, "get root certs")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return nil, errors.Newf("root cert url returned status code: %s", resp.Status)
+	}
+	return resp, nil
+}
+
+func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
+	const (
+		encoreCachedRootCerts                     = "https://api.encore.dev/artifacts/build/root-certs"
+		mozillaRootStoreWebsiteTrustBitEnabledURL = "https://ccadb-public.secure.force.com/mozilla/IncludedRootsPEMTxt?TrustBitsInclude=Websites"
+	)
+	var (
+		resp *http.Response
+		err  error
+	)
+	for _, url := range []string{encoreCachedRootCerts, mozillaRootStoreWebsiteTrustBitEnabledURL} {
+		resp, err = tryFetch(ctx, url)
+		if err == nil {
+			break
+		}
+		log.Warn().Err(err).Msgf("failed to fetch root certs from: %s", url)
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch cert file")
 	}
 	defer func() { _ = resp.Body.Close() }()
 

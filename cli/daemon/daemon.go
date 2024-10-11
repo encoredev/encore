@@ -87,7 +87,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	var md *meta.Data
 	if params.EnvName == "local" {
 		// Determine the app root
-		app, err := s.apps.FindLatestByPlatformID(params.AppId)
+		app, err := s.apps.FindLatestByPlatformOrLocalID(params.AppId)
 		if errors.Is(err, apps.ErrNotFound) {
 			return nil, status.Errorf(codes.FailedPrecondition, "the app %s must be run locally before generating a client for the 'local' environment.",
 				params.AppId)
@@ -140,7 +140,8 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	lang := clientgen.Lang(params.Lang)
 
 	servicesToGenerate := clientgentypes.NewServiceSet(md, params.Services, params.ExcludedServices)
-	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate)
+	tagSet := clientgentypes.NewTagSet(params.EndpointTags, params.ExcludedEndpointTags)
+	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

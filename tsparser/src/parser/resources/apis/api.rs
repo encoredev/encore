@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{anyhow, bail, Context, Ok, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast::TsTypeParamInstantiation;
@@ -76,7 +76,7 @@ impl Methods {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub enum Method {
     Get,
     Post,
@@ -192,7 +192,13 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 .path
                 .unwrap_or_else(|| format!("/{}.{}", &service_name, r.endpoint_name));
 
-            let path = Path::parse(&path_str, Default::default())?;
+            let path = match Path::parse(&path_str, Default::default()) {
+                Ok(path) => path,
+                Err(err) => {
+                    HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                    continue;
+                }
+            };
 
             let object = pass
                 .type_checker
@@ -217,10 +223,29 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
 
-                    describe_endpoint(pass.type_checker, methods, path, request, response, false)?
+                    match describe_endpoint(
+                        pass.type_checker,
+                        methods,
+                        path,
+                        request,
+                        response,
+                        false,
+                    ) {
+                        Ok(encoding) => encoding,
+                        Err(err) => {
+                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                            continue;
+                        }
+                    }
                 }
                 EndpointKind::Raw => {
-                    describe_endpoint(pass.type_checker, methods, path, None, None, true)?
+                    match describe_endpoint(pass.type_checker, methods, path, None, None, true) {
+                        Ok(encoding) => encoding,
+                        Err(err) => {
+                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                            continue;
+                        }
+                    }
                 }
                 EndpointKind::TypedStream {
                     handshake,
@@ -242,7 +267,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     let handshake =
                         handshake.map(|t| pass.type_checker.resolve_type(module.clone(), &t));
 
-                    describe_stream_endpoint(
+                    match describe_stream_endpoint(
                         pass.type_checker,
                         methods,
                         path,
@@ -250,7 +275,13 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         response,
                         handshake,
                         false,
-                    )?
+                    ) {
+                        Ok(encoding) => encoding,
+                        Err(err) => {
+                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
+                            continue;
+                        }
+                    }
                 }
                 EndpointKind::StaticAssets { dir, not_found } => {
                     // Support HEAD and GET for static assets.

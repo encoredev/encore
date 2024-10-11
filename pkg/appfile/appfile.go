@@ -83,6 +83,10 @@ type Docker struct {
 	// WorkingDir specifies the working directory to start the docker image in.
 	// If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
 	WorkingDir string `json:"working_dir,omitempty"`
+
+	// ProcessPerService specifies whether each service should run in its own process. If false,
+	// all services are run in the same process.
+	ProcessPerService bool `json:"process_per_service,omitempty"`
 }
 
 type CORS struct {
@@ -182,4 +186,13 @@ func GlobalCORS(appRoot string) (*CORS, error) {
 		return nil, err
 	}
 	return f.GlobalCORS, nil
+}
+
+// AppLang returns the language of the app located at appRoot.
+func AppLang(appRoot string) (Lang, error) {
+	f, err := ParseFile(filepath.Join(appRoot, Name))
+	if err != nil {
+		return "", err
+	}
+	return f.Lang, nil
 }

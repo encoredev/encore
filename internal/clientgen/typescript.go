@@ -93,7 +93,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	seenNs := make(map[string]bool)
 	ts.writeClient(p.Services)
 	for _, svc := range p.Meta.Svcs {
-		if err := ts.writeService(svc, p.Services); err != nil {
+		if err := ts.writeService(svc, p.Services, p.Tags); err != nil {
 			return err
 		}
 		seenNs[svc.Name] = true
@@ -113,7 +113,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	return nil
 }
 
-func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet) error {
+func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet, tags clientgentypes.TagSet) error {
 	// Determine if we have anything worth exposing.
 	// Either a public RPC or a named type.
 	isIncluded := hasPublicRPC(svc) && p.Has(svc.Name)
@@ -165,7 +165,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 
 	// RPCs
 	for _, rpc := range svc.Rpcs {
-		if rpc.AccessType == meta.RPC_PRIVATE {
+		if rpc.AccessType == meta.RPC_PRIVATE || !tags.IsRPCIncluded(rpc) {
 			continue
 		}
 
@@ -838,7 +838,7 @@ export function PreviewEnv(pr: number | string): BaseURL {
 }
 
 /**
- * Client is an API client for the ` + ts.appSlug + ` Encore application. 
+ * Client is an API client for the ` + ts.appSlug + ` Encore application.
  */
 export default class Client {
 `)
@@ -1032,8 +1032,7 @@ class BaseClient {
             } else {
                 this.authGenerator = () => auth
             }
-        }
-`)
+        }`)
 	}
 
 	ts.WriteString(`
@@ -1068,43 +1067,50 @@ class BaseClient {
 				return errors.Wrap(err, "unable to describe auth data")
 			}
 
-			// Write all the query string fields in
-			for i, field := range authData.QueryParameters {
-				if i == 0 {
-					w.WriteString("data.query = {};\n")
+			// Generate the query string
+			if len(authData.QueryParameters) > 0 {
+				dict := make(map[string]string)
+				for _, field := range authData.QueryParameters {
+					if list := field.Type.GetList(); list != nil {
+						dot := ts.Dot("authData", field.SrcName)
+						if field.Optional || ts.isRecursive(field.Type) {
+							dot += "?"
+						}
+						dict[field.WireFormat] = dot +
+							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")"
+					} else {
+						dict[field.WireFormat] = ts.convertBuiltinToString(
+							field.Type.GetBuiltin(),
+							ts.Dot("authData", field.SrcName),
+							field.Optional,
+						)
+					}
 				}
-				w.WriteString("data.query[\"")
-				w.WriteString(field.WireFormat)
-				w.WriteString("\"] = ")
-				if list := field.Type.GetList(); list != nil {
-					w.WriteString(
-						ts.Dot("authData", field.SrcName) +
-							".map((v) => " + ts.convertBuiltinToString(list.Elem.GetBuiltin(), "v", field.Optional) + ")",
-					)
-				} else {
-					w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
-				}
-				w.WriteString(";\n")
+
+				w.WriteString("data.query = makeRecord<string, string | string[]>(")
+				ts.Values(w, dict)
+				w.WriteString(");\n")
 			}
 
-			// Write all the headers
-			for i, field := range authData.HeaderParameters {
-				if i == 0 {
-					w.WriteString("data.headers = {};\n")
+			// Generate the headers
+			if len(authData.HeaderParameters) > 0 {
+				dict := make(map[string]string)
+				for _, field := range authData.HeaderParameters {
+					ref := ts.Dot("authData", field.SrcName)
+					dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
 				}
-				w.WriteString("data.headers[\"")
-				w.WriteString(field.WireFormat)
-				w.WriteString("\"] = ")
-				w.WriteString(ts.convertBuiltinToString(field.Type.GetBuiltin(), ts.Dot("authData", field.SrcName), field.Optional))
-				w.WriteString(";\n")
+
+				w.WriteString("data.headers = makeRecord<string, string>(")
+				ts.Values(w, dict)
+				w.WriteString(");\n")
 			}
 		} else {
 			w.WriteString("data.headers = {};\n")
 			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData;\n")
 		}
-		ts.WriteString(`
-            return data;
-        }`)
+
+		w.WriteString("\nreturn data;\n")
+		w.Dedent().WriteString("}\n")
 	}
 
 	ts.WriteString(`
@@ -1636,7 +1642,7 @@ interface APIErrorResponse {
 
 function isAPIErrorResponse(err: any): err is APIErrorResponse {
     return (
-        err !== undefined && err !== null && 
+        err !== undefined && err !== null &&
         isErrCode(err.code) &&
         typeof(err.message) === "string" &&
         (err.details === undefined || err.details === null || typeof(err.details) === "object")
@@ -1669,7 +1675,7 @@ export class APIError extends Error {
     constructor(status: number, response: APIErrorResponse) {
         // extending errors causes issues after you construct them, unless you apply the following fixes
         super(response.message);
-        
+
         // set error name as constructor name, make it not enumerable to keep native Error behavior
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
         Object.defineProperty(this, 'name', {
@@ -1677,14 +1683,14 @@ export class APIError extends Error {
             enumerable:   false,
             configurable: true,
         })
-        
+
         // fix the prototype chain
-        if ((Object as any).setPrototypeOf == undefined) { 
-            (this as any).__proto__ = APIError.prototype 
+        if ((Object as any).setPrototypeOf == undefined) {
+            (this as any).__proto__ = APIError.prototype
         } else {
             Object.setPrototypeOf(this, APIError.prototype);
         }
-        
+
         // capture a stack trace
         if ((Error as any).captureStackTrace !== undefined) {
             (Error as any).captureStackTrace(this, this.constructor);

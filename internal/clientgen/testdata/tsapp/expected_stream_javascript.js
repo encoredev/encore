@@ -92,11 +92,11 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            "path_param": params.pathParam,
+            pathParam:    params.pathParam,
             "some-query": params.queryValue,
         })
 
-        return await this.baseClient.createStreamOut(`/in/withResponse`, {headers, query})
+        return await this.baseClient.createStreamOut(`/in/withResponseAndHandshake`, {headers, query})
     }
 
     async inWithoutHandshake() {

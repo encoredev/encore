@@ -404,7 +404,6 @@ func convertCompileErrors(errList *perr.List, out []byte, workdir, appRoot, relw
 	// as files might be coming from either of them
 	errList.MakeRelative(workdir, relwd)
 	errList.MakeRelative(appRoot, relwd)
-	output = append(output)
 
 	return bytes.Join(output, []byte{'\n'})
 }

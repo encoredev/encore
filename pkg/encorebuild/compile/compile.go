@@ -4,6 +4,7 @@ import (
 	osPkg "os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -69,7 +70,7 @@ func goBaseEnvs(cfg *buildconf.Config) []string {
 // CompileRustBinary compiles a Rust binary for the given OS and architecture
 //
 // We're using zigbuild to perform easy cross compiling
-func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePath string, extraEnvVars ...string) {
+func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePath string, libc string, extraEnvVars ...string) {
 	if cfg.OS == "windows" {
 		if !strings.HasSuffix(artifactPath, ".dll") {
 			outputPath += ".exe"
@@ -77,8 +78,18 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 		}
 	}
 
-	envs := append(extraEnvVars, osPkg.Environ()...)
 	useZig := cfg.IsCross() || cfg.Release
+
+	envs := append(extraEnvVars, osPkg.Environ()...)
+	useCross := false
+	if cfg.IsCross() && runtime.GOOS == "darwin" {
+		// check is cross is installed
+		_, err := exec.LookPath("cross")
+		if err == nil {
+			useCross = true
+			useZig = false
+		}
+	}
 
 	var target, zigTargetSuffix string
 	switch cfg.OS {
@@ -100,9 +111,9 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	case "linux":
 		switch cfg.Arch {
 		case "amd64":
-			target = "x86_64-unknown-linux-gnu"
+			target = "x86_64-unknown-linux-" + libc
 		case "arm64":
-			target = "aarch64-unknown-linux-gnu"
+			target = "aarch64-unknown-linux-" + libc
 		default:
 			Bailf("unsupported architecture for linux: %q", cfg.Arch)
 		}
@@ -144,7 +155,14 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 		buildMode = "release"
 	}
 
-	cmd := exec.Command("cargo", cargoArgs...)
+	builder := "cargo"
+	if useCross {
+		builder = "cross"
+	}
+	cmd := exec.Command(builder, cargoArgs...)
+	// forwards the output to the parent process
+	cmd.Stdout = osPkg.Stdout
+	cmd.Stderr = osPkg.Stderr
 	cmd.Dir = cratePath
 	cmd.Env = envs
 
@@ -154,8 +172,8 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	defer cargoLock.Unlock()
 
 	// nosemgrep
-	if out, err := cmd.CombinedOutput(); err != nil {
-		Bailf("failed to compile rust binary: %v: %s", err, string(out))
+	if err := cmd.Run(); err != nil {
+		Bailf("failed to compile rust binary: %v", err)
 	}
 
 	// Copy the binary to the output path

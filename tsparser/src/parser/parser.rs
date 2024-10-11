@@ -130,8 +130,15 @@ impl<'a> Parser<'a> {
     pub fn parse(mut self) -> Result<ParseResult> {
         fn ignored(entry: &walkdir::DirEntry) -> bool {
             match entry.file_name().to_str().unwrap_or_default() {
-                "node_modules" | "encore.gen" => true,
-                x => x.starts_with('.'),
+                "node_modules" | "encore.gen" | "__tests__" => true,
+                x => {
+                    // Ignore hidden files and .{test,spec}.{ts,js} files.
+                    x.starts_with('.')
+                        || x.ends_with(".test.ts")
+                        || x.ends_with(".spec.ts")
+                        || x.ends_with(".test.js")
+                        || x.ends_with(".spec.js")
+                }
             }
         }
 
@@ -189,7 +196,19 @@ impl<'a> Parser<'a> {
                 }
 
                 // Parse the module.
-                let module = loader.load_fs_file(entry.path(), None)?;
+                let module = match loader.load_fs_file(entry.path(), None) {
+                    Ok(module) => module,
+                    Err(err) => {
+                        HANDLER.with(|handler| {
+                            if let Some(span) = err.span() {
+                                handler.span_err(span, &err.msg());
+                            } else {
+                                handler.err(&err.msg());
+                            }
+                        });
+                        continue;
+                    }
+                };
                 let module_span = module.ast.span();
                 let service_name = curr_service.as_ref().map(|(_, name)| name.as_str());
                 let (resources, binds) = self.pass1.parse(module, service_name)?;
@@ -240,7 +259,7 @@ impl<'a> Parser<'a> {
         let mut usages = Vec::new();
 
         for module in self.pc.loader.modules() {
-            let exprs = resolver.scan_usage_exprs(&module)?;
+            let exprs = resolver.scan_usage_exprs(&module);
             let u = resolver.resolve_usage(&exprs)?;
             usages.extend(u);
         }

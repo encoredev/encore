@@ -1,6 +1,7 @@
 package encore
 
 import (
+	"net/http"
 	"reflect"
 	"slices"
 	"time"
@@ -45,6 +46,13 @@ type Request struct {
 	Endpoint   string     // Which API endpoint is being called
 	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
+
+	// Headers contains the request headers sent with the request, if any.
+	//
+	// It is currently empty for service-to-service API calls when the caller
+	// and callee are both running within the same process.
+	// This behavior may change in the future.
+	Headers http.Header
 
 	// PubSubMessage specific parameters.
 	// Message contains information about the PubSub message,
@@ -168,6 +176,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 			result.PathParams[i].Name = param.Name
 			result.PathParams[i].Value = param.Value
 		}
+		result.Headers = data.RequestHeaders
 
 		result.API = &APIDesc{
 			RequestType:  desc.RequestType,

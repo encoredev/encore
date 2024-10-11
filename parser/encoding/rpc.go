@@ -537,7 +537,7 @@ func DescribeAuth(appMetaData *meta.Data, authSchema *schema.Type, options *Opti
 	if err != nil {
 		return nil, errors.Wrap(err, "auth struct")
 	}
-	fields, err := describeParams(&encodingHints{Undefined, authTags, options}, authStruct)
+	fields, err := describeParams(appMetaData.Language, &encodingHints{Undefined, authTags, options}, authStruct)
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +561,7 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, optio
 	if err != nil {
 		return nil, errors.Wrap(err, "response struct")
 	}
-	fields, err := describeParams(&encodingHints{Body, responseTags, options}, responseStruct)
+	fields, err := describeParams(appMetaData.Language, &encodingHints{Body, responseTags, options}, responseStruct)
 	if err != nil {
 		return nil, err
 	}
@@ -614,7 +614,7 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 		var fields map[ParameterLocation][]*ParameterEncoding
 
 		if requestStruct != nil {
-			fields, err = describeParams(&encodingHints{location, requestTags, options}, requestStruct)
+			fields, err = describeParams(appMetaData.Language, &encodingHints{location, requestTags, options}, requestStruct)
 			if err != nil {
 				return nil, err
 			}
@@ -639,10 +639,10 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 }
 
 // describeParams calls describeParam() for each field in the payload struct
-func describeParams(encodingHints *encodingHints, payload *schema.Struct) (fields map[ParameterLocation][]*ParameterEncoding, err error) {
+func describeParams(lang meta.Lang, encodingHints *encodingHints, payload *schema.Struct) (fields map[ParameterLocation][]*ParameterEncoding, err error) {
 	paramByLocation := make(map[ParameterLocation][]*ParameterEncoding)
 	for _, f := range payload.GetFields() {
-		f, err := describeParam(encodingHints, f)
+		f, err := describeParam(lang, encodingHints, f)
 		if err != nil {
 			return nil, err
 		}
@@ -655,13 +655,12 @@ func describeParams(encodingHints *encodingHints, payload *schema.Struct) (field
 }
 
 // formatName formats a parameter name with the default formatting for the location (e.g. snakecase for query)
-func formatName(location ParameterLocation, name string) string {
-	switch location {
-	case Query:
+func formatName(lang meta.Lang, location ParameterLocation, name string) string {
+	if location == Query && lang == meta.Lang_GO {
 		return idents.Convert(name, idents.SnakeCase)
-	default:
-		return name
 	}
+
+	return name
 }
 
 // IgnoreField returns true if the field name is "-" is any of the valid request or response tags
@@ -678,9 +677,9 @@ func IgnoreField(field *schema.Field) bool {
 // (e.g. qs, query, header) should be encoded in HTTP (name and location).
 //
 // It returns nil, nil if the field is not to be encoded.
-func describeParam(encodingHints *encodingHints, field *schema.Field) (*ParameterEncoding, error) {
+func describeParam(lang meta.Lang, encodingHints *encodingHints, field *schema.Field) (*ParameterEncoding, error) {
 	location := encodingHints.defaultLocation
-	name := formatName(encodingHints.defaultLocation, field.Name)
+	name := formatName(lang, encodingHints.defaultLocation, field.Name)
 	param := ParameterEncoding{
 		Name:       name,
 		OmitEmpty:  false,

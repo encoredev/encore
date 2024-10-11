@@ -90,6 +90,16 @@ func EncoreDaemonLogPath() string {
 	return filepath.Join(cache, "encore", "daemon.log")
 }
 
+// EncoreDevDashListenAddr reports the listen address for
+// where the daemon exposes the dev dash.
+// It can be overridden by setting ENCORE_DEVDASH_LISTEN_ADDR.
+func EncoreDevDashListenAddr() option.Option[string] {
+	if p := os.Getenv("ENCORE_DEVDASH_LISTEN_ADDR"); p != "" {
+		return option.Some(p)
+	}
+	return option.None[string]()
+}
+
 func encoreGoRoot() string {
 	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
 		return p

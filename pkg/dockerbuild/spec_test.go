@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -17,7 +18,7 @@ import (
 func TestBuild_Node(t *testing.T) {
 	c := qt.New(t)
 	cfg := DescribeConfig{
-		Meta:     &meta.Data{},
+		Meta:     &meta.Data{Language: meta.Lang_TYPESCRIPT},
 		Runtimes: "/host/runtimes",
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.JSBuildOutput{
@@ -38,8 +39,12 @@ func TestBuild_Node(t *testing.T) {
 	spec, err := describe(cfg)
 	c.Assert(err, qt.IsNil)
 
+	meta, err := proto.Marshal(cfg.Meta)
+	c.Assert(err, qt.IsNil)
+
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
+		Meta:       meta,
 		Entrypoint: []string{"/artifacts/0/build/entrypoint"},
 		Env: []string{
 			"ENCORE_RUNTIME_LIB=/host/runtimes/js/encore-runtime.node",
@@ -113,7 +118,7 @@ func TestBuild_Go_SingleBinary(t *testing.T) {
 func TestBuild_Go_MultiProc(t *testing.T) {
 	c := qt.New(t)
 	cfg := DescribeConfig{
-		Meta: &meta.Data{},
+		Meta: &meta.Data{Language: meta.Lang_TYPESCRIPT},
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.GoBuildOutput{
 				ArtifactDir: "/host/artifacts",
@@ -140,8 +145,12 @@ func TestBuild_Go_MultiProc(t *testing.T) {
 	spec, err := describe(cfg)
 	c.Assert(err, qt.IsNil)
 
+	meta, err := proto.Marshal(cfg.Meta)
+	c.Assert(err, qt.IsNil)
+
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
+		Meta:       meta,
 		Entrypoint: []string{"/encore/bin/supervisor", "-c", string(defaultSupervisorConfigPath)},
 		Env:        nil,
 		WorkingDir: "/",

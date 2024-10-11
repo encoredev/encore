@@ -70,9 +70,9 @@ against that database. When you later call `et.NewTestDatabase`, Encore creates 
 
 ### Service Structs
 
-In tests, [service structs](/docs/primitives/service-structs) are initialised on demand when the first
+In tests, [service structs](/docs/primitives/services-and-apis/service-structs) are initialized on demand when the first
 API call is made to that service and then that instance of the service struct for all future tests. This means your tests
-can run faster as they don't have to each initialise all the service struct's each time a new test starts.
+can run faster as they don't have to each initialize all the service struct's each time a new test starts.
 
 However, in some situations you might be storing state in the service struct that would interfere with other tests. When
 you have a test you want to have its own instance of the service struct, you can use the `et.EnableServiceInstanceIsolation()` function within the test to enable this for just that test, while the rest of your tests will continue to use the shared instance.

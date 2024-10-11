@@ -9,7 +9,9 @@ use crate::parser::resources::Resource;
 use crate::parser::Range;
 use anyhow::Result;
 use litparser::LitParser;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
+use swc_common::Span;
 use swc_ecma_ast as ast;
 
 #[derive(Debug, Clone)]
@@ -60,6 +62,17 @@ struct SecretLiteral {
     pub bind_name: ast::Ident,
 }
 
+fn inside_function(path: &swc_ecma_visit::AstNodePath) -> Option<Span> {
+    for item in path.iter().rev() {
+        match item {
+            swc_ecma_visit::AstParentNodeRef::ArrowExpr(expr, ..) => return Some(expr.span),
+            swc_ecma_visit::AstParentNodeRef::Function(expr, ..) => return Some(expr.span),
+            _ => continue,
+        }
+    }
+
+    None
+}
 impl ReferenceParser for SecretLiteral {
     fn parse_resource_reference(
         module: &Module,
@@ -71,13 +84,29 @@ impl ReferenceParser for SecretLiteral {
                 swc_ecma_visit::fields::CallExprField::Callee,
             ) = node
             {
+                if let Some(fn_span) = inside_function(path) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(expr.span, "secrets must be defined globally")
+                            .span_note(fn_span, "secret defined within this function")
+                            .emit();
+                    });
+                    return Ok(None);
+                }
+
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
                 let Some(bind_name) = extract_bind_name(path)? else {
-                    anyhow::bail!("Secrets must be bound to a variable")
+                    HANDLER.with(|handler| {
+                        handler.span_err(expr.span, "secrets must be bound to a variable")
+                    });
+                    continue;
                 };
 
                 let Some(secret_name) = &expr.args.first() else {
-                    anyhow::bail!("secret() takes a single argument, the name of the secret as a string literal")
+                    HANDLER.with(|handler| {
+                        handler.span_err(expr.span, "secret() takes a single argument, the name of the secret as a string literal")
+                    });
+                    continue;
                 };
                 let secret_name = String::parse_lit(secret_name.expr.as_ref())?;
 

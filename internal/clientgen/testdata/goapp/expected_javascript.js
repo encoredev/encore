@@ -494,11 +494,13 @@ class BaseClient {
         if (authData) {
             const data = {};
 
-            data.headers = {};
-            data.headers["x-api-key"] = authData.APIKey;
+            data.headers = makeRecord({
+                "x-api-key": authData.APIKey,
+            })
 
             return data;
         }
+
         return undefined;
     }
 

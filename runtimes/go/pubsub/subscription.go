@@ -10,6 +10,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
 	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/shared/cfgutil"
 	"encore.dev/beta/errs"
 	"encore.dev/pubsub/internal/noop"
 	"encore.dev/pubsub/internal/utils"
@@ -94,6 +95,11 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 	subscription, staticCfg, exists := topic.getSubscriptionConfig(name)
 	if !exists {
 		// Noop subscription
+		return &Subscription[T]{topic: topic, name: name, cfg: cfg, mgr: mgr}
+	}
+
+	// If the service isn't hosted, return a noop subscription.
+	if !cfgutil.IsHostedService(mgr.runtime, staticCfg.Service) {
 		return &Subscription[T]{topic: topic, name: name, cfg: cfg, mgr: mgr}
 	}
 

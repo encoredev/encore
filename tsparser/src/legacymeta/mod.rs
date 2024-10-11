@@ -295,7 +295,7 @@ impl<'a> MetaBuilder<'a> {
                             pkg_name: loc.pkg_name.clone(),
                             loc: Some(loc),
                             params: Some(self.schema.typ(&ah.encoding.auth_param)?),
-                            auth_data: Some(self.schema.typ(&ah.encoding.auth_param)?),
+                            auth_data: Some(self.schema.typ(&ah.encoding.auth_data)?),
                             service_name,
                         })
                     } else {

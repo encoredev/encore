@@ -36,7 +36,7 @@ type Config struct {
 	PublishNPMPackages bool
 
 	// Whether to copy the built native module back to the repo dir.
-	CopyNativeModuleToRepo bool
+	CopyToRepo bool
 }
 
 // IsCross reports whether the build is a cross-compile.

@@ -64,6 +64,10 @@ type BuildInfo struct {
 	Logger option.Option[zerolog.Logger]
 }
 
+func (b *BuildInfo) IsCrossBuild() bool {
+	return b.GOOS != runtime.GOOS || b.GOARCH != runtime.GOARCH
+}
+
 // DefaultBuildInfo returns a BuildInfo with default values.
 // It can be modified afterwards.
 func DefaultBuildInfo() BuildInfo {
@@ -164,6 +168,8 @@ type Cmd struct {
 }
 
 type CompileResult struct {
+	OS      string
+	Arch    string
 	Outputs []BuildOutput
 }
 

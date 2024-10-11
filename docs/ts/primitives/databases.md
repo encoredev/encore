@@ -217,6 +217,67 @@ The `version` column tracks which migration was last applied. If you wish to ski
 change the value in this column. For example, to re-run the last migration, run `UPDATE schema_migrations SET version = version - 1;`.
 *Note that Encore does not use the `dirty` flag by default.*
 
+## Using an ORM
+
+Encore has all the tools needed to support ORMs and migration frameworks out-of-the-box through named databases and migration files. Writing plain SQL might not work for your use case, or you may not want to use SQL in the first place.
+
+ORMs like [Sequelize](https://sequelize.org/) and migration frameworks like [Atlas](https://atlasgo.io/) can be used with Encore by integrating their logic with a system's database. Encore is not restrictive, it uses plain SQL migration files for its migrations.
+
+* If your ORM of choice can connect to any database using a standard SQL driver, then it can be used with Encore.
+* If your migration framework can generate SQL migration files without any modifications, then it can be used with Encore.
+
+<Callout type="info">
+
+Frameworks like [Prisma](https://www.prisma.io/) and [Drizzle](https://orm.drizzle.team/) are at the moment not supported by Encore. Encore uses plain SQL migration files for its migrations.
+
+</Callout>
+
+### ORM example
+
+Here is an example of using [Knex.js](http://knexjs.org/) with Encore.ts. We use `SiteDB.connectionString` supply the connection string to Knex.js:
+
+```ts
+-- site.ts --
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import knex from "knex";
+
+const SiteDB = new SQLDatabase("siteDB", {
+  migrations: "./migrations",
+});
+
+const orm = knex({
+  client: "pg",
+  connection: SiteDB.connectionString,
+});
+
+export interface Site {
+  id: number;
+  url: string;
+}
+
+// Create a query builder for the "site" table
+const Sites = () => orm<Site>("site");
+
+// Query all sites
+await Sites().select();
+
+// Query a site by id
+await Sites().where("id", id).first();
+
+// Insert a new site
+await Sites().insert({ url: params.url })
+-- migrations/1_create_table.up.sql --
+CREATE TABLE site (
+    id SERIAL PRIMARY KEY,
+    url TEXT NOT NULL UNIQUE
+);
+```
+
+<GitHubLink
+  href="https://github.com/encoredev/examples/tree/main/ts/sequelize"
+  desc="Using Sequelize ORM with Encore.ts"
+/>
+
 ## PostgreSQL Extensions
 
 Encore uses the [encoredotdev/postgres](https://github.com/encoredev/postgres-image) docker image for local development,
