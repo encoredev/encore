@@ -266,7 +266,7 @@ func (d *Daemon) serveDebug() {
 // listenTCPRetry listens for TCP connections on the given port, retrying
 // in the background if it's already in use.
 func (d *Daemon) listenTCPRetry(component string, addrOverride option.Option[string], defaultPort uint16) *retryingTCPListener {
-	addr, err := parseInterface(addrOverride.GetOrElse("localhost:0"))
+	addr, err := parseInterface(addrOverride.GetOrElse("127.0.0.1:0"))
 	if err != nil {
 		log.Fatal().Str("component", component).Err(err).Msg("failed to parse interface")
 	}
