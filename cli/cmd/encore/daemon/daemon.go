@@ -11,10 +11,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/netip"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -47,6 +49,7 @@ import (
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 	"encr.dev/pkg/eerror"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/watcher"
 	"encr.dev/pkg/xos"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -117,10 +120,10 @@ type Daemon struct {
 
 func (d *Daemon) init(ctx context.Context) {
 	d.Daemon = d.listenDaemonSocket()
-	d.Dash = d.listenTCPRetry("dashboard", 9400)
-	d.DBProxy = d.listenTCPRetry("dbproxy", 9500)
-	d.Runtime = d.listenTCPRetry("runtime", 9600)
-	d.Debug = d.listenTCPRetry("debug", 9700)
+	d.Dash = d.listenTCPRetry("dashboard", env.EncoreDevDashListenAddr(), 9400)
+	d.DBProxy = d.listenTCPRetry("dbproxy", option.None[string](), 9500)
+	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
+	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
@@ -147,7 +150,7 @@ func (d *Daemon) init(ctx context.Context) {
 	d.RunMgr = &run.Manager{
 		RuntimePort: d.Runtime.Port(),
 		DBProxyPort: d.DBProxy.Port(),
-		DashPort:    d.Dash.Port(),
+		DashBaseURL: fmt.Sprintf("http://%s", d.Dash.ClientAddr()),
 		Secret:      d.Secret,
 		ClusterMgr:  d.ClusterMgr,
 	}
@@ -262,26 +265,17 @@ func (d *Daemon) serveDebug() {
 
 // listenTCPRetry listens for TCP connections on the given port, retrying
 // in the background if it's already in use.
-func (d *Daemon) listenTCPRetry(component string, port int) *retryingTCPListener {
-	ln := listenLocalhostTCP(component, port)
+func (d *Daemon) listenTCPRetry(component string, addrOverride option.Option[string], defaultPort uint16) *retryingTCPListener {
+	addr, err := parseInterface(addrOverride.GetOrElse("localhost:0"))
+	if err != nil {
+		log.Fatal().Str("component", component).Err(err).Msg("failed to parse interface")
+	}
+	if addr.Port() == 0 {
+		addr = netip.AddrPortFrom(addr.Addr(), defaultPort)
+	}
+	ln := listenLocalhostTCP(component, addr)
 	d.closeOnExit(ln)
 	return ln
-}
-
-// listenTCP listens for TCP connections on a random port on localhost.
-// If the daemon is in development mode it always listens on devPort instead.
-func (d *Daemon) listenTCP(devPort int) *net.TCPListener {
-	port := 0
-	if d.dev {
-		port = devPort
-	}
-	addr := "127.0.0.1:" + strconv.Itoa(port)
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		fatal(err)
-	}
-	d.closeOnExit(ln)
-	return ln.(*net.TCPListener)
 }
 
 func (d *Daemon) openDB() *sql.DB {
@@ -472,7 +466,7 @@ func redirectLogOutput() error {
 // and the port still being in use momentarily.
 type retryingTCPListener struct {
 	component string
-	port      int
+	addr      netip.AddrPort
 	ctx       context.Context
 	cancel    func() // call to cancel ctx
 
@@ -483,11 +477,11 @@ type retryingTCPListener struct {
 	listenErr     error
 }
 
-func listenLocalhostTCP(component string, port int) *retryingTCPListener {
+func listenLocalhostTCP(component string, addr netip.AddrPort) *retryingTCPListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	ln := &retryingTCPListener{
 		component:     component,
-		port:          port,
+		addr:          addr,
 		ctx:           ctx,
 		cancel:        cancel,
 		doneListening: make(chan struct{}),
@@ -521,18 +515,30 @@ func (ln *retryingTCPListener) Close() error {
 }
 
 func (ln *retryingTCPListener) Addr() net.Addr {
-	return &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: ln.port}
+	return &net.TCPAddr{IP: net.IP(ln.addr.Addr().AsSlice()), Port: int(ln.addr.Port())}
+}
+
+func (ln *retryingTCPListener) ClientAddr() string {
+	// If our addr is 0.0.0.0 or the ipv6 equivalent, return 127.0.0.1 instead
+	// so that clients can connect to us.
+	if ln.addr.Addr().IsUnspecified() {
+		if ln.addr.Addr().Is6() {
+			return fmt.Sprintf("[::1]:%d", ln.addr.Port())
+		}
+		return fmt.Sprintf("127.0.0.1:%d", ln.addr.Port())
+	}
+	return ln.addr.String()
 }
 
 func (ln *retryingTCPListener) Port() int {
-	return ln.port
+	return int(ln.addr.Port())
 }
 
 func (ln *retryingTCPListener) listen() {
 	defer close(ln.doneListening)
 
-	logger := log.With().Str("component", ln.component).Int("port", ln.port).Logger()
-	addr := "127.0.0.1:" + strconv.Itoa(ln.port)
+	logger := log.With().Str("component", ln.component).Int("port", ln.Port()).Logger()
+	addr := ln.addr.String()
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = 50 * time.Millisecond
@@ -555,4 +561,73 @@ func (ln *retryingTCPListener) listen() {
 	} else {
 		logger.Info().Msg("listening on port")
 	}
+}
+
+func parseInterface(s string) (netip.AddrPort, error) {
+	addr, portStr, _, err := splitAddrPort(s)
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+
+	port, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+
+	// Is addr a valid ip? If so we're done.
+	if ip, err := netip.ParseAddr(addr); err == nil {
+		return netip.AddrPortFrom(ip, uint16(port)), nil
+	}
+
+	// Otherwise perform name resolution.
+	ips, err := net.LookupIP(addr)
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	if len(ips) == 0 {
+		return netip.AddrPort{}, fmt.Errorf("no IP addresses found for %s", addr)
+	}
+
+	// Prefer IPv4 addresses.
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			if addr, err := netip.ParseAddr(ip.String()); err == nil {
+				return netip.AddrPortFrom(addr, uint16(port)), nil
+			}
+		}
+	}
+
+	if addr, err := netip.ParseAddr(ips[0].String()); err == nil {
+		return netip.AddrPortFrom(addr, uint16(port)), nil
+	}
+	return netip.AddrPort{}, fmt.Errorf("unable to parse IP address %s", addr)
+}
+
+// splitAddrPort splits s into an IP address string and a port
+// string. It splits strings shaped like "foo:bar" or "[foo]:bar",
+// without further validating the substrings. v6 indicates whether the
+// ip string should parse as an IPv6 address or an IPv4 address, in
+// order for s to be a valid ip:port string.
+func splitAddrPort(s string) (ip, port string, v6 bool, err error) {
+	i := strings.LastIndexByte(s, ':')
+	if i == -1 {
+		return "", "", false, errors.New("not an ip:port")
+	}
+
+	ip, port = s[:i], s[i+1:]
+	if len(ip) == 0 {
+		return "", "", false, errors.New("no IP")
+	}
+	if len(port) == 0 {
+		return "", "", false, errors.New("no port")
+	}
+	if ip[0] == '[' {
+		if len(ip) < 2 || ip[len(ip)-1] != ']' {
+			return "", "", false, errors.New("missing ]")
+		}
+		ip = ip[1 : len(ip)-1]
+		v6 = true
+	}
+
+	return ip, port, v6, nil
 }
