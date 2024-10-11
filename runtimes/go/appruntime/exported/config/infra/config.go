@@ -8,6 +8,7 @@ import (
 )
 
 type InfraConfig struct {
+	AppID            string                       `json:"app_id,omitempty"`
 	EnvName          string                       `json:"env_name,omitempty"`
 	EnvType          string                       `json:"env_type,omitempty"`
 	Cloud            string                       `json:"cloud,omitempty"`

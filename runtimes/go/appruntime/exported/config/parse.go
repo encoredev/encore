@@ -132,6 +132,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		log.Fatalf("encore runtime: fatal error: %v", err)
 	}
 
+	cfg.AppSlug = infraCfg.AppID
 	cfg.EnvName = infraCfg.EnvName
 	cfg.EnvType = infraCfg.EnvType
 	cfg.EnvCloud = infraCfg.Cloud
