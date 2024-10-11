@@ -43,6 +43,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 junction = "1.2.0"
 thiserror = "1.0.64"
+matchit = "0.7.3"
 
 [build-dependencies]
 prost-build = { version = "0.12.1" }

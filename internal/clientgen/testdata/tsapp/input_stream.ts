@@ -58,6 +58,6 @@ export const inWithResponse = api.streamIn<InMsg, OutMsg>(
 );
 
 export const inWithResponseAndHandshake = api.streamIn<Handshake, InMsg, OutMsg>(
-  { expose: true, path: "/in/withResponse" },
+  { expose: true, path: "/in/withResponseAndHandshake" },
   async (handshake: Handshake, stream) => {},
 );

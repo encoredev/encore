@@ -1516,6 +1516,7 @@ dependencies = [
  "litparser",
  "litparser-derive",
  "log",
+ "matchit",
  "once_cell",
  "prost",
  "prost-build",
