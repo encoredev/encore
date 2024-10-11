@@ -21,9 +21,9 @@ import (
 
 // Manager manages the set of running applications.
 type Manager struct {
-	RuntimePort int // port for Encore runtime
-	DBProxyPort int // port for sqldb proxy
-	DashPort    int // port for dev dashboard
+	RuntimePort int    // port for Encore runtime
+	DBProxyPort int    // port for sqldb proxy
+	DashBaseURL string // base url for the dev dashboard
 	Secret      *secret.Manager
 	ClusterMgr  *sqldb.ClusterManager
 

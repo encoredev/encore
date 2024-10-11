@@ -157,7 +157,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	_, _ = fmt.Fprintf(stderr, "  Your API is running at:     %s\n", aurora.Cyan("http://"+runInstance.ListenAddr))
 	_, _ = fmt.Fprintf(stderr, "  Development Dashboard URL:  %s\n", aurora.Cyan(fmt.Sprintf(
-		"http://localhost:%d/%s", s.mgr.DashPort, app.PlatformOrLocalID())))
+		"%s/%s", s.mgr.DashBaseURL, app.PlatformOrLocalID())))
 	if ns := runInstance.NS; !ns.Active || ns.Name != "default" {
 		_, _ = fmt.Fprintf(stderr, "  Namespace:                  %s\n", aurora.Cyan(ns.Name))
 	}
