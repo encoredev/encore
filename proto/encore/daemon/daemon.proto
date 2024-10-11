@@ -285,6 +285,11 @@ message GenClientRequest {
   // Tags of endpoints to exclude from the output.
   // Takes precedence over 'endpoint_tags' above.
   repeated string excluded_endpoint_tags = 8;
+
+  // The OpenAPI spec generator by default includes private endpoints.
+  // If this is set to `true`, private endpoints will not be included
+  // in the generated OpenAPI spec.
+  optional bool openapi_exclude_private_endpoints = 9;
 }
 
 message GenClientResponse {
