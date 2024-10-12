@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"strings"
 
@@ -40,10 +39,9 @@ func ConfigHash() (string, error) {
 		return "", err
 	}
 
-	fmt.Fprintf(h, "PATH=%s\n", os.Getenv("PATH"))
 	fmt.Fprintf(h, "APIBaseURL=%s\n", conf.APIBaseURL)
-	fmt.Fprintf(h, "EncoreDevDashListenAddr=%s\n", env.EncoreDevDashListenAddr().GetOrElse(""))
 	fmt.Fprintf(h, "ConfigDir=%s\n", configDir)
+	fmt.Fprintf(h, "EncoreDevDashListenAddr=%s\n", env.EncoreDevDashListenAddr().GetOrElse(""))
 
 	digest := h.Sum(nil)
 	return base64.RawURLEncoding.EncodeToString(digest), nil
