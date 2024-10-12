@@ -31,7 +31,7 @@ When creating a topic, it must be given an event type, a unique name, and a conf
 For example, to create a topic with events about user signups:
 
 ```ts
-import { Topic } "encore.dev/pubsub"
+import { Topic } from "encore.dev/pubsub"
 
 export interface SignupEvent {
     userID: string;
