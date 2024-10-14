@@ -44,13 +44,13 @@ func TestBuild_Node(t *testing.T) {
 
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
-		Meta:       meta,
 		Entrypoint: []string{"/artifacts/0/build/entrypoint"},
 		Env: []string{
 			"ENCORE_RUNTIME_LIB=/host/runtimes/js/encore-runtime.node",
 		},
 		WorkingDir: "/",
 		BuildInfo:  BuildInfoSpec{InfoPath: defaultBuildInfoPath},
+		WriteFiles: map[ImagePath][]byte{defaultMetaPath: meta},
 		CopyData: map[ImagePath]HostPath{
 			"/artifacts/0/build":                    "/host/artifacts",
 			"/artifacts/0/package.json":             "/host/package.json",
@@ -112,6 +112,9 @@ func TestBuild_Go_SingleBinary(t *testing.T) {
 		StargzPrioritizedFiles: []ImagePath{
 			"/artifacts/0/build/entrypoint",
 		},
+		WriteFiles: map[ImagePath][]byte{
+			defaultMetaPath: {},
+		},
 	})
 }
 
@@ -150,7 +153,6 @@ func TestBuild_Go_MultiProc(t *testing.T) {
 
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
-		Meta:       meta,
 		Entrypoint: []string{"/encore/bin/supervisor", "-c", string(defaultSupervisorConfigPath)},
 		Env:        nil,
 		WorkingDir: "/",
@@ -186,6 +188,9 @@ func TestBuild_Go_MultiProc(t *testing.T) {
 			"/encore/bin/supervisor",
 			"/artifacts/0/build/entrypoint",
 			"/artifacts/0/build/other-entrypoint",
+		},
+		WriteFiles: map[ImagePath][]byte{
+			defaultMetaPath: meta,
 		},
 	})
 }

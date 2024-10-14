@@ -46,6 +46,16 @@ fn load_binary_config() -> Result<BinaryConfig> {
 // attempts to read the encore runtime config either as proto or json. Extracts and returns the
 // hosted services and gateways.
 fn load_hosted_processes() -> Result<(Vec<String>, Vec<String>)> {
+    let infra_cfg_path = env::var("ENCORE_INFRA_CONFIG_PATH");
+    if let Ok(cfg) = infra_cfg_path {
+        let mut file = File::open(cfg).context("Failed to open ENCORE_INFRA_CONFIG_PATH")?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        let config: InfraConfig = serde_json::from_str(contents.as_str())
+            .context("Failed to parse InfraConfig as JSON")?;
+        return Ok((config.hosted_services, config.hosted_gateways));
+    }
+
     // Read and decode the runtime config bytes from the environment variable
     let runtime_config = env::var("ENCORE_RUNTIME_CONFIG")
         .context("Failed to read ENCORE_RUNTIME_CONFIG env var")
@@ -185,6 +195,14 @@ pub fn create_process_config(
 pub struct SupervisorConfig {
     pub binary_config: BinaryConfig,
     pub hosted_services: Vec<String>,
+    pub hosted_gateways: Vec<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct InfraConfig {
+    #[serde(default)]
+    pub hosted_services: Vec<String>,
+    #[serde(default)]
     pub hosted_gateways: Vec<String>,
 }
 

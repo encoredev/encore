@@ -204,6 +204,11 @@ message ExportRequest {
     // docker specifies to export the app as a docker image.
     DockerExportParams docker = 6;
   }
+
+  string infra_conf_path = 7;
+  repeated string services = 8;
+  repeated string gateways = 9;
+  bool skip_infra_conf = 10;
 }
 
 message DockerExportParams {

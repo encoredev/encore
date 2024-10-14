@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"strings"
 
@@ -16,8 +17,16 @@ type Manager struct {
 	secrets map[string]string
 }
 
-func NewManager(cfg *config.Runtime, appSecretsEnv string) *Manager {
-	return &Manager{cfg: cfg, secrets: parse(appSecretsEnv)}
+func NewManager(cfg *config.Runtime, infraCfgEnv, appSecretsEnv string) *Manager {
+	secrets := parse(appSecretsEnv)
+	if infraCfgEnv != "" {
+		cfg, err := config.LoadInfraConfig(infraCfgEnv)
+		if err != nil {
+			log.Fatalln("encore: could not read infra config", err)
+		}
+		maps.Copy(secrets, cfg.Secrets.GetSecrets())
+	}
+	return &Manager{cfg: cfg, secrets: secrets}
 }
 
 // Load loads a secret.

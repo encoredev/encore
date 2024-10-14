@@ -2,6 +2,8 @@ package export
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -51,8 +53,8 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
 	}
-
-	bld := builderimpl.Resolve(app.Lang(), expSet)
+	appLang := app.Lang()
+	bld := builderimpl.Resolve(appLang, expSet)
 	defer fns.CloseIgnore(bld)
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
@@ -100,7 +102,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	var crossNodeRuntime option.Option[dockerbuild.HostPath]
-	if app.Lang() == appfile.LangTS && buildInfo.IsCrossBuild() {
+	if appLang == appfile.LangTS && buildInfo.IsCrossBuild() {
 		binary, err := downloadBinary(req.Goos, req.Goarch, "encore-runtime.node", log)
 		if err != nil {
 			return false, errors.Wrap(err, "download runtime binaries")
@@ -108,19 +110,65 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		crossNodeRuntime = option.Some(binary)
 	}
 
-	spec, err := dockerbuild.Describe(dockerbuild.DescribeConfig{
+	buildSettings, err := app.BuildSettings()
+	if err != nil {
+		return false, errors.Wrap(err, "get build settings")
+	}
+
+	describeCfg := dockerbuild.DescribeConfig{
 		Meta:              parse.Meta,
 		Compile:           result,
 		BundleSource:      option.Option[dockerbuild.BundleSourceSpec]{},
 		DockerBaseImage:   option.AsOptional(params.BaseImageTag),
 		Runtimes:          dockerbuild.HostPath(env.EncoreRuntimesPath()),
 		NodeRuntime:       crossNodeRuntime,
-		ProcessPerService: app.ProcessPerService(),
-	})
+		ProcessPerService: buildSettings.Docker.ProcessPerService,
+	}
+
+	if buildSettings.Docker.BundleSource || appLang == appfile.LangTS {
+		describeCfg.BundleSource = option.Some(dockerbuild.BundleSourceSpec{
+			Source: dockerbuild.HostPath(app.Root()),
+			Dest:   "/workspace",
+			ExcludeSource: []dockerbuild.RelPath{
+				".git",
+			},
+		})
+
+		if describeCfg.WorkingDir.Empty() {
+			// Set the working directory to "/workspace" by default, in this case.
+			describeCfg.WorkingDir = option.Some[dockerbuild.ImagePath]("/workspace")
+		}
+	}
+
+	spec, err := dockerbuild.Describe(describeCfg)
 	if err != nil {
 		return false, errors.Wrap(err, "describe docker image")
 	}
 
+	cors, err := app.GlobalCORS()
+	if err != nil {
+		return false, errors.Wrap(err, "get global CORS")
+	}
+	var logResponse string
+	if !req.SkipInfraConf {
+		cfg, infraCfgOutput, err := buildAndValidateInfraConfig(EmbeddedInfraConfigParams{
+			File:       dockerbuild.HostPath(req.InfraConfPath),
+			Services:   req.Services,
+			Gateways:   req.Gateways,
+			GlobalCORS: cors,
+			Meta:       parse.Meta,
+		})
+		logResponse = infraCfgOutput
+		if err != nil {
+			return false, errors.Wrap(err, "build infra config")
+		}
+		data, err := json.Marshal(cfg)
+		if err != nil {
+			return false, errors.Wrap(err, "marshal infra config")
+		}
+		spec.WriteFiles[defaultInfraConfigPath] = data
+		spec.Env = append(spec.Env, fmt.Sprintf("ENCORE_INFRA_CONFIG_PATH=%s", defaultInfraConfigPath))
+	}
 	var baseImgOverride option.Option[v1.Image]
 	if params.BaseImageTag != "" {
 		baseImg, err := resolveBaseImage(ctx, log, params, spec)
@@ -177,6 +225,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		}
 	}
 
+	log.Info().Msgf("successfully exported app as docker image\n%s", logResponse)
 	return true, nil
 }
 
