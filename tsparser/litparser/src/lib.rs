@@ -1,18 +1,35 @@
 use anyhow::Result;
 use duration_string::DurationString;
 use num_bigint::{BigInt, ToBigInt};
-use std::path::{Component, PathBuf};
+use std::{
+    fmt::{Debug, Display},
+    ops::{Deref, DerefMut},
+    path::{Component, PathBuf},
+};
+use swc_common::{util::take::Take, Span, Spanned};
 use swc_ecma_ast as ast;
 
 pub trait LitParser: Sized {
     fn parse_lit(input: &ast::Expr) -> Result<Self>;
 }
 
+impl<T> LitParser for Sp<T>
+where
+    T: LitParser,
+{
+    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+        let res = T::parse_lit(input)?;
+        Ok(Sp(input.span(), res))
+    }
+}
+
 impl LitParser for String {
     fn parse_lit(input: &ast::Expr) -> Result<Self> {
         match input {
             ast::Expr::Lit(ast::Lit::Str(str)) => Ok(str.value.to_string()),
-            _ => anyhow::bail!("expected string literal, got {:?}", input),
+            _ => {
+                anyhow::bail!("expected string literal, got {:?}", input)
+            }
         }
     }
 }
@@ -199,5 +216,122 @@ fn parse_const_bigint(expr: &ast::Expr) -> Result<BigInt> {
             }
         }
         _ => anyhow::bail!("expected integer literal, got {:?}", expr),
+    }
+}
+
+pub struct Sp<T>(Span, T);
+
+impl<T> Sp<T> {
+    pub fn new(sp: Span, val: T) -> Self {
+        Self(sp, val)
+    }
+
+    pub fn with_dummy(val: T) -> Self {
+        Self::new(Span::dummy(), val)
+    }
+
+    pub fn split(self) -> (Span, T) {
+        (self.0, self.1)
+    }
+
+    pub fn span(&self) -> Span {
+        self.0
+    }
+
+    pub fn take(self) -> T {
+        self.1
+    }
+
+    pub fn map<F, U>(self, f: F) -> Sp<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Sp(self.0, f(self.1))
+    }
+}
+
+impl<T> Deref for Sp<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.1
+    }
+}
+
+impl<T> DerefMut for Sp<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.1
+    }
+}
+
+impl<T> PartialEq for Sp<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.1 == other.1
+    }
+}
+
+impl<T> Eq for Sp<T> where T: Eq {}
+
+impl<T> PartialOrd for Sp<T>
+where
+    T: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.1.partial_cmp(&other.1)
+    }
+}
+
+impl<T> Ord for Sp<T>
+where
+    T: Ord,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.1.cmp(&other.1)
+    }
+}
+
+impl<T> Clone for Sp<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0, self.1.clone())
+    }
+}
+
+impl<T> Copy for Sp<T> where T: Copy {}
+
+impl<T> Debug for Sp<T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.1.fmt(f)
+    }
+}
+
+impl<T> Display for Sp<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.1.fmt(f)
+    }
+}
+
+impl<T> From<T> for Sp<T>
+where
+    T: Spanned,
+{
+    fn from(value: T) -> Self {
+        Self(value.span(), value)
+    }
+}
+
+impl<T> Spanned for Sp<T> {
+    fn span(&self) -> Span {
+        self.0
     }
 }
