@@ -49,6 +49,9 @@ type ImageSpec struct {
 	// If the source is a directory, it will be copied recursively.
 	CopyData map[ImagePath]HostPath
 
+	// A set of files which should be written to the image.
+	WriteFiles map[ImagePath][]byte
+
 	// Whether to bundle source into the image.
 	// It's handled separately from CopyData since we apply some filtering
 	// on what's copied, like excluding .git directories and other build artifacts.
@@ -72,9 +75,6 @@ type ImageSpec struct {
 
 	// FeatureFlags specifies feature flags enabled for this image.
 	FeatureFlags map[FeatureFlag]bool
-
-	// The app metadata, protobuf encoded.
-	Meta []byte
 }
 
 type BuildInfoSpec struct {
@@ -195,6 +195,7 @@ func newImageSpecBuilder() *imageSpecBuilder {
 		procIDGen: randomProcID,
 		spec: &ImageSpec{
 			CopyData:        make(map[ImagePath]HostPath),
+			WriteFiles:      map[ImagePath][]byte{},
 			FeatureFlags:    make(map[FeatureFlag]bool),
 			BundledGateways: []string{},
 			BundledServices: []string{},
@@ -333,10 +334,10 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 
 		// Sort and deduplicate.
 		slices.Sort(b.spec.BundledServices)
-		slices.Compact(b.spec.BundledServices)
+		b.spec.BundledServices = slices.Compact(b.spec.BundledServices)
 
 		slices.Sort(b.spec.BundledGateways)
-		slices.Compact(b.spec.BundledGateways)
+		b.spec.BundledGateways = slices.Compact(b.spec.BundledGateways)
 	}
 
 	// Add entrypoint files to prioritized files.
@@ -405,7 +406,7 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "marshal meta")
 		}
-		b.spec.Meta = md
+		b.spec.WriteFiles[defaultMetaPath] = md
 	}
 
 	return b.spec, nil

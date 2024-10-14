@@ -1,0 +1,125 @@
+{
+  "$schema": "https://encore.dev/schemas/infra.schema.json",
+  "metadata": {
+    "app_id": "my-app",
+    "env_name": "my-env",
+    "env_type": "production",
+    "cloud": "gcp",
+    "base_url": "https://my-app.com"
+  },
+  "sql_servers": [
+    {
+      "host": "my-db-host:5432",
+      "tls_config": {
+        "ca": "test",
+        "client_cert": {
+          "cert": "test",
+          "key": "test"
+        },
+        "disable_tls_hostname_verification": false,
+        "disabled": false
+      },
+      "databases": {
+        "mydb": {
+          "client_cert": {
+            "cert": "test",
+            "key": "test"
+          },
+          "max_connections": 10,
+          "min_connections": 10,
+          "username": "my-db-owner",
+          "password": {"$env": "DB_PASSWORD"}
+
+        }
+      }
+    }
+  ],
+  "service_discovery": {
+    "myservice": {
+      "base_url": "https://my-service:8044"
+    },
+    "myservice2": {
+      "base_url": "https://my-service2:8044",
+      "auth": [{
+        "type": "key",
+        "key": {
+          "$env": "SVC_TO_SVC_KEY"
+        },
+        "id": 1
+      }]
+    }
+  },
+  "redis": {
+    "encoreredis": {
+      "database_index": 5,
+      "max_connections": 10,
+      "min_connections": 10,
+      "key_prefix": "my-app:my-env:",
+      "tls_config": {
+        "disable_tls_hostname_verification": false,
+        "disabled": false,
+        "ca": "test",
+        "client_cert": {
+          "cert": "test",
+          "key": "test"
+        }
+      },
+      "auth": {
+        "type": "acl",
+        "username": "encoreredis",
+        "password": {"$env": "REDIS_PASSWORD"}
+      },
+      "host": "my-redis-host"
+    }
+  },
+  "metrics": {
+    "type": "prometheus",
+    "remote_write_url": "https://my-remote-write-url"
+  },
+  "graceful_shutdown": {
+    "total": 30,
+    "handlers": 20,
+    "shutdown_hooks": 10
+  },
+  "auth": [
+    {
+      "type": "key",
+      "id": 1,
+      "key": {"$env": "SVC_TO_SVC_KEY"}
+    }
+  ],
+  "secrets": {
+    "AppSecret": {"$env": "APP_SECRET"}
+  },
+  "pubsub": [
+    {
+      "type": "gcp_pubsub",
+      "project_id": "my-project",
+      "topics": {
+        "encore-topic": {
+          "name": "gcp-topic-name",
+          "subscriptions": {
+            "encore-subscription": {
+              "name": "gcp-subscription-name",
+              "project_id": "test",
+              "push_config": {
+                "id": "test",
+                "jwt_audience": "test",
+                "service_account": "test"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "cors": {
+    "debug": true,
+    "allow_headers": ["Authorization", "Content-Type"],
+    "expose_headers": ["*"],
+    "allow_origins_with_credentials": ["https://test.com"],
+    "allow_origins_without_credentials": ["https://test.com"]
+  },
+  "hosted_gateways": ["api-gateway"],
+  "hosted_services": ["my-service", "my-service2"]
+}

@@ -13,13 +13,28 @@ This can be a good choice for when Encore's cloud platform isn't a good fit for 
 
 To build your own Docker image, use `encore eject docker MY-IMAGE:TAG` from the CLI.
 
-This will compile your application using the host machine and then produce a Docker image containing the compiled application. The base image defaults to `scratch` but can be customized with `--base`.
+This will compile your application using the host machine and then produce a Docker image containing the compiled application. The base image defaults to `scratch` for GO apps and `node:slim` for TS, but can be customized with `--base`.
 
 This is exactly the same code path that Encore's CI system uses to build Docker images, ensuring compatibility.
 
+By default, all your services will be included and started bty the Docker image. If you want to specify which services and gateways to include, you can use the `--services` and `--gateways` flags.
+
+```bash
+encore eject docker --services=service1,service2 --gateways=api-gateway MY-IMAGE:TAG
+```
+
+
+
 ## Configuring your Docker image
 
-The built Docker image relies on runtime configuration, in the form of environment variables, to provide information about the application's environment.
+If you are using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration.
+The `eject` command lets you provide this by specifying a path to a config file using the `--config` flag.
+
+```bash
+encore eject docker --config path/to/infra-config.json MY-IMAGE:TAG
+```
+
+The configuration file should be a JSON file using the [Encore Infra Config](https://encore.dev/schemas/infra.schema.json) schema.
 
 This includes configuring things like:
 
@@ -32,311 +47,406 @@ This includes configuring things like:
 
 This configuration is necessary for the application to behave correctly.
 
-Exactly how to configure these depends on whether you're using Go or TypeScript.
-
-Select language below for specific instructions.
-
-<LangTabGroup langs={["go", "ts"]}>
-<LangTabPanel>
-
-The Go runtime uses two environment variables: `ENCORE_RUNTIME_CONFIG` and
-`ENCORE_APP_SECRETS`, for configuring the runtime environment and the
-application's secrets, respectively.
-
-The `ENCORE_RUNTIME_CONFIG` environment variable is a base64-encoded JSON object.
-You can find the [schema here](https://github.com/encoredev/encore/blob/main/runtimes/go/appruntime/exported/config/config.go).
-
 ## Example
 
-Here's an example configuration you can use.
+Here's an example configuration file you can use.
 
 ```json
 {
-  "api_base_url": "https://my-base-url",
-  "env_name": "my-env-name",
-  "env_type": "development",
-  "env_cloud": "local",
-  "deploy_time": "2024-04-09T16:25:06.502476123Z",
-  "cors": {
-    "allow_origins_without_credentials": ["*"]
+  "$schema": "https://encore.dev/schemas/infra.schema.json",
+  "metadata": {
+    "app_id": "my-app",
+    "env_name": "my-env",
+    "env_type": "production",
+    "cloud": "gcp",
+    "base_url": "https://my-app.com"
   },
-  "service_auth": [{ "method": "noop" }],
-  "gateways": [
+  "sql_servers": [
     {
-      "name": "api-gateway",
-      "host": "my-api-gateway.com"
+      "host": "my-db-host:5432",
+      "databases": {
+        "my-db": {
+          "username": "my-db-owner",
+          "password": {"$env": "DB_PASSWORD"}
+        }
+      }
     }
   ],
-  "hosted_services": ["foo", "bar"],
   "service_discovery": {
-    "baz": {
-      "name": "baz",
-      "url": "http://baz.svc.cluster.local:8080",
-      "protocol": "http",
-      "service_auth": { "method": "noop" }
+    "myservice": {
+      "base_url": "https://my-service:8044"
     }
   },
-  "sql_databases": [],
-  "sql_servers": [],
-  "pubsub_providers": [],
-  "pubsub_topics": {},
-  "metrics": {}
+  "redis": {
+    "encoreredis": {
+      "database_index": 0,
+      "auth": {
+        "type": "acl",
+        "username": "encoreredis",
+        "password": {"$env": "REDIS_PASSWORD"}
+      },
+      "host": "my-redis-host",
+    }
+  },
+  "metrics": {
+    "type": "prometheus",
+    "remote_write_url": "https://my-remote-write-url"
+  },
+  "graceful_shutdown": {
+    "total": 30
+  },
+  "auth": [
+    {
+      "type": "key",
+      "id": 1,
+      "key": {"$env": "SVC_TO_SVC_KEY"}
+    }
+  ],
+  "secrets": {
+    "AppSecret": {"$env": "APP_SECRET"}
+  },
+  "pubsub": [
+    {
+      "type": "gcp_pubsub",
+      "project_id": "my-project",
+      "topics": {
+        "encore-topic": {
+          "name": "gcp-topic-name",
+          "subscriptions": {
+            "encore-subscription": {
+              "name": "gcp-subscription-name"
+            }
+          }
+        }
+      }
+    }
+  ]
 }
 ```
 
-To compute the `ENCORE_RUNTIME_CONFIG` value, base64-encode the JSON object.
-
-This example configuration adds sample data to power Encore's metadata APIs,
-as well as sets up the `gateways` and `hosted_services` fields to tell
-Encore which services and gateways are hosted by this instance.
-
-In this case, it is configured to host the `foo` and `bar` services.
-It additionally configures the service discovery configuration for making API
-calls to the `baz` service, which in this example is hosted at `http://baz.svc.cluster.local:8080`, which is what it might look like in a Kubernetes environment.
-
-The "service authentication" mechanism is set to `noop`, which means no authentication is required for inter-service communication. This is safe
-whenever the services are running inside a private network, and only the
-API Gateway is publicly accessible.
-
-## Configuring infrastructure
-
-To use infrastructure resources, additional configuration must be added,
-so that Encore is aware how to access each infrastructure resource.
-
+## Configuring Infrastructure
+To use infrastructure resources, additional configuration must be added, so that Encore is aware how to access each infrastructure resource.
 See below for examples for each type of infrastructure resource.
 
-### SQL Databases
-
-First, for each SQL database server, add an entry to the `sql_servers` array:
+### 1. Basic Environment Metadata Configuration
 
 ```json
 {
-  "host": "127.0.0.1:5432",
-  "server_ca_cert": "",
-  "client_cert": "",
-  "client_key": ""
+  "metadata": {
+    "app_id": "my-encore-app",
+    "env_name": "production",
+    "env_type": "production",
+    "cloud": "aws",
+    "base_url": "https://api.myencoreapp.com"
+  }
 }
 ```
 
-If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise they can be left empty.
+- `app_id`: The ID of your Encore application.
+- `env_name`: The environment name, such as `production`, `staging`, or `development`.
+- `env_type`: Specifies the type of environment (`production`, `test`, `development`, or `ephemeral`).
+- `cloud`: The cloud provider hosting the infrastructure (e.g., `aws`, `gcp`, or `azure`).
+- `base_url`: The base URL for services in the environment.
 
-Next, add a database to the `sql_databases` array:
+### 2. Graceful Shutdown Configuration
 
 ```json
 {
-  "server_id": 0,
-  "encore_name": "blog",
-  "database_name": "blog",
-  "user": "my-database-username",
-  "password": "my-database-password",
-  "min_connections": 0,
-  "max_connections": 100
+  "graceful_shutdown": {
+    "total": 30,
+    "shutdown_hooks": 10,
+    "handlers": 20
+  }
 }
 ```
 
-This specifies that the database known in the Encore application as `blog`
-can be accessed via server 0 (an index into the `sql_servers` array),
-using the provided credentials and connection pool configuration.
+- `total`: The total time allowed for the shutdown process in seconds.
+- `shutdown_hooks`: The time allowed for executing shutdown hooks.
+- `handlers`: The time allocated for processing request handlers during the shutdown.
 
-The `database_name` field specifies what the database name is on the database
-server, in cases where it differs from the `encore_name`.
+### 3. Authentication Methods Configuration
+Private endpoints will not require authentication if no authentication methods are specified. To secure private endpoints, you can configure authentication methods.
+Encore currently supports authentication through a shared key, which you can specify in your infrastructure configuration file.
+```json
+{
+  "auth": [
+    {
+      "type": "key",
+      "id": 1,
+      "key": {
+        "$env": "SERVICE_API_KEY"
+      }
+    }
+  ]
+}
+```
 
-Since the password is listed in the configuration, the runtime configuration
-must itself be treated as sensitive, and stored as a secret.
+- `type`: The authentication method type (e.g., `key`).
+- `id`: The ID associated with the authentication method.
+- `key`: The authentication key, which can be set using an environment variable reference.
 
-### Pub/Sub
+### 4. Service Discovery Configuration
+Service discovery is used to access other services over the network. You can configure service discovery in the infrastructure configuration file.
+If you export all services into the same docker image, you don't need to configure service discovery as it will be automatically
+configured when the services are started.
 
-Pub/Sub similarly consists of two fields: `pubsub_providers` and `pubsub_topics`.
+```json
+{
+  "service_discovery": {
+    "user-service": {
+      "base_url": "https://user.myencoreapp.com",
+      "auth": [
+        {
+          "type": "key",
+          "id": 1,
+          "key": {
+            "$env": "USER_SERVICE_API_KEY"
+          }
+        }
+      ]
+    }
+  }
+}
+```
 
-The providers specify which different kinds of Pub/Sub providers are in
-use by the application. Encore currently supports:
+- `user-service`: Configuration for a service named `user-service`.
+- `base_url`: The base URL for the service.
+- `auth`: Authentication methods used for accessing the service. If no authentication methods are specified, the service will use the auth methods defined in the `auth` section.
 
+### 5. Metrics Configuration
+Similarly to cloud infrastructure resources, Encore supports configurable metrics exports:
+
+* Prometheus
+* DataDog
+* GCP Cloud Monitoring
+* AWS CloudWatch
+
+This is configured by setting the metrics field. Below are examples for each of the supported metrics providers:
+#### 5.1. Prometheus Configuration
+
+```json
+{
+  "metrics": {
+    "type": "prometheus",
+    "collection_interval": 15,
+    "remote_write_url": {
+      "$env": "PROMETHEUS_REMOTE_WRITE_URL"
+    }
+  }
+}
+```
+
+#### 5.2. Datadog Configuration
+
+```json
+{
+  "metrics": {
+    "type": "datadog",
+    "collection_interval": 30,
+    "site": "datadoghq.com",
+    "api_key": {
+      "$env": "DATADOG_API_KEY"
+    }
+  }
+}
+```
+
+#### 5.3. GCP Cloud Monitoring Configuration
+
+```json
+{
+  "metrics": {
+    "type": "gcp_cloud_monitoring",
+    "collection_interval": 60,
+    "project_id": "my-gcp-project",
+    "monitored_resource_type": "gce_instance",
+    "monitored_resource_labels": {
+      "instance_id": "1234567890",
+      "zone": "us-central1-a"
+    },
+    "metric_names": {
+      "cpu_usage": "compute.googleapis.com/instance/cpu/usage_time"
+    }
+  }
+}
+```
+
+#### 5.4. AWS CloudWatch Configuration
+
+```json
+{
+  "metrics": {
+    "type": "aws_cloudwatch",
+    "collection_interval": 60,
+    "namespace": "MyAppMetrics"
+  }
+}
+```
+
+### 6. SQL Database Configuration
+The SQL databases you've declared in your Encore app must be configured in the infrastructure configuration file.
+There must be exactly one database configuration for each declared database. You can configure multiple SQL servers if needed.
+
+```json
+{
+  "sql_servers": [
+    {
+      "host": "db.myencoreapp.com:5432",
+      "tls_config": {
+        "disabled": false,
+        "ca": "---BEGIN CERTIFICATE---\n..."
+      },
+      "databases": {
+        "main_db": {
+          "max_connections": 100,
+          "min_connections": 10,
+          "username": "db_user",
+          "password": {
+            "$env": "DB_PASSWORD"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+- `host`: SQL server host, optionally including the port.
+- `tls_config`: TLS configuration for secure connections. If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise they can be left empty.
+- `databases`: List of databases, each with connection settings.
+
+### 7. Secrets Configuration
+
+#### 7.1. Using Direct Secrets
+You can set the secret value directly in the configuration file, or use an environment variable reference to set the secret value.
+
+```json
+{
+  "secrets": {
+    "API_TOKEN": "embedded-secret-value",
+    "DB_PASSWORD": {
+      "$env": "DB_PASSWORD"
+    }
+  }
+}
+```
+
+#### 7.2. Using Environment Reference
+As an alternative, you can use an environment variable reference to set the secret value. The env variable should be set in the environment where the application is running. The content
+of the environment variable should be a JSON string where each key is the secret name and the value is the secret value.
+
+```json
+{
+  "secrets": {
+    "$env": "SECRET_JSON"
+  }
+}
+```
+
+### 8. Redis Configuration
+
+```json
+{
+  "redis": {
+    "cache": {
+      "host": "redis.myencoreapp.com:6379",
+      "database_index": 0,
+      "auth": {
+        "type": "auth",
+        "auth_string": {
+          "$env": "REDIS_AUTH_STRING"
+        }
+      },
+      "max_connections": 50,
+      "min_connections": 5
+    }
+  }
+}
+```
+
+- `host`: Redis server host, optionally including the port.
+- `auth`: Authentication configuration for the Redis server.
+- `key_prefix`: Prefix applied to all keys.
+
+### 9. Pub/Sub Configuration
+Encore currently supports the following Pub/Sub providers:
 - `nsq` for [NSQ](https://nsq.io/)
 - `gcp` for [Google Cloud Pub/Sub](https://cloud.google.com/pubsub)
 - `aws` for AWS [SNS](https://aws.amazon.com/sns/) + [SQS](https://aws.amazon.com/sqs/)
 - `azure` for [Azure Service Bus](https://azure.microsoft.com/en-us/products/service-bus)
 
-First, configure the necessary Pub/Sub providers by adding entries to the `pubsub_providers` array. Below is a sample configuration for all of the supported providers:
-
-```json
-"pubsub_providers": [
-  {"nsq": {"host": "localhost:4150"}},
-  {"gcp": {}},
-  {"aws": {}},
-  {"azure": {"namespace": "my-namespace"}}
-]
-```
-
-As you see, some of the providers (AWS, GCP) require no additional configuration, while others (NSQ, Azure) do.
-
-Once the providers are configured, Pub/Sub topics are configured as key-value pairs in the `pubsub_topics` field. For example:
+The configuration for each provider is different. Below are examples for each provider.
+#### 9.1. GCP Pub/Sub
 
 ```json
 {
-  "my-topic": {
-    "provider_id": 0,
-    "encore_name": "my-topic",
-    "provider_name": "my-topic",
-    "subscriptions": {
-      "my-subscription": {
-        "encore_name": "my-subscription",
-        "provider_name": "my-subscription"
+  "pubsub": [
+    {
+      "type": "gcp_pubsub",
+      "project_id": "my-gcp-project",
+      "topics": {
+        "user-events": {
+          "name": "user-events-topic",
+          "project_id": "my-gcp-project",
+          "subscriptions": {
+            "user-notification": {
+              "name": "user-notification-subscription",
+              "push_config": {
+                "id": "user-push",
+                "service_account": "service-account@my-gcp-project.iam.gserviceaccount.com"
+              }
+            }
+          }
+        }
       }
     }
-  }
+  ]
 }
 ```
 
-This configures a single Pub/Sub topic that uses NSQ (since `provider_id: 0` corresponds to NSQ in the `pubsub_providers` array). The topic is named `my-topic`, and has a single subscription named `my-subscription`.
-
-Like with SQL Databases, the `provider_name` can be set to a different name than the `encore_name` if necessary.
-
-#### Google Cloud Pub/Sub
-
-When using Google Cloud Pub/Sub, Encore supports additional configuration
-options that must be set, so that Encore is aware of which GCP project
-contains the resources.
-
-It looks like this:
+#### 9.2. AWS SNS/SQS
 
 ```json
 {
-  "my-topic": {
-    "provider_id": 1,
-    "encore_name": "my-topic",
-    "provider_name": "my-topic",
-    "gcp": { "project_id": "my-gcp-project-id" },
-    "subscriptions": {
-      "my-subscription": {
-        "encore_name": "my-subscription",
-        "provider_name": "my-subscription",
-        "gcp": { "project_id": "my-gcp-project-id" }
+  "pubsub": [
+    {
+      "type": "aws_sns_sqs",
+      "topics": {
+        "user-notifications": {
+          "arn": "arn:aws:sns:us-east-1:123456789012:user-notifications",
+          "subscriptions": {
+            "user-queue": {
+              "arn": "arn:aws:sqs:us-east-1:123456789012:user-queue"
+            }
+          }
+        }
       }
     }
-  }
+  ]
 }
 ```
 
-### Metrics
-
-Similarly to cloud infrastructure resources, Encore supports configurable
-metrics exports:
-
-- Prometheus
-- DataDog
-- GCP Cloud Monitoring
-- AWS CloudWatch
-- Logs-based metrics
-
-This is configured by setting the `metrics` field. Below are examples for each of the supported metrics providers:
-
-#### Prometheus
+#### 9.3. NSQ Configuration
 
 ```json
 {
-  "collection_interval": "60s",
-  "prometheus": { "RemoteWriteURL": "http://prometheus.example.com/write" }
+  "pubsub": [
+    {
+      "type": "nsq",
+      "hosts": "nsq.myencoreapp.com:4150",
+      "topics": {
+        "order-events": {
+          "name": "order-events-topic",
+          "subscriptions": {
+            "order-processor": {
+              "name": "order-processor-subscription"
+            }
+          }
+        }
+      }
+    }
+  ]
 }
 ```
 
-#### DataDog
-
-```json
-{
-  "collection_interval": "60s",
-  "datadog": { "Site": "datadoghq.com", "APIKey": "my-api-key" }
-}
-```
-
-Since the API Key is listed in the configuration, the runtime configuration
-must itself be treated as sensitive, and stored as a secret.
-
-#### GCP Cloud Monitoring
-
-```json
-{
-  "collection_interval": "60s",
-  "gcp_cloud_monitoring": {
-    "ProjectID": "my-gcp-project-id",
-    "MonitoredResourceType": "generic_node",
-    "MonitoredResourceLabels": {
-				"project_id": "my-gcp-project-id"
-				"location":   "us-central1",
-				"namespace":  "my-namespace",
-				"node_id":    "my-node-id"
-			}
-  }
-}
-```
-
-See [GCP's documentation](https://cloud.google.com/monitoring/api/resources) for information
-about configuring the `MonitoredResourceType` and `MonitoredResourceLabels` fields.
-
-#### AWS CloudWatch
-
-```json
-{
-  "collection_interval": "60s",
-  "aws_cloud_watch": {
-    "Namespace": "my-namespace"
-  }
-}
-```
-
-#### Logs-based metrics
-
-```json
-{
-  "collection_interval": "60s",
-  "logs_based": {}
-}
-```
-
-</LangTabPanel>
-
-<LangTabPanel>
-
-The TypeScript runtime uses two environment variables: `ENCORE_RUNTIME_CONFIG` and
-`ENCORE_RUNTIME_SECRETS`, for configuring the runtime environment and its secret values, respectively.
-
-The `ENCORE_RUNTIME_CONFIG` environment variable is a base64-encoded Protobuf message.
-You can find the [schema here](https://github.com/encoredev/encore/blob/main/proto/encore/runtime/v1/runtime.proto).
-
-## Generating the runtime configuration
-
-To generate the runtime configuration, we recommend using [buf convert](https://buf.build/docs/reference/cli/buf/convert) to express the configuration in JSON format and then converting it to binary format.
-
-To do so, install `buf`, then clone `https://github.com/encoredev/encore` and run:
-
-```shell
-$ cd encore/proto
-$ echo '{"environment": {"app_id": "test"}}' | buf convert --type encore.runtime.v1.RuntimeConfig --from -#format=json | base64
-CgYKBHRlc3Q=
-```
-
-You should see something like the above.
-
-The below examples will show the configuration in JSON format for readability, but when setting the `ENCORE_RUNTIME_CONFIG` value it must first be converted to
-the base64-encoded binary format according to the above instructions.
-
-## Example
-
-The Encore runtime configuration is designed so that most of the configuration
-can safely be left out. The only thing that's truly required is to configure
-which services and gateways are hosted by the container.
-
-A minimal example configuration looks like this:
-
-```json
-{
-  "deployment": {
-    "hosted_services": [{ "name": "foo" }, { "name": "bar" }],
-    "hosted_gateways": ["api-gateway"]
-  }
-}
-```
-
-More instructions coming soon.
-
-</LangTabPanel>
-</LangTabGroup>
+This guide covers typical infrastructure configurations. Adjust according to your specific requirements to optimize your Encore app's infrastructure setup.

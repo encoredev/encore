@@ -76,6 +76,16 @@ func Any[A any](src []A, pred func(A) bool) bool {
 	return false
 }
 
+// All returns true if all elements in src satisfy the predicate.
+func All[A any](src []A, pred func(A) bool) bool {
+	for _, v := range src {
+		if !pred(v) {
+			return false
+		}
+	}
+	return true
+}
+
 // FlatMap applies fn on all elements in src, producing a new slice
 // with the results, in order.
 func FlatMap[A, B any](src []A, fn func(A) []B) []B {
@@ -158,4 +168,14 @@ func MergeMaps[K comparable, V any](ms ...map[K]V) map[K]V {
 		maps.Copy(rtn, m)
 	}
 	return rtn
+}
+
+func Delete[T comparable](slice []T, t T) ([]T, bool) {
+	for i, v := range slice {
+		if v == t {
+			slice = append(slice[:i], slice[i+1:]...)
+			return slice, true
+		}
+	}
+	return slice, false
 }
