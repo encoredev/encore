@@ -12,10 +12,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InfraConfig {
-    pub app_id: Option<String>,
-    pub env_name: Option<String>,
-    pub env_type: Option<String>,
-    pub cloud: Option<String>,
+    pub metadata: Option<Metadata>,
     pub graceful_shutdown: Option<GracefulShutdown>,
     pub auth: Option<Vec<Auth>>,
     pub service_discovery: Option<HashMap<String, ServiceDiscovery>>,
@@ -27,6 +24,15 @@ pub struct InfraConfig {
     pub hosted_services: Option<Vec<String>>,
     pub hosted_gateways: Option<Vec<String>>,
     pub cors: Option<CORS>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct Metadata {
+    pub app_id: Option<String>,
+    pub env_name: Option<String>,
+    pub env_type: Option<String>,
+    pub cloud: Option<String>,
+    pub base_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,17 +88,20 @@ pub enum Metrics {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PrometheusMetrics {
+    pub collection_interval: Option<i32>,
     pub remote_write_url: EnvString,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DatadogMetrics {
+    pub collection_interval: Option<i32>,
     pub site: String,
     pub api_key: EnvString,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GCPCloudMonitoringMetrics {
+    pub collection_interval: Option<i32>,
     pub project_id: String,
     pub monitored_resource_type: String,
     pub monitored_resource_labels: Option<HashMap<String, String>>,
@@ -101,6 +110,7 @@ pub struct GCPCloudMonitoringMetrics {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AWSCloudWatchMetrics {
+    pub collection_interval: Option<i32>,
     pub namespace: String,
 }
 
@@ -268,13 +278,14 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         rid.to_string()
     };
 
+    let metadata = infra.metadata.unwrap_or_default();
     // Map the Environment
     let environment = Some(Environment {
         app_id: "".to_string(),
-        app_slug: infra.app_id.unwrap_or_default(),
+        app_slug: metadata.app_id.unwrap_or_default(),
         env_id: "".to_string(),
-        env_name: infra.env_name.unwrap_or_default(),
-        env_type: infra
+        env_name: metadata.env_name.unwrap_or_default(),
+        env_type: metadata
             .env_type
             .as_ref()
             .map(|t| match t.as_str() {
@@ -285,7 +296,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                 _ => environment::Type::Unspecified as i32,
             })
             .unwrap_or(environment::Type::Unspecified as i32),
-        cloud: infra
+        cloud: metadata
             .cloud
             .as_ref()
             .map(|c| match c.as_str() {
@@ -391,19 +402,23 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
 
     // Map Metrics
     let metrics = infra.metrics.as_ref().map(|metrics| {
-        let provider = match metrics {
-            Metrics::Prometheus(pm) => metrics_provider::Provider::PromRemoteWrite(
-                metrics_provider::PrometheusRemoteWrite {
-                    remote_write_url: Some(map_env_string_to_secret_data(&pm.remote_write_url)),
-                },
+        let (provider, interval) = match metrics {
+            Metrics::Prometheus(pm) => (
+                metrics_provider::Provider::PromRemoteWrite(
+                    metrics_provider::PrometheusRemoteWrite {
+                        remote_write_url: Some(map_env_string_to_secret_data(&pm.remote_write_url)),
+                    },
+                ),
+                pm.collection_interval,
             ),
-            Metrics::Datadog(dd) => {
+            Metrics::Datadog(dd) => (
                 metrics_provider::Provider::Datadog(metrics_provider::Datadog {
                     site: dd.site.clone(),
                     api_key: Some(map_env_string_to_secret_data(&dd.api_key)),
-                })
-            }
-            Metrics::GCPCloudMonitoring(gcp) => {
+                }),
+                dd.collection_interval,
+            ),
+            Metrics::GCPCloudMonitoring(gcp) => (
                 metrics_provider::Provider::Gcp(metrics_provider::GcpCloudMonitoring {
                     project_id: gcp.project_id.clone(),
                     monitored_resource_type: gcp.monitored_resource_type.clone(),
@@ -412,18 +427,23 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         .clone()
                         .unwrap_or_default(),
                     metric_names: gcp.metric_names.clone().unwrap_or_default(),
-                })
-            }
-            Metrics::AWSCloudWatch(aws) => {
+                }),
+                gcp.collection_interval,
+            ),
+            Metrics::AWSCloudWatch(aws) => (
                 metrics_provider::Provider::Aws(metrics_provider::AwsCloudWatch {
                     namespace: aws.namespace.clone(),
-                })
-            }
+                }),
+                aws.collection_interval,
+            ),
         };
 
         vec![MetricsProvider {
             rid: get_next_rid(),
-            collection_interval: None,
+            collection_interval: interval.map(|i| prost_types::Duration {
+                seconds: i as i64,
+                nanos: 0,
+            }),
             provider: Some(provider),
         }]
     });
@@ -444,7 +464,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                 .map(|gateway| pbruntime::Gateway {
                     rid: get_next_rid(),
                     encore_name: gateway.clone(),
-                    base_url: gateway.clone(),
+                    base_url: metadata.base_url.clone().unwrap_or_default(),
                     hostnames: vec![],
                     cors: infra.cors.as_ref().map(|cors| gateway::Cors {
                         debug: cors.debug.unwrap_or(false),

@@ -13,13 +13,16 @@ This can be a good choice for when Encore's cloud platform isn't a good fit for 
 
 To build your own Docker image, use `encore eject docker MY-IMAGE:TAG` from the CLI.
 
-This will compile your application using the host machine and then produce a Docker image containing the compiled application. The base image defaults to `scratch` but can be customized with `--base`.
+This will compile your application using the host machine and then produce a Docker image containing the compiled application. The base image defaults to `scratch` for GO apps and `node:slim` for TS, but can be customized with `--base`.
 
 This is exactly the same code path that Encore's CI system uses to build Docker images, ensuring compatibility.
 
 ## Configuring your Docker image
 
-The built Docker image relies on runtime configuration, in the form of environment variables, to provide information about the application's environment.
+If you are using any infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration.
+The `eject` command let's you provide this by specifying a path to a config file using the `--config` flag.
+
+The configuration file should be a JSON file using the [Encore Infra Config](https://encore.dev/schemas/infra.schema.json) schema.
 
 This includes configuring things like:
 
@@ -32,71 +35,79 @@ This includes configuring things like:
 
 This configuration is necessary for the application to behave correctly.
 
-Exactly how to configure these depends on whether you're using Go or TypeScript.
-
-Select language below for specific instructions.
-
-<LangTabGroup langs={["go", "ts"]}>
-<LangTabPanel>
-
-The Go runtime uses two environment variables: `ENCORE_RUNTIME_CONFIG` and
-`ENCORE_APP_SECRETS`, for configuring the runtime environment and the
-application's secrets, respectively.
-
-The `ENCORE_RUNTIME_CONFIG` environment variable is a base64-encoded JSON object.
-You can find the [schema here](https://github.com/encoredev/encore/blob/main/runtimes/go/appruntime/exported/config/config.go).
-
 ## Example
 
-Here's an example configuration you can use.
+Here's an example configuration file you can use.
 
 ```json
 {
-  "api_base_url": "https://my-base-url",
-  "env_name": "my-env-name",
-  "env_type": "development",
-  "env_cloud": "local",
-  "deploy_time": "2024-04-09T16:25:06.502476123Z",
-  "cors": {
-    "allow_origins_without_credentials": ["*"]
-  },
-  "service_auth": [{ "method": "noop" }],
-  "gateways": [
+  "$schema": "https://encore.dev/schemas/infra.schema.json",
+  "app_id": "my-app",
+  "env_name": "my-env",
+  "env_type": "production",
+  "cloud": "gcp",
+  "sql_servers": [
     {
-      "name": "api-gateway",
-      "host": "my-api-gateway.com"
+      "host": "my-db-host:5432",
+      "databases": {
+        "my-db": {
+          "username": "my-db-owner",
+          "password": {"$env": "DB_PASSWORD"}
+        }
+      }
     }
   ],
-  "hosted_services": ["foo", "bar"],
   "service_discovery": {
-    "baz": {
-      "name": "baz",
-      "url": "http://baz.svc.cluster.local:8080",
-      "protocol": "http",
-      "service_auth": { "method": "noop" }
+    "myservice": {
+      "base_url": "https://my-service:8044"
     }
   },
-  "sql_databases": [],
-  "sql_servers": [],
-  "pubsub_providers": [],
-  "pubsub_topics": {},
-  "metrics": {}
+  "redis": {
+    "encoreredis": {
+      "database_index": 0,
+      "auth": {
+        "type": "acl",
+        "username": "encoreredis",
+        "password": {"$env": "REDIS_PASSWORD"}
+      },
+      "host": "my-redis-host",
+    }
+  },
+  "metrics": {
+    "type": "prometheus",
+    "remote_write_url": "https://my-remote-write-url"
+  },
+  "graceful_shutdown": {
+    "total": 30
+  },
+  "auth": [
+    {
+      "type": "key",
+      "id": 1,
+      "key": {"$env": "SVC_TO_SVC_KEY"}
+    }
+  ],
+  "secrets": {
+    "AppSecret": {"$env": "APP_SECRET"}
+  },
+  "pubsub": [
+    {
+      "type": "gcp_pubsub",
+      "project_id": "my-project",
+      "topics": {
+        "encore-topic": {
+          "name": "gcp-topic-name",
+          "subscriptions": {
+            "encore-subscription": {
+              "name": "gcp-subscription-name"
+            }
+          }
+        }
+      }
+    }
+  ]
 }
 ```
-
-To compute the `ENCORE_RUNTIME_CONFIG` value, base64-encode the JSON object.
-
-This example configuration adds sample data to power Encore's metadata APIs,
-as well as sets up the `gateways` and `hosted_services` fields to tell
-Encore which services and gateways are hosted by this instance.
-
-In this case, it is configured to host the `foo` and `bar` services.
-It additionally configures the service discovery configuration for making API
-calls to the `baz` service, which in this example is hosted at `http://baz.svc.cluster.local:8080`, which is what it might look like in a Kubernetes environment.
-
-The "service authentication" mechanism is set to `noop`, which means no authentication is required for inter-service communication. This is safe
-whenever the services are running inside a private network, and only the
-API Gateway is publicly accessible.
 
 ## Configuring infrastructure
 
@@ -291,52 +302,3 @@ about configuring the `MonitoredResourceType` and `MonitoredResourceLabels` fiel
   "logs_based": {}
 }
 ```
-
-</LangTabPanel>
-
-<LangTabPanel>
-
-The TypeScript runtime uses two environment variables: `ENCORE_RUNTIME_CONFIG` and
-`ENCORE_RUNTIME_SECRETS`, for configuring the runtime environment and its secret values, respectively.
-
-The `ENCORE_RUNTIME_CONFIG` environment variable is a base64-encoded Protobuf message.
-You can find the [schema here](https://github.com/encoredev/encore/blob/main/proto/encore/runtime/v1/runtime.proto).
-
-## Generating the runtime configuration
-
-To generate the runtime configuration, we recommend using [buf convert](https://buf.build/docs/reference/cli/buf/convert) to express the configuration in JSON format and then converting it to binary format.
-
-To do so, install `buf`, then clone `https://github.com/encoredev/encore` and run:
-
-```shell
-$ cd encore/proto
-$ echo '{"environment": {"app_id": "test"}}' | buf convert --type encore.runtime.v1.RuntimeConfig --from -#format=json | base64
-CgYKBHRlc3Q=
-```
-
-You should see something like the above.
-
-The below examples will show the configuration in JSON format for readability, but when setting the `ENCORE_RUNTIME_CONFIG` value it must first be converted to
-the base64-encoded binary format according to the above instructions.
-
-## Example
-
-The Encore runtime configuration is designed so that most of the configuration
-can safely be left out. The only thing that's truly required is to configure
-which services and gateways are hosted by the container.
-
-A minimal example configuration looks like this:
-
-```json
-{
-  "deployment": {
-    "hosted_services": [{ "name": "foo" }, { "name": "bar" }],
-    "hosted_gateways": ["api-gateway"]
-  }
-}
-```
-
-More instructions coming soon.
-
-</LangTabPanel>
-</LangTabGroup>

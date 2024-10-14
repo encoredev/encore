@@ -8,10 +8,7 @@ import (
 )
 
 type InfraConfig struct {
-	AppID            string                       `json:"app_id,omitempty"`
-	EnvName          string                       `json:"env_name,omitempty"`
-	EnvType          string                       `json:"env_type,omitempty"`
-	Cloud            string                       `json:"cloud,omitempty"`
+	Metadata         Metadata                     `json:"metadata,omitempty"`
 	GracefulShutdown *GracefulShutdown            `json:"graceful_shutdown,omitempty"`
 	Auth             []*Auth                      `json:"auth,omitempty"`
 	ServiceDiscovery map[string]*ServiceDiscovery `json:"service_discovery,omitempty"`
@@ -26,6 +23,14 @@ type InfraConfig struct {
 	HostedServices []string `json:"hosted_services,omitempty"`
 	HostedGateways []string `json:"hosted_gateways,omitempty"`
 	CORS           CORS     `json:"cors,omitempty"`
+}
+
+type Metadata struct {
+	AppID   string `json:"app_id,omitempty"`
+	EnvName string `json:"env_name,omitempty"`
+	EnvType string `json:"env_type,omitempty"`
+	Cloud   string `json:"cloud,omitempty"`
+	BaseURL string `json:"base_url,omitempty"`
 }
 
 // Copy of the CORS struct from the appfile
@@ -138,68 +143,52 @@ func (s *ServiceDiscovery) Validate(v *validator) {
 
 // Main Metrics struct which embeds the different metric types.
 type Metrics struct {
-	Type               string                     `json:"type,omitempty"`
-	Prometheus         *PrometheusMetrics         `json:"prometheus,omitempty"`
-	Datadog            *DatadogMetrics            `json:"datadog,omitempty"`
-	GCPCloudMonitoring *GCPCloudMonitoringMetrics `json:"gcp_cloud_monitoring,omitempty"`
-	AWSCloudWatch      *AWSCloudWatchMetrics      `json:"aws_cloudwatch,omitempty"`
+	Type               string `json:"type,omitempty"`
+	CollectionInterval int    `json:"collection_interval,omitempty"`
+	Prometheus         *Prometheus
+	Datadog            *Datadog
+	GCPCloudMonitoring *GCPCloudMonitoring
+	AWSCloudWatch      *AWSCloudWatch
 }
 
-func (m *Metrics) Validate(v *validator) {
+// MarshalJSON custom marshaller to handle dynamic types in Metrics.
+func (m *Metrics) MarshalJSON() ([]byte, error) {
+	// Create a map to hold the JSON structure
+	data := make(map[string]interface{})
+
+	data["type"] = m.Type
+	data["collection_interval"] = m.CollectionInterval
+
 	switch m.Type {
 	case "prometheus":
-		m.Prometheus.Validate(v)
+		if m.Prometheus != nil {
+			for k, v := range structToMap(m.Prometheus) {
+				data[k] = v
+			}
+		}
 	case "datadog":
-		m.Datadog.Validate(v)
+		if m.Datadog != nil {
+			for k, v := range structToMap(m.Datadog) {
+				data[k] = v
+			}
+		}
 	case "gcp_cloud_monitoring":
-		m.GCPCloudMonitoring.Validate(v)
+		if m.GCPCloudMonitoring != nil {
+			for k, v := range structToMap(m.GCPCloudMonitoring) {
+				data[k] = v
+			}
+		}
 	case "aws_cloudwatch":
-		m.AWSCloudWatch.Validate(v)
+		if m.AWSCloudWatch != nil {
+			for k, v := range structToMap(m.AWSCloudWatch) {
+				data[k] = v
+			}
+		}
 	default:
-		v.ValidateField("type", Err("unsupported metrics type"))
+		return nil, errors.New("unsupported metrics type")
 	}
-}
 
-// Prometheus-specific metric configuration.
-type PrometheusMetrics struct {
-	RemoteWriteURL EnvString `json:"remote_write_url,omitempty"`
-}
-
-func (p *PrometheusMetrics) Validate(v *validator) {
-	v.ValidateEnvString("remote_write_url", p.RemoteWriteURL, "Prometheus Remote Write URL", NotZero[string])
-}
-
-// Datadog-specific metric configuration.
-type DatadogMetrics struct {
-	Site   string    `json:"site,omitempty"`
-	APIKey EnvString `json:"api_key,omitempty"`
-}
-
-func (d *DatadogMetrics) Validate(v *validator) {
-	v.ValidateField("site", NotZero(d.Site))
-	v.ValidateEnvString("api_key", d.APIKey, "Datadog API Key", NotZero[string])
-}
-
-// GCP Cloud Monitoring-specific metric configuration.
-type GCPCloudMonitoringMetrics struct {
-	ProjectID               string            `json:"project_id,omitempty"`
-	MonitoredResourceType   string            `json:"monitored_resource_type,omitempty"`
-	MonitoredResourceLabels map[string]string `json:"monitored_resource_labels,omitempty"`
-	MetricNames             map[string]string `json:"metric_names,omitempty"`
-}
-
-func (g *GCPCloudMonitoringMetrics) Validate(v *validator) {
-	v.ValidateField("project_id", NotZero(g.ProjectID))
-	v.ValidateField("monitored_resource_type", NotZero(g.MonitoredResourceType))
-}
-
-// AWS CloudWatch-specific metric configuration.
-type AWSCloudWatchMetrics struct {
-	Namespace string `json:"namespace,omitempty"`
-}
-
-func (a *AWSCloudWatchMetrics) Validate(v *validator) {
-	v.ValidateField("namespace", NotZero(a.Namespace))
+	return json.Marshal(data)
 }
 
 // UnmarshalJSON custom unmarshaller to handle dynamic types in Metrics.
@@ -218,25 +207,25 @@ func (m *Metrics) UnmarshalJSON(data []byte) error {
 	// Unmarshal based on the "type" field
 	switch aux.Type {
 	case "prometheus":
-		var p PrometheusMetrics
+		var p Prometheus
 		if err := json.Unmarshal(data, &p); err != nil {
 			return err
 		}
 		m.Prometheus = &p
 	case "datadog":
-		var d DatadogMetrics
+		var d Datadog
 		if err := json.Unmarshal(data, &d); err != nil {
 			return err
 		}
 		m.Datadog = &d
 	case "gcp_cloud_monitoring":
-		var g GCPCloudMonitoringMetrics
+		var g GCPCloudMonitoring
 		if err := json.Unmarshal(data, &g); err != nil {
 			return err
 		}
 		m.GCPCloudMonitoring = &g
 	case "aws_cloudwatch":
-		var a AWSCloudWatchMetrics
+		var a AWSCloudWatch
 		if err := json.Unmarshal(data, &a); err != nil {
 			return err
 		}
@@ -246,6 +235,63 @@ func (m *Metrics) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (m *Metrics) Validate(v *validator) {
+	switch m.Type {
+	case "prometheus":
+		m.Prometheus.Validate(v)
+	case "datadog":
+		m.Datadog.Validate(v)
+	case "gcp_cloud_monitoring":
+		m.GCPCloudMonitoring.Validate(v)
+	case "aws_cloudwatch":
+		m.AWSCloudWatch.Validate(v)
+	default:
+		v.ValidateField("type", Err("unsupported metrics type"))
+	}
+}
+
+// Prometheus-specific metric configuration.
+type Prometheus struct {
+	RemoteWriteURL EnvString `json:"remote_write_url,omitempty"`
+}
+
+func (p *Prometheus) Validate(v *validator) {
+	v.ValidateEnvString("remote_write_url", p.RemoteWriteURL, "Prometheus Remote Write URL", NotZero[string])
+}
+
+// Datadog-specific metric configuration.
+type Datadog struct {
+	Site   string    `json:"site,omitempty"`
+	APIKey EnvString `json:"api_key,omitempty"`
+}
+
+func (d *Datadog) Validate(v *validator) {
+	v.ValidateField("site", NotZero(d.Site))
+	v.ValidateEnvString("api_key", d.APIKey, "Datadog API Key", NotZero[string])
+}
+
+// GCP Cloud Monitoring-specific metric configuration.
+type GCPCloudMonitoring struct {
+	ProjectID               string            `json:"project_id,omitempty"`
+	MonitoredResourceType   string            `json:"monitored_resource_type,omitempty"`
+	MonitoredResourceLabels map[string]string `json:"monitored_resource_labels,omitempty"`
+	MetricNames             map[string]string `json:"metric_names,omitempty"`
+}
+
+func (g *GCPCloudMonitoring) Validate(v *validator) {
+	v.ValidateField("project_id", NotZero(g.ProjectID))
+	v.ValidateField("monitored_resource_type", NotZero(g.MonitoredResourceType))
+}
+
+// AWS CloudWatch-specific metric configuration.
+type AWSCloudWatch struct {
+	Namespace string `json:"namespace,omitempty"`
+}
+
+func (a *AWSCloudWatch) Validate(v *validator) {
+	v.ValidateField("namespace", NotZero(a.Namespace))
 }
 
 type SQLServer struct {

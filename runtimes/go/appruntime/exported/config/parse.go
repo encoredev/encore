@@ -132,10 +132,11 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		log.Fatalf("encore runtime: fatal error: %v", err)
 	}
 
-	cfg.AppSlug = infraCfg.AppID
-	cfg.EnvName = infraCfg.EnvName
-	cfg.EnvType = infraCfg.EnvType
-	cfg.EnvCloud = infraCfg.Cloud
+	cfg.AppSlug = infraCfg.Metadata.AppID
+	cfg.EnvName = infraCfg.Metadata.EnvName
+	cfg.EnvType = infraCfg.Metadata.EnvType
+	cfg.EnvCloud = infraCfg.Metadata.Cloud
+	cfg.APIBaseURL = infraCfg.Metadata.BaseURL
 
 	// Map graceful shutdown configuration
 	if infraCfg.GracefulShutdown != nil {
@@ -174,27 +175,37 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 
 	// Map metrics configuration
 	if infraCfg.Metrics != nil {
-		cfg.Metrics = &Metrics{}
+		cfg.Metrics = &Metrics{
+			CollectionInterval: time.Duration(infraCfg.Metrics.CollectionInterval) * time.Second,
+		}
 		switch infraCfg.Metrics.Type {
 		case "prometheus":
 			if infraCfg.Metrics.Prometheus != nil {
-				cfg.Metrics.Prometheus.RemoteWriteURL = infraCfg.Metrics.Prometheus.RemoteWriteURL.Value()
+				cfg.Metrics.Prometheus = &PrometheusRemoteWriteProvider{
+					infraCfg.Metrics.Prometheus.RemoteWriteURL.Value(),
+				}
 			}
 		case "datadog":
 			if infraCfg.Metrics.Datadog != nil {
-				cfg.Metrics.Datadog.Site = infraCfg.Metrics.Datadog.Site
-				cfg.Metrics.Datadog.APIKey = infraCfg.Metrics.Datadog.APIKey.Value()
+				cfg.Metrics.Datadog = &DatadogProvider{
+					infraCfg.Metrics.Datadog.Site,
+					infraCfg.Metrics.Datadog.APIKey.Value(),
+				}
 			}
 		case "gcp_cloud_monitoring":
 			if infraCfg.Metrics.GCPCloudMonitoring != nil {
-				cfg.Metrics.CloudMonitoring.ProjectID = infraCfg.Metrics.GCPCloudMonitoring.ProjectID
-				cfg.Metrics.CloudMonitoring.MonitoredResourceType = infraCfg.Metrics.GCPCloudMonitoring.MonitoredResourceType
-				cfg.Metrics.CloudMonitoring.MonitoredResourceLabels = infraCfg.Metrics.GCPCloudMonitoring.MonitoredResourceLabels
-				cfg.Metrics.CloudMonitoring.MetricNames = infraCfg.Metrics.GCPCloudMonitoring.MetricNames
+				cfg.Metrics.CloudMonitoring = &GCPCloudMonitoringProvider{
+					infraCfg.Metrics.GCPCloudMonitoring.ProjectID,
+					infraCfg.Metrics.GCPCloudMonitoring.MonitoredResourceType,
+					infraCfg.Metrics.GCPCloudMonitoring.MonitoredResourceLabels,
+					infraCfg.Metrics.GCPCloudMonitoring.MetricNames,
+				}
 			}
 		case "aws_cloudwatch":
 			if infraCfg.Metrics.AWSCloudWatch != nil {
-				cfg.Metrics.CloudWatch.Namespace = infraCfg.Metrics.AWSCloudWatch.Namespace
+				cfg.Metrics.CloudWatch = &AWSCloudWatchMetricsProvider{
+					infraCfg.Metrics.AWSCloudWatch.Namespace,
+				}
 			}
 		}
 	}
