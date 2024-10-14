@@ -141,7 +141,9 @@ impl Builder<'_> {
 
             // Add the auth handlers to the auth context.
             for ah in &auth_handlers {
-                let rel_path = get_svc_rel_path(&svc.root, ah.range, true);
+                // Don't strip the extension here, so we support e.g. "auth.controller.ts" -> "auth.controller.js".
+                let rel_path = get_svc_rel_path(&svc.root, ah.range, false);
+
                 let import_path = Path::new("../../../")
                     .join(&svc_rel_path)
                     .join(rel_path)
@@ -243,7 +245,9 @@ impl Builder<'_> {
                     let _has_req = rpc.encoding.raw_req_schema.is_some();
                     let _has_resp = rpc.encoding.raw_resp_schema.is_some();
 
-                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
+                    // Don't strip the extension here, so we support e.g. "site.controller.ts" -> "site.controller.js".
+                    let rel_path = get_svc_rel_path(&svc.root, rpc.range, false);
+
                     let import_path = Path::new("../../../../")
                         .join(&svc_rel_path)
                         .join(rel_path)
