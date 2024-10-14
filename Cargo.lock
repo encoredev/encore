@@ -2609,6 +2609,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+ "swc_common",
  "swc_ecma_ast",
 ]
 
