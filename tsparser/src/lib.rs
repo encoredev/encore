@@ -2,6 +2,7 @@ pub mod app;
 pub mod builder;
 mod legacymeta;
 pub mod parser;
+mod span_err;
 
 pub mod encore {
     pub mod parser {
