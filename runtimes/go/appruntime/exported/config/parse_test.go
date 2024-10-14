@@ -5,8 +5,11 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
+	"os"
 	"reflect"
 	"testing"
+
+	qt "github.com/frankban/quicktest"
 )
 
 func gzipData(data []byte) ([]byte, error) {
@@ -126,4 +129,23 @@ func TestGZippedContent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseInfraConfigEnv(t *testing.T) {
+	c := qt.New(t)
+
+	// Parse the infra config using parseInfraConfigEnv
+	parsedRuntime := parseInfraConfigEnv("infra/testdata/infra.config.json")
+
+	// Read the runtime test data file
+	runtimeData, err := os.ReadFile("infra/testdata/runtime.json")
+	c.Assert(err, qt.IsNil)
+
+	// Unmarshal the runtime JSON data into Runtime
+	var expectedRuntime Runtime
+	err = json.Unmarshal(runtimeData, &expectedRuntime)
+	c.Assert(err, qt.IsNil)
+
+	// Compare the parsed runtime with the expected runtime
+	c.Assert(parsedRuntime, qt.DeepEquals, &expectedRuntime)
 }

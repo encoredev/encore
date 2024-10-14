@@ -278,7 +278,8 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 	}
 
 	// Copy CORS config
-	infraCfg.CORS = infra.CORS(params.GlobalCORS)
+	cors := infra.CORS(params.GlobalCORS)
+	infraCfg.CORS = &cors
 
 	if len(missing) > 0 || len(validationErrors) > 0 {
 		return nil, "", configError(missing, validationErrors)

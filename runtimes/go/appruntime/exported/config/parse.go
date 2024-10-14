@@ -167,7 +167,6 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 				KeyID: uint32(auth.ID),
 				Data:  []byte(auth.Key.Value()),
 			})
-
 		default:
 			log.Fatalf("encore runtime: fatal error: unsupported auth type %q", auth.Type)
 		}
@@ -360,20 +359,21 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 			Name:        name,
 			URL:         service.BaseURL,
 			Protocol:    Http,
-			ServiceAuth: ServiceAuth{Method: service.Auth.Type},
+			ServiceAuth: cfg.ServiceAuth[0],
 		}
 	}
 
-	cfg.CORS = &CORS{
-		Debug:                          infraCfg.CORS.Debug,
-		DisableCredentials:             false,
-		AllowOriginsWithCredentials:    infraCfg.CORS.AllowOriginsWithCredentials,
-		AllowOriginsWithoutCredentials: infraCfg.CORS.AllowOriginsWithoutCredentials,
-		ExtraAllowedHeaders:            infraCfg.CORS.AllowHeaders,
-		ExtraExposedHeaders:            infraCfg.CORS.ExposeHeaders,
-		AllowPrivateNetworkAccess:      true,
+	if infraCfg.CORS != nil {
+		cfg.CORS = &CORS{
+			Debug:                          infraCfg.CORS.Debug,
+			DisableCredentials:             false,
+			AllowOriginsWithCredentials:    infraCfg.CORS.AllowOriginsWithCredentials,
+			AllowOriginsWithoutCredentials: infraCfg.CORS.AllowOriginsWithoutCredentials,
+			ExtraAllowedHeaders:            infraCfg.CORS.AllowHeaders,
+			ExtraExposedHeaders:            infraCfg.CORS.ExposeHeaders,
+			AllowPrivateNetworkAccess:      true,
+		}
 	}
-
 	// Map hosted services
 	cfg.HostedServices = infraCfg.HostedServices
 	cfg.Gateways = make([]Gateway, len(infraCfg.HostedGateways))

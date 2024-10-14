@@ -1,0 +1,144 @@
+{
+  "app_id": "",
+  "app_slug": "my-app",
+  "api_base_url": "https://my-app.com",
+  "env_id": "",
+  "env_name": "my-env",
+  "env_type": "production",
+  "env_cloud": "gcp",
+  "deploy_id": "",
+  "deploy_time": "0001-01-01T00:00:00Z",
+  "auth_keys": [
+    {
+      "kid": 1,
+      "data": ""
+    }
+  ],
+  "cors": {
+    "debug": true,
+    "allow_origins_with_credentials": [
+      "https://test.com"
+    ],
+    "allow_origins_without_credentials": [
+      "https://test.com"
+    ],
+    "raw_allowed_headers": [
+      "Authorization",
+      "Content-Type"
+    ],
+    "raw_exposed_headers": [
+      "*"
+    ],
+    "allow_private_network_access": true
+  },
+  "sql_databases": [
+    {
+      "server_id": 0,
+      "encore_name": "mydb",
+      "database_name": "mydb",
+      "user": "my-db-owner",
+      "password": "",
+      "min_connections": 10,
+      "max_connections": 10
+    }
+  ],
+  "sql_servers": [
+    {
+      "host": "my-db-host:5432",
+      "server_ca_cert": "test",
+      "client_cert": "test",
+      "client_key": "test"
+    }
+  ],
+  "pubsub_providers": [
+    {
+      "gcp": {}
+    }
+  ],
+  "pubsub_topics": {
+    "encore-topic": {
+      "encore_name": "encore-topic",
+      "provider_id": 0,
+      "provider_name": "gcp-topic-name",
+      "subscriptions": {
+        "encore-subscription": {
+          "id": "test",
+          "encore_name": "encore-subscription",
+          "provider_name": "gcp-subscription-name",
+          "push_only": true,
+          "gcp": {
+            "project_id": "test",
+            "push_service_account": "test"
+          }
+        }
+      },
+      "gcp": {
+        "project_id": "my-project"
+      }
+    }
+  },
+  "redis_servers": [
+    {
+      "host": "my-redis-host",
+      "user": "encoreredis",
+      "enable_tls": true,
+      "server_ca_cert": "test",
+      "client_cert": "test",
+      "client_key": "test"
+    }
+  ],
+  "redis_databases": [
+    {
+      "server_id": 0,
+      "encore_name": "encoreredis",
+      "database": 5,
+      "min_connections": 10,
+      "max_connections": 10,
+      "key_prefix": "my-app:my-env:"
+    }
+  ],
+  "metrics": {
+    "prometheus": {
+      "RemoteWriteURL": "https://my-remote-write-url"
+    }
+  },
+  "gateways": [
+    {
+      "name": "api-gateway",
+      "host": ""
+    }
+  ],
+  "hosted_services": [
+    "my-service",
+    "my-service2"
+  ],
+  "service_discovery": {
+    "myservice": {
+      "name": "myservice",
+      "url": "https://my-service:8044",
+      "protocol": "http",
+      "service_auth": {
+        "method": "encore-auth"
+      }
+    },
+    "myservice2": {
+      "name": "myservice2",
+      "url": "https://my-service2:8044",
+      "protocol": "http",
+      "service_auth": {
+        "method": "encore-auth"
+      }
+    }
+  },
+  "service_auth": [
+    {
+      "method": "encore-auth"
+    }
+  ],
+  "shutdown_timeout": 0,
+  "graceful_shutdown": {
+    "total": 30000000000,
+    "shutdown_hooks": 10000000000,
+    "handlers": 20000000000
+  }
+}

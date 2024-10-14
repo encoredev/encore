@@ -22,7 +22,7 @@ type InfraConfig struct {
 	// set by the user. They're computed during the build/eject process.
 	HostedServices []string `json:"hosted_services,omitempty"`
 	HostedGateways []string `json:"hosted_gateways,omitempty"`
-	CORS           CORS     `json:"cors,omitempty"`
+	CORS           *CORS    `json:"cors,omitempty"`
 }
 
 type Metadata struct {
@@ -132,13 +132,13 @@ func (a *Auth) Validate(v *validator) {
 }
 
 type ServiceDiscovery struct {
-	BaseURL string `json:"base_url,omitempty"`
-	Auth    *Auth  `json:"auth,omitempty"`
+	BaseURL string  `json:"base_url,omitempty"`
+	Auth    []*Auth `json:"auth,omitempty"`
 }
 
 func (s *ServiceDiscovery) Validate(v *validator) {
 	v.ValidateField("base_url", NotZero(s.BaseURL))
-	v.ValidateChild("auth", s.Auth)
+	ValidateChildList(v, "auth", s.Auth)
 }
 
 // Main Metrics struct which embeds the different metric types.

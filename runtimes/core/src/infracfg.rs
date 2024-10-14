@@ -70,7 +70,7 @@ pub struct KeyAuth {
 pub struct ServiceDiscovery {
     pub base_url: String,
 
-    pub auth: Option<Auth>,
+    pub auth: Option<Vec<Auth>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -368,23 +368,24 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                 let svc_auth_methods = sd
                     .auth
                     .as_ref()
-                    .map(|auth| {
-                        let auth_method = match auth {
-                            Auth::Key(k) => {
-                                service_auth::AuthMethod::EncoreAuth(service_auth::EncoreAuth {
-                                    auth_keys: vec![pbruntime::EncoreAuthKey {
-                                        id: k.id as u32,
-                                        data: Some(map_env_string_to_secret_data(&k.key)),
-                                    }],
-                                })
-                            }
-                        };
-                        vec![pbruntime::ServiceAuth {
-                            auth_method: Some(auth_method),
-                        }]
+                    .map(|auths| {
+                        auths
+                            .iter()
+                            .map(|auth| match auth {
+                                Auth::Key(k) => pbruntime::ServiceAuth {
+                                    auth_method: Some(service_auth::AuthMethod::EncoreAuth(
+                                        service_auth::EncoreAuth {
+                                            auth_keys: vec![pbruntime::EncoreAuthKey {
+                                                id: k.id as u32,
+                                                data: Some(map_env_string_to_secret_data(&k.key)),
+                                            }],
+                                        },
+                                    )),
+                                },
+                            })
+                            .collect()
                     })
                     .unwrap_or(auth_methods.clone());
-
                 (
                     name.clone(),
                     service_discovery::Location {
@@ -921,5 +922,43 @@ fn map_env_string_to_secret_data(env_string: &EnvString) -> pbruntime::SecretDat
             source: Some(secret_data::Source::Env(env_ref.env.clone())),
             sub_path: None,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+    use serde_json;
+    use std::fs;
+
+    #[test]
+    fn test_map_infra_to_runtime() {
+        // Load and parse the infra.config.json fixture
+        let infra_json = fs::read_to_string(format!(
+            "{}/resources/test/infra.config.json",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .expect("Failed to read infra.config.json");
+        let infra_config: InfraConfig =
+            serde_json::from_str(&infra_json).expect("Failed to parse infra.config.json");
+
+        // Convert InfraConfig to Runtime
+        let runtime: RuntimeConfig = map_infra_to_runtime(infra_config);
+
+        // Load and parse the runtime.json fixture
+        let runtime_data = fs::read(format!(
+            "{}/resources/test/runtime.pb",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .expect("Failed to read runtime.json");
+        let expected_runtime =
+            RuntimeConfig::decode(runtime_data.as_slice()).expect("Failed to parse runtime.json");
+
+        // Compare the converted runtime with the expected runtime
+        assert_eq!(
+            runtime, expected_runtime,
+            "Converted runtime does not match expected runtime"
+        );
     }
 }
