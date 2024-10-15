@@ -365,7 +365,9 @@ impl ProxyHttp for Gateway {
                         desc.auth_user_id = Some(Cow::Owned(auth_uid));
                         desc.auth_data = Some(auth_data);
                     }
-                    auth::AuthResponse::Unauthenticated { error } => desc.auth_error = error,
+                    auth::AuthResponse::Unauthenticated { error } => {
+                        desc.auth_error = error.map(Cow::Owned)
+                    }
                 };
             }
 

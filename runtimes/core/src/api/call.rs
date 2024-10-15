@@ -274,8 +274,8 @@ impl ServiceRegistry {
                     .map(|id| Cow::Borrowed(id.as_str()))
             }),
             auth_error: source.and_then(|r| match &r.data {
-                model::RequestData::RPC(data) => data.auth_error.clone(),
-                model::RequestData::Stream(data) => data.auth_error.clone(),
+                model::RequestData::RPC(data) => data.auth_error.as_ref().map(Cow::Borrowed),
+                model::RequestData::Stream(data) => data.auth_error.as_ref().map(Cow::Borrowed),
                 model::RequestData::Auth(_) => None,
                 model::RequestData::PubSub(_) => None,
             }),
@@ -349,7 +349,7 @@ pub struct CallDesc<'a, AuthData> {
 
     pub auth_user_id: Option<Cow<'a, str>>,
     pub auth_data: Option<AuthData>,
-    pub auth_error: Option<api::Error>,
+    pub auth_error: Option<Cow<'a, api::Error>>,
 
     pub svc_auth_method: &'a dyn svcauth::ServiceAuthMethod,
 }
