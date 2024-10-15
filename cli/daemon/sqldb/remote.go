@@ -19,7 +19,7 @@ import (
 // OneshotProxy listens on a random port for a single connection, and proxies that connection to a remote db.
 // It reports the one-time password and port to use.
 // Once a connection has been established, it stops listening.
-func OneshotProxy(appSlug, envSlug string) (port int, passwd string, err error) {
+func OneshotProxy(appSlug, envSlug string, role RoleType) (port int, passwd string, err error) {
 	ln, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return 0, "", err
@@ -30,11 +30,11 @@ func OneshotProxy(appSlug, envSlug string) (port int, passwd string, err error) 
 	}
 	passwd = base64.RawURLEncoding.EncodeToString(passwdBytes[:])
 
-	go oneshotServer(context.Background(), ln, passwd, appSlug, envSlug)
+	go oneshotServer(context.Background(), ln, passwd, appSlug, envSlug, role)
 	return ln.Addr().(*net.TCPAddr).Port, passwd, nil
 }
 
-func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlug string) error {
+func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlug string, role RoleType) error {
 	proxy := &pgproxy.SingleBackendProxy{
 		RequirePassword: passwd != "",
 		FrontendTLS:     nil,
@@ -43,7 +43,7 @@ func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlu
 				return nil, fmt.Errorf("bad password")
 			}
 			startupData := startup.Raw.Encode(nil)
-			ws, err := platform.DBConnect(ctx, appSlug, envSlug, startup.Database, startupData)
+			ws, err := platform.DBConnect(ctx, appSlug, envSlug, startup.Database, role.String(), startupData)
 			if err != nil {
 				var e platform.Error
 				if errors.As(err, &e) && e.HTTPCode == 404 {

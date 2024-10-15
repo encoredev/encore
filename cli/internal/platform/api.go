@@ -136,8 +136,11 @@ func GetEnvMeta(ctx context.Context, appSlug, envName string) (*metav1.Data, err
 	return &md, nil
 }
 
-func DBConnect(ctx context.Context, appSlug, envSlug, dbName string, startupData []byte) (*websocket.Conn, error) {
+func DBConnect(ctx context.Context, appSlug, envSlug, dbName, role string, startupData []byte) (*websocket.Conn, error) {
 	path := escapef("/apps/%s/envs/%s/sqldb-connect/%s", appSlug, envSlug, dbName)
+	if role != "" {
+		path += "?role=" + url.QueryEscape(role)
+	}
 	return wsDial(ctx, path, true, map[string]string{
 		"X-Startup-Message": base64.StdEncoding.EncodeToString(startupData),
 	})
