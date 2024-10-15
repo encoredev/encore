@@ -243,8 +243,8 @@ enum DBRole {
   DB_ROLE_UNSPECIFIED = 0;
   DB_ROLE_SUPERUSER = 1;
   DB_ROLE_ADMIN = 2;
-  DB_ROLE_WRITER = 3;
-  DB_ROLE_READER = 4;
+  DB_ROLE_WRITE = 3;
+  DB_ROLE_READ = 4;
 }
 
 enum DBClusterType {

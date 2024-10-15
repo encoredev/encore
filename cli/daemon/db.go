@@ -23,14 +23,14 @@ import (
 
 func toRoleType(role daemonpb.DBRole) sqldb.RoleType {
 	switch role {
-	case daemonpb.DBRole_DB_ROLE_READER:
+	case daemonpb.DBRole_DB_ROLE_READ:
 		return sqldb.RoleRead
-	case daemonpb.DBRole_DB_ROLE_WRITER:
+	case daemonpb.DBRole_DB_ROLE_WRITE:
 		return sqldb.RoleWrite
 	case daemonpb.DBRole_DB_ROLE_ADMIN:
 		return sqldb.RoleAdmin
 	default:
-		return sqldb.RoleSuperuser
+		return sqldb.RoleRead
 	}
 
 }

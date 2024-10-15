@@ -15,7 +15,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/daemon/sqldb/docker"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -26,31 +25,25 @@ var dbCmd = &cobra.Command{
 }
 
 var (
-	resetAll bool
-	testDB   bool
-	shadowDB bool
-	role     = cmdutil.Oneof{
-		Value:   "reader",
-		Allowed: []string{"reader", "writer", "admin", "superuser"},
-		Flag:    "role",
-		Desc:    "The role to connect as",
-	}
-	nsName string
+	resetAll  bool
+	testDB    bool
+	shadowDB  bool
+	write     bool
+	admin     bool
+	superuser bool
+	nsName    string
 )
 
-func parseDBRole(role string) daemonpb.DBRole {
-	switch role {
-	case "reader":
-		return daemonpb.DBRole_DB_ROLE_READER
-	case "writer":
-		return daemonpb.DBRole_DB_ROLE_WRITER
-	case "admin":
-		return daemonpb.DBRole_DB_ROLE_ADMIN
-	case "superuser":
+func getDBRole() daemonpb.DBRole {
+	switch {
+	case superuser:
 		return daemonpb.DBRole_DB_ROLE_SUPERUSER
+	case admin:
+		return daemonpb.DBRole_DB_ROLE_ADMIN
+	case write:
+		return daemonpb.DBRole_DB_ROLE_WRITE
 	default:
-		fatal("invalid role: ", role)
-		return 0
+		return daemonpb.DBRole_DB_ROLE_READ
 	}
 }
 
@@ -142,7 +135,7 @@ when using tools like Prisma.
 			EnvName:     dbEnv,
 			ClusterType: dbClusterType(),
 			Namespace:   nonZeroPtr(nsName),
-			Role:        parseDBRole(role.Value),
+			Role:        getDBRole(),
 		})
 		if err != nil {
 			fatalf("could not connect to the database for service %s: %v", dbName, err)
@@ -223,7 +216,7 @@ when using tools like Prisma.
 			Port:        dbProxyPort,
 			ClusterType: dbClusterType(),
 			Namespace:   nonZeroPtr(nsName),
-			Role:        parseDBRole(role.Value),
+			Role:        getDBRole(),
 		})
 		if err != nil {
 			log.Fatal().Err(err).Msg("could not setup db proxy")
@@ -309,7 +302,10 @@ func init() {
 	dbShellCmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbShellCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbShellCmd.Flags().BoolVar(&shadowDB, "shadow", false, "Connect to the shadow database (implies --env=local)")
-	role.AddFlag(dbShellCmd)
+	dbShellCmd.Flags().BoolVar(&write, "write", false, "Connect with write privileges")
+	dbShellCmd.Flags().BoolVar(&admin, "admin", false, "Connect with admin privileges")
+	dbShellCmd.Flags().BoolVar(&superuser, "superuser", false, "Connect as a superuser")
+	dbShellCmd.MarkFlagsMutuallyExclusive("write", "admin", "superuser")
 	dbCmd.AddCommand(dbShellCmd)
 
 	dbProxyCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
@@ -317,7 +313,10 @@ func init() {
 	dbProxyCmd.Flags().Int32VarP(&dbProxyPort, "port", "p", 0, "Port to listen on (defaults to a random port)")
 	dbProxyCmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbProxyCmd.Flags().BoolVar(&shadowDB, "shadow", false, "Connect to the shadow database (implies --env=local)")
-	role.AddFlag(dbProxyCmd)
+	dbProxyCmd.Flags().BoolVar(&write, "write", false, "Connect with write privileges")
+	dbProxyCmd.Flags().BoolVar(&admin, "admin", false, "Connect with admin privileges")
+	dbProxyCmd.Flags().BoolVar(&superuser, "superuser", false, "Connect as a superuser")
+	dbProxyCmd.MarkFlagsMutuallyExclusive("write", "admin", "superuser")
 	dbCmd.AddCommand(dbProxyCmd)
 
 	dbConnURICmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
