@@ -235,6 +235,16 @@ message DBConnectRequest {
   // namespace is the infrastructure namespace to use.
   // If empty the active namespace is used.
   optional string namespace = 5;
+
+  DBRole role = 6;
+}
+
+enum DBRole {
+  DB_ROLE_UNSPECIFIED = 0;
+  DB_ROLE_SUPERUSER = 1;
+  DB_ROLE_ADMIN = 2;
+  DB_ROLE_WRITE = 3;
+  DB_ROLE_READ = 4;
 }
 
 enum DBClusterType {
@@ -257,6 +267,7 @@ message DBProxyRequest {
   // namespace is the infrastructure namespace to use.
   // If empty the active namespace is used.
   optional string namespace = 5;
+  DBRole role = 6;
 }
 
 message DBResetRequest {

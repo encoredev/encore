@@ -425,6 +425,8 @@ func (roles EncoreRoles) find(typ RoleType) (Role, bool) {
 
 type RoleType string
 
+func (r RoleType) String() string { return string(r) }
+
 const (
 	RoleSuperuser RoleType = "superuser"
 	RoleAdmin     RoleType = "admin"
