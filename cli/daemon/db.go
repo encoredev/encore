@@ -29,6 +29,8 @@ func toRoleType(role daemonpb.DBRole) sqldb.RoleType {
 		return sqldb.RoleWrite
 	case daemonpb.DBRole_DB_ROLE_ADMIN:
 		return sqldb.RoleAdmin
+	case daemonpb.DBRole_DB_ROLE_SUPERUSER:
+		return sqldb.RoleSuperuser
 	default:
 		return sqldb.RoleRead
 	}
