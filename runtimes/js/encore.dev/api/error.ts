@@ -3,6 +3,7 @@ export class APIError extends Error {
    * The error code.
    */
   public readonly code: ErrCode;
+  public details: object | undefined;
 
   // Constructs an APIError with the Canceled error code.
   static canceled(msg: string, cause?: Error) {
@@ -95,7 +96,7 @@ export class APIError extends Error {
     Object.defineProperty(this, "name", {
       value: "APIError",
       enumerable: false,
-      configurable: true,
+      configurable: true
     });
 
     // fix the prototype chain
@@ -304,5 +305,5 @@ export enum ErrCode {
    * authentication metadata is invalid or a Credentials callback fails,
    * but also expect authentication middleware to generate it.
    */
-  Unauthenticated = "unauthenticated",
+  Unauthenticated = "unauthenticated"
 }

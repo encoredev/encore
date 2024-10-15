@@ -102,8 +102,19 @@ impl PromiseHandler for APIPromiseHandler {
             code: api::ErrCode::Internal,
             message: api::ErrCode::Internal.default_public_message().into(),
             internal_message: Some("an unknown exception was thrown".into()),
+            details: None,
             stack: None,
         })?;
+
+        log::info!("extracting details api");
+        // Get the details field.
+        let details: Option<serde_json::Value> = obj
+            .get_named_property::<JsUnknown>("details")
+            .and_then(|val| val.coerce_to_object())
+            .and_then(|val| env.from_js_value(val))
+            .map(Some)
+            .unwrap_or(None);
+        log::info!("extracted details api, {:?}", details);
 
         // Get the message field.
         let mut message: String = obj
@@ -114,6 +125,7 @@ impl PromiseHandler for APIPromiseHandler {
                 code: api::ErrCode::Internal,
                 message: api::ErrCode::Internal.default_public_message().into(),
                 internal_message: Some("an unknown exception was thrown".into()),
+                details: None,
                 stack: None,
             })?;
 
@@ -146,6 +158,7 @@ impl PromiseHandler for APIPromiseHandler {
             message,
             stack,
             internal_message,
+            details,
         })
     }
 
@@ -155,6 +168,7 @@ impl PromiseHandler for APIPromiseHandler {
             message: api::ErrCode::Internal.default_public_message().into(),
             internal_message: Some(err.to_string()),
             stack: None,
+            details: None,
         })
     }
 }

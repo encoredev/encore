@@ -107,6 +107,7 @@ impl BoxedHandler for StaticAssetsHandler {
                         internal_message: None,
                         message: "method not allowed".to_string(),
                         stack: None,
+                        details: None,
                     })),
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR => {
                         ResponseData::Typed(Err(Error {
@@ -114,6 +115,7 @@ impl BoxedHandler for StaticAssetsHandler {
                             internal_message: None,
                             message: "failed to serve static asset".to_string(),
                             stack: None,
+                            details: None,
                         }))
                     }
                     code => ResponseData::Typed(Err(Error::internal(anyhow::anyhow!(

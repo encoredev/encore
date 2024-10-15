@@ -329,6 +329,7 @@ impl Manager {
                 message: "endpoint not found".to_string(),
                 internal_message: Some(format!("no such endpoint exists: {}", req.uri().path())),
                 stack: None,
+                details: None,
             }
             .into_response()
         }

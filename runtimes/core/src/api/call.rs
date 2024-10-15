@@ -154,6 +154,7 @@ impl ServiceRegistry {
                     endpoint_name.service()
                 )),
                 stack: None,
+                details: None,
             })?;
 
         let Some(endpoint) = self.endpoints.get(endpoint_name) else {
@@ -165,6 +166,7 @@ impl ServiceRegistry {
                     endpoint_name
                 )),
                 stack: None,
+                details: None,
             });
         };
 
@@ -180,6 +182,7 @@ impl ServiceRegistry {
                 endpoint_name
             )),
             stack: None,
+            details: None,
         })?;
 
         let mut req = self
@@ -207,6 +210,7 @@ impl ServiceRegistry {
                     message: "internal error".into(),
                     internal_message: Some("cannot make api calls to raw endpoints".to_string()),
                     stack: None,
+                    details: None,
                 });
             }
         }
@@ -239,6 +243,7 @@ impl ServiceRegistry {
                     endpoint.name.service()
                 )),
                 stack: None,
+                details: None,
             })?;
 
         let caller = match source {
@@ -328,6 +333,7 @@ where
                     message: body,
                     internal_message: None,
                     stack: None,
+                    details: None,
                 })
             }
         }

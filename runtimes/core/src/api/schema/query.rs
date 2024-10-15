@@ -85,6 +85,7 @@ impl ToOutgoingRequest for Query {
                 message: "missing query parameters".to_string(),
                 internal_message: Some("missing query parameters".to_string()),
                 stack: None,
+                details: None,
             });
         };
 
