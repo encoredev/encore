@@ -274,6 +274,7 @@ when using tools like Prisma.
 			EnvName:     dbEnv,
 			ClusterType: dbClusterType(),
 			Namespace:   nonZeroPtr(nsName),
+			Role:        getDBRole(),
 		})
 		if err != nil {
 			st, ok := status.FromError(err)
@@ -323,6 +324,10 @@ func init() {
 	dbConnURICmd.Flags().StringVarP(&dbEnv, "env", "e", "local", "Environment name to connect to (such as \"prod\")")
 	dbConnURICmd.Flags().BoolVarP(&testDB, "test", "t", false, "Connect to the integration test database (implies --env=local)")
 	dbConnURICmd.Flags().BoolVar(&shadowDB, "shadow", false, "Connect to the shadow database (implies --env=local)")
+	dbConnURICmd.Flags().BoolVar(&write, "write", false, "Connect with write privileges")
+	dbConnURICmd.Flags().BoolVar(&admin, "admin", false, "Connect with admin privileges")
+	dbConnURICmd.Flags().BoolVar(&superuser, "superuser", false, "Connect as a superuser")
+	dbConnURICmd.MarkFlagsMutuallyExclusive("write", "admin", "superuser")
 	dbCmd.AddCommand(dbConnURICmd)
 }
 
