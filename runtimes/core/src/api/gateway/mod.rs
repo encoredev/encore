@@ -137,22 +137,6 @@ impl Gateway {
 
         Ok(())
     }
-
-    async fn write_api_error(
-        &self,
-        session: &mut Session,
-        error: &api::Error,
-    ) -> pingora::Result<()> {
-        let (mut headers, body) = api_error_response(error);
-        self.inner
-            .cors_config
-            .apply(session.req_header(), &mut headers)?;
-        session
-            .write_response_header(Box::new(headers), false)
-            .await?;
-        session.write_response_body(Some(body), true).await?;
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -391,8 +375,7 @@ impl ProxyHttp for Gateway {
                     }
                     auth::AuthResponse::Unauthenticated { error } => {
                         if gateway_ctx.upstream_require_auth {
-                            self.write_api_error(session, &error).await?;
-                            return Ok(());
+                            return Err(error.into());
                         }
                     }
                 };
@@ -473,8 +456,15 @@ impl ProxyHttp for Gateway {
 }
 
 fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
-    if let Some(cause) = &err.cause {
-        cause.downcast_ref::<api::Error>()
+    if let Some(cause) = err.cause.as_ref() {
+        match cause.downcast_ref::<api::Error>() {
+            Some(e) => Some(e),
+            // For some reason the pingora errors are wrapped in pingora error
+            // so try to get to the inner pingora error
+            None => cause
+                .downcast_ref::<Box<pingora::Error>>()
+                .and_then(|e| as_api_error(e)),
+        }
     } else {
         None
     }
