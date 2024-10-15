@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	LEARN_MORE = aurora.Black("Learn More: https://encore.dev/docs/how-to/self-host").Italic().String()
+	LEARN_MORE = aurora.Italic("Learn More: https://encore.dev/docs/how-to/self-host").String()
 )
 
 // defaultInfraConfigPath is the path in the image where the environment configuration is mounted.
@@ -426,7 +426,7 @@ func configError(missing map[string][]string, validation map[infra.JSONPath]erro
 	var errorMsg strings.Builder
 
 	errorMsg.WriteString("\n")
-	errorMsg.WriteString(au.Black("\nYour infra configuration is incomplete\n").String())
+	errorMsg.WriteString(au.Red("\nYour infra configuration is incomplete\n").String())
 	errorMsg.WriteString("\n")
 
 	if len(missing) > 0 {
@@ -441,15 +441,15 @@ func configError(missing map[string][]string, validation map[infra.JSONPath]erro
 		for dataType, values := range missing {
 			paddedType := fmt.Sprintf("%-*s", maxTypeLen, dataType)
 			errorMsg.WriteString(fmt.Sprintf("  %s: %s\n",
-				au.Black(paddedType).Bold(),
-				au.Black(strings.Join(values, ", "))))
+				au.Bold(paddedType),
+				strings.Join(values, ", ")))
 		}
 		errorMsg.WriteString(" \n ")
 	}
 	if len(validation) > 0 {
 		errorMsg.WriteString(au.Red("Validation Errors:\n").String())
 		for dataType, err := range validation {
-			errorMsg.WriteString(fmt.Sprintf("  %s: %s\n", au.Black(dataType).Bold(), au.Black(err.Error())))
+			errorMsg.WriteString(fmt.Sprintf("  %s: %s\n", au.Bold(dataType), err.Error()))
 		}
 		errorMsg.WriteString(" \n ")
 	}
