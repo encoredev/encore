@@ -21,6 +21,20 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
+func toRoleType(role daemonpb.DBRole) sqldb.RoleType {
+	switch role {
+	case daemonpb.DBRole_DB_ROLE_READ:
+		return sqldb.RoleRead
+	case daemonpb.DBRole_DB_ROLE_WRITE:
+		return sqldb.RoleWrite
+	case daemonpb.DBRole_DB_ROLE_ADMIN:
+		return sqldb.RoleAdmin
+	default:
+		return sqldb.RoleRead
+	}
+
+}
+
 // DBConnect starts the database and returns the DSN for connecting to it.
 func (s *Server) DBConnect(ctx context.Context, req *daemonpb.DBConnectRequest) (*daemonpb.DBConnectResponse, error) {
 	if req.EnvName == "local" {
@@ -33,7 +47,7 @@ func (s *Server) DBConnect(ctx context.Context, req *daemonpb.DBConnectRequest) 
 	} else if appID == "" {
 		return nil, errNotLinked
 	}
-	port, passwd, err := sqldb.OneshotProxy(appID, req.EnvName)
+	port, passwd, err := sqldb.OneshotProxy(appID, req.EnvName, toRoleType(req.Role))
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +238,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			FrontendTLS:     nil,
 			DialBackend: func(ctx context.Context, startup *pgproxy.StartupData) (pgproxy.LogicalConn, error) {
 				startupData := startup.Raw.Encode(nil)
-				ws, err := platform.DBConnect(ctx, appID, params.EnvName, startup.Database, startupData)
+				ws, err := platform.DBConnect(ctx, appID, params.EnvName, startup.Database, toRoleType(params.Role).String(), startupData)
 				if err != nil {
 					return nil, err
 				}
