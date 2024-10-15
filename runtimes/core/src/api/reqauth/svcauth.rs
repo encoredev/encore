@@ -207,7 +207,7 @@ impl EncoreAuth {
                     // by things like load balancers.
                 }
 
-                XCorrelationId | Version | UserId | UserData | Caller | Callee | AuthError => {
+                XCorrelationId | Version | UserId | UserData | Caller | Callee => {
                     // Read all values for this key, and sort them.
                     let mut values = req.meta_values(key).collect::<Vec<_>>();
                     values.sort();

@@ -392,14 +392,9 @@ impl EndpointHandler {
         };
 
         // Extract caller information.
-        let (internal_caller, auth_user_id, auth_data, auth_error) = match meta.internal {
-            Some(internal) => (
-                Some(internal.caller),
-                internal.auth_uid,
-                internal.auth_data,
-                internal.auth_error,
-            ),
-            None => (None, None, None, None),
+        let (internal_caller, auth_user_id, auth_data) = match meta.internal {
+            Some(internal) => (Some(internal.caller), internal.auth_uid, internal.auth_data),
+            None => (None, None, None),
         };
 
         let trace_id = meta.trace_id;
@@ -424,7 +419,6 @@ impl EndpointHandler {
                 req_headers: parts.headers,
                 auth_user_id,
                 auth_data,
-                auth_error,
                 parsed_payload,
                 websocket_upgrade,
                 direction,
@@ -443,7 +437,6 @@ impl EndpointHandler {
                 req_headers: parts.headers,
                 auth_user_id,
                 auth_data,
-                auth_error,
                 parsed_payload,
             })
         };
@@ -484,8 +477,6 @@ impl EndpointHandler {
                     stack: None,
                 }
                 .into_response();
-            } else if self.endpoint.requires_auth && request.auth_error().is_some() {
-                return request.auth_error().unwrap().into_response();
             } else if self.endpoint.requires_auth && !request.has_authenticated_user() {
                 return Error {
                     code: ErrCode::Unauthenticated,
