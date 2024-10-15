@@ -65,6 +65,13 @@ func ConnectDaemon(ctx context.Context) daemonpb.DaemonClient {
 					} else if configHash == resp.ConfigHash {
 						return cl
 					}
+
+					// If we're running a development release, and so is the daemon, don't restart.
+					// This is to avoid spurious restarts during development.
+					if version.Channel == version.DevBuild && version.ChannelFor(resp.Version) == version.DevBuild {
+						return cl
+					}
+
 					// Daemon is running the same version but different config
 					fmt.Fprintf(os.Stderr, "encore: restarting daemon due to configuration change.\n")
 				case diff > 0:
