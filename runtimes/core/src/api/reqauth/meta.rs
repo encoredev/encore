@@ -13,6 +13,7 @@ pub enum MetaKey {
     SvcAuthMethod,
     SvcAuthEncoreAuthHash,
     SvcAuthEncoreAuthDate,
+    AuthError,
 }
 
 impl MetaKey {
@@ -25,6 +26,7 @@ impl MetaKey {
             Version => "x-encore-meta-version",
             UserId => "x-encore-meta-userid",
             UserData => "x-encore-meta-authdata",
+            AuthError => "x-encore-meta-autherror",
             Caller => "x-encore-meta-caller",
             Callee => "x-encore-meta-callee",
             SvcAuthMethod => "x-encore-meta-svc-auth-method",
@@ -48,6 +50,7 @@ impl FromStr for MetaKey {
             "x-encore-meta-version" => Version,
             "x-encore-meta-userid" => UserId,
             "x-encore-meta-authdata" => UserData,
+            "x-encore-meta-autherror" => AuthError,
             "x-encore-meta-caller" => Caller,
             "x-encore-meta-callee" => Callee,
             "x-encore-meta-svc-auth-method" => SvcAuthMethod,

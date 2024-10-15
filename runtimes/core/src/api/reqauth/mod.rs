@@ -82,6 +82,8 @@ pub struct InternalCallMeta {
     pub auth_uid: Option<String>,
     /// The user data, if any.
     pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
+    /// Error from the auth handler, if any.
+    pub auth_error: Option<api::Error>,
 }
 
 impl CallMeta {
@@ -142,6 +144,11 @@ impl CallMeta {
                             .map(serde_json::from_str)
                             .transpose()
                             .context("invalid auth data")?,
+                        auth_error: headers
+                            .get_meta(MetaKey::AuthError)
+                            .map(serde_json::from_str)
+                            .transpose()
+                            .context("invalid auth error")?,
                     });
                 };
             }

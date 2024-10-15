@@ -162,6 +162,15 @@ impl Request {
         }
     }
 
+    pub fn auth_error(&self) -> Option<&api::Error> {
+        match &self.data {
+            RequestData::RPC(data) => data.auth_error.as_ref(),
+            RequestData::Stream(data) => data.auth_error.as_ref(),
+            RequestData::Auth(_) => None,
+            RequestData::PubSub(_) => None,
+        }
+    }
+
     pub fn has_authenticated_user(&self) -> bool {
         match &self.data {
             RequestData::RPC(data) => data.auth_user_id.is_some(),
@@ -222,6 +231,9 @@ pub struct StreamRequestData {
     /// The user data for the authenticated user, if any.
     pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
 
+    /// Error if the auth handler returned one
+    pub auth_error: Option<api::Error>,
+
     /// The parsed application payload.
     pub parsed_payload: Option<api::RequestPayload>,
 
@@ -252,6 +264,9 @@ pub struct RPCRequestData {
 
     /// The user data for the authenticated user, if any.
     pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
+
+    /// Error if the auth handler returned one
+    pub auth_error: Option<api::Error>,
 
     /// The parsed application payload.
     pub parsed_payload: Option<api::RequestPayload>,

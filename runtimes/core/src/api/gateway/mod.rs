@@ -347,6 +347,7 @@ impl ProxyHttp for Gateway {
                     .map(|s| Cow::Borrowed(s.as_str())),
                 auth_user_id: None,
                 auth_data: None,
+                auth_error: None,
                 svc_auth_method: svc_auth_method.as_ref(),
             };
 
@@ -356,14 +357,16 @@ impl ProxyHttp for Gateway {
                     .await
                     .or_err(ErrorType::InternalError, "couldn't authenticate request")?;
 
-                if let auth::AuthResponse::Authenticated {
-                    auth_uid,
-                    auth_data,
-                } = auth_response
-                {
-                    desc.auth_user_id = Some(Cow::Owned(auth_uid));
-                    desc.auth_data = Some(auth_data);
-                }
+                match auth_response {
+                    auth::AuthResponse::Authenticated {
+                        auth_uid,
+                        auth_data,
+                    } => {
+                        desc.auth_user_id = Some(Cow::Owned(auth_uid));
+                        desc.auth_data = Some(auth_data);
+                    }
+                    auth::AuthResponse::Unauthenticated { error } => desc.auth_error = error,
+                };
             }
 
             desc.add_meta(upstream_request)

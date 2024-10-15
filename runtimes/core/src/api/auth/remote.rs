@@ -85,6 +85,7 @@ impl RemoteAuthHandler {
                 .map(|s| Cow::Borrowed(s.as_str())),
             auth_user_id: None,
             auth_data: None,
+            auth_error: None,
             svc_auth_method: self.svc_auth_method.as_ref(),
         };
 
@@ -112,13 +113,13 @@ impl RemoteAuthHandler {
                         auth_data: data,
                     })
                 } else {
-                    Ok(AuthResponse::Unauthenticated)
+                    Ok(AuthResponse::Unauthenticated { error: None })
                 }
             }
 
             // Map the unauthenticated error code to the unauthenticated result.
             Err(err) if err.code == api::ErrCode::Unauthenticated => {
-                Ok(AuthResponse::Unauthenticated)
+                Ok(AuthResponse::Unauthenticated { error: Some(err) })
             }
 
             Err(err) => Err(err),
