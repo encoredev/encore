@@ -99,7 +99,8 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		ParseTests:  false,
 	})
 	if err != nil {
-		tracker.Fail(parseOp, err)
+		// Don't use the error itself in tracker.Fail, as it will lead to duplicate error output.
+		tracker.Fail(parseOp, errors.New("parse error"))
 		return err
 	}
 	if err := p.App.CacheMetadata(parse.Meta); err != nil {
