@@ -54,6 +54,15 @@ impl Error {
             stack: None,
         }
     }
+
+    pub fn unauthenticated() -> Self {
+        Self {
+            code: ErrCode::Unauthenticated,
+            message: ErrCode::Unauthenticated.default_public_message().into(),
+            internal_message: None,
+            stack: None,
+        }
+    }
 }
 
 impl From<WebSocketUpgradeRejection> for Error {

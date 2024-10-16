@@ -48,7 +48,10 @@ impl Router {
                         ::log::error!(method = method.as_str(), path = path; "tried to register same route twice, skipping");
                         continue;
                     }
-                    dst.replace(service.clone());
+                    dst.replace(Target {
+                        service_name: service.clone(),
+                        requires_auth: endpoint.requires_auth,
+                    });
                 }
             }
 
@@ -79,7 +82,7 @@ impl Router {
         &self,
         method: api::schema::Method,
         path: &str,
-    ) -> Result<&EncoreName, api::Error> {
+    ) -> Result<&Target, api::Error> {
         let mut found_path_match = false;
         for router in [&self.main, &self.fallback] {
             if let Ok(service) = router.at(path) {
@@ -110,20 +113,26 @@ impl Router {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Target {
+    pub service_name: EncoreName,
+    pub requires_auth: bool,
+}
+
 #[derive(Clone, Default)]
 pub struct MethodRoute {
-    get: Option<EncoreName>,
-    head: Option<EncoreName>,
-    post: Option<EncoreName>,
-    put: Option<EncoreName>,
-    delete: Option<EncoreName>,
-    option: Option<EncoreName>,
-    trace: Option<EncoreName>,
-    patch: Option<EncoreName>,
+    get: Option<Target>,
+    head: Option<Target>,
+    post: Option<Target>,
+    put: Option<Target>,
+    delete: Option<Target>,
+    option: Option<Target>,
+    trace: Option<Target>,
+    patch: Option<Target>,
 }
 
 impl MethodRoute {
-    fn for_method(&self, method: api::schema::Method) -> Option<&EncoreName> {
+    fn for_method(&self, method: api::schema::Method) -> Option<&Target> {
         match method {
             Method::GET => self.get.as_ref(),
             Method::HEAD => self.head.as_ref(),

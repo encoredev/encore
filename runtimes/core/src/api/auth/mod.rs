@@ -28,7 +28,9 @@ pub enum AuthResponse {
         auth_uid: String,
         auth_data: serde_json::Map<String, serde_json::Value>,
     },
-    Unauthenticated,
+    Unauthenticated {
+        error: api::Error,
+    },
 }
 
 /// A trait for handlers that accept auth parameters and return an auth result.
@@ -86,7 +88,9 @@ impl Authenticator {
         meta: CallMeta,
     ) -> APIResult<AuthResponse> {
         if !self.contains_auth_params(req) {
-            return Ok(AuthResponse::Unauthenticated);
+            return Ok(AuthResponse::Unauthenticated {
+                error: api::Error::unauthenticated(),
+            });
         }
 
         let auth_req = self.build_auth_request(req, meta);
@@ -96,8 +100,8 @@ impl Authenticator {
         };
         match resp {
             Ok(resp) => Ok(resp),
-            Err(err) if err.code == api::ErrCode::Unauthenticated => {
-                Ok(AuthResponse::Unauthenticated)
+            Err(error) if error.code == api::ErrCode::Unauthenticated => {
+                Ok(AuthResponse::Unauthenticated { error })
             }
             Err(err) => Err(err),
         }
