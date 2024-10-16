@@ -456,19 +456,7 @@ impl ProxyHttp for Gateway {
 }
 
 fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
-    if let Some(cause) = err.cause.as_ref() {
-        match cause.downcast_ref::<api::Error>() {
-            Some(e) => Some(e),
-            // Sometimes pingora errors will be wrapped in pingora errors
-            // e.g the `error_while_proxy`-filter adds context to errors
-            // so try to get to the inner pingora error
-            None => cause
-                .downcast_ref::<Box<pingora::Error>>()
-                .and_then(|e| as_api_error(e)),
-        }
-    } else {
-        None
-    }
+    err.root_cause().downcast_ref::<api::Error>()
 }
 
 fn api_error_response(err: &api::Error) -> (ResponseHeader, bytes::Bytes) {
