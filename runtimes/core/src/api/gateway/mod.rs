@@ -459,7 +459,8 @@ fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
     if let Some(cause) = err.cause.as_ref() {
         match cause.downcast_ref::<api::Error>() {
             Some(e) => Some(e),
-            // For some reason the pingora errors are wrapped in pingora error
+            // Sometimes pingora errors will be wrapped in pingora errors
+            // e.g the `error_while_proxy`-filter adds context to errors
             // so try to get to the inner pingora error
             None => cause
                 .downcast_ref::<Box<pingora::Error>>()
