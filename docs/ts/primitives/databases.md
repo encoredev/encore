@@ -162,15 +162,16 @@ See exactly what is provisioned for each cloud provider, and each environment ty
 
 ## Connecting to databases
 
-It's often useful to be able to connect to the database from outside the backend application.
-For example for scripts, ad-hoc querying, or dumping data for analysis.
+It's often useful to be able to connect to the database from outside the backend application. For example for scripts, ad-hoc querying, or dumping data for analysis.
+
+Currently Encore does not expose user credentials for databases in the local environment or for environments on Encore Cloud. You can use a connection string to connect instead, see below.
 
 ### Using the Encore CLI
 
 Encore's CLI comes with built-in support for connecting to databases:
 
 * `encore db shell <database-name> [--env=<name>]` opens a [psql](https://www.postgresql.org/docs/current/app-psql.html)
-  shell to the database named `<database-name>` in the given environment. Leaving out `--env` defaults to the local development environment.
+  shell to the database named `<database-name>` in the given environment. Leaving out `--env` defaults to the local development environment. `encore db shell` defaults to read-only permissions. Use `--write`, `--admin` and `--superuser` flags to modify which permissions you connect with.
 
 * `encore db conn-uri <database-name> [--env=<name>]` outputs a connection string for the database named `<database-name>`.
   When specifying a cloud environment, the connection string is temporary. Leaving out `--env` defaults to the local development environment.
@@ -183,7 +184,7 @@ See `encore help db` for more information on database management commands.
 
 ### Using database user credentials
 
-For cloud environments you can view database user credentials (created by Encore when provisioning databases) via the Cloud Dashboard:
+For cloud environments on AWS/GCP you can view database user credentials (created by Encore when provisioning databases) via the Cloud Dashboard:
 
 * Open your app in the [Cloud Dashboard](https://app.encore.dev), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
 
