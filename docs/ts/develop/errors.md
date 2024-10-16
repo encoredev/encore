@@ -19,6 +19,7 @@ It looks like this:
 {
     "code": "not_found",
     "message": "sprocket not found",
+    "details": null
 }
 ```
 
@@ -60,4 +61,9 @@ The table below summarizes the error codes.
 | `Unavailable`         | `"unavailable"`         | 503 Unavailable           |
 | `DataLoss`            | `"data_loss"`           | 500 Internal Server Error |
 | `Unauthenticated`     | `"unauthenticated"`     | 401 Unauthorized          |
+
+
+## Additional details
+
+To attach additional structured details to errors, use the `withDetails` method on an `APIError`. The details will be returned with the error to external clients.
 
