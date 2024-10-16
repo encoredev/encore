@@ -306,6 +306,7 @@ impl SocketSchema {
                 message: "invalid streaming body type in schema".to_string(),
                 internal_message: None,
                 stack: None,
+                details: None,
             });
         };
 
@@ -317,6 +318,7 @@ impl SocketSchema {
                 message: "missing payload".to_string(),
                 internal_message: None,
                 stack: None,
+                details: None,
             })?;
 
         Ok(value)

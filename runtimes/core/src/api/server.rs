@@ -58,6 +58,7 @@ impl Server {
                 message: "endpoint not found".to_string(),
                 internal_message: Some(format!("no such endpoint exists: {}", req.uri().path())),
                 stack: None,
+                details: None,
             }
             .into_response()
         }
@@ -253,6 +254,7 @@ where
                     message: "endpoint not found".to_string(),
                     internal_message: Some("no handler registered for endpoint".to_string()),
                     stack: None,
+                    details: None,
                 }
                 .into_response();
                 std::task::Poll::Ready(resp)

@@ -137,6 +137,7 @@ impl Inner {
                     message: "no handler registered for subscription".to_string(),
                     internal_message: None,
                     stack: None,
+                    details: None,
                 });
             };
             handler

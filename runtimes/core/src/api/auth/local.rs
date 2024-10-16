@@ -119,6 +119,7 @@ impl AuthHandler for LocalAuthHandler {
                                     "auth handler did not return a userID field".to_string(),
                                 ),
                                 stack: None,
+                                details: None,
                             }),
                         }
                     }
@@ -127,6 +128,7 @@ impl AuthHandler for LocalAuthHandler {
                         message: "unauthenticated".to_string(),
                         internal_message: Some("auth handler returned null".to_string()),
                         stack: None,
+                        details: None,
                     }),
                     Err(e) => Err(e),
                 };
