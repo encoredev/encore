@@ -114,7 +114,7 @@ export class APIError extends Error {
   }
 }
 
-export interface ErrDetails {}
+export type ErrDetails = object;
 
 export enum ErrCode {
   /**
