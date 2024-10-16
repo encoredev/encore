@@ -14,6 +14,8 @@ In the section for the relevant **Database Cluster**, you will find a **Users** 
 Note that databases hosted in [Encore Cloud](/docs/deploy/infra#encore-cloud) currently do not expose usernames and passwords.
 To connect to an Encore Cloud-hosted database, use [`encore db shell`](https://encore.dev/docs/primitives/databases#connecting-to-databases).
 
+`encore db shell` defaults to read-only permissions. Use `--write`, `--admin` and `--superuser` flags to modify which permissions you connect with.
+
 <img src="/assets/docs/db-user.png" title="View Database User Credentials"/>
 
 <Callout type="important">
