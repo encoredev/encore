@@ -3,7 +3,7 @@ export class APIError extends Error {
    * The error code.
    */
   public readonly code: ErrCode;
-  public readonly details?: ErrDetails;
+  public details?: ErrDetails;
 
   // Constructs an APIError with the Canceled error code.
   static canceled(msg: string, cause?: Error) {
@@ -85,6 +85,12 @@ export class APIError extends Error {
     return new APIError(ErrCode.Unauthenticated, msg, cause);
   }
 
+  // Adds custom details to an error
+  withDetails(details: ErrDetails): APIError {
+    this.details = details;
+    return this;
+  }
+
   // Constructs an APIError with the given error code, message, and (optionally) cause.
   constructor(code: ErrCode, msg: string, cause?: Error, details?: ErrDetails) {
     // extending errors causes issues after you construct them, unless you apply the following fixes
@@ -114,7 +120,7 @@ export class APIError extends Error {
   }
 }
 
-export type ErrDetails = object;
+export type ErrDetails = Record<string, any>;
 
 export enum ErrCode {
   /**

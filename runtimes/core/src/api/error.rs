@@ -65,6 +65,7 @@ impl Error {
             message: ErrCode::Unauthenticated.default_public_message().into(),
             internal_message: None,
             stack: None,
+            details: None,
         }
     }
 }
