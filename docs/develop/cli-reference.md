@@ -139,6 +139,8 @@ Defaults to connecting to your local environment. Specify --env to connect to an
 $ encore db shell <database-name> [--env=<name>]
 ```
 
+`encore db shell` defaults to read-only permissions. Use `--write`, `--admin` and `--superuser` flags to modify which permissions you connect with.
+
 #### Connection URI
 
 Outputs a database connection string for `<database-name>`. Defaults to connecting to your local environment. Specify --env to connect to another environment.
