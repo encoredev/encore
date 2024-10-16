@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
 pub mod api;
+mod error;
 mod gateway;
 mod log;
 mod meta;

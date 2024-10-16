@@ -3,7 +3,7 @@ export class APIError extends Error {
    * The error code.
    */
   public readonly code: ErrCode;
-  public details: object | undefined;
+  public readonly details?: ErrDetails;
 
   // Constructs an APIError with the Canceled error code.
   static canceled(msg: string, cause?: Error) {
@@ -86,10 +86,11 @@ export class APIError extends Error {
   }
 
   // Constructs an APIError with the given error code, message, and (optionally) cause.
-  constructor(code: ErrCode, msg: string, cause?: Error) {
+  constructor(code: ErrCode, msg: string, cause?: Error, details?: ErrDetails) {
     // extending errors causes issues after you construct them, unless you apply the following fixes
     super(msg, { cause });
     this.code = code;
+    this.details = details;
 
     // set error name as constructor name, make it not enumerable to keep native Error behavior
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target#new.target_in_constructors
@@ -112,6 +113,8 @@ export class APIError extends Error {
     }
   }
 }
+
+export interface ErrDetails {}
 
 export enum ErrCode {
   /**

@@ -12,7 +12,7 @@ pub struct Error {
     pub code: ErrCode,
     pub message: String,
     pub internal_message: Option<String>,
-    pub details: Option<serde_json::Value>,
+    pub details: Option<serde_json::Map<String, serde_json::Value>>,
 
     #[serde(skip_serializing)]
     pub stack: Option<StackTrace>,
