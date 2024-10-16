@@ -112,13 +112,15 @@ impl RemoteAuthHandler {
                         auth_data: data,
                     })
                 } else {
-                    Ok(AuthResponse::Unauthenticated)
+                    Ok(AuthResponse::Unauthenticated {
+                        error: api::Error::unauthenticated(),
+                    })
                 }
             }
 
             // Map the unauthenticated error code to the unauthenticated result.
-            Err(err) if err.code == api::ErrCode::Unauthenticated => {
-                Ok(AuthResponse::Unauthenticated)
+            Err(error) if error.code == api::ErrCode::Unauthenticated => {
+                Ok(AuthResponse::Unauthenticated { error })
             }
 
             Err(err) => Err(err),

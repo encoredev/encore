@@ -17,6 +17,7 @@ use pingora::server::configuration::{Opt, ServerConf};
 use pingora::services::Service;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::{Error, ErrorSource, ErrorType, OkOrErr, OrErr};
+use router::Target;
 use tokio::sync::watch;
 use url::Url;
 
@@ -49,6 +50,7 @@ pub struct GatewayCtx {
     upstream_service_name: EncoreName,
     upstream_base_path: String,
     upstream_host: Option<String>,
+    upstream_require_auth: bool,
 }
 
 impl GatewayCtx {
@@ -199,14 +201,18 @@ impl ProxyHttp for Gateway {
         // Check if this is a pubsub push request and if we need to proxy it to another service
         let push_proxy_svc = path
             .strip_prefix("/__encore/pubsub/push/")
-            .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id));
+            .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
+            .map(|svc| Target {
+                service_name: svc.clone(),
+                requires_auth: false,
+            });
 
         if let Some(own_api_addr) = &self.inner.own_api_address {
             if push_proxy_svc.is_none() && path.starts_with("/__encore/") {
                 return Ok(Box::new(HttpPeer::new(own_api_addr, false, "".to_string())));
             }
         }
-        let service_name = push_proxy_svc
+        let target = push_proxy_svc
             .map_or_else(
                 || {
                     // Find which service handles the path route
@@ -222,14 +228,16 @@ impl ProxyHttp for Gateway {
                                 .route_to_service(method, path)
                                 .context("couldn't find upstream")
                         })
+                        .cloned()
                 },
                 Ok,
             )
             .or_err(ErrorType::InternalError, "couldn't find upstream")?;
+
         let upstream = self
             .inner
             .service_registry
-            .service_base_url(service_name)
+            .service_base_url(&target.service_name)
             .or_err(ErrorType::InternalError, "couldn't find upstream")?;
 
         let upstream_url: Url = upstream
@@ -259,7 +267,8 @@ impl ProxyHttp for Gateway {
         ctx.replace(GatewayCtx {
             upstream_base_path: upstream_url.path().to_string(),
             upstream_host: host,
-            upstream_service_name: service_name.clone(),
+            upstream_service_name: target.service_name.clone(),
+            upstream_require_auth: target.requires_auth,
         });
 
         Ok(Box::new(peer))
@@ -356,14 +365,20 @@ impl ProxyHttp for Gateway {
                     .await
                     .or_err(ErrorType::InternalError, "couldn't authenticate request")?;
 
-                if let auth::AuthResponse::Authenticated {
-                    auth_uid,
-                    auth_data,
-                } = auth_response
-                {
-                    desc.auth_user_id = Some(Cow::Owned(auth_uid));
-                    desc.auth_data = Some(auth_data);
-                }
+                match auth_response {
+                    auth::AuthResponse::Authenticated {
+                        auth_uid,
+                        auth_data,
+                    } => {
+                        desc.auth_user_id = Some(Cow::Owned(auth_uid));
+                        desc.auth_data = Some(auth_data);
+                    }
+                    auth::AuthResponse::Unauthenticated { error } => {
+                        if gateway_ctx.upstream_require_auth {
+                            return Err(error.into());
+                        }
+                    }
+                };
             }
 
             desc.add_meta(upstream_request)
@@ -441,11 +456,7 @@ impl ProxyHttp for Gateway {
 }
 
 fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
-    if let Some(cause) = &err.cause {
-        cause.downcast_ref::<api::Error>()
-    } else {
-        None
-    }
+    err.root_cause().downcast_ref::<api::Error>()
 }
 
 fn api_error_response(err: &api::Error) -> (ResponseHeader, bytes::Bytes) {
