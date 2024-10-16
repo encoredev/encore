@@ -3,7 +3,7 @@ export class APIError extends Error {
    * The error code.
    */
   public readonly code: ErrCode;
-  public details?: ErrDetails;
+  public readonly details?: ErrDetails;
 
   // Constructs an APIError with the Canceled error code.
   static canceled(msg: string, cause?: Error) {
@@ -85,10 +85,9 @@ export class APIError extends Error {
     return new APIError(ErrCode.Unauthenticated, msg, cause);
   }
 
-  // Adds custom details to an error
+  // Constructs a new APIError from the previous one with the provided details
   withDetails(details: ErrDetails): APIError {
-    this.details = details;
-    return this;
+    return new APIError(this.code, this.message, this.cause as Error, details);
   }
 
   // Constructs an APIError with the given error code, message, and (optionally) cause.
