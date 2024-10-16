@@ -19,6 +19,7 @@ macro_rules! header_to_str {
             message: "invalid header value".to_string(),
             internal_message: Some(format!("invalid header value: {}", err)),
             stack: None,
+            details: None,
         })
     };
 }
@@ -43,6 +44,7 @@ where
                         message: format!("missing required header: {}", header_name),
                         internal_message: None,
                         stack: None,
+                        details: None,
                     });
                 }
             };
@@ -130,6 +132,7 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
                         message: "invalid header value".to_string(),
                         internal_message: Some(format!("invalid float value: {}", header)),
                         stack: None,
+                        details: None,
                     })
                 }
             }
@@ -139,6 +142,7 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
                 message: "invalid header value".to_string(),
                 internal_message: Some(format!("expected {}, got {}", want.expecting(), header)),
                 stack: None,
+                details: None,
             }),
         },
 
@@ -162,6 +166,7 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
                 message: "invalid header value".to_string(),
                 internal_message: Some(format!("no union value matched: {}", header)),
                 stack: None,
+                details: None,
             })
         }
     }
@@ -224,6 +229,7 @@ fn parse_json_value(
                     message: "invalid value".to_string(),
                     internal_message: Some(format!("expected {}, got {:#?}", lit.expecting(), got)),
                     stack: None,
+                    details: None,
                 })
             };
 
@@ -326,6 +332,7 @@ fn parse_json_value(
                 message: "invalid value".to_string(),
                 internal_message: Some(format!("no union type matched: {}", describe_json(&this),)),
                 stack: None,
+                details: None,
             })
         }
     }
@@ -341,6 +348,7 @@ fn unexpected_json(reg: &Registry, schema: &Value, value: &JSON) -> APIResult<JS
             describe_json(value),
         )),
         stack: None,
+        details: None,
     })
 }
 
@@ -353,6 +361,7 @@ fn unsupported<T>(reg: &Registry, schema: &Value) -> APIResult<T> {
             schema.expecting(reg),
         )),
         stack: None,
+        details: None,
     })
 }
 
@@ -392,6 +401,7 @@ fn parse_basic_json(
                     message: format!("invalid boolean value: {}", str),
                     internal_message: None,
                     stack: None,
+                    details: None,
                 }),
             },
             Basic::Number => serde_json::Number::from_str(str)
@@ -401,6 +411,7 @@ fn parse_basic_json(
                     message: format!("invalid number value: {}", str),
                     internal_message: None,
                     stack: None,
+                    details: None,
                 }),
             Basic::Null if str == "null" => Ok(JSON::Null),
 
@@ -425,6 +436,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
                 message: format!("invalid boolean value: {}", str),
                 internal_message: None,
                 stack: None,
+                details: None,
             }),
         },
 
@@ -435,6 +447,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
                 message: format!("invalid number value: {}", str),
                 internal_message: None,
                 stack: None,
+                details: None,
             }),
 
         _ => Err(api::Error {
@@ -442,6 +455,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
             message: "invalid value".to_string(),
             internal_message: Some(format!("expected {}, got {:#?}", basic.expecting(), str)),
             stack: None,
+            details: None,
         }),
     }
 }

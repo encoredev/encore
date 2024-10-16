@@ -53,6 +53,7 @@ impl ToOutgoingRequest for Body {
                 message: "missing body payload".to_string(),
                 internal_message: None,
                 stack: None,
+                details: None,
             });
         };
 
@@ -76,6 +77,7 @@ impl Body {
                 message: "missing body payload".to_string(),
                 internal_message: None,
                 stack: None,
+                details: None,
             });
         };
 

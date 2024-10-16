@@ -173,6 +173,7 @@ impl ToOutgoingRequest for Header {
                 message: "missing query parameters".to_string(),
                 internal_message: Some("missing query parameters".to_string()),
                 stack: None,
+                details: None,
             });
         };
 
@@ -219,6 +220,7 @@ impl ToResponse for Header {
                 message: "missing query parameters".to_string(),
                 internal_message: Some("missing query parameters".to_string()),
                 stack: None,
+                details: None,
             });
         };
 
@@ -267,6 +269,7 @@ fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeader
             message: "unable to convert string to header value".to_string(),
             internal_message: Some(format!("unable to convert string to header value: {}", e)),
             stack: None,
+            details: None,
         })?,
 
         Number(num) => {
@@ -276,6 +279,7 @@ fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeader
                 message: "unable to convert number to header value".to_string(),
                 internal_message: Some(format!("unable to convert number to header value: {}", e)),
                 stack: None,
+                details: None,
             })?
         }
 
@@ -290,6 +294,7 @@ fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeader
                             message: "nested array type unsupported as header value".into(),
                             internal_message: None,
                             stack: None,
+                            details: None,
                         })
                     }
                 }
@@ -303,6 +308,7 @@ fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeader
                 message: "map type unsupported as header value".into(),
                 internal_message: None,
                 stack: None,
+                details: None,
             })
         }
     }))
@@ -326,6 +332,7 @@ fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
             message: "unable to convert string to header value".to_string(),
             internal_message: Some(format!("unable to convert string to header value: {}", e)),
             stack: None,
+            details: None,
         })?,
 
         Number(num) => {
@@ -335,6 +342,7 @@ fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
                 message: "unable to convert number to header value".to_string(),
                 internal_message: Some(format!("unable to convert number to header value: {}", e)),
                 stack: None,
+                details: None,
             })?
         }
 
@@ -349,6 +357,7 @@ fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
                             message: "nested array type unsupported as header value".into(),
                             internal_message: None,
                             stack: None,
+                            details: None,
                         })
                     }
                 }
@@ -362,6 +371,7 @@ fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
                 message: "map type unsupported as header value".into(),
                 internal_message: None,
                 stack: None,
+                details: None,
             })
         }
     }))

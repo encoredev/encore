@@ -12,6 +12,7 @@ pub struct Error {
     pub code: ErrCode,
     pub message: String,
     pub internal_message: Option<String>,
+    pub details: Option<serde_json::Map<String, serde_json::Value>>,
 
     #[serde(skip_serializing)]
     pub stack: Option<StackTrace>,
@@ -27,6 +28,7 @@ impl Error {
             message: ErrCode::Internal.default_public_message().into(),
             internal_message: Some(format!("{:#?}", cause.into())),
             stack: None,
+            details: None,
         }
     }
 
@@ -40,6 +42,7 @@ impl Error {
             message: public_msg.into(),
             internal_message: Some(format!("{:#?}", cause.into())),
             stack: None,
+            details: None,
         }
     }
 
@@ -52,6 +55,7 @@ impl Error {
             message: public_msg.into(),
             internal_message: None,
             stack: None,
+            details: None,
         }
     }
 
@@ -61,6 +65,7 @@ impl Error {
             message: ErrCode::Unauthenticated.default_public_message().into(),
             internal_message: None,
             stack: None,
+            details: None,
         }
     }
 }
@@ -72,6 +77,7 @@ impl From<WebSocketUpgradeRejection> for Error {
             message: value.body_text(),
             internal_message: Some(value.body_text()),
             stack: None,
+            details: None,
         }
     }
 }

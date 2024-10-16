@@ -475,6 +475,7 @@ impl EndpointHandler {
                     message: "endpoint not found".into(),
                     internal_message: Some("the endpoint was found, but is not exposed".into()),
                     stack: None,
+                    details: None,
                 }
                 .into_response();
             } else if self.endpoint.requires_auth && !request.has_authenticated_user() {
@@ -483,6 +484,7 @@ impl EndpointHandler {
                     message: "endpoint requires auth but none provided".into(),
                     internal_message: None,
                     stack: None,
+                    details: None,
                 }
                 .into_response();
             }

@@ -139,6 +139,7 @@ impl Path {
                                 &name
                             )),
                             stack: None,
+                            details: None,
                         });
                     };
 
@@ -152,6 +153,7 @@ impl Path {
                                 &name
                             )),
                             stack: None,
+                            details: None,
                         });
                     };
 
@@ -178,6 +180,7 @@ impl Path {
                                     &name
                                 )),
                                 stack: None,
+                                details: None,
                             })
                         }
                     }
@@ -205,6 +208,7 @@ impl Path {
             message: "unable to parse path params".into(),
             internal_message: Some("polling path params returned pending".into()),
             stack: None,
+            details: None,
         })?;
 
         match result {
@@ -227,6 +231,7 @@ impl Path {
                                         message: "path parameter is not a valid number".into(),
                                         internal_message: Some(err.to_string()),
                                         stack: None,
+                                        details: None,
                                     })?;
                                 serde_json::Value::Number(val)
                             }
@@ -237,6 +242,7 @@ impl Path {
                                         message: "path parameter is not a valid boolean".into(),
                                         internal_message: Some(err.to_string()),
                                         stack: None,
+                                        details: None,
                                     }
                                 })?;
                                 serde_json::Value::Bool(val)
@@ -258,18 +264,21 @@ impl Path {
                     message: "unable to parse path params".into(),
                     internal_message: Some(err.to_string()),
                     stack: None,
+                    details: None,
                 },
                 PathRejection::MissingPathParams(err) => api::Error {
                     code: api::ErrCode::InvalidArgument,
                     message: "missing path params".into(),
                     internal_message: Some(err.to_string()),
                     stack: None,
+                    details: None,
                 },
                 err => api::Error {
                     code: api::ErrCode::Internal,
                     message: "unable to parse path params".into(),
                     internal_message: Some(err.to_string()),
                     stack: None,
+                    details: None,
                 },
             }),
         }
