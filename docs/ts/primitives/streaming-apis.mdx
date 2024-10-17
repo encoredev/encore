@@ -310,7 +310,7 @@ If you want the stream to only be reachable by other services (and not from the 
 Example of using a stream endpoint from a regular api endpoint:
 
 ```typescript
-import { streaming } from "~encore/clients"; // import 'streaming' service
+import { chat } from "~encore/clients"; // import 'chat' service
 
 export const myOtherAPI = api({}, async (): Promise<void> => {
   const stream = await streaming.streamEndpoint();
