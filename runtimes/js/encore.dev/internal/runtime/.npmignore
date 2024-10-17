@@ -1,0 +1,3 @@
+# Intentionally left blank, because we want the napi directory
+# to be included in packages, but we don't want it committed to the repository.
+# If this file does not exist then the npm packaging code will use the .gitignore file instead.

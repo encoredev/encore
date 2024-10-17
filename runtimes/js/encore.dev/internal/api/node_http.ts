@@ -33,7 +33,7 @@ export class RawRequest extends stream.Readable {
     this.body.start(this.push.bind(this), this.destroy.bind(this));
 
     // Set the socket to a dummy value for legacy compatibility with Express.js.
-    this.socket = new DummySocket();
+    this.socket = new DummySocket() as Socket;
     this.connection = this.socket; // legacy alias
   }
 
@@ -136,7 +136,7 @@ export class RawResponse extends stream.Writable {
     this.w = w;
 
     // Set the socket to a dummy value for legacy compatibility with Express.js.
-    this.socket = new DummySocket();
+    this.socket = new DummySocket() as Socket;
     this.connection = this.socket; // legacy alias
   }
 
