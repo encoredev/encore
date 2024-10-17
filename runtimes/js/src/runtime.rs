@@ -1,10 +1,10 @@
 use crate::api::{new_api_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
-use crate::meta;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
+use crate::{meta, websocket_api};
 use encore_runtime_core::api::schema::JSONPayload;
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::EncoreName;
@@ -130,7 +130,12 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
-        let handler = new_api_handler(env, route.handler, route.raw, route.streaming)?;
+        let handler = new_api_handler(
+            env,
+            route.handler,
+            route.raw,
+            route.streaming_request || route.streaming_response,
+        )?;
 
         // If we're not hosting an API server, this is a no-op.
         let Some(srv) = self.runtime.api().server() else {
@@ -187,6 +192,31 @@ impl Runtime {
                 message: e.message,
             }),
         }
+    }
+
+    #[napi]
+    pub async fn stream(
+        &self,
+        service: String,
+        endpoint: String,
+        data: JSONPayload,
+        source: Option<&Request>,
+    ) -> napi::Result<websocket_api::WebSocketClient> {
+        let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
+        let source = source.map(|s| s.inner.as_ref());
+        let client = self
+            .runtime
+            .api()
+            .stream(&endpoint, data, source)
+            .await
+            .map_err(|e| {
+                Error::new(
+                    Status::GenericFailure,
+                    format!("failed to make api call: {:?}", e),
+                )
+            })?;
+
+        Ok(websocket_api::WebSocketClient::new(client))
     }
 
     /// Returns the version of the Encore runtime being used

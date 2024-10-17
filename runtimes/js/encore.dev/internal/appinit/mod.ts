@@ -74,7 +74,7 @@ class IterableSocket {
 }
 
 function transformHandler(h: Handler): Handler {
-  if (h.streaming) {
+  if (h.streamingResponse || h.streamingRequest) {
     return {
       ...h,
       // req is the upgrade request.

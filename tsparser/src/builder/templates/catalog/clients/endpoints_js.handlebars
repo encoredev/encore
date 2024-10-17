@@ -1,4 +1,4 @@
-import { apiCall } from "encore.dev/internal/codegen/api";
+import { apiCall, streamIn, streamOut, streamInOut } from "encore.dev/internal/codegen/api";
 
 const TEST_ENDPOINTS = typeof ENCORE_DROP_TESTS === "undefined" && process.env.NODE_ENV === "test"
     ? await import("./endpoints_testing.js")
@@ -9,7 +9,20 @@ export async function {{name}}(params) {
     if (typeof ENCORE_DROP_TESTS === "undefined" && process.env.NODE_ENV === "test") {
         return TEST_ENDPOINTS.{{name}}(params);
     }
+
+    {{#if (or streaming_request streaming_response)}}
+    {{#if (and streaming_request streaming_response)}}
+    return streamInOut("{{../name}}", "{{name}}", params);
+    {{else}}
+    {{#if streaming_request}}
+    return streamIn("{{../name}}", "{{name}}", params);
+    {{else}}
+    return streamOut("{{../name}}", "{{name}}", params);
+    {{/if}}
+    {{/if}}
+    {{else}}
     return apiCall("{{../name}}", "{{name}}", params);
+    {{/if}}
 }
 
 {{/each}}
