@@ -313,7 +313,7 @@ Example of using a stream endpoint from a regular api endpoint:
 import { chat } from "~encore/clients"; // import 'chat' service
 
 export const myOtherAPI = api({}, async (): Promise<void> => {
-  const stream = await streaming.streamEndpoint();
+  const stream = await chat.myStreamingEndpoint();
 
   // send a message to the other service
   await stream.send({ msg: "data" });
