@@ -732,6 +732,16 @@
 		text: "Webhooks"
 		path: "/deploy/webhooks"
 		file: "deploy/webhooks"
+	}, {
+		kind: "basic"
+		text: "OAuth Clients"
+		path: "/platform/oauth-clients"
+		file: "platform/oauth-clients"
+	}, {
+		kind: "basic"
+		text: "API Reference"
+		path: "/platform/api-reference"
+		file: "platform/api-reference"
 	}]
 }
 
