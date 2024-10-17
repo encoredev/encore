@@ -77,6 +77,8 @@
     "dist/",
     "*.ts",
     "**/*.ts",
+    "*.cjs",
+    "*.cts",
     "README.md",
     "LICENSE"
   ],
