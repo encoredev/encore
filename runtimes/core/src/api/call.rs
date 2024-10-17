@@ -271,6 +271,7 @@ impl ServiceRegistry {
                     endpoint_name.service()
                 )),
                 stack: None,
+                details: None,
             })?;
 
         let Some(endpoint) = self.endpoints.get(endpoint_name) else {
@@ -282,6 +283,7 @@ impl ServiceRegistry {
                     endpoint_name
                 )),
                 stack: None,
+                details: None,
             });
         };
 
@@ -294,6 +296,7 @@ impl ServiceRegistry {
                     endpoint_name
                 )),
                 stack: None,
+                details: None,
             });
         };
 
@@ -311,6 +314,7 @@ impl ServiceRegistry {
                 endpoint_name
             )),
             stack: None,
+            details: None,
         })?;
 
         let mut req = req_url

@@ -166,6 +166,7 @@ impl Stream {
                 message: "invalid streaming body type in schema".to_string(),
                 internal_message: None,
                 stack: None,
+                details: None,
             });
         };
 
@@ -177,6 +178,7 @@ impl Stream {
                 message: "missing payload".to_string(),
                 internal_message: None,
                 stack: None,
+                details: None,
             })?;
 
         Ok(value)

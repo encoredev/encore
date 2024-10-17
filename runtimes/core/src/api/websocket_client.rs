@@ -34,6 +34,7 @@ impl WebSocketClient {
                 message: "failed connecting to websocket endpoint".to_string(),
                 internal_message: Some(e.to_string()),
                 stack: None,
+                details: None,
             })?;
 
         let (ws_write, ws_read) = connection.split();
