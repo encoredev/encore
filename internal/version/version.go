@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"strings"
 
@@ -31,10 +30,6 @@ const (
 	unknown  ReleaseChannel = "unknown" // An unknown release stream (not exported as it should be an error case)
 )
 
-// Capture the original PATH on startup, since it may be changed
-// at runtime (see pkginfo.UpdateGoPath).
-var originalPath = os.Getenv("PATH")
-
 // ConfigHash reports a hash of the configuration that affects the behavior of the daemon.
 // It is used to decide whether to restart the daemon.
 func ConfigHash() (string, error) {
@@ -44,7 +39,6 @@ func ConfigHash() (string, error) {
 		return "", err
 	}
 
-	fmt.Fprintf(h, "PATH=%s\n", originalPath)
 	fmt.Fprintf(h, "APIBaseURL=%s\n", conf.APIBaseURL)
 	fmt.Fprintf(h, "ConfigDir=%s\n", configDir)
 	fmt.Fprintf(h, "EncoreDevDashListenAddr=%s\n", env.EncoreDevDashListenAddr().GetOrElse(""))
