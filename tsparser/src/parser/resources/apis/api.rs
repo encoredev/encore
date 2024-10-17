@@ -281,7 +281,6 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         request,
                         response,
                         handshake,
-                        false,
                     ) {
                         Ok(encoding) => encoding,
                         Err(err) => {
