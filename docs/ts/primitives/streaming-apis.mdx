@@ -315,7 +315,7 @@ import { chat } from "~encore/clients"; // import 'chat' service
 export const myOtherAPI = api({}, async (): Promise<void> => {
   const stream = await chat.myStreamingEndpoint();
 
-  // send a message to the other service
+  // send a message to the chat service over the stream
   await stream.send({ msg: "data" });
 
   for await (const msg of stream) {
