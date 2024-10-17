@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use litparser::Sp;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::{Span, Spanned};
@@ -33,18 +34,21 @@ impl TypeChecker {
         &self.ctx
     }
 
-    pub fn resolve_type(&self, module: Lrc<module_loader::Module>, expr: &ast::TsType) -> Type {
+    pub fn resolve_type(&self, module: Lrc<module_loader::Module>, expr: &ast::TsType) -> Sp<Type> {
         // Ensure the module is initialized.
         let module_id = module.id;
         _ = self.ctx.get_or_init_module(module);
 
         let ctx = Ctx::new(&self.ctx, module_id);
         let typ = ctx.typ(expr);
-        match ctx.concrete(&typ) {
-            New(typ) => typ,
-            Changed(typ) => typ.clone(),
-            Same(_) => typ,
-        }
+        Sp::new(
+            expr.span(),
+            match ctx.concrete(&typ) {
+                New(typ) => typ,
+                Changed(typ) => typ.clone(),
+                Same(_) => typ,
+            },
+        )
     }
 
     pub fn concrete(&self, module_id: ModuleId, typ: &Type) -> Type {
