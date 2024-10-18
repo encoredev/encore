@@ -305,7 +305,7 @@ Stops the VPN connection
 ```shell
 $ encore vpn stop
 ```
-## Eject
+## Build
 
 Generates an image for your app, which can be used to [self-host](/docs/how-to/self-host) your app.
 
@@ -314,7 +314,7 @@ Generates an image for your app, which can be used to [self-host](/docs/how-to/s
 Builds a portable Docker image of your Encore application.
 
 ```shell
-$ encore eject docker
+$ encore build docker
 ```
 
 **Flags**

@@ -40,7 +40,7 @@ This means that the changes required to stop using the Backend Framework is almo
 
 ### Deployment
 
-If you are using Encore's Cloud Platform to manage deployments and want to migrate to your own solution, you can use the [self-hosting instructions](/docs/how-to/self-host) and Open Source CLI tooling. The `encore eject docker` command produces a Docker image, containing the compiled application, using exactly the same code path as Encore's CI system to ensure compatibility.
+If you are using Encore's Cloud Platform to manage deployments and want to migrate to your own solution, you can use the [self-hosting instructions](/docs/how-to/self-host) and Open Source CLI tooling. The `encore build docker` command produces a Docker image, containing the compiled application, using exactly the same code path as Encore's CI system to ensure compatibility.
 
 Learn more in the [self-hosting docs](/docs/how-to/self-host).
 

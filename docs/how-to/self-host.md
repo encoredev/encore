@@ -11,7 +11,7 @@ This can be a good choice for when Encore's cloud platform isn't a good fit for 
 
 ## Building your own Docker image
 
-To build your own Docker image, use `encore eject docker MY-IMAGE:TAG` from the CLI.
+To build your own Docker image, use `encore build docker MY-IMAGE:TAG` from the CLI.
 
 This will compile your application using the host machine and then produce a Docker image containing the compiled application. The base image defaults to `scratch` for GO apps and `node:slim` for TS, but can be customized with `--base`.
 
@@ -20,18 +20,22 @@ This is exactly the same code path that Encore's CI system uses to build Docker 
 By default, all your services will be included and started bty the Docker image. If you want to specify which services and gateways to include, you can use the `--services` and `--gateways` flags.
 
 ```bash
-encore eject docker --services=service1,service2 --gateways=api-gateway MY-IMAGE:TAG
+encore build docker --services=service1,service2 --gateways=api-gateway MY-IMAGE:TAG
 ```
 
+The image will default to run on port 8080, but you can customize it by setting the `PORT` environment variable when starting your image.
 
+```bash
+docker run -e PORT=8081 -p 8081:8081 MY-IMAGE:TAG
+```
 
 ## Configuring your Docker image
 
 If you are using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration.
-The `eject` command lets you provide this by specifying a path to a config file using the `--config` flag.
+The `build` command lets you provide this by specifying a path to a config file using the `--config` flag.
 
 ```bash
-encore eject docker --config path/to/infra-config.json MY-IMAGE:TAG
+encore build docker --config path/to/infra-config.json MY-IMAGE:TAG
 ```
 
 The configuration file should be a JSON file using the [Encore Infra Config](https://encore.dev/schemas/infra.schema.json) schema.
