@@ -33,7 +33,7 @@ Encore Cloud is intended for development environments and limited scale professi
 
 For production use, you can [connect your own cloud account on AWS/GCP](/docs/deploy/own-cloud) and use Encore to deploy there, including provisioning infrastructure and managing IAM. When you connect your own cloud account, you pay for usage directly to your cloud provider.
 
-If you prefer to manage deployment yourself, you can export your application as a standalone Docker image and deploy in any way you prefer. ([Learn more](/docs/how-to/migrate-away#ejecting-your-app-as-a-docker-image))
+If you prefer to manage deployment yourself, you can export your application as a standalone Docker image and deploy in any way you prefer. ([Learn more](/docs/how-to/self-host))
 
 ## Payments & Billing FAQ
 
