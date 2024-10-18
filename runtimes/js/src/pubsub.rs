@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Context;
-use napi::{Env, Error, JsFunction, JsUnknown, NapiRaw, Status};
+use napi::{Env, Error, JsFunction, JsObject, JsUnknown, NapiRaw, Status};
 use napi_derive::napi;
 
 use encore_runtime_core::pubsub::{SubscriptionObj, TopicObj};
@@ -13,6 +12,7 @@ use encore_runtime_core::{api, model, pubsub};
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
 use crate::napi_util::{await_promise, PromiseHandler};
+use crate::pvalue::parse_pvalues;
 use crate::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
 
 #[napi]
@@ -26,33 +26,27 @@ impl PubSubTopic {
         Self { topic }
     }
 
-    #[napi]
-    pub async fn publish(
+    #[napi(ts_return_type = "Promise<string>")]
+    pub fn publish(
         &self,
-        body: Option<serde_json::Value>,
+        env: Env,
+        body: JsUnknown,
         source: Option<&Request>,
-    ) -> napi::Result<String> {
-        let source = source.map(|s| s.inner.as_ref());
-        let raw_body = serde_json::to_vec_pretty(&body).context("failed to serialize body")?;
-        let res = self
-            .topic
-            .publish(
-                pubsub::MessageData {
-                    attrs: HashMap::new(), // TODO
-                    body,
-                    raw_body,
-                },
-                source,
-            )
-            .await;
+    ) -> napi::Result<JsObject> {
+        let payload = parse_pvalues(body).context("failed to parse payload")?;
+        let source = source.map(|s| s.inner.clone());
+        let fut = self.topic.publish(payload, source);
+        let fut = async move {
+            match fut.await {
+                Ok(id) => Ok(id),
+                Err(e) => Err(Error::new(
+                    Status::GenericFailure,
+                    format!("failed to publish: {}", e),
+                )),
+            }
+        };
 
-        match res {
-            Ok(id) => Ok(id),
-            Err(e) => Err(Error::new(
-                Status::GenericFailure,
-                format!("failed to publish: {}", e),
-            )),
-        }
+        env.spawn_future(fut)
     }
 }
 

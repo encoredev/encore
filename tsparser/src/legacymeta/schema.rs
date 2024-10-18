@@ -178,6 +178,7 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
             Basic::Any | Basic::Unknown => b(schema::Builtin::Any),
             Basic::String => b(schema::Builtin::String),
             Basic::Boolean => b(schema::Builtin::Bool),
+            Basic::Date => b(schema::Builtin::Time),
             Basic::Number => {
                 // TODO handle float/int distinction somehow
                 b(schema::Builtin::Float64)

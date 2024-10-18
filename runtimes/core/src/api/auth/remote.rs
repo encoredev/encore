@@ -1,10 +1,11 @@
 use crate::api::auth::{AuthHandler, AuthRequest, AuthResponse};
-use crate::api::call::{parse_api_response, CallDesc, ServiceRegistry};
+use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::httputil::{convert_headers, join_url_path, merge_query};
+use crate::api::jsonschema::{DecodeConfig, JSONSchema};
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::meta::{MetaKey, MetaMap};
 use crate::api::reqauth::svcauth;
-use crate::api::APIResult;
+use crate::api::{APIResult, PValues};
 use crate::{api, EndpointName};
 use anyhow::Context;
 use std::borrow::Cow;
@@ -17,6 +18,7 @@ pub struct RemoteAuthHandler {
     svc_auth_method: Arc<dyn svcauth::ServiceAuthMethod>,
     auth_handler_url: reqwest::Url,
     http_client: reqwest::Client,
+    auth_data_schema: JSONSchema,
 }
 
 impl RemoteAuthHandler {
@@ -24,6 +26,7 @@ impl RemoteAuthHandler {
         name: EndpointName,
         reg: &ServiceRegistry,
         http_client: reqwest::Client,
+        auth_data_schema: JSONSchema,
     ) -> anyhow::Result<Self> {
         let svc_auth_method = reg
             .service_auth_method(name.service())
@@ -48,6 +51,7 @@ impl RemoteAuthHandler {
             svc_auth_method,
             auth_handler_url,
             http_client,
+            auth_data_schema,
         })
     }
 
@@ -104,7 +108,7 @@ impl RemoteAuthHandler {
             .get_meta(MetaKey::UserId)
             .map(|s| s.to_string());
 
-        match parse_api_response::<serde_json::Map<String, serde_json::Value>>(resp).await {
+        match parse_auth_response(resp, &self.auth_data_schema).await {
             Ok(data) => {
                 if let Some(user_id) = user_id {
                     Ok(AuthResponse::Authenticated {
@@ -138,5 +142,48 @@ impl AuthHandler for RemoteAuthHandler {
         req: AuthRequest,
     ) -> Pin<Box<dyn Future<Output = APIResult<AuthResponse>> + Send + 'static>> {
         Box::pin(self.handle_auth(req))
+    }
+}
+
+async fn parse_auth_response(resp: reqwest::Response, schema: &JSONSchema) -> APIResult<PValues> {
+    let status = resp.status();
+    if status.is_success() {
+        // Do we have a JSON response?
+        match resp.headers().get(reqwest::header::CONTENT_TYPE) {
+            Some(content_type) if content_type == "application/json" => {
+                let bytes = resp.bytes().await.map_err(api::Error::internal)?;
+                let mut jsonde = serde_json::Deserializer::from_slice(&bytes);
+                let cfg = DecodeConfig {
+                    coerce_strings: false,
+                };
+                let value = schema.deserialize(&mut jsonde, cfg).map_err(|e| {
+                    api::Error::invalid_argument("unable to decode response body", e)
+                })?;
+                Ok(value)
+            }
+            _ => Err(api::Error::internal(anyhow::anyhow!(
+                "missing auth data from auth handler"
+            ))),
+        }
+    } else {
+        match resp.headers().get(reqwest::header::CONTENT_TYPE) {
+            Some(content_type) if content_type == "application/json" => {
+                match resp.json::<api::Error>().await {
+                    Ok(data) => Err(data),
+                    Err(e) => Err(api::Error::internal(e)),
+                }
+            }
+            _ => {
+                // We have some non-JSON error response.
+                let body = resp.text().await.unwrap_or_else(|_| "".into());
+                Err(api::Error {
+                    code: api::ErrCode::Internal,
+                    message: body,
+                    internal_message: None,
+                    stack: None,
+                    details: None,
+                })
+            }
+        }
     }
 }

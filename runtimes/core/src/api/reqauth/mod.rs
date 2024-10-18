@@ -1,11 +1,15 @@
+use crate::api::jsonschema::DecodeConfig;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::meta::MetaMap;
 use crate::api::APIResult;
 use crate::encore::runtime::v1 as pb;
 use crate::{api, model, secrets};
 use anyhow::Context;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
+
+use super::{jsonschema, PValues};
 
 pub mod caller;
 mod encoreauth;
@@ -80,26 +84,29 @@ pub struct InternalCallMeta {
 
     /// The authenticated user id, if any.
     pub auth_uid: Option<String>,
+
     /// The user data, if any.
-    pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
+    pub auth_data: Option<PValues>,
 }
 
 impl CallMeta {
     pub fn parse_with_caller(
         auth: &[Arc<dyn svcauth::ServiceAuthMethod>],
         headers: &axum::http::HeaderMap,
+        auth_data_schemas: &HashMap<String, Option<jsonschema::JSONSchema>>,
     ) -> APIResult<Self> {
-        Self::parse(headers, auth, true)
+        Self::parse(headers, auth, true, Some(auth_data_schemas))
     }
 
     pub fn parse_without_caller(headers: &axum::http::HeaderMap) -> APIResult<Self> {
-        Self::parse(headers, &[], false)
+        Self::parse(headers, &[], false, None)
     }
 
     fn parse(
         headers: &axum::http::HeaderMap,
         auth: &[Arc<dyn svcauth::ServiceAuthMethod>],
         parse_caller: bool,
+        auth_data_schemas: Option<&HashMap<String, Option<jsonschema::JSONSchema>>>,
     ) -> APIResult<Self> {
         let do_parse = move || -> anyhow::Result<CallMeta> {
             use meta::MetaKey;
@@ -134,14 +141,28 @@ impl CallMeta {
                         .context("invalid service authentication data")?;
 
                     let caller = caller.parse().context("invalid meta caller")?;
+
+                    // TODO: Currently we assume a single auth data schema.
+                    // When we support multiple gateways with distinct schemas we'll need to change this.
+                    let auth_data_schema = auth_data_schemas
+                        .and_then(|s| s.values().filter_map(|s| s.as_ref()).next());
+
+                    // Parse the auth data, if provided.
+                    let auth_data = match (headers.get_meta(MetaKey::UserData), &auth_data_schema) {
+                        (None, _) | (_, None) => None,
+                        (Some(data), Some(schema)) => {
+                            let mut jsonde = serde_json::Deserializer::from_str(data);
+                            let data = schema
+                                .deserialize(&mut jsonde, DecodeConfig::default())
+                                .context("invalid auth data")?;
+                            Some(data)
+                        }
+                    };
+
                     meta.internal = Some(InternalCallMeta {
                         caller,
                         auth_uid: headers.get_meta(MetaKey::UserId).map(|s| s.to_string()),
-                        auth_data: headers
-                            .get_meta(MetaKey::UserData)
-                            .map(serde_json::from_str)
-                            .transpose()
-                            .context("invalid auth data")?,
+                        auth_data,
                     });
                 };
             }

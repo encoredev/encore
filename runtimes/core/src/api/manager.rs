@@ -24,6 +24,7 @@ use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
 use super::encore_routes::healthz;
 use super::websocket_client::WebSocketClient;
+use super::ResponsePayload;
 
 pub struct ManagerConfig<'a> {
     pub meta: &'a meta::Data,
@@ -137,20 +138,6 @@ impl ManagerConfig<'_> {
         .context("unable to create service registry")?;
         let service_registry = Arc::new(service_registry);
 
-        let api_server = if !hosted_services.is_empty() && !self.is_worker {
-            let server = server::Server::new(
-                endpoints.clone(),
-                hosted_endpoints,
-                self.platform_validator,
-                inbound_svc_auth,
-                self.tracer.clone(),
-            )
-            .context("unable to create API server")?;
-            Some(server)
-        } else {
-            None
-        };
-
         let gateways_by_rid: HashMap<String, runtime::Gateway> =
             HashMap::from_iter(self.gateways.drain(..).map(|gw| (gw.rid.clone(), gw)));
 
@@ -167,6 +154,7 @@ impl ManagerConfig<'_> {
                 .map(|(_, ep)| RoutePerService(ep.to_owned())),
         );
 
+        let mut auth_data_schemas = HashMap::new();
         for gw in &self.meta.gateways {
             if self.is_worker {
                 continue;
@@ -191,6 +179,11 @@ impl ManagerConfig<'_> {
             let cors_config = cors::config(cors_cfg, meta_headers)
                 .context("failed to parse CORS configuration")?;
 
+            auth_data_schemas.insert(
+                gw.encore_name.clone(),
+                auth_handler.as_ref().map(|ah| ah.auth_data().clone()),
+            );
+
             gateways.insert(
                 gw.encore_name.clone().into(),
                 Gateway::new(
@@ -206,6 +199,21 @@ impl ManagerConfig<'_> {
                 .context("couldn't create gateway")?,
             );
         }
+
+        let api_server = if !hosted_services.is_empty() && !self.is_worker {
+            let server = server::Server::new(
+                endpoints.clone(),
+                hosted_endpoints,
+                self.platform_validator,
+                inbound_svc_auth,
+                self.tracer.clone(),
+                auth_data_schemas,
+            )
+            .context("unable to create API server")?;
+            Some(server)
+        } else {
+            None
+        };
 
         Ok(Manager {
             gateway_listen_addr,
@@ -253,7 +261,6 @@ fn build_auth_handler(
     };
 
     let auth_params = auth.params.as_ref().context("missing auth params")?;
-
     let mut builder = jsonschema::Builder::new(meta);
     let schema = {
         let mut cfg = EncodingConfig {
@@ -271,6 +278,9 @@ fn build_auth_handler(
             .context("unable to compute auth handler schema")?
     };
 
+    let auth_data_schema_idx =
+        builder.register_type(auth.auth_data.as_ref().context("missing auth data")?)?;
+
     let registry = builder.build();
     let schema = schema
         .build(&registry)
@@ -280,9 +290,11 @@ fn build_auth_handler(
     let is_local = true;
     let name = EndpointName::new(explicit.service_name.clone(), auth.name.clone());
 
+    let auth_data = registry.schema(auth_data_schema_idx);
     let auth_handler = if is_local {
         auth::Authenticator::local(
             schema.clone(),
+            auth_data,
             LocalAuthHandler {
                 name,
                 schema,
@@ -293,7 +305,8 @@ fn build_auth_handler(
     } else {
         auth::Authenticator::remote(
             schema,
-            RemoteAuthHandler::new(name, service_registry, http_client)?,
+            auth_data.clone(),
+            RemoteAuthHandler::new(name, service_registry, http_client, auth_data)?,
         )?
     };
 
@@ -309,21 +322,21 @@ impl Manager {
         self.api_server.as_ref()
     }
 
-    pub fn call<'a>(
-        &'a self,
-        endpoint_name: &'a EndpointName,
+    pub fn call(
+        &self,
+        target: EndpointName,
         data: JSONPayload,
-        source: Option<&'a model::Request>,
-    ) -> impl Future<Output = APIResult<JSONPayload>> + 'a {
-        self.service_registry.api_call(endpoint_name, data, source)
+        source: Option<Arc<model::Request>>,
+    ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
+        self.service_registry.api_call(target, data, source)
     }
 
-    pub fn stream<'a>(
-        &'a self,
-        endpoint_name: &'a EndpointName,
+    pub fn stream(
+        &self,
+        endpoint_name: EndpointName,
         data: JSONPayload,
-        source: Option<&'a model::Request>,
-    ) -> impl Future<Output = APIResult<WebSocketClient>> + 'a {
+        source: Option<Arc<model::Request>>,
+    ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         self.service_registry
             .connect_stream(endpoint_name, data, source)
     }

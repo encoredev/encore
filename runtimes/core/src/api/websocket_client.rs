@@ -14,6 +14,7 @@ use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 use super::schema;
 use super::APIResult;
+use super::PValues;
 
 pub struct WebSocketClient {
     send_channel: UnboundedSender<Message>,
@@ -55,7 +56,7 @@ impl WebSocketClient {
         })
     }
 
-    pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> APIResult<()> {
+    pub fn send(&self, msg: PValues) -> APIResult<()> {
         let msg = self.schema.to_outgoing_message(msg)?;
         let msg = String::from_utf8(msg).map_err(super::Error::internal)?;
 
@@ -66,7 +67,7 @@ impl WebSocketClient {
         Ok(())
     }
 
-    pub async fn recv(&self) -> Option<APIResult<serde_json::Map<String, serde_json::Value>>> {
+    pub async fn recv(&self) -> Option<APIResult<PValues>> {
         loop {
             let msg = self.receive_channel.lock().await.recv().await;
 

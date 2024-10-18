@@ -11,7 +11,7 @@ use tokio::time::Instant;
 
 use crate::api::reqauth::caller::Caller;
 use crate::api::schema::JSONPayload;
-use crate::api::{auth, Endpoint};
+use crate::api::{auth, Endpoint, PValue, PValues};
 use crate::{api, EncoreName, EndpointName};
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
@@ -114,9 +114,9 @@ impl SpanId {
     }
 }
 
-pub struct APICall<'a> {
-    pub source: Option<&'a Request>,
-    pub target: &'a EndpointName,
+pub struct APICall {
+    pub source: Option<Arc<Request>>,
+    pub target: EndpointName,
 }
 
 #[derive(Debug)]
@@ -211,7 +211,7 @@ pub struct StreamRequestData {
     pub path_and_query: String,
 
     /// The request path params, if any.
-    pub path_params: Option<IndexMap<String, serde_json::Value>>,
+    pub path_params: Option<IndexMap<String, PValue>>,
 
     /// The request headers
     pub req_headers: axum::http::HeaderMap,
@@ -220,7 +220,7 @@ pub struct StreamRequestData {
     pub auth_user_id: Option<String>,
 
     /// The user data for the authenticated user, if any.
-    pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
+    pub auth_data: Option<PValues>,
 
     /// The parsed application payload.
     pub parsed_payload: Option<api::RequestPayload>,
@@ -242,7 +242,7 @@ pub struct RPCRequestData {
     pub path_and_query: String,
 
     /// The request path params, if any.
-    pub path_params: Option<IndexMap<String, serde_json::Value>>,
+    pub path_params: Option<IndexMap<String, PValue>>,
 
     /// The request headers
     pub req_headers: axum::http::HeaderMap,
@@ -251,7 +251,7 @@ pub struct RPCRequestData {
     pub auth_user_id: Option<String>,
 
     /// The user data for the authenticated user, if any.
-    pub auth_data: Option<serde_json::Map<String, serde_json::Value>>,
+    pub auth_data: Option<PValues>,
 
     /// The parsed application payload.
     pub parsed_payload: Option<api::RequestPayload>,
@@ -284,7 +284,7 @@ pub struct PubSubRequestData {
     pub published: chrono::DateTime<Utc>,
     pub attempt: u32,
     pub payload: Vec<u8>,
-    pub parsed_payload: Option<serde_json::Value>,
+    pub parsed_payload: Option<PValues>,
 }
 
 #[derive(Debug)]
@@ -327,7 +327,7 @@ pub struct AuthSuccessResponse {
     pub user_id: String,
 
     /// The user data.
-    pub user_data: serde_json::Map<String, serde_json::Value>,
+    pub user_data: PValues,
 }
 
 pub enum LogFieldValue<'a> {
