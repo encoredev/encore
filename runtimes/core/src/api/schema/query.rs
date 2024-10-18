@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use crate::api;
 use crate::api::jsonschema::DecodeConfig;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
+use crate::api::{self, PValues};
 use crate::api::{jsonschema, APIResult};
 use serde::Serialize;
 use url::Url;
@@ -20,14 +20,11 @@ impl Query {
     pub fn parse_incoming_request_parts(
         &self,
         req: &axum::http::request::Parts,
-    ) -> APIResult<Option<serde_json::Map<String, serde_json::Value>>> {
+    ) -> APIResult<Option<PValues>> {
         self.parse(req.uri.query())
     }
 
-    pub fn parse(
-        &self,
-        query: Option<&str>,
-    ) -> APIResult<Option<serde_json::Map<String, serde_json::Value>>> {
+    pub fn parse(&self, query: Option<&str>) -> APIResult<Option<PValues>> {
         let parsed = form_urlencoded::parse(query.unwrap_or_default().as_bytes());
         let de = serde_urlencoded::Deserializer::new(parsed);
         let cfg = DecodeConfig {

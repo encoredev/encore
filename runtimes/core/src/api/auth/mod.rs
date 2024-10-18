@@ -12,6 +12,9 @@ use crate::api::schema::encoding::Schema;
 pub use local::LocalAuthHandler;
 pub use remote::RemoteAuthHandler;
 
+use super::jsonschema::JSONSchema;
+use super::PValues;
+
 mod local;
 mod remote;
 
@@ -26,7 +29,7 @@ pub struct AuthRequest {
 pub enum AuthResponse {
     Authenticated {
         auth_uid: String,
-        auth_data: serde_json::Map<String, serde_json::Value>,
+        auth_data: PValues,
     },
     Unauthenticated {
         error: api::Error,
@@ -45,6 +48,7 @@ pub trait AuthHandler: Sync + Send + 'static {
 
 pub struct Authenticator {
     schema: Schema,
+    auth_data: JSONSchema,
     auth_handler: AuthHandlerType,
 }
 
@@ -63,23 +67,40 @@ impl AuthHandlerType {
 }
 
 impl Authenticator {
-    pub fn new(schema: Schema, auth_handler: AuthHandlerType) -> anyhow::Result<Self> {
+    pub fn new(
+        schema: Schema,
+        auth_data: JSONSchema,
+        auth_handler: AuthHandlerType,
+    ) -> anyhow::Result<Self> {
         Ok(Self {
             schema,
+            auth_data,
             auth_handler,
         })
     }
 
-    pub fn local(schema: Schema, local: LocalAuthHandler) -> anyhow::Result<Self> {
-        Self::new(schema, AuthHandlerType::Local(Arc::new(local)))
+    pub fn local(
+        schema: Schema,
+        auth_data: JSONSchema,
+        local: LocalAuthHandler,
+    ) -> anyhow::Result<Self> {
+        Self::new(schema, auth_data, AuthHandlerType::Local(Arc::new(local)))
     }
 
-    pub fn remote(schema: Schema, remote: RemoteAuthHandler) -> anyhow::Result<Self> {
-        Self::new(schema, AuthHandlerType::Remote(Arc::new(remote)))
+    pub fn remote(
+        schema: Schema,
+        auth_data: JSONSchema,
+        remote: RemoteAuthHandler,
+    ) -> anyhow::Result<Self> {
+        Self::new(schema, auth_data, AuthHandlerType::Remote(Arc::new(remote)))
     }
 
     pub fn schema(&self) -> &Schema {
         &self.schema
+    }
+
+    pub fn auth_data(&self) -> &JSONSchema {
+        &self.auth_data
     }
 
     pub async fn authenticate<R: InboundRequest>(
@@ -186,10 +207,10 @@ impl Authenticator {
 #[derive(Debug, Serialize, Clone)]
 pub struct AuthPayload {
     #[serde(flatten)]
-    pub query: Option<serde_json::Map<String, serde_json::Value>>,
+    pub query: Option<PValues>,
 
     #[serde(flatten)]
-    pub header: Option<serde_json::Map<String, serde_json::Value>>,
+    pub header: Option<PValues>,
 }
 
 pub trait InboundRequest {

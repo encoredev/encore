@@ -113,14 +113,6 @@ async fn handle_message(
     mut message: gcp::subscriber::ReceivedMessage,
     _cancel: CancellationToken,
 ) {
-    // We currently have to clone the message data because we can't move it out of the
-    // ReceivedMessage as we need to call ack/nack afterwards.
-    let Ok(body) = serde_json::from_slice(&message.message.data) else {
-        _ = message.nack();
-        log::error!("failed to decode pubsub message body");
-        return;
-    };
-
     let attempt = message.delivery_attempt().unwrap_or(1) as u32;
     let publish_time = message
         .message
@@ -136,7 +128,6 @@ async fn handle_message(
         attempt,
         data: pubsub::MessageData {
             attrs: message.message.attributes.clone().into_iter().collect(),
-            body,
             raw_body,
         },
     };

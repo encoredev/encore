@@ -1,5 +1,6 @@
 use crate::error::coerce_to_api_error;
 use crate::napi_util::{await_promise, PromiseHandler};
+use crate::pvalue::parse_pvalues;
 use crate::request_meta::RequestMeta;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -92,8 +93,8 @@ impl PromiseHandler for APIPromiseHandler {
         let Some(val) = val else {
             return Ok(None);
         };
-        match env.from_js_value(val) {
-            Ok(val) => Ok(val),
+        match parse_pvalues(val) {
+            Ok(val) => Ok(Some(val)),
             Err(err) => self.error(env, err),
         }
     }

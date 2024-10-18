@@ -4,7 +4,7 @@ use anyhow::Result;
 use litparser::LitParser;
 use swc_common::errors::HANDLER;
 use swc_common::Spanned;
-use swc_ecma_ast as ast;
+use swc_ecma_ast::{self as ast, TsTypeParamInstantiation};
 use swc_ecma_visit::VisitWithPath;
 
 use crate::parser::module_loader::Module;
@@ -27,6 +27,7 @@ pub struct NamedClassResource<Config, const NAME_IDX: usize = 0, const CONFIG_ID
     pub resource_name: String,
     pub bind_name: Option<ast::Ident>,
     pub config: Config,
+    pub expr: ast::NewExpr,
 }
 
 impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> ReferenceParser
@@ -54,6 +55,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     resource_name: res.resource_name,
                     bind_name: res.bind_name,
                     config,
+                    expr: res.expr,
                 }))
             }
         }
@@ -71,6 +73,7 @@ pub struct NamedClassResourceOptionalConfig<
     pub resource_name: String,
     pub bind_name: Option<ast::Ident>,
     pub config: Option<Config>,
+    pub expr: ast::NewExpr,
 }
 
 impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> ReferenceParser
@@ -109,6 +112,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     doc_comment,
                     bind_name,
                     config,
+                    expr: (*expr).to_owned(),
                 }));
             }
         }
@@ -390,4 +394,17 @@ impl<'a, R: ReferenceParser> swc_ecma_visit::VisitAstPath for IterReferenceVisit
             Err(e) => self.results.push(Err(e)),
         }
     }
+}
+
+pub fn extract_type_param(
+    params: Option<&TsTypeParamInstantiation>,
+    idx: usize,
+) -> Option<&ast::TsType> {
+    let Some(params) = params else {
+        return None;
+    };
+    let Some(param) = params.params.get(idx) else {
+        return None;
+    };
+    Some(param.as_ref())
 }

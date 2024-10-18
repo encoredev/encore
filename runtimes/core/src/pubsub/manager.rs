@@ -3,8 +3,11 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
+use anyhow::Context;
 use chrono::Utc;
 
+use crate::api::jsonschema::{self, JSONSchema};
+use crate::api::PValues;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::log::LogFromRust;
@@ -22,13 +25,14 @@ use super::push_registry::PushHandlerRegistry;
 
 pub struct Manager {
     tracer: Tracer,
-    topic_cfg: HashMap<EncoreName, (Arc<dyn Cluster>, pb::PubSubTopic)>,
+    topic_cfg: HashMap<EncoreName, (Arc<dyn Cluster>, pb::PubSubTopic, JSONSchema)>,
     sub_cfg: HashMap<
         SubName,
         (
             Arc<dyn Cluster>,
             pb::PubSubSubscription,
             meta::pub_sub_topic::Subscription,
+            JSONSchema,
         ),
     >,
 
@@ -45,40 +49,50 @@ pub struct TopicObj {
 }
 
 impl TopicObj {
-    pub async fn publish(
+    pub fn publish(
         &self,
-        mut msg: MessageData,
-        source: Option<&model::Request>,
-    ) -> anyhow::Result<MessageId> {
-        if let Some(source) = source {
-            msg.attrs.insert(
-                ATTR_PARENT_TRACE_ID.to_string(),
-                source.span.0.serialize_encore(),
-            );
-            if let Some(ext_correlation_id) = &source.ext_correlation_id {
-                msg.attrs.insert(
-                    ATTR_EXT_CORRELATION_ID.to_string(),
-                    ext_correlation_id.clone(),
-                );
-            }
+        payload: PValues,
+        source: Option<Arc<model::Request>>,
+    ) -> impl Future<Output = anyhow::Result<MessageId>> + 'static {
+        let tracer = self.tracer.clone();
+        let inner = self.inner.clone();
+        let name = self.name.clone();
 
-            let payload = serde_json::to_vec_pretty(&msg.body).unwrap_or_default();
-            let start_id = self
-                .tracer
-                .pubsub_publish_start(protocol::PublishStartData {
+        async move {
+            let payload = serde_json::to_vec_pretty(&payload)
+                .context("unable to serialize message payload")?;
+            let mut msg = MessageData {
+                attrs: HashMap::new(),
+                raw_body: payload,
+            };
+
+            if let Some(source) = source.as_deref() {
+                msg.attrs.insert(
+                    ATTR_PARENT_TRACE_ID.to_string(),
+                    source.span.0.serialize_encore(),
+                );
+                if let Some(ext_correlation_id) = &source.ext_correlation_id {
+                    msg.attrs.insert(
+                        ATTR_EXT_CORRELATION_ID.to_string(),
+                        ext_correlation_id.clone(),
+                    );
+                }
+
+                let start_id = tracer.pubsub_publish_start(protocol::PublishStartData {
                     source,
-                    topic: &self.name,
-                    payload: &payload,
+                    topic: &name,
+                    payload: &msg.raw_body,
                 });
-            let result = self.inner.publish(msg).await;
-            self.tracer.pubsub_publish_end(protocol::PublishEndData {
-                start_id,
-                source,
-                result: &result,
-            });
-            result
-        } else {
-            self.inner.publish(msg).await
+                let result = inner.publish(msg).await;
+                tracer.pubsub_publish_end(protocol::PublishEndData {
+                    start_id,
+                    source,
+                    result: &result,
+                });
+                result
+            } else {
+                inner.publish(msg).await
+            }
         }
     }
 }
@@ -90,6 +104,7 @@ pub struct SubscriptionObj {
     service: EncoreName,
     topic: EncoreName,
     subscription: EncoreName,
+    schema: JSONSchema,
 }
 
 impl SubscriptionObj {
@@ -129,6 +144,24 @@ impl SubHandler {
                 .and_then(|s| TraceId::parse_encore(s).ok());
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
 
+            let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
+            let parsed_payload = self.obj.schema.deserialize(
+                &mut de,
+                jsonschema::DecodeConfig {
+                    coerce_strings: false,
+                },
+            );
+            let (parsed_payload, parse_error) = match parsed_payload {
+                Ok(parsed_payload) => (Some(parsed_payload), None),
+                Err(e) => (
+                    None,
+                    Some(api::Error::invalid_argument(
+                        "unable to parse message payload",
+                        e,
+                    )),
+                ),
+            };
+
             let start = tokio::time::Instant::now();
             let start_time = std::time::SystemTime::now();
             let req = Arc::new(model::Request {
@@ -149,7 +182,7 @@ impl SubHandler {
                     published: msg.publish_time.unwrap_or_else(Utc::now),
                     attempt: msg.attempt,
                     payload: msg.data.raw_body.clone(),
-                    parsed_payload: msg.data.body.clone(),
+                    parsed_payload,
                 }),
             });
 
@@ -157,7 +190,15 @@ impl SubHandler {
             logger.info(Some(&req), "starting request", None);
 
             self.obj.tracer.request_span_start(&req);
-            let result = self.inner.handle_message(req.clone()).await;
+
+            let result = {
+                // If we have a parse error, use that as the result immediately.
+                if let Some(parse_error) = parse_error {
+                    Err(parse_error)
+                } else {
+                    self.inner.handle_message(req.clone()).await
+                }
+            };
 
             logger.info(Some(&req), "request completed", None);
 
@@ -173,17 +214,21 @@ impl SubHandler {
 }
 
 impl Manager {
-    pub fn new(tracer: Tracer, clusters: Vec<pb::PubSubCluster>, md: &meta::Data) -> Self {
-        let (topic_cfg, sub_cfg) = make_cfg_maps(clusters, md);
+    pub fn new(
+        tracer: Tracer,
+        clusters: Vec<pb::PubSubCluster>,
+        md: &meta::Data,
+    ) -> anyhow::Result<Self> {
+        let (topic_cfg, sub_cfg) = make_cfg_maps(clusters, md)?;
 
-        Self {
+        Ok(Self {
             tracer,
             topic_cfg,
             sub_cfg,
             topics: Arc::default(),
             subs: Arc::default(),
             push_registry: PushHandlerRegistry::new(),
-        }
+        })
     }
 
     pub fn topic(&self, name: EncoreName) -> Option<TopicObj> {
@@ -201,7 +246,7 @@ impl Manager {
         }
 
         let topic = {
-            if let Some((cluster, topic_cfg)) = self.topic_cfg.get(&name) {
+            if let Some((cluster, topic_cfg, _schema)) = self.topic_cfg.get(&name) {
                 cluster.topic(topic_cfg)
             } else {
                 Arc::new(noop::NoopTopic)
@@ -218,7 +263,7 @@ impl Manager {
         }
 
         let sub = {
-            if let Some((cluster, sub_cfg, meta_sub)) = self.sub_cfg.get(&name) {
+            if let Some((cluster, sub_cfg, meta_sub, schema)) = self.sub_cfg.get(&name) {
                 let inner = cluster.subscription(sub_cfg, meta_sub);
 
                 // If we have a push handler, register it.
@@ -232,6 +277,7 @@ impl Manager {
                     service: meta_sub.service_name.clone().into(),
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
+                    schema: schema.clone(),
                 })
             } else {
                 let inner = Arc::new(noop::NoopSubscription);
@@ -245,6 +291,10 @@ impl Manager {
                     // since it's only used by tracing, and a no-op subscription won't
                     // generate any traces.
                     service: "".into(),
+
+                    // We don't have a schema since it's an unknown subscription.
+                    // Use a null schema.
+                    schema: JSONSchema::null(),
                 })
             }
         };
@@ -263,41 +313,60 @@ impl Manager {
 fn make_cfg_maps(
     clusters: Vec<pb::PubSubCluster>,
     md: &meta::Data,
-) -> (
-    HashMap<EncoreName, (Arc<dyn Cluster>, pb::PubSubTopic)>,
+) -> anyhow::Result<(
+    HashMap<EncoreName, (Arc<dyn Cluster>, pb::PubSubTopic, JSONSchema)>,
     HashMap<
         SubName,
         (
             Arc<dyn Cluster>,
             pb::PubSubSubscription,
             meta::pub_sub_topic::Subscription,
+            JSONSchema,
         ),
     >,
-) {
+)> {
     let mut topic_map = HashMap::new();
     let mut sub_map = HashMap::new();
 
-    let meta_subs = {
-        let mut map = HashMap::new();
+    let mut schema_builder = jsonschema::Builder::new(md);
+    let (meta_topics, meta_subs) = {
+        let mut topic_map = HashMap::new();
+        let mut sub_map = HashMap::new();
+
         for topic in &md.pubsub_topics {
+            let Some(schema_type) = &topic.message_type else {
+                anyhow::bail!("topic {} has no message type", topic.name);
+            };
+
+            let schema_idx = schema_builder
+                .register_type(schema_type)
+                .with_context(|| format!("invalid schema for topic {}", topic.name))?;
+
+            topic_map.insert(topic.name.clone(), (topic, schema_idx));
             for sub in &topic.subscriptions {
                 let name = SubName {
                     topic: topic.name.clone().into(),
                     subscription: sub.name.clone().into(),
                 };
-                map.insert(name, sub);
+                sub_map.insert(name, (sub, schema_idx));
             }
         }
-        map
+        (topic_map, sub_map)
     };
 
+    let schemas = schema_builder.build();
     for cluster_cfg in clusters {
         let cluster = new_cluster(&cluster_cfg);
 
         for topic_cfg in cluster_cfg.topics {
+            let Some(&(_topic, idx)) = meta_topics.get(&topic_cfg.encore_name) else {
+                anyhow::bail!("topic {} not found in metadata", topic_cfg.encore_name);
+            };
+
+            let schema = schemas.schema(idx);
             topic_map.insert(
                 topic_cfg.encore_name.clone().into(),
-                (cluster.clone(), topic_cfg),
+                (cluster.clone(), topic_cfg, schema),
             );
         }
 
@@ -308,15 +377,19 @@ fn make_cfg_maps(
                 topic: topic_name,
                 subscription: sub_name,
             };
-            let Some(&meta_sub) = meta_subs.get(&name) else {
+            let Some(&(meta_sub, idx)) = meta_subs.get(&name) else {
                 continue;
             };
 
-            sub_map.insert(name, (cluster.clone(), sub_cfg, meta_sub.to_owned()));
+            let schema = schemas.schema(idx);
+            sub_map.insert(
+                name,
+                (cluster.clone(), sub_cfg, meta_sub.to_owned(), schema),
+            );
         }
     }
 
-    (topic_map, sub_map)
+    Ok((topic_map, sub_map))
 }
 
 fn new_cluster(cluster: &pb::PubSubCluster) -> Arc<dyn Cluster> {

@@ -1,10 +1,10 @@
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use anyhow::Context;
-use serde::de::DeserializeOwned;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use url::Url;
 
@@ -23,6 +23,7 @@ use crate::{api, encore, model, secrets, EncoreName, Hosted};
 use super::reqauth::meta::MetaMapMut;
 use super::websocket_client::WebSocketClient;
 use super::HandshakeSchema;
+use super::ResponsePayload;
 
 /// Tracks where services are located and how to call them.
 pub struct ServiceRegistry {
@@ -115,82 +116,99 @@ impl ServiceRegistry {
         self.service_auth.get(service_name).cloned()
     }
 
-    pub async fn api_call(
+    pub fn api_call(
         &self,
-        endpoint_name: &EndpointName,
+        target: EndpointName,
         data: JSONPayload,
-        source: Option<&model::Request>,
-    ) -> APIResult<JSONPayload> {
-        let call = model::APICall {
-            source,
-            target: endpoint_name,
-        };
-        let start_event_id = self.tracer.rpc_call_start(&call);
+        source: Option<Arc<model::Request>>,
+    ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
+        let tracer = self.tracer.clone();
+        let call = model::APICall { source, target };
+        let start_event_id = tracer.rpc_call_start(&call);
 
-        let result = self
-            .do_api_call(endpoint_name, data, source, start_event_id)
-            .await;
-
-        if let Some(start_event_id) = start_event_id {
-            self.tracer
-                .rpc_call_end(&call, start_event_id, result.as_ref().err());
+        let fut = self.do_api_call(&call.target, data, call.source.as_deref(), start_event_id);
+        async move {
+            let result = fut.await;
+            if let Some(start_event_id) = start_event_id {
+                tracer.rpc_call_end(&call, start_event_id, result.as_ref().err());
+            }
+            result
         }
-
-        result
     }
 
-    pub async fn connect_stream(
+    pub fn connect_stream(
         &self,
-        endpoint_name: &EndpointName,
+        target: EndpointName,
         data: JSONPayload,
-        source: Option<&model::Request>,
-    ) -> APIResult<WebSocketClient> {
-        let call = model::APICall {
-            source,
-            target: endpoint_name,
-        };
-        let start_event_id = self.tracer.rpc_call_start(&call);
+        source: Option<Arc<model::Request>>,
+    ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
+        let tracer = self.tracer.clone();
+        let call = model::APICall { source, target };
+        let start_event_id = tracer.rpc_call_start(&call);
 
-        let result = self
-            .do_connect_stream(endpoint_name, data, source, start_event_id)
-            .await;
+        let fut =
+            self.do_connect_stream(&call.target, data, call.source.as_deref(), start_event_id);
 
-        if let Some(start_event_id) = start_event_id {
-            self.tracer
-                .rpc_call_end(&call, start_event_id, result.as_ref().err());
+        async move {
+            let result = fut.await;
+            if let Some(start_event_id) = start_event_id {
+                tracer.rpc_call_end(&call, start_event_id, result.as_ref().err());
+            }
+            result
         }
-
-        result
     }
 
-    async fn do_api_call(
+    fn do_api_call(
         &self,
-        endpoint_name: &EndpointName,
+        target: &EndpointName,
+        data: JSONPayload,
+        source: Option<&model::Request>,
+        start_event_id: Option<TraceEventId>,
+    ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
+        let http_client = self.http_client.clone();
+        let req = self.prepare_api_call_request(&target, data, source, start_event_id);
+        async move {
+            match req {
+                Ok((req, resp_schema)) => {
+                    let fut = http_client.execute(req);
+                    match fut.await {
+                        Ok(resp) => resp_schema.extract(resp).await,
+                        Err(e) => Err(api::Error::internal(e)),
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        }
+    }
+
+    fn prepare_api_call_request(
+        &self,
+        target: &EndpointName,
         mut data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
-    ) -> APIResult<JSONPayload> {
+    ) -> APIResult<(reqwest::Request, Arc<schema::Response>)> {
         let base_url = self
             .base_urls
-            .get(endpoint_name.service())
+            .get(target.service())
             .ok_or_else(|| api::Error {
                 code: api::ErrCode::NotFound,
                 message: "service not found".into(),
                 internal_message: Some(format!(
                     "no service discovery configuration found for service {}",
-                    endpoint_name.service()
+                    target.service()
                 )),
                 stack: None,
                 details: None,
             })?;
 
-        let Some(endpoint) = self.endpoints.get(endpoint_name) else {
+        let Some(endpoint) = self.endpoints.get(target).cloned() else {
             return Err(api::Error {
                 code: api::ErrCode::NotFound,
                 message: "endpoint not found".into(),
                 internal_message: Some(format!(
                     "endpoint {} not found in application metadata",
-                    endpoint_name
+                    target
                 )),
                 stack: None,
                 details: None,
@@ -206,7 +224,7 @@ impl ServiceRegistry {
             message: "failed to build endpoint url".into(),
             internal_message: Some(format!(
                 "failed to build endpoint url for endpoint {}",
-                endpoint_name
+                target
             )),
             stack: None,
             details: None,
@@ -244,43 +262,65 @@ impl ServiceRegistry {
 
         // Add call metadata.
         let headers = req.headers_mut();
-        self.propagate_call_meta(headers, endpoint, source, start_event_id)
+        self.propagate_call_meta(headers, &endpoint, source, start_event_id)
             .map_err(api::Error::internal)?;
 
-        match self.http_client.execute(req).await {
-            Ok(resp) => parse_api_response(resp).await,
-            Err(e) => Err(api::Error::internal(e)),
+        let resp_schema = endpoint.response.clone();
+
+        Ok((req, resp_schema))
+    }
+
+    fn do_connect_stream(
+        &self,
+        target: &EndpointName,
+        data: JSONPayload,
+        source: Option<&model::Request>,
+        start_event_id: Option<TraceEventId>,
+    ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
+        let req = self.prepare_stream_request(&target, data, source, start_event_id);
+        async move {
+            match req {
+                Ok((req, outgoing, incoming)) => {
+                    let schema = schema::Stream::new(incoming, outgoing);
+                    WebSocketClient::connect(req, schema).await
+                }
+                Err(e) => Err(e),
+            }
         }
     }
 
-    async fn do_connect_stream(
+    fn prepare_stream_request(
         &self,
-        endpoint_name: &EndpointName,
+        target: &EndpointName,
         mut data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
-    ) -> APIResult<WebSocketClient> {
+    ) -> APIResult<(
+        http::Request<()>,
+        Arc<schema::Request>,
+        Arc<schema::Response>,
+    )> {
         let base_url = self
             .base_urls
-            .get(endpoint_name.service())
+            .get(target.service())
             .ok_or_else(|| api::Error {
                 code: api::ErrCode::NotFound,
                 message: "service not found".into(),
                 internal_message: Some(format!(
                     "no service discovery configuration found for service {}",
-                    endpoint_name.service()
+                    target.service()
                 )),
                 stack: None,
                 details: None,
             })?;
 
-        let Some(endpoint) = self.endpoints.get(endpoint_name) else {
+        let Some(endpoint) = self.endpoints.get(target) else {
             return Err(api::Error {
                 code: api::ErrCode::NotFound,
                 message: "endpoint not found".into(),
                 internal_message: Some(format!(
                     "endpoint {} not found in application metadata",
-                    endpoint_name
+                    target
                 )),
                 stack: None,
                 details: None,
@@ -293,7 +333,7 @@ impl ServiceRegistry {
                 message: "no handshake schema found".into(),
                 internal_message: Some(format!(
                     "endpoint {} doesn't have a handshake schema specified",
-                    endpoint_name
+                    target
                 )),
                 stack: None,
                 details: None,
@@ -311,7 +351,7 @@ impl ServiceRegistry {
             message: "failed to build endpoint url".into(),
             internal_message: Some(format!(
                 "failed to build endpoint url for endpoint {}",
-                endpoint_name
+                target
             )),
             stack: None,
             details: None,
@@ -334,11 +374,9 @@ impl ServiceRegistry {
         self.propagate_call_meta(req.headers_mut(), endpoint, source, start_event_id)
             .map_err(api::Error::internal)?;
 
-        let incoming = endpoint.response.clone();
         let outgoing = endpoint.request[0].clone();
-        let schema = schema::Stream::new(incoming, outgoing);
-
-        WebSocketClient::connect(req, schema).await
+        let incoming = endpoint.response.clone();
+        Ok((req, outgoing, incoming))
     }
 
     fn propagate_call_meta(
@@ -413,45 +451,6 @@ impl ServiceRegistry {
         desc.add_meta(headers)?;
 
         Ok(())
-    }
-}
-
-pub async fn parse_api_response<D>(resp: reqwest::Response) -> APIResult<D>
-where
-    D: DeserializeOwned + Default,
-{
-    let status = resp.status();
-    if status.is_success() {
-        // Do we have a JSON response?
-        match resp.headers().get(reqwest::header::CONTENT_TYPE) {
-            Some(content_type) if content_type == "application/json" => {
-                match resp.json::<D>().await {
-                    Ok(data) => Ok(data),
-                    Err(e) => Err(api::Error::internal(e)),
-                }
-            }
-            _ => Ok(D::default()),
-        }
-    } else {
-        match resp.headers().get(reqwest::header::CONTENT_TYPE) {
-            Some(content_type) if content_type == "application/json" => {
-                match resp.json::<api::Error>().await {
-                    Ok(data) => Err(data),
-                    Err(e) => Err(api::Error::internal(e)),
-                }
-            }
-            _ => {
-                // We have some non-JSON error response.
-                let body = resp.text().await.unwrap_or_else(|_| "".into());
-                Err(api::Error {
-                    code: api::ErrCode::Internal,
-                    message: body,
-                    internal_message: None,
-                    stack: None,
-                    details: None,
-                })
-            }
-        }
     }
 }
 

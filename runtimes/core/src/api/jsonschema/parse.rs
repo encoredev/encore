@@ -1,12 +1,11 @@
-use crate::api;
 use crate::api::jsonschema::{Basic, BasicOrValue, JSONSchema, Registry, Struct, Value};
+use crate::api::{self, PValue, PValues};
 use crate::api::{schema, APIResult};
 use schema::ToHeaderStr;
 
 use std::str::FromStr;
 
 use crate::api::jsonschema::de::Literal;
-use serde_json::Value as JSON;
 
 pub trait ParseWithSchema<Output> {
     fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<Output>;
@@ -24,12 +23,12 @@ macro_rules! header_to_str {
     };
 }
 
-impl<H> ParseWithSchema<serde_json::Map<String, JSON>> for H
+impl<H> ParseWithSchema<PValues> for H
 where
     H: schema::HTTPHeaders,
 {
-    fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<serde_json::Map<String, JSON>> {
-        let mut result = serde_json::Map::new();
+    fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<PValues> {
+        let mut result = PValues::new();
         let reg = schema.registry.as_ref();
 
         for (field_key, field) in schema.root().fields.iter() {
@@ -85,7 +84,7 @@ where
                                 )?;
                                 arr.push(value);
                             }
-                            serde_json::Value::Array(arr)
+                            PValue::Array(arr)
                         } else {
                             parse_header_value(header_to_str!(header_value)?, reg, value_type)?
                         }
@@ -98,13 +97,13 @@ where
     }
 }
 
-fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<JSON> {
+fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
     match schema {
         // Recurse
         Value::Ref(idx) => parse_header_value(header, reg, &reg.values[*idx]),
 
         // If we have an empty header for an option, that's fine.
-        Value::Option(_) if header.is_empty() => Ok(JSON::Null),
+        Value::Option(_) if header.is_empty() => Ok(PValue::Null),
 
         // Otherwise recurse.
         Value::Option(opt) => match opt {
@@ -117,15 +116,15 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
         Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
 
         Value::Literal(lit) => match lit {
-            Literal::Str(want) if header == want => Ok(JSON::String(want.to_string())),
-            Literal::Bool(true) if header == "true" => Ok(JSON::Bool(true)),
-            Literal::Bool(false) if header == "false" => Ok(JSON::Bool(false)),
+            Literal::Str(want) if header == want => Ok(PValue::String(want.to_string())),
+            Literal::Bool(true) if header == "true" => Ok(PValue::Bool(true)),
+            Literal::Bool(false) if header == "false" => Ok(PValue::Bool(false)),
             Literal::Int(want) if header.parse() == Ok(*want) => {
-                Ok(JSON::Number(serde_json::Number::from(*want)))
+                Ok(PValue::Number(serde_json::Number::from(*want)))
             }
             Literal::Float(want) if header.parse() == Ok(*want) => {
                 if let Some(num) = serde_json::Number::from_f64(*want) {
-                    Ok(JSON::Number(num))
+                    Ok(PValue::Number(num))
                 } else {
                     Err(api::Error {
                         code: api::ErrCode::InvalidArgument,
@@ -172,13 +171,13 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
     }
 }
 
-impl ParseWithSchema<serde_json::Value> for serde_json::Value {
-    fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<serde_json::Value> {
+impl ParseWithSchema<PValue> for PValue {
+    fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<PValue> {
         let reg = schema.registry.as_ref();
         let fields = &schema.root().fields;
         match self {
-            JSON::Object(obj) => {
-                let mut result = serde_json::Map::new();
+            PValue::Object(obj) => {
+                let mut result = PValues::new();
                 for (key, value) in obj {
                     let value = match fields.get(&key) {
                         // Not known to schema; pass it unmodified.
@@ -194,7 +193,7 @@ impl ParseWithSchema<serde_json::Value> for serde_json::Value {
                     };
                     result.insert(key, value);
                 }
-                Ok(result.into())
+                Ok(PValue::Object(result))
             }
 
             _ => unexpected_json(reg, schema.root_value(), &self),
@@ -202,17 +201,13 @@ impl ParseWithSchema<serde_json::Value> for serde_json::Value {
     }
 }
 
-fn parse_json_value(
-    this: serde_json::Value,
-    reg: &Registry,
-    schema: &Value,
-) -> APIResult<serde_json::Value> {
+fn parse_json_value(this: PValue, reg: &Registry, schema: &Value) -> APIResult<PValue> {
     match schema {
         // Recurse
         Value::Ref(idx) => parse_json_value(this, reg, &reg.values[*idx]),
 
         // If we have a null value for an option, that's fine.
-        Value::Option(_) if this.is_null() => Ok(JSON::Null),
+        Value::Option(_) if this.is_null() => Ok(PValue::Null),
 
         // Otherwise recurse.
         Value::Option(opt) => match opt {
@@ -234,20 +229,22 @@ fn parse_json_value(
             };
 
             match (this, lit) {
-                (JSON::String(got), Literal::Str(want)) if &got == want => Ok(JSON::String(got)),
-                (JSON::Bool(got), Literal::Bool(want)) if &got == want => Ok(JSON::Bool(got)),
-                (JSON::Number(got), Literal::Int(want)) => {
+                (PValue::String(got), Literal::Str(want)) if &got == want => {
+                    Ok(PValue::String(got))
+                }
+                (PValue::Bool(got), Literal::Bool(want)) if &got == want => Ok(PValue::Bool(got)),
+                (PValue::Number(got), Literal::Int(want)) => {
                     if got.as_i64() == Some(*want) {
-                        Ok(JSON::Number(got))
+                        Ok(PValue::Number(got))
                     } else {
-                        invalid(JSON::Number(got))
+                        invalid(PValue::Number(got))
                     }
                 }
-                (JSON::Number(got), Literal::Float(want)) => {
+                (PValue::Number(got), Literal::Float(want)) => {
                     if got.as_f64() == Some(*want) {
-                        Ok(JSON::Number(got))
+                        Ok(PValue::Number(got))
                     } else {
-                        invalid(JSON::Number(got))
+                        invalid(PValue::Number(got))
                     }
                 }
                 (got, _) => invalid(got),
@@ -255,8 +252,8 @@ fn parse_json_value(
         }
 
         Value::Struct(Struct { fields }) => match this {
-            JSON::Object(obj) => {
-                let mut result = serde_json::Map::new();
+            PValue::Object(obj) => {
+                let mut result = PValues::new();
                 for (key, value) in obj {
                     let value = match fields.get(&key) {
                         // Not known to schema; pass it unmodified.
@@ -272,15 +269,15 @@ fn parse_json_value(
                     };
                     result.insert(key, value);
                 }
-                Ok(result.into())
+                Ok(PValue::Object(result))
             }
 
             _ => unexpected_json(reg, schema, &this),
         },
 
         Value::Map(value_type) => match this {
-            JSON::Object(obj) => {
-                let mut result = serde_json::Map::new();
+            PValue::Object(obj) => {
+                let mut result = PValues::new();
                 for (key, value) in obj {
                     let value = match value_type {
                         BasicOrValue::Basic(basic) => parse_basic_json(reg, basic, value)?,
@@ -290,14 +287,14 @@ fn parse_json_value(
                     };
                     result.insert(key, value);
                 }
-                Ok(result.into())
+                Ok(PValue::Object(result))
             }
 
             _ => unexpected_json(reg, schema, &this),
         },
 
         Value::Array(value_type) => match this {
-            JSON::Array(arr) => {
+            PValue::Array(arr) => {
                 let mut result = Vec::with_capacity(arr.len());
                 for val in arr {
                     let value = match value_type {
@@ -306,7 +303,7 @@ fn parse_json_value(
                     };
                     result.push(value);
                 }
-                Ok(result.into())
+                Ok(PValue::Array(result))
             }
 
             _ => unexpected_json(reg, schema, &this),
@@ -338,7 +335,7 @@ fn parse_json_value(
     }
 }
 
-fn unexpected_json(reg: &Registry, schema: &Value, value: &JSON) -> APIResult<JSON> {
+fn unexpected_json(reg: &Registry, schema: &Value, value: &PValue) -> APIResult<PValue> {
     Err(api::Error {
         code: api::ErrCode::InvalidArgument,
         message: "invalid value".to_string(),
@@ -365,37 +362,34 @@ fn unsupported<T>(reg: &Registry, schema: &Value) -> APIResult<T> {
     })
 }
 
-fn describe_json(value: &serde_json::Value) -> &'static str {
+fn describe_json(value: &PValue) -> &'static str {
     match value {
-        JSON::Null => "null",
-        JSON::Bool(_) => "a boolean",
-        JSON::Number(_) => "a number",
-        JSON::String(_) => "a string",
-        JSON::Array(_) => "an array",
-        JSON::Object(_) => "an object",
+        PValue::Null => "null",
+        PValue::Bool(_) => "a boolean",
+        PValue::Number(_) => "a number",
+        PValue::String(_) => "a string",
+        // PValue::DateTime(_) => "a datetime",
+        PValue::Array(_) => "an array",
+        PValue::Object(_) => "an object",
     }
 }
 
-fn parse_basic_json(
-    reg: &Registry,
-    basic: &Basic,
-    value: serde_json::Value,
-) -> APIResult<serde_json::Value> {
+fn parse_basic_json(reg: &Registry, basic: &Basic, value: PValue) -> APIResult<PValue> {
     match (basic, &value) {
         (Basic::Any, _) => Ok(value),
 
-        (Basic::Null, JSON::Null) => Ok(value),
-        (Basic::Bool, JSON::Bool(_)) => Ok(value),
-        (Basic::Number, JSON::Number(_)) => Ok(value),
-        (Basic::String, JSON::String(_)) => Ok(value),
+        (Basic::Null, PValue::Null) => Ok(value),
+        (Basic::Bool, PValue::Bool(_)) => Ok(value),
+        (Basic::Number, PValue::Number(_)) => Ok(value),
+        (Basic::String, PValue::String(_)) => Ok(value),
 
-        (Basic::String, JSON::Number(num)) => Ok(JSON::String(num.to_string())),
-        (Basic::String, JSON::Bool(bool)) => Ok(JSON::String(bool.to_string())),
+        (Basic::String, PValue::Number(num)) => Ok(PValue::String(num.to_string())),
+        (Basic::String, PValue::Bool(bool)) => Ok(PValue::String(bool.to_string())),
 
-        (_, JSON::String(str)) => match basic {
+        (_, PValue::String(str)) => match basic {
             Basic::Bool => match str.as_str() {
-                "true" => Ok(JSON::Bool(true)),
-                "false" => Ok(JSON::Bool(false)),
+                "true" => Ok(PValue::Bool(true)),
+                "false" => Ok(PValue::Bool(false)),
                 _ => Err(api::Error {
                     code: api::ErrCode::InvalidArgument,
                     message: format!("invalid boolean value: {}", str),
@@ -405,7 +399,7 @@ fn parse_basic_json(
                 }),
             },
             Basic::Number => serde_json::Number::from_str(str)
-                .map(serde_json::Value::Number)
+                .map(PValue::Number)
                 .map_err(|_err| api::Error {
                     code: api::ErrCode::InvalidArgument,
                     message: format!("invalid number value: {}", str),
@@ -413,7 +407,7 @@ fn parse_basic_json(
                     stack: None,
                     details: None,
                 }),
-            Basic::Null if str == "null" => Ok(JSON::Null),
+            Basic::Null if str == "null" => Ok(PValue::Null),
 
             _ => unexpected_json(reg, &Value::Basic(*basic), &value),
         },
@@ -422,15 +416,15 @@ fn parse_basic_json(
     }
 }
 
-fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
+fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
     match basic {
-        Basic::Any | Basic::String => Ok(JSON::String(str.to_string())),
+        Basic::Any | Basic::String => Ok(PValue::String(str.to_string())),
 
-        Basic::Null if str.is_empty() || str == "null" => Ok(JSON::Null),
+        Basic::Null if str.is_empty() || str == "null" => Ok(PValue::Null),
 
         Basic::Bool => match str {
-            "true" => Ok(JSON::Bool(true)),
-            "false" => Ok(JSON::Bool(false)),
+            "true" => Ok(PValue::Bool(true)),
+            "false" => Ok(PValue::Bool(false)),
             _ => Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: format!("invalid boolean value: {}", str),
@@ -441,7 +435,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<serde_json::Value> {
         },
 
         Basic::Number => serde_json::Number::from_str(str)
-            .map(JSON::Number)
+            .map(PValue::Number)
             .map_err(|_err| api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: format!("invalid number value: {}", str),

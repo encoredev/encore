@@ -1,5 +1,5 @@
-use crate::api;
 use crate::api::schema::{JSONPayload, ParseResponse, ToOutgoingRequest, ToResponse};
+use crate::api::{self, PValue, PValues};
 use crate::api::{jsonschema, APIResult};
 use std::str::FromStr;
 
@@ -123,14 +123,11 @@ impl Header {
     pub fn parse_incoming_request_parts(
         &self,
         req: &axum::http::request::Parts,
-    ) -> APIResult<Option<serde_json::Map<String, serde_json::Value>>> {
+    ) -> APIResult<Option<PValues>> {
         self.parse(&req.headers)
     }
 
-    pub fn parse(
-        &self,
-        headers: &axum::http::HeaderMap,
-    ) -> APIResult<Option<serde_json::Map<String, serde_json::Value>>> {
+    pub fn parse(&self, headers: &axum::http::HeaderMap) -> APIResult<Option<PValues>> {
         if self.schema.root().is_empty() {
             return Ok(None);
         }
@@ -143,7 +140,7 @@ impl Header {
 }
 
 impl ParseResponse for Header {
-    type Output = Option<serde_json::Map<String, serde_json::Value>>;
+    type Output = Option<PValues>;
 
     fn parse_response(&self, resp: &mut reqwest::Response) -> APIResult<Self::Output> {
         if self.schema.root().is_empty() {
@@ -274,8 +271,8 @@ enum ReqwestHeaders {
     Multi(Vec<reqwest::header::HeaderValue>),
 }
 
-fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeaders> {
-    use serde_json::Value::*;
+fn to_reqwest_header_value(value: &PValue) -> APIResult<ReqwestHeaders> {
+    use PValue::*;
     use ReqwestHeaders::*;
 
     Ok(Single(match value {
@@ -293,6 +290,15 @@ fn to_reqwest_header_value(value: &serde_json::Value) -> APIResult<ReqwestHeader
             details: None,
         })?,
 
+        // DateTime(dt) => {
+        //     let s = dt.to_rfc3339();
+        //     reqwest::header::HeaderValue::from_str(&s).map_err(|e| api::Error {
+        //         code: api::ErrCode::InvalidArgument,
+        //         message: "unable to convert string to header value".to_string(),
+        //         internal_message: Some(format!("unable to convert string to header value: {}", e)),
+        //         stack: None,
+        //     })?
+        // }
         Number(num) => {
             let str = num.to_string();
             reqwest::header::HeaderValue::from_str(&str).map_err(|e| api::Error {
@@ -340,8 +346,8 @@ enum AxumHeaders {
     Multi(Vec<axum::http::HeaderValue>),
 }
 
-fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
-    use serde_json::Value::*;
+fn to_axum_header_value(value: &PValue) -> APIResult<AxumHeaders> {
+    use PValue::*;
 
     Ok(AxumHeaders::Single(match value {
         Null => axum::http::HeaderValue::from_static("null"),
@@ -356,6 +362,15 @@ fn to_axum_header_value(value: &serde_json::Value) -> APIResult<AxumHeaders> {
             details: None,
         })?,
 
+        // DateTime(dt) => {
+        //     let s = dt.to_rfc3339();
+        //     axum::http::HeaderValue::from_str(&s).map_err(|e| api::Error {
+        //         code: api::ErrCode::InvalidArgument,
+        //         message: "unable to convert string to header value".to_string(),
+        //         internal_message: Some(format!("unable to convert string to header value: {}", e)),
+        //         stack: None,
+        //     })?
+        // }
         Number(num) => {
             let str = num.to_string();
             axum::http::HeaderValue::from_str(&str).map_err(|e| api::Error {

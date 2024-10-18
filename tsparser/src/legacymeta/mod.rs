@@ -200,7 +200,8 @@ impl<'a> MetaBuilder<'a> {
 
                 Resource::PubSubTopic(topic) => {
                     let idx = self.data.pubsub_topics.len();
-                    self.data.pubsub_topics.push(self.pubsub_topic(topic));
+                    let top = self.pubsub_topic(topic)?;
+                    self.data.pubsub_topics.push(top);
                     if let Some(obj) = &b.object {
                         topic_idx.insert(obj.id, idx);
                     }
@@ -433,15 +434,20 @@ impl<'a> MetaBuilder<'a> {
         Ok(self.data)
     }
 
-    fn pubsub_topic(&self, topic: &pubsub_topic::Topic) -> v1::PubSubTopic {
+    fn pubsub_topic(&mut self, topic: &pubsub_topic::Topic) -> Result<v1::PubSubTopic> {
+        use pubsub_topic::DeliveryGuarantee;
+        let message_type = self.schema.typ(&topic.message_type)?;
         let mut topic = v1::PubSubTopic {
             name: topic.name.clone(),
             doc: topic.doc.clone(),
-            message_type: None,           // TODO
-            delivery_guarantee: 0,        // TODO
-            ordering_key: "".to_string(), // TODO
-            publishers: vec![],           // TODO
-            subscriptions: vec![],        // TODO
+            message_type: Some(message_type),
+            delivery_guarantee: match topic.delivery_guarantee {
+                DeliveryGuarantee::AtLeastOnce => v1::pub_sub_topic::DeliveryGuarantee::AtLeastOnce,
+                DeliveryGuarantee::ExactlyOnce => v1::pub_sub_topic::DeliveryGuarantee::ExactlyOnce,
+            } as i32,
+            ordering_key: topic.ordering_attribute.clone().unwrap_or_default(),
+            publishers: vec![],    // filled in below
+            subscriptions: vec![], // filled in below
         };
 
         let mut seen_publishers = HashSet::new();
@@ -459,7 +465,7 @@ impl<'a> MetaBuilder<'a> {
             .publishers
             .sort_by(|a, b| a.service_name.cmp(&b.service_name));
 
-        topic
+        Ok(topic)
     }
 
     fn pubsub_subscription(

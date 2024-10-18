@@ -31,8 +31,9 @@ impl pubsub::Topic for Topic {
         msg: MessageData,
     ) -> Pin<Box<dyn Future<Output = Result<MessageId>> + Send + '_>> {
         Box::pin(async move {
+            // The raw body is JSON, so it's valid UTF8.
             let data =
-                serde_json::to_string(&msg.body).context("failed to serialize message body")?;
+                String::from_utf8(msg.raw_body).context("failed to serialize message body")?;
 
             let attrs: Result<HashMap<String, aws_sdk_sns::types::MessageAttributeValue>, _> = msg
                 .attrs

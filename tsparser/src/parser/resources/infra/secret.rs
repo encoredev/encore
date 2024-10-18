@@ -73,6 +73,7 @@ fn inside_function(path: &swc_ecma_visit::AstNodePath) -> Option<Span> {
 
     None
 }
+
 impl ReferenceParser for SecretLiteral {
     fn parse_resource_reference(
         module: &Module,
