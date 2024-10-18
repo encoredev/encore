@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"encr.dev/internal/env"
+	"encr.dev/internal/lookpath"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/fns"
@@ -256,9 +257,15 @@ type testInput struct {
 }
 
 func (i *BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) error {
-	cmd := exec.CommandContext(ctx, p.Spec.Command, p.Spec.Args...)
+	cwd := p.WorkingDir.ToIO()
+	binary, err := lookpath.InDir(cwd, p.Spec.Environ, p.Spec.Command)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.CommandContext(ctx, binary, p.Spec.Args...)
 	cmd.Env = p.Spec.Environ
-	cmd.Dir = p.WorkingDir.ToIO()
+	cmd.Dir = cwd
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr
 	return cmd.Run()

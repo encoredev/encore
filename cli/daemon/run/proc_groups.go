@@ -24,6 +24,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/internal/sym"
+	"encr.dev/internal/lookpath"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/noopgateway"
@@ -245,11 +246,17 @@ func (pg *ProcGroup) NewAllInOneProc(spec builder.Cmd, listenAddr netip.AddrPort
 	// Append both the command-specific env and the base environment.
 	env = append(env, spec.Env...)
 
+	cwd := filepath.Join(pg.Run.App.Root(), pg.workingDir)
+	binary, err := lookpath.InDir(cwd, env, spec.Command[0])
+	if err != nil {
+		return err
+	}
+
 	// This is safe since the command comes from our build.
 	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(pg.ctx, spec.Command[0], spec.Command[1:]...)
+	cmd := exec.CommandContext(pg.ctx, binary, spec.Command[1:]...)
 	cmd.Env = env
-	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+	cmd.Dir = cwd
 
 	// Proxy stdout and stderr to the given app logger, if any.
 	if l := pg.logger; l != nil {
@@ -281,11 +288,17 @@ func (pg *ProcGroup) NewProcForService(serviceName string, listenAddr netip.Addr
 	// Append both the command-specific env and the base environment.
 	env = append(env, spec.Env...)
 
+	cwd := filepath.Join(pg.Run.App.Root(), pg.workingDir)
+	binary, err := lookpath.InDir(cwd, env, spec.Command[0])
+	if err != nil {
+		return err
+	}
+
 	// This is safe since the command comes from our build.
 	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(pg.ctx, spec.Command[0], spec.Command[1:]...)
+	cmd := exec.CommandContext(pg.ctx, binary, spec.Command[1:]...)
 	cmd.Env = env
-	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+	cmd.Dir = cwd
 
 	// Proxy stdout and stderr to the given app logger, if any.
 	if l := pg.logger; l != nil {
@@ -312,11 +325,17 @@ func (pg *ProcGroup) NewProcForGateway(gatewayName string, listenAddr netip.Addr
 	// Append both the command-specific env and the base environment.
 	env = append(env, spec.Env...)
 
+	cwd := filepath.Join(pg.Run.App.Root(), pg.workingDir)
+	binary, err := lookpath.InDir(cwd, env, spec.Command[0])
+	if err != nil {
+		return err
+	}
+
 	// This is safe since the command comes from our build.
 	// nosemgrep go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(pg.ctx, spec.Command[0], spec.Command[1:]...)
+	cmd := exec.CommandContext(pg.ctx, binary, spec.Command[1:]...)
 	cmd.Env = env
-	cmd.Dir = filepath.Join(pg.Run.App.Root(), pg.workingDir)
+	cmd.Dir = cwd
 
 	// Bound the wait time to esure prompt live reload if something goes wrong
 	// with IO copying.
