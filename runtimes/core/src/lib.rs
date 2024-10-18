@@ -457,7 +457,7 @@ fn infra_config_from_env() -> Result<Option<runtimepb::RuntimeConfig>, ParseErro
         Err(std::env::VarError::NotPresent) => return Ok(None),
         Err(e) => return Err(ParseError::EnvVar(e)),
     };
-    let file_content = std::fs::read_to_string(&cfg_path).map_err(ParseError::IO)?;
+    let file_content = std::fs::read_to_string(cfg_path).map_err(ParseError::IO)?;
     let infra_config: infracfg::InfraConfig = serde_json::from_str(&file_content)
         .map_err(|e| ParseError::IO(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
     let runtime_config = infracfg::map_infra_to_runtime(infra_config);

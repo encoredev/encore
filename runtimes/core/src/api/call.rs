@@ -166,7 +166,7 @@ impl ServiceRegistry {
         start_event_id: Option<TraceEventId>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let http_client = self.http_client.clone();
-        let req = self.prepare_api_call_request(&target, data, source, start_event_id);
+        let req = self.prepare_api_call_request(target, data, source, start_event_id);
         async move {
             match req {
                 Ok((req, resp_schema)) => {
@@ -277,7 +277,7 @@ impl ServiceRegistry {
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
-        let req = self.prepare_stream_request(&target, data, source, start_event_id);
+        let req = self.prepare_stream_request(target, data, source, start_event_id);
         async move {
             match req {
                 Ok((req, outgoing, incoming)) => {

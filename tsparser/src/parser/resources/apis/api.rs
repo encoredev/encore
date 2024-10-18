@@ -5,7 +5,6 @@ use anyhow::{anyhow, Result};
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
-use swc_ecma_ast::TsTypeParamInstantiation;
 use swc_ecma_ast::{self as ast, FnExpr};
 
 use litparser::{LitParser, LocalRelPath, Nullable, Sp};
