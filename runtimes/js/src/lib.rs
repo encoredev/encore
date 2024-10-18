@@ -8,6 +8,7 @@ mod meta;
 mod napi_util;
 pub mod pubsub;
 mod pvalue;
+pub mod objects;
 mod raw_api;
 mod request_meta;
 pub mod runtime;

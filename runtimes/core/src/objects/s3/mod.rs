@@ -26,8 +26,8 @@ impl Cluster {
     }
 }
 
-impl objects::Cluster for Cluster {
-    fn bucket(&self, cfg: &pb::Bucket) -> Arc<dyn objects::Bucket + 'static> {
+impl objects::ClusterImpl for Cluster {
+    fn bucket(&self, cfg: &pb::Bucket) -> Arc<dyn objects::BucketImpl + 'static> {
         Arc::new(Bucket::new(self.region.clone(), self.creds.clone(), cfg))
     }
 }

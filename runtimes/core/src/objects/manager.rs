@@ -5,26 +5,41 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
 use crate::objects::noop::NoopCluster;
-use crate::objects::{
-    noop, Cluster, Bucket,
-};
-use crate::trace::{Tracer};
+use crate::objects::{noop, BucketImpl, ClusterImpl, ObjectImpl};
+use crate::trace::Tracer;
 
 pub struct Manager {
     tracer: Tracer,
-    bucket_cfg: HashMap<EncoreName, (Arc<dyn Cluster>, pb::Bucket)>,
+    bucket_cfg: HashMap<EncoreName, (Arc<dyn ClusterImpl>, pb::Bucket)>,
 
-    buckets: Arc<RwLock<HashMap<EncoreName, Arc<dyn Bucket>>>>,
+    buckets: Arc<RwLock<HashMap<EncoreName, Arc<dyn BucketImpl>>>>,
 }
 
 #[derive(Debug)]
-pub struct BucketObj {
-    name: EncoreName,
+pub struct Bucket {
     tracer: Tracer,
-    inner: Arc<dyn Bucket>,
+    imp: Arc<dyn BucketImpl>,
 }
 
-impl BucketObj {
+impl Bucket {
+    pub fn object(&self, name: String) -> Object {
+        Object {
+            imp: self.imp.object(name),
+            tracer: self.tracer.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Object {
+    tracer: Tracer,
+    imp: Arc<dyn ObjectImpl>,
+}
+
+impl Object {
+    pub async fn exists(&self) -> bool {
+        self.imp.exists().await
+    }
 }
 
 impl Manager {
@@ -38,16 +53,15 @@ impl Manager {
         }
     }
 
-    pub fn bucket(&self, name: EncoreName) -> Option<BucketObj> {
-        let inner = self.bucket_impl(name.clone())?;
-        Some(BucketObj {
-            name,
-            inner,
+    pub fn bucket(&self, name: EncoreName) -> Option<Bucket> {
+        let imp = self.bucket_impl(name)?;
+        Some(Bucket {
+            imp,
             tracer: self.tracer.clone(),
         })
     }
 
-    fn bucket_impl(&self, name: EncoreName) -> Option<Arc<dyn Bucket>> {
+    fn bucket_impl(&self, name: EncoreName) -> Option<Arc<dyn BucketImpl>> {
         if let Some(bkt) = self.buckets.read().unwrap().get(&name) {
             return Some(bkt.clone());
         }
@@ -68,9 +82,7 @@ impl Manager {
 fn make_cfg_maps(
     clusters: Vec<pb::BucketCluster>,
     md: &meta::Data,
-) ->
-    HashMap<EncoreName, (Arc<dyn Cluster>, pb::Bucket)>
-{
+) -> HashMap<EncoreName, (Arc<dyn ClusterImpl>, pb::Bucket)> {
     let mut bucket_map = HashMap::new();
 
     for cluster_cfg in clusters {
@@ -87,7 +99,7 @@ fn make_cfg_maps(
     bucket_map
 }
 
-fn new_cluster(cluster: &pb::BucketCluster) -> Arc<dyn Cluster> {
+fn new_cluster(cluster: &pb::BucketCluster) -> Arc<dyn ClusterImpl> {
     // let Some(provider) = &cluster.provider else {
     //     log::error!("missing PubSub cluster provider: {}", cluster.rid);
     //     return Arc::new(NoopCluster);

@@ -14,6 +14,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
+	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
@@ -25,9 +26,10 @@ import (
 type Type string
 
 const (
-	PubSub Type = "pubsub"
-	Cache  Type = "cache"
-	SQLDB  Type = "sqldb"
+	PubSub  Type = "pubsub"
+	Cache   Type = "cache"
+	SQLDB   Type = "sqldb"
+	Objects Type = "objects"
 )
 
 const (
@@ -99,6 +101,10 @@ func (rm *ResourceManager) StartRequiredServices(a *optracker.AsyncBuildJobs, md
 	if redis.IsUsed(md) && rm.GetRedis() == nil {
 		a.Go("Starting Redis server", true, 250*time.Millisecond, rm.StartRedis)
 	}
+
+	if objects.IsUsed(md) && rm.GetObjects() == nil {
+		a.Go("Starting Object Storage server", true, 250*time.Millisecond, rm.StartObjects)
+	}
 }
 
 // StartPubSub starts a PubSub daemon.
@@ -147,6 +153,31 @@ func (rm *ResourceManager) GetRedis() *redis.Server {
 
 	if srv, found := rm.servers[Cache]; found {
 		return srv.(*redis.Server)
+	}
+	return nil
+}
+
+// StartObjects starts an Object Storage server.
+func (rm *ResourceManager) StartObjects(ctx context.Context) error {
+	srv := objects.New()
+	err := srv.Start()
+	if err != nil {
+		return err
+	}
+
+	rm.mutex.Lock()
+	rm.servers[Objects] = srv
+	rm.mutex.Unlock()
+	return nil
+}
+
+// GetObjects returns the Object Storage server if it is running otherwise it returns nil
+func (rm *ResourceManager) GetObjects() *objects.Server {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+
+	if srv, found := rm.servers[Objects]; found {
+		return srv.(*objects.Server)
 	}
 	return nil
 }
@@ -392,6 +423,25 @@ func (rm *ResourceManager) PubSubSubscriptionConfig(_ *meta.PubSubTopic, sub *me
 
 // RedisConfig returns the Redis server and database configuration for the given database.
 func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisServer, config.RedisDatabase, error) {
+	server := rm.GetRedis()
+	if server == nil {
+		return config.RedisServer{}, config.RedisDatabase{}, errors.New("no Redis server found")
+	}
+
+	srvCfg := config.RedisServer{
+		Host: server.Addr(),
+	}
+
+	dbCfg := config.RedisDatabase{
+		EncoreName: redis.Name,
+		KeyPrefix:  redis.Name + "/",
+	}
+
+	return srvCfg, dbCfg, nil
+}
+
+// ObjectsConfig returns the Object Storage server configuration.
+func (rm *ResourceManager) ObjectsConfig() (config.RedisServer, config.RedisDatabase, error) {
 	server := rm.GetRedis()
 	if server == nil {
 		return config.RedisServer{}, config.RedisDatabase{}, errors.New("no Redis server found")
