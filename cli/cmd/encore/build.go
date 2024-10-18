@@ -15,17 +15,18 @@ import (
 )
 
 func init() {
-	ejectCmd := &cobra.Command{
-		Use:   "eject",
-		Short: "eject provides ways to eject your application to migrate away from using Encore",
+	buildCmd := &cobra.Command{
+		Use:     "build",
+		Aliases: []string{"eject"},
+		Short:   "build provides ways to build your application for deployment",
 	}
 
-	p := ejectParams{
+	p := buildParams{
 		CgoEnabled: os.Getenv("CGO_ENABLED") == "1",
 		Goos:       or(os.Getenv("GOOS"), "linux"),
 		Goarch:     or(os.Getenv("GOARCH"), "amd64"),
 	}
-	dockerEjectCmd := &cobra.Command{
+	dockerBuildCmd := &cobra.Command{
 		Use:   "docker IMAGE_TAG",
 		Short: "docker builds a portable docker image of your Encore application",
 		Args:  cobra.ExactArgs(1),
@@ -41,24 +42,24 @@ func init() {
 				}
 			}
 			p.ImageTag = args[0]
-			dockerEject(p)
+			dockerBuild(p)
 		},
 	}
 
-	dockerEjectCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")
-	dockerEjectCmd.Flags().StringVar(&p.BaseImg, "base", "scratch", "base image to build from")
-	dockerEjectCmd.Flags().StringVar(&p.Goos, "os", p.Goos, "target operating system. One of (linux, darwin, windows)")
-	dockerEjectCmd.Flags().StringVar(&p.Goarch, "arch", p.Goarch, "target architecture. One of (amd64, arm64)")
-	dockerEjectCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", false, "enable cgo")
-	dockerEjectCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-config", false, "do not read or generate a infra configuration file")
-	dockerEjectCmd.Flags().StringVar(&p.InfraConfPath, "config", "", "infra configuration file path")
-	p.Services = dockerEjectCmd.Flags().StringSlice("services", nil, "services to include in the image")
-	p.Gateways = dockerEjectCmd.Flags().StringSlice("gateways", nil, "gateways to include in the image")
-	rootCmd.AddCommand(ejectCmd)
-	ejectCmd.AddCommand(dockerEjectCmd)
+	dockerBuildCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")
+	dockerBuildCmd.Flags().StringVar(&p.BaseImg, "base", "scratch", "base image to build from")
+	dockerBuildCmd.Flags().StringVar(&p.Goos, "os", p.Goos, "target operating system. One of (linux, darwin, windows)")
+	dockerBuildCmd.Flags().StringVar(&p.Goarch, "arch", p.Goarch, "target architecture. One of (amd64, arm64)")
+	dockerBuildCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", false, "enable cgo")
+	dockerBuildCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-config", false, "do not read or generate a infra configuration file")
+	dockerBuildCmd.Flags().StringVar(&p.InfraConfPath, "config", "", "infra configuration file path")
+	p.Services = dockerBuildCmd.Flags().StringSlice("services", nil, "services to include in the image")
+	p.Gateways = dockerBuildCmd.Flags().StringSlice("gateways", nil, "gateways to include in the image")
+	rootCmd.AddCommand(buildCmd)
+	buildCmd.AddCommand(dockerBuildCmd)
 }
 
-type ejectParams struct {
+type buildParams struct {
 	AppRoot       string
 	ImageTag      string
 	Push          bool
@@ -72,7 +73,7 @@ type ejectParams struct {
 	Gateways      *[]string
 }
 
-func dockerEject(p ejectParams) {
+func dockerBuild(p buildParams) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
