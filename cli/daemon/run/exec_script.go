@@ -17,6 +17,7 @@ import (
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run/infra"
 	encoreEnv "encr.dev/internal/env"
+	"encr.dev/internal/lookpath"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -215,9 +216,15 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 
 	tracker.AllDone()
 
+	cwd := filepath.Join(p.App.Root(), p.WorkingDir)
+	binary, err := lookpath.InDir(cwd, env, proc.Command[0])
+	if err != nil {
+		return err
+	}
+
 	args := append(slices.Clone(proc.Command[1:]), p.ScriptArgs...)
 	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd := exec.CommandContext(ctx, proc.Command[0], args...)
+	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = filepath.Join(p.App.Root(), p.WorkingDir)
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr
