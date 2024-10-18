@@ -170,10 +170,10 @@ impl Path {
                             let str = num.to_string();
                             path.push_str(&str);
                         }
-                        // PValue::DateTime(dt) => {
-                        //     let encoded = dt.to_rfc3339();
-                        //     path.push_str(&encoded);
-                        // }
+                        PValue::DateTime(dt) => {
+                            let encoded = dt.to_rfc3339();
+                            path.push_str(&encoded);
+                        }
                         PValue::Array(_) | PValue::Object(_) => {
                             return Err(api::Error {
                                 code: api::ErrCode::InvalidArgument,
@@ -250,17 +250,21 @@ impl Path {
                                 })?;
                                 PValue::Bool(val)
                             }
-                            // Basic::DateTime => {
-                            //     let val = DateTime::parse_from_rfc3339(&val).map_err(|err| {
-                            //         api::Error {
-                            //             code: api::ErrCode::InvalidArgument,
-                            //             message: "path parameter is not a valid datetime".into(),
-                            //             internal_message: Some(err.to_string()),
-                            //             stack: None,
-                            //         }
-                            //     })?;
-                            //     PValue::DateTime(val)
-                            // }
+
+                            Basic::DateTime => {
+                                let val =
+                                    api::DateTime::parse_from_rfc3339(&val).map_err(|err| {
+                                        api::Error {
+                                            code: api::ErrCode::InvalidArgument,
+                                            message: "path parameter is not a valid datetime"
+                                                .into(),
+                                            internal_message: Some(err.to_string()),
+                                            stack: None,
+                                            details: None,
+                                        }
+                                    })?;
+                                PValue::DateTime(val)
+                            }
 
                             // We shouldn't have null here, but handle it just in case.
                             Basic::Null => PValue::Null,

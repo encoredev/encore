@@ -1,5 +1,6 @@
-use encore_runtime_core::api::{PValue, PValues};
-use napi::{bindgen_prelude::*, sys, JsObject, JsUnknown, NapiValue, Result};
+use chrono::TimeZone;
+use encore_runtime_core::api::{self, auth, PValue, PValues};
+use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
 #[allow(dead_code)]
@@ -14,19 +15,23 @@ pub fn parse_pvalues(val: JsUnknown) -> Result<PValues> {
 }
 
 #[allow(dead_code)]
-pub fn pvalue_to_js(env: Env, val: PValue) -> Result<JsUnknown> {
+pub fn pvalue_to_js(env: Env, val: &PValue) -> Result<JsUnknown> {
     let env = env.raw();
+
     unsafe {
-        let val = PVal::to_napi_value(env, PVal(val))?;
+        // Safety: the memory representation is the same for &PValue and &PVal.
+        let pv = std::mem::transmute::<&PValue, &PVal>(val);
+        let val = ToNapiValue::to_napi_value(env, pv)?;
         JsUnknown::from_raw(env, val)
     }
 }
 
 #[allow(dead_code)]
-pub fn pvalues_to_js(env: Env, val: PValues) -> Result<JsUnknown> {
+pub fn pvalues_to_js(env: Env, val: &PValues) -> Result<JsUnknown> {
     let env = env.raw();
     unsafe {
-        let val = PVals::to_napi_value(env, PVals(val))?;
+        let pv = std::mem::transmute::<&PValues, &PVals>(val);
+        let val = ToNapiValue::to_napi_value(env, pv)?;
         JsUnknown::from_raw(env, val)
     }
 }
@@ -39,13 +44,59 @@ impl ToNapiValue for PVal {
         match val.0 {
             PValue::Null => unsafe { Null::to_napi_value(env, Null) },
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, b) },
-            PValue::Number(n) => unsafe { Number::to_napi_value(env, n) },
-            PValue::String(s) => unsafe { String::to_napi_value(env, s) },
-            PValue::Array(arr) => unsafe {
-                let vals = std::mem::transmute::<Vec<PValue>, Vec<PVal>>(arr);
-                Vec::<PVal>::to_napi_value(env, vals)
+            PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
+            PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
+            PValue::Array(arr) => {
+                let env2 = Env::from_raw(env);
+                let mut out = env2.create_array(arr.len() as u32)?;
+
+                for (i, v) in arr.into_iter().enumerate() {
+                    out.set(i as u32, PVal(v))?;
+                }
+
+                unsafe { Array::to_napi_value(env, out) }
+            }
+            PValue::Object(obj) => unsafe { ToNapiValue::to_napi_value(env, PVals(obj)) },
+            PValue::DateTime(dt) => {
+                let env2 = Env::from_raw(env);
+                let ts = dt.timestamp();
+                let dt = env2.create_date(ts as f64)?;
+                JsDate::to_napi_value(env, dt)
+            }
+        }
+    }
+}
+
+impl ToNapiValue for &PVal {
+    unsafe fn to_napi_value(env: sys::napi_env, val: Self) -> Result<sys::napi_value> {
+        match &val.0 {
+            PValue::Null => unsafe { Null::to_napi_value(env, Null) },
+            PValue::Bool(b) => unsafe { bool::to_napi_value(env, *b) },
+            PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
+            PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
+            PValue::Array(arr) => {
+                let env2 = Env::from_raw(env);
+                let mut out = env2.create_array(arr.len() as u32)?;
+
+                for (i, v) in arr.iter().enumerate() {
+                    // Safety: the memory representation is the same for &PValue and &PVal.
+                    let pv = unsafe { std::mem::transmute::<&PValue, &PVal>(v) };
+                    out.set(i as u32, pv)?;
+                }
+
+                unsafe { Array::to_napi_value(env, out) }
+            }
+            PValue::Object(obj) => unsafe {
+                // Safety: the memory representation is the same for &PValue and &PVal.
+                let pv = std::mem::transmute::<&PValues, &PVals>(obj);
+                ToNapiValue::to_napi_value(env, pv)
             },
-            PValue::Object(obj) => unsafe { PVals::to_napi_value(env, PVals(obj)) },
+            PValue::DateTime(dt) => {
+                let env2 = Env::from_raw(env);
+                let ts = dt.timestamp();
+                let dt = env2.create_date(ts as f64)?;
+                JsDate::to_napi_value(env, dt)
+            }
         }
     }
 }
@@ -72,7 +123,20 @@ impl FromNapiValue for PVal {
                         std::mem::transmute::<Vec<PVal>, Vec<PValue>>(vals)
                     })
                 } else {
-                    PValue::Object(unsafe { PVals::from_napi_value(env, napi_val)?.0 })
+                    // Is it a date?
+                    let mut is_date = false;
+                    check_status!(
+                        unsafe { sys::napi_is_date(env, napi_val, &mut is_date) },
+                        "Failed to detect whether given js is a date"
+                    )?;
+                    if is_date {
+                        let dt = JsDate::from_napi_value(env, napi_val)?;
+                        let secs = dt.value_of()?;
+                        let ts = chrono::Utc.timestamp_opt(secs as i64, 0);
+                        PValue::DateTime(ts.unwrap().fixed_offset())
+                    } else {
+                        PValue::Object(unsafe { PVals::from_napi_value(env, napi_val)?.0 })
+                    }
                 }
             }
             ValueType::BigInt => todo!(),
@@ -126,6 +190,21 @@ impl ToNapiValue for PVals {
     }
 }
 
+impl ToNapiValue for &PVals {
+    unsafe fn to_napi_value(raw_env: sys::napi_env, val: Self) -> Result<sys::napi_value> {
+        let env = Env::from_raw(raw_env);
+        let mut obj = env.create_object()?;
+
+        for (k, v) in val.0.iter() {
+            // Safety: the memory representation is the same for &PValue and &PVal.
+            let pv = unsafe { std::mem::transmute::<&PValue, &PVal>(v) };
+            obj.set(k, pv)?;
+        }
+
+        unsafe { JsObject::to_napi_value(raw_env, obj) }
+    }
+}
+
 impl FromNapiValue for PVals {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
         let obj = JsObject::from_napi_value(env, napi_val)?;
@@ -139,4 +218,55 @@ impl FromNapiValue for PVals {
 
         Ok(map)
     }
+}
+
+pub fn encode_request_payload(
+    env: Env,
+    p: Option<&api::RequestPayload>,
+) -> napi::Result<JsUnknown> {
+    let Some(p) = p else {
+        return Ok(env.get_null()?.into_unknown());
+    };
+
+    let mut obj = env.create_object()?;
+
+    add_fields_to_obj(&mut obj, p.path.as_ref())?;
+    add_fields_to_obj(&mut obj, p.query.as_ref())?;
+    add_fields_to_obj(&mut obj, p.header.as_ref())?;
+
+    match &p.body {
+        api::Body::Typed(typed) => add_fields_to_obj(&mut obj, typed.as_ref())?,
+        api::Body::Raw(_) => {}
+    }
+
+    Ok(obj.into_unknown())
+}
+
+pub fn encode_auth_payload(env: Env, p: &auth::AuthPayload) -> napi::Result<JsUnknown> {
+    let mut obj = env.create_object()?;
+    add_fields_to_obj(&mut obj, p.query.as_ref())?;
+    add_fields_to_obj(&mut obj, p.header.as_ref())?;
+    Ok(obj.into_unknown())
+}
+
+pub fn pvalues_or_null(env: Env, vals: Option<&PValues>) -> napi::Result<JsUnknown> {
+    vals.map_or_else(
+        || env.get_null().map(|v| v.into_unknown()),
+        |v| pvalues_to_js(env, v),
+    )
+}
+
+fn add_fields_to_obj<'a, I: IntoIterator<Item = (&'a String, &'a PValue)>>(
+    obj: &'a mut JsObject,
+    vals: Option<I>,
+) -> napi::Result<()> {
+    let Some(vals) = vals else {
+        return Ok(());
+    };
+
+    for (k, v) in vals.into_iter() {
+        let pv = unsafe { std::mem::transmute::<&PValue, &PVal>(v) };
+        obj.set(k, pv)?;
+    }
+    Ok(())
 }

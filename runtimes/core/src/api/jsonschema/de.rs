@@ -8,7 +8,7 @@ use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Unexpected, Visitor};
 use serde::Deserializer;
 
 use crate::api::jsonschema::Registry;
-use crate::api::{PValue, PValues};
+use crate::api::{self, PValue, PValues};
 
 use serde_json::Number as JSONNumber;
 use serde_json::Value as JVal;
@@ -126,7 +126,7 @@ pub enum Basic {
     Bool,
     Number,
     String,
-    // DateTime,
+    DateTime,
 }
 
 impl Basic {
@@ -137,7 +137,7 @@ impl Basic {
             Basic::Bool => "a boolean",
             Basic::Number => "a number",
             Basic::String => "a string",
-            // Basic::DateTime => "a datetime string",
+            Basic::DateTime => "a datetime string",
         }
     }
 }
@@ -296,7 +296,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 Basic::Bool => "a boolean",
                 Basic::Number => "a number",
                 Basic::String => "a string",
-                // Basic::DateTime => "a datetime string",
+                Basic::DateTime => "a datetime string",
             }),
             Value::Map(_) => formatter.write_str("a JSON object"),
             Value::Array(_) => formatter.write_str("a JSON array"),
@@ -477,6 +477,11 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
         match self.value {
             Value::Basic(b) => match b {
                 Basic::Any | Basic::String => Ok(PValue::String(value)),
+                Basic::DateTime => api::DateTime::parse_from_rfc3339(&value)
+                    .map(PValue::DateTime)
+                    .map_err(|e| {
+                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                    }),
                 Basic::Bool if self.cfg.coerce_strings => {
                     return if value == "true" {
                         Ok(PValue::Bool(true))
@@ -951,6 +956,11 @@ impl<'a> DecodeValue<'a> {
 
             JVal::String(string) => match self.value {
                 Value::Basic(Basic::Any | Basic::String) => Ok(()),
+                Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(string)
+                    .map(|_| ())
+                    .map_err(|e| {
+                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                    }),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
@@ -1140,6 +1150,7 @@ impl<'a> DecodeValue<'a> {
         }
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn transform<E>(&self, value: JVal) -> Result<PValue, E>
     where
         E: serde::de::Error,
@@ -1162,7 +1173,32 @@ impl<'a> DecodeValue<'a> {
                 }
                 PValue::Object(new_obj)
             }
-            JVal::String(str) => PValue::String(str),
+            JVal::String(str) => match self.value {
+                Value::Ref(idx) => return recurse_ref!(self, idx, transform, JVal::String(str)),
+                Value::Option(bov) => return recurse!(self, bov, transform, JVal::String(str)),
+                Value::Basic(Basic::Any | Basic::String) => PValue::String(str),
+                Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(&str)
+                    .map(PValue::DateTime)
+                    .map_err(|e| {
+                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                    })?,
+
+                Value::Union(types) => {
+                    let val = JVal::String(str);
+                    for typ in types {
+                        let res: Result<_, E> = recurse!(self, typ, transform, val.clone());
+                        if res.is_ok() {
+                            return res;
+                        }
+                    }
+                    return Err(serde::de::Error::invalid_type(
+                        Unexpected::Other("string"),
+                        self,
+                    ));
+                }
+
+                _ => return Err(serde::de::Error::invalid_type(Unexpected::Str(&str), self)),
+            },
         })
     }
 }

@@ -28,8 +28,9 @@ pub enum PValue {
 
     /// Represents a JSON object.
     Object(PValues),
+
     // Represents a datetime value.
-    // DateTime(DateTime),
+    DateTime(DateTime),
 }
 
 impl PValue {
@@ -63,7 +64,7 @@ impl Serialize for PValue {
             PValue::String(s) => serializer.serialize_str(s),
             PValue::Array(a) => a.serialize(serializer),
             PValue::Object(o) => o.serialize(serializer),
-            // PValue::DateTime(dt) => dt.serialize(serializer),
+            PValue::DateTime(dt) => dt.serialize(serializer),
         }
     }
 }
@@ -75,6 +76,7 @@ impl Display for PValue {
             PValue::Bool(b) => write!(f, "{}", b),
             PValue::Number(n) => write!(f, "{}", n),
             PValue::String(s) => write!(f, "{}", s),
+            PValue::DateTime(dt) => write!(f, "{}", dt.to_rfc3339()),
             PValue::Array(a) => {
                 write!(f, "[")?;
                 for (i, v) in a.iter().enumerate() {

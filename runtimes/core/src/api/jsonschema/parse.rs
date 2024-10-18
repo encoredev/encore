@@ -368,7 +368,7 @@ fn describe_json(value: &PValue) -> &'static str {
         PValue::Bool(_) => "a boolean",
         PValue::Number(_) => "a number",
         PValue::String(_) => "a string",
-        // PValue::DateTime(_) => "a datetime",
+        PValue::DateTime(_) => "a datetime",
         PValue::Array(_) => "an array",
         PValue::Object(_) => "an object",
     }

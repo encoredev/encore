@@ -1,6 +1,6 @@
 use crate::error::coerce_to_api_error;
 use crate::napi_util::{await_promise, PromiseHandler};
-use crate::pvalue::parse_pvalues;
+use crate::pvalue::{encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null};
 use crate::request_meta::RequestMeta;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -60,10 +60,10 @@ impl Request {
     #[napi]
     pub fn payload(&self, env: Env) -> napi::Result<JsUnknown> {
         match &self.inner.data {
-            RequestData::RPC(data) => env.to_js_value(&data.parsed_payload),
-            RequestData::Auth(data) => env.to_js_value(&data.parsed_payload),
-            RequestData::PubSub(data) => env.to_js_value(&data.parsed_payload),
-            RequestData::Stream(data) => env.to_js_value(&data.parsed_payload),
+            RequestData::RPC(data) => encode_request_payload(env, data.parsed_payload.as_ref()),
+            RequestData::Auth(data) => encode_auth_payload(env, &data.parsed_payload),
+            RequestData::PubSub(data) => pvalues_or_null(env, data.parsed_payload.as_ref()),
+            RequestData::Stream(data) => encode_request_payload(env, data.parsed_payload.as_ref()),
         }
     }
 
@@ -76,8 +76,8 @@ impl Request {
     pub fn get_auth_data(&self, env: Env) -> napi::Result<JsUnknown> {
         use RequestData::*;
         match &self.inner.data {
-            RPC(data) => env.to_js_value(&data.auth_data),
-            Stream(data) => env.to_js_value(&data.auth_data),
+            RPC(data) => pvalues_or_null(env, data.auth_data.as_ref()),
+            Stream(data) => pvalues_or_null(env, data.auth_data.as_ref()),
             Auth(_) | PubSub(_) => env.get_null().map(|val| val.into_unknown()),
         }
     }

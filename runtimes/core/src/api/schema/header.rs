@@ -290,15 +290,20 @@ fn to_reqwest_header_value(value: &PValue) -> APIResult<ReqwestHeaders> {
             details: None,
         })?,
 
-        // DateTime(dt) => {
-        //     let s = dt.to_rfc3339();
-        //     reqwest::header::HeaderValue::from_str(&s).map_err(|e| api::Error {
-        //         code: api::ErrCode::InvalidArgument,
-        //         message: "unable to convert string to header value".to_string(),
-        //         internal_message: Some(format!("unable to convert string to header value: {}", e)),
-        //         stack: None,
-        //     })?
-        // }
+        DateTime(dt) => {
+            let s = dt.to_rfc3339();
+            reqwest::header::HeaderValue::from_str(&s).map_err(|e| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "unable to convert datetime to header value".to_string(),
+                internal_message: Some(format!(
+                    "unable to convert datetime to header value: {}",
+                    e
+                )),
+                stack: None,
+                details: None,
+            })?
+        }
+
         Number(num) => {
             let str = num.to_string();
             reqwest::header::HeaderValue::from_str(&str).map_err(|e| api::Error {
@@ -362,15 +367,20 @@ fn to_axum_header_value(value: &PValue) -> APIResult<AxumHeaders> {
             details: None,
         })?,
 
-        // DateTime(dt) => {
-        //     let s = dt.to_rfc3339();
-        //     axum::http::HeaderValue::from_str(&s).map_err(|e| api::Error {
-        //         code: api::ErrCode::InvalidArgument,
-        //         message: "unable to convert string to header value".to_string(),
-        //         internal_message: Some(format!("unable to convert string to header value: {}", e)),
-        //         stack: None,
-        //     })?
-        // }
+        DateTime(dt) => {
+            let s = dt.to_rfc3339();
+            axum::http::HeaderValue::from_str(&s).map_err(|e| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "unable to convert datetime to header value".to_string(),
+                internal_message: Some(format!(
+                    "unable to convert datetime to header value: {}",
+                    e
+                )),
+                stack: None,
+                details: None,
+            })?
+        }
+
         Number(num) => {
             let str = num.to_string();
             axum::http::HeaderValue::from_str(&str).map_err(|e| api::Error {
