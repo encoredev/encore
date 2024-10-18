@@ -7,7 +7,7 @@ subtitle: Deploy your Encore application to your own infrastructure, using Encor
 
 Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
 
-This can be a good choice for when Encore's cloud platform isn't a good fit for your use case, or if you want to [migrate away](/docs/how-to/migrate-away).
+This can be a good choice if Encore's cloud platform isn't a good fit for your use case, or if you want to [migrate away](/docs/how-to/migrate-away).
 
 ## Building your own Docker image
 
@@ -17,7 +17,7 @@ This will compile your application using the host machine and then produce a Doc
 
 This is exactly the same code path that Encore's CI system uses to build Docker images, ensuring compatibility.
 
-By default, all your services will be included and started bty the Docker image. If you want to specify which services and gateways to include, you can use the `--services` and `--gateways` flags.
+By default, all your services are included and started by the Docker image. If you want to specify specific services and gateways to include, you can use the `--services` and `--gateways` flags.
 
 ```bash
 encore build docker --services=service1,service2 --gateways=api-gateway MY-IMAGE:TAG
@@ -129,8 +129,8 @@ Here's an example configuration file you can use.
 ```
 
 ## Configuring Infrastructure
-To use infrastructure resources, additional configuration must be added, so that Encore is aware how to access each infrastructure resource.
-See below for examples for each type of infrastructure resource.
+To use infrastructure resources, additional configuration must be added so that Encore is aware of how to access each infrastructure resource.
+See below for examples of each type of infrastructure resource.
 
 ### 1. Basic Environment Metadata Configuration
 
@@ -316,7 +316,7 @@ There must be exactly one database configuration for each declared database. You
 ```
 
 - `host`: SQL server host, optionally including the port.
-- `tls_config`: TLS configuration for secure connections. If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise they can be left empty.
+- `tls_config`: TLS configuration for secure connections. If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise, they can be left empty.
 - `databases`: List of databases, each with connection settings.
 
 ### 7. Secrets Configuration
