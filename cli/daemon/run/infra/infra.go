@@ -440,21 +440,16 @@ func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisSe
 	return srvCfg, dbCfg, nil
 }
 
-// ObjectsConfig returns the Object Storage server configuration.
-func (rm *ResourceManager) ObjectsConfig() (config.RedisServer, config.RedisDatabase, error) {
-	server := rm.GetRedis()
-	if server == nil {
-		return config.RedisServer{}, config.RedisDatabase{}, errors.New("no Redis server found")
+// BucketProviderConfig returns the bucket provider configuration.
+func (rm *ResourceManager) BucketProviderConfig() (config.BucketProvider, error) {
+	obj := rm.GetObjects()
+	if obj == nil {
+		return config.BucketProvider{}, errors.New("no object storage found")
 	}
 
-	srvCfg := config.RedisServer{
-		Host: server.Addr(),
-	}
-
-	dbCfg := config.RedisDatabase{
-		EncoreName: redis.Name,
-		KeyPrefix:  redis.Name + "/",
-	}
-
-	return srvCfg, dbCfg, nil
+	return config.BucketProvider{
+		GCS: &config.GCSBucketProvider{
+			Endpoint: obj.Endpoint(),
+		},
+	}, nil
 }

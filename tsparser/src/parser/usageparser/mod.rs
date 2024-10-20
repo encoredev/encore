@@ -254,6 +254,11 @@ impl UsageResolver<'_> {
                         usages.push(u)
                     }
                 }
+                Resource::Bucket(bkt) => {
+                    if let Some(u) = infra::objects::resolve_bucket_usage(&data, bkt.clone())? {
+                        usages.push(u)
+                    }
+                }
                 _ => {}
             }
         }

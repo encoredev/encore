@@ -892,6 +892,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         sql_clusters: sql_clusters.unwrap_or_default(),
         pubsub_clusters: pubsub_clusters.unwrap_or_default(),
         redis_clusters: redis_clusters.unwrap_or_default(),
+        bucket_clusters: vec![], // TODO
         app_secrets,
     });
 

@@ -2,8 +2,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures::future;
-
 use crate::encore::runtime::v1 as pb;
 use crate::objects;
 
@@ -15,14 +13,15 @@ pub struct Bucket {
 impl Bucket {
     pub(super) fn new(region: s3::Region, creds: s3::creds::Credentials, cfg: &pb::Bucket) -> Self {
         let client = s3::Bucket::new(&cfg.cloud_name, region, creds)
-            .expect("unable to construct bucket client");
+            .expect("unable to construct bucket client")
+            .with_path_style();
         let client = Arc::from(client);
         Self { client }
     }
 }
 
 impl objects::BucketImpl for Bucket {
-    fn object(&self, name: String) -> Arc<dyn objects::ObjectImpl> {
+    fn object(self: Arc<Self>, name: String) -> Arc<dyn objects::ObjectImpl> {
         Arc::new(Object {
             client: self.client.clone(),
             name,
@@ -37,7 +36,14 @@ struct Object {
 }
 
 impl objects::ObjectImpl for Object {
-    fn exists(&self) -> Pin<Box<dyn Future<Output = bool> + Send + 'static>> {
-        Box::pin(future::ready(true))
+    fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+        Box::pin(async move {
+            let res = self.client.head_object(&self.name).await;
+            match res {
+                Ok(_) => Ok(true),
+                Err(s3::error::S3Error::HttpFailWithBody(404, _)) => Ok(false),
+                Err(err) => Err(err.into()),
+            }
+        })
     }
 }

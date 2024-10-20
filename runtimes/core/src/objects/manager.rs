@@ -4,8 +4,7 @@ use std::sync::{Arc, RwLock};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
-use crate::objects::noop::NoopCluster;
-use crate::objects::{noop, BucketImpl, ClusterImpl, ObjectImpl};
+use crate::objects::{gcs, noop, s3, BucketImpl, ClusterImpl, ObjectImpl};
 use crate::trace::Tracer;
 
 pub struct Manager {
@@ -24,21 +23,21 @@ pub struct Bucket {
 impl Bucket {
     pub fn object(&self, name: String) -> Object {
         Object {
-            imp: self.imp.object(name),
-            tracer: self.tracer.clone(),
+            imp: self.imp.clone().object(name),
+            _tracer: self.tracer.clone(),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Object {
-    tracer: Tracer,
+    _tracer: Tracer,
     imp: Arc<dyn ObjectImpl>,
 }
 
 impl Object {
-    pub async fn exists(&self) -> bool {
-        self.imp.exists().await
+    pub async fn exists(&self) -> anyhow::Result<bool> {
+        self.imp.clone().exists().await
     }
 }
 
@@ -68,9 +67,9 @@ impl Manager {
 
         let bkt = {
             if let Some((cluster, bucket_cfg)) = self.bucket_cfg.get(&name) {
-                cluster.bucket(bucket_cfg)
+                cluster.clone().bucket(bucket_cfg)
             } else {
-                Arc::new(noop::NoopBucket)
+                Arc::new(noop::Bucket)
             }
         };
 
@@ -81,7 +80,7 @@ impl Manager {
 
 fn make_cfg_maps(
     clusters: Vec<pb::BucketCluster>,
-    md: &meta::Data,
+    _md: &meta::Data,
 ) -> HashMap<EncoreName, (Arc<dyn ClusterImpl>, pb::Bucket)> {
     let mut bucket_map = HashMap::new();
 
@@ -100,24 +99,15 @@ fn make_cfg_maps(
 }
 
 fn new_cluster(cluster: &pb::BucketCluster) -> Arc<dyn ClusterImpl> {
-    // let Some(provider) = &cluster.provider else {
-    //     log::error!("missing PubSub cluster provider: {}", cluster.rid);
-    //     return Arc::new(NoopCluster);
-    // };
+    let Some(provider) = &cluster.provider else {
+        log::error!("missing bucket cluster provider: {}", cluster.rid);
+        return Arc::new(noop::Cluster);
+    };
 
-    // match provider {
-    //     pb::pub_sub_cluster::Provider::Gcp(_) => return Arc::new(gcp::Cluster::new()),
-    //     pb::pub_sub_cluster::Provider::Nsq(cfg) => {
-    //         return Arc::new(nsq::Cluster::new(cfg.hosts[0].clone()));
-    //     }
-    //     pb::pub_sub_cluster::Provider::Aws(_) => return Arc::new(sqs_sns::Cluster::new()),
-    //     pb::pub_sub_cluster::Provider::Encore(_) => {
-    //         log::error!("Encore Cloud Pub/Sub not yet supported: {}", cluster.rid);
-    //     }
-    //     pb::pub_sub_cluster::Provider::Azure(_) => {
-    //         log::error!("Azure Pub/Sub not yet supported: {}", cluster.rid);
-    //     }
-    // }
-
-    Arc::new(NoopCluster)
+    match provider {
+        pb::bucket_cluster::Provider::S3(s3cfg) => return Arc::new(s3::Cluster::new(s3cfg)),
+        pb::bucket_cluster::Provider::Gcs(gcscfg) => {
+            return Arc::new(gcs::Cluster::new(gcscfg.clone()))
+        }
+    }
 }

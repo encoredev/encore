@@ -57,6 +57,8 @@ type Runtime struct {
 	PubsubTopics     map[string]*PubsubTopic `json:"pubsub_topics,omitempty"`
 	RedisServers     []*RedisServer          `json:"redis_servers,omitempty"`
 	RedisDatabases   []*RedisDatabase        `json:"redis_databases,omitempty"`
+	BucketProviders  []*BucketProvider       `json:"bucket_providers,omitempty"`
+	Buckets          []*Bucket               `json:"buckets,omitempty"`
 	Metrics          *Metrics                `json:"metrics,omitempty"`
 	Gateways         []Gateway               `json:"gateways,omitempty"`          // Gateways defines the gateways which should be served by the container
 	HostedServices   []string                `json:"hosted_services,omitempty"`   // List of services to be hosted within this container (zero length means all services, unless there's a gateway running)
@@ -392,6 +394,26 @@ type RedisDatabase struct {
 	// to use the same physical Redis database for local development
 	// without having to coordinate and persist database index ids.
 	KeyPrefix string `json:"key_prefix"`
+}
+
+type BucketProvider struct {
+	S3  *S3BucketProvider  `json:"s3,omitempty"`  // set if the provider is S3
+	GCS *GCSBucketProvider `json:"gcs,omitempty"` // set if the provider is GCS
+}
+
+type S3BucketProvider struct {
+	Endpoint string `json:"endpoint"`
+	Region   string `json:"region"`
+}
+
+type GCSBucketProvider struct {
+	Endpoint string `json:"endpoint"`
+}
+
+type Bucket struct {
+	ProviderID int    `json:"cluster_id"`  // the index into (*Runtime).BucketProviders
+	EncoreName string `json:"encore_name"` // the Encore name for the bucket
+	CloudName  string `json:"cloud_name"`  // the cloud name for the bucket
 }
 
 type Metrics struct {

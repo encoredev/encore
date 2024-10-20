@@ -1486,6 +1486,7 @@ dependencies = [
  "google-cloud-gax",
  "google-cloud-googleapis",
  "google-cloud-pubsub",
+ "google-cloud-storage",
  "hex",
  "hmac",
  "http 1.0.0",
@@ -1968,11 +1969,33 @@ checksum = "af1087f1fbd2dd3f58c17c7574ddd99cd61cbbbc2c4dc81114b8687209b196cb"
 dependencies = [
  "async-trait",
  "base64 0.21.5",
- "google-cloud-metadata",
+ "google-cloud-metadata 0.4.0",
  "google-cloud-token",
  "home",
  "jsonwebtoken 8.3.0",
  "reqwest 0.11.23",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
+name = "google-cloud-auth"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357160f51a60ec3e32169ad687f4abe0ee1e90c73b449aa5d11256c4f1cf2ff6"
+dependencies = [
+ "async-trait",
+ "base64 0.21.5",
+ "google-cloud-metadata 0.5.0",
+ "google-cloud-token",
+ "home",
+ "jsonwebtoken 9.2.0",
+ "reqwest 0.12.4",
  "serde",
  "serde_json",
  "thiserror",
@@ -2021,6 +2044,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "google-cloud-metadata"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04f945a208886a13d07636f38fb978da371d0abc3e34bad338124b9f8c135a8f"
+dependencies = [
+ "reqwest 0.12.4",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "google-cloud-pubsub"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2028,7 +2062,7 @@ checksum = "0f6e4fdcd8303ad0d0cdb8b5722aa3a57de9534af27d4da71fc4d3179174a896"
 dependencies = [
  "async-channel",
  "async-stream",
- "google-cloud-auth",
+ "google-cloud-auth 0.13.0",
  "google-cloud-gax",
  "google-cloud-googleapis",
  "google-cloud-token",
@@ -2037,6 +2071,39 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "google-cloud-storage"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7347a3d65cd64db51e5b4aebf0c68c484042948c6d53f856f58269bc9816360"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "base64 0.21.5",
+ "bytes",
+ "futures-util",
+ "google-cloud-auth 0.17.1",
+ "google-cloud-metadata 0.5.0",
+ "google-cloud-token",
+ "hex",
+ "once_cell",
+ "percent-encoding",
+ "pkcs8",
+ "regex",
+ "reqwest 0.12.4",
+ "reqwest-middleware",
+ "ring 0.17.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -4184,6 +4251,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "native-tls",
  "once_cell",
  "percent-encoding",
@@ -4204,6 +4272,21 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "winreg 0.52.0",
+]
+
+[[package]]
+name = "reqwest-middleware"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "562ceb5a604d3f7c885a792d42c199fd8af239d0a51b2fa6a78aafa092452b04"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http 1.0.0",
+ "reqwest 0.12.4",
+ "serde",
+ "thiserror",
+ "tower-service",
 ]
 
 [[package]]

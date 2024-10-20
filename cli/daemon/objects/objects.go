@@ -1,11 +1,15 @@
 package objects
 
 import (
-	mathrand "math/rand" // nosemgrep
-	"time"
+	// nosemgrep
 
-	"github.com/alicebob/miniredis/v2"
+	"fmt"
+	"net"
+	"net/http"
+
 	"github.com/cockroachdb/errors"
+	"github.com/fullstorydev/emulators/storage/gcsemu"
+	"github.com/rs/zerolog/log"
 	"go4.org/syncutil"
 
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -13,90 +17,53 @@ import (
 
 type Server struct {
 	startOnce syncutil.Once
-	mini      *miniredis.Miniredis
-	cleanup   *time.Ticker
-	quit      chan struct{}
-	addr      string
+	cancel    func() // set by Start
+	emu       *gcsemu.GcsEmu
+	ln        net.Listener
+	srv       *http.Server
 }
-
-const tickInterval = 1 * time.Second
 
 func New() *Server {
 	return &Server{
-		mini: miniredis.NewMiniRedis(),
-		quit: make(chan struct{}),
+		// TODO set up dir storage
+		emu: gcsemu.NewGcsEmu(gcsemu.Options{}),
 	}
 }
 
 func (s *Server) Start() error {
 	return s.startOnce.Do(func() error {
-		if err := s.mini.Start(); err != nil {
-			return errors.Wrap(err, "failed to start redis server")
+		mux := http.NewServeMux()
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return errors.Wrap(err, "listen tcp")
 		}
-		s.addr = s.mini.Addr()
-		s.cleanup = time.NewTicker(tickInterval)
-		go s.doCleanup()
+		s.emu.Register(mux)
+		s.ln = ln
+		s.srv = &http.Server{Handler: mux}
+
+		go func() {
+			if err := s.srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
+				log.Error().Err(err).Msg("unable to listen to gcs server")
+			}
+		}()
+
+		s.emu.InitBucket("test")
+
 		return nil
 	})
 }
 
 func (s *Server) Stop() {
-	s.mini.Close()
-	s.cleanup.Stop()
-	close(s.quit)
+	_ = s.srv.Close()
 }
 
-func (s *Server) Miniredis() *miniredis.Miniredis {
-	return s.mini
-}
-
-func (s *Server) Addr() string {
+func (s *Server) Endpoint() string {
 	// Ensure the server has been started
 	if err := s.Start(); err != nil {
 		panic(err)
 	}
-	return s.addr
-}
-
-func (s *Server) doCleanup() {
-	var acc time.Duration
-	const cleanupInterval = 15 * time.Second
-
-	for {
-		select {
-		case <-s.quit:
-			return
-		case <-s.cleanup.C:
-		}
-		s.mini.FastForward(tickInterval)
-
-		// Clean up keys every so often
-		acc += tickInterval
-		if acc > cleanupInterval {
-			acc -= cleanupInterval
-			s.clearKeys()
-		}
-	}
-}
-
-// clearKeys clears random keys to get the redis server
-// down to 100 persisted keys, as a simple way to bound
-// the max memory usage.
-func (s *Server) clearKeys() {
-	const maxKeys = 100
-	keys := s.mini.Keys()
-	if n := len(keys); n > maxKeys {
-		toDelete := n - maxKeys
-		deleted := 0
-		for deleted < toDelete {
-			id := mathrand.Intn(len(keys))
-			if keys[id] != "" {
-				s.mini.Del(keys[id])
-				keys[id] = "" // mark it as deleted
-				deleted++
-			}
-		}
-	}
+	port := s.ln.Addr().(*net.TCPAddr).Port
+	return fmt.Sprintf("http://localhost:%d", port)
 }
 
 // IsUsed reports whether the application uses object storage at all.

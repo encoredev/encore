@@ -195,6 +195,34 @@ type RedisServer struct {
 	b   *InfraBuilder
 }
 
+func (b *InfraBuilder) BucketCluster(p *runtimev1.BucketCluster) *BucketCluster {
+	return b.BucketClusterFn(p.Rid, tofn(p))
+}
+
+func (b *InfraBuilder) BucketClusterFn(rid string, fn func() *runtimev1.BucketCluster) *BucketCluster {
+	val := addResFunc(&b.infra.Resources.BucketClusters, b.rs, rid, fn)
+	return &BucketCluster{Val: val, b: b}
+}
+
+type BucketCluster struct {
+	Val *runtimev1.BucketCluster
+	b   *InfraBuilder
+}
+
+func (c *BucketCluster) Bucket(p *runtimev1.Bucket) *Bucket {
+	return c.BucketFn(p.Rid, tofn(p))
+}
+
+func (c *BucketCluster) BucketFn(rid string, fn func() *runtimev1.Bucket) *Bucket {
+	val := addResFunc(&c.Val.Buckets, c.b.rs, rid, fn)
+	return &Bucket{Val: val, b: c.b}
+}
+
+type Bucket struct {
+	Val *runtimev1.Bucket
+	b   *InfraBuilder
+}
+
 func (b *InfraBuilder) Gateway(gw *runtimev1.Gateway) *Gateway {
 	return b.GatewayFn(gw.Rid, tofn(gw))
 }
@@ -252,6 +280,16 @@ func reduceForServices(infra *runtimev1.Infrastructure, md *meta.Data, svcs []st
 		}
 	}
 
+	bucketsToKeep := make(map[string]bool)
+	for _, svc := range md.Svcs {
+		if !svcNames[svc.Name] {
+			continue
+		}
+		for _, bktName := range svc.Buckets {
+			bucketsToKeep[bktName] = true
+		}
+	}
+
 	type subKey struct {
 		topicName string
 		subName   string
@@ -295,6 +333,13 @@ func reduceForServices(infra *runtimev1.Infrastructure, md *meta.Data, svcs []st
 	for _, cluster := range infra.Resources.RedisClusters {
 		cluster.Databases = slices.DeleteFunc(cluster.Databases, func(t *runtimev1.RedisDatabase) bool {
 			_, found := cachesToKeep[t.EncoreName]
+			return !found
+		})
+	}
+
+	for _, cluster := range infra.Resources.BucketClusters {
+		cluster.Buckets = slices.DeleteFunc(cluster.Buckets, func(t *runtimev1.Bucket) bool {
+			_, found := bucketsToKeep[t.EncoreName]
 			return !found
 		})
 	}

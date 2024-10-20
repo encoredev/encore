@@ -31,7 +31,7 @@ impl BucketObject {
     }
 
     #[napi]
-    pub async fn exists(&self) -> bool {
-        self.obj.exists().await
+    pub async fn exists(&self) -> napi::Result<bool> {
+        self.obj.exists().await.map_err(napi::Error::from)
     }
 }

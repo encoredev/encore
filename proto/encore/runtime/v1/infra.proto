@@ -312,8 +312,23 @@ message BucketCluster {
 
   repeated Bucket buckets = 2;
 
-  string region = 3;
-  string endpoint = 4;
+  oneof provider {
+    S3 s3 = 10;
+    GCS gcs = 11;
+  }
+
+  message S3 {
+    // Region to connect to.
+    string region = 1;
+
+    // Endpoint override, if any. Must be specified if using a non-standard AWS region.
+    optional string endpoint = 2;
+  }
+
+  message GCS {
+    // Endpoint override, if any. Defaults to https://storage.googleapis.com if unset.
+    optional string endpoint = 1;
+  }
 }
 
 message Bucket {
