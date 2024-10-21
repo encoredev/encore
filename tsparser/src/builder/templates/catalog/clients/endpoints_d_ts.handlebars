@@ -59,7 +59,6 @@ export function {{name}}(
   data: StreamHandshake<typeof {{name}}_handler>,
 ): Promise<
   StreamIn<
-    StreamRequest<typeof {{name}}_handler>,
     StreamResponse<typeof {{name}}_handler>
   >
 >;
