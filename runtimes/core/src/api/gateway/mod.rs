@@ -212,27 +212,26 @@ impl ProxyHttp for Gateway {
                 return Ok(Box::new(HttpPeer::new(own_api_addr, false, "".to_string())));
             }
         }
-        let target = push_proxy_svc
-            .map_or_else(
-                || {
-                    // Find which service handles the path route
-                    session
-                        .req_header()
-                        .method
-                        .as_ref()
-                        .try_into()
-                        .context("failed to find method")
-                        .and_then(|method| {
-                            self.inner
-                                .router
-                                .route_to_service(method, path)
-                                .context("couldn't find upstream")
-                        })
-                        .cloned()
-                },
-                Ok,
-            )
-            .or_err(ErrorType::InternalError, "couldn't find upstream")?;
+        let target = push_proxy_svc.map_or_else(
+            || {
+                // Find which service handles the path route
+                session
+                    .req_header()
+                    .method
+                    .as_ref()
+                    .try_into()
+                    .map_err(|e: anyhow::Error| api::Error {
+                        code: api::ErrCode::InvalidArgument,
+                        message: "invalid method".to_string(),
+                        internal_message: Some(e.to_string()),
+                        stack: None,
+                        details: None,
+                    })
+                    .and_then(|method| self.inner.router.route_to_service(method, path))
+                    .cloned()
+            },
+            Ok,
+        )?;
 
         let upstream = self
             .inner
