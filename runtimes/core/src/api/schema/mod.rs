@@ -115,7 +115,9 @@ impl Response {
     ) -> APIResult<axum::http::Response<axum::body::Body>> {
         let mut bld = axum::http::Response::builder().status(200);
 
-        if let Some(hdr) = &self.header { bld = hdr.to_response(payload, bld)? };
+        if let Some(hdr) = &self.header {
+            bld = hdr.to_response(payload, bld)?
+        };
         match &self.body {
             Some(body) => body.to_response(payload, bld),
             None => bld
