@@ -106,6 +106,7 @@
 		#DevelopmentSection,
 		#ObservabilitySection,
 		#PlatformSection,
+		#SelfHostingSection,
 		#ResourcesSection,
 		#CommunitySection,
 		#OtherSection,
@@ -745,6 +746,28 @@
 	}]
 }
 
+#SelfHostingSection: #SectionMenuItem & {
+	kind: "section"
+	text: "Self Hosting"
+	items: [
+		{
+			kind: "basic"
+			text: "Build Docker Images"
+			path: "/how-to/self-host"
+			file: "how-to/self-host"
+		}, {
+			kind: "basic"
+			text: "Configure Infrastructure"
+			path: "/selfhosting/configure-infra"
+			file: "selfhosting/configure-infra"
+		}, {
+		  kind: "basic"
+		  text: "Deploy to DigitalOcean"
+		  path: "/selfhosting/deploy-digitalocean"
+		  file: "selfhosting/deploy-to-digital-ocean"
+	}]
+}
+
 #ResourcesSection: #SectionMenuItem & {
 	kind: "section"
 	text: "Resources"
@@ -781,11 +804,6 @@
 			text: "Use Temporal with Encore"
 			path: "/how-to/temporal"
 			file: "how-to/temporal"
-		}, {
-			kind: "basic"
-			text: "Self-host Encore applications"
-			path: "/how-to/self-host"
-			file: "how-to/self-host"
 		}, {
 			kind: "basic"
 			text: "Submit a Template"
