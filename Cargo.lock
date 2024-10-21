@@ -1523,6 +1523,7 @@ dependencies = [
  "sha2",
  "sha3",
  "subtle",
+ "thiserror",
  "tokio",
  "tokio-nsq",
  "tokio-postgres",

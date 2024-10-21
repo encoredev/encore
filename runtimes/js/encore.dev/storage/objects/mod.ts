@@ -1,2 +1,2 @@
-export { Bucket } from "./bucket";
-export type { BucketConfig } from "./bucket";
+export { Bucket, ObjectHandle } from "./bucket";
+export type { BucketConfig, ObjectAttrs, UploadOptions } from "./bucket";

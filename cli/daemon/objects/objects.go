@@ -26,7 +26,16 @@ type Server struct {
 func New() *Server {
 	return &Server{
 		// TODO set up dir storage
-		emu: gcsemu.NewGcsEmu(gcsemu.Options{}),
+		emu: gcsemu.NewGcsEmu(gcsemu.Options{
+			Verbose: true,
+			Log: func(err error, fmt string, args ...interface{}) {
+				if err != nil {
+					log.Error().Err(err).Msgf(fmt, args...)
+				} else {
+					log.Info().Msgf(fmt, args...)
+				}
+			},
+		}),
 	}
 }
 

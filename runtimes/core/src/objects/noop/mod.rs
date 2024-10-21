@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures::future;
+use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects;
@@ -29,9 +30,38 @@ impl objects::BucketImpl for Bucket {
 }
 
 impl objects::ObjectImpl for Object {
-    fn exists(
+    fn attrs(
         self: Arc<Self>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send + 'static>> {
-        Box::pin(future::ready(Ok(false)))
+    ) -> Pin<Box<dyn Future<Output = Result<objects::ObjectAttrs, objects::Error>> + Send>> {
+        Box::pin(future::ready(Err(objects::Error::Internal(
+            anyhow::anyhow!("noop bucket does not support attrs"),
+        ))))
+    }
+
+    fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+        Box::pin(future::ready(Err(anyhow::anyhow!(
+            "noop bucket does not support exists"
+        ))))
+    }
+
+    fn upload(
+        self: Arc<Self>,
+        _data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
+        _options: objects::UploadOptions,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<objects::ObjectAttrs>> + Send>> {
+        Box::pin(future::ready(Err(anyhow::anyhow!(
+            "noop bucket does not support upload"
+        ))))
+    }
+
+    fn download(
+        self: Arc<Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::DownloadError>> + Send>>
+    {
+        Box::pin(async move {
+            Err(objects::DownloadError::Internal(anyhow::anyhow!(
+                "noop bucket does not support download"
+            )))
+        })
     }
 }

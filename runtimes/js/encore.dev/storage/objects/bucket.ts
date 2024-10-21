@@ -1,8 +1,8 @@
-import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 
 export interface BucketConfig {
+  public?: boolean;
 }
 
 /**
@@ -15,7 +15,7 @@ export class Bucket {
    * Creates a new bucket with the given name and configuration
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  constructor(name: string, cfg: BucketConfig) {
+  constructor(name: string, cfg?: BucketConfig) {
     this.impl = runtime.RT.bucket(name);
   }
 
@@ -27,13 +27,13 @@ export class Bucket {
     return new Bucket(name, {});
   }
 
-  object(name: string): BucketObject {
+  object(name: string): ObjectHandle {
     const impl = this.impl.object(name);
-    return new BucketObject(impl, this, name);
+    return new ObjectHandle(impl, this, name);
   }
 }
 
-export class BucketObject {
+export class ObjectHandle {
   private impl: runtime.BucketObject;
   public readonly bucket: Bucket;
   public readonly name: string;
@@ -51,4 +51,34 @@ export class BucketObject {
   async exists(): Promise<boolean> {
     return this.impl.exists();
   }
+
+  /**
+   * Returns the object's attributes.
+   * Throws an error if the object does not exist.
+   */
+  async attrs(): Promise<ObjectAttrs> {
+    return this.impl.attrs();
+  }
+
+  async upload(data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
+    return this.impl.upload(data, options);
+  }
+
+  async download(): Promise<Buffer> {
+    return this.impl.downloadAll();
+  }
+}
+
+export interface ObjectAttrs {
+  name: string;
+  contentType?: string;
+  size: number;
+  version: string;
+}
+
+export interface UploadOptions {
+  contentType?: string;
+  preconditions?: {
+    notExists?: boolean;
+  },
 }

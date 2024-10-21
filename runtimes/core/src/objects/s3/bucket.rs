@@ -1,9 +1,10 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
-use crate::objects;
+use crate::objects::{self, Error, ObjectAttrs};
 
 #[derive(Debug)]
 pub struct Bucket {
@@ -36,6 +37,23 @@ struct Object {
 }
 
 impl objects::ObjectImpl for Object {
+    fn attrs(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
+        Box::pin(async move {
+            let res = self.client.head_object(&self.name).await;
+            match res {
+                Ok((obj, _)) => Ok(ObjectAttrs {
+                    name: self.name.clone(),
+                    version: obj.version_id.unwrap_or_default(),
+                    size: obj.content_length.unwrap_or_default() as u64,
+                    content_type: obj.content_type,
+                    etag: obj.e_tag.unwrap_or_default(),
+                }),
+                Err(s3::error::S3Error::HttpFailWithBody(404, _)) => Err(Error::NotFound),
+                Err(err) => Err(Error::Other(err.into())),
+            }
+        })
+    }
+
     fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
         Box::pin(async move {
             let res = self.client.head_object(&self.name).await;
@@ -44,6 +62,25 @@ impl objects::ObjectImpl for Object {
                 Err(s3::error::S3Error::HttpFailWithBody(404, _)) => Ok(false),
                 Err(err) => Err(err.into()),
             }
+        })
+    }
+
+    fn upload(
+        self: Arc<Self>,
+        _data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
+        _options: objects::UploadOptions,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<objects::ObjectAttrs>> + Send>> {
+        Box::pin(async move { Err(anyhow::anyhow!("not yet implemented")) })
+    }
+
+    fn download(
+        self: Arc<Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::DownloadError>> + Send>>
+    {
+        Box::pin(async move {
+            Err(objects::DownloadError::Internal(anyhow::anyhow!(
+                "not yet implemented"
+            )))
         })
     }
 }

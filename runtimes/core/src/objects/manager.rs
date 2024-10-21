@@ -4,41 +4,16 @@ use std::sync::{Arc, RwLock};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
-use crate::objects::{gcs, noop, s3, BucketImpl, ClusterImpl, ObjectImpl};
+use crate::objects::{gcs, noop, s3, BucketImpl, ClusterImpl};
 use crate::trace::Tracer;
+
+use super::Bucket;
 
 pub struct Manager {
     tracer: Tracer,
     bucket_cfg: HashMap<EncoreName, (Arc<dyn ClusterImpl>, pb::Bucket)>,
 
     buckets: Arc<RwLock<HashMap<EncoreName, Arc<dyn BucketImpl>>>>,
-}
-
-#[derive(Debug)]
-pub struct Bucket {
-    tracer: Tracer,
-    imp: Arc<dyn BucketImpl>,
-}
-
-impl Bucket {
-    pub fn object(&self, name: String) -> Object {
-        Object {
-            imp: self.imp.clone().object(name),
-            _tracer: self.tracer.clone(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Object {
-    _tracer: Tracer,
-    imp: Arc<dyn ObjectImpl>,
-}
-
-impl Object {
-    pub async fn exists(&self) -> anyhow::Result<bool> {
-        self.imp.clone().exists().await
-    }
 }
 
 impl Manager {
@@ -105,9 +80,7 @@ fn new_cluster(cluster: &pb::BucketCluster) -> Arc<dyn ClusterImpl> {
     };
 
     match provider {
-        pb::bucket_cluster::Provider::S3(s3cfg) => return Arc::new(s3::Cluster::new(s3cfg)),
-        pb::bucket_cluster::Provider::Gcs(gcscfg) => {
-            return Arc::new(gcs::Cluster::new(gcscfg.clone()))
-        }
+        pb::bucket_cluster::Provider::S3(s3cfg) => Arc::new(s3::Cluster::new(s3cfg)),
+        pb::bucket_cluster::Provider::Gcs(gcscfg) => Arc::new(gcs::Cluster::new(gcscfg.clone())),
     }
 }
