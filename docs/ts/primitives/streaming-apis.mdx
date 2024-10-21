@@ -305,7 +305,7 @@ stream.socket.on("close", (event) => {
 ## Service to service streaming
 
 Like with [other endpoint types](/docs/ts/primitives/api-calls) you can easily use streaming between services by importing `~encore/clients`.
-If you want the stream to only be reachable by other services (and not from the public internet), set the `exposed` option to false.
+If you want the stream to only be reachable by other services (and not from the public internet), set the `expose` option to false.
 
 Example of using a stream endpoint from a regular api endpoint:
 
