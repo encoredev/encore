@@ -276,9 +276,7 @@ impl<'a> MetaBuilder<'a> {
                 Dependent::Gateway((_b, gw)) => {
                     let auth_handler = if let Some(auth_handler) = &gw.auth_handler {
                         let Some(ah) = auth_handlers.get(&auth_handler.id) else {
-                            HANDLER.with(|handler| {
-                                handler.span_err(gw.range, "auth handler not found")
-                            });
+                            gw.range.err("auth handler not found");
                             continue;
                         };
 
