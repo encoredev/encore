@@ -21,6 +21,8 @@ Encore provides Open Source development tools, from local development to your cl
 
 **📞 Talk to a human:** [Book a 1:1 demo](https://encore.dev/book) with one of our founders.
 
+**🤖 [Ask Encore Guru](https://gurubase.io/g/encore):** It is an Encore-focused AI to answer your questions.
+
 ## 🍿 Intro video
 [Watch the intro video](https://youtu.be/vvqTGfoXVsw) for a quick introduction to Encore concepts & code examples.
 
