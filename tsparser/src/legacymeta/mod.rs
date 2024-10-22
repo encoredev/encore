@@ -275,9 +275,10 @@ impl<'a> MetaBuilder<'a> {
 
                 Dependent::Gateway((_b, gw)) => {
                     let auth_handler = if let Some(auth_handler) = &gw.auth_handler {
-                        let ah = auth_handlers
-                            .get(&auth_handler.id)
-                            .ok_or(anyhow::anyhow!("auth handler not found"))?;
+                        let Some(ah) = auth_handlers.get(&auth_handler.id) else {
+                            gw.range.err("auth handler not found");
+                            continue;
+                        };
 
                         let service_name = self
                             .service_for_range(&ah.range)

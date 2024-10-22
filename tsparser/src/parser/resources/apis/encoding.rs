@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context};
+use litparser::Sp;
+use thiserror::Error;
 
 use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
@@ -10,6 +12,7 @@ use crate::parser::types::{
     Type, TypeChecker,
 };
 use crate::parser::Range;
+use crate::span_err::{ErrorWithSpanExt, SpErr};
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
@@ -84,8 +87,8 @@ pub struct ResponseEncoding {
 
 #[derive(Debug, Clone)]
 pub struct AuthHandlerEncoding {
-    pub auth_param: Type,
-    pub auth_data: Type,
+    pub auth_param: Sp<Type>,
+    pub auth_data: Sp<Type>,
 }
 
 pub struct RequestParamsByLoc<'a> {
@@ -172,13 +175,16 @@ pub fn describe_stream_endpoint(
     tc: &TypeChecker,
     methods: Methods,
     path: Path,
-    req: Option<Type>,
-    resp: Option<Type>,
-    handshake: Option<Type>,
-) -> Result<EndpointEncoding> {
-    let resp = resp
-        .map(|t| unwrap_promise(tc.state(), &t).clone())
-        .and_then(drop_empty_or_void);
+    req: Option<Sp<Type>>,
+    resp: Option<Sp<Type>>,
+    handshake: Option<Sp<Type>>,
+) -> anyhow::Result<EndpointEncoding> {
+    let resp = if let Some(resp) = resp {
+        let (span, resp) = resp.split();
+        drop_empty_or_void(unwrap_promise(tc.state(), &resp).clone()).map(|t| Sp::new(span, t))
+    } else {
+        None
+    };
 
     let default_method = default_method(&methods);
 
@@ -210,6 +216,10 @@ pub fn describe_stream_endpoint(
         path
     };
 
+    let raw_handshake_schema = handshake.map(|sp| sp.take());
+    let raw_req_schema = req.map(|sp| sp.take());
+    let raw_resp_schema = resp.map(|sp| sp.take());
+
     Ok(EndpointEncoding {
         path,
         methods,
@@ -217,22 +227,25 @@ pub fn describe_stream_endpoint(
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,
-        raw_handshake_schema: handshake,
-        raw_req_schema: req,
-        raw_resp_schema: resp,
+        raw_handshake_schema,
+        raw_req_schema,
+        raw_resp_schema,
     })
 }
 pub fn describe_endpoint(
     tc: &TypeChecker,
     methods: Methods,
     path: Path,
-    req: Option<Type>,
-    resp: Option<Type>,
+    req: Option<Sp<Type>>,
+    resp: Option<Sp<Type>>,
     raw: bool,
-) -> Result<EndpointEncoding> {
-    let resp = resp
-        .map(|t| unwrap_promise(tc.state(), &t).clone())
-        .and_then(drop_empty_or_void);
+) -> anyhow::Result<EndpointEncoding> {
+    let resp = if let Some(resp) = resp {
+        let (span, resp) = resp.split();
+        drop_empty_or_void(unwrap_promise(tc.state(), &resp).clone()).map(|t| Sp::new(span, t))
+    } else {
+        None
+    };
 
     let default_method = default_method(&methods);
 
@@ -240,6 +253,9 @@ pub fn describe_endpoint(
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
     let path = rewrite_path_types(&req_enc[0], path, raw).context("parse path param types")?;
+
+    let raw_req_schema = req.map(|sp| sp.take());
+    let raw_resp_schema = resp.map(|sp| sp.take());
 
     Ok(EndpointEncoding {
         path,
@@ -249,8 +265,8 @@ pub fn describe_endpoint(
         resp: resp_enc,
         handshake: None,
         raw_handshake_schema: None,
-        raw_req_schema: req,
-        raw_resp_schema: resp,
+        raw_req_schema,
+        raw_resp_schema,
     })
 }
 
@@ -275,9 +291,9 @@ fn describe_req(
     tc: &TypeChecker,
     methods: &Methods,
     path: Option<&Path>,
-    req_schema: &Option<Type>,
+    req_schema: &Option<Sp<Type>>,
     raw: bool,
-) -> Result<(Vec<RequestEncoding>, Option<FieldMap>)> {
+) -> anyhow::Result<(Vec<RequestEncoding>, Option<FieldMap>)> {
     let Some(req_schema) = req_schema else {
         // We don't have any request schema. This is valid if and only if
         // we have no path parameters or it's a raw endpoint.
@@ -330,8 +346,8 @@ fn describe_req(
 fn describe_resp(
     tc: &TypeChecker,
     _methods: &Methods,
-    resp_schema: &Option<Type>,
-) -> Result<(ResponseEncoding, Option<FieldMap>)> {
+    resp_schema: &Option<Sp<Type>>,
+) -> anyhow::Result<(ResponseEncoding, Option<FieldMap>)> {
     let Some(resp_schema) = resp_schema else {
         return Ok((ResponseEncoding { params: vec![] }, None));
     };
@@ -350,15 +366,16 @@ fn describe_resp(
 
 pub fn describe_auth_handler(
     ctx: &ResolveState,
-    params: Type,
-    response: Type,
-) -> Result<AuthHandlerEncoding> {
+    params: Sp<Type>,
+    response: Sp<Type>,
+) -> AuthHandlerEncoding {
+    let (span, response) = response.split();
     let response = unwrap_promise(ctx, &response).clone();
 
-    Ok(AuthHandlerEncoding {
+    AuthHandlerEncoding {
         auth_param: params,
-        auth_data: response,
-    })
+        auth_data: Sp::new(span, response),
+    }
 }
 
 fn default_method(methods: &Methods) -> Method {
@@ -415,30 +432,50 @@ impl Field {
     }
 }
 
-pub(crate) fn iface_fields<'a>(tc: &'a TypeChecker, typ: &'a Type) -> Result<FieldMap> {
-    fn to_fields(state: &ResolveState, iface: &Interface) -> Result<FieldMap> {
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("expected named interface type, found {0}")]
+    ExpectedNamedInterfaceType(String),
+    #[error("invalid custom type field")]
+    InvalidCustomType(#[source] anyhow::Error),
+}
+
+pub(crate) fn iface_fields<'a>(
+    tc: &'a TypeChecker,
+    typ: &'a Sp<Type>,
+) -> Result<FieldMap, SpErr<Error>> {
+    fn to_fields<'a>(
+        state: &'a ResolveState,
+        iface: &'a Interface,
+    ) -> Result<FieldMap, SpErr<Error>> {
         let mut map = HashMap::new();
         for f in &iface.fields {
             if let FieldName::String(name) = &f.name {
-                map.insert(name.clone(), rewrite_custom_type_field(state, f, name)?);
+                map.insert(
+                    name.clone(),
+                    rewrite_custom_type_field(state, f, name)
+                        .map_err(Error::InvalidCustomType)
+                        .map_err(|e| e.with_span(f.range.into()))?,
+                );
             }
         }
         Ok(map)
     }
 
+    let span = typ.span();
     let typ = unwrap_promise(tc.state(), typ);
     match typ {
         Type::Basic(Basic::Void) => Ok(HashMap::new()),
         Type::Interface(iface) => to_fields(tc.state(), iface),
         Type::Named(named) => {
-            let underlying = tc.underlying(named.obj.module_id, typ);
+            let underlying = Sp::new(span, tc.underlying(named.obj.module_id, typ));
             iface_fields(tc, &underlying)
         }
-        _ => anyhow::bail!("expected named interface type, found {:?}", typ),
+        _ => Err(Error::ExpectedNamedInterfaceType(format!("{typ:?}")).with_span(span)),
     }
 }
 
-fn extract_path_params(path: &Path, fields: &mut FieldMap) -> Result<Vec<Param>> {
+fn extract_path_params(path: &Path, fields: &mut FieldMap) -> anyhow::Result<Vec<Param>> {
     let mut params = Vec::new();
     for (index, seg) in path.dynamic_segments().enumerate() {
         let name = seg.lit_or_name();
@@ -491,7 +528,7 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> Vec<Para
     params
 }
 
-fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> Result<Path> {
+fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> anyhow::Result<Path> {
     use crate::parser::respath::{Segment, ValueType};
     // Get the path params into a map, keyed by name.
     let path_params = req
@@ -539,7 +576,7 @@ fn rewrite_custom_type_field(
     ctx: &ResolveState,
     field: &InterfaceField,
     field_name: &str,
-) -> Result<Field> {
+) -> anyhow::Result<Field> {
     let standard_field = Field {
         name: field_name.to_string(),
         typ: field.typ.clone(),
