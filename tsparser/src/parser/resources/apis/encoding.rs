@@ -13,6 +13,7 @@ use crate::parser::types::{
     Type, TypeChecker,
 };
 use crate::parser::Range;
+use crate::span_err::SpErr;
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
@@ -87,8 +88,8 @@ pub struct ResponseEncoding {
 
 #[derive(Debug, Clone)]
 pub struct AuthHandlerEncoding {
-    pub auth_param: Type,
-    pub auth_data: Type,
+    pub auth_param: Sp<Type>,
+    pub auth_data: Sp<Type>,
 }
 
 pub struct RequestParamsByLoc<'a> {
@@ -175,13 +176,16 @@ pub fn describe_stream_endpoint(
     tc: &TypeChecker,
     methods: Methods,
     path: Path,
-    req: Option<Type>,
-    resp: Option<Type>,
-    handshake: Option<Type>,
+    req: Option<Sp<Type>>,
+    resp: Option<Sp<Type>>,
+    handshake: Option<Sp<Type>>,
 ) -> anyhow::Result<EndpointEncoding> {
-    let resp = resp
-        .map(|t| unwrap_promise(tc.state(), &t).clone())
-        .and_then(drop_empty_or_void);
+    let resp = if let Some(resp) = resp {
+        let (span, resp) = resp.split();
+        drop_empty_or_void(unwrap_promise(tc.state(), &resp).clone()).map(|t| Sp::new(span, t))
+    } else {
+        None
+    };
 
     let default_method = default_method(&methods);
 
@@ -213,6 +217,10 @@ pub fn describe_stream_endpoint(
         path
     };
 
+    let raw_handshake_schema = handshake.map(|sp| sp.take());
+    let raw_req_schema = req.map(|sp| sp.take());
+    let raw_resp_schema = resp.map(|sp| sp.take());
+
     Ok(EndpointEncoding {
         path,
         methods,
@@ -220,22 +228,25 @@ pub fn describe_stream_endpoint(
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,
-        raw_handshake_schema: handshake,
-        raw_req_schema: req,
-        raw_resp_schema: resp,
+        raw_handshake_schema,
+        raw_req_schema,
+        raw_resp_schema,
     })
 }
 pub fn describe_endpoint(
     tc: &TypeChecker,
     methods: Methods,
     path: Path,
-    req: Option<Type>,
-    resp: Option<Type>,
+    req: Option<Sp<Type>>,
+    resp: Option<Sp<Type>>,
     raw: bool,
 ) -> anyhow::Result<EndpointEncoding> {
-    let resp = resp
-        .map(|t| unwrap_promise(tc.state(), &t).clone())
-        .and_then(drop_empty_or_void);
+    let resp = if let Some(resp) = resp {
+        let (span, resp) = resp.split();
+        drop_empty_or_void(unwrap_promise(tc.state(), &resp).clone()).map(|t| Sp::new(span, t))
+    } else {
+        None
+    };
 
     let default_method = default_method(&methods);
 
@@ -243,6 +254,9 @@ pub fn describe_endpoint(
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
     let path = rewrite_path_types(&req_enc[0], path, raw).context("parse path param types")?;
+
+    let raw_req_schema = req.map(|sp| sp.take());
+    let raw_resp_schema = resp.map(|sp| sp.take());
 
     Ok(EndpointEncoding {
         path,
@@ -252,8 +266,8 @@ pub fn describe_endpoint(
         resp: resp_enc,
         handshake: None,
         raw_handshake_schema: None,
-        raw_req_schema: req,
-        raw_resp_schema: resp,
+        raw_req_schema,
+        raw_resp_schema,
     })
 }
 
@@ -333,7 +347,7 @@ fn describe_req(
 fn describe_resp(
     tc: &TypeChecker,
     _methods: &Methods,
-    resp_schema: &Option<Type>,
+    resp_schema: &Option<Sp<Type>>,
 ) -> anyhow::Result<(ResponseEncoding, Option<FieldMap>)> {
     let Some(resp_schema) = resp_schema else {
         return Ok((ResponseEncoding { params: vec![] }, None));
@@ -353,14 +367,15 @@ fn describe_resp(
 
 pub fn describe_auth_handler(
     ctx: &ResolveState,
-    params: Type,
-    response: Type,
+    params: Sp<Type>,
+    response: Sp<Type>,
 ) -> AuthHandlerEncoding {
+    let (span, response) = response.split();
     let response = unwrap_promise(ctx, &response).clone();
 
     AuthHandlerEncoding {
         auth_param: params,
-        auth_data: response,
+        auth_data: Sp::new(span, response),
     }
 }
 
@@ -418,38 +433,8 @@ impl Field {
     }
 }
 
-#[derive(Debug)]
-struct SpErr<E> {
-    span: Span,
-    error: E,
-}
-
-impl<E> SpErr<E> {
-    pub fn into_inner(self) -> E {
-        self.error
-    }
-}
-
-impl<E> std::error::Error for SpErr<E>
-where
-    E: std::error::Error,
-{
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.error.source()
-    }
-}
-
-impl<E> std::fmt::Display for SpErr<E>
-where
-    E: std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.error, f)
-    }
-}
-
 #[derive(Error, Debug)]
-enum Error {
+pub enum Error {
     #[error("expected named interface type, found {0}")]
     ExpectedNamedInterfaceType(String),
     #[error("invalid custom type field")]
@@ -457,7 +442,7 @@ enum Error {
 }
 impl Error {
     fn with_span(self, span: Span) -> SpErr<Self> {
-        SpErr { span, error: self }
+        SpErr::new(span, self)
     }
 }
 

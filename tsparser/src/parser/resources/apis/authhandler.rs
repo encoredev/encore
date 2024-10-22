@@ -57,7 +57,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
             let fields = match iface_fields(pass.type_checker, &request) {
                 Ok(fields) => fields,
                 Err(e) => {
-                    HANDLER.with(|handler| handler.span_err(r.range, &e.to_string()));
+                    e.report();
                     continue;
                 }
             };
