@@ -29,4 +29,4 @@ docker run -e PORT=8081 -p 8081:8081 MY-IMAGE:TAG
 ```
 
 Congratulations, you've built your own Docker image! 🎉
-Continue to learn how to [configure infrastructure](/docs/selfhosting/configure-infra).
+Continue to learn how to [configure infrastructure](/docs/selfhost/configure-infra).

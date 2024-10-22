@@ -759,12 +759,12 @@
 			kind: "basic"
 			text: "Configure Infrastructure"
 			path: "/self-host/configure-infra"
-			file: "self-host/configure-infra"
+			file: "selfhost/configure-infra"
 		}, {
 		  kind: "basic"
 		  text: "Deploy to DigitalOcean"
 		  path: "/self-host/deploy-digitalocean"
-		  file: "self-host/deploy-to-digital-ocean"
+		  file: "selfhost/deploy-to-digital-ocean"
 	}]
 }
 
