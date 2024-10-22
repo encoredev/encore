@@ -13,7 +13,7 @@ encore build docker --config path/to/infra-config.json MY-IMAGE:TAG
 
 The configuration file should be a JSON file using the [Encore Infra Config](https://encore.dev/schemas/infra.schema.json) schema.
 
-This includes configuring things like:
+This supports configuring things like:
 
 - How to access infrastructure resources (what provider to use, what credentials to use, etc.)
 - How to call other services over the network ("service discovery"),
@@ -51,7 +51,7 @@ Here's an example configuration file you can use.
   ],
   "service_discovery": {
     "myservice": {
-      "base_url": "https://my-service:8044"
+      "base_url": "https://myservice:8044"
     }
   },
   "redis": {
@@ -142,7 +142,7 @@ See below for examples of each type of infrastructure resource.
 - `handlers`: The time allocated for processing request handlers during the shutdown.
 
 ### 3. Authentication Methods Configuration
-Private endpoints will not require authentication if no authentication methods are specified. To secure private endpoints, you can configure authentication methods.
+Private endpoints will not require authentication if no authentication methods are specified. This is typically fine when services are deployed on a private network such as a VPC. But sometimes you might need to connect to other services over the public internet, in which case you'll want to ensure private endpoints are only accessible to other backend services. To do that you can configure authentication methods.
 Encore currently supports authentication through a shared key, which you can specify in your infrastructure configuration file.
 ```json
 {

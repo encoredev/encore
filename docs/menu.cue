@@ -106,7 +106,7 @@
 		#DevelopmentSection,
 		#ObservabilitySection,
 		#PlatformSection,
-		#SelfHostingSection,
+		#SelfHostSection,
 		#ResourcesSection,
 		#CommunitySection,
 		#OtherSection,
@@ -746,25 +746,25 @@
 	}]
 }
 
-#SelfHostingSection: #SectionMenuItem & {
+#SelfHostSection: #SectionMenuItem & {
 	kind: "section"
 	text: "Self Hosting"
 	items: [
 		{
 			kind: "basic"
 			text: "Build Docker Images"
-			path: "/how-to/self-host"
+			path: "/self-host/docker-build"
 			file: "how-to/self-host"
 		}, {
 			kind: "basic"
 			text: "Configure Infrastructure"
-			path: "/selfhosting/configure-infra"
-			file: "selfhosting/configure-infra"
+			path: "/self-host/configure-infra"
+			file: "self-host/configure-infra"
 		}, {
 		  kind: "basic"
 		  text: "Deploy to DigitalOcean"
-		  path: "/selfhosting/deploy-digitalocean"
-		  file: "selfhosting/deploy-to-digital-ocean"
+		  path: "/self-host/deploy-digitalocean"
+		  file: "self-host/deploy-to-digital-ocean"
 	}]
 }
 

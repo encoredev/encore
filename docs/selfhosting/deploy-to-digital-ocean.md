@@ -135,7 +135,7 @@ DigitalOcean’s App Platform provides managed databases, allowing you to add a 
 
       export const getUser = api(
         { expose: true, method: "GET", path: "/names/:id" },
-        async ({id}:{id:number}): Promise<{ id: number; name: string }> => {
+        async ({id}: {id:number}): Promise<{ id: number; name: string }> => {
           return await mydb.queryRow`SELECT * FROM users WHERE id = ${id}` as { id: number; name: string };
         }
       );
