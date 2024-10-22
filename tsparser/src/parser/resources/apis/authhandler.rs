@@ -54,7 +54,13 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
             let request = pass.type_checker.resolve_type(module.clone(), &r.request);
             let response = pass.type_checker.resolve_type(module.clone(), &r.response);
 
-            let fields = iface_fields(pass.type_checker, &request)?;
+            let fields = match iface_fields(pass.type_checker, &request) {
+                Ok(fields) => fields,
+                Err(e) => {
+                    e.report();
+                    continue;
+                }
+            };
 
             for (_, v) in fields {
                 if !v.is_custom() {
@@ -66,7 +72,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
                 .type_checker
                 .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
 
-            let encoding = describe_auth_handler(pass.type_checker.state(), request, response)?;
+            let encoding = describe_auth_handler(pass.type_checker.state(), request, response);
 
             let resource = Resource::AuthHandler(Lrc::new(AuthHandler {
                 range: r.range,

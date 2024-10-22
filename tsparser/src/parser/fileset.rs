@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::parser::doc_comments::doc_comments_before;
 use anyhow::Result;
 use serde::Serialize;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::SyntaxContext;
 
@@ -204,6 +205,10 @@ impl Range {
             hi: swc_common::BytePos(self.end.0),
             ctxt: SyntaxContext::empty(),
         }
+    }
+
+    pub fn err(&self, msg: &str) {
+        HANDLER.with(|handler| handler.span_err(self.to_span(), msg))
     }
 }
 

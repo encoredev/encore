@@ -37,11 +37,10 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
 
                 if i > 0 {
                     HANDLER.with(|h| {
-                        h.struct_span_err(
+                        h.span_err(
                             r.range,
                             "cannot have multiple service declarations in the same module",
-                        )
-                        .emit();
+                        );
                     });
                     continue;
                 }
@@ -52,11 +51,10 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     FilePath::Real(buf) if buf.ends_with("encore.service.ts") => {}
                     _ => {
                         HANDLER.with(|h| {
-                            h.struct_span_err(
+                            h.span_err(
                                 r.range,
                                 "service declarations are only allowed in encore.service.ts",
-                            )
-                            .emit();
+                            );
                         });
                         continue;
                     }
