@@ -49,3 +49,11 @@ where
         std::fmt::Display::fmt(&self.error, f)
     }
 }
+
+pub trait ErrorWithSpanExt: std::error::Error + Sized {
+    fn with_span(self, span: Span) -> SpErr<Self> {
+        SpErr::new(span, self)
+    }
+}
+
+impl<T> ErrorWithSpanExt for T where T: std::error::Error {}

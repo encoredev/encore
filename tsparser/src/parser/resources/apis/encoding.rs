@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Context};
 use litparser::Sp;
-use swc_common::Span;
 use thiserror::Error;
 
 use crate::parser::resources::apis::api::{Method, Methods};
@@ -13,7 +12,7 @@ use crate::parser::types::{
     Type, TypeChecker,
 };
 use crate::parser::Range;
-use crate::span_err::SpErr;
+use crate::span_err::{ErrorWithSpanExt, SpErr};
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
@@ -439,11 +438,6 @@ pub enum Error {
     ExpectedNamedInterfaceType(String),
     #[error("invalid custom type field")]
     InvalidCustomType(#[source] anyhow::Error),
-}
-impl Error {
-    fn with_span(self, span: Span) -> SpErr<Self> {
-        SpErr::new(span, self)
-    }
 }
 
 pub(crate) fn iface_fields<'a>(
