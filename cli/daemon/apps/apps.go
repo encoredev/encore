@@ -50,10 +50,28 @@ type Manager struct {
 	instances  map[string]*Instance // root -> instance
 }
 
+type TrackOption func(*Instance) error
+
+func WithTutorial(tutorial string) TrackOption {
+	return func(i *Instance) error {
+		err := manifest.SetTutorial(i.root, tutorial)
+		if err != nil {
+			return errors.Wrap(err, "set tutorial")
+		}
+		i.tutorial = tutorial
+		return nil
+	}
+}
+
 // Track begins tracking an app, and marks it as updated
 // if the app is already tracked.
-func (mgr *Manager) Track(appRoot string) (*Instance, error) {
+func (mgr *Manager) Track(appRoot string, options ...TrackOption) (*Instance, error) {
 	app, err := mgr.resolve(appRoot)
+	for _, opt := range options {
+		if err := opt(app); err != nil {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -224,6 +242,7 @@ func (mgr *Manager) resolve(appRoot string) (*Instance, error) {
 	}
 
 	i := NewInstance(appRoot, man.LocalID, platformID)
+	i.tutorial = man.Tutorial
 	i.mgr = mgr
 	if err := i.beginWatch(); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		log.Error().Err(err).Str("id", i.PlatformOrLocalID()).Msg("unable to begin watching app")
@@ -257,6 +276,7 @@ type Instance struct {
 	root       string
 	localID    string
 	platformID *goldfish.Cache[string]
+	tutorial   string
 
 	// mgr is a reference to the manager that created it.
 	// It may be nil if an instance was created without a manager.
@@ -283,6 +303,10 @@ func NewInstance(root, localID, platformID string) *Instance {
 		i.platformID.Set(platformID)
 	}
 	return i
+}
+
+func (i *Instance) Tutorial() string {
+	return i.tutorial
 }
 
 // Root returns the filesystem path for the app root.

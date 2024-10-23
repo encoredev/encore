@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -11,13 +10,11 @@ import (
 
 	"github.com/logrusorgru/aurora/v3"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/cli/internal/onboarding"
-	"encr.dev/pkg/ansi"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -132,13 +129,13 @@ func runApp(appRoot, wd string) {
 		fatal(err)
 	}
 
-	clearTerminalExceptFirstLine()
+	cmdutil.ClearTerminalExceptFirstNLines(1)
 
-	var converter outputConverter
+	var converter cmdutil.OutputConverter
 	if !jsonLogs {
-		converter = convertJSONLogs(colorize(color && !noColor))
+		converter = cmdutil.ConvertJSONLogs(cmdutil.Colorize(color && !noColor))
 	}
-	code := streamCommandOutput(stream, converter)
+	code := cmdutil.StreamCommandOutput(stream, converter)
 	if code == 0 {
 		if state, err := onboarding.Load(); err == nil {
 			if state.DeployHint.Set() {
@@ -149,17 +146,6 @@ func runApp(appRoot, wd string) {
 		}
 	}
 	os.Exit(code)
-}
-
-func clearTerminalExceptFirstLine() {
-	// Clear the screen except for the first line.
-	if _, height, err := terminal.GetSize(int(os.Stdout.Fd())); err == nil {
-		count := height - 2
-		if count > 0 {
-			_, _ = os.Stdout.Write(bytes.Repeat([]byte{'\n'}, count))
-		}
-		_, _ = fmt.Fprint(os.Stdout, ansi.SetCursorPosition(2, 1)+ansi.ClearScreen(ansi.CursorToBottom))
-	}
 }
 
 func init() {
