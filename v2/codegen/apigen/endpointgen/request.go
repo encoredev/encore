@@ -298,7 +298,7 @@ func (d *requestDesc) ReqPath() *Statement {
 					g.Lit("/" + seg.Value)
 				} else {
 					g.Lit("/")
-					g.Id("params").Index(Lit(idx))
+					g.Qual("net/url", "PathEscape").Call(Id("params").Index(Lit(idx)))
 					idx++
 				}
 			}
