@@ -108,7 +108,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	RawPath:             "/*0",
 	ReqPath: func(reqData *EncoreInternal_FooReq) (string, __api.UnnamedParams, error) {
 		params := __api.UnnamedParams{__etype.MarshalOne(__etype.MarshalString, reqData.P0)}
-		return "/" + params[0], params, nil
+		return "/" + url.PathEscape(params[0]), params, nil
 	},
 	ReqUserPayload: func(reqData *EncoreInternal_FooReq) any {
 		return nil
