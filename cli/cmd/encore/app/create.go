@@ -106,7 +106,8 @@ func promptRunApp() bool {
 			telemetry.Send("app.create.run", map[string]any{"response": false})
 			return false
 		case "q", "quit", "exit":
-			os.Exit(1)
+			telemetry.Send("app.create.run", map[string]any{"response": false})
+			return false
 		default:
 			// Try again.
 			_, _ = red.Fprintln(os.Stderr, "Unexpected answer, please enter 'y' or 'n'.")
