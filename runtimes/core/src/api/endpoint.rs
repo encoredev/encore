@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::Context;
 use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
-use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -26,6 +25,8 @@ use crate::names::EndpointName;
 use crate::trace;
 use crate::{model, Hosted};
 
+use super::reqauth::caller::Caller;
+
 #[derive(Debug)]
 pub struct SuccessResponse {
     pub status: axum::http::StatusCode,
@@ -38,7 +39,7 @@ pub type Response = APIResult<SuccessResponse>;
 
 pub type APIResult<T> = Result<T, Error>;
 
-impl IntoResponse for SuccessResponse {
+impl axum::response::IntoResponse for SuccessResponse {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
         // Serialize the response body.
         // Use a small initial capacity of 128 bytes like serde_json::to_vec
@@ -61,7 +62,7 @@ impl IntoResponse for SuccessResponse {
                     Ok(()) => bld
                         .body(axum::body::Body::from(buf.into_inner().freeze()))
                         .unwrap(),
-                    Err(err) => Error::internal(err).into_response(),
+                    Err(err) => Error::internal(err).into_response(None),
                 }
             }
             None => bld.body(axum::body::Body::empty()).unwrap(),
@@ -75,16 +76,33 @@ impl AsRef<Error> for Error {
     }
 }
 
+pub trait IntoResponse {
+    /// Create a response.
+    fn into_response(self, caller: Option<Caller>) -> axum::response::Response;
+}
+
 impl IntoResponse for Error {
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        self.as_ref().into_response()
+    fn into_response(self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
+        self.as_ref().into_response(caller)
     }
 }
 
 impl IntoResponse for &Error {
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
+    fn into_response(self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
+        // considure resonse to be external if caller is unknown or if it is gateway
+        let internal_call = caller.map(|caller| !caller.is_gateway()).unwrap_or(false);
+
+        let err = if !internal_call {
+            Error {
+                internal_message: None,
+                ..self.clone()
+            }
+        } else {
+            self.clone()
+        };
+
         let mut buf = BytesMut::with_capacity(128).writer();
-        serde_json::to_writer(&mut buf, &self).unwrap();
+        serde_json::to_writer(&mut buf, &err).unwrap();
 
         axum::http::Response::builder()
             .status::<axum::http::status::StatusCode>(self.code.into())
@@ -498,8 +516,10 @@ impl EndpointHandler {
         Box::pin(async move {
             let request = match self.parse_request(axum_req).await {
                 Ok(req) => req,
-                Err(err) => return err.into_response(),
+                Err(err) => return err.into_response(None),
             };
+
+            let internal_caller = request.internal_caller.clone();
 
             // If the endpoint isn't exposed, return a 404.
             if !self.endpoint.exposed && !request.allows_private_endpoint_call() {
@@ -510,7 +530,7 @@ impl EndpointHandler {
                     stack: None,
                     details: None,
                 }
-                .into_response();
+                .into_response(internal_caller);
             } else if self.endpoint.requires_auth && !request.has_authenticated_user() {
                 return Error {
                     code: ErrCode::Unauthenticated,
@@ -519,7 +539,7 @@ impl EndpointHandler {
                     stack: None,
                     details: None,
                 }
-                .into_response();
+                .into_response(internal_caller);
             }
 
             let logger = crate::log::root();
@@ -576,13 +596,13 @@ impl EndpointHandler {
                     self.endpoint
                         .response
                         .encode(&payload)
-                        .unwrap_or_else(|err| err.into_response()),
+                        .unwrap_or_else(|err| err.into_response(internal_caller)),
                     Some(payload),
                     None,
                 ),
                 ResponseData::Typed(Err(err)) => (
                     err.code.status_code().as_u16(),
-                    err.as_ref().into_response(),
+                    err.as_ref().into_response(internal_caller),
                     None,
                     Some(err),
                 ),

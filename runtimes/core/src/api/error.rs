@@ -11,6 +11,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 pub struct Error {
     pub code: ErrCode,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub internal_message: Option<String>,
     pub details: Option<serde_json::Map<String, serde_json::Value>>,
 

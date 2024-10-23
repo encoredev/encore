@@ -4,10 +4,9 @@ use crate::napi_util::PromiseHandler;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
-use axum::response::IntoResponse;
 use encore_runtime_core::api::websocket::StreamMessagePayload;
-use encore_runtime_core::api::websocket_client;
 use encore_runtime_core::api::{self, schema, APIResult, HandlerRequest};
+use encore_runtime_core::api::{websocket_client, IntoResponse};
 use napi::{Env, JsFunction, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
@@ -30,6 +29,7 @@ impl api::BoxedHandler for JSWebSocketHandler {
         req: HandlerRequest,
     ) -> Pin<Box<dyn Future<Output = api::ResponseData> + Send + 'static>> {
         Box::pin(async move {
+            let internal_caller = req.internal_caller.clone();
             let resp = api::websocket::upgrade_request(req, |req, payload, tx| async move {
                 self.handler.call(
                     WsRequestMessage {
@@ -43,7 +43,7 @@ impl api::BoxedHandler for JSWebSocketHandler {
 
             match resp {
                 Ok(resp) => api::ResponseData::Raw(resp),
-                Err(e) => api::ResponseData::Raw(e.into_response()),
+                Err(e) => api::ResponseData::Raw(e.into_response(internal_caller)),
             }
         })
     }

@@ -5,14 +5,13 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
-use axum::response::IntoResponse;
 use bytes::Bytes;
 use napi::bindgen_prelude::{Buffer, Either3};
 use napi::{Either, Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use tokio::sync::{mpsc, oneshot};
 
-use encore_runtime_core::api;
+use encore_runtime_core::api::{self, IntoResponse};
 
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
@@ -343,9 +342,11 @@ impl api::BoxedHandler for JSRawHandler {
         Box::pin(async move {
             let (body_tx, mut body_rx) = oneshot::channel();
 
+            let internal_caller = req.internal_caller.clone();
+
             let Some(body) = req.take_raw_body() else {
                 let err = api::Error::internal(anyhow::anyhow!("missing body"));
-                return api::ResponseData::Raw(err.into_response());
+                return api::ResponseData::Raw(err.into_response(internal_caller));
             };
 
             // Call the handler.
@@ -374,20 +375,20 @@ impl api::BoxedHandler for JSRawHandler {
                         Ok(resp) => resp,
                         Err(_) => {
                             let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                            err_resp.into_response()
+                            err_resp.into_response(internal_caller)
                         }
                     }
                 }
                 err = err_rx.recv() => {
                     match err {
-                        Some(Err(err)) => err.into_response(),
+                        Some(Err(err)) => err.into_response(internal_caller),
                         _ => {
                             // We didn't get an error. Wait for the response body instead.
                             match body_rx.await {
                                 Ok(resp) => resp,
                                 Err(_) => {
                                     let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                                    err_resp.into_response()
+                                    err_resp.into_response(internal_caller)
                                 }
                             }
                         }

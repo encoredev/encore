@@ -5,13 +5,12 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::{Context, Result};
 use axum::extract::Request;
-use axum::response::IntoResponse;
 use axum::RequestExt;
 use chrono::{DateTime, Utc};
 use http_body_util::BodyExt;
 use serde::Deserialize;
 
-use crate::api::{self, APIResult};
+use crate::api::{self, APIResult, IntoResponse};
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub::manager::SubHandler;
 use crate::pubsub::{self, MessageId};
@@ -96,7 +95,7 @@ impl pubsub::PushRequestHandler for PushHandler {
                 Ok(()) => axum::response::Response::new(axum::body::Body::empty()),
                 Err(e) => {
                     log::error!("push handler returned error: {:?}", e);
-                    e.into_response()
+                    e.into_response(None)
                 }
             }
         })
