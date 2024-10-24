@@ -1003,6 +1003,7 @@ func makeProtoReplier(rep jsonrpc2.Replier) jsonrpc2.Replier {
 // It is mirrored in the frontend at src/lib/client/dev-dash-client.ts as `AppStatus`.
 type appStatus struct {
 	Running      bool                  `json:"running"`
+	Tutorial     string                `json:"tutorial,omitempty"`
 	AppID        string                `json:"appID"`
 	PlatformID   string                `json:"platformID,omitempty"`
 	AppRoot      string                `json:"appRoot"`
@@ -1048,6 +1049,7 @@ func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err 
 	// Build the response
 	resp := appStatus{
 		Running:     false,
+		Tutorial:    app.Tutorial(),
 		AppID:       app.PlatformOrLocalID(),
 		PlatformID:  app.PlatformID(),
 		Meta:        json.RawMessage(mdStr),

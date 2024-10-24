@@ -40,6 +40,7 @@ type templateItem struct {
 	Desc      string   `json:"desc"`
 	Template  string   `json:"template"`
 	Lang      language `json:"lang"`
+	Tutorial  bool     `json:"tutorial"`
 }
 
 func (i templateItem) Title() string       { return i.ItemTitle }
@@ -411,10 +412,10 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (appName, template string, selectedLang language) {
+func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (appName, template string, selectedLang language, tutorial bool) {
 	// If we have both name and template already, return them.
 	if inputName != "" && inputTemplate != "" {
-		return inputName, inputTemplate, ""
+		return inputName, inputTemplate, "", false
 	}
 
 	var lang languageSelectModel
@@ -527,9 +528,10 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 			cmdutil.Fatal("no template selected")
 		}
 		template = sel.Template
+		tutorial = sel.Tutorial
 	}
 
-	return appName, template, res.lang.Selected()
+	return appName, template, res.lang.Selected(), tutorial
 }
 
 type langItem struct {
@@ -599,37 +601,55 @@ func loadTemplates() tea.Msg {
 				ItemTitle: "Hello World",
 				Desc:      "A simple REST API",
 				Template:  "hello-world",
-				Lang:      languageGo,
+				Lang:      "go",
 			},
 			{
-				ItemTitle: "Uptime Monitor (TypeScript)",
-				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
-				Template:  "ts/uptime",
-				Lang:      languageTS,
+				ItemTitle: "Hello World",
+				Desc:      "A simple REST API",
+				Template:  "ts/hello-world",
+				Lang:      "ts",
 			},
 			{
-				ItemTitle: "Uptime Monitor (Go)",
+				ItemTitle: "Uptime Monitor",
 				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
 				Template:  "uptime",
-				Lang:      languageGo,
+				Lang:      "go",
+			},
+			{
+				ItemTitle: "Uptime Monitor",
+				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
+				Template:  "ts/uptime",
+				Lang:      "ts",
 			},
 			{
 				ItemTitle: "GraphQL",
 				Desc:      "GraphQL API, Microservices, SQL Database",
 				Template:  "graphql",
-				Lang:      languageGo,
+				Lang:      "go",
 			},
 			{
 				ItemTitle: "URL Shortener",
 				Desc:      "REST API, SQL Database",
 				Template:  "url-shortener",
-				Lang:      languageGo,
+				Lang:      "go",
+			},
+			{
+				ItemTitle: "URL Shortener",
+				Desc:      "REST API, SQL Database",
+				Template:  "ts/url-shortener",
+				Lang:      "ts",
 			},
 			{
 				ItemTitle: "Empty app",
 				Desc:      "Start from scratch (experienced users only)",
 				Template:  "",
-				Lang:      languageGo,
+				Lang:      "go",
+			},
+			{
+				ItemTitle: "Empty app",
+				Desc:      "Start from scratch (experienced users only)",
+				Template:  "ts/empty",
+				Lang:      "ts",
 			},
 		}
 	})()

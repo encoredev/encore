@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/daemon/sqldb/docker"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -76,7 +77,7 @@ var dbResetCmd = &cobra.Command{
 		if err != nil {
 			fatal("reset databases: ", err)
 		}
-		os.Exit(streamCommandOutput(stream, nil))
+		os.Exit(cmdutil.StreamCommandOutput(stream, nil))
 	},
 }
 
@@ -221,7 +222,7 @@ when using tools like Prisma.
 		if err != nil {
 			log.Fatal().Err(err).Msg("could not setup db proxy")
 		}
-		os.Exit(streamCommandOutput(stream, nil))
+		os.Exit(cmdutil.StreamCommandOutput(stream, nil))
 	},
 }
 

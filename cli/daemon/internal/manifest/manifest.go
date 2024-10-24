@@ -26,6 +26,42 @@ type Manifest struct {
 	// LocalID is a unique id for the app that's only used locally.
 	// It is randomly generated on first use.
 	LocalID string `json:"local_id"`
+
+	// Tutorial is set to the name of the tutorial the user is currently on or empty.
+	Tutorial string `json:"tutorial"`
+}
+
+// SetTutorial sets the tutorial field on the app manifest
+func SetTutorial(appRoot string, tutorial string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("read/create manifest: %v", err)
+		}
+	}()
+
+	var man Manifest
+
+	// Use the existing manifest if we have one.
+	cfgPath := filepath.Join(appRoot, ".encore", "manifest.json")
+	if data, err := os.ReadFile(cfgPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	} else if err == nil {
+		err = json.Unmarshal(data, &man)
+		if err != nil {
+			return err
+		}
+	}
+
+	man.Tutorial = tutorial
+
+	// Write it back.
+	out, _ := json.Marshal(&man)
+	if err := os.MkdirAll(filepath.Dir(cfgPath), 0755); err != nil {
+		return err
+	} else if err := xos.WriteFile(cfgPath, out, 0644); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ReadOrCreate reads the manifest for the app rooted at appRoot.

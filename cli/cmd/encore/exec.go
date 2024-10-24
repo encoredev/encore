@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
@@ -51,8 +52,8 @@ func execScript(appRoot, relWD string, args []string) {
 		fatal(err)
 	}
 
-	clearTerminalExceptFirstLine()
-	code := streamCommandOutput(stream, convertJSONLogs())
+	cmdutil.ClearTerminalExceptFirstNLines(1)
+	code := cmdutil.StreamCommandOutput(stream, cmdutil.ConvertJSONLogs())
 	os.Exit(code)
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -55,5 +56,5 @@ func runChecks(appRoot, relPath string) {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
 	}
-	os.Exit(streamCommandOutput(stream, nil))
+	os.Exit(cmdutil.StreamCommandOutput(stream, nil))
 }
