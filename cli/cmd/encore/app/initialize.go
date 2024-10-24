@@ -73,7 +73,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang, _ := selectTemplate(name, "", true)
+	name, _, lang := selectTemplate(name, "", true)
 
 	if err := validateName(name); err != nil {
 		return err
