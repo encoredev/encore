@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -40,7 +41,6 @@ type templateItem struct {
 	Desc      string   `json:"desc"`
 	Template  string   `json:"template"`
 	Lang      language `json:"lang"`
-	Tutorial  bool     `json:"tutorial"`
 }
 
 func (i templateItem) Title() string       { return i.ItemTitle }
@@ -412,10 +412,10 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (appName, template string, selectedLang language, tutorial bool) {
+func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (appName, template string, selectedLang language) {
 	// If we have both name and template already, return them.
 	if inputName != "" && inputTemplate != "" {
-		return inputName, inputTemplate, "", false
+		return inputName, inputTemplate, ""
 	}
 
 	var lang languageSelectModel
@@ -528,10 +528,9 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 			cmdutil.Fatal("no template selected")
 		}
 		template = sel.Template
-		tutorial = sel.Tutorial
 	}
 
-	return appName, template, res.lang.Selected(), tutorial
+	return appName, template, res.lang.Selected()
 }
 
 type langItem struct {
@@ -567,8 +566,75 @@ func (lang language) Display() string {
 
 type loadedTemplates []templateItem
 
-func loadTutorials(ctx context.Context) []templateItem {
-	url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-tutorials.json"
+var defaultTutorials = []templateItem{
+	{
+		ItemTitle: "Intro to Encore.ts",
+		Desc:      "An interactive tutorial",
+		Template:  "ts/introduction",
+		Lang:      "ts",
+	},
+}
+
+var defaultTemplates = []templateItem{
+	{
+		ItemTitle: "Hello World",
+		Desc:      "A simple REST API",
+		Template:  "hello-world",
+		Lang:      "go",
+	},
+	{
+		ItemTitle: "Hello World",
+		Desc:      "A simple REST API",
+		Template:  "ts/hello-world",
+		Lang:      "ts",
+	},
+	{
+		ItemTitle: "Uptime Monitor",
+		Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
+		Template:  "uptime",
+		Lang:      "go",
+	},
+	{
+		ItemTitle: "Uptime Monitor",
+		Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
+		Template:  "ts/uptime",
+		Lang:      "ts",
+	},
+	{
+		ItemTitle: "GraphQL",
+		Desc:      "GraphQL API, Microservices, SQL Database",
+		Template:  "graphql",
+		Lang:      "go",
+	},
+	{
+		ItemTitle: "URL Shortener",
+		Desc:      "REST API, SQL Database",
+		Template:  "url-shortener",
+		Lang:      "go",
+	},
+	{
+		ItemTitle: "URL Shortener",
+		Desc:      "REST API, SQL Database",
+		Template:  "ts/url-shortener",
+		Lang:      "ts",
+	},
+	{
+		ItemTitle: "Empty app",
+		Desc:      "Start from scratch (experienced users only)",
+		Template:  "",
+		Lang:      "go",
+	},
+	{
+		ItemTitle: "Empty app",
+		Desc:      "Start from scratch (experienced users only)",
+		Template:  "ts/empty",
+		Lang:      "ts",
+	},
+}
+
+func fetchTemplates(url string, defaults []templateItem) []templateItem {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
 		if resp, err := http.DefaultClient.Do(req); err == nil {
 			if data, err := io.ReadAll(resp.Body); err == nil {
@@ -582,113 +648,24 @@ func loadTutorials(ctx context.Context) []templateItem {
 			}
 		}
 	}
-	return []templateItem{
-		{
-			ItemTitle: "Intro to Encore.ts",
-			Desc:      "An interactive tutorial",
-			Template:  "ts/introduction",
-			Lang:      "ts",
-			Tutorial:  true,
-		},
-	}
-
+	return defaults
 }
 
 func loadTemplates() tea.Msg {
-	// Load the templates.
-	templates := (func() []templateItem {
-		// Get the list of templates from GitHub
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json"
-		if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
-			if resp, err := http.DefaultClient.Do(req); err == nil {
-				if data, err := io.ReadAll(resp.Body); err == nil {
-					if data, err = hujson.Standardize(data); err == nil {
-						var items []templateItem
-						if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
-							for i, it := range items {
-								if it.Lang == "" {
-									items[i].Lang = languageGo
-									if strings.Contains(it.Template, "ts/") || strings.Contains(strings.ToLower(it.ItemTitle), "typescript") {
-										items[i].Lang = languageTS
-									}
-								}
-							}
-							return append(loadTutorials(ctx), items...)
-						}
-					}
-				}
-			}
-		}
-
-		// Return a precompiled list of default items in case we can't read them from GitHub.
-		return []templateItem{
-			{
-				ItemTitle: "Intro to Encore.ts",
-				Desc:      "An interactive tutorial",
-				Template:  "ts/introduction",
-				Lang:      "ts",
-				Tutorial:  true,
-			},
-			{
-				ItemTitle: "Hello World",
-				Desc:      "A simple REST API",
-				Template:  "hello-world",
-				Lang:      "go",
-			},
-			{
-				ItemTitle: "Hello World",
-				Desc:      "A simple REST API",
-				Template:  "ts/hello-world",
-				Lang:      "ts",
-			},
-			{
-				ItemTitle: "Uptime Monitor",
-				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
-				Template:  "uptime",
-				Lang:      "go",
-			},
-			{
-				ItemTitle: "Uptime Monitor",
-				Desc:      "Microservices, SQL Databases, Pub/Sub, Cron Jobs",
-				Template:  "ts/uptime",
-				Lang:      "ts",
-			},
-			{
-				ItemTitle: "GraphQL",
-				Desc:      "GraphQL API, Microservices, SQL Database",
-				Template:  "graphql",
-				Lang:      "go",
-			},
-			{
-				ItemTitle: "URL Shortener",
-				Desc:      "REST API, SQL Database",
-				Template:  "url-shortener",
-				Lang:      "go",
-			},
-			{
-				ItemTitle: "URL Shortener",
-				Desc:      "REST API, SQL Database",
-				Template:  "ts/url-shortener",
-				Lang:      "ts",
-			},
-			{
-				ItemTitle: "Empty app",
-				Desc:      "Start from scratch (experienced users only)",
-				Template:  "",
-				Lang:      "go",
-			},
-			{
-				ItemTitle: "Empty app",
-				Desc:      "Start from scratch (experienced users only)",
-				Template:  "ts/empty",
-				Lang:      "ts",
-			},
-		}
-	})()
-
-	return loadedTemplates(templates)
+	var wg sync.WaitGroup
+	var templates, tutorials []templateItem
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		templates = fetchTemplates("https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json", defaultTemplates)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tutorials = fetchTemplates("https://raw.githubusercontent.com/encoredev/examples/main/cli-tutorials.json", defaultTutorials)
+	}()
+	wg.Wait()
+	return loadedTemplates(append(tutorials, templates...))
 }
 
 // incrementalValidateName is like validateName but only
