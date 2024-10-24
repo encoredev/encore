@@ -214,7 +214,7 @@ pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
     PublishTopic(infra::pubsub_topic::PublishUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
-    AccessBucket(infra::objects::AccessBucketUsage),
+    Bucket(infra::objects::BucketUsage),
 }
 
 pub struct ResolveUsageData<'a> {

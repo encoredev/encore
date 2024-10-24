@@ -21,7 +21,13 @@ trait ClusterImpl: Debug + Send + Sync {
 
 trait BucketImpl: Debug + Send + Sync {
     fn object(self: Arc<Self>, name: String) -> Arc<dyn ObjectImpl + 'static>;
+
+    fn list(
+        self: Arc<Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<ListStream, Error>> + Send + 'static>>;
 }
+
+pub type ListStream = Box<dyn Stream<Item = Result<ObjectAttrs, Error>> + Send>;
 
 trait ObjectImpl: Debug + Send + Sync {
     fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>>;
@@ -37,6 +43,8 @@ trait ObjectImpl: Debug + Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<DownloadStream, DownloadError>> + Send>>;
 
     fn attrs(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>>;
+
+    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>;
 }
 
 #[derive(Debug)]
@@ -51,6 +59,10 @@ impl Bucket {
             imp: self.imp.clone().object(name),
             _tracer: self.tracer.clone(),
         }
+    }
+
+    pub async fn list(&self) -> Result<ListStream, Error> {
+        self.imp.clone().list().await
     }
 }
 
@@ -95,6 +107,10 @@ impl Object {
 
     pub async fn attrs(&self) -> Result<ObjectAttrs, Error> {
         self.imp.clone().attrs().await
+    }
+
+    pub async fn delete(&self) -> Result<(), Error> {
+        self.imp.clone().delete().await
     }
 }
 

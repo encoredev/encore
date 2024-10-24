@@ -59,7 +59,37 @@ message Service {
   repeated DBMigration migrations = 4;
   repeated string      databases  = 5; // databases this service connects to
   bool                 has_config = 6; // true if the service has uses config
-  repeated string      buckets    = 7; // buckets this service uses
+  repeated BucketUsage buckets    = 7; // buckets this service uses
+}
+
+message BucketUsage {
+  // The encore name of the bucket.
+  string bucket = 1;
+
+  // Recorded operations.
+  repeated Operation operations = 2;
+
+  enum Operation {
+    UNKNOWN = 0;
+
+    // Listing objects and accessing their metadata during listing.
+    LIST_OBJECTS = 1;
+
+    // Reading the contents of an object.
+    READ_OBJECT_CONTENTS = 2;
+
+    // Creating or updating an object, with contents and metadata.
+    WRITE_OBJECT = 3;
+
+    // Updating the metadata of an object, without reading or writing its contents.
+    UPDATE_OBJECT_METADATA = 4;
+
+    // Reading the metadata of an object, or checking for its existence.
+    GET_OBJECT_METADATA = 5;
+
+    // Deleting an object.
+    DELETE_OBJECT = 6;
+  }
 }
 
 message Selector {

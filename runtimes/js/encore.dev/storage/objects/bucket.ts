@@ -27,53 +27,69 @@ export class Bucket {
     return new Bucket(name, {});
   }
 
-  object(name: string): ObjectHandle {
-    const impl = this.impl.object(name);
-    return new ObjectHandle(impl, this, name);
-  }
-}
-
-export class ObjectHandle {
-  private impl: runtime.BucketObject;
-  public readonly bucket: Bucket;
-  public readonly name: string;
-
-  constructor(impl: runtime.BucketObject, bucket: Bucket, name: string) {
-    this.impl = impl;
-    this.bucket = bucket;
-    this.name = name;
+  async *list(options: ListOptions): AsyncGenerator<ObjectAttrs> {
+    const iter = await this.impl.list();
+    while (true) {
+      const attrs = await iter.next();
+      if (attrs === null) {
+        break;
+      }
+      yield attrs;
+    }
   }
 
   /**
    * Returns whether the object exists in the bucket.
    * Throws an error on network failure.
    */
-  async exists(): Promise<boolean> {
-    return this.impl.exists();
+  async exists(name: string): Promise<boolean> {
+    const impl = this.impl.object(name);
+    return impl.exists();
   }
 
   /**
    * Returns the object's attributes.
    * Throws an error if the object does not exist.
    */
-  async attrs(): Promise<ObjectAttrs> {
-    return this.impl.attrs();
+  async attrs(name: string): Promise<ObjectAttrs> {
+    const impl = this.impl.object(name);
+    return impl.attrs();
   }
 
-  async upload(data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
-    return this.impl.upload(data, options);
+  /**
+   * Uploads an object to the bucket.
+   */
+  async upload(name: string, data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
+    const impl = this.impl.object(name);
+    return impl.upload(data, options);
   }
 
-  async download(): Promise<Buffer> {
-    return this.impl.downloadAll();
+  /**
+   * Downloads an object from the bucket and returns its contents.
+   */
+  async download(name: string): Promise<Buffer> {
+    const impl = this.impl.object(name);
+    return impl.downloadAll();
   }
+
+  /**
+   * Removes an object from the bucket.
+   * Throws an error on network failure.
+   */
+  async remove(name: string): Promise<void> {
+    const impl = this.impl.object(name);
+    return impl.delete();
+  }
+}
+
+export interface ListOptions {
 }
 
 export interface ObjectAttrs {
   name: string;
-  contentType?: string;
   size: number;
   version: string;
+  contentType?: string;
 }
 
 export interface UploadOptions {

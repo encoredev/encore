@@ -1,8 +1,7 @@
 use anyhow::Result;
 use litparser_derive::LitParser;
-use swc_common::errors::HANDLER;
-use swc_ecma_ast as ast;
 use swc_common::sync::Lrc;
+use swc_ecma_ast as ast;
 
 use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
@@ -14,6 +13,7 @@ use crate::parser::resources::Resource;
 use crate::parser::resources::ResourcePath;
 use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
 use crate::parser::Range;
+use crate::span_err::ErrReporter;
 
 #[derive(Debug, Clone)]
 pub struct Bucket {
@@ -90,24 +90,60 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
 
 pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Result<Option<Usage>> {
     Ok(match &data.expr.kind {
-        UsageExprKind::MethodCall(_)
-        | UsageExprKind::FieldAccess(_)
-        | UsageExprKind::CallArg(_)
-        | UsageExprKind::ConstructorArg(_) => Some(Usage::AccessBucket(AccessBucketUsage {
-            range: data.expr.range,
-            bucket,
-        })),
+        UsageExprKind::MethodCall(call) => {
+            let op = match call.method.as_ref() {
+                "list" => Operation::ListObjects,
+                "exists" | "attrs" => Operation::GetObjectMetadata,
+                "upload" => Operation::WriteObject,
+                "download" => Operation::ReadObjectContents,
+                "remove" => Operation::DeleteObject,
+                _ => {
+                    call.method.err("unsupported bucket operation");
+                    return Ok(None);
+                }
+            };
+
+            Some(Usage::Bucket(BucketUsage {
+                range: data.expr.range,
+                bucket,
+                op,
+            }))
+        }
 
         _ => {
-            HANDLER
-                .with(|h| h.span_err(data.expr.range.to_span(), "invalid use of bucket resource"));
+            data.expr
+                .range
+                .to_span()
+                .err("invalid use of bucket resource");
             None
         }
     })
 }
 
 #[derive(Debug)]
-pub struct AccessBucketUsage {
+pub struct BucketUsage {
     pub range: Range,
     pub bucket: Lrc<Bucket>,
+    pub op: Operation,
+}
+
+#[derive(Debug)]
+pub enum Operation {
+    /// Listing objects and accessing their metadata during list operations.
+    ListObjects,
+
+    /// Reading the contents of an object.
+    ReadObjectContents,
+
+    /// Creating or updating an object, with contents and metadata.
+    WriteObject,
+
+    /// Updating the metadata of an object, without reading or writing its contents.
+    UpdateObjectMetadata,
+
+    /// Reading the metadata of an object, or checking for its existence.
+    GetObjectMetadata,
+
+    /// Deleting an object.
+    DeleteObject,
 }

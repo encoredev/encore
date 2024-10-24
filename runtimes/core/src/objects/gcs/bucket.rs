@@ -1,3 +1,4 @@
+use async_stream::try_stream;
 use futures::TryStreamExt;
 use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
@@ -33,6 +34,53 @@ impl Bucket {
 impl objects::BucketImpl for Bucket {
     fn object(self: Arc<Self>, name: String) -> Arc<dyn objects::ObjectImpl> {
         Arc::new(Object { bkt: self, name })
+    }
+
+    fn list(
+        self: Arc<Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::ListStream, objects::Error>> + Send + 'static>>
+    {
+        Box::pin(async move {
+            match self.client.get().await {
+                Ok(client) => {
+                    let client = client.clone();
+                    let s: objects::ListStream = Box::new(try_stream! {
+                        let mut req = gcs::http::objects::list::ListObjectsRequest {
+                            bucket: self.name.to_string(),
+                            ..Default::default()
+                        };
+
+                        loop {
+                            let resp = client.list_objects(&req).await.map_err(|e| Error::Other(e.into()))?;
+                            if let Some(items) = resp.items {
+                                for obj in items {
+                                    let attrs = ObjectAttrs {
+                                        name: obj.name,
+                                        version: obj.generation.to_string(),
+                                        size: obj.size as u64,
+                                        content_type: obj.content_type,
+                                        etag: obj.etag,
+                                    };
+                                    yield attrs;
+                                }
+                            }
+
+                            req.page_token = resp.next_page_token;
+                            if req.page_token.is_none() {
+                                break;
+                            }
+                        }
+                    });
+
+                    Ok(s)
+                }
+
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
+                    "unable to resolve client: {}",
+                    err
+                ))),
+            }
+        })
     }
 }
 
@@ -81,6 +129,7 @@ impl objects::ObjectImpl for Object {
             }
         })
     }
+
     fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
@@ -179,6 +228,37 @@ impl objects::ObjectImpl for Object {
                     Ok(stream)
                 }
                 Err(err) => Err(DownloadError::Internal(anyhow::anyhow!(
+                    "unable to resolve client: {}",
+                    err
+                ))),
+            }
+        })
+    }
+
+    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+        Box::pin(async move {
+            match self.bkt.client.get().await {
+                Ok(client) => {
+                    use gcs::http::{error::ErrorResponse, Error as GCSError};
+                    let req = &gcs::http::objects::delete::DeleteObjectRequest {
+                        bucket: self.bkt.name.to_string(),
+                        object: self.name.clone(),
+                        ..Default::default()
+                    };
+
+                    match client.delete_object(req).await {
+                        Ok(_) => Ok(()),
+                        Err(GCSError::Response(ErrorResponse { code: 404, .. })) => Ok(()),
+                        Err(GCSError::HttpClient(err))
+                            if err.status().is_some_and(|v| v.as_u16() == 404) =>
+                        {
+                            Ok(())
+                        }
+
+                        Err(err) => Err(Error::Other(err.into())),
+                    }
+                }
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
                     "unable to resolve client: {}",
                     err
                 ))),

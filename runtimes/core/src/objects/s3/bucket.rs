@@ -28,6 +28,17 @@ impl objects::BucketImpl for Bucket {
             name,
         })
     }
+
+    fn list(
+        self: Arc<Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::ListStream, objects::Error>> + Send + 'static>>
+    {
+        Box::pin(async move {
+            Err(objects::Error::Internal(anyhow::anyhow!(
+                "not yet implemented"
+            )))
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -81,6 +92,17 @@ impl objects::ObjectImpl for Object {
             Err(objects::DownloadError::Internal(anyhow::anyhow!(
                 "not yet implemented"
             )))
+        })
+    }
+
+    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+        Box::pin(async move {
+            let res = self.client.delete_object(&self.name).await;
+            match res {
+                Ok(_) => Ok(()),
+                Err(s3::error::S3Error::HttpFailWithBody(404, _)) => Ok(()),
+                Err(err) => Err(Error::Other(err.into())),
+            }
         })
     }
 }

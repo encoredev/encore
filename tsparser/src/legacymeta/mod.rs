@@ -11,7 +11,7 @@ use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
 use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
-use crate::parser::resources::infra::{cron, pubsub_subscription, pubsub_topic, sqldb, objects};
+use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
 use crate::parser::types::ObjectId;
 use crate::parser::usageparser::Usage;
@@ -72,7 +72,7 @@ impl<'a> MetaBuilder<'a> {
                 rel_path,
                 rpcs: vec![],      // filled in later
                 databases: vec![], // filled in later
-                buckets: vec![], // filled in later
+                buckets: vec![],   // filled in later
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -340,6 +340,8 @@ impl<'a> MetaBuilder<'a> {
 
         let mut seen_publishers = HashSet::new();
         let mut seen_calls = HashSet::new();
+
+        let mut bucket_perms = HashMap::new();
         for u in &self.parse.usages {
             match u {
                 Usage::PublishTopic(publish) => {
@@ -377,7 +379,7 @@ impl<'a> MetaBuilder<'a> {
                     self.data.svcs[*idx].databases.push(access.db.name.clone());
                 }
 
-                Usage::AccessBucket(access) => {
+                Usage::Bucket(access) => {
                     let Some(svc) = self.service_for_range(&access.range) else {
                         HANDLER.with(|h| {
                             h.span_err(
@@ -388,8 +390,31 @@ impl<'a> MetaBuilder<'a> {
                         continue;
                     };
 
+                    use objects::Operation;
+                    let op = match access.op {
+                        Operation::DeleteObject => v1::bucket_usage::Operation::DeleteObject,
+                        Operation::ListObjects => v1::bucket_usage::Operation::ListObjects,
+                        Operation::ReadObjectContents => {
+                            v1::bucket_usage::Operation::ReadObjectContents
+                        }
+                        Operation::WriteObject => v1::bucket_usage::Operation::WriteObject,
+                        Operation::UpdateObjectMetadata => {
+                            v1::bucket_usage::Operation::UpdateObjectMetadata
+                        }
+                        Operation::GetObjectMetadata => {
+                            v1::bucket_usage::Operation::GetObjectMetadata
+                        }
+                    };
+
                     let idx = svc_index.get(&svc.name).unwrap();
-                    self.data.svcs[*idx].buckets.push(access.bucket.name.clone());
+                    bucket_perms
+                        .entry(*idx)
+                        .or_insert(v1::BucketUsage {
+                            bucket: access.bucket.name.clone(),
+                            operations: vec![],
+                        })
+                        .operations
+                        .push(op as i32);
                 }
 
                 Usage::CallEndpoint(call) => {
@@ -423,6 +448,14 @@ impl<'a> MetaBuilder<'a> {
                     }
                 }
             }
+        }
+
+        // Add the computed bucket permissions to the services.
+        for (svc_idx, mut bucket_perm) in bucket_perms {
+            // Make the bucket perms sorted and unique.
+            bucket_perm.operations.sort();
+            bucket_perm.operations.dedup();
+            self.data.svcs[svc_idx].buckets.push(bucket_perm);
         }
 
         // Sort the packages for deterministic output.

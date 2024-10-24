@@ -27,6 +27,17 @@ impl objects::BucketImpl for Bucket {
     fn object(self: Arc<Self>, _name: String) -> Arc<dyn objects::ObjectImpl> {
         Arc::new(Object)
     }
+
+    fn list(
+        self: Arc<Self>,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::ListStream, objects::Error>> + Send + 'static>>
+    {
+        Box::pin(async move {
+            Err(objects::Error::Internal(anyhow::anyhow!(
+                "noop bucket does not support list"
+            )))
+        })
+    }
 }
 
 impl objects::ObjectImpl for Object {
@@ -63,5 +74,11 @@ impl objects::ObjectImpl for Object {
                 "noop bucket does not support download"
             )))
         })
+    }
+
+    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), objects::Error>> + Send>> {
+        Box::pin(future::ready(Err(objects::Error::Internal(
+            anyhow::anyhow!("noop bucket does not support delete"),
+        ))))
     }
 }

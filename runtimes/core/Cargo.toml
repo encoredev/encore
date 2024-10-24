@@ -89,6 +89,7 @@ serde_path_to_error = "0.1.16"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["alloc", "ansi", "env-filter", "fmt", "matchers", "nu-ansi-term", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "tracing"], default-features = false }
 thiserror = "1.0.64"
+async-stream = "0.3.6"
 
 [build-dependencies]
 prost-build = "0.12.3"

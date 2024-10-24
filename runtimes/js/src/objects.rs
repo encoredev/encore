@@ -1,10 +1,13 @@
+use std::pin::Pin;
+
 use napi::bindgen_prelude::Buffer;
 use napi::{Env, JsBuffer, JsObject};
 use napi_derive::napi;
 
 use encore_runtime_core::objects::{
-    Bucket as CoreBucket, DownloadError, Object as CoreObject, ObjectAttrs as CoreAttrs,
-    UploadOptions as CoreUploadOptions, UploadPreconditions as CoreUploadPreconditions,
+    Bucket as CoreBucket, DownloadError, ListStream, Object as CoreObject,
+    ObjectAttrs as CoreAttrs, UploadOptions as CoreUploadOptions,
+    UploadPreconditions as CoreUploadPreconditions,
 };
 
 #[napi]
@@ -21,6 +24,15 @@ impl Bucket {
     #[napi]
     pub fn object(&self, name: String) -> BucketObject {
         BucketObject::new(self.bkt.object(name))
+    }
+
+    #[napi]
+    pub async fn list(&self) -> napi::Result<ListIterator> {
+        self.bkt
+            .list()
+            .await
+            .map_err(map_objects_err)
+            .map(ListIterator::new)
     }
 }
 
@@ -78,6 +90,11 @@ impl BucketObject {
     pub async fn download_all(&self) -> napi::Result<Buffer> {
         let buf = self.obj.download_all().await.map_err(map_download_err)?;
         Ok(buf.into())
+    }
+
+    #[napi]
+    pub async fn delete(&self) -> napi::Result<()> {
+        self.obj.delete().await.map_err(map_objects_err)
     }
 }
 
@@ -138,4 +155,31 @@ fn map_objects_err(err: encore_runtime_core::objects::Error) -> napi::Error {
 
 fn map_download_err(err: DownloadError) -> napi::Error {
     napi::Error::new(napi::Status::GenericFailure, err)
+}
+
+#[napi]
+pub struct ListIterator {
+    stream: tokio::sync::Mutex<Pin<ListStream>>,
+}
+
+#[napi]
+impl ListIterator {
+    fn new(stream: ListStream) -> Self {
+        Self {
+            stream: tokio::sync::Mutex::new(stream.into()),
+        }
+    }
+
+    #[napi]
+    pub async fn next(&self) -> napi::Result<Option<ObjectAttrs>> {
+        use futures::StreamExt;
+        let mut stream = self.stream.lock().await;
+        let row = stream
+            .next()
+            .await
+            .transpose()
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{:#?}", e)))?;
+
+        Ok(row.map(ObjectAttrs::from))
+    }
 }

@@ -29,7 +29,7 @@ impl objects::ClusterImpl for Cluster {
 
 struct LazyGCSClient {
     cfg: pb::bucket_cluster::Gcs,
-    cell: tokio::sync::OnceCell<anyhow::Result<gcs::client::Client>>,
+    cell: tokio::sync::OnceCell<anyhow::Result<Arc<gcs::client::Client>>>,
 }
 
 impl Debug for LazyGCSClient {
@@ -46,7 +46,7 @@ impl LazyGCSClient {
         }
     }
 
-    async fn get(&self) -> &anyhow::Result<gcs::client::Client> {
+    async fn get(&self) -> &anyhow::Result<Arc<gcs::client::Client>> {
         self.cell
             .get_or_init(|| async {
                 let mut config = gcs::client::ClientConfig::default()
@@ -58,7 +58,7 @@ impl LazyGCSClient {
                     config.storage_endpoint.clone_from(endpoint);
                 }
 
-                Ok(gcs::client::Client::new(config))
+                Ok(Arc::new(gcs::client::Client::new(config)))
             })
             .await
     }
