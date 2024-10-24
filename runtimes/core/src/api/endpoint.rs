@@ -72,13 +72,13 @@ impl IntoResponse for SuccessResponse {
 }
 
 pub trait ToResponse {
-    /// Create a response.
     fn to_response(&self, caller: Option<Caller>) -> axum::response::Response;
 }
 
 impl ToResponse for Error {
     fn to_response(&self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
-        // considure resonse to be external if caller is unknown or if it is gateway
+        // considure response to be external if caller is gateway, or if the caller is
+        // unknown
         let internal_call = caller.map(|caller| !caller.is_gateway()).unwrap_or(false);
 
         let mut buf = BytesMut::with_capacity(128).writer();
