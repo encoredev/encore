@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -86,7 +87,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		cancel()
 	}()
 
-	converter := convertJSONLogs(colorize(!noColor))
+	converter := cmdutil.ConvertJSONLogs(cmdutil.Colorize(!noColor))
 	if slices.Contains(args, "-json") {
 		converter = convertTestEventOutputOnly(converter)
 	}
@@ -143,7 +144,7 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 	if err != nil {
 		fatal(err)
 	}
-	os.Exit(streamCommandOutput(stream, converter))
+	os.Exit(cmdutil.StreamCommandOutput(stream, converter))
 }
 
 func init() {
@@ -159,7 +160,7 @@ func init() {
 
 }
 
-func convertTestEventOutputOnly(converter outputConverter) outputConverter {
+func convertTestEventOutputOnly(converter cmdutil.OutputConverter) cmdutil.OutputConverter {
 	return func(line []byte) []byte {
 		// If this isn't a JSON log line, just return it as-is
 		if len(line) == 0 || line[0] != '{' {

@@ -126,7 +126,7 @@ func dockerBuild(p buildParams) {
 		fmt.Fprintln(os.Stderr, "fatal: ", err)
 		os.Exit(1)
 	}
-	if code := streamCommandOutput(stream, convertJSONLogs()); code != 0 {
+	if code := cmdutil.StreamCommandOutput(stream, cmdutil.ConvertJSONLogs()); code != 0 {
 		os.Exit(code)
 	}
 }

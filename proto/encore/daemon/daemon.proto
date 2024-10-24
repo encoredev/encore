@@ -48,8 +48,10 @@ service Daemon {
   rpc DeleteNamespace (DeleteNamespaceRequest) returns (google.protobuf.Empty);
 
   rpc DumpMeta(DumpMetaRequest) returns (DumpMetaResponse);
-
+  // Telemetry enables or disables telemetry.
   rpc Telemetry(TelemetryConfig) returns (google.protobuf.Empty);
+  // InitTutorial sets the tutorial flag of the app
+  rpc CreateApp(CreateAppRequest)  returns (CreateAppResponse);
 }
 
 message CommandMessage {
@@ -71,6 +73,19 @@ message CommandExit {
 
 message CommandDisplayErrors {
   bytes errinsrc = 1; // error messages in source code
+}
+
+message CreateAppRequest {
+  // app_root is the absolute filesystem path to the Encore app root.
+  string app_root = 1;
+  // template is the template used to create the app
+  string template = 2;
+  // tutorial is a flag to indicate if the app is a tutorial app
+  bool tutorial = 3;
+}
+
+message CreateAppResponse {
+  string app_id = 1;
 }
 
 message RunRequest {
