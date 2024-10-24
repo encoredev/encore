@@ -26,6 +26,8 @@ use crate::names::EndpointName;
 use crate::trace;
 use crate::{model, Hosted};
 
+use super::reqauth::caller::Caller;
+
 #[derive(Debug)]
 pub struct SuccessResponse {
     pub status: axum::http::StatusCode,
@@ -61,7 +63,7 @@ impl IntoResponse for SuccessResponse {
                     Ok(()) => bld
                         .body(axum::body::Body::from(buf.into_inner().freeze()))
                         .unwrap(),
-                    Err(err) => Error::internal(err).into_response(),
+                    Err(err) => Error::internal(err).to_response(None),
                 }
             }
             None => bld.body(axum::body::Body::empty()).unwrap(),
@@ -69,22 +71,23 @@ impl IntoResponse for SuccessResponse {
     }
 }
 
-impl AsRef<Error> for Error {
-    fn as_ref(&self) -> &Self {
-        self
-    }
+pub trait ToResponse {
+    fn to_response(&self, caller: Option<Caller>) -> axum::response::Response;
 }
 
-impl IntoResponse for Error {
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
-        self.as_ref().into_response()
-    }
-}
+impl ToResponse for Error {
+    fn to_response(&self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
+        // considure response to be external if caller is gateway, or if the caller is
+        // unknown
+        let internal_call = caller.map(|caller| !caller.is_gateway()).unwrap_or(false);
 
-impl IntoResponse for &Error {
-    fn into_response(self) -> axum::http::Response<axum::body::Body> {
         let mut buf = BytesMut::with_capacity(128).writer();
-        serde_json::to_writer(&mut buf, &self).unwrap();
+
+        if internal_call {
+            serde_json::to_writer(&mut buf, &self).unwrap();
+        } else {
+            serde_json::to_writer(&mut buf, &self.as_external()).unwrap();
+        }
 
         axum::http::Response::builder()
             .status::<axum::http::status::StatusCode>(self.code.into())
@@ -498,8 +501,10 @@ impl EndpointHandler {
         Box::pin(async move {
             let request = match self.parse_request(axum_req).await {
                 Ok(req) => req,
-                Err(err) => return err.into_response(),
+                Err(err) => return err.to_response(None),
             };
+
+            let internal_caller = request.internal_caller.clone();
 
             // If the endpoint isn't exposed, return a 404.
             if !self.endpoint.exposed && !request.allows_private_endpoint_call() {
@@ -510,7 +515,7 @@ impl EndpointHandler {
                     stack: None,
                     details: None,
                 }
-                .into_response();
+                .to_response(internal_caller);
             } else if self.endpoint.requires_auth && !request.has_authenticated_user() {
                 return Error {
                     code: ErrCode::Unauthenticated,
@@ -519,7 +524,7 @@ impl EndpointHandler {
                     stack: None,
                     details: None,
                 }
-                .into_response();
+                .to_response(internal_caller);
             }
 
             let logger = crate::log::root();
@@ -576,13 +581,13 @@ impl EndpointHandler {
                     self.endpoint
                         .response
                         .encode(&payload)
-                        .unwrap_or_else(|err| err.into_response()),
+                        .unwrap_or_else(|err| err.to_response(internal_caller)),
                     Some(payload),
                     None,
                 ),
                 ResponseData::Typed(Err(err)) => (
                     err.code.status_code().as_u16(),
-                    err.as_ref().into_response(),
+                    err.as_ref().to_response(internal_caller),
                     None,
                     Some(err),
                 ),

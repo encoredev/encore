@@ -1,10 +1,10 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
-use axum::{extract::Path, response::IntoResponse, RequestExt};
+use axum::{extract::Path, RequestExt};
 use futures::Future;
 use std::sync::RwLock;
 
-use crate::api::{self};
+use crate::api::{self, ToResponse};
 
 use super::PushRequestHandler;
 
@@ -54,7 +54,7 @@ impl PushHandlerRegistry {
                     "encore pub/sub push handler: unable to extract push id from path: {:?}",
                     e
                 );
-                return api::Error::internal(e).into_response();
+                return api::Error::internal(e).to_response(None);
             }
         };
 
@@ -64,9 +64,8 @@ impl PushHandlerRegistry {
 
         match handler {
             Some(handler) => handler.handle_push(req).await,
-            None => {
-                api::Error::not_found("no handler registered for push subscription").into_response()
-            }
+            None => api::Error::not_found("no handler registered for push subscription")
+                .to_response(None),
         }
     }
 }
