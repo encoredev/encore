@@ -567,11 +567,38 @@ func (lang language) Display() string {
 
 type loadedTemplates []templateItem
 
+func loadTutorials(ctx context.Context) []templateItem {
+	url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-tutorials.json"
+	if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
+		if resp, err := http.DefaultClient.Do(req); err == nil {
+			if data, err := io.ReadAll(resp.Body); err == nil {
+				data, err = hujson.Standardize(data)
+				if err == nil {
+					var items []templateItem
+					if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
+						return items
+					}
+				}
+			}
+		}
+	}
+	return []templateItem{
+		{
+			ItemTitle: "Intro to Encore.ts",
+			Desc:      "An interactive tutorial",
+			Template:  "ts/introduction",
+			Lang:      "ts",
+			Tutorial:  true,
+		},
+	}
+
+}
+
 func loadTemplates() tea.Msg {
 	// Load the templates.
 	templates := (func() []templateItem {
 		// Get the list of templates from GitHub
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		url := "https://raw.githubusercontent.com/encoredev/examples/main/cli-templates.json"
 		if req, err := http.NewRequestWithContext(ctx, "GET", url, nil); err == nil {
@@ -588,7 +615,7 @@ func loadTemplates() tea.Msg {
 									}
 								}
 							}
-							return items
+							return append(loadTutorials(ctx), items...)
 						}
 					}
 				}
@@ -597,6 +624,13 @@ func loadTemplates() tea.Msg {
 
 		// Return a precompiled list of default items in case we can't read them from GitHub.
 		return []templateItem{
+			{
+				ItemTitle: "Intro to Encore.ts",
+				Desc:      "An interactive tutorial",
+				Template:  "ts/introduction",
+				Lang:      "ts",
+				Tutorial:  true,
+			},
 			{
 				ItemTitle: "Hello World",
 				Desc:      "A simple REST API",
