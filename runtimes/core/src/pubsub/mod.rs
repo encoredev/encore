@@ -24,7 +24,6 @@ pub type MessageId = String;
 
 pub struct MessageData {
     pub attrs: HashMap<String, String>,
-    // pub body: Option<serde_json::Value>,
     pub raw_body: Vec<u8>,
 }
 

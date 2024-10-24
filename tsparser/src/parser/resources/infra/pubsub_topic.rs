@@ -4,7 +4,7 @@ use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
-use litparser::LitParser;
+use litparser::{LitParser, Sp};
 
 use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
@@ -24,7 +24,7 @@ pub struct Topic {
     pub doc: Option<String>,
     pub delivery_guarantee: DeliveryGuarantee,
     pub ordering_attribute: Option<String>,
-    pub message_type: Type,
+    pub message_type: Sp<Type>,
 }
 
 #[derive(Debug, Clone, Copy)]

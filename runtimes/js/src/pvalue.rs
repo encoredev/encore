@@ -207,6 +207,7 @@ impl ToNapiValue for &PVals {
 
 impl FromNapiValue for PVals {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
+        assert_type_of!(env, napi_val, ValueType::Object)?;
         let obj = JsObject::from_napi_value(env, napi_val)?;
 
         let mut map = PVals(PValues::new());

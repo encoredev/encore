@@ -444,6 +444,16 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
                 details: None,
             }),
 
+        Basic::DateTime => api::DateTime::parse_from_rfc3339(str)
+            .map(PValue::DateTime)
+            .map_err(|_err| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "invalid datetime".to_string(),
+                internal_message: Some(format!("invalid datetime string {:?}", str)),
+                stack: None,
+                details: None,
+            }),
+
         _ => Err(api::Error {
             code: api::ErrCode::InvalidArgument,
             message: "invalid value".to_string(),
