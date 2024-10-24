@@ -17,6 +17,8 @@ use crate::api::jsonschema::parse::ParseWithSchema;
 use crate::api::APIResult;
 pub use meta::Builder;
 
+use super::{PValue, PValues};
+
 #[derive(Clone)]
 pub struct JSONSchema {
     registry: Arc<Registry>,
@@ -67,16 +69,28 @@ impl JSONSchema {
         payload.parse_with_schema(self)
     }
 
-    pub fn deserialize<'de, T>(
-        &self,
-        de: T,
+    pub fn seed_deserializer<'de: 'a, 'a>(
+        &'a self,
         cfg: DecodeConfig,
-    ) -> Result<serde_json::Map<String, serde_json::Value>, T::Error>
+    ) -> impl DeserializeSeed<'de> + 'a {
+        SchemaDeserializer { cfg, schema: self }
+    }
+
+    pub fn deserialize<'de, T>(&self, de: T, cfg: DecodeConfig) -> Result<PValues, T::Error>
     where
         T: Deserializer<'de>,
     {
         let seed = SchemaDeserializer { cfg, schema: self };
         seed.deserialize(de)
+    }
+
+    pub fn null() -> Self {
+        JSONSchema {
+            registry: Arc::new(Registry {
+                values: vec![Value::Basic(Basic::Null)],
+            }),
+            root: 0,
+        }
     }
 }
 
@@ -110,7 +124,7 @@ impl Value {
 }
 
 impl<'de: 'a, 'a> DeserializeSeed<'de> for SchemaDeserializer<'a> {
-    type Value = serde_json::Map<String, serde_json::Value>;
+    type Value = PValues;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
@@ -123,13 +137,13 @@ impl<'de: 'a, 'a> DeserializeSeed<'de> for SchemaDeserializer<'a> {
         };
         let value = deserializer.deserialize_any(visitor)?;
         match value {
-            serde_json::Value::Object(map) => Ok(map),
+            PValue::Object(map) => Ok(map),
             _ => Err(serde::de::Error::custom("expected object")),
         }
     }
 }
 
-struct SchemaDeserializer<'a> {
+pub struct SchemaDeserializer<'a> {
     cfg: DecodeConfig,
     schema: &'a JSONSchema,
 }

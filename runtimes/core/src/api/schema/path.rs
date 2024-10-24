@@ -9,9 +9,9 @@ use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use indexmap::IndexMap;
 
-use crate::api;
 use crate::api::jsonschema::Basic;
 use crate::api::schema::JSONPayload;
+use crate::api::{self, pvalue::PValue};
 use crate::api::{jsonschema, APIResult};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::path_segment::ParamType;
@@ -157,21 +157,24 @@ impl Path {
                         });
                     };
 
-                    use serde_json::Value::*;
                     match value {
-                        String(str) => {
+                        PValue::String(str) => {
                             // URL-encode the string, so it doesn't get reinterpreted
                             // as multiple path segments.
                             let encoded = urlencoding::encode(str);
                             path.push_str(&encoded);
                         }
-                        Null => path.push_str("null"),
-                        Bool(bool) => path.push_str(if *bool { "true" } else { "false" }),
-                        Number(num) => {
+                        PValue::Null => path.push_str("null"),
+                        PValue::Bool(bool) => path.push_str(if *bool { "true" } else { "false" }),
+                        PValue::Number(num) => {
                             let str = num.to_string();
                             path.push_str(&str);
                         }
-                        Array(_) | Object(_) => {
+                        PValue::DateTime(dt) => {
+                            let encoded = dt.to_rfc3339();
+                            path.push_str(&encoded);
+                        }
+                        PValue::Array(_) | PValue::Object(_) => {
                             return Err(api::Error {
                                 code: api::ErrCode::InvalidArgument,
                                 message: "unsupported type in request payload".into(),
@@ -196,7 +199,7 @@ impl Path {
     pub fn parse_incoming_request_parts(
         &self,
         req: &mut Parts,
-    ) -> APIResult<Option<IndexMap<String, serde_json::Value>>> {
+    ) -> APIResult<Option<IndexMap<String, PValue>>> {
         if self.dynamic_segments.is_empty() {
             return Ok(None);
         }
@@ -221,7 +224,7 @@ impl Path {
                         // Decode it into the correct type based on the type.
                         let val = match &typ {
                             // For strings and any, use the value directly.
-                            Basic::String | Basic::Any => serde_json::Value::String(val),
+                            Basic::String | Basic::Any => PValue::String(val),
 
                             // For numbers and booleans, use the JSON parser.
                             Basic::Number => {
@@ -233,7 +236,7 @@ impl Path {
                                         stack: None,
                                         details: None,
                                     })?;
-                                serde_json::Value::Number(val)
+                                PValue::Number(val)
                             }
                             Basic::Bool => {
                                 let val = serde_json::from_str::<bool>(&val).map_err(|err| {
@@ -245,11 +248,26 @@ impl Path {
                                         details: None,
                                     }
                                 })?;
-                                serde_json::Value::Bool(val)
+                                PValue::Bool(val)
+                            }
+
+                            Basic::DateTime => {
+                                let val =
+                                    api::DateTime::parse_from_rfc3339(&val).map_err(|err| {
+                                        api::Error {
+                                            code: api::ErrCode::InvalidArgument,
+                                            message: "path parameter is not a valid datetime"
+                                                .into(),
+                                            internal_message: Some(err.to_string()),
+                                            stack: None,
+                                            details: None,
+                                        }
+                                    })?;
+                                PValue::DateTime(val)
                             }
 
                             // We shouldn't have null here, but handle it just in case.
-                            Basic::Null => serde_json::Value::Null,
+                            Basic::Null => PValue::Null,
                         };
 
                         map.insert(name, val);

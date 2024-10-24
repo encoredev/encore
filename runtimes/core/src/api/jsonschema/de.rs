@@ -1,13 +1,17 @@
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Unexpected, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::Deserializer;
 
 use crate::api::jsonschema::Registry;
+use crate::api::{self, PValue, PValues};
+
+use serde_json::Number as JSONNumber;
+use serde_json::Value as JVal;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -29,7 +33,7 @@ pub enum Value {
     /// Consume an array of values.
     Array(BasicOrValue),
 
-    /// Consume an array of values.
+    /// Consume a single value, one of a union of possible types.
     Union(Vec<BasicOrValue>),
 
     // Reference to another value.
@@ -122,6 +126,7 @@ pub enum Basic {
     Bool,
     Number,
     String,
+    DateTime,
 }
 
 impl Basic {
@@ -132,6 +137,7 @@ impl Basic {
             Basic::Bool => "a boolean",
             Basic::Number => "a number",
             Basic::String => "a string",
+            Basic::DateTime => "a datetime string",
         }
     }
 }
@@ -195,7 +201,7 @@ impl<'a> DecodeValue<'a> {
 }
 
 impl<'de: 'a, 'a> DeserializeSeed<'de> for DecodeValue<'a> {
-    type Value = serde_json::Value;
+    type Value = PValue;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
@@ -276,7 +282,7 @@ macro_rules! recurse0 {
 }
 
 impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
-    type Value = serde_json::Value;
+    type Value = PValue;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.value {
@@ -290,6 +296,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 Basic::Bool => "a boolean",
                 Basic::Number => "a number",
                 Basic::String => "a string",
+                Basic::DateTime => "a datetime string",
             }),
             Value::Map(_) => formatter.write_str("a JSON object"),
             Value::Array(_) => formatter.write_str("a JSON array"),
@@ -318,19 +325,17 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_bool<E>(self, value: bool) -> Result<serde_json::Value, E>
+    fn visit_bool<E>(self, value: bool) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
         match &self.value {
-            Value::Basic(Basic::Any | Basic::Bool) => Ok(serde_json::Value::Bool(value)),
+            Value::Basic(Basic::Any | Basic::Bool) => Ok(PValue::Bool(value)),
             Value::Ref(idx) => recurse_ref!(self, idx, visit_bool, value),
             Value::Option(val) => {
                 recurse!(self, val, visit_bool, value)
             }
-            Value::Literal(Literal::Bool(bool)) if *bool == value => {
-                Ok(serde_json::Value::Bool(value))
-            }
+            Value::Literal(Literal::Bool(bool)) if *bool == value => Ok(PValue::Bool(value)),
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_bool, value);
@@ -351,19 +356,17 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_i64<E>(self, value: i64) -> Result<serde_json::Value, E>
+    fn visit_i64<E>(self, value: i64) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
         match self.value {
-            Value::Basic(Basic::Any | Basic::Number) => Ok(serde_json::Value::Number(value.into())),
+            Value::Basic(Basic::Any | Basic::Number) => Ok(PValue::Number(value.into())),
             Value::Ref(idx) => recurse_ref!(self, idx, visit_i64, value),
             Value::Option(val) => {
                 recurse!(self, val, visit_i64, value)
             }
-            Value::Literal(Literal::Int(val)) if *val == value => {
-                Ok(serde_json::Value::Number(value.into()))
-            }
+            Value::Literal(Literal::Int(val)) if *val == value => Ok(PValue::Number(value.into())),
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_i64, value);
@@ -384,18 +387,18 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_u64<E>(self, value: u64) -> Result<serde_json::Value, E>
+    fn visit_u64<E>(self, value: u64) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
         match self.value {
-            Value::Basic(Basic::Any | Basic::Number) => Ok(serde_json::Value::Number(value.into())),
+            Value::Basic(Basic::Any | Basic::Number) => Ok(PValue::Number(value.into())),
             Value::Ref(idx) => recurse_ref!(self, idx, visit_u64, value),
             Value::Option(val) => {
                 recurse!(self, val, visit_u64, value)
             }
             Value::Literal(Literal::Int(val)) if *val == value as i64 => {
-                Ok(serde_json::Value::Number(value.into()))
+                Ok(PValue::Number(value.into()))
             }
             Value::Union(types) => {
                 for typ in types {
@@ -417,20 +420,21 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_f64<E>(self, value: f64) -> Result<serde_json::Value, E>
+    fn visit_f64<E>(self, value: f64) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
         match self.value {
-            Value::Basic(Basic::Any | Basic::Number) => Ok(serde_json::Number::from_f64(value)
-                .map_or(serde_json::Value::Null, serde_json::Value::Number)),
+            Value::Basic(Basic::Any | Basic::Number) => {
+                Ok(JSONNumber::from_f64(value).map_or(PValue::Null, PValue::Number))
+            }
             Value::Ref(idx) => recurse_ref!(self, idx, visit_f64, value),
             Value::Option(bov) => {
                 recurse!(self, bov, visit_f64, value)
             }
             Value::Literal(Literal::Float(val)) if *val == value => {
-                if let Some(num) = serde_json::Number::from_f64(value) {
-                    Ok(serde_json::Value::Number(num))
+                if let Some(num) = JSONNumber::from_f64(value) {
+                    Ok(PValue::Number(num))
                 } else {
                     Err(serde::de::Error::custom(format_args!(
                         "expected {}, got {}",
@@ -458,7 +462,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_str<E>(self, value: &str) -> Result<serde_json::Value, E>
+    fn visit_str<E>(self, value: &str) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
@@ -466,18 +470,23 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_string<E>(self, value: String) -> Result<serde_json::Value, E>
+    fn visit_string<E>(self, value: String) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
         match self.value {
             Value::Basic(b) => match b {
-                Basic::Any | Basic::String => Ok(serde_json::Value::String(value)),
+                Basic::Any | Basic::String => Ok(PValue::String(value)),
+                Basic::DateTime => api::DateTime::parse_from_rfc3339(&value)
+                    .map(PValue::DateTime)
+                    .map_err(|e| {
+                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                    }),
                 Basic::Bool if self.cfg.coerce_strings => {
                     return if value == "true" {
-                        Ok(serde_json::Value::Bool(true))
+                        Ok(PValue::Bool(true))
                     } else if value == "false" {
-                        Ok(serde_json::Value::Bool(false))
+                        Ok(PValue::Bool(false))
                     } else {
                         Err(serde::de::Error::custom(format_args!(
                             "expected a boolean, got {}",
@@ -487,10 +496,9 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 }
                 Basic::Number if self.cfg.coerce_strings => {
                     return if let Ok(num) = value.parse::<i64>() {
-                        Ok(serde_json::Value::Number(num.into()))
+                        Ok(PValue::Number(num.into()))
                     } else if let Ok(num) = value.parse::<f64>() {
-                        Ok(serde_json::Number::from_f64(num)
-                            .map_or(serde_json::Value::Null, serde_json::Value::Number))
+                        Ok(JSONNumber::from_f64(num).map_or(PValue::Null, PValue::Number))
                     } else {
                         Err(serde::de::Error::custom(format_args!(
                             "expected a number, got {}",
@@ -500,7 +508,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 }
                 Basic::Null if self.cfg.coerce_strings => {
                     return if value == "null" {
-                        Ok(serde_json::Value::Null)
+                        Ok(PValue::Null)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
                             "expected null, got {}",
@@ -518,11 +526,9 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                 recurse!(self, bov, visit_string, value)
             }
 
-            Value::Literal(Literal::Str(val)) if val.as_str() == value => {
-                Ok(serde_json::Value::String(value))
-            }
+            Value::Literal(Literal::Str(val)) if val.as_str() == value => Ok(PValue::String(value)),
             Value::Literal(lit) => match lit {
-                Literal::Str(val) if val.as_str() == value => Ok(serde_json::Value::String(value)),
+                Literal::Str(val) if val.as_str() == value => Ok(PValue::String(value)),
                 Literal::Bool(_) if self.cfg.coerce_strings => {
                     return if let Ok(got) = value.parse::<bool>() {
                         self.visit_bool(got)
@@ -583,14 +589,12 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_none<E>(self) -> Result<serde_json::Value, E>
+    fn visit_none<E>(self) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
         match self.value {
-            Value::Basic(Basic::Any | Basic::Null) | Value::Option(_) => {
-                Ok(serde_json::Value::Null)
-            }
+            Value::Basic(Basic::Any | Basic::Null) | Value::Option(_) => Ok(PValue::Null),
             Value::Ref(idx) => recurse_ref0!(self, idx, visit_none),
             Value::Union(types) => {
                 for typ in types {
@@ -606,15 +610,15 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_some<D>(self, deserializer: D) -> Result<serde_json::Value, D::Error>
+    fn visit_some<D>(self, deserializer: D) -> Result<PValue, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Deserialize::deserialize(deserializer)
+        DeserializeSeed::deserialize(self, deserializer)
     }
 
     #[inline]
-    fn visit_unit<E>(self) -> Result<serde_json::Value, E>
+    fn visit_unit<E>(self) -> Result<PValue, E>
     where
         E: serde::de::Error,
     {
@@ -622,7 +626,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
-    fn visit_seq<A>(self, mut seq: A) -> Result<serde_json::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<PValue, A::Error>
     where
         A: SeqAccess<'de>,
     {
@@ -649,20 +653,47 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             },
             Value::Ref(idx) => recurse_ref!(self, idx, visit_seq, seq),
             Value::Option(bov) => recurse!(self, bov, visit_seq, seq),
-            Value::Union(_) => {
-                let mut vec: Vec<serde_json::Value> = Vec::new();
-                while let Some(elem) = seq.next_element()? {
-                    vec.push(elem);
+            Value::Union(candidates) => {
+                let mut vec: Vec<PValue> = Vec::new();
+                'ValLoop: loop {
+                    // Find the first candidate that parses successfully.
+                    'CandidateLoop: for c in candidates {
+                        let res = match c {
+                            BasicOrValue::Basic(basic) => {
+                                let basic_val = Value::Basic(*basic);
+                                let seed = DecodeValue {
+                                    cfg: self.cfg,
+                                    reg: self.reg,
+                                    value: &basic_val,
+                                };
+                                seq.next_element_seed(seed)
+                            }
+                            BasicOrValue::Value(idx) => {
+                                let seed = DecodeValue {
+                                    cfg: self.cfg,
+                                    reg: self.reg,
+                                    value: &self.reg.values[*idx],
+                                };
+                                seq.next_element_seed(seed)
+                            }
+                        };
+                        match res {
+                            Ok(Some(val)) => {
+                                vec.push(val);
+                                break 'CandidateLoop;
+                            }
+                            Ok(None) => break 'ValLoop,
+                            Err(_) => continue,
+                        }
+                    }
                 }
-                let arr = serde_json::Value::Array(vec);
-                self.validate(&arr)?;
-                Ok(arr)
+                Ok(PValue::Array(vec))
             }
             _ => Err(serde::de::Error::invalid_type(Unexpected::Seq, &self)),
         }
     }
 
-    fn visit_map<A>(self, mut map: A) -> Result<serde_json::Value, A::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<PValue, A::Error>
     where
         A: MapAccess<'de>,
     {
@@ -689,7 +720,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             },
 
             Value::Struct(Struct { fields }) => {
-                let mut values = serde_json::Map::new();
+                let mut values = PValues::new();
                 let mut seen = HashSet::new();
                 while let Some(key) = map.next_key::<String>()? {
                     // Get the corresponding value from the schema.
@@ -768,26 +799,50 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                     }
                 }
 
-                Ok(serde_json::Value::Object(values))
+                Ok(PValue::Object(values))
             }
 
             Value::Ref(idx) => recurse_ref!(self, idx, visit_map, map),
             Value::Option(bov) => recurse!(self, bov, visit_map, map),
-            Value::Union(_) => {
+            Value::Union(candidates) => {
                 let mut values = serde_json::Map::new();
                 while let Some((key, value)) = map.next_entry()? {
                     values.insert(key, value);
                 }
-                let map = serde_json::Value::Object(values);
-                self.validate(&map)?;
-                Ok(map)
+                let map = JVal::Object(values);
+                for c in candidates {
+                    match c {
+                        BasicOrValue::Basic(basic) => {
+                            let basic_val = Value::Basic(*basic);
+                            let visitor = DecodeValue {
+                                cfg: self.cfg,
+                                reg: self.reg,
+                                value: &basic_val,
+                            };
+                            if visitor.validate::<A::Error>(&map).is_ok() {
+                                return visitor.transform(map);
+                            }
+                        }
+                        BasicOrValue::Value(idx) => {
+                            let visitor = DecodeValue {
+                                cfg: self.cfg,
+                                reg: self.reg,
+                                value: &self.reg.values[*idx],
+                            };
+                            if visitor.validate::<A::Error>(&map).is_ok() {
+                                return visitor.transform(map);
+                            }
+                        }
+                    }
+                }
+                Err(serde::de::Error::invalid_type(Unexpected::Map, &self))
             }
             _ => Err(serde::de::Error::invalid_type(Unexpected::Map, &self)),
         }
     }
 }
 
-fn visit_seq<'de, A>(elem: DecodeValue, mut seq: A) -> Result<serde_json::Value, A::Error>
+fn visit_seq<'de, A>(elem: DecodeValue, mut seq: A) -> Result<PValue, A::Error>
 where
     A: SeqAccess<'de>,
 {
@@ -796,18 +851,18 @@ where
     while let Some(elem) = seq.next_element_seed(elem)? {
         vec.push(elem);
     }
-    Ok(serde_json::Value::Array(vec))
+    Ok(PValue::Array(vec))
 }
 
-fn visit_map<'de, A>(elem: DecodeValue, mut map: A) -> Result<serde_json::Value, A::Error>
+fn visit_map<'de, A>(elem: DecodeValue, mut map: A) -> Result<PValue, A::Error>
 where
     A: MapAccess<'de>,
 {
-    let mut values = serde_json::Map::new();
+    let mut values = PValues::new();
     while let Some((key, value)) = map.next_entry_seed(PhantomData, elem)? {
         values.insert(key, value);
     }
-    Ok(serde_json::Value::Object(values))
+    Ok(PValue::Object(values))
 }
 
 struct FieldList<'a> {
@@ -815,12 +870,12 @@ struct FieldList<'a> {
 }
 
 impl<'a> DecodeValue<'a> {
-    pub fn validate<E>(&self, value: &serde_json::Value) -> Result<(), E>
+    pub fn validate<E>(&self, value: &JVal) -> Result<(), E>
     where
         E: serde::de::Error,
     {
         match value {
-            serde_json::Value::Null => match self.value {
+            JVal::Null => match self.value {
                 Value::Basic(Basic::Any | Basic::Null) => Ok(()),
                 Value::Option(_) => Ok(()),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
@@ -835,7 +890,7 @@ impl<'a> DecodeValue<'a> {
                 }
                 _ => Err(serde::de::Error::invalid_type(Unexpected::Option, self)),
             },
-            serde_json::Value::Bool(bool) => match self.value {
+            JVal::Bool(bool) => match self.value {
                 Value::Basic(Basic::Any | Basic::Bool) => Ok(()),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(val) => {
@@ -866,7 +921,7 @@ impl<'a> DecodeValue<'a> {
                     self,
                 )),
             },
-            serde_json::Value::Number(num) => match self.value {
+            JVal::Number(num) => match self.value {
                 Value::Basic(Basic::Any | Basic::Number) => Ok(()),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(val) => {
@@ -899,8 +954,13 @@ impl<'a> DecodeValue<'a> {
                 )),
             },
 
-            serde_json::Value::String(string) => match self.value {
+            JVal::String(string) => match self.value {
                 Value::Basic(Basic::Any | Basic::String) => Ok(()),
+                Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(string)
+                    .map(|_| ())
+                    .map_err(|e| {
+                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                    }),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
@@ -931,7 +991,7 @@ impl<'a> DecodeValue<'a> {
                 )),
             },
 
-            serde_json::Value::Array(array) => match self.value {
+            JVal::Array(array) => match self.value {
                 Value::Basic(Basic::Any) => Ok(()),
                 Value::Array(bov) => match bov {
                     BasicOrValue::Basic(basic) => {
@@ -977,7 +1037,7 @@ impl<'a> DecodeValue<'a> {
                 _ => Err(serde::de::Error::invalid_type(Unexpected::Seq, self)),
             },
 
-            serde_json::Value::Object(map) => match self.value {
+            JVal::Object(map) => match self.value {
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(bov) => recurse!(self, bov, validate, value),
                 Value::Basic(Basic::Any) => Ok(()),
@@ -1088,6 +1148,58 @@ impl<'a> DecodeValue<'a> {
                 _ => Err(serde::de::Error::invalid_type(Unexpected::Map, self)),
             },
         }
+    }
+
+    #[allow(clippy::only_used_in_recursion)]
+    fn transform<E>(&self, value: JVal) -> Result<PValue, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(match value {
+            JVal::Null => PValue::Null,
+            JVal::Bool(val) => PValue::Bool(val),
+            JVal::Number(num) => PValue::Number(num),
+            JVal::Array(vals) => {
+                let mut new_vals = Vec::with_capacity(vals.len());
+                for val in vals {
+                    new_vals.push(self.transform(val)?);
+                }
+                PValue::Array(new_vals)
+            }
+            JVal::Object(obj) => {
+                let mut new_obj = BTreeMap::new();
+                for (key, val) in obj {
+                    new_obj.insert(key, self.transform(val)?);
+                }
+                PValue::Object(new_obj)
+            }
+            JVal::String(str) => match self.value {
+                Value::Ref(idx) => return recurse_ref!(self, idx, transform, JVal::String(str)),
+                Value::Option(bov) => return recurse!(self, bov, transform, JVal::String(str)),
+                Value::Basic(Basic::Any | Basic::String) => PValue::String(str),
+                Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(&str)
+                    .map(PValue::DateTime)
+                    .map_err(|e| {
+                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                    })?,
+
+                Value::Union(types) => {
+                    let val = JVal::String(str);
+                    for typ in types {
+                        let res: Result<_, E> = recurse!(self, typ, transform, val.clone());
+                        if res.is_ok() {
+                            return res;
+                        }
+                    }
+                    return Err(serde::de::Error::invalid_type(
+                        Unexpected::Other("string"),
+                        self,
+                    ));
+                }
+
+                _ => return Err(serde::de::Error::invalid_type(Unexpected::Str(&str), self)),
+            },
+        })
     }
 }
 

@@ -6,7 +6,9 @@ pub use path::*;
 pub use query::*;
 use std::sync::Arc;
 
-use crate::api::{endpoint, APIResult, RequestPayload};
+use crate::api::{endpoint, APIResult, PValues, RequestPayload};
+
+use super::ResponsePayload;
 
 mod body;
 pub mod encoding;
@@ -15,7 +17,7 @@ mod method;
 mod path;
 mod query;
 
-pub type JSONPayload = Option<serde_json::Map<String, serde_json::Value>>;
+pub type JSONPayload = Option<PValues>;
 
 pub trait ToOutgoingRequest<Request> {
     fn to_outgoing_request(&self, payload: &mut JSONPayload, req: &mut Request) -> APIResult<()>;
@@ -125,6 +127,38 @@ impl Response {
                 .map_err(api::Error::internal),
         }
     }
+
+    pub async fn extract(&self, resp: reqwest::Response) -> APIResult<ResponsePayload> {
+        let header = match &self.header {
+            None => None,
+            Some(h) => h.parse(resp.headers())?,
+        };
+
+        // Do we have a body schema?
+        let body = endpoint::Body::Typed(match &self.body {
+            None => None,
+            Some(body_schema) => {
+                // If so we expect a JSON body.
+                match resp.headers().get(axum::http::header::CONTENT_TYPE) {
+                    Some(content_type) if content_type == "application/json" => {
+                        // Collect the bytes of the request body.
+                        // Serde doesn't support async streaming reads (at least not yet).
+                        let bytes = resp.bytes().await.map_err(|e| {
+                            api::Error::invalid_argument("unable to read response body", e)
+                        })?;
+
+                        body_schema.parse_response_body(bytes).await?
+                    }
+                    _ => {
+                        // We didn't get a JSON body, so return an error.
+                        return Err(api::Error::internal(anyhow::anyhow!("expected json body")));
+                    }
+                }
+            }
+        });
+
+        Ok(ResponsePayload { header, body })
+    }
 }
 
 pub struct Stream {
@@ -144,10 +178,7 @@ impl Stream {
         }
     }
 
-    pub fn to_outgoing_message(
-        &self,
-        msg: serde_json::Map<String, serde_json::Value>,
-    ) -> APIResult<Vec<u8>> {
+    pub fn to_outgoing_message(&self, msg: PValues) -> APIResult<Vec<u8>> {
         let body_schema = self.outgoing.body().ok_or_else(|| {
             super::Error::internal(anyhow::anyhow!("outgoing message body can't be empty"))
         })?;
@@ -155,10 +186,7 @@ impl Stream {
         body_schema.to_outgoing_payload(&Some(msg))
     }
 
-    pub async fn parse_incoming_message(
-        &self,
-        bytes: &[u8],
-    ) -> APIResult<serde_json::Map<String, serde_json::Value>> {
+    pub async fn parse_incoming_message(&self, bytes: &[u8]) -> APIResult<PValues> {
         let Some(body) = self.incoming.body() else {
             return Err(super::Error {
                 code: super::ErrCode::InvalidArgument,

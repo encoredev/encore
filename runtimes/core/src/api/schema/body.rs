@@ -1,8 +1,9 @@
 use axum::http::HeaderValue;
+use bytes::Bytes;
 
-use crate::api;
 use crate::api::jsonschema::DecodeConfig;
 use crate::api::schema::{JSONPayload, ToOutgoingRequest};
+use crate::api::{self, PValues};
 use crate::api::{jsonschema, APIResult};
 use http_body_util::BodyExt;
 use reqwest::header::CONTENT_TYPE;
@@ -20,7 +21,7 @@ impl Body {
     pub async fn parse_incoming_request_body(
         &self,
         body: axum::body::Body,
-    ) -> APIResult<Option<serde_json::Map<String, serde_json::Value>>> {
+    ) -> APIResult<Option<PValues>> {
         // Collect the bytes of the request body.
         // Serde doesn't support async streaming reads (at least not yet).
         let bytes = body
@@ -37,6 +38,18 @@ impl Body {
             .schema
             .deserialize(&mut jsonde, cfg)
             .map_err(|e| api::Error::invalid_argument("unable to decode request body", e))?;
+        Ok(Some(value))
+    }
+
+    pub async fn parse_response_body(&self, body: Bytes) -> APIResult<Option<PValues>> {
+        let mut jsonde = serde_json::Deserializer::from_slice(&body);
+        let cfg = DecodeConfig {
+            coerce_strings: false,
+        };
+        let value = self
+            .schema
+            .deserialize(&mut jsonde, cfg)
+            .map_err(|e| api::Error::invalid_argument("unable to decode response body", e))?;
         Ok(Some(value))
     }
 }

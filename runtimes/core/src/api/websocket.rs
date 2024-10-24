@@ -10,7 +10,7 @@ use tokio::sync::{
 
 use crate::model::{self, Request, RequestData};
 
-use super::{schema, APIResult};
+use super::{schema, APIResult, PValues};
 
 pub enum StreamMessagePayload {
     InOut(Socket),
@@ -105,9 +105,8 @@ where
 }
 
 pub struct Socket {
-    outgoing_message_tx: UnboundedSender<serde_json::Map<String, serde_json::Value>>,
-    incoming_message_rx:
-        tokio::sync::Mutex<UnboundedReceiver<serde_json::Map<String, serde_json::Value>>>,
+    outgoing_message_tx: UnboundedSender<PValues>,
+    incoming_message_rx: tokio::sync::Mutex<UnboundedReceiver<PValues>>,
     shutdown: watch::Sender<bool>,
 }
 
@@ -173,12 +172,12 @@ impl Socket {
         }
     }
 
-    pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> anyhow::Result<()> {
+    pub fn send(&self, msg: PValues) -> anyhow::Result<()> {
         self.outgoing_message_tx.send(msg)?;
         Ok(())
     }
 
-    pub async fn recv(&self) -> Option<serde_json::Map<String, serde_json::Value>> {
+    pub async fn recv(&self) -> Option<PValues> {
         self.incoming_message_rx.lock().await.recv().await
     }
 
@@ -202,7 +201,7 @@ impl Socket {
     async fn handle_outgoing_message(
         schema: &schema::Stream,
         websocket: &mut WebSocket,
-        msg: serde_json::Map<String, serde_json::Value>,
+        msg: PValues,
     ) {
         let msg = schema
             .to_outgoing_message(msg)
@@ -220,7 +219,7 @@ impl Socket {
 
     async fn handle_incoming_message<M>(
         schema: &schema::Stream,
-        incoming: &UnboundedSender<serde_json::Map<String, serde_json::Value>>,
+        incoming: &UnboundedSender<PValues>,
         msg: M,
     ) -> anyhow::Result<()>
     where
@@ -256,12 +255,12 @@ impl MessagePayload for axum::extract::ws::Message {
     }
 }
 pub struct Sink {
-    tx: UnboundedSender<serde_json::Map<String, serde_json::Value>>,
+    tx: UnboundedSender<PValues>,
     shutdown: watch::Sender<bool>,
 }
 
 impl Sink {
-    pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> anyhow::Result<()> {
+    pub fn send(&self, msg: PValues) -> anyhow::Result<()> {
         self.tx.send(msg)?;
         Ok(())
     }
@@ -272,10 +271,10 @@ impl Sink {
 }
 
 pub struct Stream {
-    rx: tokio::sync::Mutex<UnboundedReceiver<serde_json::Map<String, serde_json::Value>>>,
+    rx: tokio::sync::Mutex<UnboundedReceiver<PValues>>,
 }
 impl Stream {
-    pub async fn recv(&self) -> Option<serde_json::Map<String, serde_json::Value>> {
+    pub async fn recv(&self) -> Option<PValues> {
         self.rx.lock().await.recv().await
     }
 }

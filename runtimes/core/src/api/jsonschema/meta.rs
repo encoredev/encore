@@ -192,9 +192,8 @@ impl<'a, 'b> BuilderCtx<'a, 'b> {
         Value::Basic(match b {
             Builtin::Any | Builtin::Json => Basic::Any,
             Builtin::Bool => Basic::Bool,
-            Builtin::String | Builtin::Bytes | Builtin::Time | Builtin::Uuid | Builtin::UserId => {
-                Basic::String
-            }
+            Builtin::String | Builtin::Bytes | Builtin::Uuid | Builtin::UserId => Basic::String,
+            Builtin::Time => Basic::DateTime,
 
             Builtin::Int
             | Builtin::Uint

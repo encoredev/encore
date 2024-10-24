@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use google_cloud_googleapis::pubsub::v1::PubsubMessage;
 use google_cloud_pubsub as gcp;
 
@@ -64,12 +64,10 @@ impl pubsub::Topic for Topic {
         msg: MessageData,
     ) -> Pin<Box<dyn Future<Output = Result<MessageId>> + Send + '_>> {
         Box::pin(async move {
-            let data = serde_json::to_vec(&msg.body).context("failed to serialize message body")?;
-
             let (_, publisher) = self.get_topic().await?;
             let awaiter = publisher
                 .publish(PubsubMessage {
-                    data,
+                    data: msg.raw_body,
                     attributes: msg.attrs.into_iter().collect(),
                     ordering_key: "".to_string(), // TODO support
                     ..Default::default()

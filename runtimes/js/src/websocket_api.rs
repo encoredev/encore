@@ -1,13 +1,14 @@
 use crate::api::{APIPromiseHandler, Request};
 use crate::napi_util::await_promise;
 use crate::napi_util::PromiseHandler;
+use crate::pvalue::{parse_pvalues, PVals};
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
 use encore_runtime_core::api::websocket::StreamMessagePayload;
 use encore_runtime_core::api::{self, schema, APIResult, HandlerRequest};
 use encore_runtime_core::api::{websocket_client, ToResponse};
-use napi::{Env, JsFunction, NapiRaw};
+use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
 use std::pin::Pin;
@@ -75,18 +76,19 @@ impl Socket {
 
     #[napi]
     #[allow(dead_code)]
-    pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> napi::Result<()> {
+    pub fn send(&self, msg: PVals) -> napi::Result<()> {
         self.inner
-            .send(msg)
+            .send(msg.0)
             .map_err(|e| napi::Error::new(napi::Status::Unknown, e))
     }
 
     #[napi]
     #[allow(dead_code)]
-    pub async fn recv(&self) -> napi::Result<serde_json::Map<String, serde_json::Value>> {
+    pub async fn recv(&self) -> napi::Result<PVals> {
         self.inner
             .recv()
             .await
+            .map(PVals)
             .ok_or_else(|| napi::Error::new(napi::Status::Unknown, "socket receive channel closed"))
     }
 
@@ -111,9 +113,9 @@ impl Sink {
 
     #[napi]
     #[allow(dead_code)]
-    pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> napi::Result<()> {
+    pub fn send(&self, msg: PVals) -> napi::Result<()> {
         self.inner
-            .send(msg)
+            .send(msg.0)
             .map_err(|e| napi::Error::new(napi::Status::Unknown, e))
     }
 
@@ -138,28 +140,32 @@ impl Stream {
 
     #[napi]
     #[allow(dead_code)]
-    pub async fn recv(&self) -> napi::Result<serde_json::Map<String, serde_json::Value>> {
+    pub async fn recv(&self) -> napi::Result<PVals> {
         self.inner
             .recv()
             .await
             .ok_or_else(|| napi::Error::new(napi::Status::Unknown, "socket receive channel closed"))
+            .map(PVals)
     }
 }
 
 #[napi]
 pub struct WebSocketClient {
-    inner: websocket_client::WebSocketClient,
+    inner: Arc<websocket_client::WebSocketClient>,
 }
 
 #[napi]
 impl WebSocketClient {
     pub fn new(inner: websocket_client::WebSocketClient) -> Self {
-        WebSocketClient { inner }
+        WebSocketClient {
+            inner: Arc::new(inner),
+        }
     }
 
     #[napi]
     #[allow(dead_code)]
-    pub fn send(&self, msg: serde_json::Map<String, serde_json::Value>) -> napi::Result<()> {
+    pub fn send(&self, msg: JsUnknown) -> napi::Result<()> {
+        let msg = parse_pvalues(msg)?;
         self.inner
             .send(msg)
             .map_err(|e| napi::Error::new(napi::Status::Unknown, e))?;
@@ -167,25 +173,30 @@ impl WebSocketClient {
         Ok(())
     }
 
-    #[napi]
+    #[napi(ts_return_type = "Promise<Record<string, any>>")]
     #[allow(dead_code)]
-    pub async fn recv(&self) -> napi::Result<serde_json::Map<String, serde_json::Value>> {
-        self.inner
-            .recv()
-            .await
-            .ok_or_else(|| {
-                napi::Error::new(
-                    napi::Status::Unknown,
-                    "websocket client receive channel closed",
-                )
-            })?
-            .map_err(|e| {
-                log::warn!("unable to parse incoming message: {e}");
-                napi::Error::new(
-                    napi::Status::GenericFailure,
-                    "unable to parse incoming message according to schema",
-                )
-            })
+    pub fn recv(&self, env: Env) -> napi::Result<JsObject> {
+        let inner = self.inner.clone();
+        let fut = async move {
+            inner
+                .recv()
+                .await
+                .ok_or_else(|| {
+                    napi::Error::new(
+                        napi::Status::Unknown,
+                        "websocket client receive channel closed",
+                    )
+                })?
+                .map_err(|e| {
+                    log::warn!("unable to parse incoming message: {e}");
+                    napi::Error::new(
+                        napi::Status::GenericFailure,
+                        "unable to parse incoming message according to schema",
+                    )
+                })
+        };
+
+        env.execute_tokio_future(fut, |&mut _env, res| Ok(PVals(res)))
     }
 
     #[napi]

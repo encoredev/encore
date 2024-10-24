@@ -3,7 +3,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::api;
+use crate::api::{self, PValue};
 use crate::model::{LogField, LogFieldValue, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
 use crate::trace::log::TraceEvent;
@@ -154,7 +154,7 @@ impl Tracer {
                         eb.uvarint(path_params.len() as u64);
                         for (_, v) in path_params {
                             match &v {
-                                serde_json::Value::String(s) => eb.str(s.as_str()),
+                                PValue::String(s) => eb.str(s.as_str()),
                                 other => eb.str(other.to_string().as_str()),
                             }
                         }
@@ -212,7 +212,7 @@ impl Tracer {
                         eb.uvarint(path_params.len() as u64);
                         for (_, v) in path_params {
                             match &v {
-                                serde_json::Value::String(s) => eb.str(s.as_str()),
+                                PValue::String(s) => eb.str(s.as_str()),
                                 other => eb.str(other.to_string().as_str()),
                             }
                         }
@@ -319,7 +319,7 @@ impl Tracer {
 impl Tracer {
     #[inline]
     pub fn rpc_call_start(&self, call: &model::APICall) -> Option<TraceEventId> {
-        let source = call.source?;
+        let source = call.source.as_ref()?;
 
         let (service, endpoint) = (call.target.service(), call.target.endpoint());
         let mut eb = BasicEventData {
@@ -342,7 +342,7 @@ impl Tracer {
         start_event_id: TraceEventId,
         err: Option<&api::Error>,
     ) {
-        let Some(source) = call.source else {
+        let Some(source) = &call.source else {
             return;
         };
 

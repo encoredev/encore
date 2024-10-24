@@ -2,15 +2,17 @@ use crate::api::{new_api_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
+use crate::pvalue::{parse_pvalues, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
 use crate::{meta, websocket_api};
-use encore_runtime_core::api::schema::JSONPayload;
+use encore_runtime_core::api::PValues;
 use encore_runtime_core::pubsub::SubName;
-use encore_runtime_core::EncoreName;
-use napi::bindgen_prelude::*;
-use napi::{Error, Status};
+use encore_runtime_core::{api, EncoreName, EndpointName};
+use napi::{bindgen_prelude::*, JsObject};
+use napi::{Error, JsUnknown, Status};
 use napi_derive::napi;
+use std::future::Future;
 use std::sync::Arc;
 use std::thread;
 
@@ -173,51 +175,85 @@ impl Runtime {
             .map(Secret::new)
     }
 
-    #[napi]
-    pub async fn api_call(
+    #[napi(ts_return_type = "Promise<Record<string, any> | null | ApiCallError>")]
+    pub fn api_call(
         &self,
+        env: Env,
         service: String,
         endpoint: String,
-        data: JSONPayload,
+        payload: Option<JsUnknown>,
         source: Option<&Request>,
-    ) -> Either<JSONPayload, APICallError> {
+    ) -> napi::Result<JsObject> {
+        let payload = payload.map(parse_pvalues).transpose()?;
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
-        let source = source.map(|s| s.inner.as_ref());
-        let res = self.runtime.api().call(&endpoint, data, source).await;
 
-        match res {
-            Ok(data) => Either::A(data),
-            Err(e) => Either::B(APICallError {
-                code: e.code.to_string(),
-                message: e.message,
-                details: e.details,
-            }),
+        let fut = self.do_api_call(endpoint, payload, source);
+        let fut = async move {
+            let res: napi::Result<Either<Option<PValues>, APICallError>> = match fut.await {
+                Ok(data) => Ok(Either::A(data)),
+                Err(err) => Ok(Either::B(err.into())),
+            };
+            res
+        };
+
+        env.execute_tokio_future(fut, |&mut _env, res| {
+            Ok(match res {
+                Either::A(pvals) => Either::A(pvals.map(PVals)),
+                Either::B(err) => Either::B(err),
+            })
+        })
+    }
+
+    fn do_api_call<'a>(
+        &'a self,
+        endpoint: EndpointName,
+        payload: Option<PValues>,
+        source: Option<&'a Request>,
+    ) -> impl Future<Output = api::APIResult<Option<PValues>>> + 'static {
+        let source = source.map(|s| s.inner.clone());
+        let fut = self.runtime.api().call(endpoint, payload, source);
+
+        async move {
+            let data = fut.await?;
+            Ok(match (data.header, data.body) {
+                (None, api::Body::Raw(_) | api::Body::Typed(None)) => None,
+                (None, api::Body::Typed(Some(body))) => Some(body),
+                (Some(header), api::Body::Raw(_) | api::Body::Typed(None)) => Some(header),
+                (Some(header), api::Body::Typed(Some(body))) => {
+                    let mut combined = header;
+                    combined.extend(body);
+                    Some(combined)
+                }
+            })
         }
     }
 
-    #[napi]
-    pub async fn stream(
+    #[napi(ts_return_type = "Promise<WebSocketClient>")]
+    pub fn stream(
         &self,
+        env: Env,
         service: String,
         endpoint: String,
-        data: JSONPayload,
+        payload: Option<JsUnknown>,
         source: Option<&Request>,
-    ) -> napi::Result<websocket_api::WebSocketClient> {
+    ) -> napi::Result<JsObject> {
+        let payload = payload.map(parse_pvalues).transpose()?;
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
-        let source = source.map(|s| s.inner.as_ref());
-        let client = self
-            .runtime
-            .api()
-            .stream(&endpoint, data, source)
-            .await
-            .map_err(|e| {
+        let source = source.map(|s| s.inner.clone());
+        let fut = self.runtime.api().stream(endpoint, payload, source);
+
+        let fut = async move {
+            fut.await.map_err(|e| {
                 Error::new(
                     Status::GenericFailure,
                     format!("failed to make api call: {:?}", e),
                 )
-            })?;
+            })
+        };
 
-        Ok(websocket_api::WebSocketClient::new(client))
+        env.execute_tokio_future(fut, |&mut _env, res| {
+            Ok(websocket_api::WebSocketClient::new(res))
+        })
     }
 
     /// Returns the version of the Encore runtime being used
@@ -244,4 +280,14 @@ pub struct APICallError {
     pub code: String,
     pub message: String,
     pub details: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+impl From<api::Error> for APICallError {
+    fn from(value: api::Error) -> Self {
+        Self {
+            code: value.code.to_string(),
+            message: value.message,
+            details: value.details,
+        }
+    }
 }

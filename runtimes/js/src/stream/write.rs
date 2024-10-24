@@ -19,6 +19,7 @@ pub fn new() -> (WriteHalf, ReadHalf) {
     (write, read)
 }
 
+#[derive(Debug)]
 pub struct WriteHalf {
     sender: tokio::sync::mpsc::UnboundedSender<StreamEvent>,
 }

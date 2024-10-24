@@ -14,6 +14,8 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
 use crate::trace;
 
+use super::jsonschema::JSONSchema;
+
 /// An alias for the concrete type of a server handler.
 type ServerHandler = ReplaceableHandler<EndpointHandler>;
 
@@ -43,6 +45,7 @@ impl Server {
         platform_auth: Arc<reqauth::platform::RequestValidator>,
         inbound_svc_auth: Vec<Arc<dyn svcauth::ServiceAuthMethod>>,
         tracer: trace::Tracer,
+        auth_data_schemas: HashMap<String, Option<JSONSchema>>,
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
@@ -73,6 +76,7 @@ impl Server {
             tracer,
             platform_auth,
             inbound_svc_auth,
+            auth_data_schemas,
         });
 
         let mut register = |paths: &[(Arc<api::Endpoint>, Vec<String>)],

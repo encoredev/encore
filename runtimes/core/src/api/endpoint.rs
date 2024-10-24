@@ -27,12 +27,13 @@ use crate::trace;
 use crate::{model, Hosted};
 
 use super::reqauth::caller::Caller;
+use super::pvalue::{PValue, PValues};
 
 #[derive(Debug)]
 pub struct SuccessResponse {
     pub status: axum::http::StatusCode,
     pub headers: axum::http::HeaderMap,
-    pub body: Option<serde_json::Value>,
+    pub body: Option<PValue>,
 }
 
 /// Represents the result of calling an API endpoint.
@@ -180,13 +181,13 @@ impl Endpoint {
 #[derive(Debug, Serialize, Clone)]
 pub struct RequestPayload {
     #[serde(flatten)]
-    pub path: Option<IndexMap<String, serde_json::Value>>,
+    pub path: Option<IndexMap<String, PValue>>,
 
     #[serde(flatten)]
-    pub query: Option<serde_json::Map<String, serde_json::Value>>,
+    pub query: Option<PValues>,
 
     #[serde(flatten)]
-    pub header: Option<serde_json::Map<String, serde_json::Value>>,
+    pub header: Option<PValues>,
 
     #[serde(flatten, skip_serializing_if = "Body::is_raw")]
     pub body: Body,
@@ -195,7 +196,7 @@ pub struct RequestPayload {
 #[derive(Debug, Serialize, Clone)]
 #[serde(untagged)]
 pub enum Body {
-    Typed(Option<serde_json::Map<String, serde_json::Value>>),
+    Typed(Option<PValues>),
     #[serde(skip)]
     Raw(Arc<std::sync::Mutex<Option<axum::body::Body>>>),
 }
@@ -204,6 +205,15 @@ impl Body {
     pub fn is_raw(&self) -> bool {
         matches!(self, Body::Raw(_))
     }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ResponsePayload {
+    #[serde(flatten)]
+    pub header: Option<PValues>,
+
+    #[serde(flatten, skip_serializing_if = "Body::is_raw")]
+    pub body: Body,
 }
 
 pub type EndpointMap = HashMap<EndpointName, Arc<Endpoint>>;
@@ -360,6 +370,12 @@ pub(super) struct SharedEndpointData {
     pub tracer: trace::Tracer,
     pub platform_auth: Arc<platform::RequestValidator>,
     pub inbound_svc_auth: Vec<Arc<dyn svcauth::ServiceAuthMethod>>,
+
+    /// The schema to use when parsing auth data, if any.
+    /// NOTE: This assumes there's at most a single API Gateway.
+    /// When we support multiple this needs to be made into a map, and the
+    /// correct schema looked up based on the gateway being used.
+    pub auth_data_schemas: HashMap<String, Option<jsonschema::JSONSchema>>,
 }
 
 impl Clone for EndpointHandler {
@@ -414,7 +430,11 @@ impl EndpointHandler {
             Err(_err) => None,
         };
 
-        let meta = CallMeta::parse_with_caller(&self.shared.inbound_svc_auth, &parts.headers)?;
+        let meta = CallMeta::parse_with_caller(
+            &self.shared.inbound_svc_auth,
+            &parts.headers,
+            &self.shared.auth_data_schemas,
+        )?;
 
         let parsed_payload = if let Some(handshake_schema) = &self.endpoint.handshake {
             match handshake_schema.as_ref() {

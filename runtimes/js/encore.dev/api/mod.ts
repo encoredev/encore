@@ -15,12 +15,12 @@ export type Method =
   | "CONNECT";
 
 export type Header<
-  TypeOrName extends string | number | boolean = string,
+  TypeOrName extends string | number | boolean | Date = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
 export type Query<
-  TypeOrName extends string | number | boolean = string,
+  TypeOrName extends string | number | boolean | Date = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
@@ -141,21 +141,21 @@ export interface StreamOut<Response> {
 
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-    ? (stream: StreamInOut<Request, Response>) => Promise<void>
-    : (
-        data: HandshakeData,
-        stream: StreamInOut<Request, Response>
-      ) => Promise<void>;
+  ? (stream: StreamInOut<Request, Response>) => Promise<void>
+  : (
+    data: HandshakeData,
+    stream: StreamInOut<Request, Response>
+  ) => Promise<void>;
 
 export type StreamOutHandlerFn<HandshakeData, Response> =
   HandshakeData extends void
-    ? (stream: StreamOut<Response>) => Promise<void>
-    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+  ? (stream: StreamOut<Response>) => Promise<void>
+  : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
 
 export type StreamInHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-    ? (stream: StreamIn<Request>) => Promise<Response>
-    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
+  ? (stream: StreamIn<Request>) => Promise<Response>
+  : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;

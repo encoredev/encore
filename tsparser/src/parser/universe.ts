@@ -1,39 +1,39 @@
 
-export class Promise<T> {}
+export class Promise<T> { }
 
 /**
  * Make all properties in T optional
  */
 export type Partial<T> = {
-    [P in keyof T]?: T[P];
+  [P in keyof T]?: T[P];
 };
 
 /**
  * Make all properties in T required
  */
 export type Required<T> = {
-    [P in keyof T]-?: T[P];
+  [P in keyof T]-?: T[P];
 };
 
 /**
  * Make all properties in T readonly
  */
 export type Readonly<T> = {
-    readonly [P in keyof T]: T[P];
+  readonly [P in keyof T]: T[P];
 };
 
 /**
  * From T, pick a set of properties whose keys are in the union K
  */
 export type Pick<T, K extends keyof T> = {
-    [P in K]: T[P];
+  [P in K]: T[P];
 };
 
 /**
  * Construct a type with a set of properties K of type T
  */
 export type Record<K extends keyof any, T> = {
-    [P in K]: T;
+  [P in K]: T;
 };
 
 /**
@@ -55,3 +55,6 @@ export type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
  * Exclude null and undefined from T
  */
 export type NonNullable<T> = T & {};
+
+/** Builtin date class. */
+export class Date { };
