@@ -8,7 +8,7 @@ use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::paths::Pather;
 use crate::api::reqauth::svcauth;
 use crate::api::static_assets::StaticAssetsHandler;
-use crate::api::{self, IntoResponse};
+use crate::api::{self, ToResponse};
 use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap};
 use crate::encore::parser::meta::v1 as meta;
 use crate::names::EndpointName;
@@ -58,7 +58,7 @@ impl Server {
                 stack: None,
                 details: None,
             }
-            .into_response(None)
+            .to_response(None)
         }
 
         let mut fallback_router = axum::Router::new();
@@ -254,7 +254,7 @@ where
                     stack: None,
                     details: None,
                 }
-                .into_response(None);
+                .to_response(None);
                 std::task::Poll::Ready(resp)
             }
         }

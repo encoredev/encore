@@ -11,7 +11,7 @@ use napi::{Either, Env, JsFunction, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use tokio::sync::{mpsc, oneshot};
 
-use encore_runtime_core::api::{self, IntoResponse};
+use encore_runtime_core::api::{self, ToResponse};
 
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
@@ -346,7 +346,7 @@ impl api::BoxedHandler for JSRawHandler {
 
             let Some(body) = req.take_raw_body() else {
                 let err = api::Error::internal(anyhow::anyhow!("missing body"));
-                return api::ResponseData::Raw(err.into_response(internal_caller));
+                return api::ResponseData::Raw(err.to_response(internal_caller));
             };
 
             // Call the handler.
@@ -375,20 +375,20 @@ impl api::BoxedHandler for JSRawHandler {
                         Ok(resp) => resp,
                         Err(_) => {
                             let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                            err_resp.into_response(internal_caller)
+                            err_resp.to_response(internal_caller)
                         }
                     }
                 }
                 err = err_rx.recv() => {
                     match err {
-                        Some(Err(err)) => err.into_response(internal_caller),
+                        Some(Err(err)) => err.to_response(internal_caller),
                         _ => {
                             // We didn't get an error. Wait for the response body instead.
                             match body_rx.await {
                                 Ok(resp) => resp,
                                 Err(_) => {
                                     let err_resp = api::Error::internal(anyhow::anyhow!("handler did not respond"));
-                                    err_resp.into_response(internal_caller)
+                                    err_resp.to_response(internal_caller)
                                 }
                             }
                         }

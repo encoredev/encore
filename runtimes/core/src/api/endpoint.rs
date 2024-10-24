@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::Context;
 use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
+use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -39,7 +40,7 @@ pub type Response = APIResult<SuccessResponse>;
 
 pub type APIResult<T> = Result<T, Error>;
 
-impl axum::response::IntoResponse for SuccessResponse {
+impl IntoResponse for SuccessResponse {
     fn into_response(self) -> axum::http::Response<axum::body::Body> {
         // Serialize the response body.
         // Use a small initial capacity of 128 bytes like serde_json::to_vec
@@ -62,7 +63,7 @@ impl axum::response::IntoResponse for SuccessResponse {
                     Ok(()) => bld
                         .body(axum::body::Body::from(buf.into_inner().freeze()))
                         .unwrap(),
-                    Err(err) => Error::internal(err).into_response(None),
+                    Err(err) => Error::internal(err).to_response(None),
                 }
             }
             None => bld.body(axum::body::Body::empty()).unwrap(),
@@ -70,19 +71,13 @@ impl axum::response::IntoResponse for SuccessResponse {
     }
 }
 
-pub trait IntoResponse {
+pub trait ToResponse {
     /// Create a response.
-    fn into_response(self, caller: Option<Caller>) -> axum::response::Response;
+    fn to_response(&self, caller: Option<Caller>) -> axum::response::Response;
 }
 
-impl IntoResponse for Error {
-    fn into_response(self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
-        self.as_ref().into_response(caller)
-    }
-}
-
-impl IntoResponse for &Error {
-    fn into_response(self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
+impl ToResponse for Error {
+    fn to_response(&self, caller: Option<Caller>) -> axum::http::Response<axum::body::Body> {
         // considure resonse to be external if caller is unknown or if it is gateway
         let internal_call = caller.map(|caller| !caller.is_gateway()).unwrap_or(false);
 
@@ -506,7 +501,7 @@ impl EndpointHandler {
         Box::pin(async move {
             let request = match self.parse_request(axum_req).await {
                 Ok(req) => req,
-                Err(err) => return err.into_response(None),
+                Err(err) => return err.to_response(None),
             };
 
             let internal_caller = request.internal_caller.clone();
@@ -520,7 +515,7 @@ impl EndpointHandler {
                     stack: None,
                     details: None,
                 }
-                .into_response(internal_caller);
+                .to_response(internal_caller);
             } else if self.endpoint.requires_auth && !request.has_authenticated_user() {
                 return Error {
                     code: ErrCode::Unauthenticated,
@@ -529,7 +524,7 @@ impl EndpointHandler {
                     stack: None,
                     details: None,
                 }
-                .into_response(internal_caller);
+                .to_response(internal_caller);
             }
 
             let logger = crate::log::root();
@@ -586,13 +581,13 @@ impl EndpointHandler {
                     self.endpoint
                         .response
                         .encode(&payload)
-                        .unwrap_or_else(|err| err.into_response(internal_caller)),
+                        .unwrap_or_else(|err| err.to_response(internal_caller)),
                     Some(payload),
                     None,
                 ),
                 ResponseData::Typed(Err(err)) => (
                     err.code.status_code().as_u16(),
-                    err.as_ref().into_response(internal_caller),
+                    err.as_ref().to_response(internal_caller),
                     None,
                     Some(err),
                 ),

@@ -14,7 +14,7 @@ use crate::api::schema::encoding::EncodingConfig;
 use crate::api::schema::JSONPayload;
 use crate::api::{
     auth, cors, encore_routes, endpoints_from_meta, jsonschema, paths, reqauth, server, APIResult,
-    Endpoint, IntoResponse,
+    Endpoint, ToResponse,
 };
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
@@ -341,7 +341,7 @@ impl Manager {
                 stack: None,
                 details: None,
             }
-            .into_response(None)
+            .to_response(None)
         }
 
         let encore_routes = encore_routes::Desc {

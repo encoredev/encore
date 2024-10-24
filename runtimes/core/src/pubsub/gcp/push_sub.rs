@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use http_body_util::BodyExt;
 use serde::Deserialize;
 
-use crate::api::{self, APIResult, IntoResponse};
+use crate::api::{self, APIResult, ToResponse};
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub::manager::SubHandler;
 use crate::pubsub::{self, MessageId};
@@ -95,7 +95,7 @@ impl pubsub::PushRequestHandler for PushHandler {
                 Ok(()) => axum::response::Response::new(axum::body::Body::empty()),
                 Err(e) => {
                     log::error!("push handler returned error: {:?}", e);
-                    e.into_response(None)
+                    e.to_response(None)
                 }
             }
         })
