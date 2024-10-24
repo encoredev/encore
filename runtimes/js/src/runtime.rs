@@ -190,6 +190,7 @@ impl Runtime {
             Err(e) => Either::B(APICallError {
                 code: e.code.to_string(),
                 message: e.message,
+                details: e.details,
             }),
         }
     }
@@ -242,4 +243,5 @@ impl Runtime {
 pub struct APICallError {
     pub code: String,
     pub message: String,
+    pub details: Option<serde_json::Map<String, serde_json::Value>>,
 }

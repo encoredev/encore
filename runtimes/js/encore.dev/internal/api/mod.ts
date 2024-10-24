@@ -14,7 +14,12 @@ export async function apiCall(
   // We do this here because NAPI doesn't have great support
   // for custom exception types yet.
   if (resp instanceof runtime.ApiCallError) {
-    throw new APIError(resp.code as ErrCode, resp.message);
+    throw new APIError(
+      resp.code as ErrCode,
+      resp.message,
+      undefined,
+      resp.details
+    );
   }
 
   return resp;
