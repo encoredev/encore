@@ -45,6 +45,10 @@ impl Caller {
             Gateway { .. } => false,
         }
     }
+
+    pub fn is_gateway(&self) -> bool {
+        matches!(&self, Caller::Gateway { .. })
+    }
 }
 
 impl FromStr for Caller {

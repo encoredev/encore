@@ -460,7 +460,7 @@ fn as_api_error(err: &pingora::Error) -> Option<&api::Error> {
 
 fn api_error_response(err: &api::Error) -> (ResponseHeader, bytes::Bytes) {
     let mut buf = BytesMut::with_capacity(128).writer();
-    serde_json::to_writer(&mut buf, &err).unwrap();
+    serde_json::to_writer(&mut buf, &err.as_external()).unwrap();
 
     let mut resp = ResponseHeader::build(err.code.status_code(), Some(5)).unwrap();
     resp.insert_header(header::SERVER, &pingora::protocols::http::SERVER_NAME[..])
