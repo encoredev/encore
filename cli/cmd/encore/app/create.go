@@ -118,7 +118,6 @@ func promptRunApp() bool {
 // createApp is the implementation of the "encore app create" command.
 func createApp(ctx context.Context, name, template string) (err error) {
 	var lang language
-	var tutorial bool
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -133,7 +132,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	promptAccountCreation()
 
 	if name == "" || template == "" {
-		name, template, lang, tutorial = selectTemplate(name, template, false)
+		name, template, lang = selectTemplate(name, template, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
@@ -194,26 +193,20 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	_, err = conf.CurrentUser()
 	loggedIn := err == nil
 
+	exCfg, ok := parseExampleConfig(name)
+	if ok {
+		_ = os.Remove(exampleJSONPath(name))
+	}
 	var app *platform.App
 	if loggedIn && createAppOnPlatform {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Creating app on encore.dev "
 		s.Start()
-
-		exCfg, ok := parseExampleConfig(name)
 		app, err = createAppOnServer(name, exCfg)
 		s.Stop()
 		if err != nil {
 			return fmt.Errorf("creating app on encore.dev: %v", err)
 		}
-
-		// Remove the example.json file if the app was successfully created.
-		if ok {
-			_ = os.Remove(exampleJSONPath(name))
-		}
-	} else {
-		// Remove the example config file since we're not creating the app on the platform.
-		_ = os.Remove(exampleJSONPath(name))
 	}
 
 	encoreAppPath := filepath.Join(name, "encore.app")
@@ -280,7 +273,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	daemon := cmdutil.ConnectDaemon(ctx)
 	_, err = daemon.CreateApp(ctx, &daemonpb.CreateAppRequest{
 		AppRoot:  appRoot,
-		Tutorial: tutorial,
+		Tutorial: exCfg.Tutorial,
 		Template: template,
 	})
 	if err != nil {
@@ -584,6 +577,7 @@ func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error 
 // exampleConfig is the optional configuration file for example apps.
 type exampleConfig struct {
 	InitialSecrets map[string]string `json:"initial_secrets"`
+	Tutorial       bool              `json:"tutorial"`
 }
 
 func parseExampleConfig(repoPath string) (cfg exampleConfig, exists bool) {
