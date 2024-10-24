@@ -22,6 +22,8 @@ type (
 	Name string
 )
 
+func (id ID) String() string { return string(id) }
+
 func NewManager(db *sql.DB) *Manager {
 	return &Manager{db, nil}
 }

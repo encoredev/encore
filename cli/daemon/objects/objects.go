@@ -16,6 +16,7 @@ import (
 )
 
 type Server struct {
+	cm        *ClusterManager
 	startOnce syncutil.Once
 	cancel    func() // set by Start
 	emu       *gcsemu.GcsEmu
@@ -23,20 +24,30 @@ type Server struct {
 	srv       *http.Server
 }
 
-func New() *Server {
+func NewInMemoryServer() *Server {
 	return &Server{
 		// TODO set up dir storage
 		emu: gcsemu.NewGcsEmu(gcsemu.Options{
-			Verbose: true,
-			Log: func(err error, fmt string, args ...interface{}) {
-				if err != nil {
-					log.Error().Err(err).Msgf(fmt, args...)
-				} else {
-					log.Info().Msgf(fmt, args...)
-				}
-			},
+			Store: gcsemu.NewMemStore(),
 		}),
 	}
+}
+
+func NewDirServer(baseDir string) *Server {
+	return &Server{
+		emu: gcsemu.NewGcsEmu(gcsemu.Options{
+			Store: gcsemu.NewFileStore(baseDir),
+		}),
+	}
+}
+
+func (s *Server) Initialize(md *meta.Data) error {
+	for _, bucket := range md.Buckets {
+		if err := s.emu.InitBucket(bucket.Name); err != nil {
+			return errors.Wrap(err, "initialize object storage bucket")
+		}
+	}
+	return nil
 }
 
 func (s *Server) Start() error {
@@ -55,8 +66,6 @@ func (s *Server) Start() error {
 				log.Error().Err(err).Msg("unable to listen to gcs server")
 			}
 		}()
-
-		s.emu.InitBucket("test")
 
 		return nil
 	})

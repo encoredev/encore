@@ -12,6 +12,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
@@ -26,6 +27,7 @@ type Manager struct {
 	DashBaseURL string // base url for the dev dashboard
 	Secret      *secret.Manager
 	ClusterMgr  *sqldb.ClusterManager
+	ObjectsMgr  *objects.ClusterManager
 
 	listeners []EventListener
 	mu        sync.Mutex

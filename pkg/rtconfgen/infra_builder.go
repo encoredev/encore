@@ -286,7 +286,7 @@ func reduceForServices(infra *runtimev1.Infrastructure, md *meta.Data, svcs []st
 			continue
 		}
 		for _, bktName := range svc.Buckets {
-			bucketsToKeep[bktName] = true
+			bucketsToKeep[bktName.Bucket] = true
 		}
 	}
 

@@ -48,6 +48,7 @@ type ResourceManager struct {
 	app         *apps.Instance
 	dbProxyPort int
 	sqlMgr      *sqldb.ClusterManager
+	objectsMgr  *objects.ClusterManager
 	ns          *namespace.Namespace
 	environ     environ.Environ
 	log         zerolog.Logger
@@ -57,11 +58,12 @@ type ResourceManager struct {
 	servers map[Type]Resource
 }
 
-func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
+func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, objectsMgr *objects.ClusterManager, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
 	return &ResourceManager{
 		app:         app,
 		dbProxyPort: dbProxyPort,
 		sqlMgr:      sqlMgr,
+		objectsMgr:  objectsMgr,
 		ns:          ns,
 		environ:     environ,
 		forTests:    forTests,
@@ -103,7 +105,7 @@ func (rm *ResourceManager) StartRequiredServices(a *optracker.AsyncBuildJobs, md
 	}
 
 	if objects.IsUsed(md) && rm.GetObjects() == nil {
-		a.Go("Starting Object Storage server", true, 250*time.Millisecond, rm.StartObjects)
+		a.Go("Starting Object Storage server", true, 250*time.Millisecond, rm.StartObjects(md))
 	}
 }
 
@@ -158,17 +160,33 @@ func (rm *ResourceManager) GetRedis() *redis.Server {
 }
 
 // StartObjects starts an Object Storage server.
-func (rm *ResourceManager) StartObjects(ctx context.Context) error {
-	srv := objects.New()
-	err := srv.Start()
-	if err != nil {
-		return err
-	}
+func (rm *ResourceManager) StartObjects(md *meta.Data) func(context.Context) error {
+	return func(ctx context.Context) error {
+		var srv *objects.Server
+		if rm.forTests {
+			srv = objects.NewInMemoryServer()
+		} else {
+			if rm.sqlMgr == nil {
+				return fmt.Errorf("StartObjects: no Object Storage cluster manager provided")
+			}
+			baseDir, err := rm.objectsMgr.BaseDir(ctx, rm.ns)
+			if err != nil {
+				return err
+			}
+			srv = objects.NewDirServer(baseDir)
+		}
 
-	rm.mutex.Lock()
-	rm.servers[Objects] = srv
-	rm.mutex.Unlock()
-	return nil
+		if err := srv.Initialize(md); err != nil {
+			return err
+		} else if err := srv.Start(); err != nil {
+			return err
+		}
+
+		rm.mutex.Lock()
+		rm.servers[Objects] = srv
+		rm.mutex.Unlock()
+		return nil
+	}
 }
 
 // GetObjects returns the Object Storage server if it is running otherwise it returns nil
