@@ -70,12 +70,6 @@ impl axum::response::IntoResponse for SuccessResponse {
     }
 }
 
-impl AsRef<Error> for Error {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
 pub trait IntoResponse {
     /// Create a response.
     fn into_response(self, caller: Option<Caller>) -> axum::response::Response;
@@ -92,17 +86,13 @@ impl IntoResponse for &Error {
         // considure resonse to be external if caller is unknown or if it is gateway
         let internal_call = caller.map(|caller| !caller.is_gateway()).unwrap_or(false);
 
-        let err = if !internal_call {
-            Error {
-                internal_message: None,
-                ..self.clone()
-            }
-        } else {
-            self.clone()
-        };
-
         let mut buf = BytesMut::with_capacity(128).writer();
-        serde_json::to_writer(&mut buf, &err).unwrap();
+
+        if internal_call {
+            serde_json::to_writer(&mut buf, &self).unwrap();
+        } else {
+            serde_json::to_writer(&mut buf, &self.as_external()).unwrap();
+        }
 
         axum::http::Response::builder()
             .status::<axum::http::status::StatusCode>(self.code.into())

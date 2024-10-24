@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use crate::error::{AppError, StackTrace};
 use axum::extract::ws::rejection::WebSocketUpgradeRejection;
+use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -11,7 +12,6 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 pub struct Error {
     pub code: ErrCode,
     pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub internal_message: Option<String>,
     pub details: Option<serde_json::Map<String, serde_json::Value>>,
 
@@ -19,7 +19,28 @@ pub struct Error {
     pub stack: Option<StackTrace>,
 }
 
+/// ErrorExternal hides internal information on `Error` when it serializes
+#[derive(Debug)]
+pub struct ExternalError<'a>(&'a Error);
+
+impl Serialize for ExternalError<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut error = serializer.serialize_struct("Error", 3)?;
+        error.serialize_field("code", &self.0.code)?;
+        error.serialize_field("message", &self.0.message)?;
+        error.serialize_field("details", &self.0.details)?;
+        error.end()
+    }
+}
+
 impl Error {
+    pub fn as_external(&self) -> ExternalError {
+        ExternalError(self)
+    }
+
     pub fn internal<E>(cause: E) -> Self
     where
         E: Into<anyhow::Error>,
@@ -127,6 +148,12 @@ impl Display for Error {
             Some(msg) => write!(f, "{}", msg),
             None => write!(f, "{}", self.message),
         }
+    }
+}
+
+impl AsRef<Error> for Error {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 
