@@ -500,7 +500,11 @@ const gracefulShutdownTime = 10 * time.Second
 func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err error) {
 	pid := GenID()
 
-	userEnv := append([]string{"ENCORE_RUNTIME_LOG=error"}, params.Environ...)
+	userEnv := append([]string{
+		"ENCORE_RUNTIME_LOG=error",
+		// Always include internal messages when developing locally.
+		"ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS=1",
+	}, params.Environ...)
 
 	daemonProxyAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
 	if err != nil {
