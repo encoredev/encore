@@ -32,7 +32,6 @@ require (
 	github.com/google/renameio/v2 v2.0.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.0
-	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hasura/go-graphql-client v0.12.1
 	github.com/jackc/pgconn v1.14.1
 	github.com/jackc/pgproto3/v2 v2.3.2
