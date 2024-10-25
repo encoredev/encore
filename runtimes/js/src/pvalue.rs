@@ -1,4 +1,4 @@
-use chrono::TimeZone;
+use chrono::{naive::serde::ts_milliseconds, TimeZone};
 use encore_runtime_core::api::{self, auth, PValue, PValues};
 use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
@@ -131,9 +131,9 @@ impl FromNapiValue for PVal {
                     )?;
                     if is_date {
                         let dt = JsDate::from_napi_value(env, napi_val)?;
-                        let secs = dt.value_of()?;
-                        let ts = chrono::Utc.timestamp_opt(secs as i64, 0);
-                        PValue::DateTime(ts.unwrap().fixed_offset())
+                        let millis = dt.value_of()?;
+                        let ts = timestamp_to_dt(millis);
+                        PValue::DateTime(ts)
                     } else {
                         PValue::Object(unsafe { PVals::from_napi_value(env, napi_val)?.0 })
                     }
@@ -270,4 +270,12 @@ fn add_fields_to_obj<'a, I: IntoIterator<Item = (&'a String, &'a PValue)>>(
         obj.set(k, pv)?;
     }
     Ok(())
+}
+
+fn timestamp_to_dt(millis: f64) -> chrono::DateTime<chrono::FixedOffset> {
+    let millis = millis.trunc() as i64;
+    let secs = millis / 1000;
+    let nanos = (millis % 1000) * 1_000_000;
+    let ts = chrono::Utc.timestamp_opt(secs, nanos as u32);
+    ts.unwrap().fixed_offset()
 }

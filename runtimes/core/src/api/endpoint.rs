@@ -26,8 +26,8 @@ use crate::names::EndpointName;
 use crate::trace;
 use crate::{model, Hosted};
 
-use super::reqauth::caller::Caller;
 use super::pvalue::{PValue, PValues};
+use super::reqauth::caller::Caller;
 
 #[derive(Debug)]
 pub struct SuccessResponse {
