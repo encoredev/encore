@@ -81,3 +81,16 @@ func IsAdminUser() (bool, error) {
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	return errors.WithStack(os.WriteFile(filename, data, perm))
 }
+
+// IsWindowsJunctionPoint reports whether a filename is a Windows junction point.
+func IsWindowsJunctionPoint(filename string) (ok bool, err error) {
+	ptr, err := syscall.UTF16PtrFromString(filename)
+	if err != nil {
+		return false, err
+	}
+	attrs, err := windows.GetFileAttributes(ptr)
+	if err != nil {
+		return false, err
+	}
+	return attrs&windows.FILE_ATTRIBUTE_REPARSE_POINT == windows.FILE_ATTRIBUTE_REPARSE_POINT, nil
+}
