@@ -49,3 +49,8 @@ func IsAdminUser() (bool, error) {
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	return errors.WithStack(renameio.WriteFile(filename, data, perm))
 }
+
+// IsWindowsJunctionPoint reports whether a filename is a Windows junction point.
+func IsWindowsJunctionPoint(filename string) (ok bool, err error) {
+	return false, nil
+}
