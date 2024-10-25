@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
 	"github.com/peterbourgon/diskv"
 
 	"encr.dev/internal/conf"
+	"encr.dev/internal/httpcache"
+	"encr.dev/internal/httpcache/diskcache"
 	"encr.dev/internal/version"
 )
 
@@ -24,12 +24,7 @@ func New(targetURL string) (*httputil.ReverseProxy, error) {
 		return nil, errors.Wrap(err, "parse target url")
 	}
 
-	// Set the cli_version query parameter.
-	vals := target.Query()
-	vals.Set("cli_version", version.Version)
-	target.RawQuery = vals.Encode()
-
-	transport := http.DefaultTransport
+	var transport http.RoundTripper = &versionAddingTransport{version: version.Version}
 	if conf.CacheDevDash {
 		cacheDir, err := os.UserCacheDir()
 		if err != nil {
@@ -41,7 +36,11 @@ func New(targetURL string) (*httputil.ReverseProxy, error) {
 			CacheSizeMax: 1024 * 1024 * 1024, // 1GiB
 			Compression:  diskv.NewGzipCompression(),
 		}))
-		transport = httpcache.NewTransport(cache)
+
+		// Wrap the transport with a caching transport.
+		cachingTransport := httpcache.NewTransport(cache)
+		cachingTransport.Transport = transport
+		transport = cachingTransport
 	}
 
 	proxy := &httputil.ReverseProxy{
@@ -50,15 +49,31 @@ func New(targetURL string) (*httputil.ReverseProxy, error) {
 			r.SetURL(target)
 
 			// Configure cache headers so the cache behaves the way we want it to.
+			r.Out.Header.Del("Cookie")
 			r.Out.Header.Set("Cache-Control", "stale-if-error")
+			r.Out.Header.Del("Vary")
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			if resp.StatusCode < 300 {
-				resp.Header.Set("Cache-Control", "max-age=60")
+				resp.Header.Del("Vary")
+				resp.Header.Set("Cache-Control", "max-age=60,stale-if-error=86400")
 			}
 			return nil
 		},
 	}
 
 	return proxy, nil
+}
+
+type versionAddingTransport struct {
+	version string
+}
+
+func (t *versionAddingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.version != "" {
+		vals := req.URL.Query()
+		vals.Set("cli_version", t.version)
+		req.URL.RawQuery = vals.Encode()
+	}
+	return http.DefaultTransport.RoundTrip(req)
 }
