@@ -12,7 +12,7 @@ use crate::parser::types::{
     Type, TypeChecker,
 };
 use crate::parser::Range;
-use crate::span_err::{ErrorWithSpanExt, SpErr};
+use crate::span_err::{ErrReporter, ErrorWithSpanExt, SpErr};
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
@@ -68,6 +68,7 @@ pub struct Param {
     pub loc: ParamData,
     pub typ: Type,
     pub optional: bool,
+    pub range: Range,
 }
 
 #[derive(Debug, Clone)]
@@ -487,6 +488,7 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> anyhow::Result<Vec
             loc: ParamData::Path { index },
             typ: f.typ.clone(),
             optional: f.optional,
+            range: f.range,
         });
     }
 
@@ -523,6 +525,7 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> Vec<Para
             loc: param_data,
             typ: f.typ.clone(),
             optional: f.optional,
+            range: f.range,
         });
     }
     params
@@ -536,13 +539,17 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> anyhow::R
         .map(|param| (&param.name, param))
         .collect::<HashMap<_, _>>();
 
-    let typ_to_value_type = |typ: &Type| {
-        Ok(match typ {
-            Type::Basic(Basic::String) => ValueType::String,
-            Type::Basic(Basic::Boolean) => ValueType::Bool,
-            Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
-            typ => anyhow::bail!("unsupported path param type: {:?}", typ),
-        })
+    let typ_to_value_type = |param: &Param| match &param.typ {
+        Type::Basic(Basic::String) => ValueType::String,
+        Type::Basic(Basic::Boolean) => ValueType::Bool,
+        Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
+        typ => {
+            param
+                .range
+                .to_span()
+                .err(&format!("unsupported path parameter type: {:?}", typ));
+            ValueType::String
+        }
     };
 
     let mut segments = Vec::with_capacity(path.segments.len());
@@ -551,7 +558,7 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> anyhow::R
             Segment::Param { name, .. } => {
                 // Get the value type of the path parameter.
                 let value_type = match path_params.get(&name) {
-                    Some(param) => typ_to_value_type(&param.typ)?,
+                    Some(param) => typ_to_value_type(param),
                     None => {
                         // Raw endpoints assume path params are strings.
                         if raw {

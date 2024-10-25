@@ -1,11 +1,12 @@
 use crate::api::Request;
 use crate::error::coerce_to_api_error;
 use crate::napi_util::{await_promise, PromiseHandler};
+use crate::pvalue::parse_pvalues;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
-use encore_runtime_core::api;
 use encore_runtime_core::api::schema;
+use encore_runtime_core::api::{self, PValues};
 use napi::{Env, JsFunction, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
@@ -112,12 +113,12 @@ fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result
 struct AuthPromiseHandler;
 
 impl PromiseHandler for AuthPromiseHandler {
-    type Output = Result<schema::JSONPayload, api::Error>;
+    type Output = Result<Option<PValues>, api::Error>;
 
     fn resolve(&self, env: Env, val: Option<napi::JsUnknown>) -> Self::Output {
         let Some(val) = val else { return Ok(None) };
-        match env.from_js_value(val) {
-            Ok(val) => Ok(val),
+        match parse_pvalues(val) {
+            Ok(val) => Ok(Some(val)),
             Err(err) => self.error(env, err),
         }
     }

@@ -329,6 +329,7 @@ impl<'a> Ctx<'a> {
                 | Basic::Undefined
                 | Basic::Null
                 | Basic::Void
+                | Basic::Date
                 | Basic::Unknown
                 | Basic::Never => Type::Basic(Basic::Never),
             },
@@ -566,6 +567,11 @@ impl<'a> Ctx<'a> {
             HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
             return Type::Basic(Basic::Never);
         };
+
+        // Is this a reference to the built-in 'Date' class?
+        if obj.name.as_ref().is_some_and(|s| s == "Date") && self.state.is_universe(obj.module_id) {
+            return Type::Basic(Basic::Date);
+        }
 
         let mut type_arguments =
             Vec::with_capacity(typ.type_params.as_ref().map_or(0, |p| p.params.len()));

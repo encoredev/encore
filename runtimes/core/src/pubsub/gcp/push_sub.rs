@@ -157,16 +157,12 @@ impl Inner {
             .to_bytes();
         let msg: PushPayload = serde_json::from_slice(&bytes).map_err(api::Error::internal)?;
 
-        let body: Option<serde_json::Value> = serde_json::from_slice(&msg.message.data)
-            .map_err(|e| api::Error::invalid_argument("unable to parse message body as JSON", e))?;
-
         let msg = pubsub::Message {
             id: msg.message.message_id as MessageId,
             publish_time: Some(msg.message.publish_time),
             attempt: msg.delivery_attempt.unwrap_or(1),
             data: pubsub::MessageData {
                 attrs: msg.message.attributes,
-                body,
                 raw_body: msg.message.data,
             },
         };

@@ -84,16 +84,17 @@ impl Topic for NsqTopic {
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct EncodedMessage {
     pub id: MessageId,
-    pub body: Option<serde_json::Value>,
     pub attrs: HashMap<String, String>,
+    pub body: Option<serde_json::Value>,
 }
 
 impl EncodedMessage {
     pub fn new_for_data(msg: MessageData) -> Self {
+        let body = serde_json::from_slice(&msg.raw_body).unwrap_or_default();
         Self {
             id: xid::new().to_string(),
-            body: msg.body,
             attrs: msg.attrs,
+            body,
         }
     }
 }

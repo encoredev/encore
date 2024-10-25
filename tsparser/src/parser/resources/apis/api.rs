@@ -5,7 +5,6 @@ use anyhow::{anyhow, Result};
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
-use swc_ecma_ast::TsTypeParamInstantiation;
 use swc_ecma_ast::{self as ast, FnExpr};
 
 use litparser::{LitParser, LocalRelPath, Nullable, Sp};
@@ -19,7 +18,7 @@ use crate::parser::resources::apis::encoding::{
     describe_endpoint, describe_static_assets, describe_stream_endpoint, EndpointEncoding,
 };
 use crate::parser::resources::parseutil::{
-    extract_bind_name, iter_references, ReferenceParser, TrackedNames,
+    extract_bind_name, extract_type_param, iter_references, ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
@@ -541,7 +540,7 @@ impl ReferenceParser for APIEndpointLiteral {
 
                         let handshake = has_handshake
                             .then(|| {
-                                extract_type_param(Some(type_params), 0)?
+                                extract_type_param(Some(type_params), 0)
                                     .ok_or_else(|| anyhow!("missing type for handshake"))
                             })
                             .transpose()?;
@@ -549,8 +548,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         let Some(request) = extract_type_param(
                             Some(type_params),
                             if has_handshake { 1 } else { 0 },
-                        )?
-                        else {
+                        ) else {
                             type_params.err("missing request type parameter");
                             continue;
                         };
@@ -558,8 +556,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         let Some(response) = extract_type_param(
                             Some(type_params),
                             if has_handshake { 2 } else { 1 },
-                        )?
-                        else {
+                        ) else {
                             type_params.err("missing response type parameter");
                             continue;
                         };
@@ -604,7 +601,7 @@ impl ReferenceParser for APIEndpointLiteral {
 
                         let handshake = has_handshake
                             .then(|| {
-                                extract_type_param(Some(type_params), 0)?
+                                extract_type_param(Some(type_params), 0)
                                     .ok_or_else(|| anyhow!("missing type for handshake"))
                             })
                             .transpose()?;
@@ -612,8 +609,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         let Some(request) = extract_type_param(
                             Some(type_params),
                             if has_handshake { 1 } else { 0 },
-                        )?
-                        else {
+                        ) else {
                             type_params.err("missing request type parameter");
                             continue;
                         };
@@ -621,7 +617,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         let response = extract_type_param(
                             Some(type_params),
                             if has_handshake { 2 } else { 1 },
-                        )?;
+                        );
 
                         let response = match response {
                             None => match return_type {
@@ -670,7 +666,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         }
 
                         let handshake = if has_handshake {
-                            let t = extract_type_param(Some(type_params), 0)?;
+                            let t = extract_type_param(Some(type_params), 0);
                             if t.is_none() {
                                 type_params.err("missing type parameter for handshake");
                             }
@@ -682,8 +678,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         let Some(response) = extract_type_param(
                             Some(type_params),
                             if has_handshake { 1 } else { 0 },
-                        )?
-                        else {
+                        ) else {
                             type_params.err("missing type parameter for response");
                             continue;
                         };
@@ -733,10 +728,10 @@ impl ReferenceParser for APIEndpointLiteral {
                         let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
 
                         if req.is_none() {
-                            req = extract_type_param(expr.type_args.as_deref(), 0)?;
+                            req = extract_type_param(expr.type_args.as_deref(), 0);
                         }
                         if resp.is_none() {
-                            resp = extract_type_param(expr.type_args.as_deref(), 1)?;
+                            resp = extract_type_param(expr.type_args.as_deref(), 1);
                         }
 
                         Self {
@@ -820,19 +815,6 @@ fn parse_endpoint_signature(
     let resp = return_type.map(|t| t.type_ann.as_ref());
 
     Ok((req, resp))
-}
-
-fn extract_type_param(
-    params: Option<&TsTypeParamInstantiation>,
-    idx: usize,
-) -> Result<Option<&ast::TsType>> {
-    let Some(params) = params else {
-        return Ok(None);
-    };
-    let Some(param) = params.params.get(idx) else {
-        return Ok(None);
-    };
-    Ok(Some(param.as_ref()))
 }
 
 impl LitParser for Methods {

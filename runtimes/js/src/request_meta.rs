@@ -3,6 +3,8 @@ use napi_derive::napi;
 
 use encore_runtime_core::model;
 
+use crate::pvalue::PVals;
+
 pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
     let dt: DateTime<Utc> = req.start_time.into();
     let started_at = dt.to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -65,7 +67,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                 id: msg.message_id.clone(),
                 published_at: msg.published.to_rfc3339_opts(SecondsFormat::Secs, true),
                 delivery_attempt: msg.attempt,
-                parsed_payload: msg.parsed_payload.clone(),
+                parsed_payload: msg.parsed_payload.as_ref().map(|pv| PVals(pv.clone())),
             };
             (None, Some(pubsub_message))
         }
@@ -122,7 +124,7 @@ pub struct PubSubMessageData {
     pub id: String,
     pub published_at: String,
     pub delivery_attempt: u32,
-    pub parsed_payload: Option<serde_json::Value>,
+    pub parsed_payload: Option<PVals>,
 }
 
 #[napi(object)]
