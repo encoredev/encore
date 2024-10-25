@@ -23,6 +23,14 @@ pub struct Error {
 #[derive(Debug)]
 pub struct ExternalError<'a>(&'a Error);
 
+/// Cached environment variable for whether to include internal message in all errors.
+static ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS: once_cell::sync::Lazy<bool> =
+    once_cell::sync::Lazy::new(|| {
+        std::env::var("ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS")
+            .map(|v| !v.is_empty() && v != "0")
+            .unwrap_or(false)
+    });
+
 impl Serialize for ExternalError<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -32,6 +40,11 @@ impl Serialize for ExternalError<'_> {
         error.serialize_field("code", &self.0.code)?;
         error.serialize_field("message", &self.0.message)?;
         error.serialize_field("details", &self.0.details)?;
+
+        // Include internal message even in external errors iff the environment variable is set.
+        if *ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS {
+            error.serialize_field("internal_message", &self.0.internal_message)?;
+        }
         error.end()
     }
 }
