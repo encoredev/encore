@@ -356,6 +356,7 @@ impl Runtime {
             pubsub_push_registry: pubsub.push_registry(),
             runtime: tokio_rt.handle().clone(),
             is_worker,
+            testing,
             proxied_push_subs,
         }
         .build()
