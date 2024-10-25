@@ -43,6 +43,7 @@ struct RawRequestMessage {
     err_tx: mpsc::UnboundedSender<Result<(), api::Error>>,
 }
 
+#[derive(Debug)]
 enum ResponseWriterState {
     Initial {
         resp: axum::http::response::Builder,
@@ -206,6 +207,7 @@ fn to_sender(env: Env, callback: Option<JsFunction>) -> napi::Result<Option<ones
 }
 
 #[napi]
+#[derive(Debug)]
 pub struct ResponseWriter {
     // Option to support moving out of self.
     state: Option<ResponseWriterState>,
@@ -227,6 +229,7 @@ impl ResponseWriter {
             ));
         };
 
+        ::log::trace!("write_head: status={}, headers={:?}", status, headers);
         let headers = parse_headers(headers)?;
 
         let (state, result) = match state.set_head(status, headers) {
@@ -251,6 +254,8 @@ impl ResponseWriter {
             ));
         };
 
+        ::log::trace!("write_body: self={:#?}", self);
+
         let buf = Bytes::from(buf.to_vec());
         let (state, result) = match state.write_body(env, buf, callback) {
             Ok(state) => (state, Ok(())),
@@ -267,6 +272,7 @@ impl ResponseWriter {
         bufs: Vec<Buffer>,
         callback: Option<JsFunction>,
     ) -> napi::Result<()> {
+        ::log::trace!("write_body_body: self={:#?}", self);
         let Some(state) = self.state.take() else {
             return Err(napi::Error::new(
                 napi::Status::GenericFailure,
@@ -293,6 +299,7 @@ impl ResponseWriter {
         buf: Option<Buffer>,
         callback: Option<JsFunction>,
     ) -> napi::Result<()> {
+        ::log::trace!("close: self={:#?}", self);
         let Some(state) = self.state.take() else {
             return Err(napi::Error::new(
                 napi::Status::GenericFailure,

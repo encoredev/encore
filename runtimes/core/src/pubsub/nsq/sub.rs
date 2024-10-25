@@ -132,7 +132,6 @@ async fn handle_message(
         attempt: attempt as u32,
         data: pubsub::MessageData {
             attrs: encoded.attrs,
-            body: encoded.body,
             raw_body,
         },
     };

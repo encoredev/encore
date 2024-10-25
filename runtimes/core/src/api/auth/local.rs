@@ -1,7 +1,7 @@
 use crate::api::auth::{AuthHandler, AuthPayload, AuthRequest, AuthResponse};
 use crate::api::schema::encoding::Schema;
 use crate::api::schema::JSONPayload;
-use crate::api::APIResult;
+use crate::api::{APIResult, PValues};
 use crate::log::LogFromRust;
 use crate::model::{AuthRequestData, RequestData};
 use crate::trace::Tracer;
@@ -103,35 +103,34 @@ impl AuthHandler for LocalAuthHandler {
                 Some(fields)
             });
 
-            let result: APIResult<(serde_json::Map<String, serde_json::Value>, String)> =
-                match auth_response {
-                    Ok(Some(payload)) => {
-                        let auth_uid = payload
-                            .get("userID")
-                            .and_then(|v| v.as_str())
-                            .map(String::from);
-                        match auth_uid {
-                            Some(uid) => Ok((payload, uid.to_string())),
-                            None => Err(api::Error {
-                                code: api::ErrCode::Unauthenticated,
-                                message: "unauthenticated".to_string(),
-                                internal_message: Some(
-                                    "auth handler did not return a userID field".to_string(),
-                                ),
-                                stack: None,
-                                details: None,
-                            }),
-                        }
+            let result: APIResult<(PValues, String)> = match auth_response {
+                Ok(Some(payload)) => {
+                    let auth_uid = payload
+                        .get("userID")
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
+                    match auth_uid {
+                        Some(uid) => Ok((payload, uid.to_string())),
+                        None => Err(api::Error {
+                            code: api::ErrCode::Unauthenticated,
+                            message: "unauthenticated".to_string(),
+                            internal_message: Some(
+                                "auth handler did not return a userID field".to_string(),
+                            ),
+                            stack: None,
+                            details: None,
+                        }),
                     }
-                    Ok(None) => Err(api::Error {
-                        code: api::ErrCode::Unauthenticated,
-                        message: "unauthenticated".to_string(),
-                        internal_message: Some("auth handler returned null".to_string()),
-                        stack: None,
-                        details: None,
-                    }),
-                    Err(e) => Err(e),
-                };
+                }
+                Ok(None) => Err(api::Error {
+                    code: api::ErrCode::Unauthenticated,
+                    message: "unauthenticated".to_string(),
+                    internal_message: Some("auth handler returned null".to_string()),
+                    stack: None,
+                    details: None,
+                }),
+                Err(e) => Err(e),
+            };
 
             match result {
                 Ok((auth_data, auth_uid)) => {

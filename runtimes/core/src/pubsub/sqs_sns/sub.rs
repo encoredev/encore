@@ -290,18 +290,12 @@ fn parse_message(message: aws_sdk_sqs::types::Message, attempt: u32) -> Result<p
         })
         .collect::<HashMap<_, _>>();
 
-    let body = serde_json::from_str(&sns_message.message).ok();
     let raw_body = sns_message.message.as_bytes().to_vec();
-
     Ok(pubsub::Message {
         id: sns_message.message_id,
         publish_time: Some(publish_time),
         attempt,
-        data: pubsub::MessageData {
-            attrs,
-            body,
-            raw_body,
-        },
+        data: pubsub::MessageData { attrs, raw_body },
     })
 }
 

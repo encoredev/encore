@@ -111,6 +111,7 @@ pub enum Basic {
     Number,
     Object,
     BigInt,
+    Date,
     Symbol,
     Undefined,
     Null,
