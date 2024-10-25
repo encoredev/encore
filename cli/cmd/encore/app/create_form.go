@@ -31,7 +31,7 @@ const (
 var (
 	inputStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeBlue, Light: codeBlue})
 	descStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeGreen, Light: codePurple})
-	docStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
+	docStyle     = lipgloss.NewStyle().Padding(0, 2, 0, 2)
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(validationFail))
 	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00C200"))
 )
@@ -98,18 +98,15 @@ func (m languageSelectModel) Update(msg tea.Msg) (languageSelectModel, tea.Cmd) 
 				}
 			}
 		}
-	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width)
-		m.RecalculateHeight()
-		return m, nil
 	}
 
 	m.list, c = m.list.Update(msg)
 	return m, c
 }
 
-func (m *languageSelectModel) RecalculateHeight() {
-	m.list.SetHeight(len(m.list.Items()) * 4)
+func (m *languageSelectModel) SetSize(width, height int) {
+	m.list.SetWidth(width)
+	m.list.SetHeight(max(height-1, 0))
 }
 
 const checkmark = "✔"
@@ -118,7 +115,7 @@ func (m languageSelectModel) View() string {
 	var b strings.Builder
 	b.WriteString(inputStyle.Render("Select language for your application"))
 	b.WriteString(descStyle.Render(" [Use arrows to move]"))
-	b.WriteString("\n\n")
+	b.WriteString("\n")
 	b.WriteString(m.list.View())
 
 	return b.String()
@@ -204,6 +201,11 @@ func (m templateListModel) Init() tea.Cmd {
 	)
 }
 
+func (m *templateListModel) SetSize(width, height int) {
+	m.list.SetWidth(width)
+	m.list.SetHeight(max(height-1, 0))
+}
+
 type templateSelectDone struct{}
 
 func (m templateListModel) Update(msg tea.Msg) (templateListModel, tea.Cmd) {
@@ -217,11 +219,6 @@ func (m templateListModel) Update(msg tea.Msg) (templateListModel, tea.Cmd) {
 				return m, func() tea.Msg { return templateSelectDone{} }
 			}
 		}
-
-	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width)
-		m.list.SetHeight(min(msg.Height, 20))
-		return m, nil
 
 	case spinner.TickMsg:
 		m.loading, _ = m.loading.Update(msg)
@@ -323,6 +320,10 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case appNameDone:
 		cmds = append(cmds, tea.Quit)
 		m.step = 3
+
+	case tea.WindowSizeMsg:
+		m.SetSize(msg.Width, msg.Height)
+		return m, nil
 	}
 
 	// Update all submodels for other messages.
@@ -336,12 +337,25 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m createFormModel) View() string {
+func (m *createFormModel) SetSize(width, height int) {
+	// Step 1
+	doneHeight := lipgloss.Height(m.doneView())
+	{
+		availHeight := height - doneHeight
+		m.lang.SetSize(width, availHeight)
+	}
+
+	// Step 2
+	{
+		availHeight := height - doneHeight
+		m.templates.SetSize(width, availHeight)
+	}
+}
+
+func (m createFormModel) doneView() string {
 	var b strings.Builder
 
-	var didRenderDone bool
 	renderDone := func(title, value string) {
-		didRenderDone = true
 		b.WriteString(successStyle.Render(fmt.Sprintf("%s %s: ", checkmark, title)))
 		b.WriteString(value)
 		b.WriteByte('\n')
@@ -373,24 +387,30 @@ func (m createFormModel) View() string {
 	if m.appName.predefined == "" && m.step > 2 {
 		renderNameDone()
 	}
-	if didRenderDone {
-		// Add a newline after we've rendered any 'done' steps
+
+	return b.String()
+}
+
+func (m createFormModel) View() string {
+	var b strings.Builder
+
+	doneView := m.doneView()
+
+	b.WriteString(doneView)
+	if doneView != "" {
 		b.WriteByte('\n')
 	}
 
 	if m.step == 0 {
 		b.WriteString(m.lang.View())
-		b.WriteByte('\n')
 	}
 
 	if m.step == 1 {
 		b.WriteString(m.templates.View())
-		b.WriteByte('\n')
 	}
 
 	if m.step == 2 {
 		b.WriteString(m.appName.View())
-		b.WriteByte('\n')
 	}
 
 	return docStyle.Render(b.String())
@@ -425,6 +445,8 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
 		del := list.NewDefaultDelegate()
 		del.Styles = ls
+		del.ShowDescription = false
+		del.SetSpacing(0)
 
 		items := []list.Item{
 			langItem{
@@ -433,7 +455,7 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 			},
 			langItem{
 				lang: languageTS,
-				desc: "Build backend and full-stack applications with TypeScript and Node.JS",
+				desc: "Build backend and full-stack applications with TypeScript",
 			},
 		}
 
@@ -447,7 +469,7 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 		lang = languageSelectModel{
 			list: ll,
 		}
-		lang.RecalculateHeight()
+		lang.SetSize(0, 20)
 	}
 
 	var templates templateListModel
@@ -544,7 +566,7 @@ func (i langItem) FilterValue() string {
 func (i langItem) Title() string {
 	return i.FilterValue()
 }
-func (i langItem) Description() string { return i.desc }
+func (i langItem) Description() string { return "" }
 
 type language string
 
