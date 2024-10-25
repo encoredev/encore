@@ -42,6 +42,7 @@ pub struct ManagerConfig<'a> {
     pub pubsub_push_registry: pubsub::PushHandlerRegistry,
     pub runtime: tokio::runtime::Handle,
     pub is_worker: bool,
+    pub testing: bool,
     pub proxied_push_subs: HashMap<String, EncoreName>,
 }
 
@@ -56,6 +57,7 @@ pub struct Manager {
     runtime: tokio::runtime::Handle,
 
     gateways: HashMap<EncoreName, Gateway>,
+    testing: bool,
 }
 
 impl ManagerConfig<'_> {
@@ -223,6 +225,7 @@ impl ManagerConfig<'_> {
             pubsub_push_registry: self.pubsub_push_registry,
             runtime: self.runtime,
             healthz: healthz_handler,
+            testing: self.testing,
         })
     }
 }
@@ -371,11 +374,19 @@ impl Manager {
 
         // TODO handle multiple gateways
         let gateway = self.gateways.values().next().cloned();
+        let testing = self.testing;
 
         self.runtime.spawn(async move {
             let gateway_parts = (gateway, gateway_listener);
             let gateway_fut = match gateway_parts {
-                (Some(gw), Some(ref ln)) => Some(gw.serve(ln)),
+                (Some(gw), Some(ref ln)) => {
+                    if !testing {
+                        Some(gw.serve(ln))
+                    } else {
+                        // No need running the gateway in tests
+                        None
+                    }
+                },
                 (Some(_), None) => {
                     ::log::error!("internal encore error: misconfigured api gateway (missing listener), skipping");
                     None
