@@ -48,7 +48,7 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
                 let obj = pass
                     .type_checker
                     .resolve_obj(pass.module.clone(), &expr)
-                    .ok_or(anyhow::anyhow!("can't resolve endpoint"))?;
+                    .ok_or(anyhow::anyhow!("can't resolve auth handler"))?;
                 Some(obj)
             } else {
                 None

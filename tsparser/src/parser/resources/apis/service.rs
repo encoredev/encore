@@ -1,7 +1,7 @@
-use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
+use litparser::LitParser;
 use litparser_derive::LitParser;
 
 use crate::parser::resourceparser::bind::ResourceOrPath;
@@ -11,16 +11,20 @@ use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::NamedClassResourceOptionalConfig;
 use crate::parser::resources::parseutil::{iter_references, TrackedNames};
 use crate::parser::resources::Resource;
-use crate::parser::FilePath;
+use crate::parser::{FilePath, Range};
 
 #[derive(Debug, Clone)]
 pub struct Service {
+    pub range: Range,
     pub name: String,
     pub doc: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(LitParser, Default)]
-struct DecodedServiceConfig {}
+struct DecodedServiceConfig {
+    middlewares: Option<ast::Expr>,
+}
 
 pub static SERVICE_PARSER: ResourceParser = ResourceParser {
     name: "service",
@@ -36,12 +40,8 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 let r = r?;
 
                 if i > 0 {
-                    HANDLER.with(|h| {
-                        h.span_err(
-                            r.range,
-                            "cannot have multiple service declarations in the same module",
-                        );
-                    });
+                    r.range
+                        .err("cannot have multiple service declarations in the same module");
                     continue;
                 }
 
@@ -50,12 +50,8 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 match &pass.module.file_path {
                     FilePath::Real(buf) if buf.ends_with("encore.service.ts") => {}
                     _ => {
-                        HANDLER.with(|h| {
-                            h.span_err(
-                                r.range,
-                                "service declarations are only allowed in encore.service.ts",
-                            );
-                        });
+                        r.range
+                            .err("service declarations are only allowed in encore.service.ts");
                         continue;
                     }
                 }
@@ -68,6 +64,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 };
 
                 let resource = Resource::Service(Lrc::new(Service {
+                    range: r.range,
                     name: r.resource_name,
                     doc: r.doc_comment,
                 }));

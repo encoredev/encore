@@ -1,3 +1,5 @@
+import { Middleware } from "../api/mod";
+
 /**
  * Defines an Encore backend service.
  *
@@ -17,4 +19,6 @@ export class Service {
   }
 }
 
-export interface ServiceConfig {}
+export interface ServiceConfig {
+  middlewares?: Middleware[];
+}

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::fs::DirBuilder;
 use std::io::Write;
@@ -110,6 +111,9 @@ impl Builder<'_> {
             let mut gateways = Vec::new();
             let mut subscriptions = Vec::new();
             let mut auth_handlers = Vec::new();
+            let mut service = None;
+
+            let svc_rel_path = params.app.rel_path_string(&svc.root)?;
 
             for b in &svc.binds {
                 match &b.resource {
@@ -132,12 +136,12 @@ impl Builder<'_> {
                     Resource::AuthHandler(ah) if b.kind == Create => {
                         auth_handlers.push(ah);
                     }
+                    Resource::Service(svc) => {
+                        service = Some(svc);
+                    }
                     _ => {}
                 }
             }
-
-            let svc_rel_path = params.app.rel_path_string(&svc.root)?;
-            let _gen_root = params.app.root.join("encore.gen");
 
             // Add the auth handlers to the auth context.
             for ah in &auth_handlers {
@@ -159,6 +163,18 @@ impl Builder<'_> {
                 let mut endpoint_ctx = Vec::new();
                 let mut subscription_ctx = Vec::new();
 
+                let service_ctx = service.map(|service| {
+                    let rel_path = get_svc_rel_path(&svc.root, service.range, true);
+                    let import_path = Path::new("../../../../../")
+                        .join(&svc_rel_path)
+                        .join(rel_path);
+
+                    json!({
+                        "name": service.name,
+                        "import_path": import_path,
+                    })
+                });
+
                 for rpc in &endpoints {
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../../../")
@@ -171,6 +187,7 @@ impl Builder<'_> {
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
+                        "service_name": svc.name,
                     }));
                 }
 
@@ -191,6 +208,7 @@ impl Builder<'_> {
                     "name": svc.name,
                     "endpoints": endpoint_ctx,
                     "subscriptions": subscription_ctx,
+                    "service": service_ctx,
                 });
                 let main = self.entrypoint_service_main.render(&self.reg, ctx)?;
 
@@ -333,11 +351,15 @@ impl Builder<'_> {
             let mut endpoint_ctx = Vec::new();
             let mut gateway_ctx = Vec::new();
             let mut subscription_ctx = Vec::new();
+            let mut services_ctx = HashMap::new();
 
             for svc in &params.desc.parse.services {
                 let mut endpoints = Vec::new();
                 let mut gateways = Vec::new();
                 let mut subscriptions = Vec::new();
+
+                let svc_rel_path = params.app.rel_path_string(&svc.root)?;
+
                 for b in &svc.binds {
                     match &b.resource {
                         Resource::APIEndpoint(ep) => {
@@ -356,12 +378,21 @@ impl Builder<'_> {
                         Resource::PubSubSubscription(sub) => {
                             subscriptions.push(sub);
                         }
+                        Resource::Service(service) => {
+                            let rel_path = get_svc_rel_path(&svc.root, service.range, true);
+                            let import_path =
+                                Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+                            services_ctx.insert(
+                                svc.name.clone(),
+                                json!({
+                                    "name": service.name,
+                                    "import_path": import_path,
+                                }),
+                            );
+                        }
                         _ => {}
                     }
                 }
-
-                let svc_rel_path = params.app.rel_path_string(&svc.root)?;
-                let _gen_root = params.app.root.join("encore.gen");
 
                 // Service Main
                 for rpc in &endpoints {
@@ -374,6 +405,7 @@ impl Builder<'_> {
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "service_name": svc.name,
+                        "has_service_definition": services_ctx.contains_key(&svc.name),
                         "import_path": import_path,
                     }));
                 }
@@ -408,6 +440,7 @@ impl Builder<'_> {
                 "endpoints": endpoint_ctx,
                 "gateways": gateway_ctx,
                 "subscriptions": subscription_ctx,
+                "services": services_ctx.values().collect::<Vec<_>>(),
             });
             let main = self.entrypoint_combined_main.render(&self.reg, ctx)?;
 

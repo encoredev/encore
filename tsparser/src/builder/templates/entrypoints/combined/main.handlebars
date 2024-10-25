@@ -9,6 +9,9 @@ import { {{name}} as {{encoreNameToIdent service_name}}_{{name}}Impl{{@index}} }
 {{#each subscriptions}}
 import {{toJSON import_path}};
 {{/each}}
+{{#each services}}
+import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
+{{/each}}
 
 
 const gateways: any[] = [
@@ -20,12 +23,15 @@ const gateways: any[] = [
 const handlers: Handler[] = [
 {{#each endpoints}}
     {
-        service:           {{toJSON service_name}},
-        name:              {{toJSON name}},
-        handler:           {{encoreNameToIdent service_name}}_{{name}}Impl{{@index}},
-        raw:               {{toJSON raw}},
-        streamingRequest:  {{toJSON streaming_request}},
-        streamingResponse: {{toJSON streaming_response}},
+        apiRoute: {
+            service:           {{toJSON service_name}},
+            name:              {{toJSON name}},
+            handler:           {{encoreNameToIdent service_name}}_{{name}}Impl{{@index}},
+            raw:               {{toJSON raw}},
+            streamingRequest:  {{toJSON streaming_request}},
+            streamingResponse: {{toJSON streaming_response}},
+        },
+        middlewares: {{#if has_service_definition}}{{encoreNameToIdent service_name}}_service.default.cfg.middlewares || {{/if}}[],
     },
 {{/each}}
 ];

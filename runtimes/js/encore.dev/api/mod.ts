@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import type { IncomingMessage, ServerResponse } from "http";
+import { RequestMeta } from "../mod";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -141,21 +142,21 @@ export interface StreamOut<Response> {
 
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamInOut<Request, Response>) => Promise<void>
-  : (
-    data: HandshakeData,
-    stream: StreamInOut<Request, Response>
-  ) => Promise<void>;
+    ? (stream: StreamInOut<Request, Response>) => Promise<void>
+    : (
+        data: HandshakeData,
+        stream: StreamInOut<Request, Response>
+      ) => Promise<void>;
 
 export type StreamOutHandlerFn<HandshakeData, Response> =
   HandshakeData extends void
-  ? (stream: StreamOut<Response>) => Promise<void>
-  : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+    ? (stream: StreamOut<Response>) => Promise<void>
+    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
 
 export type StreamInHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamIn<Request>) => Promise<Response>
-  : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
+    ? (stream: StreamIn<Request>) => Promise<Response>
+    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
@@ -260,6 +261,42 @@ export class StaticAssets {
 api.static = function staticAssets(options: StaticOptions) {
   return new StaticAssets(options);
 };
+
+export interface MiddlewareOptions {
+  /**
+   * If set, only run middleware on endpoints that are either exposed or not
+   * exposed.
+   */
+  exposed?: boolean;
+
+  /**
+   * If set, only run middleware on endpoints that either require on not
+   * requires auth.
+   */
+  requiresAuth?: boolean;
+}
+
+export type Next = (req: RequestMeta) => Promise<any>;
+export interface Middleware {
+  (req: RequestMeta, next: Next): Promise<any>;
+  options?: MiddlewareOptions;
+}
+
+export function middleware(m: Middleware): Middleware;
+export function middleware(
+  options: MiddlewareOptions,
+  fn: Middleware
+): Middleware;
+
+export function middleware(...args: unknown[]): Middleware {
+  if (args.length > 1) {
+    let m = args[1] as Middleware;
+    let o = args[0] as MiddlewareOptions;
+    m.options = o;
+    return m;
+  }
+  return args[0] as Middleware;
+}
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
