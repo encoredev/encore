@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/pkg/xos"
 	"encr.dev/v2/compiler/build"
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog/log"
@@ -116,7 +117,14 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 
 		// If this is a symlink, compute the link target relative to DstPath.
 		var link ImagePath
-		if d.Type()&fs.ModeSymlink != 0 {
+
+		isSymlink := d.Type()&fs.ModeSymlink != 0
+		if !isSymlink && runtime.GOOS == "windows" {
+			// Check if the file is a junction point on Windows.
+			isSymlink, _ = xos.IsWindowsJunctionPoint(pathStr)
+		}
+
+		if isSymlink {
 			target, err := os.Readlink(string(path))
 			if err != nil {
 				return errors.WithStack(err)
