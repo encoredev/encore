@@ -70,7 +70,7 @@ func goBaseEnvs(cfg *buildconf.Config) []string {
 // CompileRustBinary compiles a Rust binary for the given OS and architecture
 //
 // We're using zigbuild to perform easy cross compiling
-func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePath string, libc string, extraEnvVars ...string) {
+func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePath string, libc string, extraFeatures []string, extraEnvVars ...string) {
 	if cfg.OS == "windows" {
 		if !strings.HasSuffix(artifactPath, ".dll") {
 			outputPath += ".exe"
@@ -153,6 +153,10 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	if cfg.Release {
 		cargoArgs = append(cargoArgs, "--release")
 		buildMode = "release"
+	}
+
+	if len(extraFeatures) > 0 {
+		cargoArgs = append(cargoArgs, "--features", strings.Join(extraFeatures, ","))
 	}
 
 	builder := "cargo"

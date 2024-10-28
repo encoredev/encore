@@ -67,12 +67,19 @@ func (b *JSRuntimeBuilder) buildRustModule() {
 		}
 	}()
 
+	features := []string{}
+	if !b.cfg.Release {
+		// Enable runtime tracing in debug builds.
+		features = append(features, "encore-runtime-core/rttrace")
+	}
+
 	compile.RustBinary(
 		b.cfg,
 		compiledBinaryName,
 		b.NativeModuleOutput(),
 		filepath.Join(b.cfg.RepoDir, "runtimes", "js"),
 		"gnu",
+		features, // features
 		"TYPE_DEF_TMP_PATH="+b.typeDefPath(),
 		"ENCORE_VERSION="+b.cfg.Version,
 		"ENCORE_WORKDIR="+b.workdir,
