@@ -52,6 +52,7 @@ func (b *SupervisorBuilder) buildRustModule() {
 		b.BinaryOutput(),
 		filepath.Join(b.cfg.RepoDir, "supervisor"),
 		"musl",
+		[]string{}, // features
 		"ENCORE_VERSION="+b.cfg.Version,
 		"ENCORE_WORKDIR="+b.workdir,
 	)

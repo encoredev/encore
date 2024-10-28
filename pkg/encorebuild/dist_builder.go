@@ -102,6 +102,7 @@ func (d *DistBuilder) buildTSParser() {
 		join(d.DistBuildDir, "bin", "tsparser-encore"),
 		"./tsparser",
 		"gnu",
+		[]string{}, // features
 		fmt.Sprintf("ENCORE_VERSION=%s", d.Cfg.Version),
 	)
 	d.Cfg.Log.Info().Msg("tsparser built successfully")
