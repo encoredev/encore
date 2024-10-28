@@ -159,6 +159,15 @@ impl Literal {
             Literal::Float(lit) => format!("{:#?}", lit),
         }
     }
+
+    pub fn expecting_type(&self) -> &'static str {
+        match self {
+            Literal::Str(_) => "string",
+            Literal::Bool(_) => "boolean",
+            Literal::Int(_) => "integer",
+            Literal::Float(_) => "number",
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -1159,20 +1168,127 @@ impl<'a> DecodeValue<'a> {
             JVal::Null => PValue::Null,
             JVal::Bool(val) => PValue::Bool(val),
             JVal::Number(num) => PValue::Number(num),
-            JVal::Array(vals) => {
-                let mut new_vals = Vec::with_capacity(vals.len());
-                for val in vals {
-                    new_vals.push(self.transform(val)?);
+            JVal::Array(vals) => match self.value {
+                Value::Ref(idx) => return recurse_ref!(self, idx, transform, JVal::Array(vals)),
+                Value::Option(bov) => return recurse!(self, bov, transform, JVal::Array(vals)),
+                Value::Basic(Basic::Any) => {
+                    let mut new_vals = Vec::with_capacity(vals.len());
+                    for val in vals {
+                        new_vals.push(self.transform(val)?);
+                    }
+                    PValue::Array(new_vals)
                 }
-                PValue::Array(new_vals)
-            }
-            JVal::Object(obj) => {
-                let mut new_obj = BTreeMap::new();
-                for (key, val) in obj {
-                    new_obj.insert(key, self.transform(val)?);
+                Value::Array(bov) => {
+                    let mut new_vals = Vec::with_capacity(vals.len());
+                    for val in vals {
+                        let val = recurse!(self, bov, transform, val)?;
+                        new_vals.push(val);
+                    }
+                    PValue::Array(new_vals)
                 }
-                PValue::Object(new_obj)
-            }
+                Value::Union(candidates) => {
+                    // First transform with the first candidate.
+                    // If it fails validation afterwards, we need to start over.
+                    'CandidateLoop: for c in candidates {
+                        let mut new_vals = Vec::with_capacity(vals.len());
+                        let vals = vals.clone();
+                        for val in vals {
+                            let res: Result<_, E> = recurse!(self, c, transform, val);
+                            match res {
+                                Ok(val) => new_vals.push(val),
+                                Err(_) => continue 'CandidateLoop,
+                            }
+                        }
+                        return Ok(PValue::Array(new_vals));
+                    }
+
+                    return Err(serde::de::Error::invalid_type(Unexpected::Seq, self));
+                }
+                Value::Basic(basic) => {
+                    return Err(serde::de::Error::invalid_type(
+                        Unexpected::Other(basic.expecting()),
+                        self,
+                    ))
+                }
+                Value::Literal(lit) => {
+                    return Err(serde::de::Error::invalid_type(
+                        Unexpected::Other(lit.expecting_type()),
+                        self,
+                    ))
+                }
+                Value::Map(_) | Value::Struct(_) => {
+                    return Err(serde::de::Error::invalid_type(Unexpected::Map, self))
+                }
+            },
+            JVal::Object(obj) => match self.value {
+                Value::Ref(idx) => return recurse_ref!(self, idx, transform, JVal::Object(obj)),
+                Value::Option(bov) => return recurse!(self, bov, transform, JVal::Object(obj)),
+                Value::Basic(Basic::Any) => {
+                    let mut new_obj = BTreeMap::new();
+                    for (key, val) in obj {
+                        new_obj.insert(key, self.transform(val)?);
+                    }
+                    PValue::Object(new_obj)
+                }
+                Value::Map(bov) => {
+                    let mut new_obj = BTreeMap::new();
+                    for (key, val) in obj {
+                        let val = recurse!(self, bov, transform, val)?;
+                        new_obj.insert(key, val);
+                    }
+                    PValue::Object(new_obj)
+                }
+                Value::Struct(Struct { fields }) => {
+                    let mut new_obj = BTreeMap::new();
+                    for (key, value) in obj {
+                        match fields.get(key.as_str()) {
+                            Some(entry) => {
+                                let val = recurse!(self, &entry.value, transform, value)?;
+                                new_obj.insert(key, val);
+                            }
+                            None => {
+                                // Unknown field; ignore it.
+                            }
+                        }
+                    }
+                    PValue::Object(new_obj)
+                }
+                Value::Union(candidates) => {
+                    // First transform with the first candidate.
+                    // If it fails validation afterwards, we need to start over.
+                    'CandidateLoop: for c in candidates {
+                        let mut new_obj = BTreeMap::new();
+                        let obj = obj.clone();
+                        for (key, val) in obj {
+                            let res: Result<_, E> = recurse!(self, c, transform, val);
+                            match res {
+                                Ok(val) => {
+                                    new_obj.insert(key, val);
+                                }
+                                Err(_) => continue 'CandidateLoop,
+                            }
+                        }
+                        return Ok(PValue::Object(new_obj));
+                    }
+
+                    return Err(serde::de::Error::invalid_type(Unexpected::Map, self));
+                }
+                Value::Basic(basic) => {
+                    return Err(serde::de::Error::invalid_type(
+                        Unexpected::Other(basic.expecting()),
+                        self,
+                    ))
+                }
+                Value::Literal(lit) => {
+                    return Err(serde::de::Error::invalid_type(
+                        Unexpected::Other(lit.expecting_type()),
+                        self,
+                    ))
+                }
+                Value::Array(_) => {
+                    return Err(serde::de::Error::invalid_type(Unexpected::Seq, self))
+                }
+            },
             JVal::String(str) => match self.value {
                 Value::Ref(idx) => return recurse_ref!(self, idx, transform, JVal::String(str)),
                 Value::Option(bov) => return recurse!(self, bov, transform, JVal::String(str)),
