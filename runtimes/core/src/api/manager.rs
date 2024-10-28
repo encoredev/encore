@@ -381,6 +381,7 @@ impl Manager {
             let gateway_fut = match gateway_parts {
                 (Some(gw), Some(ref ln)) => {
                     if !testing {
+                        log::debug!(addr=ln; "gateway listening for incoming requests");
                         Some(gw.serve(ln))
                     } else {
                         // No need running the gateway in tests
@@ -400,6 +401,9 @@ impl Manager {
 
             let api_fut = match api_listener {
                 Some(ln) => {
+                    let addr = ln.local_addr().map(|addr| addr.to_string()).unwrap_or_default();
+                    log::debug!(addr = addr; "api server listening for incoming requests");
+
                     ln
                         .set_nonblocking(true)
                         .context("unable to set nonblocking")?;
