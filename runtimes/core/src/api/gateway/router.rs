@@ -43,7 +43,7 @@ impl Router {
                         Method::TRACE => &mut mr.trace,
                         Method::PATCH => &mut mr.patch,
                     };
-                    log::debug!(path = path, method = method.as_str(); "registering route");
+                    log::trace!(path = path, method = method.as_str(); "registering route");
                     if dst.is_some() {
                         ::log::error!(method = method.as_str(), path = path; "tried to register same route twice, skipping");
                         continue;
