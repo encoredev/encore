@@ -74,8 +74,8 @@ impl Error {
     {
         Self {
             code: ErrCode::InvalidArgument,
-            message: public_msg.into(),
-            internal_message: Some(format!("{:?}", cause.into())),
+            message: format!("{}: {:?}", public_msg.into(), cause.into()),
+            internal_message: None,
             stack: None,
             details: None,
         }

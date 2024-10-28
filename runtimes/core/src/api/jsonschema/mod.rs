@@ -76,12 +76,21 @@ impl JSONSchema {
         SchemaDeserializer { cfg, schema: self }
     }
 
-    pub fn deserialize<'de, T>(&self, de: T, cfg: DecodeConfig) -> Result<PValues, T::Error>
+    pub fn deserialize<'de, T>(
+        &self,
+        de: T,
+        cfg: DecodeConfig,
+    ) -> Result<PValues, serde_path_to_error::Error<T::Error>>
     where
         T: Deserializer<'de>,
     {
         let seed = SchemaDeserializer { cfg, schema: self };
-        seed.deserialize(de)
+        let mut track = serde_path_to_error::Track::new();
+        let de = serde_path_to_error::Deserializer::new(de, &mut track);
+        match seed.deserialize(de) {
+            Ok(t) => Ok(t),
+            Err(err) => Err(serde_path_to_error::Error::new(track.path(), err)),
+        }
     }
 
     pub fn null() -> Self {
