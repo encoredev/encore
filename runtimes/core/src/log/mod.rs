@@ -65,6 +65,16 @@ pub fn root() -> &'static Logger {
             log::LevelFilter::Trace
         };
 
+        #[cfg(feature = "rttrace")]
+        {
+            let filter = tracing_subscriber::EnvFilter::from_env("ENCORE_RUNTIME_TRACE");
+            tracing_subscriber::fmt()
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ENTER)
+                .with_env_filter(filter)
+                .with_writer(std::io::stderr)
+                .init();
+        }
+
         log::set_max_level(filter);
         log::set_logger(logger).expect("unable to set global logger instance");
         logger

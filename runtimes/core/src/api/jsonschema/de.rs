@@ -192,7 +192,7 @@ pub struct DecodeConfig {
     pub coerce_strings: bool,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(super) struct DecodeValue<'a> {
     pub(super) cfg: &'a DecodeConfig,
     pub(super) reg: &'a Registry,
@@ -635,6 +635,10 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
     }
 
     #[inline]
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self, seq), ret, level = "trace")
+    )]
     fn visit_seq<A>(self, mut seq: A) -> Result<PValue, A::Error>
     where
         A: SeqAccess<'de>,
@@ -663,45 +667,49 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Ref(idx) => recurse_ref!(self, idx, visit_seq, seq),
             Value::Option(bov) => recurse!(self, bov, visit_seq, seq),
             Value::Union(candidates) => {
-                let mut vec: Vec<PValue> = Vec::new();
-                'ValLoop: loop {
-                    // Find the first candidate that parses successfully.
-                    'CandidateLoop: for c in candidates {
-                        let res = match c {
-                            BasicOrValue::Basic(basic) => {
-                                let basic_val = Value::Basic(*basic);
-                                let seed = DecodeValue {
-                                    cfg: self.cfg,
-                                    reg: self.reg,
-                                    value: &basic_val,
-                                };
-                                seq.next_element_seed(seed)
+                let mut vec: Vec<serde_json::Value> = Vec::new();
+                while let Some(val) = seq.next_element()? {
+                    vec.push(val);
+                }
+                let arr = JVal::Array(vec);
+
+                for c in candidates {
+                    match c {
+                        BasicOrValue::Basic(basic) => {
+                            let basic_val = Value::Basic(*basic);
+                            let visitor = DecodeValue {
+                                cfg: self.cfg,
+                                reg: self.reg,
+                                value: &basic_val,
+                            };
+                            if visitor.validate::<A::Error>(&arr).is_ok() {
+                                return visitor.transform(arr);
                             }
-                            BasicOrValue::Value(idx) => {
-                                let seed = DecodeValue {
-                                    cfg: self.cfg,
-                                    reg: self.reg,
-                                    value: &self.reg.values[*idx],
-                                };
-                                seq.next_element_seed(seed)
+                        }
+                        BasicOrValue::Value(idx) => {
+                            let visitor = DecodeValue {
+                                cfg: self.cfg,
+                                reg: self.reg,
+                                value: &self.reg.values[*idx],
+                            };
+                            if visitor.validate::<A::Error>(&arr).is_ok() {
+                                return visitor.transform(arr);
                             }
-                        };
-                        match res {
-                            Ok(Some(val)) => {
-                                vec.push(val);
-                                break 'CandidateLoop;
-                            }
-                            Ok(None) => break 'ValLoop,
-                            Err(_) => continue,
                         }
                     }
                 }
-                Ok(PValue::Array(vec))
+
+                Err(serde::de::Error::invalid_type(Unexpected::Seq, &self))
             }
+
             _ => Err(serde::de::Error::invalid_type(Unexpected::Seq, &self)),
         }
     }
 
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self, map), ret, level = "trace")
+    )]
     fn visit_map<A>(self, mut map: A) -> Result<PValue, A::Error>
     where
         A: MapAccess<'de>,
@@ -879,6 +887,10 @@ struct FieldList<'a> {
 }
 
 impl<'a> DecodeValue<'a> {
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self), ret, level = "trace")
+    )]
     pub fn validate<E>(&self, value: &JVal) -> Result<(), E>
     where
         E: serde::de::Error,
@@ -1159,7 +1171,10 @@ impl<'a> DecodeValue<'a> {
         }
     }
 
-    #[allow(clippy::only_used_in_recursion)]
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self), ret, level = "trace")
+    )]
     fn transform<E>(&self, value: JVal) -> Result<PValue, E>
     where
         E: serde::de::Error,
