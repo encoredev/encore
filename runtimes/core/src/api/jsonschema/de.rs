@@ -1292,13 +1292,16 @@ impl<'a> DecodeValue<'a> {
             JVal::String(str) => match self.value {
                 Value::Ref(idx) => return recurse_ref!(self, idx, transform, JVal::String(str)),
                 Value::Option(bov) => return recurse!(self, bov, transform, JVal::String(str)),
-                Value::Basic(Basic::Any | Basic::String) => PValue::String(str),
                 Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(&str)
                     .map(PValue::DateTime)
                     .map_err(|e| {
                         serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
                     })?,
 
+                // Any non-datetime basic value gets transformed into a string.
+                Value::Basic(_) => PValue::String(str),
+
+                Value::Literal(_) => PValue::String(str),
                 Value::Union(types) => {
                     let val = JVal::String(str);
                     for typ in types {
@@ -1312,8 +1315,9 @@ impl<'a> DecodeValue<'a> {
                         self,
                     ));
                 }
-
-                _ => return Err(serde::de::Error::invalid_type(Unexpected::Str(&str), self)),
+                Value::Map(_) | Value::Struct(_) | Value::Array(_) => {
+                    return Err(serde::de::Error::invalid_type(Unexpected::Str(&str), self))
+                }
             },
         })
     }
