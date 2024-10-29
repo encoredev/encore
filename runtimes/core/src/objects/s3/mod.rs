@@ -3,38 +3,60 @@ use std::sync::Arc;
 use crate::encore::runtime::v1 as pb;
 use crate::objects;
 use crate::objects::s3::bucket::Bucket;
+use aws_sdk_s3 as s3;
 
 mod bucket;
 
 #[derive(Debug)]
 pub struct Cluster {
-    region: s3::Region,
-    creds: s3::creds::Credentials,
+    client: Arc<LazyS3Client>,
 }
 
 impl Cluster {
     pub fn new(cfg: &pb::bucket_cluster::S3) -> Self {
-        let region = match cfg.endpoint.as_ref() {
-            Some(ep) => s3::Region::Custom {
-                region: cfg.region.clone(),
-                endpoint: ep.clone(),
-            },
-            None => {
-                let region: s3::Region = cfg.region.parse().expect("unable to resolve S3 region");
-                region
-            }
-        };
-
-        let creds = s3::creds::Credentials::default()
-            .or_else(|_| s3::creds::Credentials::anonymous())
-            .expect("unable to resolve S3 credentials");
-
-        Self { region, creds }
+        let client = Arc::new(LazyS3Client::new(cfg.clone()));
+        Self { client }
     }
 }
 
 impl objects::ClusterImpl for Cluster {
     fn bucket(self: Arc<Self>, cfg: &pb::Bucket) -> Arc<dyn objects::BucketImpl + 'static> {
-        Arc::new(Bucket::new(self.region.clone(), self.creds.clone(), cfg))
+        Arc::new(Bucket::new(self.client.clone(), cfg))
+    }
+}
+
+struct LazyS3Client {
+    cfg: pb::bucket_cluster::S3,
+    cell: tokio::sync::OnceCell<Arc<s3::Client>>,
+}
+
+impl std::fmt::Debug for LazyS3Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LazyS3Client").finish()
+    }
+}
+
+impl LazyS3Client {
+    fn new(cfg: pb::bucket_cluster::S3) -> Self {
+        Self {
+            cfg,
+            cell: tokio::sync::OnceCell::new(),
+        }
+    }
+
+    async fn get(&self) -> &Arc<s3::Client> {
+        self.cell
+            .get_or_init(|| async {
+                let region = aws_config::Region::new(self.cfg.region.clone());
+                let mut builder =
+                    aws_config::defaults(aws_config::BehaviorVersion::v2024_03_28()).region(region);
+                if let Some(endpoint) = self.cfg.endpoint.as_ref() {
+                    builder = builder.endpoint_url(endpoint.clone());
+                }
+
+                let cfg = builder.load().await;
+                Arc::new(s3::Client::new(&cfg))
+            })
+            .await
     }
 }

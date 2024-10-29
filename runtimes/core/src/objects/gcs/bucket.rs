@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
-use crate::objects::{DownloadError, DownloadStream, Error, ObjectAttrs, UploadOptions};
+use crate::objects::{DownloadError, DownloadStream, Error, ListEntry, ObjectAttrs, UploadOptions};
 use crate::{objects, CloudName};
 use google_cloud_storage as gcs;
 
@@ -85,14 +85,12 @@ impl objects::BucketImpl for Bucket {
                             let resp = client.list_objects(&req).await.map_err(|e| Error::Other(e.into()))?;
                             if let Some(items) = resp.items {
                                 for obj in items {
-                                    let attrs = ObjectAttrs {
+                                    let entry = ListEntry {
                                         name: self.strip_prefix(Cow::Owned(obj.name)).into_owned(),
-                                        version: obj.generation.to_string(),
                                         size: obj.size as u64,
-                                        content_type: obj.content_type,
                                         etag: obj.etag,
                                     };
-                                    yield attrs;
+                                    yield entry;
                                 }
                             }
 
@@ -193,7 +191,7 @@ impl objects::ObjectImpl for Object {
         self: Arc<Self>,
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         opts: objects::UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<ObjectAttrs>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
@@ -214,13 +212,7 @@ impl objects::ObjectImpl for Object {
                         .upload_streamed_object(&req, stream, &upload_type)
                         .await
                     {
-                        Ok(obj) => Ok(ObjectAttrs {
-                            name: self.name.clone(),
-                            version: obj.generation.to_string(),
-                            size: obj.size as u64,
-                            content_type: obj.content_type,
-                            etag: obj.etag,
-                        }),
+                        Ok(_obj) => Ok(()),
                         Err(err) => Err(err.into()),
                     }
                 }
@@ -257,7 +249,7 @@ impl objects::ObjectImpl for Object {
                         .await;
 
                     let stream = resp.map_err(convert_err)?;
-                    let stream: DownloadStream = Box::new(stream.map_err(convert_err));
+                    let stream: DownloadStream = Box::pin(stream.map_err(convert_err));
                     Ok(stream)
                 }
                 Err(err) => Err(DownloadError::Internal(anyhow::anyhow!(

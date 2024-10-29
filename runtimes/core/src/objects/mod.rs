@@ -14,6 +14,7 @@ mod gcs;
 mod manager;
 mod noop;
 mod s3;
+mod s3old;
 
 trait ClusterImpl: Debug + Send + Sync {
     fn bucket(self: Arc<Self>, cfg: &pb::Bucket) -> Arc<dyn BucketImpl + 'static>;
@@ -27,7 +28,7 @@ trait BucketImpl: Debug + Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<ListStream, Error>> + Send + 'static>>;
 }
 
-pub type ListStream = Box<dyn Stream<Item = Result<ObjectAttrs, Error>> + Send>;
+pub type ListStream = Box<dyn Stream<Item = Result<ListEntry, Error>> + Send>;
 
 trait ObjectImpl: Debug + Send + Sync {
     fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>>;
@@ -36,7 +37,7 @@ trait ObjectImpl: Debug + Send + Sync {
         self: Arc<Self>,
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         options: UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<ObjectAttrs>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>;
 
     fn download(
         self: Arc<Self>,
@@ -81,7 +82,7 @@ impl Object {
         &self,
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         options: UploadOptions,
-    ) -> impl Future<Output = anyhow::Result<ObjectAttrs>> + Send + 'static {
+    ) -> impl Future<Output = anyhow::Result<()>> + Send + 'static {
         self.imp.clone().upload(data, options)
     }
 
@@ -98,6 +99,7 @@ impl Object {
         async move {
             let mut bytes = Vec::new();
             let mut stream = stream.await?;
+
             while let Some(chunk) = stream.next().await {
                 bytes.extend_from_slice(&chunk?);
             }
@@ -138,13 +140,19 @@ pub enum DownloadError {
     Other(#[from] anyhow::Error),
 }
 
-pub type DownloadStream = Box<dyn Stream<Item = Result<Bytes, DownloadError>> + Unpin + Send>;
+pub type DownloadStream = Pin<Box<dyn Stream<Item = Result<Bytes, DownloadError>> + Send>>;
 
 pub struct ObjectAttrs {
     pub name: String,
     pub version: String,
     pub size: u64,
     pub content_type: Option<String>,
+    pub etag: String,
+}
+
+pub struct ListEntry {
+    pub name: String,
+    pub size: u64,
     pub etag: String,
 }
 

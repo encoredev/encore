@@ -5,8 +5,8 @@ use napi::{Env, JsBuffer, JsObject};
 use napi_derive::napi;
 
 use encore_runtime_core::objects::{
-    Bucket as CoreBucket, DownloadError, ListStream, Object as CoreObject,
-    ObjectAttrs as CoreAttrs, UploadOptions as CoreUploadOptions,
+    Bucket as CoreBucket, DownloadError, ListEntry as CoreListEntry, ListStream,
+    Object as CoreObject, ObjectAttrs as CoreAttrs, UploadOptions as CoreUploadOptions,
     UploadPreconditions as CoreUploadPreconditions,
 };
 
@@ -80,9 +80,9 @@ impl BucketObject {
         // so that the handler gets called regardless of result.
         let fut = async move { Ok(fut.await) };
 
-        env.execute_tokio_future(fut, move |&mut _env, result| {
+        env.execute_tokio_future(fut, move |&mut env, result| {
             // TODO: Decrement the ref count on the data buffer.
-            result.map(ObjectAttrs::from).map_err(napi::Error::from)
+            result.map_err(napi::Error::from)
         })
     }
 
@@ -114,6 +114,23 @@ impl From<CoreAttrs> for ObjectAttrs {
             version: value.version,
             size: value.size as i64,
             content_type: value.content_type,
+            etag: value.etag,
+        }
+    }
+}
+
+#[napi]
+pub struct ListEntry {
+    pub name: String,
+    pub size: i64,
+    pub etag: String,
+}
+
+impl From<CoreListEntry> for ListEntry {
+    fn from(value: CoreListEntry) -> Self {
+        Self {
+            name: value.name,
+            size: value.size as i64,
             etag: value.etag,
         }
     }
@@ -171,7 +188,7 @@ impl ListIterator {
     }
 
     #[napi]
-    pub async fn next(&self) -> napi::Result<Option<ObjectAttrs>> {
+    pub async fn next(&self) -> napi::Result<Option<ListEntry>> {
         use futures::StreamExt;
         let mut stream = self.stream.lock().await;
         let row = stream
@@ -180,6 +197,6 @@ impl ListIterator {
             .transpose()
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{:#?}", e)))?;
 
-        Ok(row.map(ObjectAttrs::from))
+        Ok(row.map(ListEntry::from))
     }
 }

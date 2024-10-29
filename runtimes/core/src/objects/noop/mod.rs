@@ -59,7 +59,7 @@ impl objects::ObjectImpl for Object {
         self: Arc<Self>,
         _data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         _options: objects::UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<objects::ObjectAttrs>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
         Box::pin(future::ready(Err(anyhow::anyhow!(
             "noop bucket does not support upload"
         ))))

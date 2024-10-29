@@ -2,7 +2,6 @@ import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 
 export interface BucketConfig {
-  public?: boolean;
 }
 
 /**
@@ -27,14 +26,14 @@ export class Bucket {
     return new Bucket(name, {});
   }
 
-  async *list(options: ListOptions): AsyncGenerator<ObjectAttrs> {
+  async *list(options: ListOptions): AsyncGenerator<ListEntry> {
     const iter = await this.impl.list();
     while (true) {
-      const attrs = await iter.next();
-      if (attrs === null) {
+      const entry = await iter.next();
+      if (entry === null) {
         break;
       }
-      yield attrs;
+      yield entry;
     }
   }
 
@@ -89,7 +88,14 @@ export interface ObjectAttrs {
   name: string;
   size: number;
   version: string;
+  etag: string;
   contentType?: string;
+}
+
+export interface ListEntry {
+  name: string;
+  size: number;
+  etag: string;
 }
 
 export interface UploadOptions {
