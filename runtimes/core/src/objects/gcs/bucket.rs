@@ -20,6 +20,7 @@ use super::LazyGCSClient;
 pub struct Bucket {
     client: Arc<LazyGCSClient>,
     name: CloudName,
+    key_prefix: Option<String>,
 }
 
 impl Bucket {
@@ -27,6 +28,31 @@ impl Bucket {
         Self {
             client,
             name: cfg.cloud_name.clone().into(),
+            key_prefix: cfg.key_prefix.clone(),
+        }
+    }
+
+    /// Computes the object name, including the key prefix if present.
+    fn obj_name<'a>(&'_ self, name: Cow<'a, str>) -> Cow<'a, str> {
+        match &self.key_prefix {
+            Some(prefix) => {
+                let mut key = prefix.to_owned();
+                key.push_str(&name);
+                Cow::Owned(key)
+            }
+            None => name,
+        }
+    }
+
+    /// Returns the name with the key prefix stripped, if present.
+    fn strip_prefix<'a>(&'_ self, name: Cow<'a, str>) -> Cow<'a, str> {
+        match &self.key_prefix {
+            Some(prefix) => name
+                .as_ref()
+                .strip_prefix(prefix)
+                .map(|s| Cow::Owned(s.to_string()))
+                .unwrap_or(name),
+            None => name,
         }
     }
 }
@@ -50,12 +76,17 @@ impl objects::BucketImpl for Bucket {
                             ..Default::default()
                         };
 
+                        // Filter by key prefix, if provided.
+                        if let Some(key_prefix) = &self.key_prefix {
+                            req.prefix = Some(key_prefix.clone());
+                        }
+
                         loop {
                             let resp = client.list_objects(&req).await.map_err(|e| Error::Other(e.into()))?;
                             if let Some(items) = resp.items {
                                 for obj in items {
                                     let attrs = ObjectAttrs {
-                                        name: obj.name,
+                                        name: self.strip_prefix(Cow::Owned(obj.name)).into_owned(),
                                         version: obj.generation.to_string(),
                                         size: obj.size as u64,
                                         content_type: obj.content_type,
@@ -98,7 +129,7 @@ impl objects::ObjectImpl for Object {
                     use gcs::http::{error::ErrorResponse, Error as GCSError};
                     let req = &gcs::http::objects::get::GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
-                        object: self.name.clone(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
 
@@ -137,7 +168,7 @@ impl objects::ObjectImpl for Object {
                     use gcs::http::{error::ErrorResponse, Error};
                     let req = &gcs::http::objects::get::GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
-                        object: self.name.clone(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
 
@@ -170,7 +201,9 @@ impl objects::ObjectImpl for Object {
                         bucket: self.bkt.name.to_string(),
                         ..Default::default()
                     };
-                    let mut media = Media::new(self.name.clone());
+
+                    let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
+                    let mut media = Media::new(cloud_name.into_owned());
 
                     apply_upload_opts(opts, &mut req, &mut media);
 
@@ -182,7 +215,7 @@ impl objects::ObjectImpl for Object {
                         .await
                     {
                         Ok(obj) => Ok(ObjectAttrs {
-                            name: obj.name,
+                            name: self.name.clone(),
                             version: obj.generation.to_string(),
                             size: obj.size as u64,
                             content_type: obj.content_type,
@@ -216,7 +249,7 @@ impl objects::ObjectImpl for Object {
                 Ok(client) => {
                     let req = GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
-                        object: self.name.clone(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
                     let resp = client
@@ -242,7 +275,7 @@ impl objects::ObjectImpl for Object {
                     use gcs::http::{error::ErrorResponse, Error as GCSError};
                     let req = &gcs::http::objects::delete::DeleteObjectRequest {
                         bucket: self.bkt.name.to_string(),
-                        object: self.name.clone(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
 

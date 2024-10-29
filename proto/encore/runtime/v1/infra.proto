@@ -340,6 +340,12 @@ message Bucket {
 
   // The cloud name of the bucket.
   string cloud_name = 3;
+
+  // Optional key prefix to prepend to all bucket keys.
+  //
+  // Note: make sure it ends with a slash ("/") if you want
+  // to group objects within a certain folder.
+  optional string key_prefix = 4;
 }
 
 message Gateway {
