@@ -212,8 +212,8 @@ impl FromNapiValue for PVals {
 
         let mut map = PVals(PValues::new());
         for key in JsObject::keys(&obj)?.into_iter() {
-            if let Some(val) = obj.get::<_, PVal>(&key)? {
-                map.0.insert(key, val.0);
+            if let Some(val) = obj_get_pval(env, napi_val, &key)? {
+                map.0.insert(key, val);
             }
         }
 
@@ -278,4 +278,32 @@ fn timestamp_to_dt(millis: f64) -> chrono::DateTime<chrono::FixedOffset> {
     let nanos = (millis % 1000) * 1_000_000;
     let ts = chrono::Utc.timestamp_opt(secs, nanos as u32);
     ts.unwrap().fixed_offset()
+}
+
+// This is an inlined version of JsObject::get that distinguishes between null and undefined.
+fn obj_get_pval<K: AsRef<str>>(
+    env: sys::napi_env,
+    obj: sys::napi_value,
+    field: K,
+) -> Result<Option<PValue>> {
+    let c_field = std::ffi::CString::new(field.as_ref())?;
+
+    unsafe {
+        let mut ret = std::ptr::null_mut();
+
+        check_status!(
+            sys::napi_get_named_property(env, obj, c_field.as_ptr(), &mut ret),
+            "Failed to get property with field `{}`",
+            field.as_ref(),
+        )?;
+
+        let ty = type_of!(env, ret)?;
+
+        if ty == ValueType::Undefined {
+            return Ok(None);
+        }
+
+        let pval = PVal::from_napi_value(env, ret)?;
+        Ok(Some(pval.0))
+    }
 }
