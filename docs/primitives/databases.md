@@ -46,7 +46,7 @@ With this code in place, Encore will automatically create the database using [Do
 
 <Callout type="info">
 
-If your application is already running when you define a new database, you will need to stop and restart it. This is necessary for Encore to create the new database using Docker.
+If your application is already running when you define a new database, you will need to stop and restart `encore run`. This is necessary for Encore to create the new database using Docker.
 
 </Callout>
 
