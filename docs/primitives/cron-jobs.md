@@ -11,10 +11,15 @@ infobox: {
 lang: go
 ---
 
-When you need to run periodic and recurring tasks, Encore's Backend Framework provides a declarative way of using Cron Jobs.
+When you need to run periodic and recurring tasks, Encore.go provides a declarative way of using Cron Jobs.
 
-When a Cron Job is defined, Encore will call the API of your choice on the schedule you have defined.
-This means there is no need to maintain any infrastructure, as Encore handles the scheduling, monitoring and execution of Cron Jobs.
+When a Cron Job is defined in your application, Encore automatically calls your specified API according to the defined schedule. This eliminates the need for infrastructure maintenance, as Encore manages scheduling, monitoring, and execution of Cron Jobs.
+
+<Callout type="info">
+
+Cron Jobs do not run when developing locally or in [Preview Environments](/docs/deploy/preview-environments), but you can always call the API manually to test the behavior. 
+
+</Callout>
 
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/uptime" 
@@ -23,8 +28,10 @@ This means there is no need to maintain any infrastructure, as Encore handles th
 
 ## Defining a Cron Job
 
-To define a Cron Job, all you need to do is to import the `encore.dev/cron` [package](https://pkg.go.dev/encore.dev/cron),
-and call the `cron.NewJob()` function and store it as a package-level variable:
+To define a Cron Job, import the `encore.dev/cron` [package](https://pkg.go.dev/encore.dev/cron),
+and call the `cron.NewJob()` function and store it as a package-level variable.
+
+### Example
 
 ```go
 import "encore.dev/cron"
@@ -57,12 +64,12 @@ Cron Job executions across all your environments via the `Cron Jobs` menu item:
 
 ![Cron Jobs UI](/assets/docs/cron.png)
 
-A few important things to know:
+## Keep in mind when using Cron Jobs
 
-- Cron Jobs do not run when developing locally or in [Preview Environments](/docs/deploy/preview-environments); but you can always call the API manually to test the behavior.
-- Cron Jobs execution in Encore Cloud is capped at **once every hour** and the minute is randomized within the hour that they run for users on the Free Tier; [deploy to your own cloud](/docs/deploy/own-cloud) or upgrade to the [Pro plan](/pricing) to use more frequent executions or to set the minute within the hour when the job runs.
-- Cron Jobs support both public and private APIs.
-- The API endpoints used in Cron Jobs should always be idempotent. It's possible they're called multiple times in some network conditions.
+- Cron Jobs do not execute during local development or in [Preview Environments](/docs/deploy/preview-environments). However, you can manually invoke the API to test its behavior.
+- In Encore Cloud, Cron Job executions are limited to **once every hour**, with the exact minute randomized within that hour for users on the Free Tier. To enable more frequent executions or to specify the exact minute within the hour, consider [deploying to your own cloud](/docs/deploy/own-cloud) or upgrading to the [Pro plan](/pricing).
+- Both public and private APIs are supported for Cron Jobs.
+- Ensure that the API endpoints used in Cron Jobs are idempotent, as they may be called multiple times under certain network conditions.
 - The API endpoints used in Cron Jobs must not take any request parameters. That is, their signatures must be `func(context.Context) error` or `func(context.Context) (*T, error)`.
 
 ## Cron schedules
