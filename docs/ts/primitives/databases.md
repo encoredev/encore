@@ -21,6 +21,7 @@ Encore treats SQL databases as logical resources and natively supports **Postgre
 ## Creating a database
 
 To create a database, import `encore.dev/storage/sqldb` and call `new SQLDatabase`, assigning the result to a top-level variable.
+Use a migration file in a directory `migrations` to define the database schema.
 
 For example:
 
@@ -48,50 +49,35 @@ The configuration object specifies the directory containing the database migrati
 
 See the [Defining the database schema](#defining-the-database-schema) section below for more details.
 
-With this code in place Encore will automatically create the database using Docker when starting `encore run` (locally).
+With this code in place, Encore will automatically create the database using [Docker](https://docker.com) when you run the command `encore run` in your local environment. Make sure Docker is installed and running on your machine before running `encore run`.
 
-For cloud environments, Encore automatically injects the appropriate configuration to authenticate and connect to the database, so once the application starts up the database is ready to be used.
+<Callout type="info">
 
-## Defining the database schema
+If your application is already running when you define a new database, you will need to stop and restart it. This is necessary for Encore to create the new database using Docker.
 
-Database schemas are defined by creating *migration files* in a directory named `migrations`
-within an Encore service package. Each migration file is named `<number>_<name>.up.sql`, where
-`<number>` is a sequence number for ordering the migrations and `<name>` is a
-descriptive name of what the migration does.
+</Callout>
 
-On disk it might look like this:
 
-```
-/my-app
-├── encore.app                       // ... and other top-level project files
-│
-└── todo                             // todo service
-    ├── migrations                   // database migrations (directory)
-    │   ├── 1_create_table.up.sql    // database migration file
-    │   └── 2_add_field.up.sql       // database migration file
-    ├── todo.ts                      // todo service code
-    └── todo.test.ts                 // tests for todo service
-```
+In cloud environments, Encore automatically injects the appropriate configuration to authenticate and connect to the database, so once the application starts up the database is ready to be used.
 
-Each migration runs in order and expresses the change in the database schema
-from the previous migration.
+## Database Migrations
 
-**The file name format is important.** Migration files must start with a number followed by `_`, and increasing for each migration.
-Each file name must also end with `.up.sql`.
+Encore automatically handles `up` migrations, while `down` migrations must be run manually. Each `up` migration runs sequentially, expressing changes in the database schema from the previous migration.
 
-The simplest naming convention is to start from `1` and counting up:
+### Naming Conventions
 
-* `1_first_migration.up.sql`
-* `2_second.up.sql`
-* `3_migration_name_goes_here.up.sql`
-* ... and so on.
+**File Name Format:** Migration files must start with a number followed by an underscore (`_`), and must increase sequentially. Each file name must end with `.up.sql`.
 
-It's also possible to prefix the migration files with leading zeroes to have them ordered nicer
-in the editor (like `0001_migration.up.sql`).
+**Examples:**
+- `1_first_migration.up.sql`
+- `2_second_migration.up.sql`
+- `3_migration_name.up.sql`
 
-The first migration usually defines the initial table structure. For example,
-a `todo` service might start out by creating `todo/migrations/1_create_table.up.sql` with
-the following contents:
+You can also prefix migration files with leading zeroes for better ordering in the editor (e.g., `0001_migration.up.sql`).
+
+### Defining the Database Schema
+
+The first migration typically defines the initial table structure. For instance, a `todo` service might create `todo/migrations/1_create_table.up.sql` with the following content:
 
 ```sql
 CREATE TABLE todo_item (
@@ -99,6 +85,23 @@ CREATE TABLE todo_item (
     title TEXT NOT NULL,
     done BOOLEAN NOT NULL DEFAULT false
 );
+```
+
+### Migration File Structure
+
+Migration files are created in a `migrations` directory within an Encore service package. Each file is named `<number>_<name>.up.sql`, where `<number>` is a sequence number for ordering and `<name>` describes the migration.
+
+**Example Directory Structure:**
+```
+/my-app
+├── encore.app                       // ... other top-level project files
+│
+└── todo                             // todo service
+    ├── migrations                   // database migrations (directory)
+    │   ├── 1_create_table.up.sql    // first migration file
+    │   └── 2_add_field.up.sql       // second migration file
+    ├── todo.ts                      // todo service code
+    └── todo.test.ts                 // tests for todo service
 ```
 
 ## Using databases
