@@ -1202,21 +1202,32 @@ impl<'a> DecodeValue<'a> {
                     PValue::Array(new_vals)
                 }
                 Value::Union(candidates) => {
-                    // First transform with the first candidate.
-                    // If it fails validation afterwards, we need to start over.
-                    'CandidateLoop: for c in candidates {
-                        let mut new_vals = Vec::with_capacity(vals.len());
-                        let vals = vals.clone();
-                        for val in vals {
-                            let res: Result<_, E> = recurse!(self, c, transform, val);
-                            match res {
-                                Ok(val) => new_vals.push(val),
-                                Err(_) => continue 'CandidateLoop,
+                    let val = JVal::Array(vals);
+                    for c in candidates {
+                        match c {
+                            BasicOrValue::Basic(basic) => {
+                                let basic_val = Value::Basic(*basic);
+                                let visitor = DecodeValue {
+                                    cfg: self.cfg,
+                                    reg: self.reg,
+                                    value: &basic_val,
+                                };
+                                if visitor.validate::<E>(&val).is_ok() {
+                                    return visitor.transform(val);
+                                }
+                            }
+                            BasicOrValue::Value(idx) => {
+                                let visitor = DecodeValue {
+                                    cfg: self.cfg,
+                                    reg: self.reg,
+                                    value: &self.reg.values[*idx],
+                                };
+                                if visitor.validate::<E>(&val).is_ok() {
+                                    return visitor.transform(val);
+                                }
                             }
                         }
-                        return Ok(PValue::Array(new_vals));
                     }
-
                     return Err(serde::de::Error::invalid_type(Unexpected::Seq, self));
                 }
                 Value::Basic(basic) => {
@@ -1269,21 +1280,31 @@ impl<'a> DecodeValue<'a> {
                     PValue::Object(new_obj)
                 }
                 Value::Union(candidates) => {
-                    // First transform with the first candidate.
-                    // If it fails validation afterwards, we need to start over.
-                    'CandidateLoop: for c in candidates {
-                        let mut new_obj = BTreeMap::new();
-                        let obj = obj.clone();
-                        for (key, val) in obj {
-                            let res: Result<_, E> = recurse!(self, c, transform, val);
-                            match res {
-                                Ok(val) => {
-                                    new_obj.insert(key, val);
+                    let val = JVal::Object(obj);
+                    for c in candidates {
+                        match c {
+                            BasicOrValue::Basic(basic) => {
+                                let basic_val = Value::Basic(*basic);
+                                let visitor = DecodeValue {
+                                    cfg: self.cfg,
+                                    reg: self.reg,
+                                    value: &basic_val,
+                                };
+                                if visitor.validate::<E>(&val).is_ok() {
+                                    return visitor.transform(val);
                                 }
-                                Err(_) => continue 'CandidateLoop,
+                            }
+                            BasicOrValue::Value(idx) => {
+                                let visitor = DecodeValue {
+                                    cfg: self.cfg,
+                                    reg: self.reg,
+                                    value: &self.reg.values[*idx],
+                                };
+                                if visitor.validate::<E>(&val).is_ok() {
+                                    return visitor.transform(val);
+                                }
                             }
                         }
-                        return Ok(PValue::Object(new_obj));
                     }
 
                     return Err(serde::de::Error::invalid_type(Unexpected::Map, self));
