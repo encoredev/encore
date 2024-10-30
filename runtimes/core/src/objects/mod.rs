@@ -14,7 +14,6 @@ mod gcs;
 mod manager;
 mod noop;
 mod s3;
-mod s3old;
 
 trait ClusterImpl: Debug + Send + Sync {
     fn bucket(self: Arc<Self>, cfg: &pb::Bucket) -> Arc<dyn BucketImpl + 'static>;
@@ -25,13 +24,17 @@ trait BucketImpl: Debug + Send + Sync {
 
     fn list(
         self: Arc<Self>,
+        options: ListOptions,
     ) -> Pin<Box<dyn Future<Output = Result<ListStream, Error>> + Send + 'static>>;
 }
 
 pub type ListStream = Box<dyn Stream<Item = Result<ListEntry, Error>> + Send>;
 
 trait ObjectImpl: Debug + Send + Sync {
-    fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>>;
+    fn exists(
+        self: Arc<Self>,
+        version: Option<String>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>>;
 
     fn upload(
         self: Arc<Self>,
@@ -41,11 +44,18 @@ trait ObjectImpl: Debug + Send + Sync {
 
     fn download(
         self: Arc<Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<DownloadStream, DownloadError>> + Send>>;
+        options: DownloadOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<DownloadStream, Error>> + Send>>;
 
-    fn attrs(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>>;
+    fn attrs(
+        self: Arc<Self>,
+        options: AttrsOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>>;
 
-    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>;
+    fn delete(
+        self: Arc<Self>,
+        options: DeleteOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>;
 }
 
 #[derive(Debug)]
@@ -62,8 +72,8 @@ impl Bucket {
         }
     }
 
-    pub async fn list(&self) -> Result<ListStream, Error> {
-        self.imp.clone().list().await
+    pub async fn list(&self, options: ListOptions) -> Result<ListStream, Error> {
+        self.imp.clone().list(options).await
     }
 }
 
@@ -74,8 +84,8 @@ pub struct Object {
 }
 
 impl Object {
-    pub async fn exists(&self) -> anyhow::Result<bool> {
-        self.imp.clone().exists().await
+    pub async fn exists(&self, version: Option<String>) -> anyhow::Result<bool> {
+        self.imp.clone().exists(version).await
     }
 
     pub fn upload(
@@ -88,14 +98,16 @@ impl Object {
 
     pub fn download_stream(
         &self,
-    ) -> impl Future<Output = Result<DownloadStream, DownloadError>> + Send + 'static {
-        self.imp.clone().download()
+        options: DownloadOptions,
+    ) -> impl Future<Output = Result<DownloadStream, Error>> + Send + 'static {
+        self.imp.clone().download(options)
     }
 
     pub fn download_all(
         &self,
-    ) -> impl Future<Output = Result<Vec<u8>, DownloadError>> + Send + 'static {
-        let stream = self.imp.clone().download();
+        options: DownloadOptions,
+    ) -> impl Future<Output = Result<Vec<u8>, Error>> + Send + 'static {
+        let stream = self.imp.clone().download(options);
         async move {
             let mut bytes = Vec::new();
             let mut stream = stream.await?;
@@ -107,12 +119,12 @@ impl Object {
         }
     }
 
-    pub async fn attrs(&self) -> Result<ObjectAttrs, Error> {
-        self.imp.clone().attrs().await
+    pub async fn attrs(&self, options: AttrsOptions) -> Result<ObjectAttrs, Error> {
+        self.imp.clone().attrs(options).await
     }
 
-    pub async fn delete(&self) -> Result<(), Error> {
-        self.imp.clone().delete().await
+    pub async fn delete(&self, options: DeleteOptions) -> Result<(), Error> {
+        self.imp.clone().delete(options).await
     }
 }
 
@@ -128,19 +140,7 @@ pub enum Error {
     Other(anyhow::Error),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum DownloadError {
-    #[error("object not found")]
-    NotFound,
-
-    #[error("internal error: {0:?}")]
-    Internal(anyhow::Error),
-
-    #[error("{0:?}")]
-    Other(anyhow::Error),
-}
-
-pub type DownloadStream = Pin<Box<dyn Stream<Item = Result<Bytes, DownloadError>> + Send>>;
+pub type DownloadStream = Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>;
 
 pub struct ObjectAttrs {
     pub name: String,
@@ -165,4 +165,25 @@ pub struct UploadOptions {
 #[derive(Debug, Default)]
 pub struct UploadPreconditions {
     pub not_exists: Option<bool>,
+}
+
+#[derive(Debug, Default)]
+pub struct DownloadOptions {
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct AttrsOptions {
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct DeleteOptions {
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct ListOptions {
+    pub prefix: Option<String>,
+    pub limit: Option<u64>,
 }

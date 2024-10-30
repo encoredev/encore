@@ -10,7 +10,10 @@ use std::sync::Arc;
 use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
-use crate::objects::{DownloadError, DownloadStream, Error, ListEntry, ObjectAttrs, UploadOptions};
+use crate::objects::{
+    AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, Error, ListEntry, ListOptions,
+    ObjectAttrs, UploadOptions,
+};
 use crate::{objects, CloudName};
 use google_cloud_storage as gcs;
 
@@ -64,27 +67,47 @@ impl objects::BucketImpl for Bucket {
 
     fn list(
         self: Arc<Self>,
+        options: ListOptions,
     ) -> Pin<Box<dyn Future<Output = Result<objects::ListStream, objects::Error>> + Send + 'static>>
     {
         Box::pin(async move {
             match self.client.get().await {
                 Ok(client) => {
                     let client = client.clone();
+
+                    let mut total_seen = 0;
+                    const DEFAULT_MAX_RESULTS: u64 = 1000;
                     let s: objects::ListStream = Box::new(try_stream! {
+                        let max_results = if let Some(limit) = options.limit {
+                            limit.min(DEFAULT_MAX_RESULTS) as i32
+                        } else {
+                            DEFAULT_MAX_RESULTS as i32
+                        };
+
                         let mut req = gcs::http::objects::list::ListObjectsRequest {
                             bucket: self.name.to_string(),
+                            max_results: Some(max_results),
                             ..Default::default()
                         };
+
 
                         // Filter by key prefix, if provided.
                         if let Some(key_prefix) = &self.key_prefix {
                             req.prefix = Some(key_prefix.clone());
                         }
 
+                        'PageLoop:
                         loop {
                             let resp = client.list_objects(&req).await.map_err(|e| Error::Other(e.into()))?;
                             if let Some(items) = resp.items {
                                 for obj in items {
+                                    total_seen += 1;
+                                    if let Some(limit) = options.limit {
+                                        if total_seen > limit {
+                                            break 'PageLoop;
+                                        }
+                                    }
+
                                     let entry = ListEntry {
                                         name: self.strip_prefix(Cow::Owned(obj.name)).into_owned(),
                                         size: obj.size as u64,
@@ -95,6 +118,17 @@ impl objects::BucketImpl for Bucket {
                             }
 
                             req.page_token = resp.next_page_token;
+
+                            // Are we close to being done? If so, adjust the max_results
+                            // to avoid over-fetching.
+                            if let Some(limit) = options.limit {
+                                let remaining = (limit - total_seen).max(0);
+                                if remaining == 0 {
+                                    break 'PageLoop;
+                                }
+                                req.max_results = Some(remaining.min(DEFAULT_MAX_RESULTS) as i32);
+                            }
+
                             if req.page_token.is_none() {
                                 break;
                             }
@@ -120,18 +154,25 @@ struct Object {
 }
 
 impl objects::ObjectImpl for Object {
-    fn attrs(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
+    fn attrs(
+        self: Arc<Self>,
+        options: AttrsOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     use gcs::http::{error::ErrorResponse, Error as GCSError};
-                    let req = &gcs::http::objects::get::GetObjectRequest {
+                    let mut req = gcs::http::objects::get::GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
 
-                    match client.get_object(req).await {
+                    if let Some(version) = options.version {
+                        req.generation = Some(parse_version(version)?);
+                    }
+
+                    match client.get_object(&req).await {
                         Ok(obj) => Ok(ObjectAttrs {
                             name: obj.name,
                             version: obj.generation.to_string(),
@@ -159,18 +200,25 @@ impl objects::ObjectImpl for Object {
         })
     }
 
-    fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+    fn exists(
+        self: Arc<Self>,
+        version: Option<String>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     use gcs::http::{error::ErrorResponse, Error};
-                    let req = &gcs::http::objects::get::GetObjectRequest {
+                    let mut req = gcs::http::objects::get::GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
 
-                    match client.get_object(req).await {
+                    if let Some(version) = version {
+                        req.generation = Some(parse_version(version)?);
+                    }
+
+                    match client.get_object(&req).await {
                         Ok(_obj) => Ok(true),
                         Err(Error::Response(ErrorResponse { code: 404, .. })) => Ok(false),
                         Err(Error::HttpClient(err))
@@ -223,27 +271,34 @@ impl objects::ObjectImpl for Object {
 
     fn download(
         self: Arc<Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<DownloadStream, DownloadError>> + Send>> {
-        fn convert_err(err: gcs::http::Error) -> DownloadError {
+        options: DownloadOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<DownloadStream, Error>> + Send>> {
+        fn convert_err(err: gcs::http::Error) -> Error {
             use gcs::http::error::ErrorResponse;
-            use gcs::http::Error;
             match err {
-                Error::Response(ErrorResponse { code: 404, .. }) => DownloadError::NotFound,
-                Error::HttpClient(err) if err.status().map(|s| s.as_u16()) == Some(404) => {
-                    DownloadError::NotFound
+                gcs::http::Error::Response(ErrorResponse { code: 404, .. }) => Error::NotFound,
+                gcs::http::Error::HttpClient(err)
+                    if err.status().map(|s| s.as_u16()) == Some(404) =>
+                {
+                    Error::NotFound
                 }
-                err => DownloadError::Other(err.into()),
+                err => Error::Other(err.into()),
             }
         }
 
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
-                    let req = GetObjectRequest {
+                    let mut req = GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
+
+                    if let Some(version) = options.version {
+                        req.generation = Some(parse_version(version)?);
+                    }
+
                     let resp = client
                         .download_streamed_object(&req, &Range::default())
                         .await;
@@ -252,7 +307,7 @@ impl objects::ObjectImpl for Object {
                     let stream: DownloadStream = Box::pin(stream.map_err(convert_err));
                     Ok(stream)
                 }
-                Err(err) => Err(DownloadError::Internal(anyhow::anyhow!(
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
                     "unable to resolve client: {}",
                     err
                 ))),
@@ -260,18 +315,25 @@ impl objects::ObjectImpl for Object {
         })
     }
 
-    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+    fn delete(
+        self: Arc<Self>,
+        options: DeleteOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     use gcs::http::{error::ErrorResponse, Error as GCSError};
-                    let req = &gcs::http::objects::delete::DeleteObjectRequest {
+                    let mut req = gcs::http::objects::delete::DeleteObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
                         ..Default::default()
                     };
 
-                    match client.delete_object(req).await {
+                    if let Some(version) = options.version {
+                        req.generation = Some(parse_version(version)?);
+                    }
+
+                    match client.delete_object(&req).await {
                         Ok(_) => Ok(()),
                         Err(GCSError::Response(ErrorResponse { code: 404, .. })) => Ok(()),
                         Err(GCSError::HttpClient(err))
@@ -301,4 +363,14 @@ fn apply_upload_opts(opts: UploadOptions, req: &mut UploadObjectRequest, media: 
             req.if_generation_match = Some(0);
         }
     }
+}
+
+fn parse_version(version: String) -> Result<i64, Error> {
+    version.parse().map_err(|err| {
+        Error::Other(anyhow::anyhow!(
+            "invalid version number {}: {}",
+            version,
+            err
+        ))
+    })
 }

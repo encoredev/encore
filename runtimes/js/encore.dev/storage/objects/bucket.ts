@@ -50,9 +50,9 @@ export class Bucket {
    * Returns the object's attributes.
    * Throws an error if the object does not exist.
    */
-  async attrs(name: string): Promise<ObjectAttrs> {
+  async attrs(name: string, options?: AttrsOptions): Promise<ObjectAttrs> {
     const impl = this.impl.object(name);
-    return impl.attrs();
+    return impl.attrs(options);
   }
 
   /**
@@ -66,22 +66,60 @@ export class Bucket {
   /**
    * Downloads an object from the bucket and returns its contents.
    */
-  async download(name: string): Promise<Buffer> {
+  async download(name: string, options?: DownloadOptions): Promise<Buffer> {
     const impl = this.impl.object(name);
-    return impl.downloadAll();
+    return impl.downloadAll(options);
   }
 
   /**
    * Removes an object from the bucket.
    * Throws an error on network failure.
    */
-  async remove(name: string): Promise<void> {
+  async remove(name: string, options?: DeleteOptions): Promise<void> {
     const impl = this.impl.object(name);
-    return impl.delete();
+    return impl.delete(options);
   }
 }
 
 export interface ListOptions {
+  /**
+   * Only include objects with this prefix in the listing.
+   * If unset, all objects are included.
+  */
+  prefix?: string;
+
+  /** Maximum number of objects to return. Defaults to no limit. */
+  limit?: number;
+}
+
+export interface AttrsOptions {
+  /**
+   * The object version to retrieve attributes for.
+   * Defaults to the lastest version if unset.
+   *
+   * If bucket versioning is not enabled, this option is ignored.
+   */
+  version?: string;
+}
+
+export interface DeleteOptions {
+  /**
+   * The object version to delete.
+   * Defaults to the lastest version if unset.
+   *
+   * If bucket versioning is not enabled, this option is ignored.
+   */
+  version?: string;
+}
+
+export interface DownloadOptions {
+  /**
+   * The object version to download.
+   * Defaults to the lastest version if unset.
+   *
+   * If bucket versioning is not enabled, this option is ignored.
+   */
+  version?: string;
 }
 
 export interface ObjectAttrs {

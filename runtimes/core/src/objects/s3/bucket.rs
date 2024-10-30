@@ -14,7 +14,9 @@ use std::task::Poll;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::encore::runtime::v1 as pb;
-use crate::objects::{self, Error, ListEntry, ObjectAttrs};
+use crate::objects::{
+    self, AttrsOptions, DeleteOptions, DownloadOptions, Error, ListEntry, ListOptions, ObjectAttrs,
+};
 
 use super::LazyS3Client;
 
@@ -71,22 +73,41 @@ impl objects::BucketImpl for Bucket {
 
     fn list(
         self: Arc<Self>,
+        options: ListOptions,
     ) -> Pin<Box<dyn Future<Output = Result<objects::ListStream, objects::Error>> + Send + 'static>>
     {
         Box::pin(async move {
+            let mut total_seen = 0;
             let client = self.client.get().await.clone();
             let s: objects::ListStream = Box::new(try_stream! {
                 let mut req = client.list_objects_v2()
-                    .bucket(self.name.clone())
-                    .max_keys(1000);
+                    .bucket(self.name.clone());
 
                 if let Some(key_prefix) = self.key_prefix.clone() {
                     req = req.prefix(key_prefix);
                 }
 
-                let mut stream = req.into_paginator().send();
+                let page_size = if let Some(limit) = options.limit {
+                    limit.min(1000) as i32
+                } else {
+                    1000
+                };
+
+                let mut stream = req.into_paginator()
+                    .page_size(page_size)
+                    .send();
+
+                'PageLoop:
                 while let Some(resp) = stream.try_next().await.map_err(|e| Error::Other(e.into()))? {
                     for obj in resp.contents.unwrap_or_default() {
+                        total_seen += 1;
+                        if let Some(limit) = options.limit {
+                            if total_seen > limit {
+                                // We've reached the limit, stop the stream.
+                                break 'PageLoop;
+                            }
+                        }
+
                         let entry = ListEntry {
                             name: self.strip_prefix(Cow::Owned(obj.key.unwrap_or_default())).into_owned(),
                             size: obj.size.unwrap_or_default() as u64,
@@ -109,7 +130,10 @@ struct Object {
 }
 
 impl objects::ObjectImpl for Object {
-    fn attrs(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
+    fn attrs(
+        self: Arc<Self>,
+        options: AttrsOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
@@ -117,6 +141,7 @@ impl objects::ObjectImpl for Object {
                 .head_object()
                 .bucket(self.bkt.name.clone())
                 .key(cloud_name)
+                .set_version_id(options.version)
                 .send()
                 .await;
 
@@ -136,7 +161,10 @@ impl objects::ObjectImpl for Object {
         })
     }
 
-    fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+    fn exists(
+        self: Arc<Self>,
+        version: Option<String>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
@@ -144,6 +172,7 @@ impl objects::ObjectImpl for Object {
                 .head_object()
                 .bucket(&self.bkt.name)
                 .key(cloud_name)
+                .set_version_id(version)
                 .send()
                 .await;
             match res {
@@ -240,8 +269,8 @@ impl objects::ObjectImpl for Object {
 
     fn download(
         self: Arc<Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::DownloadError>> + Send>>
-    {
+        options: DownloadOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
@@ -249,6 +278,7 @@ impl objects::ObjectImpl for Object {
                 .get_object()
                 .bucket(&self.bkt.name)
                 .key(cloud_name.into_owned())
+                .set_version_id(options.version)
                 .send()
                 .await;
 
@@ -256,21 +286,24 @@ impl objects::ObjectImpl for Object {
                 Ok(mut resp) => {
                     let result = stream! {
                         while let Some(chunk) = resp.body.next().await {
-                            yield chunk.map_err(|e| objects::DownloadError::Other(e.into()));
+                            yield chunk.map_err(|e| objects::Error::Other(e.into()));
                         }
                     };
                     let result: objects::DownloadStream = Box::pin(result);
                     Ok(result)
                 }
                 Err(SdkError::ServiceError(err)) if err.err().is_no_such_key() => {
-                    Err(objects::DownloadError::NotFound)
+                    Err(objects::Error::NotFound)
                 }
-                Err(err) => Err(objects::DownloadError::Other(err.into())),
+                Err(err) => Err(objects::Error::Other(err.into())),
             }
         })
     }
 
-    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+    fn delete(
+        self: Arc<Self>,
+        options: DeleteOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
@@ -278,6 +311,7 @@ impl objects::ObjectImpl for Object {
                 .delete_object()
                 .bucket(&self.bkt.name)
                 .key(cloud_name.into_owned())
+                .set_version_id(options.version)
                 .send()
                 .await;
             match res {
@@ -377,7 +411,7 @@ struct ObjectStream {
 }
 
 impl Stream for ObjectStream {
-    type Item = Result<Bytes, objects::DownloadError>;
+    type Item = Result<Bytes, objects::Error>;
 
     fn poll_next(
         self: Pin<&mut Self>,
@@ -386,7 +420,7 @@ impl Stream for ObjectStream {
         let stream = Pin::new(&mut self.get_mut().inner);
         match stream.poll_next(cx) {
             Poll::Ready(Some(Err(err))) => {
-                Poll::Ready(Some(Err(objects::DownloadError::Other(err.into()))))
+                Poll::Ready(Some(Err(objects::Error::Other(err.into()))))
             }
             Poll::Ready(Some(Ok(data))) => Poll::Ready(Some(Ok(data))),
             Poll::Ready(None) => Poll::Ready(None),

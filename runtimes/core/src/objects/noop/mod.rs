@@ -8,6 +8,8 @@ use tokio::io::AsyncRead;
 use crate::encore::runtime::v1 as pb;
 use crate::objects;
 
+use super::{AttrsOptions, DeleteOptions, DownloadOptions, ListOptions};
+
 #[derive(Debug)]
 pub struct Cluster;
 
@@ -30,6 +32,7 @@ impl objects::BucketImpl for Bucket {
 
     fn list(
         self: Arc<Self>,
+        _options: ListOptions,
     ) -> Pin<Box<dyn Future<Output = Result<objects::ListStream, objects::Error>> + Send + 'static>>
     {
         Box::pin(async move {
@@ -43,13 +46,17 @@ impl objects::BucketImpl for Bucket {
 impl objects::ObjectImpl for Object {
     fn attrs(
         self: Arc<Self>,
+        _options: AttrsOptions,
     ) -> Pin<Box<dyn Future<Output = Result<objects::ObjectAttrs, objects::Error>> + Send>> {
         Box::pin(future::ready(Err(objects::Error::Internal(
             anyhow::anyhow!("noop bucket does not support attrs"),
         ))))
     }
 
-    fn exists(self: Arc<Self>) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+    fn exists(
+        self: Arc<Self>,
+        _version: Option<String>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
         Box::pin(future::ready(Err(anyhow::anyhow!(
             "noop bucket does not support exists"
         ))))
@@ -67,16 +74,19 @@ impl objects::ObjectImpl for Object {
 
     fn download(
         self: Arc<Self>,
-    ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::DownloadError>> + Send>>
-    {
+        _options: DownloadOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::Error>> + Send>> {
         Box::pin(async move {
-            Err(objects::DownloadError::Internal(anyhow::anyhow!(
+            Err(objects::Error::Internal(anyhow::anyhow!(
                 "noop bucket does not support download"
             )))
         })
     }
 
-    fn delete(self: Arc<Self>) -> Pin<Box<dyn Future<Output = Result<(), objects::Error>> + Send>> {
+    fn delete(
+        self: Arc<Self>,
+        _options: DeleteOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<(), objects::Error>> + Send>> {
         Box::pin(future::ready(Err(objects::Error::Internal(
             anyhow::anyhow!("noop bucket does not support delete"),
         ))))

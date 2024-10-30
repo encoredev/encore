@@ -1,23 +1,18 @@
 use std::pin::Pin;
 
+use encore_runtime_core::objects as core;
 use napi::bindgen_prelude::Buffer;
 use napi::{Env, JsBuffer, JsObject};
 use napi_derive::napi;
 
-use encore_runtime_core::objects::{
-    Bucket as CoreBucket, DownloadError, ListEntry as CoreListEntry, ListStream,
-    Object as CoreObject, ObjectAttrs as CoreAttrs, UploadOptions as CoreUploadOptions,
-    UploadPreconditions as CoreUploadPreconditions,
-};
-
 #[napi]
 pub struct Bucket {
-    bkt: CoreBucket,
+    bkt: core::Bucket,
 }
 
 #[napi]
 impl Bucket {
-    pub(crate) fn new(bkt: CoreBucket) -> Self {
+    pub(crate) fn new(bkt: core::Bucket) -> Self {
         Self { bkt }
     }
 
@@ -27,9 +22,10 @@ impl Bucket {
     }
 
     #[napi]
-    pub async fn list(&self) -> napi::Result<ListIterator> {
+    pub async fn list(&self, options: Option<ListOptions>) -> napi::Result<ListIterator> {
+        let options = options.unwrap_or_default().into();
         self.bkt
-            .list()
+            .list(options)
             .await
             .map_err(map_objects_err)
             .map(ListIterator::new)
@@ -38,27 +34,28 @@ impl Bucket {
 
 #[napi]
 pub struct BucketObject {
-    obj: CoreObject,
+    obj: core::Object,
 }
 
 #[napi]
 impl BucketObject {
-    pub(crate) fn new(obj: CoreObject) -> Self {
+    pub(crate) fn new(obj: core::Object) -> Self {
         Self { obj }
     }
 
     #[napi]
-    pub async fn attrs(&self) -> napi::Result<ObjectAttrs> {
+    pub async fn attrs(&self, options: Option<AttrsOptions>) -> napi::Result<ObjectAttrs> {
+        let options = options.unwrap_or_default().into();
         self.obj
-            .attrs()
+            .attrs(options)
             .await
             .map(ObjectAttrs::from)
             .map_err(map_objects_err)
     }
 
     #[napi]
-    pub async fn exists(&self) -> napi::Result<bool> {
-        self.obj.exists().await.map_err(napi::Error::from)
+    pub async fn exists(&self, version: Option<String>) -> napi::Result<bool> {
+        self.obj.exists(version).await.map_err(napi::Error::from)
     }
 
     #[napi(ts_return_type = "Promise<void>")]
@@ -87,14 +84,20 @@ impl BucketObject {
     }
 
     #[napi]
-    pub async fn download_all(&self) -> napi::Result<Buffer> {
-        let buf = self.obj.download_all().await.map_err(map_download_err)?;
+    pub async fn download_all(&self, options: Option<DownloadOptions>) -> napi::Result<Buffer> {
+        let options = options.unwrap_or_default().into();
+        let buf = self
+            .obj
+            .download_all(options)
+            .await
+            .map_err(map_objects_err)?;
         Ok(buf.into())
     }
 
-    #[napi]
-    pub async fn delete(&self) -> napi::Result<()> {
-        self.obj.delete().await.map_err(map_objects_err)
+    #[napi(ts_return_type = "Promise<void>")]
+    pub async fn delete(&self, options: Option<DeleteOptions>) -> napi::Result<()> {
+        let options = options.unwrap_or_default().into();
+        self.obj.delete(options).await.map_err(map_objects_err)
     }
 }
 
@@ -107,8 +110,8 @@ pub struct ObjectAttrs {
     pub etag: String,
 }
 
-impl From<CoreAttrs> for ObjectAttrs {
-    fn from(value: CoreAttrs) -> Self {
+impl From<core::ObjectAttrs> for ObjectAttrs {
+    fn from(value: core::ObjectAttrs) -> Self {
         Self {
             name: value.name,
             version: value.version,
@@ -126,8 +129,8 @@ pub struct ListEntry {
     pub etag: String,
 }
 
-impl From<CoreListEntry> for ListEntry {
-    fn from(value: CoreListEntry) -> Self {
+impl From<core::ListEntry> for ListEntry {
+    fn from(value: core::ListEntry) -> Self {
         Self {
             name: value.name,
             size: value.size as i64,
@@ -149,7 +152,7 @@ pub struct UploadPreconditions {
     pub not_exists: Option<bool>,
 }
 
-impl From<UploadOptions> for CoreUploadOptions {
+impl From<UploadOptions> for core::UploadOptions {
     fn from(value: UploadOptions) -> Self {
         Self {
             content_type: value.content_type,
@@ -158,7 +161,7 @@ impl From<UploadOptions> for CoreUploadOptions {
     }
 }
 
-impl From<UploadPreconditions> for CoreUploadPreconditions {
+impl From<UploadPreconditions> for core::UploadPreconditions {
     fn from(value: UploadPreconditions) -> Self {
         Self {
             not_exists: value.not_exists,
@@ -166,22 +169,18 @@ impl From<UploadPreconditions> for CoreUploadPreconditions {
     }
 }
 
-fn map_objects_err(err: encore_runtime_core::objects::Error) -> napi::Error {
-    napi::Error::new(napi::Status::GenericFailure, err)
-}
-
-fn map_download_err(err: DownloadError) -> napi::Error {
+fn map_objects_err(err: core::Error) -> napi::Error {
     napi::Error::new(napi::Status::GenericFailure, err)
 }
 
 #[napi]
 pub struct ListIterator {
-    stream: tokio::sync::Mutex<Pin<ListStream>>,
+    stream: tokio::sync::Mutex<Pin<core::ListStream>>,
 }
 
 #[napi]
 impl ListIterator {
-    fn new(stream: ListStream) -> Self {
+    fn new(stream: core::ListStream) -> Self {
         Self {
             stream: tokio::sync::Mutex::new(stream.into()),
         }
@@ -198,5 +197,63 @@ impl ListIterator {
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{:#?}", e)))?;
 
         Ok(row.map(ListEntry::from))
+    }
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+pub struct AttrsOptions {
+    pub version: Option<String>,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+pub struct DeleteOptions {
+    pub version: Option<String>,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+pub struct DownloadOptions {
+    pub version: Option<String>,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+pub struct ListOptions {
+    pub prefix: Option<String>,
+    pub limit: Option<i64>,
+}
+
+impl From<DownloadOptions> for core::DownloadOptions {
+    fn from(value: DownloadOptions) -> Self {
+        Self {
+            version: value.version,
+        }
+    }
+}
+
+impl From<DeleteOptions> for core::DeleteOptions {
+    fn from(value: DeleteOptions) -> Self {
+        Self {
+            version: value.version,
+        }
+    }
+}
+
+impl From<AttrsOptions> for core::AttrsOptions {
+    fn from(value: AttrsOptions) -> Self {
+        Self {
+            version: value.version,
+        }
+    }
+}
+
+impl From<ListOptions> for core::ListOptions {
+    fn from(value: ListOptions) -> Self {
+        Self {
+            prefix: value.prefix,
+            limit: value.limit.map(|v| v as u64),
+        }
     }
 }
