@@ -58,7 +58,7 @@ export class Bucket {
   /**
    * Uploads an object to the bucket.
    */
-  async upload(name: string, data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
+  async upload(name: string, data: Buffer, options?: UploadOptions): Promise<void> {
     const impl = this.impl.object(name);
     return impl.upload(data, options);
   }

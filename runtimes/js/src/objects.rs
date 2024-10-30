@@ -61,7 +61,7 @@ impl BucketObject {
         self.obj.exists().await.map_err(napi::Error::from)
     }
 
-    #[napi(ts_return_type = "Promise<ObjectAttrs>")]
+    #[napi(ts_return_type = "Promise<void>")]
     pub fn upload(
         &self,
         env: Env,

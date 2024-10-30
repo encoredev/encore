@@ -124,8 +124,8 @@ pub enum Error {
     #[error("internal error: {0:?}")]
     Internal(anyhow::Error),
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+    #[error("{0:?}")]
+    Other(anyhow::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -136,8 +136,8 @@ pub enum DownloadError {
     #[error("internal error: {0:?}")]
     Internal(anyhow::Error),
 
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+    #[error("{0:?}")]
+    Other(anyhow::Error),
 }
 
 pub type DownloadStream = Pin<Box<dyn Stream<Item = Result<Bytes, DownloadError>> + Send>>;
