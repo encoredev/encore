@@ -5,17 +5,17 @@ title: Compliance & Security
 subtitle: Encore SOC 2 Self-assessment
 ---
 
-_Last updated: 16 May, 2023_
+_Last updated: 30 October, 2024_
 
 As an organization or engineer who creates applications, your applications, code, and data are among your most important assets. Encore highly prioritizes the security of these assets, allowing you to concentrate on your goal: designing exceptional applications.
 
-We are arranging for an external review of our security measures and thus, we are preparing for a SOC 2 Type 1 audit. This document presents a summary of our self-evaluation of the current implementation of the SOC 2 trust service criteria at Encore.
+We are currently preparing for an external review of our security measures in connection with a SOC 2 Type 1 audit. This document provides a summary of our self-evaluation regarding the current implementation of the SOC 2 trust service criteria at Encore.
 
 ## SOC 2
 
 SOC is short for "System and Organization Controls" – it is the de facto industry standard for software security and privacy. During the SOC 2 audit, an external auditor will carry out an extensive review of our processes (e.g. employee onboarding and offboarding, access review, various policies, disaster recovery exercises, software architecture, physical access, etc.) and ensure that they meet the mark.
 
-The Type 1 audit is a point-in-time audit where the auditor verifies that the controls are satisfied at a specific point in time. We are planning to proceed to Type 2 afterward which is based on continuous monitoring during time periods of varying lengths.
+The Type 1 audit is a point-in-time audit where the auditor verifies that the controls are satisfied at a specific point in time. After the initial Type 1 audit, we are planning to proceed to Type 2 which is based on continuous monitoring during time periods of varying lengths.
 
 ### Trust Service Criteria
 
@@ -81,11 +81,11 @@ As a general principle, all of Encore's data is encrypted while being transporte
 
 All customer secret information is further encrypted using GCP's Key Management Service (KMS). Any access to encrypted data by Encore employees requires elevated access and approval by multiple parties, and all such activity is audited.
 
-User account authentication is provided by Auth0, a SOC 2 compliant vendor.
+User account authentication is provided by _Auth0 by Okta_, a SOC 2 compliant vendor.
 
 There are two ways for a user to log in to Encore: Single sign-on (SSO) and username plus password. Single sign-on can be used by organizations to fully manage access to Encore and, for example, ensure that former employees no longer have access after the offboarding period. Encore supports Google and GitHub SSO using OAuth.
 
-If no SSO is used, the default login method is username and password, also handled by Auth0. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
+If no SSO is used, the default login method is username and password, also handled by _Auth0 by Okta_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
 
 Encore offers bug bounty incentives to individuals who discover any security discrepancies. The objective of offering bug bounty incentives is to receive security-related bug reports from trusted "white hat hackers" before the vulnerability is actively exploited in a malicious way. This contributes to maintaining Encore's product security.
 
@@ -115,11 +115,12 @@ During the release of a new version of Encore services, Encore's engineers take 
 
 ### Performance monitoring
 
-Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring. Grafana, a SOC 2 compliant vendor, is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
+Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring (all being SOC 2 compliant vendors). Grafana, is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
 
 Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the developers in case the performance of the system has regressed, for example, due to increased response times, or increased error rates. To enable the root cause analysis of bugs, Encore collects system logs from all parts of the system. These logs can only be accessed by authorized users.
 
-Encore is planning to offer a public status page as part of the SOC 2 certification
+Encore offers a public "Status page" where users and customers and find the current status of Encore systems. It is available at: [https://status.encore.dev/](https://status.encore.dev/).
+
 
 process.
 
@@ -165,7 +166,7 @@ Product quality is very important to Encore. There are many different facets, in
 
 Several measures are put into place in order to keep product quality high:
 
--   Code review: Every single code change is reviewed by a peer of the developer before it is accepted into the main code branch (for critical systems) or in a weekly post-hoc review process (for auxiliary systems). For critical systems code can only be merged if the reviewer agrees. For auxiliary systems any requested changes by reviewers are made as part of the review process. It is often necessary to add a test alongside, and the code review process ensures that this has been done as well.
+-   Code review: Code changes are reviewed by a peer of the developer before it is accepted into the main code branch (for critical systems) or in a weekly post-hoc review process (for auxiliary systems). For critical systems code can only be merged if the reviewer agrees. For auxiliary systems any requested changes by reviewers are made as part of the review process. It is often necessary to add a test alongside, and the code review process ensures that this has been done as well.
 
 -   Continuous integration: Before code is accepted, it is built by our continuous integration environment and tests are executed. If the build fails, the developer is notified immediately and a fix is required before the code can be merged.
 
