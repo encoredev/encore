@@ -1,6 +1,6 @@
 <p align="center" dir="auto">
 <a href="https://encore.dev"><img src="https://user-images.githubusercontent.com/78424526/214602214-52e0483a-b5fc-4d4c-b03e-0b7b23e012df.svg" width="160px" alt="encore icon"></img></a><br/><br/>
-<b>Development Platform for building robust type-safe distributed systems with declarative infrastructure</b><br/><br/>
+<b>Open Source Development Platform for building robust type-safe distributed systems with declarative infrastructure</b><br/><br/>
 </p>
 
 Encore provides Open Source development tools, from local development to your cloud:
@@ -11,9 +11,16 @@ Encore provides Open Source development tools, from local development to your cl
 
 **⭐ Star this repository** to help spread the word.
 
-**🏁 Try Encore:** [Quick Start Guide](https://encore.dev/docs/quick-start)
+**💿 Install Encore:**
+- **macOS:** `brew install encoredev/tap/encore`
+- **Linux:** `curl -L https://encore.dev/install.sh | bash`
+- **Windows:** `iwr https://encore.dev/install.ps1 | iex`
 
-**💻 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
+**🕹 Create your first app:**
+- **TypeScript:** `encore app create --example=ts/introduction`
+- **Go:** `encore app create --example=hello-world`
+
+**🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
 **🚀 See products being build with Encore:** [Showcase](https://encore.dev/showcase)
 
@@ -228,18 +235,23 @@ Encore is designed to give teams a productive and less complex experience when s
 
 ## Getting started
 
-- **1.** [Install Encore with the Quick Start Guide](https://encore.dev/docs/quick-start)
-- **2.** [Follow a tutorial and build a bigger app](https://encore.dev/docs/tutorials/)
-- **3.** Follow and star the project on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
-- **4.** Explore the [Documentation](https://encore.dev/docs) to learn more about Encore's features
-- **5.** [Join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers
+- **1. Install Encore:**
+  - **macOS:** `brew install encoredev/tap/encore`
+  - **Linux:** `curl -L https://encore.dev/install.sh | bash`
+  - **Windows:** `iwr https://encore.dev/install.ps1 | iex`
+- **2. Create your first app:**
+  - **TypeScript:** `encore app create --example=ts/introduction`
+  - **Go:** `encore app create --example=hello-world`
+- **3. Star the project** on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
+- **4. Explore the [Documentation](https://encore.dev/docs)** to learn more about Encore's features
+- **5. [Join Discord](https://encore.dev/discord)** to ask questions and meet other Encore developers
 
 ## Open Source
 
 Everything needed to develop and deploy Encore applications is Open Source, including the backend frameworks, parser, compiler, runtime, and CLI.
 This includes all code needed for local development and everything that runs in your application when it is deployed.
 
-The Open Source CLI also provides a mechanism to generate a Docker images for your application, so you easily self-host your application. [Learn more in the docs](https://encore.dev/docs/how-to/self-host).
+The Open Source CLI also provides a mechanism to generate a Docker images for your application, so you easily self-host your application. [Learn more in the docs](https://encore.dev/docs/self-host/docker-build).
 
 ## Join the most pioneering developer community
 
@@ -314,9 +326,9 @@ We've found that to meaningfully improve the developer experience, you have to o
 
 Encore is designed to let you go outside of the framework when you want to, and easily drop down in abstraction level when you need to, so you never run into any dead-ends.
 
-Should you want to migrate away, it's straightforward and does not require a big rewrite. 99% of your code is regular Go or TypeScript and the code specific to Encore is limited to using the framework.
+Should you want to migrate away, it's straightforward and does not require a big rewrite. 99% of your code is regular Go or TypeScript.
 
-Encore provides tools for [self-hosting](https://encore.dev/docs/how-to/self-host) your application, by using the Open Source CLI to produce a standalone Docker image that can be deployed anywhere you'd like.
+Encore provides tools for [self-hosting](https://encore.dev/docs/self-host/docker-build) your application, by using the Open Source CLI to produce a standalone Docker image that can be deployed anywhere you'd like.
 
 ## Contributing to Encore and building from source
 
