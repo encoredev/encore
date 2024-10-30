@@ -142,7 +142,7 @@ impl objects::ObjectImpl for Object {
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
             let res = client
                 .head_object()
-                .bucket(&self.cloud_name)
+                .bucket(&self.bkt.name)
                 .key(cloud_name)
                 .send()
                 .await;

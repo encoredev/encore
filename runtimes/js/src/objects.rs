@@ -80,7 +80,7 @@ impl BucketObject {
         // so that the handler gets called regardless of result.
         let fut = async move { Ok(fut.await) };
 
-        env.execute_tokio_future(fut, move |&mut env, result| {
+        env.execute_tokio_future(fut, move |&mut _env, result| {
             // TODO: Decrement the ref count on the data buffer.
             result.map_err(napi::Error::from)
         })
