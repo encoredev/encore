@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package gcsutil;
+
+option go_package = "encr.dev/pkg/emulators/storage/gcsutil";
+
+message GcsPageToken{
+  // The full name of the last result file, when returned from the server.
+  // When sent as a cursor, interpreted as "return files greater than this value".
+  string LastFile = 1;
+}

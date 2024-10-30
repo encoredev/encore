@@ -3,12 +3,14 @@ module encr.dev
 go 1.22.2
 
 require (
+	cloud.google.com/go/storage v1.43.0
 	cuelang.org/go v0.4.3
 	encore.dev v1.1.0
 	github.com/agnivade/levenshtein v1.1.1
 	github.com/alecthomas/chroma v0.10.0
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/bep/debounce v1.2.1
+	github.com/bluele/gcache v0.0.2
 	github.com/briandowns/spinner v1.19.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/charmbracelet/bubbles v0.16.1
@@ -23,11 +25,11 @@ require (
 	github.com/fmstephe/unsafeutil v1.0.0
 	github.com/frankban/quicktest v1.14.5
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/fullstorydev/emulators/storage v0.0.0-20241015152032-cb8c4efd6784
 	github.com/getkin/kin-openapi v0.115.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/golang/protobuf v1.5.4
+	github.com/google/btree v1.1.3
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.20.2
 	github.com/google/renameio/v2 v2.0.0
@@ -74,9 +76,11 @@ require (
 	golang.org/x/term v0.25.0
 	golang.org/x/text v0.19.0
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
+	google.golang.org/api v0.200.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241007155032-5fefd90f89a9
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
+	gotest.tools/v3 v3.5.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -86,7 +90,6 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
 	cloud.google.com/go/iam v1.2.1 // indirect
-	cloud.google.com/go/storage v1.43.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
@@ -95,7 +98,6 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/bmizerany/perks v0.0.0-20141205001514-d9a9656a3a4b // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
@@ -127,7 +129,6 @@ require (
 	github.com/golang/glog v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.18.2 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -193,7 +194,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
-	google.golang.org/api v0.200.0 // indirect
 	google.golang.org/genproto v0.0.0-20241007155032-5fefd90f89a9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240930140551-af27646dc61f // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
