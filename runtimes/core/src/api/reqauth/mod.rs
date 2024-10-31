@@ -149,7 +149,25 @@ impl CallMeta {
 
                     // Parse the auth data, if provided.
                     let auth_data = match (headers.get_meta(MetaKey::UserData), &auth_data_schema) {
-                        (None, _) | (_, None) => None,
+                        (None, _) => None,
+                        (Some(data), None) => {
+                            // Hack: temporarily work around the absence of a schema in certain situations.
+                            let any_schema = {
+                                use crate::encore::parser::meta::v1 as meta;
+                                let md = meta::Data::default();
+                                let mut builder = jsonschema::Builder::new(&md);
+                                let idx = builder.register_value(jsonschema::Value::Basic(
+                                    jsonschema::Basic::Any,
+                                ));
+                                let registry = builder.build();
+                                registry.schema(idx)
+                            };
+                            let mut jsonde = serde_json::Deserializer::from_str(data);
+                            let data = any_schema
+                                .deserialize(&mut jsonde, DecodeConfig::default())
+                                .context("invalid auth data")?;
+                            Some(data)
+                        }
                         (Some(data), Some(schema)) => {
                             let mut jsonde = serde_json::Deserializer::from_str(data);
                             let data = schema
