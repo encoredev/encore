@@ -1,7 +1,13 @@
+import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 
 export interface BucketConfig {
+  /**
+   * Whether to enable versioning of the objects in the bucket.
+   * Defaults to false if unset.
+   */
+  versioned?: boolean;
 }
 
 /**
@@ -27,10 +33,12 @@ export class Bucket {
   }
 
   async *list(options: ListOptions): AsyncGenerator<ListEntry> {
-    const iter = await this.impl.list();
+    const source = getCurrentRequest();
+    const iter = await this.impl.list(options, source);
     while (true) {
       const entry = await iter.next();
       if (entry === null) {
+        iter.markDone();
         break;
       }
       yield entry;
@@ -41,9 +49,10 @@ export class Bucket {
    * Returns whether the object exists in the bucket.
    * Throws an error on network failure.
    */
-  async exists(name: string): Promise<boolean> {
+  async exists(name: string, options?: ExistsOptions): Promise<boolean> {
+    const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.exists();
+    return impl.exists(options, source);
   }
 
   /**
@@ -51,24 +60,27 @@ export class Bucket {
    * Throws an error if the object does not exist.
    */
   async attrs(name: string, options?: AttrsOptions): Promise<ObjectAttrs> {
+    const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.attrs(options);
+    return impl.attrs(options, source);
   }
 
   /**
    * Uploads an object to the bucket.
    */
   async upload(name: string, data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
+    const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.upload(data, options);
+    return impl.upload(data, options, source);
   }
 
   /**
    * Downloads an object from the bucket and returns its contents.
    */
   async download(name: string, options?: DownloadOptions): Promise<Buffer> {
+    const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.downloadAll(options);
+    return impl.downloadAll(options, source);
   }
 
   /**
@@ -76,8 +88,9 @@ export class Bucket {
    * Throws an error on network failure.
    */
   async remove(name: string, options?: DeleteOptions): Promise<void> {
+    const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    const _ = await impl.delete(options);
+    const _ = await impl.delete(options, source);
   }
 }
 
@@ -95,6 +108,16 @@ export interface ListOptions {
 export interface AttrsOptions {
   /**
    * The object version to retrieve attributes for.
+   * Defaults to the lastest version if unset.
+   *
+   * If bucket versioning is not enabled, this option is ignored.
+   */
+  version?: string;
+}
+
+export interface ExistsOptions {
+  /**
+   * The object version to check for existence.
    * Defaults to the lastest version if unset.
    *
    * If bucket versioning is not enabled, this option is ignored.

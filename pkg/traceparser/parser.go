@@ -233,6 +233,27 @@ func (tp *traceParser) spanEvent(eventType trace2.EventType) *tracepb2.SpanEvent
 		ev.Data = &tracepb2.SpanEvent_CacheCallEnd{CacheCallEnd: tp.cacheCallEnd()}
 	case trace2.BodyStream:
 		ev.Data = &tracepb2.SpanEvent_BodyStream{BodyStream: tp.bodyStream()}
+	case trace2.BucketObjectUploadStart:
+		ev.Data = &tracepb2.SpanEvent_BucketObjectUploadStart{BucketObjectUploadStart: tp.bucketObjectUploadStart()}
+	case trace2.BucketObjectUploadEnd:
+		ev.Data = &tracepb2.SpanEvent_BucketObjectUploadEnd{BucketObjectUploadEnd: tp.bucketObjectUploadEnd()}
+	case trace2.BucketObjectDownloadStart:
+		ev.Data = &tracepb2.SpanEvent_BucketObjectDownloadStart{BucketObjectDownloadStart: tp.bucketObjectDownloadStart()}
+	case trace2.BucketObjectDownloadEnd:
+		ev.Data = &tracepb2.SpanEvent_BucketObjectDownloadEnd{BucketObjectDownloadEnd: tp.bucketObjectDownloadEnd()}
+	case trace2.BucketObjectGetAttrsStart:
+		ev.Data = &tracepb2.SpanEvent_BucketObjectGetAttrsStart{BucketObjectGetAttrsStart: tp.bucketObjectGetAttrsStart()}
+	case trace2.BucketObjectGetAttrsEnd:
+		ev.Data = &tracepb2.SpanEvent_BucketObjectGetAttrsEnd{BucketObjectGetAttrsEnd: tp.bucketObjectGetAttrsEnd()}
+	case trace2.BucketListObjectsStart:
+		ev.Data = &tracepb2.SpanEvent_BucketListObjectsStart{BucketListObjectsStart: tp.bucketListObjectsStart()}
+	case trace2.BucketListObjectsEnd:
+		ev.Data = &tracepb2.SpanEvent_BucketListObjectsEnd{BucketListObjectsEnd: tp.bucketListObjectsEnd()}
+	case trace2.BucketDeleteObjectsStart:
+		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsStart{BucketDeleteObjectsStart: tp.bucketDeleteObjectsStart()}
+	case trace2.BucketDeleteObjectsEnd:
+		ev.Data = &tracepb2.SpanEvent_BucketDeleteObjectsEnd{BucketDeleteObjectsEnd: tp.bucketDeleteObjectsEnd()}
+
 	default:
 		tp.bailout(fmt.Errorf("unknown event %v", eventType))
 	}
@@ -557,6 +578,107 @@ func (tp *traceParser) cacheCallEnd() *tracepb2.CacheCallEnd {
 		})(),
 		Err: tp.errWithStack(),
 	}
+}
+
+func (tp *traceParser) bucketObjectUploadStart() *tracepb2.BucketObjectUploadStart {
+	return &tracepb2.BucketObjectUploadStart{
+		Bucket: tp.String(),
+		Object: tp.String(),
+		Attrs:  tp.bucketObjectAttrs(),
+		Stack:  tp.stack(),
+	}
+}
+
+func (tp *traceParser) bucketObjectAttrs() *tracepb2.BucketObjectAttributes {
+	return &tracepb2.BucketObjectAttributes{
+		Size:        ptrOrNil(tp.Uint64()),
+		Version:     ptrOrNil(tp.String()),
+		Etag:        ptrOrNil(tp.String()),
+		ContentType: ptrOrNil(tp.String()),
+	}
+}
+
+func (tp *traceParser) bucketObjectUploadEnd() *tracepb2.BucketObjectUploadEnd {
+	return &tracepb2.BucketObjectUploadEnd{
+		Size: ptrOrNil(tp.Uint64()),
+		Err:  tp.errWithStack(),
+	}
+}
+
+func (tp *traceParser) bucketObjectDownloadStart() *tracepb2.BucketObjectDownloadStart {
+	return &tracepb2.BucketObjectDownloadStart{
+		Bucket:  tp.String(),
+		Object:  tp.String(),
+		Version: ptrOrNil(tp.String()),
+		Stack:   tp.stack(),
+	}
+}
+
+func (tp *traceParser) bucketObjectDownloadEnd() *tracepb2.BucketObjectDownloadEnd {
+	return &tracepb2.BucketObjectDownloadEnd{
+		Size: ptrOrNil(tp.Uint64()),
+		Err:  tp.errWithStack(),
+	}
+}
+
+func (tp *traceParser) bucketDeleteObjectsStart() *tracepb2.BucketDeleteObjectsStart {
+	ev := &tracepb2.BucketDeleteObjectsStart{
+		Bucket: tp.String(),
+		Stack:  tp.stack(),
+	}
+
+	num := tp.UVarint()
+	for i := 0; i < int(num); i++ {
+		ev.Entries = append(ev.Entries, &tracepb2.BucketDeleteObjectEntry{
+			Object:  tp.String(),
+			Version: ptrOrNil(tp.String()),
+		})
+	}
+
+	return ev
+}
+
+func (tp *traceParser) bucketDeleteObjectsEnd() *tracepb2.BucketDeleteObjectsEnd {
+	return &tracepb2.BucketDeleteObjectsEnd{
+		Err: tp.errWithStack(),
+	}
+}
+
+func (tp *traceParser) bucketListObjectsStart() *tracepb2.BucketListObjectsStart {
+	return &tracepb2.BucketListObjectsStart{
+		Bucket: tp.String(),
+		Prefix: ptrOrNil(tp.String()),
+		Stack:  tp.stack(),
+	}
+}
+
+func (tp *traceParser) bucketListObjectsEnd() *tracepb2.BucketListObjectsEnd {
+	return &tracepb2.BucketListObjectsEnd{
+		Err:      tp.errWithStack(),
+		Observed: tp.UVarint(),
+		HasMore:  tp.Bool(),
+	}
+}
+
+func (tp *traceParser) bucketObjectGetAttrsStart() *tracepb2.BucketObjectGetAttrsStart {
+	return &tracepb2.BucketObjectGetAttrsStart{
+		Bucket:  tp.String(),
+		Object:  tp.String(),
+		Version: ptrOrNil(tp.String()),
+		Stack:   tp.stack(),
+	}
+}
+
+func (tp *traceParser) bucketObjectGetAttrsEnd() *tracepb2.BucketObjectGetAttrsEnd {
+	ev := &tracepb2.BucketObjectGetAttrsEnd{
+		Err: tp.errWithStack(),
+	}
+
+	if ev.Err == nil {
+		ev.Attrs = tp.bucketObjectAttrs()
+	}
+
+	return ev
 }
 
 func (tp *traceParser) bodyStream() *tracepb2.BodyStream {

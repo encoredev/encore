@@ -5,29 +5,49 @@ use std::sync::Arc;
 use futures::future;
 use tokio::io::AsyncRead;
 
-use crate::encore::runtime::v1 as pb;
 use crate::objects;
+use crate::{encore::runtime::v1 as pb, EncoreName};
 
-use super::{AttrsOptions, DeleteOptions, DownloadOptions, ListOptions};
+use super::{AttrsOptions, DeleteOptions, DownloadOptions, ExistsOptions, ListOptions};
 
 #[derive(Debug)]
 pub struct Cluster;
 
 #[derive(Debug)]
-pub struct Bucket;
+pub struct Bucket {
+    name: EncoreName,
+}
+
+impl Bucket {
+    pub fn new(name: EncoreName) -> Self {
+        Self { name }
+    }
+}
 
 #[derive(Debug)]
-pub struct Object;
+pub struct Object {
+    bkt: Arc<Bucket>,
+    name: String,
+}
 
 impl objects::ClusterImpl for Cluster {
-    fn bucket(self: Arc<Self>, _cfg: &pb::Bucket) -> Arc<dyn objects::BucketImpl> {
-        Arc::new(Bucket)
+    fn bucket(self: Arc<Self>, cfg: &pb::Bucket) -> Arc<dyn objects::BucketImpl> {
+        Arc::new(Bucket {
+            name: cfg.encore_name.clone().into(),
+        })
     }
 }
 
 impl objects::BucketImpl for Bucket {
-    fn object(self: Arc<Self>, _name: String) -> Arc<dyn objects::ObjectImpl> {
-        Arc::new(Object)
+    fn name(&self) -> &EncoreName {
+        &self.name
+    }
+
+    fn object(self: Arc<Self>, name: String) -> Arc<dyn objects::ObjectImpl> {
+        Arc::new(Object {
+            name,
+            bkt: self.clone(),
+        })
     }
 
     fn list(
@@ -44,6 +64,14 @@ impl objects::BucketImpl for Bucket {
 }
 
 impl objects::ObjectImpl for Object {
+    fn bucket_name(&self) -> &EncoreName {
+        &self.bkt.name
+    }
+
+    fn key(&self) -> &str {
+        &self.name
+    }
+
     fn attrs(
         self: Arc<Self>,
         _options: AttrsOptions,
@@ -55,7 +83,7 @@ impl objects::ObjectImpl for Object {
 
     fn exists(
         self: Arc<Self>,
-        _version: Option<String>,
+        _options: ExistsOptions,
     ) -> Pin<Box<dyn Future<Output = Result<bool, objects::Error>> + Send>> {
         Box::pin(future::ready(Err(objects::Error::Internal(
             anyhow::anyhow!("noop bucket does not support exists"),

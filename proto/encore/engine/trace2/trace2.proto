@@ -187,6 +187,17 @@ message SpanEvent {
     CacheCallEnd cache_call_end = 23;
     ServiceInitStart service_init_start = 24;
     ServiceInitEnd service_init_end = 25;
+
+    BucketObjectUploadStart bucket_object_upload_start = 26;
+    BucketObjectUploadEnd bucket_object_upload_end = 27;
+    BucketObjectDownloadStart bucket_object_download_start = 28;
+    BucketObjectDownloadEnd bucket_object_download_end = 29;
+    BucketObjectGetAttrsStart bucket_object_get_attrs_start = 30;
+    BucketObjectGetAttrsEnd bucket_object_get_attrs_end = 31;
+    BucketListObjectsStart bucket_list_objects_start = 32;
+    BucketListObjectsEnd bucket_list_objects_end = 33;
+    BucketDeleteObjectsStart bucket_delete_objects_start = 34;
+    BucketDeleteObjectsEnd bucket_delete_objects_end = 35;
   }
 }
 
@@ -266,6 +277,76 @@ message CacheCallEnd {
     CONFLICT = 3;
     ERR = 4;
   }
+}
+
+message BucketObjectUploadStart {
+  string bucket = 1;
+  string object = 2;
+  BucketObjectAttributes attrs = 3;
+  StackTrace stack = 4;
+}
+
+message BucketObjectUploadEnd {
+  optional Error err = 1;
+  optional uint64 size = 2;
+}
+
+message BucketObjectDownloadStart {
+  string bucket = 1;
+  string object = 2;
+  optional string version = 3;
+  StackTrace stack = 4;
+}
+
+message BucketObjectDownloadEnd {
+  optional Error err = 1;
+  optional uint64 size = 2;
+}
+
+message BucketObjectGetAttrsStart {
+  string bucket = 1;
+  string object = 2;
+  optional string version = 3;
+  StackTrace stack = 4;
+}
+
+message BucketObjectGetAttrsEnd {
+  optional Error err = 1;
+  optional BucketObjectAttributes attrs = 2;
+}
+
+message BucketListObjectsStart {
+  string bucket = 1;
+  optional string prefix = 2;
+  StackTrace stack = 3;
+}
+
+message BucketListObjectsEnd {
+  optional Error err = 1;
+  uint64 observed = 2;
+  bool has_more = 3;
+}
+
+message BucketDeleteObjectsStart {
+  string bucket = 1;
+  StackTrace stack = 2;
+  repeated BucketDeleteObjectEntry entries = 3;
+}
+
+message BucketDeleteObjectEntry {
+  string object = 1;
+  optional string version = 2;
+}
+
+message BucketDeleteObjectsEnd {
+  optional Error err = 1;
+}
+
+message BucketObjectAttributes {
+  optional uint64 size = 1;
+  optional string version = 2;
+  optional string etag = 3;
+  optional string content_type = 4;
 }
 
 message BodyStream {

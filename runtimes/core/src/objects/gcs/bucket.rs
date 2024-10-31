@@ -11,10 +11,10 @@ use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
-    AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, Error, ListEntry, ListOptions,
-    ObjectAttrs, UploadOptions,
+    AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, Error, ExistsOptions, ListEntry,
+    ListOptions, ObjectAttrs, UploadOptions,
 };
-use crate::{objects, CloudName};
+use crate::{objects, CloudName, EncoreName};
 use google_cloud_storage as gcs;
 
 use super::LazyGCSClient;
@@ -22,7 +22,8 @@ use super::LazyGCSClient;
 #[derive(Debug)]
 pub struct Bucket {
     client: Arc<LazyGCSClient>,
-    name: CloudName,
+    encore_name: EncoreName,
+    cloud_name: CloudName,
     key_prefix: Option<String>,
 }
 
@@ -30,7 +31,8 @@ impl Bucket {
     pub(super) fn new(client: Arc<LazyGCSClient>, cfg: &pb::Bucket) -> Self {
         Self {
             client,
-            name: cfg.cloud_name.clone().into(),
+            encore_name: cfg.encore_name.clone().into(),
+            cloud_name: cfg.cloud_name.clone().into(),
             key_prefix: cfg.key_prefix.clone(),
         }
     }
@@ -61,8 +63,15 @@ impl Bucket {
 }
 
 impl objects::BucketImpl for Bucket {
+    fn name(&self) -> &EncoreName {
+        &self.encore_name
+    }
+
     fn object(self: Arc<Self>, name: String) -> Arc<dyn objects::ObjectImpl> {
-        Arc::new(Object { bkt: self, name })
+        Arc::new(Object {
+            bkt: self,
+            key: name,
+        })
     }
 
     fn list(
@@ -85,7 +94,7 @@ impl objects::BucketImpl for Bucket {
                         };
 
                         let mut req = gcs::http::objects::list::ListObjectsRequest {
-                            bucket: self.name.to_string(),
+                            bucket: self.cloud_name.to_string(),
                             max_results: Some(max_results),
                             ..Default::default()
                         };
@@ -150,10 +159,18 @@ impl objects::BucketImpl for Bucket {
 #[derive(Debug)]
 struct Object {
     bkt: Arc<Bucket>,
-    name: String,
+    key: String,
 }
 
 impl objects::ObjectImpl for Object {
+    fn bucket_name(&self) -> &EncoreName {
+        &self.bkt.encore_name
+    }
+
+    fn key(&self) -> &str {
+        &self.key
+    }
+
     fn attrs(
         self: Arc<Self>,
         options: AttrsOptions,
@@ -162,8 +179,8 @@ impl objects::ObjectImpl for Object {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     let mut req = gcs::http::objects::get::GetObjectRequest {
-                        bucket: self.bkt.name.to_string(),
-                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
+                        bucket: self.bkt.cloud_name.to_string(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned(),
                         ..Default::default()
                     };
 
@@ -190,18 +207,18 @@ impl objects::ObjectImpl for Object {
 
     fn exists(
         self: Arc<Self>,
-        version: Option<String>,
+        options: ExistsOptions,
     ) -> Pin<Box<dyn Future<Output = Result<bool, Error>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     let mut req = gcs::http::objects::get::GetObjectRequest {
-                        bucket: self.bkt.name.to_string(),
-                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
+                        bucket: self.bkt.cloud_name.to_string(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned(),
                         ..Default::default()
                     };
 
-                    if let Some(version) = version {
+                    if let Some(version) = options.version {
                         req.generation = Some(parse_version(version)?);
                     }
 
@@ -228,11 +245,11 @@ impl objects::ObjectImpl for Object {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     let mut req = UploadObjectRequest {
-                        bucket: self.bkt.name.to_string(),
+                        bucket: self.bkt.cloud_name.to_string(),
                         ..Default::default()
                     };
 
-                    let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
+                    let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.key));
                     let mut media = Media::new(cloud_name.into_owned());
 
                     apply_upload_opts(opts, &mut req, &mut media);
@@ -283,8 +300,8 @@ impl objects::ObjectImpl for Object {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     let mut req = GetObjectRequest {
-                        bucket: self.bkt.name.to_string(),
-                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
+                        bucket: self.bkt.cloud_name.to_string(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned(),
                         ..Default::default()
                     };
 
@@ -316,8 +333,8 @@ impl objects::ObjectImpl for Object {
             match self.bkt.client.get().await {
                 Ok(client) => {
                     let mut req = gcs::http::objects::delete::DeleteObjectRequest {
-                        bucket: self.bkt.name.to_string(),
-                        object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
+                        bucket: self.bkt.cloud_name.to_string(),
+                        object: self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned(),
                         ..Default::default()
                     };
 

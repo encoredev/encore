@@ -44,7 +44,7 @@ impl Manager {
             if let Some((cluster, bucket_cfg)) = self.bucket_cfg.get(&name) {
                 cluster.clone().bucket(bucket_cfg)
             } else {
-                Arc::new(noop::Bucket)
+                Arc::new(noop::Bucket::new(name.clone()))
             }
         };
 

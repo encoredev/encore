@@ -7,7 +7,7 @@ use crate::api::{self, PValue};
 use crate::model::{LogField, LogFieldValue, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
 use crate::trace::log::TraceEvent;
-use crate::{model, EncoreName};
+use crate::{model, objects, EncoreName};
 
 /// Represents a type of trace event.
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +35,18 @@ pub enum EventType {
     CacheCallStart = 0x14,
     CacheCallEnd = 0x15,
     BodyStream = 0x16,
+    TestStart = 0x17,
+    TestEnd = 0x18,
+    BucketObjectUploadStart = 0x19,
+    BucketObjectUploadEnd = 0x1A,
+    BucketObjectDownloadStart = 0x1B,
+    BucketObjectDownloadEnd = 0x1C,
+    BucketObjectGetAttrsStart = 0x1D,
+    BucketObjectGetAttrsEnd = 0x1E,
+    BucketListObjectsStart = 0x1F,
+    BucketListObjectsEnd = 0x20,
+    BucketDeleteObjectsStart = 0x21,
+    BucketDeleteObjectsEnd = 0x22,
 }
 
 // A global event id counter.
@@ -442,6 +454,353 @@ impl Tracer {
         eb.err_with_legacy_stack(data.error);
 
         _ = self.send(EventType::DBQueryEnd, data.source.span, eb);
+    }
+}
+
+pub struct BucketObjectUploadStart<'a> {
+    pub source: &'a Request,
+    pub bucket: &'a EncoreName,
+    pub object: &'a str,
+    pub attrs: BucketObjectAttributes<'a>,
+}
+
+pub struct BucketObjectUploadEnd<'a, E> {
+    pub start_id: TraceEventId,
+    pub source: &'a Request,
+    pub result: BucketObjectUploadEndResult<'a, E>,
+}
+
+pub enum BucketObjectUploadEndResult<'a, E> {
+    Success { size: u64 },
+    Err(&'a E),
+}
+
+#[derive(Default, Debug)]
+pub struct BucketObjectAttributes<'a> {
+    pub size: Option<u64>,
+    pub version: Option<&'a str>,
+    pub etag: Option<&'a str>,
+    pub content_type: Option<&'a str>,
+}
+
+impl<'a> From<&'a objects::ObjectAttrs> for BucketObjectAttributes<'a> {
+    fn from(attrs: &'a objects::ObjectAttrs) -> Self {
+        Self {
+            size: Some(attrs.size),
+            version: attrs.version.as_deref(),
+            etag: Some(&attrs.etag),
+            content_type: attrs.content_type.as_deref(),
+        }
+    }
+}
+
+impl EventBuffer {
+    fn bucket_object_attrs(&mut self, attrs: &BucketObjectAttributes) {
+        self.u64(attrs.size.unwrap_or(0));
+        self.opt_str(attrs.version);
+        self.opt_str(attrs.etag);
+        self.opt_str(attrs.content_type);
+    }
+}
+
+impl Tracer {
+    #[inline]
+    pub fn bucket_object_upload_start(&self, data: BucketObjectUploadStart) -> TraceEventId {
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 4 + 4 + 8 + data.bucket.len() + data.object.len(),
+        }
+        .into_eb();
+
+        eb.str(data.bucket);
+        eb.str(data.object);
+        eb.bucket_object_attrs(&data.attrs);
+        eb.nyi_stack_pcs();
+
+        self.send(EventType::BucketObjectUploadStart, data.source.span, eb)
+    }
+
+    #[inline]
+    pub fn bucket_object_upload_end<E>(&self, data: BucketObjectUploadEnd<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(data.start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        match data.result {
+            BucketObjectUploadEndResult::Success { size } => {
+                eb.u64(size);
+                eb.err_with_legacy_stack::<E>(None);
+            }
+            BucketObjectUploadEndResult::Err(err) => {
+                eb.u64(0);
+                eb.err_with_legacy_stack(Some(err));
+            }
+        }
+
+        _ = self.send(EventType::BucketObjectUploadEnd, data.source.span, eb);
+    }
+}
+
+pub struct BucketObjectDownloadStart<'a> {
+    pub source: &'a Request,
+    pub bucket: &'a EncoreName,
+    pub object: &'a str,
+    pub version: Option<&'a str>,
+}
+
+pub struct BucketObjectDownloadEnd<'a, E> {
+    pub start_id: TraceEventId,
+    pub source: &'a Request,
+    pub result: BucketObjectDownloadEndResult<'a, E>,
+}
+
+pub enum BucketObjectDownloadEndResult<'a, E> {
+    Success { size: u64 },
+    Err(&'a E),
+}
+
+impl Tracer {
+    #[inline]
+    pub fn bucket_object_download_start(&self, data: BucketObjectDownloadStart) -> TraceEventId {
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 4 + 4 + 8 + data.bucket.len() + data.object.len(),
+        }
+        .into_eb();
+
+        eb.str(data.bucket);
+        eb.str(data.object);
+        eb.opt_str(data.version);
+        eb.nyi_stack_pcs();
+
+        self.send(EventType::BucketObjectDownloadStart, data.source.span, eb)
+    }
+
+    #[inline]
+    pub fn bucket_object_download_end<E>(&self, data: BucketObjectDownloadEnd<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(data.start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        match data.result {
+            BucketObjectDownloadEndResult::Success { size } => {
+                eb.u64(size);
+                eb.err_with_legacy_stack::<E>(None);
+            }
+            BucketObjectDownloadEndResult::Err(err) => {
+                eb.u64(0);
+                eb.err_with_legacy_stack(Some(err));
+            }
+        }
+
+        _ = self.send(EventType::BucketObjectDownloadEnd, data.source.span, eb);
+    }
+}
+
+pub struct BucketDeleteObjectsStart<'a, O> {
+    pub source: &'a Request,
+    pub bucket: &'a EncoreName,
+    pub objects: O,
+}
+
+pub struct BucketDeleteObjectEntry<'a> {
+    pub object: &'a str,
+    pub version: Option<&'a str>,
+}
+
+pub struct BucketDeleteObjectsEnd<'a, E> {
+    pub start_id: TraceEventId,
+    pub source: &'a Request,
+    pub result: BucketDeleteObjectsEndResult<'a, E>,
+}
+
+pub enum BucketDeleteObjectsEndResult<'a, E> {
+    Success,
+    Err(&'a E),
+}
+
+impl Tracer {
+    #[inline]
+    pub fn bucket_delete_objects_start<'a, O>(
+        &self,
+        data: BucketDeleteObjectsStart<'a, O>,
+    ) -> TraceEventId
+    where
+        O: ExactSizeIterator<Item = BucketDeleteObjectEntry<'a>>,
+    {
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 4 + 4 + 8 + data.bucket.len() + data.objects.len() * 8,
+        }
+        .into_eb();
+
+        eb.str(data.bucket);
+        eb.nyi_stack_pcs();
+        eb.uvarint(data.objects.len() as u64);
+        for obj in data.objects {
+            eb.str(obj.object);
+            eb.opt_str(obj.version);
+        }
+
+        self.send(EventType::BucketDeleteObjectsStart, data.source.span, eb)
+    }
+
+    #[inline]
+    pub fn bucket_delete_objects_end<E>(&self, data: BucketDeleteObjectsEnd<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(data.start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        match data.result {
+            BucketDeleteObjectsEndResult::Success => {
+                eb.err_with_legacy_stack::<E>(None);
+            }
+            BucketDeleteObjectsEndResult::Err(err) => {
+                eb.err_with_legacy_stack(Some(err));
+            }
+        }
+
+        _ = self.send(EventType::BucketDeleteObjectsEnd, data.source.span, eb);
+    }
+}
+
+pub struct BucketListObjectsStart<'a> {
+    pub source: &'a Request,
+    pub bucket: &'a EncoreName,
+    pub prefix: Option<&'a str>,
+}
+
+pub struct BucketListObjectsEnd<'a, E> {
+    pub start_id: TraceEventId,
+    pub source: &'a Request,
+    pub result: BucketListObjectsEndResult<'a, E>,
+}
+
+pub enum BucketListObjectsEndResult<'a, E> {
+    Success { observed: u64, has_more: bool },
+    Err(&'a E),
+}
+
+impl Tracer {
+    #[inline]
+    pub fn bucket_list_objects_start(&self, data: BucketListObjectsStart) -> TraceEventId {
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 4
+                + 4
+                + 8
+                + data.bucket.len()
+                + data.prefix.map(|p| p.len()).unwrap_or_default(),
+        }
+        .into_eb();
+
+        eb.str(data.bucket);
+        eb.opt_str(data.prefix);
+        eb.nyi_stack_pcs();
+
+        self.send(EventType::BucketListObjectsStart, data.source.span, eb)
+    }
+
+    #[inline]
+    pub fn bucket_list_objects_end<E>(&self, data: BucketListObjectsEnd<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(data.start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        match data.result {
+            BucketListObjectsEndResult::Success { observed, has_more } => {
+                eb.err_with_legacy_stack::<E>(None);
+                eb.uvarint(observed);
+                eb.bool(has_more);
+            }
+            BucketListObjectsEndResult::Err(err) => {
+                eb.err_with_legacy_stack(Some(err));
+                eb.uvarint(0u64);
+                eb.bool(false);
+            }
+        }
+
+        _ = self.send(EventType::BucketListObjectsEnd, data.source.span, eb);
+    }
+}
+
+pub struct BucketObjectGetAttrsStart<'a> {
+    pub source: &'a Request,
+    pub bucket: &'a EncoreName,
+    pub object: &'a str,
+    pub version: Option<&'a str>,
+}
+
+pub struct BucketObjectGetAttrsEnd<'a, E> {
+    pub start_id: TraceEventId,
+    pub source: &'a Request,
+    pub result: BucketObjectGetAttrsEndResult<'a, E>,
+}
+
+pub enum BucketObjectGetAttrsEndResult<'a, E> {
+    Success(BucketObjectAttributes<'a>),
+    Err(&'a E),
+}
+
+impl Tracer {
+    #[inline]
+    pub fn bucket_object_get_attrs_start(&self, data: BucketObjectGetAttrsStart) -> TraceEventId {
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 4 + 4 + 8 + data.bucket.len() + data.object.len(),
+        }
+        .into_eb();
+
+        eb.str(data.bucket);
+        eb.str(data.object);
+        eb.opt_str(data.version);
+        eb.nyi_stack_pcs();
+
+        self.send(EventType::BucketObjectGetAttrsStart, data.source.span, eb)
+    }
+
+    #[inline]
+    pub fn bucket_object_get_attrs_end<E>(&self, data: BucketObjectGetAttrsEnd<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(data.start_id),
+            extra_space: 4 + 4 + 8,
+        }
+        .into_eb();
+
+        match data.result {
+            BucketObjectGetAttrsEndResult::Success(attrs) => {
+                eb.err_with_legacy_stack::<E>(None);
+                eb.bucket_object_attrs(&attrs);
+            }
+            BucketObjectGetAttrsEndResult::Err(err) => {
+                eb.err_with_legacy_stack(Some(err));
+            }
+        }
+
+        _ = self.send(EventType::BucketObjectGetAttrsEnd, data.source.span, eb);
     }
 }
 

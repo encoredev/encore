@@ -19,10 +19,13 @@ use crate::span_err::ErrReporter;
 pub struct Bucket {
     pub name: String,
     pub doc: Option<String>,
+    pub versioned: bool,
 }
 
 #[derive(LitParser, Default)]
-struct DecodedBucketConfig {}
+struct DecodedBucketConfig {
+    pub versioned: Option<bool>,
+}
 
 pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
     name: "objects",
@@ -38,7 +41,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                 let r = r?;
 
                 // Not yet used.
-                let _cfg = r.config.unwrap_or_default();
+                let cfg = r.config.unwrap_or_default();
 
                 let object = match &r.bind_name {
                     None => None,
@@ -50,6 +53,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                 let resource = Resource::Bucket(Lrc::new(Bucket {
                     name: r.resource_name,
                     doc: r.doc_comment,
+                    versioned: cfg.versioned.unwrap_or(false),
                 }));
                 pass.add_resource(resource.clone());
                 pass.add_bind(BindData {

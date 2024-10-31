@@ -16,30 +16,40 @@ import (
 type EventType byte
 
 const (
-	RequestSpanStart       EventType = 0x01
-	RequestSpanEnd         EventType = 0x02
-	AuthSpanStart          EventType = 0x03
-	AuthSpanEnd            EventType = 0x04
-	PubsubMessageSpanStart EventType = 0x05
-	PubsubMessageSpanEnd   EventType = 0x06
-	DBTransactionStart     EventType = 0x07
-	DBTransactionEnd       EventType = 0x08
-	DBQueryStart           EventType = 0x09
-	DBQueryEnd             EventType = 0x0A
-	RPCCallStart           EventType = 0x0B
-	RPCCallEnd             EventType = 0x0C
-	HTTPCallStart          EventType = 0x0D
-	HTTPCallEnd            EventType = 0x0E
-	LogMessage             EventType = 0x0F
-	PubsubPublishStart     EventType = 0x10
-	PubsubPublishEnd       EventType = 0x11
-	ServiceInitStart       EventType = 0x12
-	ServiceInitEnd         EventType = 0x13
-	CacheCallStart         EventType = 0x14
-	CacheCallEnd           EventType = 0x15
-	BodyStream             EventType = 0x16
-	TestStart              EventType = 0x17
-	TestEnd                EventType = 0x18
+	RequestSpanStart          EventType = 0x01
+	RequestSpanEnd            EventType = 0x02
+	AuthSpanStart             EventType = 0x03
+	AuthSpanEnd               EventType = 0x04
+	PubsubMessageSpanStart    EventType = 0x05
+	PubsubMessageSpanEnd      EventType = 0x06
+	DBTransactionStart        EventType = 0x07
+	DBTransactionEnd          EventType = 0x08
+	DBQueryStart              EventType = 0x09
+	DBQueryEnd                EventType = 0x0A
+	RPCCallStart              EventType = 0x0B
+	RPCCallEnd                EventType = 0x0C
+	HTTPCallStart             EventType = 0x0D
+	HTTPCallEnd               EventType = 0x0E
+	LogMessage                EventType = 0x0F
+	PubsubPublishStart        EventType = 0x10
+	PubsubPublishEnd          EventType = 0x11
+	ServiceInitStart          EventType = 0x12
+	ServiceInitEnd            EventType = 0x13
+	CacheCallStart            EventType = 0x14
+	CacheCallEnd              EventType = 0x15
+	BodyStream                EventType = 0x16
+	TestStart                 EventType = 0x17
+	TestEnd                   EventType = 0x18
+	BucketObjectUploadStart   EventType = 0x19
+	BucketObjectUploadEnd     EventType = 0x1A
+	BucketObjectDownloadStart EventType = 0x1B
+	BucketObjectDownloadEnd   EventType = 0x1C
+	BucketObjectGetAttrsStart EventType = 0x1D
+	BucketObjectGetAttrsEnd   EventType = 0x1E
+	BucketListObjectsStart    EventType = 0x1F
+	BucketListObjectsEnd      EventType = 0x20
+	BucketDeleteObjectsStart  EventType = 0x21
+	BucketDeleteObjectsEnd    EventType = 0x22
 )
 
 func (te EventType) String() string {
@@ -92,6 +102,27 @@ func (te EventType) String() string {
 		return "TestStart"
 	case TestEnd:
 		return "TestEnd"
+	case BucketObjectUploadStart:
+		return "BucketObjectUploadStart"
+	case BucketObjectUploadEnd:
+		return "BucketObjectUploadEnd"
+	case BucketObjectDownloadStart:
+		return "BucketObjectDownloadStart"
+	case BucketObjectDownloadEnd:
+		return "BucketObjectDownloadEnd"
+	case BucketObjectGetAttrsStart:
+		return "BucketObjectGetAttrsStart"
+	case BucketObjectGetAttrsEnd:
+		return "BucketObjectGetAttrsEnd"
+	case BucketListObjectsStart:
+		return "BucketListObjectsStart"
+	case BucketListObjectsEnd:
+		return "BucketListObjectsEnd"
+	case BucketDeleteObjectsStart:
+		return "BucketDeleteObjectsStart"
+	case BucketDeleteObjectsEnd:
+		return "BucketDeleteObjectsEnd"
+
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}

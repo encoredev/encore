@@ -14,8 +14,10 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
-    self, AttrsOptions, DeleteOptions, DownloadOptions, Error, ListEntry, ListOptions, ObjectAttrs,
+    self, AttrsOptions, DeleteOptions, DownloadOptions, Error, ExistsOptions, ListEntry,
+    ListOptions, ObjectAttrs,
 };
+use crate::{CloudName, EncoreName};
 
 use super::LazyS3Client;
 
@@ -24,7 +26,8 @@ const CHUNK_SIZE: usize = 8_388_608; // 8 Mebibytes, min is 5 (5_242_880);
 #[derive(Debug)]
 pub struct Bucket {
     client: Arc<LazyS3Client>,
-    name: String,
+    encore_name: EncoreName,
+    cloud_name: CloudName,
     key_prefix: Option<String>,
 }
 
@@ -32,7 +35,8 @@ impl Bucket {
     pub(super) fn new(client: Arc<LazyS3Client>, cfg: &pb::Bucket) -> Self {
         Self {
             client,
-            name: cfg.cloud_name.clone(),
+            encore_name: cfg.encore_name.clone().into(),
+            cloud_name: cfg.cloud_name.clone().into(),
             key_prefix: cfg.key_prefix.clone(),
         }
     }
@@ -63,10 +67,14 @@ impl Bucket {
 }
 
 impl objects::BucketImpl for Bucket {
+    fn name(&self) -> &EncoreName {
+        &self.encore_name
+    }
+
     fn object(self: Arc<Self>, name: String) -> Arc<dyn objects::ObjectImpl> {
         Arc::new(Object {
             bkt: self.clone(),
-            cloud_name: name,
+            name,
         })
     }
 
@@ -80,7 +88,7 @@ impl objects::BucketImpl for Bucket {
             let client = self.client.get().await.clone();
             let s: objects::ListStream = Box::new(try_stream! {
                 let mut req = client.list_objects_v2()
-                    .bucket(self.name.clone());
+                    .bucket(&self.cloud_name);
 
                 if let Some(key_prefix) = self.key_prefix.clone() {
                     req = req.prefix(key_prefix);
@@ -110,7 +118,7 @@ impl objects::BucketImpl for Bucket {
                         let entry = ListEntry {
                             name: self.strip_prefix(Cow::Owned(obj.key.unwrap_or_default())).into_owned(),
                             size: obj.size.unwrap_or_default() as u64,
-                            etag: obj.e_tag.unwrap_or_default(),
+                            etag: parse_etag(obj.e_tag),
                         };
                         yield entry;
                     }
@@ -125,20 +133,28 @@ impl objects::BucketImpl for Bucket {
 #[derive(Debug)]
 struct Object {
     bkt: Arc<Bucket>,
-    cloud_name: String,
+    name: String,
 }
 
 impl objects::ObjectImpl for Object {
+    fn bucket_name(&self) -> &EncoreName {
+        &self.bkt.encore_name
+    }
+
+    fn key(&self) -> &str {
+        &self.name
+    }
+
     fn attrs(
         self: Arc<Self>,
         options: AttrsOptions,
     ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
-            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
+            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
             let res = client
                 .head_object()
-                .bucket(self.bkt.name.clone())
+                .bucket(&self.bkt.cloud_name)
                 .key(cloud_name)
                 .set_version_id(options.version)
                 .send()
@@ -146,7 +162,7 @@ impl objects::ObjectImpl for Object {
 
             match res {
                 Ok(obj) => Ok(ObjectAttrs {
-                    name: self.cloud_name.clone(),
+                    name: self.name.clone(),
                     version: obj.version_id,
                     size: obj.content_length.unwrap_or_default() as u64,
                     content_type: obj.content_type,
@@ -162,16 +178,16 @@ impl objects::ObjectImpl for Object {
 
     fn exists(
         self: Arc<Self>,
-        version: Option<String>,
+        options: ExistsOptions,
     ) -> Pin<Box<dyn Future<Output = Result<bool, Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
-            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
+            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
             let res = client
                 .head_object()
-                .bucket(&self.bkt.name)
+                .bucket(&self.bkt.cloud_name)
                 .key(cloud_name)
-                .set_version_id(version)
+                .set_version_id(options.version)
                 .send()
                 .await;
             match res {
@@ -189,7 +205,7 @@ impl objects::ObjectImpl for Object {
     ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
-            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
+            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
             let first_chunk = read_chunk_async(&mut data).await.map_err(|e| {
                 Error::Other(anyhow::anyhow!("uable to read from data source: {}", e))
             })?;
@@ -204,7 +220,7 @@ impl objects::ObjectImpl for Object {
 
                     let mut req = client
                         .put_object()
-                        .bucket(&self.bkt.name)
+                        .bucket(&self.bkt.cloud_name)
                         .key(cloud_name)
                         .content_length(total_size as i64)
                         .content_md5(content_md5)
@@ -219,7 +235,7 @@ impl objects::ObjectImpl for Object {
 
                     let resp = req.send().await.map_err(map_upload_err)?;
                     Ok(ObjectAttrs {
-                        name: self.cloud_name.clone(),
+                        name: self.name.clone(),
                         version: resp.version_id,
                         size: total_size as u64,
                         content_type: options.content_type,
@@ -231,7 +247,7 @@ impl objects::ObjectImpl for Object {
                     // Large file; do a multipart upload.
                     let upload = client
                         .create_multipart_upload()
-                        .bucket(&self.bkt.name)
+                        .bucket(&self.bkt.cloud_name)
                         .key(cloud_name.to_string())
                         .set_content_type(options.content_type.clone())
                         .send()
@@ -254,7 +270,7 @@ impl objects::ObjectImpl for Object {
                         &mut data,
                         chunk.freeze(),
                         &upload_id,
-                        &self.bkt.name,
+                        &self.bkt.cloud_name,
                         &cloud_name,
                         &options,
                     )
@@ -262,7 +278,7 @@ impl objects::ObjectImpl for Object {
 
                     if let UploadMultipartResult::CompleteSuccess { total_size, output } = res {
                         return Ok(ObjectAttrs {
-                            name: self.cloud_name.clone(),
+                            name: self.name.clone(),
                             version: output.version_id,
                             size: total_size,
                             content_type: options.content_type,
@@ -273,7 +289,7 @@ impl objects::ObjectImpl for Object {
                     // Abort the upload.
                     let fut = client
                         .abort_multipart_upload()
-                        .bucket(&self.bkt.name)
+                        .bucket(&self.bkt.cloud_name)
                         .key(cloud_name)
                         .upload_id(upload_id)
                         .send();
@@ -301,10 +317,10 @@ impl objects::ObjectImpl for Object {
     ) -> Pin<Box<dyn Future<Output = Result<objects::DownloadStream, objects::Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
-            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
+            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
             let res = client
                 .get_object()
-                .bucket(&self.bkt.name)
+                .bucket(&self.bkt.cloud_name)
                 .key(cloud_name.into_owned())
                 .set_version_id(options.version)
                 .send()
@@ -334,10 +350,10 @@ impl objects::ObjectImpl for Object {
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
-            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
+            let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
             let res = client
                 .delete_object()
-                .bucket(&self.bkt.name)
+                .bucket(&self.bkt.cloud_name)
                 .key(cloud_name.into_owned())
                 .set_version_id(options.version)
                 .send()
@@ -404,7 +420,7 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
     reader: &mut R,
     first_chunk: Bytes,
     upload_id: &str,
-    bucket: &str,
+    bucket: &CloudName,
     key: &str,
     options: &objects::UploadOptions,
 ) -> UploadMultipartResult {
