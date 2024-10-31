@@ -161,7 +161,6 @@ impl objects::ObjectImpl for Object {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
-                    use gcs::http::{error::ErrorResponse, Error as GCSError};
                     let mut req = gcs::http::objects::get::GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
@@ -172,25 +171,14 @@ impl objects::ObjectImpl for Object {
                         req.generation = Some(parse_version(version)?);
                     }
 
-                    match client.get_object(&req).await {
-                        Ok(obj) => Ok(ObjectAttrs {
-                            name: obj.name,
-                            version: obj.generation.to_string(),
-                            size: obj.size as u64,
-                            content_type: obj.content_type,
-                            etag: obj.etag,
-                        }),
-                        Err(GCSError::Response(ErrorResponse { code: 404, .. })) => {
-                            Err(Error::NotFound)
-                        }
-                        Err(GCSError::HttpClient(err))
-                            if err.status().is_some_and(|v| v.as_u16() == 404) =>
-                        {
-                            Err(Error::NotFound)
-                        }
-
-                        Err(err) => Err(Error::Other(err.into())),
-                    }
+                    let obj = client.get_object(&req).await.map_err(map_err)?;
+                    Ok(ObjectAttrs {
+                        name: obj.name,
+                        version: Some(obj.generation.to_string()),
+                        size: obj.size as u64,
+                        content_type: obj.content_type,
+                        etag: obj.etag,
+                    })
                 }
                 Err(err) => Err(Error::Internal(anyhow::anyhow!(
                     "unable to resolve client: {}",
@@ -203,11 +191,10 @@ impl objects::ObjectImpl for Object {
     fn exists(
         self: Arc<Self>,
         version: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<bool, Error>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
-                    use gcs::http::{error::ErrorResponse, Error};
                     let mut req = gcs::http::objects::get::GetObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
@@ -218,19 +205,16 @@ impl objects::ObjectImpl for Object {
                         req.generation = Some(parse_version(version)?);
                     }
 
-                    match client.get_object(&req).await {
+                    match client.get_object(&req).await.map_err(map_err) {
                         Ok(_obj) => Ok(true),
-                        Err(Error::Response(ErrorResponse { code: 404, .. })) => Ok(false),
-                        Err(Error::HttpClient(err))
-                            if err.status().is_some_and(|v| v.as_u16() == 404) =>
-                        {
-                            Ok(false)
-                        }
-
-                        Err(err) => Err(err.into()),
+                        Err(Error::NotFound) => Ok(false),
+                        Err(err) => Err(err),
                     }
                 }
-                Err(err) => Err(anyhow::anyhow!("unable to resolve client: {}", err)),
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
+                    "unable to resolve client: {}",
+                    err
+                ))),
             }
         })
     }
@@ -239,7 +223,7 @@ impl objects::ObjectImpl for Object {
         self: Arc<Self>,
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         opts: objects::UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
@@ -260,11 +244,20 @@ impl objects::ObjectImpl for Object {
                         .upload_streamed_object(&req, stream, &upload_type)
                         .await
                     {
-                        Ok(_obj) => Ok(()),
-                        Err(err) => Err(err.into()),
+                        Ok(obj) => Ok(ObjectAttrs {
+                            name: obj.name,
+                            version: Some(obj.generation.to_string()),
+                            size: obj.size as u64,
+                            content_type: obj.content_type,
+                            etag: obj.etag,
+                        }),
+                        Err(err) => Err(map_err(err)),
                     }
                 }
-                Err(err) => Err(anyhow::anyhow!("unable to resolve client: {}", err)),
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
+                    "unable to resolve client: {}",
+                    err
+                ))),
             }
         })
     }
@@ -322,7 +315,6 @@ impl objects::ObjectImpl for Object {
         Box::pin(async move {
             match self.bkt.client.get().await {
                 Ok(client) => {
-                    use gcs::http::{error::ErrorResponse, Error as GCSError};
                     let mut req = gcs::http::objects::delete::DeleteObjectRequest {
                         bucket: self.bkt.name.to_string(),
                         object: self.bkt.obj_name(Cow::Borrowed(&self.name)).into_owned(),
@@ -333,16 +325,10 @@ impl objects::ObjectImpl for Object {
                         req.generation = Some(parse_version(version)?);
                     }
 
-                    match client.delete_object(&req).await {
+                    match client.delete_object(&req).await.map_err(map_err) {
                         Ok(_) => Ok(()),
-                        Err(GCSError::Response(ErrorResponse { code: 404, .. })) => Ok(()),
-                        Err(GCSError::HttpClient(err))
-                            if err.status().is_some_and(|v| v.as_u16() == 404) =>
-                        {
-                            Ok(())
-                        }
-
-                        Err(err) => Err(Error::Other(err.into())),
+                        Err(Error::NotFound) => Ok(()),
+                        Err(err) => Err(err),
                     }
                 }
                 Err(err) => Err(Error::Internal(anyhow::anyhow!(
@@ -373,4 +359,24 @@ fn parse_version(version: String) -> Result<i64, Error> {
             err
         ))
     })
+}
+
+fn map_err(err: gcs::http::Error) -> Error {
+    use gcs::http::error::ErrorResponse;
+    match err {
+        gcs::http::Error::Response(ErrorResponse { code, .. }) => match code {
+            404 => Error::NotFound,
+            412 => Error::PreconditionFailed,
+            _ => Error::Other(err.into()),
+        },
+        gcs::http::Error::HttpClient(err) => {
+            let status = err.status().map(|s| s.as_u16());
+            match status {
+                Some(404) => Error::NotFound,
+                Some(412) => Error::PreconditionFailed,
+                _ => Error::Other(err.into()),
+            }
+        }
+        err => Error::Other(err.into()),
+    }
 }

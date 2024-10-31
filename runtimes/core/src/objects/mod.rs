@@ -34,13 +34,13 @@ trait ObjectImpl: Debug + Send + Sync {
     fn exists(
         self: Arc<Self>,
         version: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = Result<bool, Error>> + Send>>;
 
     fn upload(
         self: Arc<Self>,
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         options: UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>>;
+    ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>>;
 
     fn download(
         self: Arc<Self>,
@@ -84,7 +84,7 @@ pub struct Object {
 }
 
 impl Object {
-    pub async fn exists(&self, version: Option<String>) -> anyhow::Result<bool> {
+    pub async fn exists(&self, version: Option<String>) -> Result<bool, Error> {
         self.imp.clone().exists(version).await
     }
 
@@ -92,7 +92,7 @@ impl Object {
         &self,
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         options: UploadOptions,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send + 'static {
+    ) -> impl Future<Output = Result<ObjectAttrs, Error>> + Send + 'static {
         self.imp.clone().upload(data, options)
     }
 
@@ -133,6 +133,9 @@ pub enum Error {
     #[error("object not found")]
     NotFound,
 
+    #[error("precondition failed")]
+    PreconditionFailed,
+
     #[error("internal error: {0:?}")]
     Internal(anyhow::Error),
 
@@ -144,7 +147,7 @@ pub type DownloadStream = Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send
 
 pub struct ObjectAttrs {
     pub name: String,
-    pub version: String,
+    pub version: Option<String>,
     pub size: u64,
     pub content_type: Option<String>,
     pub etag: String,

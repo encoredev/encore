@@ -1,4 +1,3 @@
-use anyhow::Context;
 use async_stream::{stream, try_stream};
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::error::SdkError;
@@ -148,10 +147,10 @@ impl objects::ObjectImpl for Object {
             match res {
                 Ok(obj) => Ok(ObjectAttrs {
                     name: self.cloud_name.clone(),
-                    version: obj.version_id.unwrap_or_default(),
+                    version: obj.version_id,
                     size: obj.content_length.unwrap_or_default() as u64,
                     content_type: obj.content_type,
-                    etag: obj.e_tag.unwrap_or_default(),
+                    etag: parse_etag(obj.e_tag),
                 }),
                 Err(SdkError::ServiceError(err)) if err.err().is_not_found() => {
                     Err(Error::NotFound)
@@ -164,7 +163,7 @@ impl objects::ObjectImpl for Object {
     fn exists(
         self: Arc<Self>,
         version: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<bool, Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
@@ -178,7 +177,7 @@ impl objects::ObjectImpl for Object {
             match res {
                 Ok(_) => Ok(true),
                 Err(SdkError::ServiceError(err)) if err.err().is_not_found() => Ok(false),
-                Err(err) => Err(err.into()),
+                Err(err) => Err(Error::Other(err.into())),
             }
         })
     }
@@ -187,13 +186,13 @@ impl objects::ObjectImpl for Object {
         self: Arc<Self>,
         mut data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         options: objects::UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>> {
         Box::pin(async move {
             let client = self.bkt.client.get().await.clone();
             let cloud_name = self.bkt.obj_name(Cow::Borrowed(&self.cloud_name));
-            let first_chunk = read_chunk_async(&mut data)
-                .await
-                .context("unable to read from data source")?;
+            let first_chunk = read_chunk_async(&mut data).await.map_err(|e| {
+                Error::Other(anyhow::anyhow!("uable to read from data source: {}", e))
+            })?;
 
             match first_chunk {
                 Chunk::Complete(chunk) => {
@@ -209,7 +208,7 @@ impl objects::ObjectImpl for Object {
                         .key(cloud_name)
                         .content_length(total_size as i64)
                         .content_md5(content_md5)
-                        .set_content_type(options.content_type)
+                        .set_content_type(options.content_type.clone())
                         .body(ByteStream::from(chunk));
 
                     if let Some(precond) = options.preconditions {
@@ -218,8 +217,14 @@ impl objects::ObjectImpl for Object {
                         }
                     }
 
-                    let _ = req.send().await?;
-                    Ok(())
+                    let resp = req.send().await.map_err(map_upload_err)?;
+                    Ok(ObjectAttrs {
+                        name: self.cloud_name.clone(),
+                        version: resp.version_id,
+                        size: total_size as u64,
+                        content_type: options.content_type,
+                        etag: resp.e_tag.unwrap_or_default(),
+                    })
                 }
 
                 Chunk::Part(chunk) => {
@@ -228,14 +233,21 @@ impl objects::ObjectImpl for Object {
                         .create_multipart_upload()
                         .bucket(&self.bkt.name)
                         .key(cloud_name.to_string())
-                        .set_content_type(options.content_type)
+                        .set_content_type(options.content_type.clone())
                         .send()
                         .await
-                        .context("unable to begin streaming upload")?;
+                        .map_err(|err| {
+                            Error::Other(anyhow::anyhow!(
+                                "unable to begin streaming upload: {}",
+                                err
+                            ))
+                        })?;
 
-                    let upload_id = upload
-                        .upload_id
-                        .context("missing upload_id in streaming upload")?;
+                    let Some(upload_id) = upload.upload_id else {
+                        return Err(Error::Other(anyhow::anyhow!(
+                            "missing upload_id in streaming_upload"
+                        )));
+                    };
 
                     let res = upload_multipart_chunks(
                         &client,
@@ -244,24 +256,40 @@ impl objects::ObjectImpl for Object {
                         &upload_id,
                         &self.bkt.name,
                         &cloud_name,
+                        &options,
                     )
                     .await;
 
-                    match res {
-                        Ok(()) => Ok(()),
-                        Err(err) => {
-                            let fut = client
-                                .abort_multipart_upload()
-                                .bucket(&self.bkt.name)
-                                .key(cloud_name)
-                                .upload_id(upload_id)
-                                .send();
-                            tokio::spawn(async move {
-                                let _ = fut.await;
-                            });
-                            return Err(err);
-                        }
+                    if let UploadMultipartResult::CompleteSuccess { total_size, output } = res {
+                        return Ok(ObjectAttrs {
+                            name: self.cloud_name.clone(),
+                            version: output.version_id,
+                            size: total_size,
+                            content_type: options.content_type,
+                            etag: parse_etag(output.e_tag),
+                        });
                     }
+
+                    // Abort the upload.
+                    let fut = client
+                        .abort_multipart_upload()
+                        .bucket(&self.bkt.name)
+                        .key(cloud_name)
+                        .upload_id(upload_id)
+                        .send();
+                    tokio::spawn(async move {
+                        let _ = fut.await;
+                    });
+
+                    Err(match res {
+                        UploadMultipartResult::CompleteSuccess { .. } => unreachable!(),
+                        UploadMultipartResult::UploadError(err) => Error::Other(err.into()),
+                        UploadMultipartResult::CompleteError(err) => map_upload_err(err),
+                        UploadMultipartResult::ReadContents(err) => Error::Other(anyhow::anyhow!(
+                            "unable to read from data source: {}",
+                            err
+                        )),
+                    })
                 }
             }
         })
@@ -359,6 +387,18 @@ async fn read_chunk_async<R: AsyncRead + Unpin + ?Sized>(reader: &mut R) -> std:
     Ok(Chunk::Part(buf))
 }
 
+enum UploadMultipartResult {
+    CompleteSuccess {
+        total_size: u64,
+        output: s3::operation::complete_multipart_upload::CompleteMultipartUploadOutput,
+    },
+    CompleteError(
+        s3::error::SdkError<s3::operation::complete_multipart_upload::CompleteMultipartUploadError>,
+    ),
+    UploadError(s3::error::SdkError<s3::operation::upload_part::UploadPartError>),
+    ReadContents(std::io::Error),
+}
+
 async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
     client: &s3::Client,
     reader: &mut R,
@@ -366,13 +406,16 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
     upload_id: &str,
     bucket: &str,
     key: &str,
-) -> anyhow::Result<()> {
+    options: &objects::UploadOptions,
+) -> UploadMultipartResult {
     let mut handles = Vec::new();
     let mut part_number = 0;
+    let mut total_size = 0;
     let mut upload_part = |chunk: Bytes| {
         part_number += 1;
         let content_md5 =
             base64::engine::general_purpose::STANDARD.encode(md5::compute(&chunk).as_ref());
+        total_size += chunk.len() as u64;
         let handle = client
             .upload_part()
             .bucket(bucket)
@@ -388,7 +431,10 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
 
     upload_part(first_chunk);
     loop {
-        let bytes = read_chunk_async(reader).await?.into_bytes();
+        let bytes = match read_chunk_async(reader).await {
+            Ok(chunk) => chunk.into_bytes(),
+            Err(err) => return UploadMultipartResult::ReadContents(err),
+        };
         if bytes.is_empty() {
             break;
         }
@@ -400,10 +446,28 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
 
     // Check for errors.
     for res in responses {
-        let _ = res?;
+        if let Err(err) = res {
+            return UploadMultipartResult::UploadError(err);
+        }
     }
 
-    Ok(())
+    let mut req = client
+        .complete_multipart_upload()
+        .bucket(bucket)
+        .key(key)
+        .upload_id(upload_id);
+
+    if let Some(precond) = &options.preconditions {
+        if precond.not_exists == Some(true) {
+            req = req.if_none_match("*");
+        }
+    }
+
+    let resp = req.send().await;
+    match resp {
+        Ok(output) => UploadMultipartResult::CompleteSuccess { total_size, output },
+        Err(err) => UploadMultipartResult::CompleteError(err),
+    }
 }
 
 struct ObjectStream {
@@ -426,5 +490,32 @@ impl Stream for ObjectStream {
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+fn parse_etag(s: Option<String>) -> String {
+    match s {
+        Some(s) => {
+            if s.starts_with('"') && s.ends_with('"') {
+                s[1..s.len() - 1].to_string()
+            } else {
+                s
+            }
+        }
+        None => "".to_string(),
+    }
+}
+
+fn map_upload_err<E>(err: s3::error::SdkError<E>) -> objects::Error
+where
+    E: std::fmt::Debug,
+{
+    if err
+        .raw_response()
+        .is_some_and(|r| r.status().as_u16() == 412)
+    {
+        Error::PreconditionFailed
+    } else {
+        Error::Other(anyhow::anyhow!("failed to upload: {:?}", err))
     }
 }

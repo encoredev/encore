@@ -58,7 +58,7 @@ export class Bucket {
   /**
    * Uploads an object to the bucket.
    */
-  async upload(name: string, data: Buffer, options?: UploadOptions): Promise<void> {
+  async upload(name: string, data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
     const impl = this.impl.object(name);
     return impl.upload(data, options);
   }
@@ -77,7 +77,7 @@ export class Bucket {
    */
   async remove(name: string, options?: DeleteOptions): Promise<void> {
     const impl = this.impl.object(name);
-    return impl.delete(options);
+    const _ = await impl.delete(options);
   }
 }
 
@@ -125,7 +125,8 @@ export interface DownloadOptions {
 export interface ObjectAttrs {
   name: string;
   size: number;
-  version: string;
+  /** The version of the object, if bucket versioning is enabled. */
+  version?: string;
   etag: string;
   contentType?: string;
 }

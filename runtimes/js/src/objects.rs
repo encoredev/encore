@@ -55,10 +55,10 @@ impl BucketObject {
 
     #[napi]
     pub async fn exists(&self, version: Option<String>) -> napi::Result<bool> {
-        self.obj.exists(version).await.map_err(napi::Error::from)
+        self.obj.exists(version).await.map_err(map_objects_err)
     }
 
-    #[napi(ts_return_type = "Promise<void>")]
+    #[napi(ts_return_type = "Promise<ObjectAttrs>")]
     pub fn upload(
         &self,
         env: Env,
@@ -79,7 +79,7 @@ impl BucketObject {
 
         env.execute_tokio_future(fut, move |&mut _env, result| {
             // TODO: Decrement the ref count on the data buffer.
-            result.map_err(napi::Error::from)
+            result.map(ObjectAttrs::from).map_err(map_objects_err)
         })
     }
 
@@ -94,17 +94,18 @@ impl BucketObject {
         Ok(buf.into())
     }
 
-    #[napi(ts_return_type = "Promise<void>")]
-    pub async fn delete(&self, options: Option<DeleteOptions>) -> napi::Result<()> {
+    #[napi]
+    pub async fn delete(&self, options: Option<DeleteOptions>) -> napi::Result<bool> {
         let options = options.unwrap_or_default().into();
-        self.obj.delete(options).await.map_err(map_objects_err)
+        self.obj.delete(options).await.map_err(map_objects_err)?;
+        Ok(true)
     }
 }
 
 #[napi]
 pub struct ObjectAttrs {
     pub name: String,
-    pub version: String,
+    pub version: Option<String>,
     pub size: i64,
     pub content_type: Option<String>,
     pub etag: String,

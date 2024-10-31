@@ -56,9 +56,9 @@ impl objects::ObjectImpl for Object {
     fn exists(
         self: Arc<Self>,
         _version: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<bool>> + Send>> {
-        Box::pin(future::ready(Err(anyhow::anyhow!(
-            "noop bucket does not support exists"
+    ) -> Pin<Box<dyn Future<Output = Result<bool, objects::Error>> + Send>> {
+        Box::pin(future::ready(Err(objects::Error::Internal(
+            anyhow::anyhow!("noop bucket does not support exists"),
         ))))
     }
 
@@ -66,10 +66,10 @@ impl objects::ObjectImpl for Object {
         self: Arc<Self>,
         _data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         _options: objects::UploadOptions,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
-        Box::pin(future::ready(Err(anyhow::anyhow!(
+    ) -> Pin<Box<dyn Future<Output = Result<objects::ObjectAttrs, objects::Error>> + Send>> {
+        Box::pin(future::ready(Err(objects::Error::Other(anyhow::anyhow!(
             "noop bucket does not support upload"
-        ))))
+        )))))
     }
 
     fn download(
