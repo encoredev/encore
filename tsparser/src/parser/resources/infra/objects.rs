@@ -1,4 +1,5 @@
 use anyhow::Result;
+use litparser::LitParser;
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
@@ -39,8 +40,6 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
             type Res = NamedClassResourceOptionalConfig<DecodedBucketConfig>;
             for r in iter_references::<Res>(&module, &names) {
                 let r = r?;
-
-                // Not yet used.
                 let cfg = r.config.unwrap_or_default();
 
                 let object = match &r.bind_name {
