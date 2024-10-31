@@ -346,13 +346,14 @@ message SQLDatabase {
 
 message DBMigration {
   string filename    = 1; // filename
-  uint64 number     = 2; // migration number
+  uint64 number      = 2; // migration number
   string description = 3; // descriptive name
 }
 
 message Bucket {
   string name         = 1;
   optional string doc = 2;
+  bool versioned      = 3;
 }
 
 message PubSubTopic {

@@ -582,6 +582,7 @@ impl<'a> MetaBuilder<'a> {
         v1::Bucket {
             name: bkt.name.clone(),
             doc: bkt.doc.clone(),
+            versioned: bkt.versioned,
         }
     }
 
