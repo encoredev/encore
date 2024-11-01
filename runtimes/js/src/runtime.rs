@@ -184,7 +184,10 @@ impl Runtime {
         payload: Option<JsUnknown>,
         source: Option<&Request>,
     ) -> napi::Result<JsObject> {
-        let payload = payload.map(parse_pvalues).transpose()?;
+        let payload = match payload {
+            Some(payload) => parse_pvalues(payload)?,
+            None => None,
+        };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
 
         let fut = self.do_api_call(endpoint, payload, source);
@@ -237,7 +240,10 @@ impl Runtime {
         payload: Option<JsUnknown>,
         source: Option<&Request>,
     ) -> napi::Result<JsObject> {
-        let payload = payload.map(parse_pvalues).transpose()?;
+        let payload = match payload {
+            Some(payload) => parse_pvalues(payload)?,
+            None => None,
+        };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
         let source = source.map(|s| s.inner.clone());
         let fut = self.runtime.api().stream(endpoint, payload, source);

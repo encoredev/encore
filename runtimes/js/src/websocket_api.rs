@@ -165,7 +165,13 @@ impl WebSocketClient {
     #[napi]
     #[allow(dead_code)]
     pub fn send(&self, msg: JsUnknown) -> napi::Result<()> {
-        let msg = parse_pvalues(msg)?;
+        let Some(msg) = parse_pvalues(msg)? else {
+            return Err(napi::Error::new(
+                napi::Status::InvalidArg,
+                "no message data provided",
+            ));
+        };
+
         self.inner
             .send(msg)
             .map_err(|e| napi::Error::new(napi::Status::Unknown, e))?;
