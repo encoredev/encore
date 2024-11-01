@@ -118,7 +118,7 @@ impl PromiseHandler for AuthPromiseHandler {
     fn resolve(&self, env: Env, val: Option<napi::JsUnknown>) -> Self::Output {
         let Some(val) = val else { return Ok(None) };
         match parse_pvalues(val) {
-            Ok(val) => Ok(Some(val)),
+            Ok(val) => Ok(val),
             Err(err) => self.error(env, err),
         }
     }

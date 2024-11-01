@@ -33,7 +33,13 @@ impl PubSubTopic {
         body: JsUnknown,
         source: Option<&Request>,
     ) -> napi::Result<JsObject> {
-        let payload = parse_pvalues(body).context("failed to parse payload")?;
+        let Some(payload) = parse_pvalues(body).context("failed to parse payload")? else {
+            return Err(Error::new(
+                Status::InvalidArg,
+                "no message payload provided",
+            ));
+        };
+
         let source = source.map(|s| s.inner.clone());
         let fut = self.topic.publish(payload, source);
         let fut = async move {

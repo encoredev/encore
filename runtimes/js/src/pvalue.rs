@@ -9,9 +9,16 @@ pub fn parse_pvalue(val: JsUnknown) -> Result<PValue> {
     Ok(val.0)
 }
 
-pub fn parse_pvalues(val: JsUnknown) -> Result<PValues> {
+pub fn parse_pvalues(val: JsUnknown) -> Result<Option<PValues>> {
+    if val
+        .get_type()
+        .is_ok_and(|t| t == napi::ValueType::Undefined || t == napi::ValueType::Null)
+    {
+        return Ok(None);
+    }
+
     let val = PVals::from_unknown(val)?;
-    Ok(val.0)
+    Ok(Some(val.0))
 }
 
 #[allow(dead_code)]
