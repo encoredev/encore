@@ -93,8 +93,9 @@ impl PromiseHandler for APIPromiseHandler {
         let Some(val) = val else {
             return Ok(None);
         };
+
         match parse_pvalues(val) {
-            Ok(val) => Ok(Some(val)),
+            Ok(val) => Ok(val),
             Err(err) => self.error(env, err),
         }
     }
