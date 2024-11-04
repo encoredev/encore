@@ -348,7 +348,8 @@ func (g *RuntimeConfigGenerator) initialize() error {
 				Rid: newRid(),
 				Provider: &runtimev1.BucketCluster_Gcs{
 					Gcs: &runtimev1.BucketCluster_GCS{
-						Endpoint: &bktProviderConfig.GCS.Endpoint,
+						Endpoint:  &bktProviderConfig.GCS.Endpoint,
+						Anonymous: true,
 					},
 				},
 			})

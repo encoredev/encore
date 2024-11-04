@@ -600,8 +600,9 @@ func (tp *traceParser) bucketObjectAttrs() *tracepb2.BucketObjectAttributes {
 
 func (tp *traceParser) bucketObjectUploadEnd() *tracepb2.BucketObjectUploadEnd {
 	return &tracepb2.BucketObjectUploadEnd{
-		Size: ptrOrNil(tp.Uint64()),
-		Err:  tp.errWithStack(),
+		Size:    ptrOrNil(tp.Uint64()),
+		Version: ptrOrNil(tp.String()),
+		Err:     tp.errWithStack(),
 	}
 }
 

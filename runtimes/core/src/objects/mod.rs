@@ -194,9 +194,10 @@ impl Object {
                     start_id,
                     source,
                     result: match &res {
-                        Ok(attrs) => {
-                            protocol::BucketObjectUploadEndResult::Success { size: attrs.size }
-                        }
+                        Ok(attrs) => protocol::BucketObjectUploadEndResult::Success {
+                            size: attrs.size,
+                            version: attrs.version.as_deref(),
+                        },
                         Err(err) => protocol::BucketObjectUploadEndResult::Err(err),
                     },
                 });

@@ -471,7 +471,7 @@ pub struct BucketObjectUploadEnd<'a, E> {
 }
 
 pub enum BucketObjectUploadEndResult<'a, E> {
-    Success { size: u64 },
+    Success { size: u64, version: Option<&'a str> },
     Err(&'a E),
 }
 
@@ -532,8 +532,9 @@ impl Tracer {
         .into_eb();
 
         match data.result {
-            BucketObjectUploadEndResult::Success { size } => {
+            BucketObjectUploadEndResult::Success { size, version } => {
                 eb.u64(size);
+                eb.opt_str(version);
                 eb.err_with_legacy_stack::<E>(None);
             }
             BucketObjectUploadEndResult::Err(err) => {

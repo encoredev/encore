@@ -289,6 +289,7 @@ message BucketObjectUploadStart {
 message BucketObjectUploadEnd {
   optional Error err = 1;
   optional uint64 size = 2;
+  optional string version = 3;
 }
 
 message BucketObjectDownloadStart {

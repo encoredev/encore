@@ -328,6 +328,9 @@ message BucketCluster {
   message GCS {
     // Endpoint override, if any. Defaults to https://storage.googleapis.com if unset.
     optional string endpoint = 1;
+
+    // Whether to connect anonymously or if a service account should be resolved.
+    bool anonymous = 2;
   }
 }
 
