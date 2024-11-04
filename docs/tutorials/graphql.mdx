@@ -55,9 +55,9 @@ Next, create a `gqlgen.yml` file in the application root containing:
 
 ```
 -- gqlgen.yml --
-# Where are all the schema files located? globs are supported eg  src/**/*.graphqls
+# Where are all the schema files located? globs are supported eg  src/**/*.graphql
 schema:
-  - graphql/*.graphqls
+  - graphql/*.graphql
 
 # Where should the generated server code go?
 exec:
@@ -167,10 +167,10 @@ by running `go generate ./graphql`.
 
 ## 4. Add GraphQL schema
 
-Now it's time to define the GraphQL schema. Create a `graphql/schema.graphqls` file containing:
+Now it's time to define the GraphQL schema. Create a `graphql/schema.graphql` file containing:
 
 ```
--- graphql/url.graphqls --
+-- graphql/url.graphql --
 type Query {
   urls: [URL!]!
   get(id: ID!): URL!
@@ -374,10 +374,10 @@ generates:
 
 Now it's time to define the GraphQL schema.
 
-🥐 Create a `schema.graphqls` file in the application root containing:
+🥐 Create a `schema.graphql` file in the application root containing:
 
 ```
--- schema.graphqls --
+-- schema.graphql --
 type Query {
   books: [Book]
 }
