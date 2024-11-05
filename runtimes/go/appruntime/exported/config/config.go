@@ -58,7 +58,7 @@ type Runtime struct {
 	RedisServers     []*RedisServer          `json:"redis_servers,omitempty"`
 	RedisDatabases   []*RedisDatabase        `json:"redis_databases,omitempty"`
 	BucketProviders  []*BucketProvider       `json:"bucket_providers,omitempty"`
-	Buckets          []*Bucket               `json:"buckets,omitempty"`
+	Buckets          map[string]*Bucket      `json:"buckets,omitempty"`
 	Metrics          *Metrics                `json:"metrics,omitempty"`
 	Gateways         []Gateway               `json:"gateways,omitempty"`          // Gateways defines the gateways which should be served by the container
 	HostedServices   []string                `json:"hosted_services,omitempty"`   // List of services to be hosted within this container (zero length means all services, unless there's a gateway running)
@@ -407,7 +407,8 @@ type S3BucketProvider struct {
 }
 
 type GCSBucketProvider struct {
-	Endpoint string `json:"endpoint"`
+	Endpoint  string `json:"endpoint"`
+	Anonymous bool   `json:"anonymous"`
 }
 
 type Bucket struct {

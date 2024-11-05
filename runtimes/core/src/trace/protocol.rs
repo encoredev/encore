@@ -496,7 +496,7 @@ impl<'a> From<&'a objects::ObjectAttrs> for BucketObjectAttributes<'a> {
 
 impl EventBuffer {
     fn bucket_object_attrs(&mut self, attrs: &BucketObjectAttributes) {
-        self.u64(attrs.size.unwrap_or(0));
+        self.uvarint(attrs.size.unwrap_or(0));
         self.opt_str(attrs.version);
         self.opt_str(attrs.etag);
         self.opt_str(attrs.content_type);
@@ -533,12 +533,12 @@ impl Tracer {
 
         match data.result {
             BucketObjectUploadEndResult::Success { size, version } => {
-                eb.u64(size);
+                eb.uvarint(size);
                 eb.opt_str(version);
                 eb.err_with_legacy_stack::<E>(None);
             }
             BucketObjectUploadEndResult::Err(err) => {
-                eb.u64(0);
+                eb.uvarint(0u64);
                 eb.err_with_legacy_stack(Some(err));
             }
         }
@@ -595,11 +595,11 @@ impl Tracer {
 
         match data.result {
             BucketObjectDownloadEndResult::Success { size } => {
-                eb.u64(size);
+                eb.uvarint(size);
                 eb.err_with_legacy_stack::<E>(None);
             }
             BucketObjectDownloadEndResult::Err(err) => {
-                eb.u64(0);
+                eb.uvarint(0u64);
                 eb.err_with_legacy_stack(Some(err));
             }
         }
