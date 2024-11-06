@@ -24,10 +24,19 @@ func (d *Desc) validateObjects(pc *parsectx.Context, result *parser.Result) {
 
 			// Make sure any BucketRef calls are within a service.
 			for _, use := range d.Parse.Usages(res) {
-				if _, ok := use.(*objects.RefUsage); ok {
+				switch use := use.(type) {
+				case *objects.RefUsage:
 					errTxt := "used here"
 					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok && !use.DeclaredIn().TestFile {
 						pc.Errs.Add(objects.ErrBucketRefOutsideService.
+							AtGoNode(use, errors.AsError(errTxt)),
+						)
+					}
+
+				case *objects.MethodUsage:
+					errTxt := "used here"
+					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok && !use.DeclaredIn().TestFile {
+						pc.Errs.Add(objects.ErrUnsupportedOperationOutsideService(use.Method).
 							AtGoNode(use, errors.AsError(errTxt)),
 						)
 					}

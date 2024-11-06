@@ -344,7 +344,7 @@ impl objects::ObjectImpl for Object {
 
                     match client.delete_object(&req).await.map_err(map_err) {
                         Ok(_) => Ok(()),
-                        Err(Error::NotFound) => Ok(()),
+                        Err(Error::NotFound) => Err(Error::NotFound),
                         Err(err) => Err(err),
                     }
                 }

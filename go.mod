@@ -1,6 +1,8 @@
 module encr.dev
 
-go 1.22.2
+go 1.23.0
+
+toolchain go1.23.2
 
 require (
 	cloud.google.com/go/storage v1.43.0

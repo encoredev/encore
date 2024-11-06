@@ -1,13 +1,16 @@
-//go:build !encore_no_gcp && !encore_no_encorecloud
+//go:build !encore_no_gcp || !encore_no_encorecloud || !encore_no_local
 
 package objects
 
 import (
-	"encore.dev/storage/objects/internal/gcp"
+	"context"
+
+	"encore.dev/appruntime/exported/config"
+	"encore.dev/storage/objects/internal/providers/gcp"
 )
 
 func init() {
-	registerProvider(func(mgr *Manager) provider {
-		return gcp.NewManager(mgr.ctx, mgr.static, mgr.runtime)
+	registerProvider(func(ctx context.Context, runtimeCfg *config.Runtime) provider {
+		return gcp.NewManager(ctx, runtimeCfg)
 	})
 }

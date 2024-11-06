@@ -360,7 +360,9 @@ impl objects::ObjectImpl for Object {
                 .await;
             match res {
                 Ok(_) => Ok(()),
-                Err(SdkError::ServiceError(err)) if err.raw().status().as_u16() == 404 => Ok(()),
+                Err(SdkError::ServiceError(err)) if err.raw().status().as_u16() == 404 => {
+                    Err(Error::NotFound)
+                }
                 Err(err) => Err(Error::Other(err.into())),
             }
         })

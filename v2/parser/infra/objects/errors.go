@@ -35,10 +35,9 @@ var (
 		errors.PrependDetails("If you wish to reuse the same bucket, then you can export the original Bucket object and reference it from here."),
 	)
 
-	ErrUnableToIdentifyServicesInvolved = errRange.New(
-		"Unable to identify services involved",
-		"Unable to identify services involved in the PubSub subscription.",
-		errors.MarkAsInternalError(),
+	ErrUnsupportedOperationOutsideService = errRange.Newf(
+		"Unsupported bucket operation outside of service",
+		"The %s operation can only be performed within a service. Use objects.BucketRef to pass the bucket reference to other, non-service components.",
 	)
 
 	errBucketRefNoTypeArgs = errRange.New(
@@ -48,7 +47,7 @@ var (
 
 	errBucketRefInvalidPerms = errRange.New(
 		"Unrecognized permissions in call to objects.BucketRef",
-		"The supported permissions are objects.Writer/Reader.",
+		"The supported permissions are objects.Uploader/Downloader.",
 	)
 
 	ErrBucketRefOutsideService = errRange.New(

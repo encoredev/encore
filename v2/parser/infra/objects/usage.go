@@ -7,11 +7,14 @@ import (
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/resource/usage"
+
+	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type MethodUsage struct {
 	usage.Base
-	Perm Perm
+	Method string
+	Perm   Perm
 }
 
 type RefUsage struct {
@@ -39,6 +42,25 @@ const (
 	DeleteObject         Perm = "delete-object"
 )
 
+func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
+	switch p {
+	case ListObjects:
+		return meta.BucketUsage_LIST_OBJECTS, true
+	case ReadObjectContents:
+		return meta.BucketUsage_READ_OBJECT_CONTENTS, true
+	case WriteObject:
+		return meta.BucketUsage_WRITE_OBJECT, true
+	case UpdateObjectMetadata:
+		return meta.BucketUsage_UPDATE_OBJECT_METADATA, true
+	case GetObjectMetadata:
+		return meta.BucketUsage_GET_OBJECT_METADATA, true
+	case DeleteObject:
+		return meta.BucketUsage_DELETE_OBJECT, true
+	default:
+		return meta.BucketUsage_UNKNOWN, false
+	}
+}
+
 func ResolveBucketUsage(data usage.ResolveData, topic *Bucket) usage.Usage {
 	switch expr := data.Expr.(type) {
 	case *usage.MethodCall:
@@ -46,16 +68,24 @@ func ResolveBucketUsage(data usage.ResolveData, topic *Bucket) usage.Usage {
 		switch expr.Method {
 		case "Upload":
 			perm = WriteObject
+		case "Download":
+			perm = ReadObjectContents
+		case "List":
+			perm = ListObjects
+		case "Remove":
+			perm = DeleteObject
 		default:
 			return nil
 		}
+
 		return &MethodUsage{
 			Base: usage.Base{
 				File: expr.File,
 				Bind: expr.Bind,
 				Expr: expr,
 			},
-			Perm: perm,
+			Method: expr.Method,
+			Perm:   perm,
 		}
 
 	case *usage.FuncArg:
@@ -76,17 +106,32 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 	}
 
 	checkUsage := func(typ schema.Type) (usage.Usage, bool) {
-		if schemautil.IsNamed(typ, "encore.dev/storage/objects", "Uploader") {
-			return &RefUsage{
-				Base: usage.Base{
-					File: expr.File,
-					Bind: expr.Bind,
-					Expr: expr,
-				},
-				Perms: []Perm{WriteObject},
-			}, true
+		var perms []Perm
+		switch {
+		case isNamed(typ, "Uploader"):
+			perms = []Perm{WriteObject}
+		case isNamed(typ, "Downloader"):
+			perms = []Perm{ReadObjectContents}
+		case isNamed(typ, "Lister"):
+			perms = []Perm{ListObjects}
+		case isNamed(typ, "Remover"):
+			perms = []Perm{DeleteObject}
+		case isNamed(typ, "Attrser"):
+			perms = []Perm{GetObjectMetadata}
+		case isNamed(typ, "ReadWriter"):
+			perms = []Perm{WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, UpdateObjectMetadata}
+		default:
+			return nil, false
 		}
-		return nil, false
+
+		return &RefUsage{
+			Base: usage.Base{
+				File: expr.File,
+				Bind: expr.Bind,
+				Expr: expr,
+			},
+			Perms: perms,
+		}, true
 	}
 
 	// Do we have a simple usage directly as the type argument?
@@ -116,4 +161,8 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 
 	errs.Add(errBucketRefInvalidPerms.AtGoNode(expr.Call))
 	return nil
+}
+
+func isNamed(typ schema.Type, name string) bool {
+	return schemautil.IsNamed(typ, "encore.dev/storage/objects", name)
 }

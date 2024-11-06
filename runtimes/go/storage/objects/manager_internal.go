@@ -3,14 +3,12 @@ package objects
 import (
 	"context"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/appruntime/shared/shutdown"
 	"encore.dev/appruntime/shared/testsupport"
-	"encore.dev/storage/objects/internal/types"
 )
 
 type Manager struct {
@@ -21,24 +19,24 @@ type Manager struct {
 	rt         *reqtrack.RequestTracker
 	ts         *testsupport.Manager
 	rootLogger zerolog.Logger
-	json       jsoniter.API
 	providers  []provider
 }
 
 func NewManager(static *config.Static, runtime *config.Runtime, rt *reqtrack.RequestTracker,
-	ts *testsupport.Manager, rootLogger zerolog.Logger, json jsoniter.API) *Manager {
+	ts *testsupport.Manager, rootLogger zerolog.Logger) *Manager {
+	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &Manager{
-		ctx:        context.Background(),
+		ctx:        ctx,
+		cancelCtx:  cancel,
 		static:     static,
 		runtime:    runtime,
 		rt:         rt,
 		ts:         ts,
 		rootLogger: rootLogger,
-		json:       json,
 	}
 
 	for _, p := range providerRegistry {
-		mgr.providers = append(mgr.providers, p(mgr))
+		mgr.providers = append(mgr.providers, p(mgr.ctx, mgr.runtime))
 	}
 
 	return mgr
@@ -53,16 +51,4 @@ func (mgr *Manager) Shutdown(p *shutdown.Process) error {
 	}()
 
 	return nil
-}
-
-type provider interface {
-	ProviderName() string
-	Matches(providerCfg *config.BucketProvider) bool
-	NewBucket(providerCfg *config.BucketProvider, staticCfg BucketConfig, runtimeCfg *config.Bucket) types.BucketImpl
-}
-
-var providerRegistry []func(*Manager) provider
-
-func registerProvider(p func(mgr *Manager) provider) {
-	providerRegistry = append(providerRegistry, p)
 }
