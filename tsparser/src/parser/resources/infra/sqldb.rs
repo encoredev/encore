@@ -230,7 +230,7 @@ fn parse_default(dir: &Path) -> Result<Vec<DBMigration>> {
                 number: captures[1].parse()?,
             });
         }
-        return Ok(());
+        Ok(())
     })?;
 
     migrations.sort_by_key(|m| m.number);
@@ -269,7 +269,7 @@ fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
             number: captures[1].parse()?,
         });
 
-        return Ok(());
+        Ok(())
     })?;
     Ok(migrations)
 }
@@ -313,7 +313,7 @@ fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
             description: captures[2].to_string(),
             number: captures[1].parse()?,
         });
-        return Ok(());
+        Ok(())
     })?;
     Ok(migrations)
 }
