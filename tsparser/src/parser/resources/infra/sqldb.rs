@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use anyhow::Context;
 use anyhow::{anyhow, Result};
@@ -23,6 +24,7 @@ use crate::parser::resources::Resource;
 use crate::parser::resources::ResourcePath;
 use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
 use crate::parser::{FilePath, Range};
+use crate::span_err::ErrorWithSpanExt;
 
 #[derive(Debug, Clone)]
 pub struct SQLDatabase {
@@ -31,11 +33,29 @@ pub struct SQLDatabase {
     pub migrations: Option<DBMigrations>,
 }
 
+#[derive(Clone, Debug)]
+pub enum Orm {
+    Prisma,
+    Drizzle,
+}
+
+impl FromStr for Orm {
+    type Err = anyhow::Error;
+
+    fn from_str(input: &str) -> Result<Orm, Self::Err> {
+        match input {
+            "prisma" => Ok(Orm::Prisma),
+            "drizzle" => Ok(Orm::Drizzle),
+            _ => Err(anyhow!("unexpected value for orm: {input}")),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DBMigrations {
     pub dir: PathBuf,
     pub migrations: Vec<DBMigration>,
-    pub orm: Option<String>,
+    pub orm: Option<Orm>,
 }
 
 #[derive(Debug, Clone)]
@@ -86,11 +106,24 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     }
                     (Some(Either::Right(cfg)), FilePath::Real(path)) => {
                         let dir = path.parent().unwrap().join(cfg.path.0);
-                        let migrations = parse_migrations(&dir, cfg.orm.as_ref())?;
+                        let orm = if let Some(ref string) = cfg.orm {
+                            match Orm::from_str(string) {
+                                Ok(orm) => Some(orm),
+                                Err(e) => {
+                                    e.with_span(r.range.into()).report();
+                                    continue;
+                                }
+                            }
+                        } else {
+                            None
+                        };
+
+                        let migrations = parse_migrations(&dir, orm.as_ref())?;
+
                         Some(DBMigrations {
                             dir,
                             migrations,
-                            orm: cfg.orm,
+                            orm,
                         })
                     }
                 };
@@ -285,10 +318,10 @@ fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-fn parse_migrations(dir: &Path, orm: Option<&String>) -> Result<Vec<DBMigration>> {
+fn parse_migrations(dir: &Path, orm: Option<&Orm>) -> Result<Vec<DBMigration>> {
     let mut migrations = match orm {
-        Some(o) if o == "drizzle" => parse_drizzle(dir),
-        Some(o) if o == "prisma" => parse_prisma(dir),
+        Some(Orm::Drizzle) => parse_drizzle(dir),
+        Some(Orm::Prisma) => parse_prisma(dir),
         _ => parse_default(dir),
     }
     .context("failed to parse migrations")?;
