@@ -497,7 +497,7 @@ impl<'a> MetaBuilder<'a> {
 
     fn sql_database(&self, db: &sqldb::SQLDatabase) -> Result<v1::SqlDatabase> {
         // Transform the migrations into the metadata format.
-        let (migration_rel_path, migrations, orm) = match &db.migrations {
+        let (migration_rel_path, migrations) = match &db.migrations {
             Some(spec) => {
                 let rel_path = self.rel_path_string(&spec.dir)?;
                 let migrations = spec
@@ -509,9 +509,9 @@ impl<'a> MetaBuilder<'a> {
                         number: m.number,
                     })
                     .collect::<Vec<_>>();
-                (Some(rel_path), migrations, spec.orm.clone())
+                (Some(rel_path), migrations)
             }
-            None => (None, vec![], None),
+            None => (None, vec![]),
         };
 
         Ok(v1::SqlDatabase {
@@ -519,7 +519,6 @@ impl<'a> MetaBuilder<'a> {
             doc: db.doc.clone(),
             migration_rel_path,
             migrations,
-            orm,
         })
     }
 

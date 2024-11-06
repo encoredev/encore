@@ -309,7 +309,6 @@ message SQLDatabase {
   // relative to the main module's root directory.
   optional string migration_rel_path = 3;
   repeated DBMigration migrations = 4;
-  optional string orm = 5;
 }
 
 message DBMigration {
