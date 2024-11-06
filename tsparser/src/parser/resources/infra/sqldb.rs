@@ -77,7 +77,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     }
                     (Some(Either::Left(rel)), FilePath::Real(path)) => {
                         let dir = path.parent().unwrap().join(rel.0);
-                        let migrations = parse_migrations(&dir)?;
+                        let migrations = parse_migrations(&dir, None)?;
                         Some(DBMigrations {
                             dir,
                             migrations,
@@ -86,7 +86,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     }
                     (Some(Either::Right(cfg)), FilePath::Real(path)) => {
                         let dir = path.parent().unwrap().join(cfg.path.0);
-                        let migrations = parse_migrations(&dir)?;
+                        let migrations = parse_migrations(&dir, cfg.orm.as_ref())?;
                         Some(DBMigrations {
                             dir,
                             migrations,
@@ -144,18 +144,32 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
     },
 };
 
-fn parse_migrations(dir: &Path) -> Result<Vec<DBMigration>> {
-    let mut migrations = vec![];
+fn visit_dirs(
+    dir: &Path,
+    depth: i8,
+    max_depth: i8,
+    cb: &mut dyn FnMut(&std::fs::DirEntry) -> Result<()>,
+) -> Result<()> {
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() && depth < max_depth {
+                visit_dirs(&path, depth + 1, max_depth, cb)?;
+            } else {
+                cb(&entry)?;
+            }
+        }
+    }
+    Ok(())
+}
 
+fn parse_default(dir: &Path) -> Result<Vec<DBMigration>> {
+    let mut migrations = vec![];
     static FILENAME_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)\.(up|down).sql$").unwrap());
 
-    let paths = std::fs::read_dir(dir).context("read database migration directory")?;
-    for entry in paths {
-        let entry = entry?;
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
+    visit_dirs(dir, 0, 0, &mut |entry| -> Result<()> {
         let path = entry.path();
         let name = entry.file_name();
         let name = name.to_str().ok_or(anyhow!(
@@ -169,7 +183,7 @@ fn parse_migrations(dir: &Path) -> Result<Vec<DBMigration>> {
         // typo the filename extension as well, but it's less likely due to syntax highlighting).
         let ext = path.extension().and_then(|ext| ext.to_str());
         if ext != Some("sql") {
-            continue;
+            return Ok(());
         }
 
         // Ensure the file name matches the regex.
@@ -183,11 +197,102 @@ fn parse_migrations(dir: &Path) -> Result<Vec<DBMigration>> {
                 number: captures[1].parse()?,
             });
         }
-    }
+        return Ok(());
+    })?;
 
-    // Sort the migrations by number.
     migrations.sort_by_key(|m| m.number);
+    Ok(migrations)
+}
 
+fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
+    let mut migrations = vec![];
+
+    static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)\.sql$").unwrap());
+
+    visit_dirs(dir, 0, 0, &mut |entry| -> Result<()> {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_str().ok_or(anyhow!(
+            "invalid migration filename: {}",
+            name.to_string_lossy()
+        ))?;
+
+        // If the file is not an SQL file ignore it, to allow for other files to be present
+        // in the migration directory. For SQL files we want to ensure they're properly named
+        // so that we complain loudly about potential typos. (It's theoretically possible to
+        // typo the filename extension as well, but it's less likely due to syntax highlighting).
+        let ext = path.extension().and_then(|ext| ext.to_str());
+        if ext != Some("sql") {
+            return Ok(());
+        }
+
+        // Ensure the file name matches the regex.
+        let captures = FILENAME_RE
+            .captures(name)
+            .ok_or(anyhow!("invalid migration filename: {}", name))?;
+        migrations.push(DBMigration {
+            file_name: name.to_string(),
+            description: captures[2].to_string(),
+            number: captures[1].parse()?,
+        });
+
+        return Ok(());
+    })?;
+    Ok(migrations)
+}
+
+fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
+    let mut migrations = vec![];
+
+    static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)$").unwrap());
+
+    visit_dirs(dir, 0, 1, &mut |entry| -> Result<()> {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_str().ok_or(anyhow!(
+            "invalid migration filename: {}",
+            name.to_string_lossy()
+        ))?;
+        if name != "migration.sql" {
+            return Ok(());
+        }
+        let dir_name = path
+            .parent()
+            .context(anyhow!("migration directory has no parent"))?
+            .file_name()
+            .context(anyhow!("migration directory has no file name"))?
+            .to_str()
+            .context(anyhow!("migration directory has invalid file name"))?;
+
+        // Ensure the file name matches the regex.
+        let captures = FILENAME_RE
+            .captures(dir_name)
+            .ok_or(anyhow!("invalid migration directory name: {}", dir_name))?;
+        migrations.push(DBMigration {
+            file_name: path
+                .strip_prefix(dir)
+                .context(anyhow!(
+                    "migration directory is not a subdirectory of {}",
+                    dir.display()
+                ))?
+                .to_string_lossy()
+                .to_string(),
+            description: captures[2].to_string(),
+            number: captures[1].parse()?,
+        });
+        return Ok(());
+    })?;
+    Ok(migrations)
+}
+
+fn parse_migrations(dir: &Path, orm: Option<&String>) -> Result<Vec<DBMigration>> {
+    let mut migrations = match orm {
+        Some(o) if o == "drizzle" => parse_drizzle(dir),
+        Some(o) if o == "prisma" => parse_prisma(dir),
+        _ => parse_default(dir),
+    }
+    .context("failed to parse migrations")?;
+    migrations.sort_by_key(|m| m.number);
     Ok(migrations)
 }
 
