@@ -6,7 +6,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Component, PathBuf},
 };
-use swc_common::{util::take::Take, Span, Spanned};
+use swc_common::{pass::Either, util::take::Take, Span, Spanned};
 use swc_ecma_ast as ast;
 
 pub trait LitParser: Sized {
@@ -96,6 +96,20 @@ where
     fn parse_lit(input: &ast::Expr) -> Result<Option<T>> {
         let t = T::parse_lit(input)?;
         Ok(Some(t))
+    }
+}
+
+impl<L, R> LitParser for Either<L, R>
+where
+    L: LitParser,
+    R: LitParser,
+{
+    fn parse_lit(input: &ast::Expr) -> Result<Either<L, R>> {
+        let res = L::parse_lit(input)
+            .map(Either::Left)
+            .or_else(|_| R::parse_lit(input).map(Either::Right))?;
+
+        Ok(res)
     }
 }
 

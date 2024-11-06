@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use anyhow::{anyhow, Result};
+use itertools::Either;
 use litparser_derive::LitParser;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -34,6 +35,7 @@ pub struct SQLDatabase {
 pub struct DBMigrations {
     pub dir: PathBuf,
     pub migrations: Vec<DBMigration>,
+    pub orm: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,9 +45,15 @@ pub struct DBMigration {
     pub number: u64,
 }
 
+#[derive(LitParser)]
+struct MigrationsConfig {
+    path: LocalRelPath,
+    orm: Option<String>,
+}
+
 #[derive(LitParser, Default)]
 struct DecodedDatabaseConfig {
-    migrations: Option<LocalRelPath>,
+    migrations: Option<Either<LocalRelPath, MigrationsConfig>>,
 }
 
 pub const SQLDB_PARSER: ResourceParser = ResourceParser {
@@ -67,10 +75,23 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     (_, FilePath::Custom(_)) => {
                         anyhow::bail!("cannot use custom file path for db migrations")
                     }
-                    (Some(rel), FilePath::Real(path)) => {
+                    (Some(Either::Left(rel)), FilePath::Real(path)) => {
                         let dir = path.parent().unwrap().join(rel.0);
                         let migrations = parse_migrations(&dir)?;
-                        Some(DBMigrations { dir, migrations })
+                        Some(DBMigrations {
+                            dir,
+                            migrations,
+                            orm: None,
+                        })
+                    }
+                    (Some(Either::Right(cfg)), FilePath::Real(path)) => {
+                        let dir = path.parent().unwrap().join(cfg.path.0);
+                        let migrations = parse_migrations(&dir)?;
+                        Some(DBMigrations {
+                            dir,
+                            migrations,
+                            orm: cfg.orm,
+                        })
                     }
                 };
 
