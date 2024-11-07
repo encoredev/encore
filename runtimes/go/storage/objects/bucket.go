@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"strings"
 
 	"encore.dev/appruntime/exported/config"
+	"encore.dev/appruntime/exported/stack"
+	"encore.dev/appruntime/exported/trace2"
+	"encore.dev/appruntime/shared/reqtrack"
 	"encore.dev/storage/objects/internal/providers/noop"
 	"encore.dev/storage/objects/internal/types"
 )
@@ -17,6 +21,10 @@ type Bucket struct {
 	mgr        *Manager
 	runtimeCfg *config.Bucket // The config for this running instance of the application
 	impl       types.BucketImpl
+	name       string
+
+	// Prefix to prepend to all cloud names.
+	baseCloudPrefix string
 }
 
 type BucketConfig struct {
@@ -36,6 +44,7 @@ func newBucket(mgr *Manager, name string) *Bucket {
 			mgr:        mgr,
 			runtimeCfg: &config.Bucket{EncoreName: name},
 			impl:       &noop.BucketImpl{},
+			name:       name,
 		}
 	}
 
@@ -47,9 +56,11 @@ func newBucket(mgr *Manager, name string) *Bucket {
 		if p.Matches(provider) {
 			impl := p.NewBucket(provider, bkt)
 			return &Bucket{
-				mgr:        mgr,
-				runtimeCfg: bkt,
-				impl:       impl,
+				mgr:             mgr,
+				runtimeCfg:      bkt,
+				impl:            impl,
+				name:            name,
+				baseCloudPrefix: bkt.KeyPrefix,
 			}
 		}
 		tried = append(tried, p.ProviderName())
@@ -66,12 +77,32 @@ func (b *Bucket) Upload(ctx context.Context, object string, options ...UploadOpt
 		o.uploadOption(&opt)
 	}
 
-	return &Writer{
+	w := &Writer{
 		bkt: b,
 		ctx: ctx,
 		obj: object,
 		opt: opt,
 	}
+
+	curr := b.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		w.curr = curr
+		w.startEventID = curr.Trace.BucketObjectUploadStart(trace2.BucketObjectUploadStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Bucket: b.name,
+			Object: object,
+			Attrs: trace2.BucketObjectAttributes{
+				ContentType: ptrOrNil(opt.attrs.ContentType),
+			},
+			Stack: stack.Build(1),
+		})
+	}
+
+	return w
 }
 
 type Writer struct {
@@ -84,6 +115,10 @@ type Writer struct {
 
 	// Initialized on first write
 	u types.Uploader
+
+	// Set if tracing
+	curr         reqtrack.Current
+	startEventID trace2.EventID
 }
 
 func (w *Writer) Write(p []byte) (int, error) {
@@ -93,7 +128,26 @@ func (w *Writer) Write(p []byte) (int, error) {
 
 func (w *Writer) Close() error {
 	u := w.initUpload()
-	_, err := u.Complete()
+	attrs, err := u.Complete()
+
+	if w.curr.Trace != nil {
+		params := trace2.BucketObjectUploadEndParams{
+			StartID: w.startEventID,
+			EventParams: trace2.EventParams{
+				TraceID: w.curr.Req.TraceID,
+				SpanID:  w.curr.Req.SpanID,
+				Goid:    w.curr.Goctr,
+			},
+			Err: err,
+		}
+
+		if attrs != nil {
+			params.Size = uint64(attrs.Size)
+			params.Version = ptrOrNil(attrs.Version)
+		}
+		w.curr.Trace.BucketObjectUploadEnd(params)
+	}
+
 	return err
 }
 
@@ -101,8 +155,11 @@ func (w *Writer) initUpload() types.Uploader {
 	if w.u == nil {
 		u, err := w.bkt.impl.Upload(types.UploadData{
 			Ctx:    w.ctx,
-			Object: w.obj,
+			Object: w.bkt.toCloudObject(w.obj),
 			Attrs:  w.opt.attrs,
+			Pre: types.Preconditions{
+				NotExists: w.opt.pre.NotExists,
+			},
 		})
 		if err != nil {
 			w.u = &errUploader{err: err}
@@ -134,17 +191,39 @@ func (b *Bucket) Download(ctx context.Context, object string, options ...Downloa
 		o.downloadOption(&opt)
 	}
 
+	var startEventID trace2.EventID
+	curr := b.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		startEventID = curr.Trace.BucketObjectDownloadStart(trace2.BucketObjectDownloadStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Bucket:  b.name,
+			Object:  object,
+			Version: ptrOrNil(opt.version),
+			Stack:   stack.Build(1),
+		})
+	}
+
 	r, err := b.impl.Download(types.DownloadData{
 		Ctx:     ctx,
-		Object:  object,
+		Object:  b.toCloudObject(object),
 		Version: opt.version,
 	})
-	return &Reader{r: r, err: err}
+	return &Reader{r: r, err: err, curr: curr, startEventID: startEventID}
 }
 
 type Reader struct {
-	err error // any error encountered
-	r   types.Downloader
+	err       error // any error encountered
+	r         types.Downloader
+	totalRead uint64
+
+	// Set if traced
+	traceCompleted bool
+	curr           reqtrack.Current
+	startEventID   trace2.EventID
 }
 
 func (r *Reader) Err() error {
@@ -158,16 +237,38 @@ func (r *Reader) Read(p []byte) (int, error) {
 
 	n, err := r.r.Read(p)
 	r.err = err
+	r.totalRead += uint64(n)
 	return n, err
 }
 
 func (r *Reader) Close() error {
+	defer r.completeTrace()
 	if r.err != nil {
 		return r.err
 	}
 
 	r.err = r.r.Close()
 	return r.err
+}
+
+func (r *Reader) completeTrace() {
+	if r.traceCompleted {
+		return
+	}
+
+	r.traceCompleted = true
+	if r.curr.Trace != nil && r.startEventID != 0 {
+		r.curr.Trace.BucketObjectDownloadEnd(trace2.BucketObjectDownloadEndParams{
+			StartID: r.startEventID,
+			EventParams: trace2.EventParams{
+				TraceID: r.curr.Req.TraceID,
+				SpanID:  r.curr.Req.SpanID,
+				Goid:    r.curr.Goctr,
+			},
+			Err:  r.err,
+			Size: r.totalRead,
+		})
+	}
 }
 
 type Query struct {
@@ -179,21 +280,29 @@ type Query struct {
 	Limit int64
 }
 
-func mapQuery(ctx context.Context, q *Query) types.ListData {
+func (b *Bucket) mapQuery(ctx context.Context, q *Query) types.ListData {
 	return types.ListData{
 		Ctx:    ctx,
-		Prefix: q.Prefix,
+		Prefix: b.baseCloudPrefix + q.Prefix,
 		Limit:  q.Limit,
 	}
 }
 
 type ObjectAttrs struct {
-	Version string
+	Name        string
+	Version     string
+	ContentType string
+	Size        int64
+	ETag        string
 }
 
-func mapAttrs(attrs *types.ObjectAttrs) *ObjectAttrs {
+func (b *Bucket) mapAttrs(attrs *types.ObjectAttrs) *ObjectAttrs {
 	return &ObjectAttrs{
-		Version: attrs.Version,
+		Name:        b.fromCloudObject(attrs.Object),
+		Version:     attrs.Version,
+		ContentType: attrs.ContentType,
+		Size:        attrs.Size,
+		ETag:        attrs.ETag,
 	}
 }
 
@@ -203,9 +312,9 @@ type ListEntry struct {
 	ETag string
 }
 
-func mapListEntry(entry *types.ListEntry) *ListEntry {
+func (b *Bucket) mapListEntry(entry *types.ListEntry) *ListEntry {
 	return &ListEntry{
-		Name: entry.Name,
+		Name: b.fromCloudObject(entry.Object),
 		Size: entry.Size,
 		ETag: entry.ETag,
 	}
@@ -213,14 +322,52 @@ func mapListEntry(entry *types.ListEntry) *ListEntry {
 
 func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) iter.Seq2[*ListEntry, error] {
 	return func(yield func(*ListEntry, error) bool) {
-		iter := b.impl.List(mapQuery(ctx, query))
+		// Tracing state
+		var (
+			listErr  error
+			observed uint64
+			hasMore  bool
+		)
+
+		curr := b.mgr.rt.Current()
+		if curr.Req != nil && curr.Trace != nil {
+			startEventID := curr.Trace.BucketListObjectsStart(trace2.BucketListObjectsStartParams{
+				EventParams: trace2.EventParams{
+					TraceID: curr.Req.TraceID,
+					SpanID:  curr.Req.SpanID,
+					Goid:    curr.Goctr,
+				},
+				Bucket: b.name,
+				Prefix: ptrOrNil(query.Prefix),
+				Stack:  stack.Build(1),
+			})
+
+			defer curr.Trace.BucketListObjectsEnd(trace2.BucketListObjectsEndParams{
+				StartID: startEventID,
+				EventParams: trace2.EventParams{
+					TraceID: curr.Req.TraceID,
+					SpanID:  curr.Req.SpanID,
+					Goid:    curr.Goctr,
+				},
+				Err:      listErr,
+				Observed: observed,
+				HasMore:  hasMore,
+			})
+		}
+
+		iter := b.impl.List(b.mapQuery(ctx, query))
 		for entry, err := range iter {
 			if err != nil {
+				listErr = err
 				if !yield(nil, err) {
 					return
 				}
 			}
-			if !yield(mapListEntry(entry), nil) {
+
+			observed++
+			if !yield(b.mapListEntry(entry), nil) {
+				// Consumer didn't want any more entries; set hasMore = true
+				hasMore = true
 				return
 			}
 		}
@@ -229,13 +376,54 @@ func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) 
 
 // Remove removes an object from the bucket.
 func (b *Bucket) Remove(ctx context.Context, object string, options ...RemoveOption) error {
-	return b.impl.Remove(types.RemoveData{
-		Ctx:    ctx,
-		Object: object,
+	var opts removeOptions
+	for _, o := range options {
+		o.removeOption(&opts)
+	}
+
+	var removeErr error
+	curr := b.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		startEventID := curr.Trace.BucketDeleteObjectsStart(trace2.BucketDeleteObjectsStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Bucket: b.name,
+			Objects: []trace2.BucketDeleteObjectsEntry{
+				{
+					Object:  object,
+					Version: ptrOrNil(opts.version),
+				},
+			},
+			Stack: stack.Build(1),
+		})
+
+		defer curr.Trace.BucketDeleteObjectsEnd(trace2.BucketDeleteObjectsEndParams{
+			StartID: startEventID,
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Err: removeErr,
+		})
+	}
+
+	removeErr = b.impl.Remove(types.RemoveData{
+		Ctx:     ctx,
+		Object:  b.toCloudObject(object),
+		Version: opts.version,
 	})
+
+	return removeErr
 }
 
-var ErrObjectNotFound = types.ErrObjectNotExist
+var (
+	ErrObjectNotFound     = types.ErrObjectNotExist
+	ErrPreconditionFailed = types.ErrPreconditionFailed
+)
 
 // Attrs returns the attributes of an object in the bucket.
 // If the object does not exist, it returns ErrObjectNotFound.
@@ -245,16 +433,58 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 		o.attrsOption(&opt)
 	}
 
-	attrs, err := b.impl.Attrs(types.AttrsData{
-		Ctx:     ctx,
-		Object:  object,
-		Version: opt.version,
-	})
-	if err != nil {
-		return nil, err
+	var (
+		attrs    *types.ObjectAttrs
+		attrsErr error
+	)
+
+	curr := b.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		startEventID := curr.Trace.BucketObjectGetAttrsStart(trace2.BucketObjectGetAttrsStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Bucket:  b.name,
+			Object:  object,
+			Version: ptrOrNil(opt.version),
+			Stack:   stack.Build(1),
+		})
+
+		defer func() {
+			params := trace2.BucketObjectGetAttrsEndParams{
+				StartID: startEventID,
+				EventParams: trace2.EventParams{
+					TraceID: curr.Req.TraceID,
+					SpanID:  curr.Req.SpanID,
+					Goid:    curr.Goctr,
+				},
+				Err: attrsErr,
+			}
+			if attrs != nil {
+				size := uint64(attrs.Size)
+				params.Attrs = &trace2.BucketObjectAttributes{
+					Size:        &size,
+					Version:     ptrOrNil(attrs.Version),
+					ETag:        ptrOrNil(attrs.ETag),
+					ContentType: ptrOrNil(attrs.ContentType),
+				}
+			}
+			curr.Trace.BucketObjectGetAttrsEnd(params)
+		}()
 	}
 
-	return mapAttrs(attrs), nil
+	attrs, attrsErr = b.impl.Attrs(types.AttrsData{
+		Ctx:     ctx,
+		Object:  b.toCloudObject(object),
+		Version: opt.version,
+	})
+	if attrsErr != nil {
+		return nil, attrsErr
+	}
+
+	return b.mapAttrs(attrs), nil
 }
 
 // Exists reports whether an object exists in the bucket.
@@ -264,15 +494,89 @@ func (b *Bucket) Exists(ctx context.Context, object string, options ...ExistsOpt
 		o.existsOption(&opt)
 	}
 
-	_, err := b.impl.Attrs(types.AttrsData{
+	var (
+		attrs    *types.ObjectAttrs
+		attrsErr error
+	)
+
+	curr := b.mgr.rt.Current()
+	if curr.Req != nil && curr.Trace != nil {
+		startEventID := curr.Trace.BucketObjectGetAttrsStart(trace2.BucketObjectGetAttrsStartParams{
+			EventParams: trace2.EventParams{
+				TraceID: curr.Req.TraceID,
+				SpanID:  curr.Req.SpanID,
+				Goid:    curr.Goctr,
+			},
+			Bucket:  b.name,
+			Object:  object,
+			Version: ptrOrNil(opt.version),
+			Stack:   stack.Build(1),
+		})
+
+		defer func() {
+			params := trace2.BucketObjectGetAttrsEndParams{
+				StartID: startEventID,
+				EventParams: trace2.EventParams{
+					TraceID: curr.Req.TraceID,
+					SpanID:  curr.Req.SpanID,
+					Goid:    curr.Goctr,
+				},
+				Err: attrsErr,
+			}
+			if attrs != nil {
+				size := uint64(attrs.Size)
+				params.Attrs = &trace2.BucketObjectAttributes{
+					Size:        &size,
+					Version:     ptrOrNil(attrs.Version),
+					ETag:        ptrOrNil(attrs.ETag),
+					ContentType: ptrOrNil(attrs.ContentType),
+				}
+			}
+			curr.Trace.BucketObjectGetAttrsEnd(params)
+		}()
+	}
+
+	attrs, attrsErr = b.impl.Attrs(types.AttrsData{
 		Ctx:     ctx,
-		Object:  object,
+		Object:  b.toCloudObject(object),
 		Version: opt.version,
 	})
-	if errors.Is(err, ErrObjectNotFound) {
+	if errors.Is(attrsErr, ErrObjectNotFound) {
 		return false, nil
-	} else if err != nil {
-		return false, err
+	} else if attrsErr != nil {
+		return false, attrsErr
 	}
 	return true, nil
+}
+
+func (b *Bucket) toCloudObject(object string) types.CloudObject {
+	return types.CloudObject(b.cloudPrefix() + object)
+}
+
+// cloudPrefix computes the cloud prefix to use.
+// It adds the current test name as a prefix when running tests, for test isolation.
+func (b *Bucket) cloudPrefix() string {
+	prefix := b.baseCloudPrefix
+
+	if b.mgr.static.Testing {
+		test := b.mgr.ts.CurrentTest()
+		if prefix != "" {
+			prefix += "/"
+		}
+		prefix += test.Name() + "/__test__/"
+	}
+
+	return prefix
+}
+
+func (b *Bucket) fromCloudObject(object types.CloudObject) string {
+	return strings.TrimPrefix(string(object), b.cloudPrefix())
+}
+
+func ptrOrNil[V comparable](val V) *V {
+	var zero V
+	if val != zero {
+		return &val
+	}
+	return nil
 }

@@ -415,6 +415,7 @@ type Bucket struct {
 	ProviderID int    `json:"cluster_id"`  // the index into (*Runtime).BucketProviders
 	EncoreName string `json:"encore_name"` // the Encore name for the bucket
 	CloudName  string `json:"cloud_name"`  // the cloud name for the bucket
+	KeyPrefix  string `json:"key_prefix"`  // the prefix to use for all keys in the bucket
 }
 
 type Metrics struct {

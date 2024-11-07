@@ -30,6 +30,26 @@ type UploadOption interface {
 	uploadOption(*uploadOptions)
 }
 
+// WithPreconditions is an UploadOption for only uploading an object
+// if certain preconditions are met.
+func WithPreconditions(pre Preconditions) withPreconditionsOption {
+	return withPreconditionsOption{pre: pre}
+}
+
+type Preconditions struct {
+	NotExists bool
+}
+
+//publicapigen:keep
+type withPreconditionsOption struct {
+	pre Preconditions
+}
+
+//publicapigen:keep
+func (o withPreconditionsOption) uploadOption(opts *uploadOptions) {
+	opts.pre = o.pre
+}
+
 type UploadAttrs struct {
 	ContentType string
 }
@@ -53,6 +73,7 @@ func (o withUploadAttrsOption) uploadOption(opts *uploadOptions) {
 //publicapigen:keep
 type uploadOptions struct {
 	attrs types.UploadAttrs
+	pre   Preconditions
 }
 
 type ListOption interface {

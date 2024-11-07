@@ -5,11 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"net/http"
 	"strconv"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/storage/objects/internal/types"
@@ -44,7 +48,7 @@ func (mgr *Manager) NewBucket(provider *config.BucketProvider, runtimeCfg *confi
 }
 
 func (b *bucket) Download(data types.DownloadData) (types.Downloader, error) {
-	obj := b.handle.Object(data.Object)
+	obj := b.handle.Object(data.Object.String())
 	if data.Version != "" {
 		if gen, err := strconv.ParseInt(data.Version, 10, 64); err == nil {
 			obj = obj.Generation(gen)
@@ -56,7 +60,15 @@ func (b *bucket) Download(data types.DownloadData) (types.Downloader, error) {
 
 func (b *bucket) Upload(data types.UploadData) (types.Uploader, error) {
 	ctx, cancel := context.WithCancelCause(data.Ctx)
-	w := b.handle.Object(data.Object).NewWriter(ctx)
+	obj := b.handle.Object(data.Object.String())
+
+	if data.Pre.NotExists {
+		obj = obj.If(storage.Conditions{
+			DoesNotExist: true,
+		})
+	}
+
+	w := obj.NewWriter(ctx)
 	w.ContentType = data.Attrs.ContentType
 
 	u := &uploader{
@@ -94,6 +106,7 @@ func mapAttrs(attrs *storage.ObjectAttrs) *types.ObjectAttrs {
 		return nil
 	}
 	return &types.ObjectAttrs{
+		Object:      types.CloudObject(attrs.Name),
 		Version:     strconv.FormatInt(attrs.Generation, 10),
 		ContentType: attrs.ContentType,
 		Size:        attrs.Size,
@@ -103,9 +116,9 @@ func mapAttrs(attrs *storage.ObjectAttrs) *types.ObjectAttrs {
 
 func mapListEntry(attrs *storage.ObjectAttrs) *types.ListEntry {
 	return &types.ListEntry{
-		Name: attrs.Name,
-		Size: attrs.Size,
-		ETag: attrs.Etag,
+		Object: types.CloudObject(attrs.Name),
+		Size:   attrs.Size,
+		ETag:   attrs.Etag,
 	}
 }
 
@@ -140,7 +153,7 @@ func (b *bucket) List(data types.ListData) iter.Seq2[*types.ListEntry, error] {
 }
 
 func (b *bucket) Remove(data types.RemoveData) error {
-	obj := b.handle.Object(data.Object)
+	obj := b.handle.Object(data.Object.String())
 
 	if data.Version != "" {
 		if gen, err := strconv.ParseInt(data.Version, 10, 64); err == nil {
@@ -153,7 +166,7 @@ func (b *bucket) Remove(data types.RemoveData) error {
 }
 
 func (b *bucket) Attrs(data types.AttrsData) (*types.ObjectAttrs, error) {
-	obj := b.handle.Object(data.Object)
+	obj := b.handle.Object(data.Object.String())
 
 	if data.Version != "" {
 		if gen, err := strconv.ParseInt(data.Version, 10, 64); err == nil {
@@ -194,6 +207,20 @@ func mapErr(err error) error {
 	case errors.Is(err, storage.ErrObjectNotExist):
 		return types.ErrObjectNotExist
 	default:
+		// Handle precondition failures
+		{
+			var e *googleapi.Error
+			if ok := errors.As(err, &e); ok && e.Code == http.StatusPreconditionFailed {
+				return types.ErrPreconditionFailed
+			}
+		}
+
+		{
+			if s, ok := status.FromError(err); ok && s.Code() == codes.AlreadyExists || s.Code() == codes.FailedPrecondition {
+				return types.ErrPreconditionFailed
+			}
+		}
+
 		return err
 	}
 }

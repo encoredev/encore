@@ -404,6 +404,7 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 						ProviderID: providerID,
 						EncoreName: bkt.EncoreName,
 						CloudName:  bkt.CloudName,
+						KeyPrefix:  bkt.GetKeyPrefix(),
 					}
 				}
 

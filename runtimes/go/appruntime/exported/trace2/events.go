@@ -1014,9 +1014,6 @@ type BucketDeleteObjectsEndParams struct {
 	StartID EventID
 
 	Err error
-	// Set iff err == nil
-	Observed uint64
-	HasMore  bool
 }
 
 func (l *Log) BucketDeleteObjectsEnd(p BucketDeleteObjectsEndParams) {
@@ -1027,8 +1024,6 @@ func (l *Log) BucketDeleteObjectsEnd(p BucketDeleteObjectsEndParams) {
 	})
 
 	tb.ErrWithStack(p.Err)
-	tb.UVarint(p.Observed)
-	tb.Bool(p.HasMore)
 
 	l.Add(Event{
 		Type:    BucketDeleteObjectsEnd,
