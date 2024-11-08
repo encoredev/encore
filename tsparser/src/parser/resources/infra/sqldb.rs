@@ -34,19 +34,21 @@ pub struct SQLDatabase {
 }
 
 #[derive(Clone, Debug)]
-pub enum Orm {
+pub enum MigrationFileSource {
     Prisma,
     Drizzle,
 }
 
-impl FromStr for Orm {
+impl FromStr for MigrationFileSource {
     type Err = anyhow::Error;
 
-    fn from_str(input: &str) -> Result<Orm, Self::Err> {
+    fn from_str(input: &str) -> Result<MigrationFileSource, Self::Err> {
         match input {
-            "prisma" => Ok(Orm::Prisma),
-            "drizzle" => Ok(Orm::Drizzle),
-            _ => Err(anyhow!("unexpected value for orm: {input}")),
+            "prisma" => Ok(MigrationFileSource::Prisma),
+            "drizzle" => Ok(MigrationFileSource::Drizzle),
+            _ => Err(anyhow!(
+                "unexpected value for migration file source: {input}"
+            )),
         }
     }
 }
@@ -68,7 +70,7 @@ pub struct DBMigration {
 #[derive(LitParser)]
 struct MigrationsConfig {
     path: LocalRelPath,
-    orm: Option<String>,
+    source: Option<String>,
 }
 
 #[derive(LitParser, Default)]
@@ -106,9 +108,9 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     }
                     (Some(Either::Right(cfg)), FilePath::Real(path)) => {
                         let dir = path.parent().unwrap().join(cfg.path.0);
-                        let orm = if let Some(ref string) = cfg.orm {
-                            match Orm::from_str(string) {
-                                Ok(orm) => Some(orm),
+                        let source = if let Some(ref string) = cfg.source {
+                            match MigrationFileSource::from_str(string) {
+                                Ok(source) => Some(source),
                                 Err(e) => {
                                     e.with_span(r.range.into()).report();
                                     continue;
@@ -118,11 +120,9 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                             None
                         };
 
-                        let migrations = parse_migrations(&dir, orm.as_ref())?;
-                        let non_seq_migrations = match orm {
-                            Some(Orm::Prisma) => true,
-                            _ => false,
-                        };
+                        let migrations = parse_migrations(&dir, source.as_ref())?;
+                        let non_seq_migrations =
+                            matches!(source, Some(MigrationFileSource::Prisma));
                         Some(DBMigrations {
                             dir,
                             migrations,
@@ -321,10 +321,10 @@ fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-fn parse_migrations(dir: &Path, orm: Option<&Orm>) -> Result<Vec<DBMigration>> {
-    let mut migrations = match orm {
-        Some(Orm::Drizzle) => parse_drizzle(dir),
-        Some(Orm::Prisma) => parse_prisma(dir),
+fn parse_migrations(dir: &Path, source: Option<&MigrationFileSource>) -> Result<Vec<DBMigration>> {
+    let mut migrations = match source {
+        Some(MigrationFileSource::Drizzle) => parse_drizzle(dir),
+        Some(MigrationFileSource::Prisma) => parse_prisma(dir),
         _ => parse_default(dir),
     }
     .context("failed to parse migrations")?;
