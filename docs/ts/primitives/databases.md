@@ -230,56 +230,75 @@ ORMs like [Sequelize](https://sequelize.org/) and migration frameworks like [Atl
 * If your ORM of choice can connect to any database using a standard SQL driver, then it can be used with Encore.
 * If your migration framework can generate SQL migration files without any modifications, then it can be used with Encore.
 
-<Callout type="info">
 
-Frameworks like [Prisma](https://www.prisma.io/) and [Drizzle](https://orm.drizzle.team/) are at the moment not supported by Encore. Encore uses plain SQL migration files for its migrations.
-
-</Callout>
-
-### ORM example
-
+### Sequelize
 Here is an example of using [Knex.js](http://knexjs.org/) with Encore.ts. We use `SiteDB.connectionString` supply the connection string to Knex.js:
 
 ```ts
--- site.ts --
+-- database.ts --
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import knex from "knex";
+import { Sequelize } from "sequelize";
 
-const SiteDB = new SQLDatabase("siteDB", {
-  migrations: "./migrations",
+// Define a database named 'encore_sequelize_test', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+const DB = new SQLDatabase('encore_sequelize_test', {
+  migrations: './migrations',
 });
 
-const orm = knex({
-  client: "pg",
-  connection: SiteDB.connectionString,
-});
-
-export interface Site {
-  id: number;
-  url: string;
-}
-
-// Create a query builder for the "site" table
-const Sites = () => orm<Site>("site");
-
-// Query all sites
-await Sites().select();
-
-// Query a site by id
-await Sites().where("id", id).first();
-
-// Insert a new site
-await Sites().insert({ url: params.url })
--- migrations/1_create_table.up.sql --
-CREATE TABLE site (
-    id SERIAL PRIMARY KEY,
-    url TEXT NOT NULL UNIQUE
-);
+const sequelize = new Sequelize(DB.connectionString);
 ```
 
 <GitHubLink
   href="https://github.com/encoredev/examples/tree/main/ts/sequelize"
   desc="Using Sequelize ORM with Encore.ts"
+/>
+
+### Drizzel
+Here is an example of using [Knex.js](http://knexjs.org/) with Encore.ts. We use `SiteDB.connectionString` supply the connection string to Knex.js:
+
+```ts
+
+-- database.ts --
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { drizzle } from "drizzle-orm/node-postgres"
+
+const db = new SQLDatabase("test", {
+  migrations: {
+    path: "migrations",
+    orm: "drizzle"
+  }
+})
+
+const orm = drizzle(db.connectionString);
+```
+
+<GitHubLink
+href="https://github.com/encoredev/examples/tree/main/ts/sequelize"
+desc="Using Sequelize ORM with Encore.ts"
+/>
+
+### Prisma
+Here is an example of using [Knex.js](http://knexjs.org/) with Encore.ts. We use `SiteDB.connectionString` supply the connection string to Knex.js:
+
+```ts
+-- database.ts --
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { Sequelize } from "sequelize";
+
+// Define a database named 'encore_sequelize_test', using the database migrations
+// in the "./migrations" folder. Encore automatically provisions,
+// migrates, and connects to the database.
+const DB = new SQLDatabase('encore_sequelize_test', {
+  migrations: './migrations',
+});
+
+const sequelize = new Sequelize(DB.connectionString);
+```
+
+<GitHubLink
+href="https://github.com/encoredev/examples/tree/main/ts/sequelize"
+desc="Using Sequelize ORM with Encore.ts"
 />
 
 ## PostgreSQL Extensions
