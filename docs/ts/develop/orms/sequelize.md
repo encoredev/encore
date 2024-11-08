@@ -9,7 +9,7 @@ Here is an example of using [Sequelize](https://sequelize.org/) with Encore.ts. 
 
 ```ts
 -- database.ts --
-import import {
+import {
   Model,
   InferAttributes,
   InferCreationAttributes,
@@ -34,7 +34,7 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
 const count = await User.count();
 
 -- migrations/1_create_user.up.sql --
-CREATE TABLE user (
+CREATE TABLE "user" (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   surname TEXT NOT NULL
