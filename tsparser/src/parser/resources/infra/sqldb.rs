@@ -55,7 +55,7 @@ impl FromStr for Orm {
 pub struct DBMigrations {
     pub dir: PathBuf,
     pub migrations: Vec<DBMigration>,
-    pub orm: Option<Orm>,
+    pub non_seq_migrations: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -101,7 +101,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                         Some(DBMigrations {
                             dir,
                             migrations,
-                            orm: None,
+                            non_seq_migrations: false,
                         })
                     }
                     (Some(Either::Right(cfg)), FilePath::Real(path)) => {
@@ -119,11 +119,14 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                         };
 
                         let migrations = parse_migrations(&dir, orm.as_ref())?;
-
+                        let non_seq_migrations = match orm {
+                            Some(Orm::Prisma) => true,
+                            _ => false,
+                        };
                         Some(DBMigrations {
                             dir,
                             migrations,
-                            orm,
+                            non_seq_migrations,
                         })
                     }
                 };
@@ -277,7 +280,7 @@ fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
 fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
     let mut migrations = vec![];
 
-    static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)$").unwrap());
+    static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)-(.+)$").unwrap());
 
     visit_dirs(dir, 0, 1, &mut |entry| -> Result<()> {
         let path = entry.path();
