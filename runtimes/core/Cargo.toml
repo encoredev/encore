@@ -8,7 +8,7 @@ edition = "2021"
 rttrace = []
 
 [dependencies]
-pingora = { version = "0.3", features = [ "lb" ] }
+pingora = { version = "0.4", features = [ "lb" ] }
 anyhow = "1.0.76"
 base64 = "0.21.5"
 gjson = "0.8.1"
