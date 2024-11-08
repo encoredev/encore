@@ -37,6 +37,9 @@ type Config struct {
 
 	// Whether to copy the built native module back to the repo dir.
 	CopyToRepo bool
+
+	// RustBuilder will override the automatic builder selection if set.
+	RustBuilder option.Option[string]
 }
 
 // IsCross reports whether the build is a cross-compile.
