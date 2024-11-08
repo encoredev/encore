@@ -537,6 +537,35 @@
 			path: "/ts/develop/auth"
 			file: "ts/develop/auth"
 		}, {
+			kind: "accordion"
+			text: "ORMs"
+			accordion: [{
+				kind: "basic"
+				text: "Overview"
+				path: "/ts/develop/orms"
+				file: "ts/develop/orms/overview"
+			}, {
+				kind: "basic"
+				text: "Knex.js"
+				path: "/ts/develop/orms/knex"
+				file: "ts/develop/orms/knex"
+			}, {
+				kind: "basic"
+				text: "Prisma"
+				path: "/ts/develop/orms/prisma"
+				file: "ts/develop/orms/prisma"
+			}, {
+				kind: "basic"
+				text: "Drizzle"
+				path: "/ts/develop/orms/drizzle"
+				file: "ts/develop/orms/drizzle"
+			}, {
+				kind: "basic"
+				text: "Sequelize"
+				path: "/ts/develop/orms/sequelize"
+				file: "ts/develop/orms/sequelize"
+			}]
+	  },{
 			kind: "basic"
 			text: "CORS"
 			path: "/ts/develop/cors"

@@ -5,7 +5,7 @@ title: Using Drizzle with Encore
 lang: ts
 ---
 
-Here is an example of using [drizzle](https://orm.drizzle.team/) with Encore.ts. We use `SiteDB.connectionString` supply the connection string to drizzle:
+Here is an example of using [drizzle](https://orm.drizzle.team/) with Encore.ts. We use `db.connectionString` supply the connection string to drizzle:
 
 ```ts
 -- database.ts --
