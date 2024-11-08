@@ -280,7 +280,7 @@ fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
 fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
     let mut migrations = vec![];
 
-    static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)-(.+)$").unwrap());
+    static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_(.*)$").unwrap());
 
     visit_dirs(dir, 0, 1, &mut |entry| -> Result<()> {
         let path = entry.path();
