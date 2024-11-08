@@ -17,7 +17,7 @@ import {users} from "./schema";
 const db = new SQLDatabase("test", {
   migrations: {
     path: "migrations",
-    orm: "drizzle"
+    source: "drizzle"
   }
 })
 
