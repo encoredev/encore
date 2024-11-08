@@ -21,6 +21,7 @@ func join(strs ...string) string {
 
 var archFlag = flag.String("arch", runtime.GOARCH, "the architecture to target")
 var osFlag = flag.String("os", runtime.GOOS, "the operating system to target")
+var builderFlag = flag.String("builder", "", "the builder to use")
 
 func main() {
 	binary := os.Args[1]
@@ -44,16 +45,23 @@ func main() {
 	}
 	cacheDir := filepath.Join(userCacheDir, "encore-build-cache")
 
+	builder := option.None[string]()
+
+	if builderFlag != nil && *builderFlag != "" {
+		builder = option.Some(*builderFlag)
+	}
+
 	cfg := &buildconf.Config{
-		Log:        log.Logger,
-		OS:         *osFlag,
-		Arch:       *archFlag,
-		Release:    false,
-		Version:    version.Version,
-		RepoDir:    root,
-		CacheDir:   cacheDir,
-		MacSDKPath: option.None[string](),
-		CopyToRepo: true,
+		Log:         log.Logger,
+		OS:          *osFlag,
+		Arch:        *archFlag,
+		Release:     false,
+		Version:     version.Version,
+		RepoDir:     root,
+		CacheDir:    cacheDir,
+		MacSDKPath:  option.None[string](),
+		CopyToRepo:  true,
+		RustBuilder: builder,
 	}
 
 	switch binary {

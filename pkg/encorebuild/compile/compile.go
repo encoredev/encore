@@ -79,9 +79,8 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 	}
 
 	useZig := cfg.IsCross() || cfg.Release
-
-	envs := append(extraEnvVars, osPkg.Environ()...)
 	useCross := false
+
 	if cfg.IsCross() && runtime.GOOS == "darwin" {
 		// check is cross is installed
 		_, err := exec.LookPath("cross")
@@ -91,6 +90,23 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 		}
 	}
 
+	if builder, ok := cfg.RustBuilder.Get(); ok {
+		switch builder {
+		case "cargo":
+			useCross = false
+			useZig = false
+		case "zigbuild":
+			useCross = false
+			useZig = true
+		case "cross-rs":
+			useCross = true
+			useZig = false
+		default:
+			Bailf("unknown builder: %q", cfg.RustBuilder)
+		}
+	}
+
+	envs := append(extraEnvVars, osPkg.Environ()...)
 	var target, zigTargetSuffix string
 	switch cfg.OS {
 	case "darwin":
