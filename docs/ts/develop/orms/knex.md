@@ -61,7 +61,7 @@ CREATE TABLE site (
 );
 ```
 
-### 3. Applying Migrations
+## 3. Applying Migrations
 
 Encore automatically applies migrations when you run your application. You do not need to run `knex migrate:latest` or similar commands manually.
 
