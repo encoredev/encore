@@ -67,4 +67,5 @@ Encore automatically applies migrations when you run your application. You do no
 
 --- 
 
-This setup enables seamless integration of Knex.js with Encore while ensuring that migrations are managed automatically on deployment.
+For more information, see the example on GitHub:  
+<GitHubLink href="https://github.com/encoredev/examples/tree/main/ts/knex" desc="Using Knex ORM with Encore.ts" />
