@@ -49,7 +49,7 @@ model User {
 
 ## Configure Prisma
 
-You can configure Prisma to operate on Encores shadow database, that way Encore.ts and Prisma won't interfere with each other, and you can then use the Prisma CLI to generate migrations and the ORM client. Encore will take care of applying the migrations both in production and locally.
+Prisma requires a "shadow database" for certain operations, essentially it's a second, temporary, database that is created and deleted automatically. Encore comes with built-in support for shadow databases, and by configuring Prisma to operate on Encore's shadow database, Encore.ts and Prisma won't interfere with each other. You can then use the Prisma CLI to generate migrations and the ORM client. Encore will take care of applying the migrations both in production and locally.
 
 To get the shadow db connection url to Encore.ts shadow database, run:
 
