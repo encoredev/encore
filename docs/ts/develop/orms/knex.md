@@ -65,7 +65,6 @@ CREATE TABLE site (
 
 Encore automatically applies migrations when you run your application. You do not need to run `knex migrate:latest` or similar commands manually.
 
---- 
-
-For more information, see the example on GitHub:  
-<GitHubLink href="https://github.com/encoredev/examples/tree/main/ts/knex" desc="Using Knex ORM with Encore.ts" />
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/knex" 
+    desc="Example implementation showing how to use Knex ORM with Encore.ts" />
