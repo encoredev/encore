@@ -4,7 +4,7 @@ seodesc: Learn how to use Drizzle with Encore to interact with SQL databases.
 title: Using Drizzle ORM with Encore
 lang: ts
 ---
-Encore supports integrating [Drizzle](https://orm.drizzle.team/), a TypeScript ORM for Node.js and the browser. To set up Drizzle with Encore, start by creating an `SQLDatabase` instance and providing the connection string to Drizzle.
+Encore supports integrating [Drizzle](https://orm.drizzle.team/), a TypeScript ORM for Node.js and the browser. To use Drizzle with Encore, start by creating a `SQLDatabase` instance and providing the connection string to Drizzle.
 
 ### 1. Setting Up the Database Connection
 
