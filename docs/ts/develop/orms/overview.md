@@ -1,7 +1,7 @@
 ---
 seotitle: Using ORMs with Encore
 seodesc: Learn how to use ORMs with Encore to interact with SQL databases.
-title: Using ORMs and Migration Frameworks with Encore
+title: Using ORMs and Migration Frameworks with Encore.ts
 lang: ts
 ---
 Encore provides built-in support for ORMs and migration frameworks by offering named databases and SQL-based migration files. For developers who prefer not to write raw SQL, Encore allows seamless integration with popular ORMs and migration tools.
