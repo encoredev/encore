@@ -12,6 +12,18 @@ ORMs like [Sequelize](https://sequelize.org/) and migration frameworks like [Atl
 * If your ORM of choice can connect to any database using a standard SQL driver, then it can be used with Encore.
 * If your migration framework can generate SQL migration files without any modifications, then it can be used with Encore.
 
+Encore provides a `SQLDatabase` class that can be used to create a named database with a connection string. This connection string can be used by ORMs and migration frameworks to connect to the database.
+
+```typescript
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+
+const SiteDB = new SQLDatabase("siteDB", {
+  migrations: "./migrations",
+});
+
+const connStr =  SiteDB.connectionString;
+```
+
 Here are some examples of using ORMs with Encore:
 * [Using Knex.js with Encore](/docs/ts/develop/orms/knex)
 * [Using Sequelize with Encore](/docs/ts/develop/orms/sequelize)
