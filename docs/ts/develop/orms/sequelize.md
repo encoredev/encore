@@ -4,7 +4,7 @@ seodesc: Learn how to use Sequelize with Encore to interact with SQL databases.
 title: Using Sequelize with Encore
 lang: ts
 ---
-Encore supports integrating [Sequelize](https://sequelize.org/), a promise-based Node.js ORM. To set up Sequelize with Encore, start by creating an `SQLDatabase` instance and providing the connection string to Sequelize.
+Encore.ts supports integrating [Sequelize](https://sequelize.org/), a promise-based Node.js ORM. To set up Sequelize with Encore, start by creating a `SQLDatabase` instance and providing the connection string to Sequelize.
 
 ### 1. Setting Up the Database Connection
 
