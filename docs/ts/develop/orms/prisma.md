@@ -70,7 +70,7 @@ This will create new migrations if you have made any changes to the `schema.pris
 
 ## Migration
 
-The migration files will be automatically applied by Encores migration tool both locally (when you run `encore run`) and in production.
+The migration files will be automatically applied by Encore, both locally (when you run `encore run`) and in cloud environments.
 
 
 <GitHubLink
