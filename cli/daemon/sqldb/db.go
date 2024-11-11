@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 
@@ -287,18 +289,29 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 	}
 	defer fns.CloseIgnore(conn)
 
-	instance, err := postgres.WithInstance(conn, &postgres.Config{})
-	defer fns.CloseIgnore(instance)
-	if err != nil {
-		return err
+	var (
+		dbDriver  database.Driver
+		srcDriver source.Driver
+	)
+	migDir := filepath.Join(appRoot, *dbMeta.MigrationRelPath)
+	if dbMeta.AllowNonSequentialMigrations {
+		conn, err := conn.Conn(ctx)
+		if err != nil {
+			return errors.Wrap(err, "failed to get db conn")
+		}
+		dbDriver, srcDriver, err = NonSequentialMigrator(ctx, conn, migDir, dbMeta.Migrations)
+		if err != nil {
+			return errors.Wrap(err, "failed to init non-seq driver")
+		}
+	} else {
+		dbDriver, err = postgres.WithInstance(conn, &postgres.Config{})
+		if err != nil {
+			return err
+		}
+		srcDriver = NewMetadataSource(migDir, dbMeta.Migrations)
 	}
-
-	s := &src{
-		appRoot:           appRoot,
-		migrationsRelPath: *dbMeta.MigrationRelPath,
-		migrations:        dbMeta.Migrations,
-	}
-	m, err := migrate.NewWithInstance("src", s, cloudName, instance)
+	defer fns.CloseIgnore(dbDriver)
+	m, err := migrate.NewWithInstance("src", srcDriver, cloudName, dbDriver)
 	if err != nil {
 		return err
 	}
@@ -317,7 +330,7 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 		// we can force the migration to that version and then
 		// re-apply the migration.
 		var prevVer uint
-		prevVer, err = s.Prev(uint(dirty.Version))
+		prevVer, err = srcDriver.Prev(uint(dirty.Version))
 		targetVer := int(prevVer)
 		if errors.Is(err, fs.ErrNotExist) {
 			// No previous migration exists

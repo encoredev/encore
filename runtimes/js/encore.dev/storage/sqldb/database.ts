@@ -2,8 +2,12 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 
+export interface SQLMigrationsConfig {
+  path: string;
+  source?: "prisma" | "drizzle";
+}
 export interface SQLDatabaseConfig {
-  migrations?: string;
+  migrations?: string | SQLMigrationsConfig;
 }
 
 const driverName = "node-pg";
