@@ -1,19 +1,19 @@
 ---
-seotitle: Using ORMs with Encore
-seodesc: Learn how to use ORMs with Encore to interact with SQL databases.
+seotitle: Using ORMs with Encore.ts
+seodesc: Learn how to use ORMs with Encore.ts to seamlessly interact with SQL databases from your TypeScript / Node.js backend.
 title: Using ORMs and Migration Frameworks with Encore.ts
 lang: ts
 ---
 Encore provides built-in support for ORMs and migration frameworks by offering named databases and SQL-based migration files. For developers who prefer not to write raw SQL, Encore allows seamless integration with popular ORMs and migration tools.
 
-### Overview
+## Overview
 
 Encore’s approach to database management is flexible. It uses standard SQL migration files, allowing integration with ORMs like [Sequelize](https://sequelize.org/) and migration tools like [Atlas](https://atlasgo.io/).
 
 - **ORM Compatibility:** If your ORM can connect to a database via a standard SQL driver, it will work with Encore.
 - **Migration Tool Compatibility:** If your migration tool generates SQL migration files without additional customization, it can be used with Encore.
 
-### Connecting to a Database
+## Connecting to a Database
 
 Encore provides the `SQLDatabase` class, which allows you to create a named database and retrieve its connection string. This connection string can be used by your chosen ORM or migration framework to establish a database connection.
 
@@ -31,7 +31,7 @@ const SiteDB = new SQLDatabase("siteDB", {
 const connStr = SiteDB.connectionString;
 ```
 
-### Examples of ORM Integrations with Encore
+## Example ORM implementations
 
 Here are some guides to using different ORMs with Encore:
 

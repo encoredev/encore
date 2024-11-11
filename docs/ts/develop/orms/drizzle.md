@@ -6,7 +6,7 @@ lang: ts
 ---
 Encore supports integrating [Drizzle](https://orm.drizzle.team/), a TypeScript ORM for Node.js and the browser. To use Drizzle with Encore, start by creating a `SQLDatabase` instance and providing the connection string to Drizzle.
 
-### 1. Setting Up the Database Connection
+## 1. Setting Up the Database Connection
 
 In `database.ts`, initialize the `SQLDatabase` and configure Drizzle:
 
@@ -32,7 +32,7 @@ const orm = drizzle(db.connectionString);
 await orm.select().from(users);
 ```
 
-### 2. Configuring Drizzle
+## 2. Configuring Drizzle
 
 Create a Drizzle configuration file `drizzle.config.ts` to specify settings like migration output, schema, and database dialect:
 
@@ -48,7 +48,7 @@ export default defineConfig({
 });
 ```
 
-### 3. Defining the Database Schema
+## 3. Defining the Database Schema
 
 Define your database tables in `schema.ts` using Drizzle's `pg-core` module:
 
@@ -63,7 +63,7 @@ export const users = p.pgTable("users", {
 });
 ```
 
-### 4. Generating Migrations
+## 4. Generating Migrations
 
 Run the following command in the directory containing `drizzle.config.ts` to generate migrations:
 

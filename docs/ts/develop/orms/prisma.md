@@ -1,7 +1,7 @@
 ---
-seotitle: Using Prisma with Encore
+seotitle: Using Prisma with Encore.ts
 seodesc: Learn how to use Prisma with Encore to interact with SQL databases.
-title: Using Prisma with Encore
+title: Using Prisma with Encore.ts
 lang: ts
 ---
 
@@ -9,7 +9,7 @@ lang: ts
 
 With Prisma you make your schema changes in a Prisma schema file `schema.prisma`, and then use Prisma's CLI tools to generate SQL migrations and a TypeScript ORM client.
 
-Here is an example of using [Prisma](https://prisma.io/) with Encore.ts. We use `DB.connectionString` supply the connection string to Prisma:
+Here is an example of using [Prisma](https://prisma.io/) with Encore.ts. We use `DB.connectionString` to supply the connection string to Prisma:
 
 ```ts
 -- database.ts --
