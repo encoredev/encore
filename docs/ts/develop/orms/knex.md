@@ -4,7 +4,7 @@ seodesc: Learn how to use Knex.js with Encore to interact with SQL databases.
 title: Using Knex.js with Encore
 lang: ts
 ---
-Encore supports integrating [Knex.js](http://knexjs.org/), a SQL query builder for Node.js. To use Knex.js with Encore, start by creating an `SQLDatabase` instance and provide its connection string to Knex.js.
+Encore.ts supports integrating [Knex.js](http://knexjs.org/), a SQL query builder for Node.js. To use Knex.js with Encore, start by creating an `SQLDatabase` instance and provide its connection string to Knex.js.
 
 ### 1. Setting Up the Database Connection
 
