@@ -7,7 +7,7 @@ lang: ts
 
 ### Prisma
 
-With Prisma you make your schema changes in a prisma schema file `schema.prisma`, and then use prismas cli tools to generate sql migrations and an TypeScript ORM client.
+With Prisma you make your schema changes in a Prisma schema file `schema.prisma`, and then use Prisma's CLI tools to generate SQL migrations and a TypeScript ORM client.
 
 Here is an example of using [Prisma](https://prisma.io/) with Encore.ts. We use `DB.connectionString` supply the connection string to Prisma:
 
