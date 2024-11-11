@@ -71,7 +71,7 @@ Run the following command in the directory containing `drizzle.config.ts` to gen
 drizzle-kit generate
 ```
 
-### 5. Applying Migrations
+## 5. Applying Migrations
 
 Migrations are automatically applied when you run your Encore application, so you don’t need to run `drizzle-kit migrate` or any similar commands manually.
 
