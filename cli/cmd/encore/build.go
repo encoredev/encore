@@ -14,6 +14,21 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
+var (
+	targetOS = cmdutil.Oneof{
+		Value:   "linux",
+		Allowed: []string{"linux"},
+		Flag:    "os",
+		Desc:    "the target operating system",
+	}
+	targetArch = cmdutil.Oneof{
+		Value:   "amd64",
+		Allowed: []string{"amd64", "arm64"},
+		Flag:    "arch",
+		Desc:    "the target architecture",
+	}
+)
+
 func init() {
 	buildCmd := &cobra.Command{
 		Use:     "build",
@@ -23,14 +38,14 @@ func init() {
 
 	p := buildParams{
 		CgoEnabled: os.Getenv("CGO_ENABLED") == "1",
-		Goos:       or(os.Getenv("GOOS"), "linux"),
-		Goarch:     or(os.Getenv("GOARCH"), "amd64"),
 	}
 	dockerBuildCmd := &cobra.Command{
 		Use:   "docker IMAGE_TAG",
 		Short: "docker builds a portable docker image of your Encore application",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			p.Goarch = targetArch.Value
+			p.Goos = targetOS.Value
 			p.AppRoot, _ = determineAppRoot()
 			file, err := appfile.ParseFile(filepath.Join(p.AppRoot, appfile.Name))
 			if err == nil {
@@ -48,13 +63,13 @@ func init() {
 
 	dockerBuildCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")
 	dockerBuildCmd.Flags().StringVar(&p.BaseImg, "base", "scratch", "base image to build from")
-	dockerBuildCmd.Flags().StringVar(&p.Goos, "os", p.Goos, "target operating system. One of (linux, darwin, windows)")
-	dockerBuildCmd.Flags().StringVar(&p.Goarch, "arch", p.Goarch, "target architecture. One of (amd64, arm64)")
 	dockerBuildCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", false, "enable cgo")
 	dockerBuildCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-config", false, "do not read or generate a infra configuration file")
 	dockerBuildCmd.Flags().StringVar(&p.InfraConfPath, "config", "", "infra configuration file path")
 	p.Services = dockerBuildCmd.Flags().StringSlice("services", nil, "services to include in the image")
 	p.Gateways = dockerBuildCmd.Flags().StringSlice("gateways", nil, "gateways to include in the image")
+	targetOS.AddFlag(dockerBuildCmd)
+	targetArch.AddFlag(dockerBuildCmd)
 	rootCmd.AddCommand(buildCmd)
 	buildCmd.AddCommand(dockerBuildCmd)
 }

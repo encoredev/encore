@@ -17,12 +17,145 @@ type InfraConfig struct {
 	Redis            map[string]*Redis            `json:"redis,omitempty"`
 	PubSub           []*PubSub                    `json:"pubsub,omitempty"`
 	Secrets          Secrets                      `json:"secrets,omitempty"`
+	ObjectStorage    []*ObjectStorage             `json:"object_storage,omitempty"`
 
 	// These fields are not defined in the json schema and should not be
 	// set by the user. They're computed during the build/eject process.
 	HostedServices []string `json:"hosted_services,omitempty"`
 	HostedGateways []string `json:"hosted_gateways,omitempty"`
 	CORS           *CORS    `json:"cors,omitempty"`
+}
+
+type ObjectStorage struct {
+	Type string `json:"type"`
+	GCS  *GCS   `json:"gcs,omitempty"`
+	S3   *S3    `json:"s3,omitempty"`
+}
+
+func (o *ObjectStorage) GetBuckets() map[string]*Bucket {
+	switch o.Type {
+	case "gcs":
+		return o.GCS.Buckets
+	case "s3":
+		return o.S3.Buckets
+	default:
+		panic("unsupported object storage type")
+	}
+}
+
+func (o *ObjectStorage) DeleteBucket(name string) {
+	switch o.Type {
+	case "gcs":
+		delete(o.GCS.Buckets, name)
+	case "s3":
+		delete(o.S3.Buckets, name)
+	default:
+		panic("unsupported object storage type")
+	}
+
+}
+
+func (a *ObjectStorage) Validate(v *validator) {
+	v.ValidateField("Type", OneOf(a.Type, "gcs", "s3"))
+	switch a.Type {
+	case "gcs":
+		a.GCS.Validate(v)
+	case "s3":
+		a.S3.Validate(v)
+	default:
+		v.ValidateField("type", Err("unsupported object storage type"))
+	}
+}
+
+func (p *ObjectStorage) MarshalJSON() ([]byte, error) {
+	// Create a map to hold the JSON structure
+	m := make(map[string]interface{})
+
+	// Always add the type
+	m["type"] = p.Type
+
+	// Add the specific pubsub configuration based on the type
+	switch p.Type {
+	case "gcs":
+		if p.GCS != nil {
+			for k, v := range structToMap(p.GCS) {
+				m[k] = v
+			}
+		}
+	case "s3":
+		if p.S3 != nil {
+			for k, v := range structToMap(p.S3) {
+				m[k] = v
+			}
+		}
+	default:
+		return nil, errors.New("unsupported object storage type")
+	}
+
+	return json.Marshal(m)
+}
+
+// UnmarshalJSON custom unmarshaller for PubSub.
+func (p *ObjectStorage) UnmarshalJSON(data []byte) error {
+	// Anonymous struct to capture the "type" field first.
+	var aux struct {
+		Type string `json:"type,omitempty"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Set the Type field.
+	p.Type = aux.Type
+
+	// Unmarshal based on the "type" field.
+	switch aux.Type {
+	case "gcs":
+		var g GCS
+		if err := json.Unmarshal(data, &g); err != nil {
+			return err
+		}
+		p.GCS = &g
+	case "s3":
+		var a S3
+		if err := json.Unmarshal(data, &a); err != nil {
+			return err
+		}
+		p.S3 = &a
+	default:
+		return errors.New("unsupported object storage type")
+	}
+
+	return nil
+}
+
+type S3 struct {
+	Region   string             `json:"region"`
+	Endpoint string             `json:"endpoint,omitempty"`
+	Buckets  map[string]*Bucket `json:"buckets,omitempty"`
+}
+
+func (a *S3) Validate(v *validator) {
+	v.ValidateField("region", NotZero(a.Region))
+	ValidateChildMap(v, "buckets", a.Buckets)
+}
+
+type GCS struct {
+	Endpoint string             `json:"endpoint,omitempty"`
+	Buckets  map[string]*Bucket `json:"buckets,omitempty"`
+}
+
+func (a *GCS) Validate(v *validator) {
+	ValidateChildMap(v, "buckets", a.Buckets)
+}
+
+type Bucket struct {
+	Name   string `json:"name,omitempty"`
+	Prefix string `json:"prefix,omitempty"`
+}
+
+func (a *Bucket) Validate(v *validator) {
+	v.ValidateField("name", NotZero(a.Name))
 }
 
 type Metadata struct {
@@ -46,6 +179,7 @@ func (i *InfraConfig) Validate(v *validator) {
 	v.ValidateChild("graceful_shutdown", i.GracefulShutdown)
 	ValidateChildList(v, "auth", i.Auth)
 	ValidateChildMap(v, "service_discovery", i.ServiceDiscovery)
+	ValidateChildList(v, "object_storage", i.ObjectStorage)
 	v.ValidateChild("metrics", i.Metrics)
 	ValidateChildList(v, "sql_servers", i.SQLServers)
 	ValidateChildMap(v, "redis", i.Redis)
@@ -127,7 +261,7 @@ type Auth struct {
 }
 
 func (a *Auth) Validate(v *validator) {
-	v.ValidateField("type", NotZero(a.Type))
+	v.ValidateField("type", OneOf(a.Type, "auth"))
 	v.ValidateEnvString("key", a.Key, "Service Authorization Key", NotZero[string])
 }
 

@@ -102,7 +102,10 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 
 	// Add dependencies for all outbound RPCs for our hosted services.
 	for _, p := range md.Pkgs {
-		if _, ok := hostedSvcs[p.ServiceName]; !ok {
+		if p.ServiceName == "" {
+			secrets = append(secrets, p.Secrets...)
+			continue
+		} else if _, ok := hostedSvcs[p.ServiceName]; !ok {
 			continue
 		}
 		secrets = append(secrets, p.Secrets...)
@@ -275,6 +278,25 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 	}
 	if len(topics) > 0 {
 		missing["Topics"] = topics
+	}
+
+	// Validate bucket config
+	buckets := fns.FlatMap(maps.Values(hostedSvcs), func(svc *meta.Service) []string {
+		return fns.Map(svc.Buckets, (*meta.BucketUsage).GetBucket)
+	})
+	slices.Sort(buckets)
+	buckets = slices.Compact(buckets)
+
+	for _, storage := range infraCfg.ObjectStorage {
+		for name, _ := range storage.GetBuckets() {
+			buckets, ok = fns.Delete(buckets, name)
+			if !ok {
+				storage.DeleteBucket(name)
+			}
+		}
+	}
+	if len(buckets) > 0 {
+		missing["Buckets"] = buckets
 	}
 
 	// Copy CORS config

@@ -1,1 +1,1 @@
-export {registerGateways, registerHandlers, registerTestHandler, run, type Handler} from "../appinit/mod";
+export {registerGateways, registerHandlers, registerTestHandler, run, type Handler} from "../appinit/mod";      

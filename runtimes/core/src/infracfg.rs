@@ -24,6 +24,35 @@ pub struct InfraConfig {
     pub hosted_services: Option<Vec<String>>,
     pub hosted_gateways: Option<Vec<String>>,
     pub cors: Option<CORS>,
+    pub buckets: Option<Vec<ObjectStorage>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ObjectStorage {
+    #[serde(rename = "gcs")]
+    GCS(GCS),
+    #[serde(rename = "s3")]
+    S3(S3),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GCS {
+    pub endpoint: Option<String>,
+    pub buckets: HashMap<String, Bucket>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct S3 {
+    pub region: String,
+    pub endpoint: Option<String>,
+    pub buckets: HashMap<String, Bucket>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Bucket {
+    pub name: String,
+    pub key_prefix: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -399,6 +428,52 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         pbruntime::ServiceDiscovery {
             services: services_mapped,
         }
+    });
+
+    // Map Buckets
+    let buckets = infra.buckets.as_ref().map(|object_storages| {
+        object_storages
+            .iter()
+            .map(|os| match os {
+                ObjectStorage::GCS(gcs) => pbruntime::BucketCluster {
+                    rid: get_next_rid(),
+                    provider: Some(pbruntime::bucket_cluster::Provider::Gcs(
+                        pbruntime::bucket_cluster::Gcs {
+                            endpoint: gcs.endpoint.clone(),
+                        },
+                    )),
+                    buckets: gcs
+                        .buckets
+                        .iter()
+                        .map(|(name, bucket)| pbruntime::Bucket {
+                            encore_name: name.clone(),
+                            cloud_name: bucket.name.clone(),
+                            key_prefix: bucket.key_prefix.clone(),
+                            rid: get_next_rid(),
+                        })
+                        .collect(),
+                },
+                ObjectStorage::S3(s3) => pbruntime::BucketCluster {
+                    rid: get_next_rid(),
+                    provider: Some(pbruntime::bucket_cluster::Provider::S3(
+                        pbruntime::bucket_cluster::S3 {
+                            region: s3.region.clone(),
+                            endpoint: s3.endpoint.clone(),
+                        },
+                    )),
+                    buckets: s3
+                        .buckets
+                        .iter()
+                        .map(|(name, bucket)| pbruntime::Bucket {
+                            encore_name: name.clone(),
+                            cloud_name: bucket.name.clone(),
+                            key_prefix: bucket.key_prefix.clone(),
+                            rid: get_next_rid(),
+                        })
+                        .collect(),
+                },
+            })
+            .collect()
     });
 
     // Map Metrics
@@ -892,8 +967,8 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         sql_clusters: sql_clusters.unwrap_or_default(),
         pubsub_clusters: pubsub_clusters.unwrap_or_default(),
         redis_clusters: redis_clusters.unwrap_or_default(),
-        bucket_clusters: vec![], // TODO
         app_secrets,
+        bucket_clusters: buckets.unwrap_or_default(),
     });
 
     let infra_struct = Some(Infrastructure {
