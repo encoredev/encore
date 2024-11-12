@@ -724,18 +724,50 @@ impl<'a> Ctx<'a> {
     }
 
     fn interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
-        if !decl.extends.is_empty() {
-            HANDLER.with(|handler| handler.span_err(decl.span, "extends not yet supported"));
-            return Type::Basic(Basic::Never);
-        } else if decl.type_params.is_some() {
-            HANDLER.with(|handler| handler.span_err(decl.span, "type params not yet supported"));
-            return Type::Basic(Basic::Never);
+        if let Some(type_params) = &decl.type_params {
+            let args: Vec<_> = type_params.params.iter().collect();
+            self.clone()
+                .with_type_params(&args[..])
+                .do_interface_decl(decl)
+        } else {
+            self.do_interface_decl(decl)
         }
+    }
 
-        self.typ(&ast::TsType::TsTypeLit(ast::TsTypeLit {
+    fn do_interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
+        let base = self.typ(&ast::TsType::TsTypeLit(ast::TsTypeLit {
             span: decl.span,
             members: decl.body.body.clone(),
-        }))
+        }));
+        if decl.extends.is_empty() {
+            return base;
+        }
+
+        // We have an extends clause. Compute the intersection.
+        let mut result = Owned(base);
+        for extends in &decl.extends {
+            // Resolve the extend type, using its type arguments if necessary.
+            let t = if let Some(type_args) = extends.type_args.as_ref() {
+                let Some(obj) = self.resolve_obj(&extends.expr) else {
+                    HANDLER.with(|handler| {
+                        handler.span_err(extends.span, "extends with non-ident type")
+                    });
+                    continue;
+                };
+
+                // We have to manually construct a Named here, because the type arguments
+                // are not provided alongside the type expression.
+                let types: Vec<_> = type_args.params.iter().map(|t| self.typ(t)).collect();
+                let named = Named::new(obj, types);
+                let typ = Type::Named(named);
+                self.concrete(&typ).into_owned()
+            } else {
+                self.expr(&extends.expr)
+            };
+
+            result = intersect(self, result, Owned(t));
+        }
+        result.into_owned()
     }
 
     fn expr(&self, expr: &ast::Expr) -> Type {
