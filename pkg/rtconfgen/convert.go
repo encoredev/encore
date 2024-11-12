@@ -384,8 +384,8 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 				switch prov := cluster.Provider.(type) {
 				case *runtimev1.BucketCluster_S3_:
 					p.S3 = &config.S3BucketProvider{
-						Endpoint: prov.S3.GetEndpoint(),
 						Region:   prov.S3.GetRegion(),
+						Endpoint: prov.S3.Endpoint,
 					}
 				case *runtimev1.BucketCluster_Gcs:
 					p.GCS = &config.GCSBucketProvider{

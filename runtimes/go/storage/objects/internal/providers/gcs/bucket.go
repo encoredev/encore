@@ -1,4 +1,4 @@
-package gcp
+package gcs
 
 import (
 	"context"
@@ -35,7 +35,7 @@ type bucket struct {
 	handle *storage.BucketHandle
 }
 
-func (mgr *Manager) ProviderName() string { return "gcp" }
+func (mgr *Manager) ProviderName() string { return "gcs" }
 
 func (mgr *Manager) Matches(cfg *config.BucketProvider) bool {
 	return cfg.GCS != nil

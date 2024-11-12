@@ -402,8 +402,10 @@ type BucketProvider struct {
 }
 
 type S3BucketProvider struct {
-	Endpoint string `json:"endpoint"`
-	Region   string `json:"region"`
+	Region string `json:"region"`
+	// The endpoint to use. If nil, the default endpoint for the region is used.
+	// Must be set for non-AWS endpoints.
+	Endpoint *string `json:"endpoint"`
 }
 
 type GCSBucketProvider struct {
