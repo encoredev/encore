@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang-migrate/migrate/v4/database"
@@ -20,80 +21,142 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
-type MetadataSource interface {
-	source.Driver
-	Migration(version uint, offset int) (*meta.DBMigration, error)
-	FilePath(filename string) string
+// MigrationReader is an interface for reading migration files. It has two main
+// implementations: OsMigrationReader and ZipFSMigrationReader.
+type MigrationReader interface {
+	Read(*meta.DBMigration) (r io.ReadCloser, err error)
 }
 
-func NewMetadataSource(path string, migrations []*meta.DBMigration) MetadataSource {
-	return &metadataSource{
-		path:       path,
-		migrations: migrations,
+// The OsMigrationReader reads migrations from the local filesystem.
+func NewOsMigrationReader(path string) *OsMigrationReader {
+	return &OsMigrationReader{path: path}
+}
+
+type OsMigrationReader struct {
+	path string
+}
+
+func (src *OsMigrationReader) Read(m *meta.DBMigration) (r io.ReadCloser, err error) {
+	fpath := filepath.Join(src.path, m.Filename)
+	data, err := os.ReadFile(fpath)
+	if err != nil {
+		return nil, err
+	}
+	return io.NopCloser(bytes.NewReader(data)), nil
+}
+
+// MultiReadCloser is a helper wrapper which extends the io.MultiReader to also
+// close the underlying closeable readers. It's used by the MetadataSource to
+// append a statement to mark a migration as successful.
+func MultiReadCloser(r ...io.Reader) io.ReadCloser {
+	return &multiReadCloser{
+		readers:     r,
+		multiReader: io.MultiReader(r...),
 	}
 }
 
-type metadataSource struct {
-	path       string
+type multiReadCloser struct {
+	readers     []io.Reader
+	multiReader io.Reader
+}
+
+func (m multiReadCloser) Read(p []byte) (n int, err error) {
+	return m.multiReader.Read(p)
+}
+
+func (m multiReadCloser) Close() error {
+	var errs []error
+	for _, r := range m.readers {
+		if c, ok := r.(io.Closer); !ok {
+			continue
+		} else if err := c.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+var _ io.ReadCloser = (*multiReadCloser)(nil)
+
+// NewMetadataSource creates a new MetadataSource instance.
+func NewMetadataSource(reader MigrationReader, migrations []*meta.DBMigration) *MetadataSource {
+	return &MetadataSource{
+		MigrationReader: reader,
+		migrations:      migrations,
+	}
+}
+
+// MetadataSource is a source.Driver implementation that keeps a list of migrations retrieved from
+// the Encore metadata. It relies on a MigrationReader to read the migration files.
+type MetadataSource struct {
+	MigrationReader
 	migrations []*meta.DBMigration
 }
 
-func (src *metadataSource) FilePath(filename string) string {
-	return filepath.Join(src.path, filename)
+func (src *MetadataSource) ReadUp(version uint) (r io.ReadCloser, identifier string, err error) {
+	m, err := src.migration(version, 0)
+	if err != nil {
+		return nil, "", err
+	}
+	r, err = src.Read(m)
+	if err != nil {
+		return nil, "", err
+	}
+	// This is used to make sure that a migration is marked successful in the
+	// same statement as it's run. Otherwise we may end up with a finished migration
+	// which is marked dirty because the SetVersion is run as a separate statement.
+	statement := fmt.Sprintf(
+		";\ninsert into schema_migrations (version, dirty) values (%d, false) ON CONFLICT (version) DO UPDATE SET dirty = false;",
+		version)
+	return MultiReadCloser(
+		r,
+		strings.NewReader(statement),
+	), m.Description, nil
 }
 
-func (src *metadataSource) Open(url string) (source.Driver, error) {
+func (src *MetadataSource) Open(url string) (source.Driver, error) {
 	return nil, fmt.Errorf("driver.Open is not implemented")
 }
 
-func (src *metadataSource) Close() error {
+func (src *MetadataSource) Close() error {
 	return nil
 }
 
-func (src *metadataSource) First() (version uint, err error) {
+func (src *MetadataSource) First() (version uint, err error) {
 	if len(src.migrations) == 0 {
 		return 0, os.ErrNotExist
 	}
 	return uint(src.migrations[0].Number), nil
 }
 
-func (src *metadataSource) Prev(version uint) (prevVersion uint, err error) {
-	m, err := src.Migration(version, -1)
+func (src *MetadataSource) Prev(version uint) (prevVersion uint, err error) {
+	m, err := src.migration(version, -1)
 	if err != nil {
 		return 0, err
 	}
 	return uint(m.Number), nil
 }
 
-func (src *metadataSource) Next(version uint) (nextVersion uint, err error) {
-	m, err := src.Migration(version, +1)
+func (src *MetadataSource) Next(version uint) (nextVersion uint, err error) {
+	m, err := src.migration(version, +1)
 	if err != nil {
 		return 0, err
 	}
 	return uint(m.Number), nil
 }
 
-func (src *metadataSource) ReadUp(version uint) (r io.ReadCloser, identifier string, err error) {
-	m, err := src.Migration(version, 0)
-	if err != nil {
-		return nil, "", err
-	}
-	fpath := src.FilePath(m.Filename)
-	data, err := os.ReadFile(fpath)
-	if err != nil {
-		return nil, "", err
-	}
-	return io.NopCloser(bytes.NewReader(data)), m.Description, nil
-}
-
-func (src *metadataSource) ReadDown(version uint) (r io.ReadCloser, identifier string, err error) {
+func (src *MetadataSource) ReadDown(version uint) (r io.ReadCloser, identifier string, err error) {
 	return nil, "", os.ErrNotExist
 }
 
-func (src *metadataSource) Migration(version uint, offset int) (*meta.DBMigration, error) {
+func (src *MetadataSource) migration(version uint, offset int) (*meta.DBMigration, error) {
 	idx := slices.IndexFunc(src.migrations, func(m *meta.DBMigration) bool {
 		return m.Number == uint64(version)
-	}) + offset
+	})
+	if idx < 0 {
+		return nil, os.ErrNotExist
+	}
+	idx += offset
 	if idx < 0 || idx >= len(src.migrations) {
 		return nil, os.ErrNotExist
 	}
@@ -110,13 +173,18 @@ type nonSequentialDbDriver struct {
 }
 
 type nonSequentialSource struct {
-	*metadataSource
+	*MetadataSource
 	dbDriver *nonSequentialDbDriver
 }
 
-func NonSequentialMigrator(ctx context.Context, conn *sql.Conn, dir string, migrations []*meta.DBMigration) (database.Driver, MetadataSource, error) {
+// NonSequentialMigrator creates a new migrator that doesn't require migrations to be sequential.
+// It does this by keeping track of applied migrations in a table and using that to determine the
+// current version and which migrations need to be applied. It's effectively extending the logic of
+// the go-migrate library to support non-sequential migrations and is semi-compatible since it's using the
+// same underlying table.
+func NonSequentialMigrator(ctx context.Context, conn *sql.Conn, mdSource *MetadataSource) (database.Driver, source.Driver, error) {
 	src := &nonSequentialSource{
-		metadataSource: &metadataSource{path: dir, migrations: migrations},
+		MetadataSource: mdSource,
 	}
 	db := &nonSequentialDbDriver{
 		conn:            conn,
@@ -166,6 +234,9 @@ func (p *nonSequentialDbDriver) Version() (version int, dirty bool, err error) {
 }
 
 func (p *nonSequentialDbDriver) SetVersion(version int, dirty bool) error {
+	// In PSQL, all migrations are applied within the same statement/transaction.
+	// If the migration fails to apply, it is automatically rolled back.
+	// Therefore, we don't need to worry about marking a migration as dirty.
 	if dirty {
 		return nil
 	}
@@ -220,23 +291,27 @@ func (p *nonSequentialDbDriver) loadAppliedVersions() error {
 }
 
 func (src *nonSequentialSource) Prev(version uint) (prevVersion uint, err error) {
-	m, err := src.Migration(version, -1)
+	m, err := src.migration(version, -1)
 	if err != nil {
 		return 0, err
 	}
+	// If the migration is applied, return this version
 	if _, ok := src.dbDriver.appliedVersions[m.Number]; ok {
 		return uint(m.Number), nil
 	}
+	// Otherwise skip to the previous version
 	return src.Prev(uint(m.Number))
 }
 
 func (src *nonSequentialSource) Next(version uint) (nextVersion uint, err error) {
-	m, err := src.Migration(version, +1)
+	m, err := src.migration(version, +1)
 	if err != nil {
 		return 0, err
 	}
+	// If the migration is applied, return the next version
 	if _, ok := src.dbDriver.appliedVersions[m.Number]; ok {
 		return src.Next(uint(m.Number))
 	}
+	// Otherwise, return this version
 	return uint(m.Number), nil
 }
