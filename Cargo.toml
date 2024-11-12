@@ -18,4 +18,3 @@ swc_atoms = { git = "https://github.com/encoredev/swc", branch = "node-resolve-e
 swc_common = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
 swc_ecma_loader = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
 swc_ecma_visit = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
-pingora = { git = "https://github.com/encoredev/pingora", branch = "windows" }
