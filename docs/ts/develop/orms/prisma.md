@@ -39,12 +39,21 @@ const prisma = new PrismaClient({
 const allUsers = prisma.user.findMany();
 
 -- prisma/schema.prisma --
-model User {
-  id      Int      @id @default(autoincrement())
-  name    String?
-  surname String?
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = "<paste connection uri to encore shadow db here>"
+}
+
+model User {
+  id      Int      @id @default(autoincrement())
+  name    String
+  surname String
+}
 ```
 
 ## Configure Prisma
