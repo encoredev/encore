@@ -157,6 +157,12 @@ func (u *uploader) singlePartUpload(buf []byte) (*types.ObjectAttrs, error) {
 	key := ptr(u.data.Object.String())
 	md5sum := md5.Sum(buf)
 	contentMD5 := base64.StdEncoding.EncodeToString(md5sum[:])
+
+	var ifNoneMatch *string
+	if u.data.Pre.NotExists {
+		ifNoneMatch = ptr("*")
+	}
+
 	resp, err := u.client.PutObject(u.ctx, &s3.PutObjectInput{
 		Bucket:        &u.bucket,
 		Key:           key,
@@ -164,6 +170,7 @@ func (u *uploader) singlePartUpload(buf []byte) (*types.ObjectAttrs, error) {
 		ContentType:   ptrOrNil(u.data.Attrs.ContentType),
 		ContentMD5:    &contentMD5,
 		ContentLength: ptr(int64(len(buf))),
+		IfNoneMatch:   ifNoneMatch,
 	})
 	if err != nil {
 		return nil, err
@@ -258,11 +265,17 @@ func (u *uploader) multiPartUpload(initial *buffer) (attrs *types.ObjectAttrs, e
 	}
 
 	// Complete the multipart upload.
+	var ifNoneMatch *string
+	if u.data.Pre.NotExists {
+		ifNoneMatch = ptr("*")
+	}
+
 	var completeResp *s3.CompleteMultipartUploadOutput
 	completeResp, err = u.client.CompleteMultipartUpload(u.ctx, &s3.CompleteMultipartUploadInput{
-		Bucket:   &u.bucket,
-		Key:      key,
-		UploadId: &uploadID,
+		Bucket:      &u.bucket,
+		Key:         key,
+		UploadId:    &uploadID,
+		IfNoneMatch: ifNoneMatch,
 	})
 	if err != nil {
 		return nil, err
