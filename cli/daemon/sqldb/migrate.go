@@ -21,11 +21,14 @@ import (
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
+// MigrationReader is an interface for reading migration files. It has two main
+// implementations: OsMigrationReader and ZipFSMigrationReader.
 type MigrationReader interface {
 	Read(*meta.DBMigration) (r io.ReadCloser, err error)
 }
 
-func NewOsReader(path string) *OsMigrationReader {
+// The OsMigrationReader reads migrations from the local filesystem.
+func NewOsMigrationReader(path string) *OsMigrationReader {
 	return &OsMigrationReader{path: path}
 }
 
@@ -42,6 +45,9 @@ func (src *OsMigrationReader) Read(m *meta.DBMigration) (r io.ReadCloser, err er
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
 
+// MultiReadCloser is a helper wrapper which extends the io.MultiReader to also
+// close the underlying closeable readers. It's used by the MetadataSource to
+// append a statement to mark a migration as successful.
 func MultiReadCloser(r ...io.Reader) io.ReadCloser {
 	return &multiReadCloser{
 		readers:     r,
@@ -72,6 +78,7 @@ func (m multiReadCloser) Close() error {
 
 var _ io.ReadCloser = (*multiReadCloser)(nil)
 
+// NewMetadataSource creates a new MetadataSource instance.
 func NewMetadataSource(reader MigrationReader, migrations []*meta.DBMigration) *MetadataSource {
 	return &MetadataSource{
 		MigrationReader: reader,
@@ -79,13 +86,15 @@ func NewMetadataSource(reader MigrationReader, migrations []*meta.DBMigration) *
 	}
 }
 
+// MetadataSource is a source.Driver implementation that keeps a list of migrations retrieved from
+// the Encore metadata. It relies on a MigrationReader to read the migration files.
 type MetadataSource struct {
 	MigrationReader
 	migrations []*meta.DBMigration
 }
 
 func (src *MetadataSource) ReadUp(version uint) (r io.ReadCloser, identifier string, err error) {
-	m, err := src.Migration(version, 0)
+	m, err := src.migration(version, 0)
 	if err != nil {
 		return nil, "", err
 	}
@@ -93,9 +102,9 @@ func (src *MetadataSource) ReadUp(version uint) (r io.ReadCloser, identifier str
 	if err != nil {
 		return nil, "", err
 	}
-	// This is a hack to make sure that a migration is marked successful in the
+	// This is used to make sure that a migration is marked successful in the
 	// same statement as it's run. Otherwise we may end up with a finished migration
-	// which is marked dirty.
+	// which is marked dirty because the SetVersion is run as a separate statement.
 	statement := fmt.Sprintf(
 		";\ninsert into schema_migrations (version, dirty) values (%d, false) ON CONFLICT (version) DO UPDATE SET dirty = false;",
 		version)
@@ -103,7 +112,6 @@ func (src *MetadataSource) ReadUp(version uint) (r io.ReadCloser, identifier str
 		r,
 		strings.NewReader(statement),
 	), m.Description, nil
-
 }
 
 func (src *MetadataSource) Open(url string) (source.Driver, error) {
@@ -122,7 +130,7 @@ func (src *MetadataSource) First() (version uint, err error) {
 }
 
 func (src *MetadataSource) Prev(version uint) (prevVersion uint, err error) {
-	m, err := src.Migration(version, -1)
+	m, err := src.migration(version, -1)
 	if err != nil {
 		return 0, err
 	}
@@ -130,7 +138,7 @@ func (src *MetadataSource) Prev(version uint) (prevVersion uint, err error) {
 }
 
 func (src *MetadataSource) Next(version uint) (nextVersion uint, err error) {
-	m, err := src.Migration(version, +1)
+	m, err := src.migration(version, +1)
 	if err != nil {
 		return 0, err
 	}
@@ -141,7 +149,7 @@ func (src *MetadataSource) ReadDown(version uint) (r io.ReadCloser, identifier s
 	return nil, "", os.ErrNotExist
 }
 
-func (src *MetadataSource) Migration(version uint, offset int) (*meta.DBMigration, error) {
+func (src *MetadataSource) migration(version uint, offset int) (*meta.DBMigration, error) {
 	idx := slices.IndexFunc(src.migrations, func(m *meta.DBMigration) bool {
 		return m.Number == uint64(version)
 	})
@@ -169,6 +177,11 @@ type nonSequentialSource struct {
 	dbDriver *nonSequentialDbDriver
 }
 
+// NonSequentialMigrator creates a new migrator that doesn't require migrations to be sequential.
+// It does this by keeping track of applied migrations in a table and using that to determine the
+// current version and which migrations need to be applied. It's effectively extending the logic of
+// the go-migrate library to support non-sequential migrations and is semi-compatible since it's using the
+// same underlying table.
 func NonSequentialMigrator(ctx context.Context, conn *sql.Conn, mdSource *MetadataSource) (database.Driver, source.Driver, error) {
 	src := &nonSequentialSource{
 		MetadataSource: mdSource,
@@ -221,6 +234,9 @@ func (p *nonSequentialDbDriver) Version() (version int, dirty bool, err error) {
 }
 
 func (p *nonSequentialDbDriver) SetVersion(version int, dirty bool) error {
+	// In PSQL, all migrations are applied within the same statement/transaction.
+	// If the migration fails to apply, it is automatically rolled back.
+	// Therefore, we don't need to worry about marking a migration as dirty.
 	if dirty {
 		return nil
 	}
@@ -275,7 +291,7 @@ func (p *nonSequentialDbDriver) loadAppliedVersions() error {
 }
 
 func (src *nonSequentialSource) Prev(version uint) (prevVersion uint, err error) {
-	m, err := src.Migration(version, -1)
+	m, err := src.migration(version, -1)
 	if err != nil {
 		return 0, err
 	}
@@ -288,7 +304,7 @@ func (src *nonSequentialSource) Prev(version uint) (prevVersion uint, err error)
 }
 
 func (src *nonSequentialSource) Next(version uint) (nextVersion uint, err error) {
-	m, err := src.Migration(version, +1)
+	m, err := src.migration(version, +1)
 	if err != nil {
 		return 0, err
 	}

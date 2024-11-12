@@ -290,7 +290,7 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 	defer fns.CloseIgnore(pool)
 
 	path := filepath.Join(appRoot, *dbMeta.MigrationRelPath)
-	mdSrc := NewMetadataSource(NewOsReader(path), dbMeta.Migrations)
+	mdSrc := NewMetadataSource(NewOsMigrationReader(path), dbMeta.Migrations)
 	conn, err := pool.Conn(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to postgres")
