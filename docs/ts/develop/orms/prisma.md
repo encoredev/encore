@@ -69,6 +69,26 @@ To initialize Prisma, run the following command from within your service folder:
 npx prisma init --url <shadow db connection url>
 ```
 
+To be able to deploy your app via the Encore platform, you also need to configure a postinstall hook in your `package.json` that runs `npx prisma generate`, e.g:
+
+```
+{
+  "scripts": {
+    "postinstall": "npx prisma generate --schema=users/prisma/schema.prisma"
+  }
+}
+```
+
+You also need to configure `binaryTargets` in `schema.prisma` like this:
+
+```
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+```
+
 ## Generate migrations
 
 Run `npx prisma migrate dev` in the same directory as you ran the init (where the prisma folder exist).
