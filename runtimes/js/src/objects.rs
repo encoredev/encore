@@ -26,14 +26,13 @@ impl Bucket {
         &self,
         options: Option<ListOptions>,
         source: Option<&Request>,
-    ) -> napi::Result<ListIterator> {
+    ) -> napi::Either<ListIterator, TypedObjectError> {
         let options = options.unwrap_or_default().into();
         let source = source.map(|s| s.inner.clone());
-        self.bkt
-            .list(options, source)
-            .await
-            .map_err(map_objects_err)
-            .map(ListIterator::new)
+        match self.bkt.list(options, source).await {
+            Ok(iter) => napi::Either::A(ListIterator::new(iter)),
+            Err(err) => napi::Either::B(err.into()),
+        }
     }
 }
 
@@ -53,14 +52,13 @@ impl BucketObject {
         &self,
         options: Option<AttrsOptions>,
         source: Option<&Request>,
-    ) -> napi::Result<ObjectAttrs> {
+    ) -> napi::Either<ObjectAttrs, TypedObjectError> {
         let options = options.unwrap_or_default().into();
         let source = source.map(|s| s.inner.clone());
-        self.obj
-            .attrs(options, source)
-            .await
-            .map(ObjectAttrs::from)
-            .map_err(map_objects_err)
+        match self.obj.attrs(options, source).await {
+            Ok(attrs) => napi::Either::A(attrs.into()),
+            Err(err) => napi::Either::B(err.into()),
+        }
     }
 
     #[napi]
@@ -68,13 +66,16 @@ impl BucketObject {
         &self,
         options: Option<ExistsOptions>,
         source: Option<&Request>,
-    ) -> napi::Result<bool> {
+    ) -> napi::Either<bool, TypedObjectError> {
         let opts = options.unwrap_or_default().into();
         let source = source.map(|s| s.inner.clone());
-        self.obj.exists(opts, source).await.map_err(map_objects_err)
+        match self.obj.exists(opts, source).await {
+            Ok(val) => napi::Either::A(val),
+            Err(err) => napi::Either::B(err.into()),
+        }
     }
 
-    #[napi(ts_return_type = "Promise<ObjectAttrs>")]
+    #[napi(ts_return_type = "Promise<ObjectAttrs | TypedObjectError>")]
     pub fn upload(
         &self,
         env: Env,
@@ -98,7 +99,10 @@ impl BucketObject {
 
         env.execute_tokio_future(fut, move |&mut _env, result| {
             // TODO: Decrement the ref count on the data buffer.
-            result.map(ObjectAttrs::from).map_err(map_objects_err)
+            match result {
+                Ok(attrs) => Ok(napi::Either::A(ObjectAttrs::from(attrs))),
+                Err(err) => Ok(napi::Either::B(TypedObjectError::from(err))),
+            }
         })
     }
 
@@ -107,15 +111,13 @@ impl BucketObject {
         &self,
         options: Option<DownloadOptions>,
         source: Option<&Request>,
-    ) -> napi::Result<Buffer> {
+    ) -> napi::Either<Buffer, TypedObjectError> {
         let options = options.unwrap_or_default().into();
         let source = source.map(|s| s.inner.clone());
-        let buf = self
-            .obj
-            .download_all(options, source)
-            .await
-            .map_err(map_objects_err)?;
-        Ok(buf.into())
+        match self.obj.download_all(options, source).await {
+            Ok(buf) => napi::Either::A(buf.into()),
+            Err(err) => napi::Either::B(err.into()),
+        }
     }
 
     #[napi]
@@ -123,14 +125,13 @@ impl BucketObject {
         &self,
         options: Option<DeleteOptions>,
         source: Option<&Request>,
-    ) -> napi::Result<bool> {
+    ) -> Option<TypedObjectError> {
         let options = options.unwrap_or_default().into();
         let source = source.map(|s| s.inner.clone());
-        self.obj
-            .delete(options, source)
-            .await
-            .map_err(map_objects_err)?;
-        Ok(true)
+        match self.obj.delete(options, source).await {
+            Ok(()) => None,
+            Err(err) => Some(err.into()),
+        }
     }
 }
 
@@ -202,8 +203,33 @@ impl From<UploadPreconditions> for core::UploadPreconditions {
     }
 }
 
-fn map_objects_err(err: core::Error) -> napi::Error {
-    napi::Error::new(napi::Status::GenericFailure, err)
+#[napi]
+pub enum ObjectErrorKind {
+    NotFound,
+    PreconditionFailed,
+    Other,
+    Internal,
+}
+
+#[napi]
+pub struct TypedObjectError {
+    pub kind: ObjectErrorKind,
+    pub message: String,
+}
+
+impl From<core::Error> for TypedObjectError {
+    fn from(value: core::Error) -> Self {
+        let kind = match &value {
+            core::Error::NotFound => ObjectErrorKind::NotFound,
+            core::Error::PreconditionFailed => ObjectErrorKind::PreconditionFailed,
+            core::Error::Internal(_) => ObjectErrorKind::Internal,
+            core::Error::Other(_) => ObjectErrorKind::Other,
+        };
+        Self {
+            kind,
+            message: value.to_string(),
+        }
+    }
 }
 
 #[napi]

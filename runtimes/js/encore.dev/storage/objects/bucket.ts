@@ -1,6 +1,7 @@
 import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
+import { unwrapErr } from "./error";
 
 export interface BucketConfig {
   /**
@@ -34,7 +35,7 @@ export class Bucket {
 
   async *list(options: ListOptions): AsyncGenerator<ListEntry> {
     const source = getCurrentRequest();
-    const iter = await this.impl.list(options, source);
+    const iter = unwrapErr(await this.impl.list(options, source));
     while (true) {
       const entry = await iter.next();
       if (entry === null) {
@@ -52,7 +53,8 @@ export class Bucket {
   async exists(name: string, options?: ExistsOptions): Promise<boolean> {
     const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.exists(options, source);
+    const res = await impl.exists(options, source);
+    return unwrapErr(res);
   }
 
   /**
@@ -62,7 +64,8 @@ export class Bucket {
   async attrs(name: string, options?: AttrsOptions): Promise<ObjectAttrs> {
     const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.attrs(options, source);
+    const res = await impl.attrs(options, source);
+    return unwrapErr(res);
   }
 
   /**
@@ -71,7 +74,8 @@ export class Bucket {
   async upload(name: string, data: Buffer, options?: UploadOptions): Promise<ObjectAttrs> {
     const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.upload(data, options, source);
+    const res = await impl.upload(data, options, source);
+    return unwrapErr(res);
   }
 
   /**
@@ -80,7 +84,8 @@ export class Bucket {
   async download(name: string, options?: DownloadOptions): Promise<Buffer> {
     const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    return impl.downloadAll(options, source);
+    const res = await impl.downloadAll(options, source);
+    return unwrapErr(res);
   }
 
   /**
@@ -90,7 +95,10 @@ export class Bucket {
   async remove(name: string, options?: DeleteOptions): Promise<void> {
     const source = getCurrentRequest();
     const impl = this.impl.object(name);
-    const _ = await impl.delete(options, source);
+    const err = await impl.delete(options, source);
+    if (err) {
+      unwrapErr(err);
+    }
   }
 }
 

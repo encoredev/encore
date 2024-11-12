@@ -591,10 +591,10 @@ func (tp *traceParser) bucketObjectUploadStart() *tracepb2.BucketObjectUploadSta
 
 func (tp *traceParser) bucketObjectAttrs() *tracepb2.BucketObjectAttributes {
 	return &tracepb2.BucketObjectAttributes{
-		Size:        ptrOrNil(tp.UVarint()),
-		Version:     ptrOrNil(tp.String()),
-		Etag:        ptrOrNil(tp.String()),
-		ContentType: ptrOrNil(tp.String()),
+		Size:        tp.OptUVarint(),
+		Version:     tp.OptString(),
+		Etag:        tp.OptString(),
+		ContentType: tp.OptString(),
 	}
 }
 
@@ -610,14 +610,14 @@ func (tp *traceParser) bucketObjectDownloadStart() *tracepb2.BucketObjectDownloa
 	return &tracepb2.BucketObjectDownloadStart{
 		Bucket:  tp.String(),
 		Object:  tp.String(),
-		Version: ptrOrNil(tp.String()),
+		Version: tp.OptString(),
 		Stack:   tp.stack(),
 	}
 }
 
 func (tp *traceParser) bucketObjectDownloadEnd() *tracepb2.BucketObjectDownloadEnd {
 	return &tracepb2.BucketObjectDownloadEnd{
-		Size: ptrOrNil(tp.Uint64()),
+		Size: tp.OptUVarint(),
 		Err:  tp.errWithStack(),
 	}
 }
@@ -632,7 +632,7 @@ func (tp *traceParser) bucketDeleteObjectsStart() *tracepb2.BucketDeleteObjectsS
 	for i := 0; i < int(num); i++ {
 		ev.Entries = append(ev.Entries, &tracepb2.BucketDeleteObjectEntry{
 			Object:  tp.String(),
-			Version: ptrOrNil(tp.String()),
+			Version: tp.OptString(),
 		})
 	}
 
@@ -648,7 +648,7 @@ func (tp *traceParser) bucketDeleteObjectsEnd() *tracepb2.BucketDeleteObjectsEnd
 func (tp *traceParser) bucketListObjectsStart() *tracepb2.BucketListObjectsStart {
 	return &tracepb2.BucketListObjectsStart{
 		Bucket: tp.String(),
-		Prefix: ptrOrNil(tp.String()),
+		Prefix: tp.OptString(),
 		Stack:  tp.stack(),
 	}
 }
@@ -665,7 +665,7 @@ func (tp *traceParser) bucketObjectGetAttrsStart() *tracepb2.BucketObjectGetAttr
 	return &tracepb2.BucketObjectGetAttrsStart{
 		Bucket:  tp.String(),
 		Object:  tp.String(),
-		Version: ptrOrNil(tp.String()),
+		Version: tp.OptString(),
 		Stack:   tp.stack(),
 	}
 }
