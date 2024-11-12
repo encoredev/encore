@@ -283,43 +283,58 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 	}
 	uri := info.ConnURI(cloudName, admin)
 	db.log.Debug().Str("uri", uri).Msg("running migrations")
-	conn, err := sql.Open("pgx", uri)
+	pool, err := sql.Open("pgx", uri)
 	if err != nil {
 		return err
 	}
-	defer fns.CloseIgnore(conn)
+	defer fns.CloseIgnore(pool)
 
+	path := filepath.Join(appRoot, *dbMeta.MigrationRelPath)
+	mdSrc := NewMetadataSource(NewOsReader(path), dbMeta.Migrations)
+	conn, err := pool.Conn(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to postgres")
+	}
+	err = RunMigration(ctx, cloudName, dbMeta.AllowNonSequentialMigrations, conn, mdSrc)
+
+	// If we have removed a migration that failed to apply we can get an ErrNoChange error
+	// after forcing the migration down to the previous version.
+	if errors.Is(err, migrate.ErrNoChange) {
+		db.log.Info().Msg("database already up to date")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not migrate database %s: %v", cloudName, err)
+	}
+	db.log.Info().Msg("migration completed")
+	return nil
+}
+
+func RunMigration(ctx context.Context, dbName string, allowNonSeq bool, conn *sql.Conn, mdSrc *MetadataSource) (err error) {
 	var (
 		dbDriver  database.Driver
 		srcDriver source.Driver
 	)
-	migDir := filepath.Join(appRoot, *dbMeta.MigrationRelPath)
-	if dbMeta.AllowNonSequentialMigrations {
-		conn, err := conn.Conn(ctx)
+	if allowNonSeq {
+		dbDriver, srcDriver, err = NonSequentialMigrator(ctx, conn, mdSrc)
 		if err != nil {
-			return errors.Wrap(err, "failed to get db conn")
-		}
-		dbDriver, srcDriver, err = NonSequentialMigrator(ctx, conn, migDir, dbMeta.Migrations)
-		if err != nil {
-			return errors.Wrap(err, "failed to init non-seq driver")
+			return errors.Wrap(err, "failed to connect to postgres")
 		}
 	} else {
-		dbDriver, err = postgres.WithInstance(conn, &postgres.Config{})
+		dbDriver, err = postgres.WithConnection(ctx, conn, &postgres.Config{})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to connect to postgres")
 		}
-		srcDriver = NewMetadataSource(migDir, dbMeta.Migrations)
+		srcDriver = mdSrc
 	}
-	defer fns.CloseIgnore(dbDriver)
-	m, err := migrate.NewWithInstance("src", srcDriver, cloudName, dbDriver)
+
+	m, err := migrate.NewWithInstance("src", srcDriver, "postgres", dbDriver)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create migration instance")
 	}
 
 	err = m.Up()
 	if errors.Is(err, migrate.ErrNoChange) {
-		db.log.Info().Msg("database already up to date")
-		return nil
+		return err
 	}
 
 	// If we have a dirty migration, reset the dirty flag and try again.
@@ -333,8 +348,16 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 		prevVer, err = srcDriver.Prev(uint(dirty.Version))
 		targetVer := int(prevVer)
 		if errors.Is(err, fs.ErrNotExist) {
-			// No previous migration exists
-			targetVer = database.NilVersion
+			// If Prev returns ErrNotExist, the original migration might
+			// have been deleted. In this case, we'll need to search for
+			// the version that is the closest lower version starting at the
+			// first version.
+			targetVer, err = findClosestLowerVersion(srcDriver.First, dirty.Version, srcDriver.Next)
+			if err != nil {
+				return errors.Wrapf(err, "could not automatically reset the schema_migrations "+
+					"dirty flag for database %s. Please reset it manually by connecting "+
+					"to the database modify the schema_migrations table", dbName)
+			}
 		} else if err != nil {
 			return errors.Wrap(err, "failed to find previous version")
 		}
@@ -343,17 +366,22 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 			err = m.Up()
 		}
 	}
+	return errors.Wrap(err, "failed to migrate database")
+}
 
-	// If we have removed a migration that failed to apply we can get an ErrNoChange error
-	// after forcing the migration down to the previous version.
-	if errors.Is(err, migrate.ErrNoChange) {
-		db.log.Info().Msg("database already up to date")
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("could not migrate database %s: %v", cloudName, err)
+func findClosestLowerVersion(first func() (uint, error), dirtyVer int, next func(i uint) (uint, error)) (int, error) {
+	firstVer, err := first()
+	// If the first version doesn't exist, we can't reset the dirty flag
+	// and we'll need to return an error.
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to find first version")
 	}
-	db.log.Info().Msg("migration completed")
-	return nil
+	// otherwise we'll need to find the version that is the closest lower version
+	rtn := database.NilVersion
+	for nextVer := firstVer; err == nil && nextVer < uint(dirtyVer); nextVer, err = next(nextVer) {
+		rtn = int(nextVer)
+	}
+	return rtn, nil
 }
 
 func (db *DB) drop(ctx context.Context) error {
