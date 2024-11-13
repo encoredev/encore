@@ -9,6 +9,7 @@ import * as runtime from "../runtime/mod";
 export type Handler = {
   apiRoute: runtime.ApiRoute;
   middlewares: Middleware[];
+  endpointOptions: EndpointOptions;
 };
 
 export function registerHandlers(handlers: Handler[]) {
@@ -26,6 +27,13 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run() {
   return runtime.RT.runForever();
+}
+
+interface EndpointOptions {
+  requiresAuth: boolean;
+  exposed: boolean;
+  isRaw: boolean;
+  isStream: boolean;
 }
 
 class IterableStream {
@@ -102,7 +110,58 @@ function invokeMiddlewareChain(
   return execute(0);
 }
 
+function calculateMiddlewareChain(
+  endpointOptions: EndpointOptions,
+  ms: Middleware[]
+): Middleware[] {
+  let middlewares = [];
+
+  for (const m of ms) {
+    if (m.options === undefined) {
+      middlewares.push(m);
+    } else {
+      // check if options are set and if they match the endpoint options
+      if (
+        m.options.requiresAuth !== undefined &&
+        m.options.requiresAuth !== endpointOptions.requiresAuth
+      ) {
+        continue;
+      }
+
+      if (
+        m.options.exposed !== undefined &&
+        m.options.exposed !== endpointOptions.exposed
+      ) {
+        continue;
+      }
+
+      if (
+        m.options.isRaw !== undefined &&
+        m.options.isRaw !== endpointOptions.isRaw
+      ) {
+        continue;
+      }
+
+      if (
+        m.options.isStream !== undefined &&
+        m.options.isStream !== endpointOptions.isStream
+      ) {
+        continue;
+      }
+
+      middlewares.push(m);
+    }
+  }
+
+  return middlewares;
+}
+
 function transformHandler(h: Handler): runtime.ApiRoute {
+  const middlewares = calculateMiddlewareChain(
+    h.endpointOptions,
+    h.middlewares
+  );
+
   if (h.apiRoute.streamingResponse || h.apiRoute.streamingRequest) {
     return {
       ...h.apiRoute,
@@ -128,7 +187,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
             : h.apiRoute.handler(stream);
         };
 
-        return invokeMiddlewareChain(cur, h.middlewares, handler);
+        return invokeMiddlewareChain(cur, middlewares, handler);
       }
     };
   }
@@ -151,7 +210,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           return h.apiRoute.handler(rawReq, rawResp);
         };
 
-        return invokeMiddlewareChain(cur, h.middlewares, handler);
+        return invokeMiddlewareChain(cur, middlewares, handler);
       }
     };
   }
@@ -168,7 +227,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           ? h.apiRoute.handler(payload)
           : h.apiRoute.handler();
       };
-      return invokeMiddlewareChain(cur, h.middlewares, handler);
+      return invokeMiddlewareChain(cur, middlewares, handler);
     }
   };
 }

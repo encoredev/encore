@@ -274,6 +274,16 @@ export interface MiddlewareOptions {
    * requires auth.
    */
   requiresAuth?: boolean;
+
+  /**
+   * If set, only run middleware on endpoints that are raw endpoints.
+   */
+  isRaw?: boolean;
+
+  /**
+   * If set, only run middleware on endpoints that are stream endpoints.
+   */
+  isStream?: boolean;
 }
 
 export type Next = (req: RequestMeta) => Promise<any>;

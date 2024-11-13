@@ -31,6 +31,7 @@ const handlers: Handler[] = [
             streamingRequest:  {{toJSON streaming_request}},
             streamingResponse: {{toJSON streaming_response}},
         },
+        endpointOptions: {{toJSON endpoint_options}},
         middlewares: {{#if has_service_definition}}{{encoreNameToIdent service_name}}_service.default.cfg.middlewares || {{/if}}[],
     },
 {{/each}}
