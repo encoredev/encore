@@ -15,7 +15,7 @@ import (
 	"go4.org/syncutil"
 
 	"encore.dev/appruntime/exported/experiments"
-	"encr.dev/cli/daemon/internal/manifest"
+	"encr.dev/cli/internal/manifest"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
 	"encr.dev/internal/goldfish"
