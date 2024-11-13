@@ -69,7 +69,14 @@ pub async fn process_concurrently<F: Fetcher>(cfg: Config, fetcher: F) {
 
                 // Process the work. We forget the permit here,
                 // and release individual items back to the semaphore as we process them.
+                let unused_permits = permit.num_permits() - work.len();
                 permit.forget();
+
+                // Add back any permits that were not used, in case we fetched fewer items than the max.
+                if unused_permits > 0 {
+                    sem.add_permits(unused_permits);
+                }
+
                 for item in work {
                     let fut = fetcher.clone().process(item);
                     let sem = sem.clone();
