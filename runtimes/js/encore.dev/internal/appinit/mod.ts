@@ -82,38 +82,24 @@ class IterableSocket {
 // recursively calls all middlewares
 function invokeMiddlewareChain(
   req: RequestMeta,
-  mws: Middleware[]
+  chain: Middleware[],
+  handler: () => any
 ): Promise<any> {
-  while (true) {
-    const middleware = mws.shift();
+  const execute = (index: number): Promise<any> => {
+    const currentMiddleware = chain.at(index);
 
-    if (!middleware) {
-      throw APIError.internal(
-        "no middlewares to call, was the handler not added to the chain?"
-      );
+    // no more middlewares, execute the handler
+    if (currentMiddleware === undefined) {
+      return handler();
     }
 
-    if (middleware.options) {
-      const options = middleware.options;
-      const apiMeta = req as APICallMeta;
-
-      if (options.requiresAuth !== undefined) {
-        if (options.requiresAuth !== apiMeta.api.requiresAuth) {
-          continue;
-        }
-      }
-
-      if (options.exposed !== undefined) {
-        if (options.exposed !== apiMeta.api.exposed) {
-          continue;
-        }
-      }
-    }
-
-    return middleware(req, async () => {
-      return await invokeMiddlewareChain(req, [...mws]);
+    // execute current middleare middleware
+    return currentMiddleware(req, () => {
+      return execute(index + 1);
     });
-  }
+  };
+
+  return execute(0);
 }
 
 function transformHandler(h: Handler): runtime.ApiRoute {
@@ -141,7 +127,8 @@ function transformHandler(h: Handler): runtime.ApiRoute {
             ? h.apiRoute.handler(payload, stream)
             : h.apiRoute.handler(stream);
         };
-        return invokeMiddlewareChain(cur, [...h.middlewares, handler]);
+
+        return invokeMiddlewareChain(cur, h.middlewares, handler);
       }
     };
   }
@@ -163,7 +150,8 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         const handler = async () => {
           return h.apiRoute.handler(rawReq, rawResp);
         };
-        return invokeMiddlewareChain(cur, [...h.middlewares, handler]);
+
+        return invokeMiddlewareChain(cur, h.middlewares, handler);
       }
     };
   }
@@ -180,7 +168,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           ? h.apiRoute.handler(payload)
           : h.apiRoute.handler();
       };
-      return invokeMiddlewareChain(cur, [...h.middlewares, handler]);
+      return invokeMiddlewareChain(cur, h.middlewares, handler);
     }
   };
 }
