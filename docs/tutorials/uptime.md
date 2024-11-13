@@ -1010,7 +1010,7 @@ describe("ping", () => {
     // Invalid URLs should be considered down.
     { site: "invalid://scheme", expected: false },
   ])(
-    `should verify that $site is ${"$expected" ? "up" : "down"}`,
+    `should verify that $site is ${expected ? "up" : "down"}`,
     async ({ site, expected }) => {
       const resp = await ping({ url: site });
       expect(resp.up).toBe(expected);
@@ -1030,8 +1030,8 @@ DEV  v1.3.0
   ✓ ping (4)
     ✓ should verify that 'google.com' is up
     ✓ should verify that 'https://encore.dev' is up
-    ✓ should verify that 'https://not-a-real-site.xyz' is up
-    ✓ should verify that 'invalid://scheme' is up
+    ✓ should verify that 'https://not-a-real-site.xyz' is down
+    ✓ should verify that 'invalid://scheme' is down
 
 Test Files  1 passed (1)
      Tests  4 passed (4)
