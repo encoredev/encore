@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -9,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/internal/manifest"
 	"encr.dev/internal/clientgen"
+	"encr.dev/pkg/appfile"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -57,7 +60,27 @@ To further narrow down the services to generate, use the '--services' flag.
 			// Determine the app id, either from the argument or from the current directory.
 			var appID string
 			if len(args) == 0 {
-				appID = cmdutil.AppSlug()
+				// First check the encore.app file.
+				appRoot, _, err := cmdutil.MaybeAppRoot()
+				if err != nil && !errors.Is(err, cmdutil.ErrNoEncoreApp) {
+					fatal(err)
+				} else if appRoot != "" {
+					if slug, err := appfile.Slug(appRoot); err == nil {
+						appID = slug
+					}
+				}
+
+				// If we still don't have an app id, read it from the manifest.
+				if appID == "" {
+					mf, err := manifest.ReadOrCreate(appRoot)
+					if err != nil {
+						fatal(err)
+					}
+					appID = mf.AppID
+					if appID == "" {
+						appID = mf.LocalID
+					}
+				}
 			} else {
 				appID = args[0]
 			}
