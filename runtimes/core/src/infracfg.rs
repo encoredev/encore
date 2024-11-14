@@ -24,7 +24,7 @@ pub struct InfraConfig {
     pub hosted_services: Option<Vec<String>>,
     pub hosted_gateways: Option<Vec<String>>,
     pub cors: Option<CORS>,
-    pub buckets: Option<Vec<ObjectStorage>>,
+    pub object_storage: Option<Vec<ObjectStorage>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -431,7 +431,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     });
 
     // Map Buckets
-    let buckets = infra.buckets.as_ref().map(|object_storages| {
+    let buckets = infra.object_storage.as_ref().map(|object_storages| {
         object_storages
             .iter()
             .map(|os| match os {

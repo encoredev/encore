@@ -363,6 +363,35 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		}
 	}
 
+	// Map Buckets
+	cfg.BucketProviders = make([]*BucketProvider, len(infraCfg.ObjectStorage))
+	for i, storage := range infraCfg.ObjectStorage {
+		switch storage.Type {
+		case "gcs":
+			cfg.BucketProviders[i] = &BucketProvider{
+				GCS: &GCSBucketProvider{
+					Endpoint: storage.GCS.Endpoint,
+				},
+			}
+		case "s3":
+			cfg.BucketProviders[i] = &BucketProvider{
+				S3: &S3BucketProvider{
+					Region:   storage.S3.Region,
+					Endpoint: nilOr(storage.S3.Endpoint),
+				},
+			}
+		}
+		cfg.Buckets = map[string]*Bucket{}
+		for bucketName, bucket := range storage.GetBuckets() {
+			cfg.Buckets[bucketName] = &Bucket{
+				ProviderID: i,
+				EncoreName: bucketName,
+				CloudName:  bucket.Name,
+				KeyPrefix:  "",
+			}
+		}
+	}
+
 	if infraCfg.CORS != nil {
 		cfg.CORS = &CORS{
 			Debug:                          infraCfg.CORS.Debug,
@@ -383,6 +412,15 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		}
 	}
 	return &cfg
+}
+
+func nilOr[T comparable](val T) *T {
+	var zero T
+	if val == zero {
+		return nil
+	}
+	return &val
+
 }
 
 func orDefaultPtr[T any](val *T, def T) T {

@@ -150,8 +150,8 @@ func (a *GCS) Validate(v *validator) {
 }
 
 type Bucket struct {
-	Name   string `json:"name,omitempty"`
-	Prefix string `json:"prefix,omitempty"`
+	Name      string `json:"name,omitempty"`
+	KeyPrefix string `json:"key_prefix,omitempty"`
 }
 
 func (a *Bucket) Validate(v *validator) {
