@@ -1,6 +1,6 @@
 import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
-import { Middleware } from "../../api/mod";
+import { Middleware, MiddlewareRequest } from "../../api/mod";
 import { APICallMeta, RequestMeta, currentRequest } from "../../req_meta";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
@@ -89,7 +89,7 @@ class IterableSocket {
 
 // recursively calls all middlewares
 function invokeMiddlewareChain(
-  req: RequestMeta,
+  req: MiddlewareRequest,
   chain: Middleware[],
   handler: () => any
 ): Promise<any> {
@@ -110,6 +110,7 @@ function invokeMiddlewareChain(
   return execute(0);
 }
 
+// calculate what middlewares should run for an endpoint
 function calculateMiddlewareChain(
   endpointOptions: EndpointOptions,
   ms: Middleware[]
@@ -169,7 +170,6 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       // stream is either a bidirectional stream, in stream or out stream.
       handler: (req: runtime.Request, stream: unknown) => {
         setCurrentRequest(req);
-        const cur = currentRequest() as RequestMeta;
 
         // make readable streams async iterators
         if (stream instanceof runtime.Stream) {
@@ -187,7 +187,9 @@ function transformHandler(h: Handler): runtime.ApiRoute {
             : h.apiRoute.handler(stream);
         };
 
-        return invokeMiddlewareChain(cur, middlewares, handler);
+        const mwRequest = new MiddlewareRequest(stream, undefined, undefined);
+
+        return invokeMiddlewareChain(mwRequest, middlewares, handler);
       }
     };
   }
@@ -201,7 +203,6 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         body: runtime.BodyReader
       ) => {
         setCurrentRequest(req);
-        const cur = currentRequest() as RequestMeta;
 
         const rawReq = new RawRequest(req, body);
         const rawResp = new RawResponse(rawReq, resp);
@@ -210,7 +211,9 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           return h.apiRoute.handler(rawReq, rawResp);
         };
 
-        return invokeMiddlewareChain(cur, middlewares, handler);
+        const mwRequest = new MiddlewareRequest(undefined, rawReq, rawResp);
+
+        return invokeMiddlewareChain(mwRequest, middlewares, handler);
       }
     };
   }
@@ -219,7 +222,6 @@ function transformHandler(h: Handler): runtime.ApiRoute {
     ...h.apiRoute,
     handler: (req: runtime.Request) => {
       setCurrentRequest(req);
-      const cur = currentRequest() as RequestMeta;
 
       const handler = async () => {
         const payload = req.payload();
@@ -227,7 +229,9 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           ? h.apiRoute.handler(payload)
           : h.apiRoute.handler();
       };
-      return invokeMiddlewareChain(cur, middlewares, handler);
+
+      const mwRequest = new MiddlewareRequest(undefined, undefined, undefined);
+      return invokeMiddlewareChain(mwRequest, middlewares, handler);
     }
   };
 }

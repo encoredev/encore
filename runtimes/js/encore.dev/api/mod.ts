@@ -1,7 +1,9 @@
 /* eslint-disable */
 
 import type { IncomingMessage, ServerResponse } from "http";
-import { RequestMeta } from "../mod";
+import { RequestMeta, currentRequest } from "../mod";
+import { RawResponse } from "./mod";
+import { RawRequest } from "./mod";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -286,9 +288,34 @@ export interface MiddlewareOptions {
   isStream?: boolean;
 }
 
-export type Next = (req: RequestMeta) => Promise<any>;
+export class MiddlewareRequest {
+  private _reqMeta?: RequestMeta;
+  private _stream?: unknown;
+  private _rawReq?: RawRequest;
+  private _rawResp?: RawResponse;
+
+  constructor(stream?: unknown, rawReq?: RawRequest, rawResp?: RawResponse) {
+    this._stream = stream;
+    this._rawReq = rawReq;
+    this._rawResp = rawResp;
+  }
+
+  public get reqMeta() {
+    return this._reqMeta || (this._reqMeta = currentRequest() as RequestMeta);
+  }
+  public get stream() {
+    return this._stream;
+  }
+  public get rawRequest() {
+    return this._rawReq;
+  }
+  public get rawResponse() {
+    return this._rawResp;
+  }
+}
+export type Next = (req: MiddlewareRequest) => Promise<any>;
 export interface Middleware {
-  (req: RequestMeta, next: Next): Promise<any>;
+  (req: MiddlewareRequest, next: Next): Promise<any>;
   options?: MiddlewareOptions;
 }
 
