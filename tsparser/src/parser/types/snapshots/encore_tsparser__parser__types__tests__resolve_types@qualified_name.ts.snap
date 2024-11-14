@@ -1,0 +1,13 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/qualified_name.ts
+---
+{
+    "T1": Basic(
+        String,
+    ),
+    "T2": Basic(
+        Number,
+    ),
+}
