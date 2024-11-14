@@ -103,9 +103,17 @@ impl ModuleLoader {
         self.by_path.borrow().get(&path).cloned()
     }
 
-    pub fn resolve_import(
+    pub fn resolve_import_from_module(
         &self,
         module: &Module,
+        import_path: &str,
+    ) -> Result<Option<Lrc<Module>>, Error> {
+        self.resolve_import(&module.swc_file_path, import_path)
+    }
+
+    pub fn resolve_import(
+        &self,
+        from_file: &swc_common::FileName,
         import_path: &str,
     ) -> Result<Option<Lrc<Module>>, Error> {
         // Special case for the generated clients.
@@ -119,10 +127,9 @@ impl ModuleLoader {
 
         let target_file_path = {
             // TODO: cache this
-            let file_name: FileName = module.file_path.clone().into();
             let mod_path = self
                 .resolver
-                .resolve(&file_name, import_path)
+                .resolve(from_file, import_path)
                 .map_err(|err| Error::UnableToResolve(import_path.to_string(), err))?;
             match mod_path {
                 FileName::Real(ref buf) => {
@@ -296,6 +303,7 @@ pub struct Module {
     pub id: ModuleId,
     pub ast: swc_ecma_ast::Module,
     pub file_path: FilePath,
+    pub swc_file_path: swc_common::FileName,
     /// How the module was imported, if it's an external module.
     pub module_path: Option<String>,
     pub comments: Box<dyn Comments>,
@@ -321,11 +329,13 @@ impl Module {
         comments: Option<Box<dyn Comments>>,
     ) -> Lrc<Self> {
         let comments: Box<dyn Comments> = comments.unwrap_or_else(|| Box::new(NoopComments {}));
+        let swc_file_path = file_path.clone().into();
         Lrc::new(Self {
             file_set,
             id,
             ast,
             file_path,
+            swc_file_path,
             module_path,
             comments,
             cached_imports: OnceCell::new(),

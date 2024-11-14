@@ -143,6 +143,23 @@ pub struct Using {
 }
 
 #[derive(Debug)]
+pub struct NamedReexport {
+    pub orig_name: String,
+    pub renamed: Option<String>,
+}
+
+#[derive(Debug)]
+pub enum Reexport {
+    List {
+        items: Vec<NamedReexport>,
+        import_path: String,
+    },
+    All {
+        import_path: String,
+    },
+}
+
+#[derive(Debug)]
 pub struct NSData {
     /// The objects imported by the module.
     pub imports: HashMap<AstId, ImportedName>,
@@ -155,6 +172,9 @@ pub struct NSData {
 
     /// The default export, if any.
     pub default_export: Option<Rc<Object>>,
+
+    // Reexports from other modules.
+    pub reexports: Vec<Reexport>,
 
     /// Export items that haven't yet been processed.
     #[allow(dead_code)]
@@ -188,8 +208,52 @@ impl NSData {
             top_level: HashMap::new(),
             named_exports: HashMap::new(),
             default_export: None,
+            reexports: vec![],
             unprocessed_exports: vec![],
         }
+    }
+
+    pub fn get_named_export(
+        &self,
+        ctx: &ResolveState,
+        curr_module: &swc_common::FileName,
+        needle: &str,
+    ) -> Option<Rc<Object>> {
+        if needle == "default" {
+            if let Some(default) = &self.default_export {
+                return Some(default.clone());
+            }
+        }
+        if let Some(obj) = self.named_exports.get(needle) {
+            return Some(obj.clone());
+        }
+
+        for re in &self.reexports {
+            match re {
+                Reexport::List { import_path, items } => {
+                    for item in items {
+                        let export_name = item.renamed.as_ref().unwrap_or(&item.orig_name);
+                        if export_name == needle {
+                            let module = ctx.resolve_module_import(curr_module, import_path)?;
+                            return module
+                                .data
+                                .get_named_export(ctx, curr_module, &item.orig_name);
+                        }
+                    }
+                }
+
+                Reexport::All { import_path } => {
+                    if let Some(module) = ctx.resolve_module_import(&curr_module, import_path) {
+                        if let Some(export) =
+                            module.data.get_named_export(ctx, &curr_module, needle)
+                        {
+                            return Some(export);
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     fn add_top_level(&mut self, id: AstId, obj: Rc<Object>) -> Rc<Object> {
@@ -231,41 +295,72 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
                     }
                 }
 
-                // TODO implement
-                ast::ModuleDecl::ExportDefaultDecl(_) => {
-                    log::debug!("TODO export default declaration");
+                ast::ModuleDecl::ExportDefaultDecl(decl) => {
+                    let obj = process_default_decl(ctx, &decl.decl);
+                    if ns.default_export.is_some() {
+                        obj.range.err("duplicate default export");
+                    }
+                    ns.default_export = Some(obj);
                 }
 
                 // TODO(andre) Can this affect the module namespace?
-                ast::ModuleDecl::ExportDefaultExpr(_) => {
+                ast::ModuleDecl::ExportDefaultExpr(_expr) => {
                     log::debug!("TODO export default expr");
                 }
 
                 ast::ModuleDecl::ExportNamed(decl) => {
                     // Re-exporting from another module.
-                    for spec in &decl.specifiers {
-                        if let ast::ExportSpecifier::Named(named) = spec {
-                            log::info!("re-export name {:?}", named.orig);
-                        }
-                    }
-                    log::debug!("TODO re-export named declaration");
+                    let Some(src) = &decl.src else {
+                        log::debug!("ExportNamed without src");
+                        continue;
+                    };
+
+                    ns.reexports.push(Reexport::List {
+                        import_path: src.value.to_string(),
+                        items: decl
+                            .specifiers
+                            .iter()
+                            .filter_map(|spec| match spec {
+                                ast::ExportSpecifier::Named(named) => {
+                                    let orig_name = module_export_name_to_string(&named.orig);
+                                    Some(NamedReexport {
+                                        orig_name,
+                                        renamed: named
+                                            .exported
+                                            .as_ref()
+                                            .map(module_export_name_to_string),
+                                    })
+                                }
+                                ast::ExportSpecifier::Default(spec) => {
+                                    log::debug!("TODO: ExportNamed with default");
+                                    None
+                                }
+                                ast::ExportSpecifier::Namespace(_) => {
+                                    log::debug!("TODO: ExportNamed with namespace");
+                                    None
+                                }
+                            })
+                            .collect(),
+                    });
                 }
 
-                ast::ModuleDecl::ExportAll(_) => {
+                ast::ModuleDecl::ExportAll(decl) => {
                     // Re-exporting * from another module.
-                    log::debug!("TODO re-export * declaration");
+                    ns.reexports.push(Reexport::All {
+                        import_path: decl.src.value.to_string(),
+                    });
                 }
 
                 ast::ModuleDecl::TsImportEquals(_) => {
                     log::debug!("TODO ts import equals");
                 }
 
-                ast::ModuleDecl::TsExportAssignment(_) => {
-                    log::debug!("TODO ts export =");
+                ast::ModuleDecl::TsExportAssignment(decl) => {
+                    log::debug!("TsExportAssignment {:#?}", decl);
                 }
 
-                ast::ModuleDecl::TsNamespaceExport(_) => {
-                    log::debug!("TODO ts namespace export");
+                ast::ModuleDecl::TsNamespaceExport(decl) => {
+                    log::debug!("TsNamespaceExport {:#?}", decl);
                 }
             },
 
@@ -477,6 +572,44 @@ fn process_decl(ctx: &ResolveState, ns: &mut NSData, decl: &ast::Decl) -> Vec<Rc
     }
 }
 
+fn process_default_decl(ctx: &ResolveState, decl: &ast::DefaultDecl) -> Rc<Object> {
+    let range: Range = decl.span().into();
+    match decl {
+        ast::DefaultDecl::Class(d) => {
+            let name = d.ident.as_ref().map(|id| id.sym.to_string());
+            ctx.new_obj(
+                name,
+                range,
+                ObjectKind::Class(Class {
+                    spec: d.class.clone(),
+                }),
+            )
+        }
+
+        ast::DefaultDecl::Fn(d) => {
+            let name = d.ident.as_ref().map(|id| id.sym.to_string());
+            ctx.new_obj(
+                name,
+                range,
+                ObjectKind::Func(Func {
+                    spec: d.function.clone(),
+                }),
+            )
+        }
+
+        ast::DefaultDecl::TsInterfaceDecl(d) => {
+            let name = Some(d.id.sym.to_string());
+            ctx.new_obj(
+                name,
+                range,
+                ObjectKind::TypeName(TypeName {
+                    decl: TypeNameDecl::Interface(*d.clone()),
+                }),
+            )
+        }
+    }
+}
+
 fn process_namespace_body(ctx: &ResolveState, ns: &mut NSData, body: &ast::TsNamespaceBody) {
     match body {
         ast::TsNamespaceBody::TsModuleBlock(block) => {
@@ -595,13 +728,11 @@ impl ResolveState {
     }
 
     fn module_id(&self) -> Result<ModuleId> {
-        let module_id = self
-            .module_stack
-            .borrow()
+        let stack = self.module_stack.borrow();
+        let module = stack
             .last()
-            .ok_or_else(|| anyhow::anyhow!("internal error: no module on stack"))?
-            .to_owned();
-        Ok(module_id)
+            .ok_or_else(|| anyhow::anyhow!("internal error: no module on stack"))?;
+        Ok(module.to_owned())
     }
 
     pub(super) fn resolve_module_ident(
@@ -635,8 +766,23 @@ impl ResolveState {
         None
     }
 
+    pub(super) fn resolve_module_import(
+        &self,
+        from_file: &swc_common::FileName,
+        import_path: &str,
+    ) -> Option<Rc<Module>> {
+        let ast_module = match self.loader.resolve_import(from_file, import_path) {
+            Ok(Some(ast_module)) => ast_module,
+            Ok(None) | Err(_) => return None,
+        };
+        Some(self.get_or_init_module(ast_module))
+    }
+
     pub(super) fn resolve_import(&self, module: &Module, imp: &ImportedName) -> Option<Rc<Object>> {
-        let ast_module = match self.loader.resolve_import(&module.base, &imp.import_path) {
+        let ast_module = match self
+            .loader
+            .resolve_import(&module.base.swc_file_path, &imp.import_path)
+        {
             Ok(None) => return None,
             Ok(Some(ast_module)) => Ok(ast_module),
             Err(err) => Err(err),
@@ -653,7 +799,9 @@ impl ResolveState {
         match &imp.kind {
             ImportKind::Named(name) => {
                 let imported = self.get_or_init_module(ast_module);
-                let obj = imported.data.named_exports.get(name).cloned();
+                let obj = imported
+                    .data
+                    .get_named_export(self, &imported.base.swc_file_path, name);
 
                 if obj.is_none() {
                     HANDLER.with(|handler| {
@@ -666,7 +814,10 @@ impl ResolveState {
             }
             ImportKind::Default => {
                 let imported = self.get_or_init_module(ast_module);
-                let obj = imported.data.default_export.as_ref().cloned();
+                let obj =
+                    imported
+                        .data
+                        .get_named_export(self, &imported.base.swc_file_path, "default");
 
                 if obj.is_none() {
                     HANDLER.with(|handler| {
@@ -683,5 +834,12 @@ impl ResolveState {
                 None
             }
         }
+    }
+}
+
+fn module_export_name_to_string(name: &ast::ModuleExportName) -> String {
+    match name {
+        ast::ModuleExportName::Ident(i) => i.sym.to_string(),
+        ast::ModuleExportName::Str(str) => str.value.as_str().to_string(),
     }
 }

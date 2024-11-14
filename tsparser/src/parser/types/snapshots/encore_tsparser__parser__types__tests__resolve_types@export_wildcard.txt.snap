@@ -1,0 +1,24 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/export_wildcard.txt
+---
+{
+    "foo": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}
