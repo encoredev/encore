@@ -3,9 +3,13 @@ package s3
 import (
 	"context"
 	"errors"
+	"fmt"
 	"iter"
+	"sync"
 
 	"cloud.google.com/go/storage"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
@@ -18,6 +22,9 @@ type Manager struct {
 	ctx     context.Context
 	runtime *config.Runtime
 	clients map[*config.BucketProvider]*s3.Client
+
+	cfgOnce sync.Once
+	awsCfg  aws.Config
 }
 
 func NewManager(ctx context.Context, runtime *config.Runtime) *Manager {
@@ -139,12 +146,28 @@ func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {
 		return client
 	}
 
+	cfg := mgr.getConfig()
 	client := s3.New(s3.Options{
 		Region:       prov.S3.Region,
 		BaseEndpoint: prov.S3.Endpoint,
+		Credentials:  cfg.Credentials,
 	})
+
 	mgr.clients[prov] = client
 	return client
+}
+
+// getConfig loads the required AWS config to connect to AWS
+func (mgr *Manager) getConfig() aws.Config {
+	mgr.cfgOnce.Do(func() {
+		cfg, err := awsConfig.LoadDefaultConfig(context.Background())
+		if err != nil {
+			panic(fmt.Sprintf("unable to load AWS config: %v", err))
+		}
+		mgr.awsCfg = cfg
+
+	})
+	return mgr.awsCfg
 }
 
 func mapErr(err error) error {
