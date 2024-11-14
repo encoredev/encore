@@ -39,14 +39,16 @@ When creating a bucket you can configure additional properties, like whether the
 
 See the complete specification in the [package documentation](https://pkg.go.dev/encore.dev/storage/objects#NewBucket).
 
-For example, to create a bucket with profile pictures:
+For example, to create a bucket for storing profile pictures:
 
 ```go
 package user
 
 import "encore.dev/storage/objects"
 
-var ProfilePictures = objects.NewBucket("profile-pictures", objects.BucketConfig{})
+var ProfilePictures = objects.NewBucket("profile-pictures", objects.BucketConfig{
+	Versioned: false,
+})
 ```
 
 ## Uploading files

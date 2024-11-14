@@ -1,5 +1,4 @@
 import * as runtime from "../../internal/runtime/mod";
-import log from "../../log/mod";
 
 export class ObjectsError extends Error {
   constructor(msg: string) {

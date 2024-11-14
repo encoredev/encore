@@ -519,6 +519,11 @@
 			file: "ts/primitives/databases"
 		}, {
 			kind: "basic"
+			text: "Object Storage"
+			path: "/ts/primitives/object-storage"
+			file: "ts/primitives/object-storage"
+		}, {
+			kind: "basic"
 			text: "Cron Jobs"
 			path: "/ts/primitives/cron-jobs"
 			file: "ts/primitives/cron-jobs"
