@@ -111,6 +111,12 @@ func (b *bucket) List(data types.ListData) iter.Seq2[*types.ListEntry, error] {
 				}
 				n++
 			}
+
+			// Are we done?
+			if !valOrZero(resp.IsTruncated) {
+				return
+			}
+			continuationToken = valOrZero(resp.NextContinuationToken)
 		}
 	}
 }
