@@ -284,7 +284,7 @@ func (b *Bucket) mapQuery(ctx context.Context, q *Query) types.ListData {
 	return types.ListData{
 		Ctx:    ctx,
 		Prefix: b.baseCloudPrefix + q.Prefix,
-		Limit:  q.Limit,
+		Limit:  ptrOrNil(q.Limit),
 	}
 }
 

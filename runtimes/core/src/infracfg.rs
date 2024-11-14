@@ -40,8 +40,6 @@ pub enum ObjectStorage {
 pub struct GCS {
     pub endpoint: Option<String>,
     pub buckets: HashMap<String, Bucket>,
-    #[serde(default)]
-    pub anonymous: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -442,7 +440,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     provider: Some(pbruntime::bucket_cluster::Provider::Gcs(
                         pbruntime::bucket_cluster::Gcs {
                             endpoint: gcs.endpoint.clone(),
-                            anonymous: gcs.anonymous,
+                            anonymous: false,
                         },
                     )),
                     buckets: gcs

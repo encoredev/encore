@@ -67,7 +67,7 @@ type ObjectAttrs struct {
 type ListData struct {
 	Ctx    context.Context
 	Prefix string
-	Limit  int64
+	Limit  *int64
 }
 
 type ListEntry struct {

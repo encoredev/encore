@@ -79,14 +79,17 @@ func (b *bucket) List(data types.ListData) iter.Seq2[*types.ListEntry, error] {
 	return func(yield func(*types.ListEntry, error) bool) {
 		var n int64
 		var continuationToken string
-		for n < data.Limit {
+		for data.Limit == nil || n < *data.Limit {
 			// Abort early if the context is canceled.
 			if err := data.Ctx.Err(); err != nil {
 				yield(nil, err)
 				return
 			}
 
-			maxKeys := int32(min(data.Limit-n, 1000))
+			maxKeys := int32(1000)
+			if data.Limit != nil {
+				maxKeys = min(int32(*data.Limit-n), 1000)
+			}
 			resp, err := b.client.ListObjectsV2(data.Ctx, &s3.ListObjectsV2Input{
 				Bucket:            &b.cfg.CloudName,
 				MaxKeys:           &maxKeys,

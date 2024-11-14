@@ -135,7 +135,7 @@ func (b *bucket) List(data types.ListData) iter.Seq2[*types.ListEntry, error] {
 			}
 
 			// Are we over the limit?
-			if data.Limit != 0 && n >= data.Limit {
+			if data.Limit != nil && n >= *data.Limit {
 				return
 			}
 			n++
