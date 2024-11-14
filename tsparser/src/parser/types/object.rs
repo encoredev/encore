@@ -243,9 +243,8 @@ impl NSData {
                 }
 
                 Reexport::All { import_path } => {
-                    if let Some(module) = ctx.resolve_module_import(&curr_module, import_path) {
-                        if let Some(export) =
-                            module.data.get_named_export(ctx, &curr_module, needle)
+                    if let Some(module) = ctx.resolve_module_import(curr_module, import_path) {
+                        if let Some(export) = module.data.get_named_export(ctx, curr_module, needle)
                         {
                             return Some(export);
                         }
@@ -331,7 +330,7 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
                                             .map(module_export_name_to_string),
                                     })
                                 }
-                                ast::ExportSpecifier::Default(spec) => {
+                                ast::ExportSpecifier::Default(_) => {
                                     log::debug!("TODO: ExportNamed with default");
                                     None
                                 }
