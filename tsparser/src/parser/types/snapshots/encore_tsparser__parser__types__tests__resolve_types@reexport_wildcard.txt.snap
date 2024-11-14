@@ -1,0 +1,12 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/reexport_wildcard.txt
+---
+{
+    "foo": Literal(
+        String(
+            "foo",
+        ),
+    ),
+}

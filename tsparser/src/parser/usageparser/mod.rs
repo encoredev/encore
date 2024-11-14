@@ -127,7 +127,10 @@ impl<'a> UsageResolver<'a> {
             }
 
             // Resolve the module
-            let resolved_module = match self.module_loader.resolve_import(module, &imp.src.value) {
+            let resolved_module = match self
+                .module_loader
+                .resolve_import(&module.swc_file_path, &imp.src.value)
+            {
                 Ok(None) => continue,
                 Ok(Some(resolved_module)) => resolved_module,
                 Err(err) => {
