@@ -126,6 +126,14 @@ func (w *Writer) Write(p []byte) (int, error) {
 	return u.Write(p)
 }
 
+func (w *Writer) Abort(err error) {
+	if err == nil {
+		err = errors.New("upload aborted")
+	}
+	u := w.initUpload()
+	u.Abort(err)
+}
+
 func (w *Writer) Close() error {
 	u := w.initUpload()
 	attrs, err := u.Complete()

@@ -292,6 +292,11 @@
 			}]
 		}, {
 			kind: "basic"
+			text: "Object Storage"
+			path: "/primitives/object-storage"
+			file: "primitives/object-storage"
+		}, {
+			kind: "basic"
 			text: "Cron Jobs"
 			path: "/primitives/cron-jobs"
 			file: "primitives/cron-jobs"
