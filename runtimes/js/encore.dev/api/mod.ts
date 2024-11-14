@@ -301,7 +301,7 @@ export class MiddlewareRequest {
   }
 
   public get reqMeta() {
-    return this._reqMeta || (this._reqMeta = currentRequest() as RequestMeta);
+    return this._reqMeta || (this._reqMeta = currentRequest());
   }
   public get stream() {
     return this._stream;
