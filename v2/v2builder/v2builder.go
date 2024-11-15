@@ -152,6 +152,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 			MainPkg:      paths.Pkg(p.Build.MainPkg.GetOrElse("./encore_internal/main")),
 			KeepOutput:   p.Build.KeepOutput,
 			StaticConfig: staticConfig,
+			Env:          p.Environ,
 		})
 
 		output := &builder.GoBuildOutput{ArtifactDir: buildResult.Dir}

@@ -280,7 +280,7 @@ func (b *builder) buildMain() {
 		}
 
 		args = append(args, b.cfg.MainPkg.String())
-
+		
 		goroot := build.GOROOT
 		cmd := exec.Command(goroot.Join("bin", "go"+b.exe()).ToIO(), args...)
 
