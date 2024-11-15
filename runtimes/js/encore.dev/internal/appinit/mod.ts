@@ -193,7 +193,6 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         };
 
         const mwRequest = new MiddlewareRequest(stream, undefined, undefined);
-
         return invokeMiddlewareChain(mwRequest, middlewares, handler);
       }
     };
@@ -217,7 +216,6 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         };
 
         const mwRequest = new MiddlewareRequest(undefined, rawReq, rawResp);
-
         return invokeMiddlewareChain(mwRequest, middlewares, handler);
       }
     };
