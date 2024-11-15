@@ -115,7 +115,7 @@ message RunRequest {
 
   // debug_mode specifies the debug mode to use.
   DebugMode debug_mode = 11;
-
+  
   enum BrowserMode {
     BROWSER_AUTO = 0;
     BROWSER_NEVER = 1;

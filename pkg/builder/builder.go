@@ -107,6 +107,8 @@ type CompileParams struct {
 
 	// Override to explicitly allow the Encore version to be set.
 	EncoreVersion option.Option[string]
+
+	Environ []string
 }
 
 type ArtifactString string
