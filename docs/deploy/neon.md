@@ -82,13 +82,13 @@ Keep in mind that you can only branch from environments that use Neon as the dat
 
 ## Roles
 
-Encore automatically implements a structured role hierarchy that ensures a secure, scalable, and efficient management of databases using Neon.
+Encore automatically implements a structured role hierarchy that ensures a secure, scalable, and efficient management of databases.
+Below is an explanation of how roles are created, utilized, and managed.
 
 ### Role hierarchy
 
 #### 1. Initial Superuser Role
 - **Role Name:** `neon_superuser`
- - A superuser role is generated with a randomized name in the format `encore_superuser_xxx`.
  - This role has full privileges and is the foundational user for setting up the role hierarchy.
  - **Purpose:** The superuser creates and configures the subsequent roles and then steps back from day-to-day operations.
 
@@ -119,12 +119,22 @@ For each database within the Neon integration, specific roles are created to pro
   - `db_main_writer`: Read and write access to the main database.
   - `db_main_admin`: Administrative privileges specific to the main database.
 
+#### 5. Service-Specific Roles
+For each service in your application, a dedicated role is generated in the format `svc_<name>`.
+This role is automatically granted the necessary writer role for each database the service accesses. 
+
+This ensures that each service has the appropriate level of access to perform its operations while maintaining security and separation of concerns.
+
+**Example:** A service named `orders` that writes to the `main` database is assigned the `svc_orders` role, which is granted the `db_main_writer` role.
+
+
 ### Role Setup Workflow
 
 - **1. Superuser Creation:** A `neon_superuser` role is created upon integration setup.
 - **2. Platform Role Creation:** The `encore_platform` role is created and assumed by the `neon_superuser`.
 - **3. Global Role Creation:** The `encore_reader`, `encore_writer`, and `encore_admin` roles are established to provide general access control.
 - **4. Database-Specific Roles:** For each database, roles are created in the format `db_<db_name>_<access_level>` to manage access specific to that database.
+- **5. Service-Specific Roles:** For each service, roles are created in the format `svc_<name>` and are granted the necessary writer roles for the databases used by each service.
 
 ### Best Practices
 
