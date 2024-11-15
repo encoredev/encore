@@ -1,4 +1,4 @@
-use axum::http::{HeaderMap, HeaderName};
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use napi::{
     bindgen_prelude::{assert_type_of, check_status, type_of, FromNapiValue},
     sys, Error, JsObject, JsUnknown, Result, ValueType,
@@ -25,12 +25,24 @@ impl FromNapiValue for WrappedHeaderMap {
 
         let mut map = WrappedHeaderMap(HeaderMap::new());
         for key in JsObject::keys(&obj)?.into_iter() {
-            if let Some(val) = obj_get_header_val(env, napi_val, &key)? {
-                // TODO(fredr): fix unwraps
-                map.0.insert(
-                    HeaderName::from_bytes(key.as_bytes()).unwrap(),
-                    val.parse().unwrap(),
-                );
+            if let Some(vals) = obj_get_header_val(env, napi_val, &key)? {
+                let hname = HeaderName::from_bytes(key.as_bytes()).map_err(|e| {
+                    Error::new(
+                        napi::Status::InvalidArg,
+                        format!("invalid header name: {e}"),
+                    )
+                })?;
+
+                for val in vals {
+                    let hval = HeaderValue::from_bytes(val.as_bytes()).map_err(|e| {
+                        Error::new(
+                            napi::Status::InvalidArg,
+                            format!("invalid header value: {e}"),
+                        )
+                    })?;
+
+                    map.0.append(&hname, hval);
+                }
             }
         }
 
@@ -42,7 +54,7 @@ fn obj_get_header_val<K: AsRef<str>>(
     env: sys::napi_env,
     obj: sys::napi_value,
     field: K,
-) -> Result<Option<String>> {
+) -> Result<Option<Vec<String>>> {
     let c_field = std::ffi::CString::new(field.as_ref())?;
 
     unsafe {
@@ -56,18 +68,39 @@ fn obj_get_header_val<K: AsRef<str>>(
 
         let ty = type_of!(env, ret)?;
 
-        if ty == ValueType::Undefined {
-            return Ok(None);
-        }
+        match ty {
+            ValueType::Undefined => Ok(None),
+            ValueType::String => {
+                let val = String::from_napi_value(env, ret)?;
+                Ok(Some(vec![val]))
+            }
+            ValueType::Object => {
+                let mut is_arr = false;
+                check_status!(
+                    sys::napi_is_array(env, ret, &mut is_arr),
+                    "Failed to detect whether given js is an array"
+                )?;
 
-        if ty == ValueType::String {
-            let val = String::from_napi_value(env, ret)?;
-            Ok(Some(val))
-        } else {
-            Err(Error::new(
+                if is_arr {
+                    let vals = Vec::<String>::from_napi_value(env, ret).map_err(|_e| {
+                        Error::new(
+                            napi::Status::InvalidArg,
+                            "unable to parse header values array as strings",
+                        )
+                    })?;
+
+                    Ok(Some(vals))
+                } else {
+                    Err(Error::new(
+                        napi::Status::InvalidArg,
+                        "invalid header value type",
+                    ))
+                }
+            }
+            _ => Err(Error::new(
                 napi::Status::InvalidArg,
-                "header map value must be string",
-            ))
+                "header map value must be string or array of strings",
+            )),
         }
     }
 }

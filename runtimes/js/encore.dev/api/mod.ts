@@ -316,7 +316,7 @@ export class MiddlewareRequest {
 
 export interface MiddlewareResponse {
   payload: any;
-  extraHeaders: Record<string, string>;
+  extraHeaders: Record<string, string | string[]>;
 }
 
 export type Next = (req: MiddlewareRequest) => Promise<MiddlewareResponse>;

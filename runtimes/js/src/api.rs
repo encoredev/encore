@@ -98,16 +98,19 @@ impl PromiseHandler for APIPromiseHandler {
             });
         };
 
-        // TODO(fredr): handle unwraps
-        let obj: JsObject = val.try_into().unwrap();
+        let obj: JsObject = val
+            .try_into()
+            .map_err(|e| api::Error::invalid_argument("invalid handler response", e))?;
 
         let payload = obj
             .get_named_property::<napi::JsUnknown>("payload")
-            .unwrap();
+            .map_err(|e| api::Error::invalid_argument("payload missing in handler response", e))?;
 
         let extra_headers = obj
             .get_named_property::<napi::JsUnknown>("extraHeaders")
-            .unwrap();
+            .map_err(|e| {
+                api::Error::invalid_argument("extraHeaders missing in handler response", e)
+            })?;
 
         match parse_pvalues(payload) {
             Ok(val) => Ok(HandlerResponseInner {
