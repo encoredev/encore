@@ -51,6 +51,9 @@ The final option is to import an existing Neon branch. This is useful if you hav
 Be wary that this option will not create a new branch but operate on the existing data. Select `Import Neon branch`,
 then choose the account, project and branch you want to use. 
 
+**Note:** You may need to manually adjust the roles, commonly you need to change the database owner to the `db_<db_name>_admin` role to enable execution of migrations.
+See more in the [Roles](#roles) section below.
+
 ## Edit your Neon environment
 Once the environment is created, you can edit the Neon settings by going to Encore's Cloud Dashboard > (Select your app) > Environments > (Select your environment) > Infrastructure. 
 Here you can view and edit your Neon account resources. As a safety precaution, we've disabled editing of imported
@@ -127,6 +130,11 @@ This ensures that each service has the appropriate level of access to perform it
 - **2. Global Role Creation:** The `encore_reader`, `encore_writer`, and `encore_admin` roles are established to provide general access control.
 - **3. Database-Specific Roles:** For each database, roles are created in the format `db_<db_name>_<access_level>` to manage access specific to that database.
 - **4. Service-Specific Roles:** For each service, roles are created in the format `svc_<name>` and are granted the necessary writer roles for the databases used by each service.
+
+### Viewing credentials
+
+To view database credentials, open your app in the [Cloud Dashboard](https://app.encore.dev), navigate to the **Infrastructure page** for the appropriate **Environment**, and locate the **USERS** section within the relevant **Database Cluster**.
+
 
 ### Best Practices
 
