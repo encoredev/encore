@@ -105,6 +105,9 @@ Three core roles are created to define access levels across all databases:
   - **Access level:** Grants administrative privileges for global database operations.
   - **Use Case:** Overseeing configurations, managing schemas, and handling elevated tasks.
 
+These global roles are used by Encore's CLI when using the `encore db shell` command.
+Learn more in the [CLI docs](/docs/primitives/databases#using-the-encore-cli).
+
 #### 3. Database-Specific Roles
 For each database within the Neon integration, specific roles are created to provide fine-grained control:
    - `db_<db_name>_reader`: Read-only access to the main database.
