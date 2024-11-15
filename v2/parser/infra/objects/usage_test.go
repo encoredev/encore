@@ -19,14 +19,14 @@ var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
 			Want: []usage.Usage{},
 		},
 		{
-			Name: "publish",
+			Name: "upload",
 			Code: `
 var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
 
 func Foo() { bkt.Upload(context.Background(), "key") }
 
 `,
-			Want: []usage.Usage{&objects.MethodUsage{Perm: objects.WriteObject}},
+			Want: []usage.Usage{&objects.MethodUsage{Method: "Upload", Perm: objects.WriteObject}},
 		},
 		{
 			Name: "ref",

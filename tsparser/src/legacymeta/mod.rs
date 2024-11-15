@@ -381,12 +381,9 @@ impl<'a> MetaBuilder<'a> {
 
                 Usage::Bucket(access) => {
                     let Some(svc) = self.service_for_range(&access.range) else {
-                        HANDLER.with(|h| {
-                            h.span_err(
-                                access.range.to_span(),
-                                "unable to determine which service is accessing this bucket",
-                            )
-                        });
+                        access
+                            .range
+                            .err("cannot determine which service is accessing this bucket");
                         continue;
                     };
 
