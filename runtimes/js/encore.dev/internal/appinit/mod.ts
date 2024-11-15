@@ -173,7 +173,10 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       ...h.apiRoute,
       // req is the upgrade request.
       // stream is either a bidirectional stream, in stream or out stream.
-      handler: (req: runtime.Request, stream: unknown) => {
+      handler: (
+        req: runtime.Request,
+        stream: runtime.Sink | runtime.Stream | runtime.Socket
+      ) => {
         setCurrentRequest(req);
 
         // make readable streams async iterators

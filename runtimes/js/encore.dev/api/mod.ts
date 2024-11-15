@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from "http";
 import { RequestMeta, currentRequest } from "../mod";
 import { RawResponse } from "./mod";
 import { RawRequest } from "./mod";
+import { Sink, Stream, Socket } from "../internal/runtime/mod";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -290,11 +291,15 @@ export interface MiddlewareOptions {
 
 export class MiddlewareRequest {
   private _reqMeta?: RequestMeta;
-  private _stream?: unknown;
+  private _stream?: Sink | Stream | Socket;
   private _rawReq?: RawRequest;
   private _rawResp?: RawResponse;
 
-  constructor(stream?: unknown, rawReq?: RawRequest, rawResp?: RawResponse) {
+  constructor(
+    stream?: Sink | Stream | Socket,
+    rawReq?: RawRequest,
+    rawResp?: RawResponse
+  ) {
     this._stream = stream;
     this._rawReq = rawReq;
     this._rawResp = rawResp;
@@ -343,3 +348,4 @@ export function middleware(...args: unknown[]): Middleware {
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
+export { Sink, Stream, Socket } from "../internal/runtime/mod";
