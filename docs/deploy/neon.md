@@ -141,8 +141,8 @@ This ensures that each service has the appropriate level of access to perform it
 Encore automatically manages roles according to these security best practices:
 
 - **Role Ownership:** Ensures critical operations, such as migrations, are executed by roles with appropriate permissions (e.g., `db_<db_name>_admin`).
-- **Access Control:** Assigns the least privilege necessary for each task. Uses specific database roles (e.g., db_<db_name>_reader) to restrict access.
-- **Consistency:** Maintains consistent naming conventions (db_<db_name>_<access_level>) for ease of management and troubleshooting.
+- **Access Control:** Assigns the least privilege necessary for each task. Uses specific database roles (e.g., `db_<db_name>_reader`) to restrict access.
+- **Consistency:** Maintains consistent naming conventions (`db_<db_name>_<access_level>`) for ease of management and troubleshooting.
 
 ### Integrating with existing Neon databases
 
