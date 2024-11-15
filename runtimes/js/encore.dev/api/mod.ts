@@ -313,9 +313,15 @@ export class MiddlewareRequest {
     return this._rawResp;
   }
 }
-export type Next = (req: MiddlewareRequest) => Promise<any>;
+
+export interface MiddlewareResponse {
+  payload: any;
+  extraHeaders: Record<string, string>;
+}
+
+export type Next = (req: MiddlewareRequest) => Promise<MiddlewareResponse>;
 export interface Middleware {
-  (req: MiddlewareRequest, next: Next): Promise<any>;
+  (req: MiddlewareRequest, next: Next): Promise<MiddlewareResponse>;
   options?: MiddlewareOptions;
 }
 

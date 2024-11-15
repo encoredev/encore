@@ -1,7 +1,9 @@
-import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
-import { Middleware, MiddlewareRequest } from "../../api/mod";
-import { APICallMeta, RequestMeta, currentRequest } from "../../req_meta";
+import {
+  Middleware,
+  MiddlewareRequest,
+  MiddlewareResponse
+} from "../../api/mod";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -91,14 +93,17 @@ class IterableSocket {
 function invokeMiddlewareChain(
   req: MiddlewareRequest,
   chain: Middleware[],
-  handler: () => any
+  handler: () => Promise<any>
 ): Promise<any> {
-  const execute = (index: number): Promise<any> => {
+  const execute = async (index: number): Promise<MiddlewareResponse> => {
     const currentMiddleware = chain.at(index);
 
     // no more middlewares, execute the handler
     if (currentMiddleware === undefined) {
-      return handler();
+      return {
+        payload: await handler(),
+        extraHeaders: {}
+      };
     }
 
     // execute current middleare middleware
