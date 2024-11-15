@@ -79,3 +79,62 @@ and select the environment with the database you want to branch from. Hit save a
 Keep in mind that you can only branch from environments that use Neon as the database provider; this is the default for Encore Cloud environments, but is a configurable option when creating AWS and GCP environments.
 
 <img src="/assets/docs/pr-neon.png" title="Use Neon for Preview Environments" className="mx-auto"/>
+
+## Roles
+
+Encore automatically implements a structured role hierarchy that ensures a secure, scalable, and efficient management of databases using Neon.
+
+### Role hierarchy
+
+#### 1. Initial Superuser Role
+- **Role Name:** `neon_superuser`
+ - A superuser role is generated with a randomized name in the format `encore_superuser_xxx`.
+ - This role has full privileges and is the foundational user for setting up the role hierarchy.
+ - **Purpose:** The superuser creates and configures the subsequent roles and then steps back from day-to-day operations.
+
+#### 2. Encore Platform Role
+- **Role Name:** `encore_platform`
+ - Created and assumed by the `neon_superuser` role for performing all further operations.
+ - **Purpose:** Acts as the main operational role for managing database configurations, creating additional roles, and executing platform-wide tasks.
+
+#### 3. Global Roles
+Three core roles are created to define access levels across all databases:
+
+- `encore_reader`
+ - Provides read-only access.
+ - **Use Case:** Reading data without modifying it.
+- `encore_writer`
+ - Allows read and write access.
+ - **Use Case:** Performing data manipulations and inserts.
+- `encore_admin`
+ - Grants administrative privileges for global database operations.
+ - **Use Case:** Overseeing configurations, managing schemas, and handling elevated tasks.
+
+#### 4. Database-Specific Roles
+For each database within the Neon integration, specific roles are created to provide fine-grained control:
+
+- **Role Format:** `db_<db_name>_<access_level>`
+ - Examples:
+  - `db_main_reader`: Read-only access to the main database.
+  - `db_main_writer`: Read and write access to the main database.
+  - `db_main_admin`: Administrative privileges specific to the main database.
+
+### Role Setup Workflow
+
+- **1. Superuser Creation:** A `neon_superuser` role is created upon integration setup.
+- **2. Platform Role Creation:** The `encore_platform` role is created and assumed by the `neon_superuser`.
+- **3. Global Role Creation:** The `encore_reader`, `encore_writer`, and `encore_admin` roles are established to provide general access control.
+- **4. Database-Specific Roles:** For each database, roles are created in the format `db_<db_name>_<access_level>` to manage access specific to that database.
+
+### Best Practices
+
+Encore automatically manages roles according to these security best practices:
+
+- **Role Ownership:** Ensures critical operations, such as migrations, are executed by roles with appropriate permissions (e.g., `db_<db_name>_admin`).
+- **Access Control:** Assigns the least privilege necessary for each task. Uses specific database roles (e.g., db_<db_name>_reader) to restrict access.
+- **Consistency:** Maintains consistent naming conventions (db_<db_name>_<access_level>) for ease of management and troubleshooting.
+
+### Integrating with existing Neon databases
+
+If you are integrating with an existing Neon database, you may need to manually adjust the roles to work with Encore's role structure.
+Commonly, the adjustment needed is changing the database owner to the `db_<db_name>_admin` role to enable execution of migrations.
