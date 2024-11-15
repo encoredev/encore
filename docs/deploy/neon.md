@@ -88,53 +88,42 @@ Below is an explanation of how roles are created, utilized, and managed.
 ### Role hierarchy
 
 #### 1. Initial Superuser Role
-- **Role Name:** `neon_superuser`
- - This role has full privileges and is the foundational user for setting up the role hierarchy.
- - **Purpose:** The superuser creates and configures the subsequent roles and then steps back from day-to-day operations.
-
-#### 2. Encore Platform Role
 - **Role Name:** `encore_platform`
- - Created and assumed by the `neon_superuser` role for performing all further operations.
- - **Purpose:** Acts as the main operational role for managing database configurations, creating additional roles, and executing platform-wide tasks.
+  - **Access level:** This role has full privileges and is the foundational user for setting up the role hierarchy.
+  - **Purpose:** The role creates and configures the subsequent roles and then steps back from day-to-day operations.
 
-#### 3. Global Roles
+#### 2. Global Roles
 Three core roles are created to define access levels across all databases:
 
 - `encore_reader`
- - Provides read-only access.
- - **Use Case:** Reading data without modifying it.
+  - **Access level:** Provides read-only access.
+  - **Use Case:** Reading data without modifying it.
 - `encore_writer`
- - Allows read and write access.
- - **Use Case:** Performing data manipulations and inserts.
+  - **Access level:** Allows read and write access.
+  - **Use Case:** Performing data manipulations and inserts.
 - `encore_admin`
- - Grants administrative privileges for global database operations.
- - **Use Case:** Overseeing configurations, managing schemas, and handling elevated tasks.
+  - **Access level:** Grants administrative privileges for global database operations.
+  - **Use Case:** Overseeing configurations, managing schemas, and handling elevated tasks.
 
-#### 4. Database-Specific Roles
+#### 3. Database-Specific Roles
 For each database within the Neon integration, specific roles are created to provide fine-grained control:
+   - `db_<db_name>_reader`: Read-only access to the main database.
+   - `db_<db_name>_writer`: Read and write access to the main database.
+   - `db_<db_name>_admin`: Administrative privileges specific to the main database.
 
-- **Role Format:** `db_<db_name>_<access_level>`
- - Examples:
-  - `db_main_reader`: Read-only access to the main database.
-  - `db_main_writer`: Read and write access to the main database.
-  - `db_main_admin`: Administrative privileges specific to the main database.
-
-#### 5. Service-Specific Roles
-For each service in your application, a dedicated role is generated in the format `svc_<name>`.
-This role is automatically granted the necessary writer role for each database the service accesses. 
+#### 4. Service-Specific Roles
+For each service in your application, a dedicated role is generated in the format `svc_<name>`. This role is granted the necessary `db_<db_name>_writer` role for each database the service accesses. 
 
 This ensures that each service has the appropriate level of access to perform its operations while maintaining security and separation of concerns.
 
 **Example:** A service named `orders` that writes to the `main` database is assigned the `svc_orders` role, which is granted the `db_main_writer` role.
 
-
 ### Role Setup Workflow
 
-- **1. Superuser Creation:** A `neon_superuser` role is created upon integration setup.
-- **2. Platform Role Creation:** The `encore_platform` role is created and assumed by the `neon_superuser`.
-- **3. Global Role Creation:** The `encore_reader`, `encore_writer`, and `encore_admin` roles are established to provide general access control.
-- **4. Database-Specific Roles:** For each database, roles are created in the format `db_<db_name>_<access_level>` to manage access specific to that database.
-- **5. Service-Specific Roles:** For each service, roles are created in the format `svc_<name>` and are granted the necessary writer roles for the databases used by each service.
+- **1. Superuser Creation:** the `encore_platform` superuser role is created upon integration setup.
+- **2. Global Role Creation:** The `encore_reader`, `encore_writer`, and `encore_admin` roles are established to provide general access control.
+- **3. Database-Specific Roles:** For each database, roles are created in the format `db_<db_name>_<access_level>` to manage access specific to that database.
+- **4. Service-Specific Roles:** For each service, roles are created in the format `svc_<name>` and are granted the necessary writer roles for the databases used by each service.
 
 ### Best Practices
 
