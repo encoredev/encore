@@ -405,6 +405,7 @@ async fn read_chunk_async<R: AsyncRead + Unpin + ?Sized>(reader: &mut R) -> std:
     Ok(Chunk::Part(buf))
 }
 
+#[allow(clippy::large_enum_variant)]
 enum UploadMultipartResult {
     CompleteSuccess {
         total_size: u64,

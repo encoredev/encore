@@ -131,10 +131,10 @@ impl objects::BucketImpl for Bucket {
                             // Are we close to being done? If so, adjust the max_results
                             // to avoid over-fetching.
                             if let Some(limit) = options.limit {
-                                let remaining = (limit - total_seen).max(0);
-                                if remaining == 0 {
+                                if total_seen >= limit {
                                     break 'PageLoop;
                                 }
+                                let remaining = limit - total_seen;
                                 req.max_results = Some(remaining.min(DEFAULT_MAX_RESULTS) as i32);
                             }
 
