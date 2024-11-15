@@ -403,6 +403,7 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 			OpTracker:   tracker,
 			Experiments: expSet,
 			WorkingDir:  r.Params.WorkingDir,
+			Environ:     r.Params.Environ,
 		})
 		if err != nil {
 			return errors.Wrap(err, "compile error")
