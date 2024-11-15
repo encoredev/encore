@@ -1,0 +1,198 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/extends.ts
+---
+{
+    "Foo": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Union(
+                        [
+                            Basic(
+                                String,
+                            ),
+                            Basic(
+                                Number,
+                            ),
+                            Basic(
+                                Null,
+                            ),
+                        ],
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optional",
+                    ),
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Bar": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Union(
+                        [
+                            Basic(
+                                String,
+                            ),
+                            Basic(
+                                Null,
+                            ),
+                        ],
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optional",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "moo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Generic": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Union(
+                        [
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            Basic(
+                                Null,
+                            ),
+                        ],
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "ExtendGeneric": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Union(
+                        [
+                            Union(
+                                [
+                                    Basic(
+                                        String,
+                                    ),
+                                    Basic(
+                                        Number,
+                                    ),
+                                ],
+                            ),
+                            Basic(
+                                Null,
+                            ),
+                        ],
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "MergeGeneric": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Union(
+                        [
+                            Literal(
+                                Number(
+                                    5.0,
+                                ),
+                            ),
+                            Basic(
+                                Null,
+                            ),
+                        ],
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

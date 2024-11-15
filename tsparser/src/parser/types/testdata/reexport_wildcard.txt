@@ -1,0 +1,10 @@
+export { foo } from "./foo";
+
+-- foo.ts --
+export * from "./bar";
+
+-- bar.ts --
+export const foo = "foo";
+export interface bar {
+    num: number;
+}

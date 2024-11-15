@@ -100,7 +100,8 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 	var svcDeps = map[string]struct{}{}
 	pkgs := fns.ToMap(md.Pkgs, (*meta.Package).GetRelPath)
 
-	// Add dependencies for all outbound RPCs for our hosted services.
+	// Add dependencies for all outbound RPCs for our hosted services
+	// and collect all required secrets.
 	for _, p := range md.Pkgs {
 		if p.ServiceName == "" {
 			secrets = append(secrets, p.Secrets...)

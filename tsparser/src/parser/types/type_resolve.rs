@@ -14,6 +14,7 @@ use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
 use crate::parser::types::Object;
 use crate::parser::{module_loader, Range};
+use crate::span_err::ErrReporter;
 
 use super::resolved::{Resolved, Resolved::*};
 use super::typ::*;
@@ -526,46 +527,49 @@ impl<'a> Ctx<'a> {
     }
 
     fn type_ref(&self, typ: &ast::TsTypeRef) -> Type {
-        let ident: &ast::Ident = match &typ.type_name {
-            ast::TsEntityName::Ident(i) => i,
-            ast::TsEntityName::TsQualifiedName(_qn) => {
-                HANDLER
-                    .with(|handler| handler.span_err(typ.span, "qualified name not yet supported"));
-                return Type::Basic(Basic::Never);
-            }
-        };
+        let obj = match &typ.type_name {
+            ast::TsEntityName::Ident(ident) => {
+                // Is this a reference to a type parameter?
+                let type_param = self
+                    .type_params
+                    .iter()
+                    .enumerate()
+                    .find(|tp| tp.1.name.to_id() == ident.to_id())
+                    .map(|tp| (tp.0, *tp.1));
+                if let Some((idx, type_param)) = type_param {
+                    return if let Some(type_arg) = self.type_args.get(idx) {
+                        type_arg.clone()
+                    } else {
+                        let constraint = type_param.constraint.as_ref().map(|c| self.btyp(c));
+                        Type::Generic(Generic::TypeParam(TypeParam { idx, constraint }))
+                    };
+                }
 
-        // Is this a reference to a type parameter?
-        let type_param = self
-            .type_params
-            .iter()
-            .enumerate()
-            .find(|tp| tp.1.name.to_id() == ident.to_id())
-            .map(|tp| (tp.0, *tp.1));
-        if let Some((idx, type_param)) = type_param {
-            return if let Some(type_arg) = self.type_args.get(idx) {
-                type_arg.clone()
-            } else {
-                let constraint = type_param.constraint.as_ref().map(|c| self.btyp(c));
-                Type::Generic(Generic::TypeParam(TypeParam { idx, constraint }))
-            };
-        }
+                // Otherwise, is this a reference to the current mapped 'key' type?
+                if let Some(mapped_type_ctx) = &self.mapped_key_id {
+                    if ident.to_id() == *mapped_type_ctx {
+                        // Do we have a mapped key type?
+                        return if let Some(mapped_key_type) = self.mapped_key_type {
+                            mapped_key_type.clone()
+                        } else {
+                            Type::Generic(Generic::MappedKeyType)
+                        };
+                    }
+                }
 
-        // Otherwise, is this a reference to the current mapped 'key' type?
-        if let Some(mapped_type_ctx) = &self.mapped_key_id {
-            if ident.to_id() == *mapped_type_ctx {
-                // Do we have a mapped key type?
-                return if let Some(mapped_key_type) = self.mapped_key_type {
-                    mapped_key_type.clone()
-                } else {
-                    Type::Generic(Generic::MappedKeyType)
+                let Some(obj) = self.ident_obj(ident) else {
+                    HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
+                    return Type::Basic(Basic::Never);
                 };
+                obj
             }
-        }
-
-        let Some(obj) = self.ident_obj(ident) else {
-            HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
-            return Type::Basic(Basic::Never);
+            ast::TsEntityName::TsQualifiedName(qn) => {
+                let Some(obj) = self.qualified_name_obj(qn) else {
+                    HANDLER.with(|handler| handler.span_err(qn.span(), "unknown qualified name"));
+                    return Type::Basic(Basic::Never);
+                };
+                obj
+            }
         };
 
         // Is this a reference to the built-in 'Date' class?
@@ -597,16 +601,77 @@ impl<'a> Ctx<'a> {
                 Type::Named(Named::new(obj, type_arguments))
             }
             ObjectKind::Var(_) | ObjectKind::Using(_) | ObjectKind::Func(_) => {
-                HANDLER.with(|handler| handler.span_err(ident.span, "value used as type"));
+                HANDLER.with(|handler| handler.span_err(typ.span, "value used as type"));
                 Type::Basic(Basic::Never)
             }
             ObjectKind::Module(_) => {
-                HANDLER.with(|handler| handler.span_err(ident.span, "module used as type"));
+                HANDLER.with(|handler| handler.span_err(typ.span, "module used as type"));
                 Type::Basic(Basic::Never)
             }
             ObjectKind::Namespace(_) => {
-                HANDLER.with(|handler| handler.span_err(ident.span, "namespace used as type"));
+                HANDLER.with(|handler| handler.span_err(typ.span, "namespace used as type"));
                 Type::Basic(Basic::Never)
+            }
+        }
+    }
+
+    fn qualified_name_obj(&self, qn: &ast::TsQualifiedName) -> Option<Rc<Object>> {
+        let obj = match &qn.left {
+            ast::TsEntityName::Ident(ident) => self.ident_obj(ident)?,
+            ast::TsEntityName::TsQualifiedName(qn) => self.qualified_name_obj(qn)?,
+        };
+
+        let name = qn.right.sym.as_str();
+        match &obj.kind {
+            ObjectKind::TypeName(_) => {
+                qn.right
+                    .span
+                    .err("cannot yet resolve qualified name on type");
+                None
+            }
+            ObjectKind::Enum(_) => {
+                qn.right
+                    .span
+                    .err("cannot yet resolve qualified name on enum");
+                None
+            }
+            ObjectKind::Var(_) => {
+                qn.right
+                    .span
+                    .err("cannot yet resolve qualified name on variable");
+                None
+            }
+            ObjectKind::Using(_) => {
+                qn.right
+                    .span
+                    .err("cannot yet resolve qualified name on using");
+                None
+            }
+            ObjectKind::Func(_) => {
+                qn.right
+                    .span
+                    .err("cannot yet resolve qualified name on function");
+                None
+            }
+            ObjectKind::Class(_) => {
+                qn.right
+                    .span
+                    .err("cannot yet resolve qualified name on class");
+                None
+            }
+            ObjectKind::Module(module) => {
+                if name == "default" {
+                    module.data.default_export.clone()
+                } else {
+                    module.data.named_exports.get(name).cloned()
+                }
+            }
+            ObjectKind::Namespace(ns) => {
+                if name == "default" {
+                    ns.data.default_export.clone()
+                } else {
+                    ns.data.named_exports.get(name).cloned()
+                }
             }
         }
     }
@@ -724,18 +789,50 @@ impl<'a> Ctx<'a> {
     }
 
     fn interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
-        if !decl.extends.is_empty() {
-            HANDLER.with(|handler| handler.span_err(decl.span, "extends not yet supported"));
-            return Type::Basic(Basic::Never);
-        } else if decl.type_params.is_some() {
-            HANDLER.with(|handler| handler.span_err(decl.span, "type params not yet supported"));
-            return Type::Basic(Basic::Never);
+        if let Some(type_params) = &decl.type_params {
+            let args: Vec<_> = type_params.params.iter().collect();
+            self.clone()
+                .with_type_params(&args[..])
+                .do_interface_decl(decl)
+        } else {
+            self.do_interface_decl(decl)
         }
+    }
 
-        self.typ(&ast::TsType::TsTypeLit(ast::TsTypeLit {
+    fn do_interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
+        let base = self.typ(&ast::TsType::TsTypeLit(ast::TsTypeLit {
             span: decl.span,
             members: decl.body.body.clone(),
-        }))
+        }));
+        if decl.extends.is_empty() {
+            return base;
+        }
+
+        // We have an extends clause. Compute the intersection.
+        let mut result = Owned(base);
+        for extends in &decl.extends {
+            // Resolve the extend type, using its type arguments if necessary.
+            let t = if let Some(type_args) = extends.type_args.as_ref() {
+                let Some(obj) = self.resolve_obj(&extends.expr) else {
+                    HANDLER.with(|handler| {
+                        handler.span_err(extends.span, "extends with non-ident type")
+                    });
+                    continue;
+                };
+
+                // We have to manually construct a Named here, because the type arguments
+                // are not provided alongside the type expression.
+                let types: Vec<_> = type_args.params.iter().map(|t| self.typ(t)).collect();
+                let named = Named::new(obj, types);
+                let typ = Type::Named(named);
+                self.concrete(&typ).into_owned()
+            } else {
+                self.expr(&extends.expr)
+            };
+
+            result = intersect(self, result, Owned(t));
+        }
+        result.into_owned()
     }
 
     fn expr(&self, expr: &ast::Expr) -> Type {
