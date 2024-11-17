@@ -607,11 +607,14 @@ fn validation(expr: &validation::Expr) -> schema::ValidationExpr {
                 rule: Some(rule(r)),
             }),
             Expr::And(exprs) => VE::And(schema::validation_expr::And {
-                exprs: exprs.iter().map(|e| validation(e)).collect(),
+                exprs: exprs.iter().map(validation).collect(),
             }),
             Expr::Or(exprs) => VE::Or(schema::validation_expr::Or {
-                exprs: exprs.iter().map(|e| validation(e)).collect(),
+                exprs: exprs.iter().map(validation).collect(),
             }),
+            Expr::Not(expr) => VE::Not(Box::new(schema::validation_expr::Not {
+                expr: Some(Box::new(validation(expr))),
+            })),
         }),
     }
 }

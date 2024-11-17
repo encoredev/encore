@@ -45,6 +45,7 @@ message ValidationExpr {
     ValidationRule rule = 1;
     And            and  = 2;
     Or             or   = 3;
+    Not            not  = 4;
   }
 
   message And {
@@ -53,6 +54,10 @@ message ValidationExpr {
 
   message Or {
     repeated ValidationExpr exprs = 1;
+  }
+
+  message Not {
+    ValidationExpr expr = 1;
   }
 }
 

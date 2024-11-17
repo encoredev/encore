@@ -2,6 +2,7 @@ use crate::parser::types::type_resolve::Ctx;
 use crate::parser::types::{object, validation, Object, ResolveState};
 use crate::parser::Range;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -399,6 +400,10 @@ pub enum Generic {
 
     // An intersection type.
     Intersection(Intersection),
+
+    /// A reference to an inferred type parameter,
+    /// referencing its index in infer_type_params.
+    Inferred(usize),
 }
 
 #[derive(Debug, Clone, Hash, Serialize)]
@@ -673,6 +678,239 @@ impl Type {
             }
 
             (a, b) => Some(a.identical(b)),
+        }
+    }
+}
+
+pub enum Extends<'a> {
+    Yes(Vec<(usize, Cow<'a, Type>)>),
+    No,
+    Unknown,
+}
+
+impl<'a> Extends<'a> {
+    pub fn into_static(self) -> Extends<'static> {
+        match self {
+            Extends::Yes(v) => Extends::Yes(
+                v.into_iter()
+                    .map(|(idx, t)| (idx, Cow::Owned(t.into_owned())))
+                    .collect(),
+            ),
+            Extends::No => Extends::No,
+            Extends::Unknown => Extends::Unknown,
+        }
+    }
+}
+
+impl Type {
+    /// Reports whether `self` is assignable to `other`.
+    /// If the result is indeterminate due to an unresolved type, it reports None.
+    pub fn extends<'a>(&'a self, state: &'_ ResolveState, other: &'_ Type) -> Extends<'a> {
+        use Extends::*;
+
+        fn empty_yes_or_no(val: bool) -> Extends<'static> {
+            if val {
+                Yes(vec![])
+            } else {
+                No
+            }
+        }
+
+        match (self, other) {
+            (this, Type::Generic(Generic::Inferred(idx))) => Yes(vec![(*idx, Cow::Borrowed(this))]),
+
+            (_, Type::Basic(Basic::Any)) => Yes(vec![]),
+            (_, Type::Basic(Basic::Never)) => No,
+            (Type::Generic(_), _) | (_, Type::Generic(_)) => Unknown,
+
+            // Unwrap named types.
+            (Type::Named(a), b) => {
+                let a = a.underlying(state);
+                a.extends(state, b).into_static()
+            }
+            (a, Type::Named(b)) => {
+                let b = b.underlying(state);
+                a.extends(state, &b)
+            }
+
+            (Type::Basic(a), Type::Basic(b)) => empty_yes_or_no(a == b),
+            (Type::Literal(a), Type::Basic(b)) => empty_yes_or_no(matches!(
+                (a, b),
+                (_, Basic::Any)
+                    | (Literal::String(_), Basic::String)
+                    | (Literal::Boolean(_), Basic::Boolean)
+                    | (Literal::Number(_), Basic::Number)
+                    | (Literal::BigInt(_), Basic::BigInt)
+            )),
+
+            (Type::Validation((inner, _)), _) | (_, Type::Validation((inner, _))) => {
+                inner.extends(state, other).into_static()
+            }
+
+            (this, Type::Optional(other)) => {
+                if matches!(this, Type::Basic(Basic::Undefined)) {
+                    Yes(vec![])
+                } else {
+                    this.extends(state, other)
+                }
+            }
+
+            (Type::Tuple(this), other) => match other {
+                Type::Tuple(other) => {
+                    if this.len() != other.len() {
+                        return No;
+                    }
+
+                    let mut found_unknown = false;
+                    let mut inferred = vec![];
+                    for (this, other) in this.iter().zip(other) {
+                        match this.extends(state, other) {
+                            Yes(inf) => {
+                                inferred.extend(inf);
+                            }
+                            No => return No,
+                            Unknown => found_unknown = true,
+                        }
+                    }
+                    if found_unknown {
+                        Unknown
+                    } else {
+                        Yes(inferred)
+                    }
+                }
+
+                Type::Array(other) => {
+                    // Ensure every element in `this` is a subtype of `other`.
+                    let mut inferred = vec![];
+                    for this in this {
+                        match this.extends(state, other) {
+                            Yes(infer) => inferred.extend(infer),
+                            No => return No,
+                            Unknown => return Unknown,
+                        }
+                    }
+
+                    // Since `this` is a tuple but `other` is a single array type,
+                    // it's possible we'll have multiple inferred types for the same index.
+                    // Group them by index and turn them into a union type if necessary.
+                    inferred.sort_by_key(|(idx, _)| *idx);
+
+                    let inferred = inferred
+                        .into_iter()
+                        .chunk_by(|(idx, _)| *idx)
+                        .into_iter()
+                        .map(|(idx, types)| {
+                            let types = types.map(|(_, t)| t.into_owned()).collect();
+                            let typ = simplify_union(types);
+                            (idx, Cow::Owned(typ))
+                        })
+                        .collect();
+
+                    Yes(inferred)
+                }
+                _ => No,
+            },
+
+            (Type::Enum(a), other) => {
+                let this_fields: HashMap<&str, &EnumValue> =
+                    HashMap::from_iter(a.members.iter().map(|m| (m.name.as_str(), &m.value)));
+                match other {
+                    Type::Enum(other) => {
+                        // Does every field in `other` exist in `this_fields`?
+                        for mem in &other.members {
+                            if let Some(this_field) = this_fields.get(mem.name.as_str()) {
+                                if **this_field == mem.value {
+                                    continue;
+                                }
+                            }
+                            return No;
+                        }
+                        Yes(vec![])
+                    }
+
+                    Type::Interface(other) => {
+                        // Does every field in `other` exist in `iface`?
+                        let mut found_none = false;
+                        for field in &other.fields {
+                            if let FieldName::String(name) = &field.name {
+                                if let Some(this_field) = this_fields.get(name.as_str()) {
+                                    let this_typ = (*this_field).clone().to_type();
+                                    match this_typ.assignable(state, &field.typ) {
+                                        Some(true) => continue,
+                                        Some(false) => return No,
+                                        None => found_none = true,
+                                    }
+                                }
+                            }
+                        }
+                        if found_none {
+                            Unknown
+                        } else {
+                            Yes(vec![])
+                        }
+                    }
+                    _ => No,
+                }
+            }
+
+            (Type::Interface(iface), other) => {
+                #[allow(clippy::mutable_key_type)]
+                let this_fields: HashMap<&FieldName, &InterfaceField> =
+                    HashMap::from_iter(iface.fields.iter().map(|f| (&f.name, f)));
+                match other {
+                    Type::Interface(other) => {
+                        // Does every field in `other` exist in `iface`?
+                        let mut found_unknown = false;
+                        let mut inferred = vec![];
+                        for field in &other.fields {
+                            if let Some(this_field) = this_fields.get(&field.name) {
+                                match this_field.typ.extends(state, &field.typ) {
+                                    Yes(inf) => inferred.extend(inf),
+                                    No => return No,
+                                    Unknown => found_unknown = true,
+                                }
+                            } else {
+                                return No;
+                            }
+                        }
+                        if found_unknown {
+                            Unknown
+                        } else {
+                            Yes(inferred)
+                        }
+                    }
+                    _ => No,
+                }
+            }
+
+            (this, Type::Union(other)) => {
+                // Is every element in `this` assignable to `other`?
+                let mut found_yes = false;
+                let mut found_unknown = false;
+                let mut inferred = Vec::new();
+                for t in this.iter_unions() {
+                    for o in other {
+                        match t.extends(state, o) {
+                            Yes(inf) => {
+                                found_yes = true;
+                                inferred.extend(inf);
+                            }
+                            No => {}
+                            Unknown => found_unknown = true,
+                        }
+                    }
+                }
+
+                if found_yes {
+                    Yes(inferred)
+                } else if found_unknown {
+                    Unknown
+                } else {
+                    No
+                }
+            }
+
+            (a, b) => empty_yes_or_no(a.identical(b)),
         }
     }
 }
