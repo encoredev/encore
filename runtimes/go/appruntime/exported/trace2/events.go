@@ -16,30 +16,40 @@ import (
 type EventType byte
 
 const (
-	RequestSpanStart       EventType = 0x01
-	RequestSpanEnd         EventType = 0x02
-	AuthSpanStart          EventType = 0x03
-	AuthSpanEnd            EventType = 0x04
-	PubsubMessageSpanStart EventType = 0x05
-	PubsubMessageSpanEnd   EventType = 0x06
-	DBTransactionStart     EventType = 0x07
-	DBTransactionEnd       EventType = 0x08
-	DBQueryStart           EventType = 0x09
-	DBQueryEnd             EventType = 0x0A
-	RPCCallStart           EventType = 0x0B
-	RPCCallEnd             EventType = 0x0C
-	HTTPCallStart          EventType = 0x0D
-	HTTPCallEnd            EventType = 0x0E
-	LogMessage             EventType = 0x0F
-	PubsubPublishStart     EventType = 0x10
-	PubsubPublishEnd       EventType = 0x11
-	ServiceInitStart       EventType = 0x12
-	ServiceInitEnd         EventType = 0x13
-	CacheCallStart         EventType = 0x14
-	CacheCallEnd           EventType = 0x15
-	BodyStream             EventType = 0x16
-	TestStart              EventType = 0x17
-	TestEnd                EventType = 0x18
+	RequestSpanStart          EventType = 0x01
+	RequestSpanEnd            EventType = 0x02
+	AuthSpanStart             EventType = 0x03
+	AuthSpanEnd               EventType = 0x04
+	PubsubMessageSpanStart    EventType = 0x05
+	PubsubMessageSpanEnd      EventType = 0x06
+	DBTransactionStart        EventType = 0x07
+	DBTransactionEnd          EventType = 0x08
+	DBQueryStart              EventType = 0x09
+	DBQueryEnd                EventType = 0x0A
+	RPCCallStart              EventType = 0x0B
+	RPCCallEnd                EventType = 0x0C
+	HTTPCallStart             EventType = 0x0D
+	HTTPCallEnd               EventType = 0x0E
+	LogMessage                EventType = 0x0F
+	PubsubPublishStart        EventType = 0x10
+	PubsubPublishEnd          EventType = 0x11
+	ServiceInitStart          EventType = 0x12
+	ServiceInitEnd            EventType = 0x13
+	CacheCallStart            EventType = 0x14
+	CacheCallEnd              EventType = 0x15
+	BodyStream                EventType = 0x16
+	TestStart                 EventType = 0x17
+	TestEnd                   EventType = 0x18
+	BucketObjectUploadStart   EventType = 0x19
+	BucketObjectUploadEnd     EventType = 0x1A
+	BucketObjectDownloadStart EventType = 0x1B
+	BucketObjectDownloadEnd   EventType = 0x1C
+	BucketObjectGetAttrsStart EventType = 0x1D
+	BucketObjectGetAttrsEnd   EventType = 0x1E
+	BucketListObjectsStart    EventType = 0x1F
+	BucketListObjectsEnd      EventType = 0x20
+	BucketDeleteObjectsStart  EventType = 0x21
+	BucketDeleteObjectsEnd    EventType = 0x22
 )
 
 func (te EventType) String() string {
@@ -92,6 +102,27 @@ func (te EventType) String() string {
 		return "TestStart"
 	case TestEnd:
 		return "TestEnd"
+	case BucketObjectUploadStart:
+		return "BucketObjectUploadStart"
+	case BucketObjectUploadEnd:
+		return "BucketObjectUploadEnd"
+	case BucketObjectDownloadStart:
+		return "BucketObjectDownloadStart"
+	case BucketObjectDownloadEnd:
+		return "BucketObjectDownloadEnd"
+	case BucketObjectGetAttrsStart:
+		return "BucketObjectGetAttrsStart"
+	case BucketObjectGetAttrsEnd:
+		return "BucketObjectGetAttrsEnd"
+	case BucketListObjectsStart:
+		return "BucketListObjectsStart"
+	case BucketListObjectsEnd:
+		return "BucketListObjectsEnd"
+	case BucketDeleteObjectsStart:
+		return "BucketDeleteObjectsStart"
+	case BucketDeleteObjectsEnd:
+		return "BucketDeleteObjectsEnd"
+
 	default:
 		return fmt.Sprintf("Unknown(%x)", byte(te))
 	}
@@ -704,6 +735,298 @@ func (l *Log) BodyStream(p BodyStreamParams) {
 
 	l.Add(Event{
 		Type:    BodyStream,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketObjectUploadStartParams struct {
+	EventParams
+	Bucket string
+	Object string
+	Attrs  BucketObjectAttributes
+	Stack  stack.Stack
+}
+
+type BucketObjectAttributes struct {
+	Size        *uint64
+	Version     *string
+	ETag        *string
+	ContentType *string
+}
+
+func (l *Log) BucketObjectUploadStart(p BucketObjectUploadStartParams) EventID {
+	tb := l.newEvent(eventData{
+		Common:     p.EventParams,
+		ExtraSpace: 64,
+	})
+
+	tb.String(p.Bucket)
+	tb.String(p.Object)
+	tb.bucketObjectAttrs(&p.Attrs)
+	tb.Stack(p.Stack)
+
+	return l.Add(Event{
+		Type:    BucketObjectUploadStart,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+func (tb *EventBuffer) bucketObjectAttrs(attrs *BucketObjectAttributes) {
+	tb.OptUVarint(attrs.Size)
+	tb.OptString(attrs.Version)
+	tb.OptString(attrs.ETag)
+	tb.OptString(attrs.ContentType)
+}
+
+type BucketObjectUploadEndParams struct {
+	EventParams
+	StartID EventID
+
+	Err error
+	// Set iff err == nil
+	Size    uint64
+	Version *string
+}
+
+func (l *Log) BucketObjectUploadEnd(p BucketObjectUploadEndParams) {
+	tb := l.newEvent(eventData{
+		Common:             p.EventParams,
+		CorrelationEventID: p.StartID,
+		ExtraSpace:         64,
+	})
+
+	tb.UVarint(p.Size)
+	tb.OptString(p.Version)
+	tb.ErrWithStack(p.Err)
+
+	l.Add(Event{
+		Type:    BucketObjectUploadEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketObjectDownloadStartParams struct {
+	EventParams
+	Bucket  string
+	Object  string
+	Version *string
+	Stack   stack.Stack
+}
+
+func (l *Log) BucketObjectDownloadStart(p BucketObjectDownloadStartParams) EventID {
+	tb := l.newEvent(eventData{
+		Common:     p.EventParams,
+		ExtraSpace: 64,
+	})
+
+	tb.String(p.Bucket)
+	tb.String(p.Object)
+	tb.OptString(p.Version)
+	tb.Stack(p.Stack)
+
+	return l.Add(Event{
+		Type:    BucketObjectDownloadStart,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketObjectDownloadEndParams struct {
+	EventParams
+	StartID EventID
+
+	Err error
+	// Set iff err == nil
+	Size uint64
+}
+
+func (l *Log) BucketObjectDownloadEnd(p BucketObjectDownloadEndParams) {
+	tb := l.newEvent(eventData{
+		Common:             p.EventParams,
+		CorrelationEventID: p.StartID,
+		ExtraSpace:         4 + 4 + 8,
+	})
+
+	tb.UVarint(p.Size)
+	tb.ErrWithStack(p.Err)
+
+	l.Add(Event{
+		Type:    BucketObjectDownloadEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketObjectGetAttrsStartParams struct {
+	EventParams
+	Bucket  string
+	Object  string
+	Version *string
+	Stack   stack.Stack
+}
+
+func (l *Log) BucketObjectGetAttrsStart(p BucketObjectGetAttrsStartParams) EventID {
+	tb := l.newEvent(eventData{
+		Common:     p.EventParams,
+		ExtraSpace: 64,
+	})
+
+	tb.String(p.Bucket)
+	tb.String(p.Object)
+	tb.OptString(p.Version)
+	tb.Stack(p.Stack)
+
+	return l.Add(Event{
+		Type:    BucketObjectGetAttrsStart,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketObjectGetAttrsEndParams struct {
+	EventParams
+	StartID EventID
+
+	Err error
+	// Set iff err == nil
+	Attrs *BucketObjectAttributes
+}
+
+func (l *Log) BucketObjectGetAttrsEnd(p BucketObjectGetAttrsEndParams) {
+	tb := l.newEvent(eventData{
+		Common:             p.EventParams,
+		CorrelationEventID: p.StartID,
+		ExtraSpace:         4 + 4 + 8,
+	})
+
+	tb.ErrWithStack(p.Err)
+	if p.Err == nil {
+		tb.bucketObjectAttrs(p.Attrs)
+	}
+
+	l.Add(Event{
+		Type:    BucketObjectGetAttrsEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketListObjectsStartParams struct {
+	EventParams
+	Bucket string
+	Prefix *string
+	Stack  stack.Stack
+}
+
+func (l *Log) BucketListObjectsStart(p BucketListObjectsStartParams) EventID {
+	tb := l.newEvent(eventData{
+		Common:     p.EventParams,
+		ExtraSpace: 64,
+	})
+
+	tb.String(p.Bucket)
+	tb.OptString(p.Prefix)
+	tb.Stack(p.Stack)
+
+	return l.Add(Event{
+		Type:    BucketListObjectsStart,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketListObjectsEndParams struct {
+	EventParams
+	StartID EventID
+
+	Err error
+	// Set iff err == nil
+	Observed uint64
+	HasMore  bool
+}
+
+func (l *Log) BucketListObjectsEnd(p BucketListObjectsEndParams) {
+	tb := l.newEvent(eventData{
+		Common:             p.EventParams,
+		CorrelationEventID: p.StartID,
+		ExtraSpace:         4 + 4 + 8,
+	})
+
+	tb.ErrWithStack(p.Err)
+	tb.UVarint(p.Observed)
+	tb.Bool(p.HasMore)
+
+	l.Add(Event{
+		Type:    BucketListObjectsEnd,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketDeleteObjectsStartParams struct {
+	EventParams
+	Bucket  string
+	Objects []BucketDeleteObjectsEntry
+	Stack   stack.Stack
+}
+
+type BucketDeleteObjectsEntry struct {
+	Object  string
+	Version *string
+}
+
+func (l *Log) BucketDeleteObjectsStart(p BucketDeleteObjectsStartParams) EventID {
+	tb := l.newEvent(eventData{
+		Common:     p.EventParams,
+		ExtraSpace: 64,
+	})
+
+	tb.String(p.Bucket)
+	tb.Stack(p.Stack)
+	tb.UVarint(uint64(len(p.Objects)))
+	for _, e := range p.Objects {
+		tb.String(e.Object)
+		tb.OptString(e.Version)
+	}
+
+	return l.Add(Event{
+		Type:    BucketDeleteObjectsStart,
+		TraceID: p.TraceID,
+		SpanID:  p.SpanID,
+		Data:    tb,
+	})
+}
+
+type BucketDeleteObjectsEndParams struct {
+	EventParams
+	StartID EventID
+
+	Err error
+}
+
+func (l *Log) BucketDeleteObjectsEnd(p BucketDeleteObjectsEndParams) {
+	tb := l.newEvent(eventData{
+		Common:             p.EventParams,
+		CorrelationEventID: p.StartID,
+		ExtraSpace:         4 + 4 + 8,
+	})
+
+	tb.ErrWithStack(p.Err)
+
+	l.Add(Event{
+		Type:    BucketDeleteObjectsEnd,
 		TraceID: p.TraceID,
 		SpanID:  p.SpanID,
 		Data:    tb,

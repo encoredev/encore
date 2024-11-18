@@ -54,6 +54,7 @@ impl Borrow<String> for EncoreName {
         &self.0
     }
 }
+
 impl Borrow<String> for &EncoreName {
     fn borrow(&self) -> &String {
         &self.0
@@ -66,8 +67,38 @@ impl Display for EncoreName {
     }
 }
 
+impl From<EncoreName> for String {
+    fn from(value: EncoreName) -> Self {
+        value.0
+    }
+}
+
+impl From<&EncoreName> for String {
+    fn from(value: &EncoreName) -> Self {
+        value.0.clone()
+    }
+}
+
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub struct CloudName(String);
+
+impl Borrow<String> for &CloudName {
+    fn borrow(&self) -> &String {
+        &self.0
+    }
+}
+
+impl Borrow<String> for CloudName {
+    fn borrow(&self) -> &String {
+        &self.0
+    }
+}
+
+impl AsRef<str> for CloudName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
 
 impl Deref for CloudName {
     type Target = str;
@@ -91,6 +122,12 @@ impl From<String> for CloudName {
 impl From<CloudName> for String {
     fn from(val: CloudName) -> Self {
         val.0
+    }
+}
+
+impl From<&CloudName> for String {
+    fn from(value: &CloudName) -> Self {
+        value.0.clone()
     }
 }
 

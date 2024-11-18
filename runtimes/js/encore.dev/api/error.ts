@@ -105,17 +105,9 @@ export class APIError extends Error {
       configurable: true
     });
 
-    // fix the prototype chain
-    if ((Object as any).setPrototypeOf == undefined) {
-      (this as any).__proto__ = APIError.prototype;
-    } else {
-      Object.setPrototypeOf(this, APIError.prototype);
-    }
-
-    // capture a stack trace
-    if ((Error as any).captureStackTrace !== undefined) {
-      (Error as any).captureStackTrace(this, this.constructor);
-    }
+    // Fix the prototype chain, capture stack trace.
+    Object.setPrototypeOf(this, APIError.prototype);
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 

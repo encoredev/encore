@@ -97,6 +97,16 @@ Here's an example configuration file you can use.
         }
       }
     }
+  ],
+  "object_storage": [
+    {
+      "type": "gcs",
+      "buckets": {
+          "my-gcs-bucket": {
+            "name": "my-gcs-bucket",
+          }
+        }
+    }
   ]
 }
 ```
@@ -425,5 +435,50 @@ The configuration for each provider is different. Below are examples for each pr
   ]
 }
 ```
+
+### 10. Object Storage Configuration
+Encore currently supports the following object storage providers:
+- `gcs` for [Google Cloud Storage](https://cloud.google.com/storage)
+- `s3` for [AWS S3](https://aws.amazon.com/s3/)
+
+#### 10.1. GCS Configuration
+
+```json
+{
+  "object_storage": [
+    {
+      "type": "gcs",
+      "buckets": {
+        "my-gcs-bucket": {
+          "name": "my-gcs-bucket"
+        }
+      }
+    }
+  ]
+}
+```
+
+- `name`: The full name of the GCS bucket.
+
+#### 10.2. S3 Configuration
+
+```json
+{
+  "object_storage": [
+    {
+      "type": "s3",
+      "region": "us-east-1",
+      "buckets": {
+        "my-s3-bucket": {
+          "name": "my-s3-bucket"
+        }
+      }
+    }
+  ]
+}
+```
+
+- `region`: The AWS region where the bucket is located.
+- `name`: The full name of the S3 bucket.
 
 This guide covers typical infrastructure configurations. Adjust according to your specific requirements to optimize your Encore app's infrastructure setup.

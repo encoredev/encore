@@ -148,7 +148,7 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		return nil, errors.Wrap(err, "cache metadata")
 	}
 
-	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, params.NS, nil, mgr.DBProxyPort, true)
+	rm := infra.NewResourceManager(params.App, mgr.ClusterMgr, mgr.ObjectsMgr, params.NS, nil, mgr.DBProxyPort, true)
 
 	jobs := optracker.NewAsyncBuildJobs(ctx, params.App.PlatformOrLocalID(), nil)
 	rm.StartRequiredServices(jobs, parse.Meta)

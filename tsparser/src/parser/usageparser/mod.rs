@@ -217,6 +217,7 @@ pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
     PublishTopic(infra::pubsub_topic::PublishUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
+    Bucket(infra::objects::BucketUsage),
 }
 
 pub struct ResolveUsageData<'a> {
@@ -253,6 +254,11 @@ impl UsageResolver<'_> {
                 }
                 Resource::SQLDatabase(db) => {
                     if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone())? {
+                        usages.push(u)
+                    }
+                }
+                Resource::Bucket(bkt) => {
+                    if let Some(u) = infra::objects::resolve_bucket_usage(&data, bkt.clone())? {
                         usages.push(u)
                     }
                 }

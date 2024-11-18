@@ -14,6 +14,7 @@ import (
 	"encore.dev/appruntime/exported/config"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
+	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/pubsub"
 	"encr.dev/cli/daemon/redis"
 	"encr.dev/cli/daemon/sqldb"
@@ -25,9 +26,10 @@ import (
 type Type string
 
 const (
-	PubSub Type = "pubsub"
-	Cache  Type = "cache"
-	SQLDB  Type = "sqldb"
+	PubSub  Type = "pubsub"
+	Cache   Type = "cache"
+	SQLDB   Type = "sqldb"
+	Objects Type = "objects"
 )
 
 const (
@@ -46,6 +48,7 @@ type ResourceManager struct {
 	app         *apps.Instance
 	dbProxyPort int
 	sqlMgr      *sqldb.ClusterManager
+	objectsMgr  *objects.ClusterManager
 	ns          *namespace.Namespace
 	environ     environ.Environ
 	log         zerolog.Logger
@@ -55,11 +58,12 @@ type ResourceManager struct {
 	servers map[Type]Resource
 }
 
-func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
+func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, objectsMgr *objects.ClusterManager, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
 	return &ResourceManager{
 		app:         app,
 		dbProxyPort: dbProxyPort,
 		sqlMgr:      sqlMgr,
+		objectsMgr:  objectsMgr,
 		ns:          ns,
 		environ:     environ,
 		forTests:    forTests,
@@ -98,6 +102,10 @@ func (rm *ResourceManager) StartRequiredServices(a *optracker.AsyncBuildJobs, md
 
 	if redis.IsUsed(md) && rm.GetRedis() == nil {
 		a.Go("Starting Redis server", true, 250*time.Millisecond, rm.StartRedis)
+	}
+
+	if objects.IsUsed(md) && rm.GetObjects() == nil {
+		a.Go("Starting Object Storage server", true, 250*time.Millisecond, rm.StartObjects(md))
 	}
 }
 
@@ -147,6 +155,47 @@ func (rm *ResourceManager) GetRedis() *redis.Server {
 
 	if srv, found := rm.servers[Cache]; found {
 		return srv.(*redis.Server)
+	}
+	return nil
+}
+
+// StartObjects starts an Object Storage server.
+func (rm *ResourceManager) StartObjects(md *meta.Data) func(context.Context) error {
+	return func(ctx context.Context) error {
+		var srv *objects.Server
+		if rm.forTests {
+			srv = objects.NewInMemoryServer()
+		} else {
+			if rm.sqlMgr == nil {
+				return fmt.Errorf("StartObjects: no Object Storage cluster manager provided")
+			}
+			baseDir, err := rm.objectsMgr.BaseDir(ctx, rm.ns)
+			if err != nil {
+				return err
+			}
+			srv = objects.NewDirServer(baseDir)
+		}
+
+		if err := srv.Initialize(md); err != nil {
+			return err
+		} else if err := srv.Start(); err != nil {
+			return err
+		}
+
+		rm.mutex.Lock()
+		rm.servers[Objects] = srv
+		rm.mutex.Unlock()
+		return nil
+	}
+}
+
+// GetObjects returns the Object Storage server if it is running otherwise it returns nil
+func (rm *ResourceManager) GetObjects() *objects.Server {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+
+	if srv, found := rm.servers[Objects]; found {
+		return srv.(*objects.Server)
 	}
 	return nil
 }
@@ -407,4 +456,18 @@ func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisSe
 	}
 
 	return srvCfg, dbCfg, nil
+}
+
+// BucketProviderConfig returns the bucket provider configuration.
+func (rm *ResourceManager) BucketProviderConfig() (config.BucketProvider, error) {
+	obj := rm.GetObjects()
+	if obj == nil {
+		return config.BucketProvider{}, errors.New("no object storage found")
+	}
+
+	return config.BucketProvider{
+		GCS: &config.GCSBucketProvider{
+			Endpoint: obj.Endpoint(),
+		},
+	}, nil
 }

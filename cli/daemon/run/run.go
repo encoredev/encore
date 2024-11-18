@@ -147,7 +147,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		ID:              GenID(),
 		App:             params.App,
 		NS:              params.NS,
-		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, params.NS, params.Environ, mgr.DBProxyPort, false),
+		ResourceManager: infra.NewResourceManager(params.App, mgr.ClusterMgr, mgr.ObjectsMgr, params.NS, params.Environ, mgr.DBProxyPort, false),
 		ListenAddr:      params.ListenAddr,
 		SvcProxy:        svcProxy,
 		log:             logger,

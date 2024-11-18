@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/modern-go/reflect2"
 )
@@ -46,6 +47,15 @@ func AnyNonZero[T comparable](v ...T) Predicate {
 			}
 		}
 		return errors.New("Must not be empty")
+	}
+}
+
+func OneOf[T comparable](v T, vals ...T) Predicate {
+	return func() error {
+		if !slices.Contains(vals, v) {
+			return errors.New("Must be one of: " + fmt.Sprint(vals))
+		}
+		return nil
 	}
 }
 

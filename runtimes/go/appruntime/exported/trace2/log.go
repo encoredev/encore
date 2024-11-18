@@ -284,6 +284,22 @@ func (tb *EventBuffer) EventID(id EventID) {
 	tb.UVarint(uint64(id))
 }
 
+func (tb *EventBuffer) OptString(s *string) {
+	if s != nil {
+		tb.String(*s)
+	} else {
+		tb.String("")
+	}
+}
+
+func (tb *EventBuffer) OptUVarint(i *uint64) {
+	if i != nil {
+		tb.UVarint(*i)
+	} else {
+		tb.UVarint(0)
+	}
+}
+
 func (tb *EventBuffer) Uint64(x uint64) {
 	tb.buf = append(tb.buf,
 		byte(x),

@@ -41,6 +41,7 @@ import (
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/engine/trace2/sqlite"
 	"encr.dev/cli/daemon/namespace"
+	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
@@ -105,6 +106,7 @@ type Daemon struct {
 	RunMgr     *run.Manager
 	NS         *namespace.Manager
 	ClusterMgr *sqldb.ClusterManager
+	ObjectsMgr *objects.ClusterManager
 	Trace      trace2.Store
 	Server     *daemon.Server
 
@@ -144,6 +146,7 @@ func (d *Daemon) init(ctx context.Context) {
 
 	d.NS = namespace.NewManager(d.EncoreDB)
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
+	d.ObjectsMgr = objects.NewClusterManager(d.NS)
 
 	d.Trace = sqlite.New(ctx, d.EncoreDB)
 	d.Secret = secret.New()
@@ -153,11 +156,13 @@ func (d *Daemon) init(ctx context.Context) {
 		DashBaseURL: fmt.Sprintf("http://%s", d.Dash.ClientAddr()),
 		Secret:      d.Secret,
 		ClusterMgr:  d.ClusterMgr,
+		ObjectsMgr:  d.ObjectsMgr,
 	}
 
 	// Register namespace deletion handlers.
 	d.NS.RegisterDeletionHandler(d.ClusterMgr)
 	d.NS.RegisterDeletionHandler(d.RunMgr)
+	d.NS.RegisterDeletionHandler(d.ObjectsMgr)
 
 	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret, d.NS)
 }

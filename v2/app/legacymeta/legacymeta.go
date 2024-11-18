@@ -3,6 +3,7 @@ package legacymeta
 import (
 	"cmp"
 	"fmt"
+	"go/token"
 	gotoken "go/token"
 	"slices"
 	"sort"
@@ -23,6 +24,7 @@ import (
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
 	"encr.dev/v2/parser/infra/sqldb"
@@ -322,6 +324,51 @@ func (b *builder) Build() *meta.Data {
 				topicMap[b.QualifiedName()] = topic
 			}
 			md.PubsubTopics = append(md.PubsubTopics, topic)
+
+		case *objects.Bucket:
+			bkt := &meta.Bucket{
+				Name:      r.Name,
+				Doc:       zeroNil(r.Doc),
+				Versioned: r.Versioned,
+			}
+			md.Buckets = append(md.Buckets, bkt)
+
+			permsBySvc := make(map[string][]objects.Perm)
+			addPerms := func(svcName string, perms ...objects.Perm) {
+				permsBySvc[svcName] = append(permsBySvc[svcName], perms...)
+			}
+
+			// Record all the permissions.
+			for _, u := range b.app.Parse.Usages(r) {
+				switch u := u.(type) {
+				case *objects.MethodUsage:
+					if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
+						addPerms(svc.Name, u.Perm)
+					}
+				case *objects.RefUsage:
+					if svc, ok := b.app.ServiceForPath(u.DeclaredIn().FSPath); ok {
+						addPerms(svc.Name, u.Perms...)
+					}
+				}
+			}
+
+			// Collect the perms
+			for svcName, perms := range permsBySvc {
+				if svc, ok := svcByName[svcName]; ok {
+					ops := fns.Map(perms, func(p objects.Perm) meta.BucketUsage_Operation {
+						op, ok := p.ToMeta()
+						if !ok {
+							b.errs.Addf(token.NoPos, "unsupported permission %v", p)
+						}
+						return op
+					})
+					slices.Sort(ops)
+					svc.Buckets = append(svc.Buckets, &meta.BucketUsage{
+						Bucket:     bkt.Name,
+						Operations: ops,
+					})
+				}
+			}
 
 		case *caches.Cluster:
 			cluster := &meta.CacheCluster{

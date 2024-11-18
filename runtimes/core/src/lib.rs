@@ -26,6 +26,7 @@ pub mod log;
 pub mod meta;
 pub mod model;
 mod names;
+pub mod objects;
 pub mod proccfg;
 pub mod pubsub;
 pub mod secrets;
@@ -203,6 +204,7 @@ pub struct Runtime {
     pubsub: pubsub::Manager,
     secrets: secrets::Manager,
     sqldb: sqldb::Manager,
+    objects: objects::Manager,
     api: api::Manager,
     app_meta: meta::AppMeta,
     runtime: tokio::runtime::Runtime,
@@ -329,6 +331,7 @@ impl Runtime {
             .context("failed to resolve gateway push subscriptions")?;
 
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md)?;
+        let objects = objects::Manager::new(tracer.clone(), resources.bucket_clusters, &md);
         let sqldb = sqldb::ManagerConfig {
             clusters: resources.sql_clusters,
             creds: &creds,
@@ -376,6 +379,7 @@ impl Runtime {
             pubsub,
             secrets,
             sqldb,
+            objects,
             api,
             app_meta,
             runtime: tokio_rt,
@@ -395,6 +399,11 @@ impl Runtime {
     #[inline]
     pub fn sqldb(&self) -> &sqldb::Manager {
         &self.sqldb
+    }
+
+    #[inline]
+    pub fn objects(&self) -> &objects::Manager {
+        &self.objects
     }
 
     #[inline]
