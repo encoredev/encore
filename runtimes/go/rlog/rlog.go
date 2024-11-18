@@ -37,7 +37,7 @@ func NewManager(rt *reqtrack.RequestTracker) *Manager {
 // Ctx holds additional logging context for use with the Infoc and family
 // of logging functions.
 type Ctx struct {
-	ctx    zerolog.Context
+	logger zerolog.Logger
 	mgr    *Manager
 	fields []any
 }
@@ -70,14 +70,14 @@ func (l *Manager) With(keysAndValues ...any) Ctx {
 		val := fields[i+1]
 		ctx = addContext(ctx, key, val)
 	}
-	return Ctx{ctx: ctx, mgr: l, fields: fields}
+	return Ctx{logger: ctx.Logger(), mgr: l, fields: fields}
 }
 
 // Debug logs a debug-level message, merging the context from ctx
 // with the additional context provided as key-value pairs.
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Debug(msg string, keysAndValues ...any) {
-	l := ctx.ctx.Logger()
+	l := ctx.logger
 	fields := pairs(keysAndValues)
 	ctx.mgr.doLog(model.LevelDebug, l.Debug(), msg, ctx.fields, fields)
 }
@@ -86,7 +86,7 @@ func (ctx Ctx) Debug(msg string, keysAndValues ...any) {
 // with the additional context provided as key-value pairs.
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Info(msg string, keysAndValues ...any) {
-	l := ctx.ctx.Logger()
+	l := ctx.logger
 	fields := pairs(keysAndValues)
 	ctx.mgr.doLog(model.LevelInfo, l.Info(), msg, ctx.fields, fields)
 }
@@ -95,7 +95,7 @@ func (ctx Ctx) Info(msg string, keysAndValues ...any) {
 // with the additional context provided as key-value pairs.
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Warn(msg string, keysAndValues ...any) {
-	l := ctx.ctx.Logger()
+	l := ctx.logger
 	fields := pairs(keysAndValues)
 	ctx.mgr.doLog(model.LevelWarn, l.Warn(), msg, ctx.fields, fields)
 }
@@ -104,7 +104,7 @@ func (ctx Ctx) Warn(msg string, keysAndValues ...any) {
 // with the additional context provided as key-value pairs.
 // The variadic key-value pairs are treated as they are in With.
 func (ctx Ctx) Error(msg string, keysAndValues ...any) {
-	l := ctx.ctx.Logger()
+	l := ctx.logger
 	fields := pairs(keysAndValues)
 	ctx.mgr.doLog(model.LevelError, l.Error(), msg, ctx.fields, fields)
 }
@@ -113,15 +113,19 @@ func (ctx Ctx) Error(msg string, keysAndValues ...any) {
 // from the original ctx and adds additional context on top.
 // The original ctx is not affected.
 func (ctx Ctx) With(keysAndValues ...any) Ctx {
-	c := ctx.ctx
+	c := ctx.logger.With()
 	fields := pairs(keysAndValues)
 	for i := 0; i < len(fields); i += 2 {
 		key := fields[i].(string)
 		val := fields[i+1]
 		c = addContext(c, key, val)
 	}
-	fields = append(ctx.fields, fields...)
-	return Ctx{ctx: c, mgr: ctx.mgr, fields: fields}
+
+	newFields := make([]any, len(ctx.fields)+len(fields))
+	copy(newFields, ctx.fields)
+	copy(newFields[len(ctx.fields):], fields)
+
+	return Ctx{logger: c.Logger(), mgr: ctx.mgr, fields: newFields}
 }
 
 func (l *Manager) doLog(level model.LogLevel, ev *zerolog.Event, msg string, ctxFields, logFields []any) {
