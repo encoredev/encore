@@ -143,7 +143,7 @@ func (l *Log) WaitAndClear() (data []byte, done bool) {
 	}
 	done = l.done
 	data = l.data
-	l.data = l.data[len(l.data):]
+	l.clearDataBuf()
 	l.mu.Unlock()
 	return data, done
 }
@@ -156,13 +156,30 @@ func (l *Log) MarkDone() {
 	l.cond.Broadcast()
 }
 
+const (
+	maxBufferSize     = 100 * (10 << 20) // 100 MiB
+	initialBufferSize = 10 * (10 << 20)  // 10 MiB
+)
+
 // GetAndClear gets the data and clears the buffer.
 func (l *Log) GetAndClear() (data []byte, done bool) {
 	l.mu.Lock()
 	data, done = l.data, l.done
-	l.data = l.data[len(l.data):]
+	l.clearDataBuf()
 	l.mu.Unlock()
 	return data, done
+}
+
+// clearDataBuf clears the data buf, either allocating a new buffer
+// or by setting its length to 0 (keeping its capacity).
+func (l *Log) clearDataBuf() {
+	// Determine if we should keep growing the buffer or if it's time to
+	// create a new one to allow the old one to be GC'd.
+	if cap(l.data) > maxBufferSize {
+		l.data = make([]byte, 0, initialBufferSize)
+	} else {
+		l.data = l.data[len(l.data):]
+	}
 }
 
 // EventBuffer is a performant, low-overhead, growable buffer
