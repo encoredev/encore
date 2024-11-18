@@ -90,7 +90,10 @@ type AttrsData struct {
 	Version string // non-zero means specific version
 }
 
+//publicapigen:keep
 var (
-	ErrObjectNotExist     = errors.New("objects: object doesn't exist")
+	//publicapigen:keep
+	ErrObjectNotExist = errors.New("objects: object doesn't exist")
+	//publicapigen:keep
 	ErrPreconditionFailed = errors.New("objects: precondition failed")
 )

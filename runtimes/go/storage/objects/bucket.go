@@ -27,6 +27,7 @@ type Bucket struct {
 	baseCloudPrefix string
 }
 
+// BucketConfig is the configuration for a Bucket.
 type BucketConfig struct {
 	// Whether objects stored in the bucket should be versioned.
 	//
@@ -71,10 +72,14 @@ func newBucket(mgr *Manager, name string) *Bucket {
 	panic("unreachable")
 }
 
+// Upload uploads a new object to the bucket.
+//
+// The returned writer must be successfully closed for the upload to complete.
+// To abort the upload, call (*Writer).Abort or cancel the provided context.
 func (b *Bucket) Upload(ctx context.Context, object string, options ...UploadOption) *Writer {
 	var opt uploadOptions
 	for _, o := range options {
-		o.uploadOption(&opt)
+		o.applyUpload(&opt)
 	}
 
 	w := &Writer{
@@ -105,6 +110,7 @@ func (b *Bucket) Upload(ctx context.Context, object string, options ...UploadOpt
 	return w
 }
 
+// Writer is the writer for an object being uploaded to a bucket.
 type Writer struct {
 	bkt *Bucket
 
@@ -121,11 +127,13 @@ type Writer struct {
 	startEventID trace2.EventID
 }
 
+// Write writes data to the object being uploaded.
 func (w *Writer) Write(p []byte) (int, error) {
 	u := w.initUpload()
 	return u.Write(p)
 }
 
+// Abort aborts the upload.
 func (w *Writer) Abort(err error) {
 	if err == nil {
 		err = errors.New("upload aborted")
@@ -134,6 +142,7 @@ func (w *Writer) Abort(err error) {
 	u.Abort(err)
 }
 
+// Close closes the upload, completing the upload if no errors occurred.
 func (w *Writer) Close() error {
 	u := w.initUpload()
 	attrs, err := u.Complete()
@@ -193,10 +202,15 @@ func (e *errUploader) Complete() (*types.ObjectAttrs, error) {
 
 var _ types.Uploader = &errUploader{}
 
+// Download downloads an object from the bucket.
+// Any error is encountered is reported by the methods on *Reader.
+// To check if the operation failed, call (*Reader).Err.
+//
+// If the object does not exist, the error may be checked with errors.Is(err, ErrObjectNotFound).
 func (b *Bucket) Download(ctx context.Context, object string, options ...DownloadOption) *Reader {
 	var opt downloadOptions
 	for _, o := range options {
-		o.downloadOption(&opt)
+		o.applyDownload(&opt)
 	}
 
 	var startEventID trace2.EventID
@@ -223,6 +237,7 @@ func (b *Bucket) Download(ctx context.Context, object string, options ...Downloa
 	return &Reader{r: r, err: err, curr: curr, startEventID: startEventID}
 }
 
+// Reader is the reader for an object being downloaded from a bucket.
 type Reader struct {
 	err       error // any error encountered
 	r         types.Downloader
@@ -234,10 +249,12 @@ type Reader struct {
 	startEventID   trace2.EventID
 }
 
+// Err returns the error encountered during reading, if any.
 func (r *Reader) Err() error {
 	return r.err
 }
 
+// Read reads data from the object being downloaded.
 func (r *Reader) Read(p []byte) (int, error) {
 	if r.err != nil {
 		return 0, r.err
@@ -249,6 +266,8 @@ func (r *Reader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Close closes the reader.
+// It must be called to release resources.
 func (r *Reader) Close() error {
 	defer r.completeTrace()
 	if r.err != nil {
@@ -279,6 +298,7 @@ func (r *Reader) completeTrace() {
 	}
 }
 
+// Query describes the set of objects to query for using List.
 type Query struct {
 	// Prefix indicates to only return objects
 	// whose name starts with the given prefix.
@@ -296,12 +316,22 @@ func (b *Bucket) mapQuery(ctx context.Context, q *Query) types.ListData {
 	}
 }
 
+// ObjectAttrs describes the attributes of an object.
 type ObjectAttrs struct {
-	Name        string
-	Version     string
+	// The name of the object.
+	Name string
+
+	// The version of the object, if bucket versioning is enabled.
+	Version string
+
+	// The content type of the object, if set during upload.
 	ContentType string
-	Size        int64
-	ETag        string
+
+	// The size of the object, in bytes.
+	Size int64
+
+	// The computed ETag of the object.
+	ETag string
 }
 
 func (b *Bucket) mapAttrs(attrs *types.ObjectAttrs) *ObjectAttrs {
@@ -314,9 +344,13 @@ func (b *Bucket) mapAttrs(attrs *types.ObjectAttrs) *ObjectAttrs {
 	}
 }
 
+// ListEntry describes an objects during listing.
 type ListEntry struct {
+	// The name of the object.
 	Name string
+	// The size of the object, in bytes.
 	Size int64
+	// The computed ETag of the object.
 	ETag string
 }
 
@@ -328,6 +362,7 @@ func (b *Bucket) mapListEntry(entry *types.ListEntry) *ListEntry {
 	}
 }
 
+// List lists objects in the bucket.
 func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) iter.Seq2[*ListEntry, error] {
 	return func(yield func(*ListEntry, error) bool) {
 		// Tracing state
@@ -386,7 +421,7 @@ func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) 
 func (b *Bucket) Remove(ctx context.Context, object string, options ...RemoveOption) error {
 	var opts removeOptions
 	for _, o := range options {
-		o.removeOption(&opts)
+		o.applyRemove(&opts)
 	}
 
 	var removeErr error
@@ -429,7 +464,11 @@ func (b *Bucket) Remove(ctx context.Context, object string, options ...RemoveOpt
 }
 
 var (
-	ErrObjectNotFound     = types.ErrObjectNotExist
+	// ErrObjectNotFound is returned when requested object does not exist in the bucket.
+	ErrObjectNotFound = types.ErrObjectNotExist
+
+	// ErrPreconditionFailed is returned when a precondition for an operation is not met,
+	// such as when an object already exists and Preconditions.NotExists is true.
 	ErrPreconditionFailed = types.ErrPreconditionFailed
 )
 
@@ -438,7 +477,7 @@ var (
 func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOption) (*ObjectAttrs, error) {
 	var opt attrsOptions
 	for _, o := range options {
-		o.attrsOption(&opt)
+		o.applyAttrs(&opt)
 	}
 
 	var (
@@ -499,7 +538,7 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 func (b *Bucket) Exists(ctx context.Context, object string, options ...ExistsOption) (bool, error) {
 	var opt existsOptions
 	for _, o := range options {
-		o.existsOption(&opt)
+		o.applyExists(&opt)
 	}
 
 	var (
