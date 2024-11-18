@@ -14,7 +14,7 @@ Object Storage is a simple and scalable solution to store files and unstructured
 
 The most common implementation is Amazon S3 ("Simple Storage Service") and its semantics are universally supported by every major cloud provider.
 
-Encore.go provides a cloud-agnostic, S3 compatible API for working with Object Storage, allowing you to store and retrieve files with ease.
+Encore.go provides a cloud-agnostic API for working with Object Storage, allowing you to store and retrieve files with ease. It has support for Amazon S3, Google Cloud Storage, as well as any other S3-compatible implementation (such as DigitalOcean Spaces, MinIO, etc.).
 
 Additionally, when you use Encore's Object Storage API you also automatically get:
 
