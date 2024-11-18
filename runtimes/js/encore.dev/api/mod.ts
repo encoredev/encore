@@ -306,10 +306,10 @@ export class MiddlewareRequest {
   }
 
   /**
-   * reqMeta is set when the handler is a typed handler or a stream handler.
+   * requestMeta is set when the handler is a typed handler or a stream handler.
    * for raw handlers, see rawRequest and rawResponse.
    */
-  public get reqMeta() {
+  public get requestMeta() {
     return this._reqMeta || (this._reqMeta = currentRequest());
   }
 
