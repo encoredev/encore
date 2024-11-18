@@ -1,38 +1,32 @@
-const validate = Symbol("validate");
-
-export interface Validator {
-  [validate]?: {};
-}
-
-export type Validate<T, V extends Validator> = T & V;
+declare const __validate: unique symbol;
 
 export type Between<Min extends number, Max extends number> = {
-  [validate]?: {
+  [__validate]: {
     minValue: Min;
     maxValue: Max;
   };
 };
 
 export type Min<N extends number> = {
-  [validate]?: {
+  [__validate]: {
     minValue: N;
   };
 };
 
 export type Max<N extends number> = {
-  [validate]?: {
+  [__validate]: {
     maxValue: N;
   };
 };
 
 export type MinLen<N extends number> = {
-  [validate]?: {
+  [__validate]?: {
     minLen: N;
   };
 };
 
 export type MaxLen<N extends number> = {
-  [validate]?: {
+  [__validate]?: {
     maxLen: N;
   };
 };

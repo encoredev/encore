@@ -44,8 +44,11 @@ pub enum Type {
 
     Generic(Generic),
 
-    /// Validation for a type.
-    Validation((Box<Type>, validation::Expr)),
+    /// A standalone validation expression.
+    Validation(validation::Expr),
+
+    /// A type with validation applied to it.
+    Validated((Box<Type>, validation::Expr)),
 }
 
 impl Type {
@@ -489,7 +492,7 @@ impl Type {
                 tt.iter_unions()
                     .chain(std::iter::once(&Type::Basic(Basic::Undefined))),
             ),
-            Type::Validation((inner, _)) => inner.iter_unions(),
+            Type::Validated((inner, _)) => inner.iter_unions(),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -501,7 +504,7 @@ impl Type {
                 tt.into_iter_unions()
                     .chain(std::iter::once(Type::Basic(Basic::Undefined))),
             ),
-            Type::Validation((inner, _)) => inner.into_iter_unions(),
+            Type::Validated((inner, _)) => inner.into_iter_unions(),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -536,7 +539,7 @@ impl Type {
                     | (Literal::BigInt(_), Basic::BigInt)
             )),
 
-            (Type::Validation((inner, _)), _) | (_, Type::Validation((inner, _))) => {
+            (Type::Validated((inner, _)), _) | (_, Type::Validated((inner, _))) => {
                 inner.assignable(state, other)
             }
 
@@ -743,7 +746,7 @@ impl Type {
                     | (Literal::BigInt(_), Basic::BigInt)
             )),
 
-            (Type::Validation((inner, _)), _) | (_, Type::Validation((inner, _))) => {
+            (Type::Validated((inner, _)), _) | (_, Type::Validated((inner, _))) => {
                 inner.extends(state, other).into_static()
             }
 
@@ -1074,6 +1077,37 @@ pub fn intersect<'a: 'b, 'b>(
         }
 
         (Type::This, Type::This) => Cow::Owned(Type::This),
+
+        // Combine validation expressions into a validated type.
+        (Type::Validated(_), Type::Validation(_)) => {
+            let (Type::Validated((typ, a)), Type::Validation(b)) = (a.into_owned(), b.into_owned())
+            else {
+                unreachable!()
+            };
+            Cow::Owned(Type::Validated((typ, a.and(b))))
+        }
+        (Type::Validation(_), Type::Validated(_)) => {
+            let (Type::Validated((typ, a)), Type::Validation(b)) = (b.into_owned(), a.into_owned())
+            else {
+                unreachable!()
+            };
+            Cow::Owned(Type::Validated((typ, a.and(b))))
+        }
+
+        // Merge validation expressions together.
+        (Type::Validation(_), Type::Validation(_)) => Cow::Owned(Type::Validation({
+            let (Type::Validation(a), Type::Validation(b)) = (a.into_owned(), b.into_owned())
+            else {
+                unreachable!()
+            };
+            a.and(b)
+        })),
+        (_, Type::Validation(expr)) => {
+            Cow::Owned(Type::Validated((Box::new(a.into_owned()), expr.clone())))
+        }
+        (Type::Validation(expr), _) => {
+            Cow::Owned(Type::Validated((Box::new(b.into_owned()), expr.clone())))
+        }
 
         (Type::Generic(_), _) | (_, Type::Generic(_)) => {
             Cow::Owned(Type::Generic(Generic::Intersection(Intersection {

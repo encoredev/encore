@@ -175,9 +175,18 @@ impl BuilderCtx<'_, '_> {
                 }
             },
 
-            Type::Validation((typ, expr)) => {
+            Type::Validation(expr) => {
+                anyhow::bail!(
+                    "unresolved standalone validation expression not supported in api schema: {:#?}",
+                    expr
+                )
+            }
+
+            Type::Validated((typ, expr)) => {
                 let mut typ = self.typ(typ)?;
-                typ.validation = Some(validation(expr));
+                // Simplify the validation expression, if possible.
+                let expr = expr.clone().simplify();
+                typ.validation = Some(validation(&expr));
                 typ
             }
         })

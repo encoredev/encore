@@ -318,9 +318,9 @@ impl Ctx<'_> {
                 }
             },
 
-            (Type::Validation((inner, expr)), idx) => {
+            (Type::Validated((inner, expr)), idx) => {
                 let typ = self.type_index(span, inner, idx);
-                Type::Validation((Box::new(typ), expr.clone()))
+                Type::Validated((Box::new(typ), expr.clone()))
             }
 
             (obj, idx) => {
@@ -430,7 +430,11 @@ impl Ctx<'_> {
             Type::Generic(generic) => {
                 Type::Generic(Generic::Keyof(Box::new(Type::Generic(generic.clone()))))
             }
-            Type::Validation((inner, _)) => self.keyof(inner),
+            Type::Validated((inner, _)) => self.keyof(inner),
+            Type::Validation(_) => {
+                HANDLER.with(|handler| handler.err("keyof ValidationExpr unsupported"));
+                Type::Basic(Basic::Never)
+            }
         }
     }
 
@@ -653,6 +657,15 @@ impl Ctx<'_> {
         match &obj.kind {
             ObjectKind::TypeName(_) => {
                 let named = Named::new(obj, type_arguments);
+
+                if self
+                    .state
+                    .is_module_path(named.obj.module_id, "encore.dev/validate")
+                {
+                    if let Some(expr) = self.parse_validation(&named) {
+                        return Type::Validation(expr);
+                    }
+                }
 
                 // Don't reference named types in the universe,
                 // otherwise we try to find them on disk.
@@ -1263,7 +1276,8 @@ impl Ctx<'_> {
             | Type::Optional(_)
             | Type::This
             | Type::Generic(_)
-            | Type::Class(_) => {
+            | Type::Class(_)
+            | Type::Validation(_) => {
                 HANDLER.with(|handler| handler.span_err(prop.span(), "unsupported member on type"));
                 Type::Basic(Basic::Never)
             }
@@ -1318,7 +1332,7 @@ impl Ctx<'_> {
                 let underlying = self.underlying(obj_type);
                 self.resolve_member_prop(&underlying, prop)
             }
-            Type::Validation((inner, _)) => self.resolve_member_prop(inner, prop),
+            Type::Validated((inner, _)) => self.resolve_member_prop(inner, prop),
         }
     }
 
@@ -1840,11 +1854,13 @@ impl Ctx<'_> {
                 },
             },
 
-            Type::Validation((inner, rule)) => match self.concrete(inner) {
-                New(inner) => New(Type::Validation((Box::new(inner), rule.clone()))),
-                Changed(inner) => New(Type::Validation((Box::new(inner.clone()), rule.clone()))),
+            Type::Validated((inner, expr)) => match self.concrete(inner) {
+                New(inner) => New(Type::Validated((Box::new(inner), expr.clone()))),
+                Changed(inner) => New(Type::Validated((Box::new(inner.clone()), expr.clone()))),
                 Same(_) => Same(typ),
             },
+
+            Type::Validation(_) => Same(typ),
         }
     }
 
@@ -1903,13 +1919,57 @@ impl Ctx<'_> {
         Same(v)
     }
 
+    #[allow(dead_code)]
     fn doc_comment(&self, pos: BytePos) -> Option<String> {
         self.state
             .lookup_module(self.module)
             .and_then(|m| m.base.preceding_comments(pos.into()))
     }
 
-    fn parse_validation(&self, _named: &Named) -> Option<validation::Expr> {
-        None
+    fn parse_validation(&self, named: &Named) -> Option<validation::Expr> {
+        let name = named.obj.name.as_deref()?;
+        fn i64_lit(typ: &Type) -> Option<i64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                let i = *n as i64;
+                if i as f64 == *n {
+                    return Some(i);
+                }
+            }
+            None
+        }
+
+        fn u64_lit(typ: &Type) -> Option<u64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                let u = *n as u64;
+                if u as f64 == *n {
+                    return Some(u);
+                }
+            }
+            None
+        }
+
+        Some(match name {
+            "Min" => {
+                let typ = named.type_arguments.first()?;
+                let num = i64_lit(typ)?;
+                validation::Expr::Rule(validation::Rule::MinVal(num))
+            }
+            "Max" => {
+                let typ = named.type_arguments.first()?;
+                let num = i64_lit(typ)?;
+                validation::Expr::Rule(validation::Rule::MinVal(num))
+            }
+            "MinLen" => {
+                let typ = named.type_arguments.first()?;
+                let num = u64_lit(typ)?;
+                validation::Expr::Rule(validation::Rule::MinLen(num))
+            }
+            "MaxLen" => {
+                let typ = named.type_arguments.first()?;
+                let num = u64_lit(typ)?;
+                validation::Expr::Rule(validation::Rule::MaxLen(num))
+            }
+            _ => return None,
+        })
     }
 }
