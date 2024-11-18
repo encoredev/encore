@@ -89,7 +89,7 @@ CREATE TABLE todo_item (
 
 ### Migration File Structure
 
-Migration files are created in a `migrations` directory within an Encore service package. Each file is named `<number>_<name>.up.sql`, where `<number>` is a sequence number for ordering and `<name>` describes the migration.
+Migration files are created in a `migrations` directory within an Encore service. Each file is named `<number>_<name>.up.sql`, where `<number>` is a sequence number for ordering and `<name>` describes the migration.
 
 **Example Directory Structure:**
 ```
@@ -146,22 +146,6 @@ await db.exec`
   VALUES (${title}, false)
 `;
 ```
-
-## Provisioning databases
-
-Encore automatically provisions databases to match what your application requires.
-When you [define a database](#creating-a-database), Encore will provision the database at your next deployment.
-
-Encore provisions databases in an appropriate way depending on the environment.
-When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
-In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
-
-- In `production` environments, the database is provisioned through the Managed SQL Database
-  service offered by the chosen cloud provider.
-- In `development` environments, the database is provisioned as a Kubernetes deployment
-  with a persistent disk attached.
-
-See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
 
 ## Connecting to databases
 
@@ -225,7 +209,7 @@ change the value in this column. For example, to re-run the last migration, run 
 
 Encore has all the tools needed to support ORMs and migration frameworks out-of-the-box through named databases and migration files. Writing plain SQL might not work for your use case, or you may not want to use SQL in the first place.
 
-ORMs like [Sequelize](https://sequelize.org/) and migration frameworks like [Atlas](https://atlasgo.io/) can be used with Encore by integrating their logic with a system's database. Encore is not restrictive, it uses plain SQL migration files for its migrations.
+ORMs like [Prisma](/docs/ts/develop/orms/prisma) and [Drizzle](/docs/ts/develop/orms/drizzle) can be used with Encore by integrating their logic with a system's database. Encore is not restrictive, it uses plain SQL migration files for its migrations.
 
 * If your ORM of choice can connect to any database using a standard SQL driver, then it can be used with Encore.
 * If your migration framework can generate SQL migration files without any modifications, then it can be used with Encore.
