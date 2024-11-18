@@ -110,13 +110,14 @@ To further narrow down the services to generate, use the '--services' flag.
 				genServiceNames = []string{"*"}
 			}
 			resp, err := daemon.GenClient(ctx, &daemonpb.GenClientRequest{
-				AppId:                appID,
-				EnvName:              envName,
-				Lang:                 lang,
-				Services:             genServiceNames,
-				ExcludedServices:     excludedServices,
-				EndpointTags:         endpointTags,
-				ExcludedEndpointTags: excludedEndpointTags,
+				AppId:                          appID,
+				EnvName:                        envName,
+				Lang:                           lang,
+				Services:                       genServiceNames,
+				ExcludedServices:               excludedServices,
+				EndpointTags:                   endpointTags,
+				ExcludedEndpointTags:           excludedEndpointTags,
+				OpenapiExcludePrivateEndpoints: &openAPIExcludePrivateEndpoints,
 			})
 			if err != nil {
 				fatal(err)
