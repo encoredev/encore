@@ -335,7 +335,7 @@ export class MiddlewareRequest {
   }
 }
 
-export interface MiddlewareResponse {
+export interface HandlerResponse {
   /**
    * The payload returned by the handler when the handler is either
    * a typed handler or stream handler.
@@ -350,9 +350,9 @@ export interface MiddlewareResponse {
   extraHeaders: Record<string, string | string[]>;
 }
 
-export type Next = (req: MiddlewareRequest) => Promise<MiddlewareResponse>;
+export type Next = (req: MiddlewareRequest) => Promise<HandlerResponse>;
 export interface Middleware {
-  (req: MiddlewareRequest, next: Next): Promise<MiddlewareResponse>;
+  (req: MiddlewareRequest, next: Next): Promise<HandlerResponse>;
   options?: MiddlewareOptions;
 }
 

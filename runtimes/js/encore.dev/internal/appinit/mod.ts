@@ -1,9 +1,5 @@
 import { Gateway } from "../../api/gateway";
-import {
-  Middleware,
-  MiddlewareRequest,
-  MiddlewareResponse
-} from "../../api/mod";
+import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -95,7 +91,7 @@ function invokeMiddlewareChain(
   chain: Middleware[],
   handler: () => Promise<any>
 ): Promise<any> {
-  const execute = async (index: number): Promise<MiddlewareResponse> => {
+  const execute = async (index: number): Promise<HandlerResponse> => {
     const currentMiddleware = chain.at(index);
 
     // no more middlewares, execute the handler
