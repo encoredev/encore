@@ -305,22 +305,48 @@ export class MiddlewareRequest {
     this._rawResp = rawResp;
   }
 
+  /**
+   * reqMeta is set when the handler is a typed handler or a stream handler.
+   * for raw handlers, see rawRequest and rawResponse.
+   */
   public get reqMeta() {
     return this._reqMeta || (this._reqMeta = currentRequest());
   }
+
+  /**
+   * stream is set when the handler is a stream handler.
+   */
   public get stream() {
     return this._stream;
   }
+
+  /**
+   * rawRequest is set when the handler is a raw request handler.
+   */
   public get rawRequest() {
     return this._rawReq;
   }
+
+  /**
+   * rawResponse is set when the handler is a raw request handler.
+   */
   public get rawResponse() {
     return this._rawResp;
   }
 }
 
 export interface MiddlewareResponse {
+  /**
+   * The payload returned by the handler when the handler is either
+   * a typed handler or stream handler.
+   */
   payload: any;
+
+  /**
+   * extraHeaders can be used by middlewares to add headers to the
+   * response. This only works for typed handler. For raw handlers
+   * see MiddlewareRequest.rawResponse.
+   */
   extraHeaders: Record<string, string | string[]>;
 }
 
