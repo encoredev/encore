@@ -21,6 +21,7 @@ const (
 	CacheKeyspace
 	ConfigLoad
 	Secrets
+	Bucket
 
 	// API Framework Resources
 	APIEndpoint

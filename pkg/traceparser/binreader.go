@@ -70,6 +70,14 @@ func (tr *traceReader) String() string {
 	return s
 }
 
+func (tr *traceReader) OptString() *string {
+	return ptrOrNil(tr.String())
+}
+
+func (tr *traceReader) OptUVarint() *uint64 {
+	return ptrOrNil(tr.UVarint())
+}
+
 func (tr *traceReader) ByteString() []byte {
 	size := tr.UVarint()
 	if (size) == 0 {

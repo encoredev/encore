@@ -51,6 +51,7 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		DynamicExperiments: nil,
 		Gateways:           []config.Gateway{},
 		PubsubTopics:       make(map[string]*config.PubsubTopic),
+		Buckets:            make(map[string]*config.Bucket),
 		CORS:               &config.CORS{},
 	}
 
@@ -373,6 +374,40 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 						}(),
 					}
 				}
+			}
+		}
+
+		// Cloud Storage
+		{
+			for _, cluster := range c.in.Infra.Resources.BucketClusters {
+				p := &config.BucketProvider{}
+				switch prov := cluster.Provider.(type) {
+				case *runtimev1.BucketCluster_S3_:
+					p.S3 = &config.S3BucketProvider{
+						Region:   prov.S3.GetRegion(),
+						Endpoint: prov.S3.Endpoint,
+					}
+				case *runtimev1.BucketCluster_Gcs:
+					p.GCS = &config.GCSBucketProvider{
+						Endpoint:  prov.Gcs.GetEndpoint(),
+						Anonymous: prov.Gcs.Anonymous,
+					}
+				default:
+					c.setErrf("unknown object storage provider type %T", prov)
+					continue
+				}
+
+				providerID := len(cfg.BucketProviders)
+				cfg.BucketProviders = append(cfg.BucketProviders, p)
+				for _, bkt := range cluster.Buckets {
+					cfg.Buckets[bkt.EncoreName] = &config.Bucket{
+						ProviderID: providerID,
+						EncoreName: bkt.EncoreName,
+						CloudName:  bkt.CloudName,
+						KeyPrefix:  bkt.GetKeyPrefix(),
+					}
+				}
+
 			}
 		}
 	}

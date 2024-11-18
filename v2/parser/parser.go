@@ -18,6 +18,7 @@ import (
 	"encr.dev/v2/parser/infra/config"
 	"encr.dev/v2/parser/infra/crons"
 	"encr.dev/v2/parser/infra/metrics"
+	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
 	"encr.dev/v2/parser/infra/sqldb"
@@ -148,6 +149,7 @@ var allParsers = []*resourceparser.Parser{
 	sqldb.DatabaseParser,
 	sqldb.MigrationParser,
 	sqldb.NamedParser,
+	objects.BucketParser,
 }
 
 func newUsageResolver() *usage.Resolver {
@@ -157,6 +159,7 @@ func newUsageResolver() *usage.Resolver {
 	usage.RegisterUsageResolver[*config.Load](r, config.ResolveConfigUsage)
 	usage.RegisterUsageResolver[*pubsub.Topic](r, pubsub.ResolveTopicUsage)
 	usage.RegisterUsageResolver[*sqldb.Database](r, sqldb.ResolveDatabaseUsage)
+	usage.RegisterUsageResolver[*objects.Bucket](r, objects.ResolveBucketUsage)
 
 	// API Framework
 	usage.RegisterUsageResolver[*api.Endpoint](r, api.ResolveEndpointUsage)

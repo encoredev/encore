@@ -21,6 +21,7 @@ message Infrastructure {
     repeated PubSubCluster pubsub_clusters = 3;
     repeated RedisCluster redis_clusters = 4;
     repeated AppSecret app_secrets = 5;
+    repeated BucketCluster bucket_clusters = 6;
   }
 }
 
@@ -303,6 +304,51 @@ message PubSubSubscription {
     // If set, the JWT audience claim must match. If unset, any JWT audience is allowed.
     optional string push_jwt_audience = 3;
   }
+}
+
+message BucketCluster {
+  // The unique resource id for this cluster.
+  string rid = 1;
+
+  repeated Bucket buckets = 2;
+
+  oneof provider {
+    S3 s3 = 10;
+    GCS gcs = 11;
+  }
+
+  message S3 {
+    // Region to connect to.
+    string region = 1;
+
+    // Endpoint override, if any. Must be specified if using a non-standard AWS region.
+    optional string endpoint = 2;
+  }
+
+  message GCS {
+    // Endpoint override, if any. Defaults to https://storage.googleapis.com if unset.
+    optional string endpoint = 1;
+
+    // Whether to connect anonymously or if a service account should be resolved.
+    bool anonymous = 2;
+  }
+}
+
+message Bucket {
+  // The unique resource id for this bucket.
+  string rid = 1;
+
+  // The encore name of the bucket.
+  string encore_name = 2;
+
+  // The cloud name of the bucket.
+  string cloud_name = 3;
+
+  // Optional key prefix to prepend to all bucket keys.
+  //
+  // Note: make sure it ends with a slash ("/") if you want
+  // to group objects within a certain folder.
+  optional string key_prefix = 4;
 }
 
 message Gateway {

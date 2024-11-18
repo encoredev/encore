@@ -281,6 +281,25 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 		missing["Topics"] = topics
 	}
 
+	// Validate bucket config
+	buckets := fns.FlatMap(maps.Values(hostedSvcs), func(svc *meta.Service) []string {
+		return fns.Map(svc.Buckets, (*meta.BucketUsage).GetBucket)
+	})
+	slices.Sort(buckets)
+	buckets = slices.Compact(buckets)
+
+	for _, storage := range infraCfg.ObjectStorage {
+		for name, _ := range storage.GetBuckets() {
+			buckets, ok = fns.Delete(buckets, name)
+			if !ok {
+				storage.DeleteBucket(name)
+			}
+		}
+	}
+	if len(buckets) > 0 {
+		missing["Buckets"] = buckets
+	}
+
 	// Copy CORS config
 	cors := infra.CORS(params.GlobalCORS)
 	infraCfg.CORS = &cors
