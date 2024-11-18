@@ -34,12 +34,14 @@ By default, Encore provisions infrastructure using contextually appropriate obje
 
 Encore provisions infrastructure resources differently for each type of development environment.
 
-|                    | Local                             | Preview / Development (Encore Cloud)                   | GCP / AWS                                                      |
-| ------------------ | --------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
-| **SQL Databases:** | Docker                            | Encore Managed (Kubernetes), [Neon](/docs/deploy/neon) | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Pub/Sub:**       | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub                                            | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Caches:**        | In-memory (Redis)                 | In-memory (Redis)                                      | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Cron Jobs:**     | Disabled                          | [Encore Managed](/docs/primitives/cron-jobs)           | [See production](/docs/deploy/infra#production-infrastructure) |
+|                     | Local                             | Preview / Development (Encore Cloud)                   | GCP / AWS                                                      |
+| ------------------- | --------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
+| **SQL Databases:**  | Docker                            | Encore Managed (Kubernetes), [Neon](/docs/deploy/neon) | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Pub/Sub:**        | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub                                            | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Caches:**         | In-memory (Redis)                 | In-memory (Redis)                                      | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Cron Jobs:**      | Disabled                          | [Encore Managed](/docs/primitives/cron-jobs)           | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Object Storage:** | Local Disk                        | Encore Managed                                         | [See production](/docs/deploy/infra#production-infrastructure) |
+
 
 ### Local Development
 
@@ -80,15 +82,16 @@ are provisioned with small-scale use in mind.
 
 Encore provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
 
-|                    | GCP                                                                        | AWS                                                                      |
-| ------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| **Networking:**    | [VPC](#google-cloud-platform-gcp)                                          | [VPC](#amazon-web-services-aws)                                          |
-| **Compute:**       | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws) |
-| **SQL Databases:** | [GCP Cloud SQL](#sql-databases), [Neon](/docs/deploy/neon)                 | [Amazon RDS](#sql-databases-1), [Neon](/docs/deploy/neon)                |
-| **Pub/Sub:**       | [GCP Pub/Sub](#pubsub)                                                     | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                          |
-| **Caches:**        | [GCP Memorystore (Redis)](#caching)                                        | [Amazon ElastiCache (Redis)](#caching-1)                                 |
-| **Cron Jobs:**     | [Encore Managed](/docs/primitives/cron-jobs)                               | [Encore Managed](/docs/primitives/cron-jobs)                             | [Encore Managed](/docs/primitives/cron-jobs) |
-| **Secrets:**       | [Secret Manager][gcp-secrets]                                              | [AWS Secrets Manager][aws-secrets]                                       |
+|                     | GCP                                                                        | AWS                                                                      |
+| ------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Networking:**     | [VPC](#google-cloud-platform-gcp)                                          | [VPC](#amazon-web-services-aws)                                          |
+| **Compute:**        | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp) | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws) |
+| **SQL Databases:**  | [GCP Cloud SQL](#sql-databases), [Neon](/docs/deploy/neon)                 | [Amazon RDS](#sql-databases-1), [Neon](/docs/deploy/neon)                |
+| **Pub/Sub:**        | [GCP Pub/Sub](#pubsub)                                                     | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                          |
+| **Object Storage:** | [GCS](#object-storage)                                                     | [Amazon S3](#object-storage-1)                                           |
+| **Caches:**         | [GCP Memorystore (Redis)](#caching)                                        | [Amazon ElastiCache (Redis)](#caching-1)                                 |
+| **Cron Jobs:**      | [Encore Managed](/docs/primitives/cron-jobs)                               | [Encore Managed](/docs/primitives/cron-jobs)                             | [Encore Managed](/docs/primitives/cron-jobs) |
+| **Secrets:**        | [Secret Manager][gcp-secrets]                                              | [AWS Secrets Manager][aws-secrets]                                       |
 
 ### Configurability
 
@@ -114,6 +117,7 @@ Deploying each service as its own process will improve scalability and decrease 
 [gcp-gke]: https://cloud.google.com/kubernetes-engine
 [gcp-secrets]: https://cloud.google.com/secret-manager
 [gcp-pubsub]: https://cloud.google.com/pubsub
+[gcp-gcs]: https://cloud.google.com/storage
 [gcp-cloudsql]: https://cloud.google.com/sql
 [gcp-redis]: https://cloud.google.com/memorystore
 
@@ -138,6 +142,9 @@ Additionally, Encore sets up:
 
 #### Pub/Sub
 When using [Pub/Sub](/docs/primitives/pubsub), Encore provisions [GCP Pub/Sub][gcp-pubsub] topics and subscriptions. Additionally, Encore automatically creates and configures dead-letter topics.
+
+#### Object Storage
+When using [Object Storage](/docs/primitives/object-storage), Encore provisions [Google Cloud Storage][gcp-gcs] buckets. Encore also handles fine-grained permission management of per-service storage operations (read, list, write, delete, etc).
 
 #### Caching
 When using [Caching](/docs/primitives/caching), Encore provisions [GCP Memorystore for Redis][gcp-redis] clusters.
@@ -165,6 +172,7 @@ provisioned for this to work.
 [aws-rds]: https://aws.amazon.com/rds/postgresql/
 [aws-sqs]: https://aws.amazon.com/sqs/
 [aws-sns]: https://aws.amazon.com/sns/
+[aws-s3]: https://aws.amazon.com/s3/
 [aws-redis]: https://aws.amazon.com/elasticache/redis/
 [aws-ecr]: https://aws.amazon.com/ecr/
 
@@ -190,6 +198,9 @@ Additionally, Encore sets up:
 #### Pub/Sub
 When using [Pub/Sub](/docs/primitives/pubsub), Encore provisions a combination of [Amazon SQS][aws-sqs] and [Amazon SNS][aws-sns] topics and subscriptions.
 Additionally, Encore automatically creates and configures dead-letter topics.
+
+#### Object Storage
+When using [Object Storage](/docs/primitives/object-storage), Encore provisions [Amazon S3][aws-s3] buckets. Encore also handles fine-grained permission management of per-service storage operations (read, list, write, delete, etc).
 
 #### Caching
 When using [Caching](/docs/primitives/caching), Encore provisions [Amazon ElastiCache for Redis][aws-redis] clusters.

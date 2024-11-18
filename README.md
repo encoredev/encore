@@ -137,7 +137,9 @@ See how to use the Backend Frameworks in the docs:
 - **Databases:** [Go](https://encore.dev/docs/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
 - **Cron Jobs:** [Go](https://encore.dev/docs/primitives/cron-jobs) / [TypeScript](https://encore.dev/docs/ts/primitives/cron-jobs)
 - **Pub/Sub:** [Go](https://encore.dev/docs/primitives/pubsub) / [TypeScript](https://encore.dev/docs/ts/primitives/pubsub)
+- **Object Storage:** [Go](https://encore.dev/docs/primitives/object-storage) / [TypeScript](https://encore.dev/docs/ts/primitives/object-storage)
 - **Caching:** [Go](https://encore.dev/docs/primitives/caching) / TypeScript (Coming soon)
+
 
 ## Using Encore: An end-to-end workflow from local to cloud
 
@@ -191,7 +193,8 @@ When you deploy, Encore Cloud Platform automatically provisions [infrastructure]
 - **Compute:** GCP Cloud Run, AWS Fargate, Kubernetes (GKE and EKS)
 - **Databases:** GCP Cloud SQL, AWS RDS
 - **Pub/Sub:** GCP Pub/Sub, AWS SQS/SNS
-- **Caches:** GCP Memorystore,	Amazon ElastiCache
+- **Caches:** GCP Memorystore, Amazon ElastiCache
+- **Object Storage:** GCS, Amazon S3
 - **Secrets:**	GCP Secret Manager,	AWS Secrets Manager
 - Etc.
 

@@ -46,6 +46,7 @@ this may come with an additional charge (at cost) to cover the extra capacity. P
 | Database Storage | 1 GB            |
 | PubSub Messages  | 100,000 / day   |
 | Cron Jobs        | Once every hour |
+| Object Storage   | 1 GB            |
 
 ### What happens if I reach a usage limit?
 

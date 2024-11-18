@@ -10,24 +10,18 @@ infobox: {
 lang: ts
 ---
 
-Object Storage is a simple and scalable way to store files and unstructured data in your backend application.
-The most well-known implementation is Amazon S3 ("Simple Storage Service"), but it's universally supported
-by every major cloud provider.
+Object Storage is a simple and scalable solution to store files and unstructured data in your backend application.
 
-Encore provides a built-in, cloud-agnostic API for working with Object Storage, allowing you to store and retrieve files with ease.
+The most common implementation is Amazon S3 ("Simple Storage Service") and its semantics are universally supported by every major cloud provider.
 
-Additionally, when you use Encore's Object Storage APIs you also automatically get:
+Encore.ts provides a cloud-agnostic API for working with Object Storage, allowing you to store and retrieve files with ease. It has support for Amazon S3, Google Cloud Storage, as well as any other S3-compatible implementation (such as DigitalOcean Spaces, MinIO, etc.).
+
+
+Additionally, when you use Encore's Object Storage API you also automatically get:
 
 * Automatic tracing and instrumentation of all Object Storage operations
 * Built-in local development support, storing objects on the local filesystem
 * Support for integration testing, using a local, in-memory storage backend
-
-And with Encore's Cloud Platform you also get:
-
-* Automatic infrastructure provisioning of Object Storage buckets
-* Automatic fine-grained permission management of per-service storage operations (read, list, write, delete, etc.)
-* Support for Object Storage in Preview Environments
-* Native support for Object Storage in the Encore Platform's CI/CD pipeline
 
 ## Creating a Bucket
 
