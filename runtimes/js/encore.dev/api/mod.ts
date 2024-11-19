@@ -273,7 +273,7 @@ export interface MiddlewareOptions {
   exposed?: boolean;
 
   /**
-   * If set, only run middleware on endpoints that either require on not
+   * If set, only run middleware on endpoints that either require or not
    * requires auth.
    */
   requiresAuth?: boolean;
