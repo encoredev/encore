@@ -5,8 +5,6 @@ title: Using Prisma with Encore.ts
 lang: ts
 ---
 
-### Prisma
-
 With Prisma you make your schema changes in a Prisma schema file `schema.prisma`, and then use Prisma's CLI tools to generate SQL migrations and a TypeScript ORM client.
 
 Here is an example of using [Prisma](https://prisma.io/) with Encore.ts. We use `DB.connectionString` to supply the connection string to Prisma:
@@ -55,6 +53,12 @@ model User {
   surname String
 }
 ```
+
+<GitHubLink
+href="https://github.com/encoredev/examples/tree/main/ts/prisma"
+desc="Using Prisma ORM with Encore.ts"
+/>
+
 
 ## Configure Prisma
 
@@ -106,9 +110,3 @@ This will create new migrations if you have made any changes to the `schema.pris
 ## Migration
 
 The migration files will be automatically applied by Encore, both locally (when you run `encore run`) and in cloud environments.
-
-
-<GitHubLink
-href="https://github.com/encoredev/examples/tree/main/ts/prisma"
-desc="Using Prisma ORM with Encore.ts"
-/>
