@@ -72,7 +72,7 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 					return true
 				}
 
-				if r.Method == "OPTIONS" {
+				if r.Method == http.MethodOptions {
 					if val := r.Header.Get("Access-Control-Request-Headers"); val != "" {
 						return strings.Contains(strings.ToLower(val), "authorization")
 					}

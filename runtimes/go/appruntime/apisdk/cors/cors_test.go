@@ -34,7 +34,7 @@ func TestOptions(t *testing.T) {
 			credsBadOrigins:    []string{"foo.com", "evil.com", "localhost"},
 			nocredsGoodOrigins: []string{"foo.com", "localhost", "", "icanhazcheezburger.com"},
 			nocredsBadOrigins:  []string{},
-			goodHeaders:        []string{"Authorization", "Content-Type", "Origin"},
+			goodHeaders:        []string{"Content-Type", "Origin"},
 			badHeaders:         []string{"X-Requested-With", "X-Forwarded-For"},
 		},
 		{
@@ -105,7 +105,7 @@ func TestOptions(t *testing.T) {
 			cfg: config.CORS{
 				ExtraAllowedHeaders: []string{"X-Forwarded-For", "X-Real-Ip"},
 			},
-			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
+			goodHeaders: []string{"Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
 			badHeaders:  []string{"X-Requested-With", "X-Evil-Header"},
 		},
 		{
@@ -113,12 +113,12 @@ func TestOptions(t *testing.T) {
 			cfg: config.CORS{
 				ExtraAllowedHeaders: []string{"X-Forwarded-For", "*", "X-Real-Ip"},
 			},
-			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
+			goodHeaders: []string{"Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
 		},
 		{
 			name:        "static_headers",
 			cfg:         config.CORS{},
-			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Static-Test"},
+			goodHeaders: []string{"Content-Type", "Origin", "X-Static-Test"},
 		},
 		{
 			name: "wildcard_without_creds",
