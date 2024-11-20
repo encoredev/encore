@@ -47,7 +47,7 @@ var (
 
 	errBucketRefInvalidPerms = errRange.New(
 		"Unrecognized permissions in call to objects.BucketRef",
-		"The supported permissions are objects.Uploader/Downloader.",
+		"The supported permissions are objects.{Uploader,Downloader,Attrser,Lister,Remover}.",
 	)
 
 	ErrBucketRefOutsideService = errRange.New(

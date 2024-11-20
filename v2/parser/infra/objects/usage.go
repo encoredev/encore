@@ -1,6 +1,8 @@
 package objects
 
 import (
+	"slices"
+
 	"encr.dev/pkg/option"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
@@ -105,24 +107,34 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 		return nil
 	}
 
-	checkUsage := func(typ schema.Type) (usage.Usage, bool) {
-		var perms []Perm
-		switch {
-		case isNamed(typ, "Uploader"):
-			perms = []Perm{WriteObject}
-		case isNamed(typ, "Downloader"):
-			perms = []Perm{ReadObjectContents}
-		case isNamed(typ, "Lister"):
-			perms = []Perm{ListObjects}
-		case isNamed(typ, "Remover"):
-			perms = []Perm{DeleteObject}
-		case isNamed(typ, "Attrser"):
-			perms = []Perm{GetObjectMetadata}
-		case isNamed(typ, "ReadWriter"):
-			perms = []Perm{WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, UpdateObjectMetadata}
-		default:
+	checkUsage := func(types ...schema.Type) (usage.Usage, bool) {
+		if len(types) == 0 {
 			return nil, false
 		}
+
+		var perms []Perm
+		for _, typ := range types {
+			switch {
+			case isNamed(typ, "Uploader"):
+				perms = append(perms, WriteObject)
+			case isNamed(typ, "Downloader"):
+				perms = append(perms, ReadObjectContents)
+			case isNamed(typ, "Lister"):
+				perms = append(perms, ListObjects)
+			case isNamed(typ, "Remover"):
+				perms = append(perms, DeleteObject)
+			case isNamed(typ, "Attrser"):
+				perms = append(perms, GetObjectMetadata)
+			case isNamed(typ, "ReadWriter"):
+				perms = append(perms, WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, UpdateObjectMetadata)
+			default:
+				return nil, false
+			}
+		}
+
+		// Sort and de-dup the perms.
+		slices.Sort(perms)
+		slices.Compact(perms)
 
 		return &RefUsage{
 			Base: usage.Base{
@@ -151,8 +163,8 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 		// Otherwise make sure the interface only embeds the one supported type we have (pubsub.Publisher).
 		// We'll need to extend this in the future to support multiple permissions.
 		if iface, ok := underlying.(schema.InterfaceType); ok {
-			if len(iface.EmbeddedIfaces) == 1 && len(iface.Methods) == 0 && len(iface.TypeLists) == 0 {
-				if u, ok := checkUsage(iface.EmbeddedIfaces[0]); ok {
+			if len(iface.Methods) == 0 && len(iface.TypeLists) == 0 {
+				if u, ok := checkUsage(iface.EmbeddedIfaces...); ok {
 					return u
 				}
 			}

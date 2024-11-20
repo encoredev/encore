@@ -1381,7 +1381,20 @@ impl<'a> Ctx<'a> {
                 Type::Basic(Basic::Never)
             }
 
-            ObjectKind::Class(_o) => Type::Class(ClassType {}),
+            ObjectKind::Class(o) => {
+                let methods = o
+                    .spec
+                    .body
+                    .iter()
+                    .filter_map(|mem| match mem {
+                        ast::ClassMember::Method(m) => {
+                            m.key.as_ident().map(|id| id.sym.to_string())
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                Type::Class(ClassType { methods })
+            }
 
             ObjectKind::Module(_o) => Type::Basic(Basic::Never),
             ObjectKind::Namespace(_o) => {

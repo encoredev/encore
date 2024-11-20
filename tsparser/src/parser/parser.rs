@@ -255,12 +255,13 @@ impl<'a> Parser<'a> {
         resources.extend(additional_resources);
         binds.extend(additional_binds);
 
-        let resolver = UsageResolver::new(&self.pc.loader, &resources, &binds);
+        let resolver =
+            UsageResolver::new(&self.pc.loader, &self.pc.type_checker, &resources, &binds);
         let mut usages = Vec::new();
 
         for module in self.pc.loader.modules() {
             let exprs = resolver.scan_usage_exprs(&module);
-            let u = resolver.resolve_usage(&exprs)?;
+            let u = resolver.resolve_usage(&module, &exprs)?;
             usages.extend(u);
         }
 

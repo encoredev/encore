@@ -111,7 +111,7 @@ pub enum TypeNameDecl {
 #[derive(Debug)]
 pub struct Class {
     #[allow(dead_code)]
-    spec: Box<ast::Class>,
+    pub spec: Box<ast::Class>,
 }
 
 #[derive(Debug)]
@@ -679,7 +679,7 @@ impl ResolveState {
         })
     }
 
-    pub(super) fn lookup_module(&self, id: ModuleId) -> Option<Rc<Module>> {
+    pub fn lookup_module(&self, id: ModuleId) -> Option<Rc<Module>> {
         self.modules.borrow().get(&id).cloned()
     }
 

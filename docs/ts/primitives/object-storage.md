@@ -123,3 +123,49 @@ If an upload fails due to a precondition not being met (like if the object alrea
 and the `notExists: true` option is set), it throws a `PreconditionFailed` error.
 
 Other errors are returned as `ObjectsError` errors (which the above errors also extend).
+
+## Bucket references
+
+Encore uses static analysis to determine which services are accessing each bucket,
+and what operations each service is performing.
+
+That information is used for features such as rendering architecture diagrams, and can be used by Encore's Cloud Platform to provision infrastructure correctly and configure IAM permissions.
+
+This means `Bucket` objects can't be passed around however you like,
+as it makes static analysis impossible in many cases. To simplify your workflow, given these restrictions,
+Encore supports defining a "reference" to a bucket that can be passed around any way you want.
+
+### Using bucket references
+
+Define a bucket reference by calling `bucket.ref<DesiredPermissions>()` from within a service, where `DesiredPermissions` is one of the pre-defined permission types defined in the `encore.dev/storage/objects` module.
+
+This means you're effectively pre-declaring the permissions you need, and only the methods that
+are allowed by those permissions are available on the returned reference object.
+
+For example, to get a reference to a bucket that can only download objects:
+
+```typescript
+import { Uploader } from "encore.dev/storage/objects";
+const ref = profilePictures.ref<Uploader>();
+
+// You can now freely pass around `ref`, and you can use
+// `ref.upload()` just like you would `profilePictures.upload()`.
+```
+
+To ensure Encore still is aware of which permissions each service needs, the call to `bucket.ref`
+must be made from within a service, so that Encore knows which service to associate the permissions with.
+
+Encore provides permission interfaces for each operation that can be performed on a bucket:
+
+* `Downloader` for downloading objects
+* `Uploader` for uploading objects
+* `Lister` for listing objects
+* `Attrser` for getting object attributes
+* `Remover` for removing objects
+
+If you need multiple permissions you can combine them using `&`.
+For example, `profilePictures.ref<Downloader & Uploader>` gives you a reference
+that allows calling both `download` and `upload`.
+
+For convenience Encore also provides a `ReadWriter` permission that gives complete read-write access
+to the bucket, granting all the permissions above. It is equivalent to `Downloader & Uploader & Lister & Attrser & Remover`.
