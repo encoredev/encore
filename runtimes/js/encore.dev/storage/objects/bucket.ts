@@ -2,6 +2,7 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 import { unwrapErr } from "./error";
+import { BucketPerms, Uploader, Downloader, Attrser, Lister, Remover } from "./refs";
 
 export interface BucketConfig {
   /**
@@ -14,7 +15,7 @@ export interface BucketConfig {
 /**
  * Defines a new Object Storage bucket infrastructure resource.
  */
-export class Bucket {
+export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser, Lister, Remover {
   impl: runtime.Bucket;
 
   /**
@@ -22,6 +23,7 @@ export class Bucket {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(name: string, cfg?: BucketConfig) {
+    super();
     this.impl = runtime.RT.bucket(name);
   }
 
@@ -99,6 +101,10 @@ export class Bucket {
     if (err) {
       unwrapErr(err);
     }
+  }
+
+  ref<P extends BucketPerms>(): P {
+    return this as unknown as P
   }
 }
 

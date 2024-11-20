@@ -40,6 +40,24 @@ var ref = objects.BucketRef[objects.Uploader](bkt)
 			}},
 		},
 		{
+			Name: "ref_multi",
+			Code: `
+var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
+
+var ref = objects.BucketRef[objects.ReadWriter](bkt)
+`,
+			Want: []usage.Usage{&objects.RefUsage{
+				Perms: []objects.Perm{
+					objects.DeleteObject,
+					objects.GetObjectMetadata,
+					objects.ListObjects,
+					objects.ReadObjectContents,
+					objects.UpdateObjectMetadata,
+					objects.WriteObject,
+				},
+			}},
+		},
+		{
 			Name: "custom_ref_alias",
 			Code: `
 var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
@@ -63,6 +81,19 @@ var ref = objects.BucketRef[MyRef](bkt)
 `,
 			Want: []usage.Usage{&objects.RefUsage{
 				Perms: []objects.Perm{objects.WriteObject},
+			}},
+		},
+		{
+			Name: "custom_ref_interface_multi",
+			Code: `
+var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
+
+type MyRef interface { objects.Uploader; objects.Downloader }
+
+var ref = objects.BucketRef[MyRef](bkt)
+`,
+			Want: []usage.Usage{&objects.RefUsage{
+				Perms: []objects.Perm{objects.ReadObjectContents, objects.WriteObject},
 			}},
 		},
 		{

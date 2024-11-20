@@ -388,7 +388,7 @@ impl<'a> MetaBuilder<'a> {
                     };
 
                     use objects::Operation;
-                    let op = match access.op {
+                    let ops = access.ops.iter().map(|op| match op {
                         Operation::DeleteObject => v1::bucket_usage::Operation::DeleteObject,
                         Operation::ListObjects => v1::bucket_usage::Operation::ListObjects,
                         Operation::ReadObjectContents => {
@@ -401,7 +401,7 @@ impl<'a> MetaBuilder<'a> {
                         Operation::GetObjectMetadata => {
                             v1::bucket_usage::Operation::GetObjectMetadata
                         }
-                    };
+                    } as i32);
 
                     let idx = svc_index.get(&svc.name).unwrap();
                     bucket_perms
@@ -411,7 +411,7 @@ impl<'a> MetaBuilder<'a> {
                             operations: vec![],
                         })
                         .operations
-                        .push(op as i32);
+                        .extend(ops);
                 }
 
                 Usage::CallEndpoint(call) => {
