@@ -13,8 +13,8 @@ fn check_origins(cors: &CorsHeadersConfig, creds: bool, good: bool, origins: &[H
             .expect("insert origin header");
 
         if creds {
-            req.insert_header(AUTHORIZATION, HeaderValue::from_static("dummy"))
-                .expect("insert authorization header");
+            req.insert_header(ACCESS_CONTROL_REQUEST_HEADERS, AUTHORIZATION)
+                .expect("insert access-control-request-headers");
         }
 
         let mut resp = ResponseHeader::build(200, None).expect("construct response");

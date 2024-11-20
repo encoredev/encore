@@ -136,9 +136,9 @@ func TestOptions(t *testing.T) {
 			h := make(http.Header)
 			h.Set("Origin", o)
 			if creds {
-				h.Set("Authorization", "dummy")
+				h.Set("Access-Control-Request-Headers", "Authorization")
 			}
-			allowed := c.OriginAllowed(&http.Request{Header: h})
+			allowed := c.OriginAllowed(&http.Request{Header: h, Method: "OPTIONS"})
 			if allowed != good {
 				t.Fatalf("origin=%s creds=%v: got allowed=%v, want %v", o, creds, allowed, good)
 			} else {

@@ -3,6 +3,7 @@ use crate::encore::runtime::v1 as pb;
 use crate::encore::runtime::v1::gateway::CorsAllowedOrigins;
 use anyhow::Context;
 use axum::http::{HeaderName, HeaderValue};
+use http::header::{ACCESS_CONTROL_REQUEST_HEADERS, AUTHORIZATION, COOKIE};
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -84,14 +85,28 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
             }
         };
 
+        let request_has_creds = |req: &axum::http::request::Parts| -> bool {
+            if req.headers.contains_key(AUTHORIZATION) || req.headers.contains_key(COOKIE) {
+                return true;
+            }
+
+            if req.method == http::method::Method::OPTIONS {
+                return req
+                    .headers
+                    .get(ACCESS_CONTROL_REQUEST_HEADERS)
+                    .and_then(|val| val.to_str().ok())
+                    .map(|val| val.to_lowercase().contains("authorization"))
+                    .unwrap_or(false);
+            }
+
+            false
+        };
+
         let pred = move |origin: &HeaderValue, req: &axum::http::request::Parts| {
             let Ok(origin) = origin.to_str() else {
                 return false;
             };
-            let headers = &req.headers;
-            if headers.contains_key(axum::http::header::AUTHORIZATION)
-                || headers.contains_key(axum::http::header::COOKIE)
-            {
+            if request_has_creds(req) {
                 with_creds.allows(origin)
             } else {
                 without_creds.allows(origin)

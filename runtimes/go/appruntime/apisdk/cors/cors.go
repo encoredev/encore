@@ -67,8 +67,20 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.
-			hasCreds := len(r.Cookies()) > 0 || r.Header["Authorization"] != nil || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0)
-			if hasCreds {
+			hasCreds := func(r *http.Request) bool {
+				if len(r.Cookies()) > 0 || r.Header["Authorization"] != nil || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0) {
+					return true
+				}
+
+				if r.Method == "OPTIONS" {
+					if val := r.Header.Get("Access-Control-Request-Headers"); val != "" {
+						return strings.Contains(strings.ToLower(val), "authorization")
+					}
+				}
+
+				return false
+			}
+			if hasCreds(r) {
 				ok := hasUnsafeWildcardOriginWithCreds || sortedSliceContains(originsCreds, origin)
 				if !ok {
 					// Not an exact match. Check any glob origins.
