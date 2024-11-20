@@ -78,16 +78,16 @@ func UploadProfilePicture(w http.ResponseWriter, req *http.Request) {
 	userID, _ := auth.UserID()
 	key := string(userID) // We store the profile
 
-	w := ProfilePictures.Upload(c, key)
-	_, err := io.Copy(w, req.Body)
+	writer := ProfilePictures.Upload(req.Context(), key)
+	_, err := io.Copy(writer, req.Body)
 	if err != nil {
 		// If something went wrong with copying data, abort the upload and return an error.
-		w.Abort()
+		writer.Abort()
 		errs.HTTPError(w, err)
 		return
 	}
 
-	if err := w.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		errs.HTTPError(w, err)
 		return
 	}
@@ -127,7 +127,7 @@ var ProfilePictures = objects.NewBucket("profile-pictures", objects.BucketConfig
 //encore:api public raw method=GET path=/profile-picture/:userID
 func ServeProfilePicture(w http.ResponseWriter, req *http.Request) {
 	userID := encore.CurrentRequest().PathParams.Get("userID")
-	reader := ProfilePictures.Download(c, userID)
+	reader := ProfilePictures.Download(req.Context(), userID)
 
 	// Did we encounter an error?
 	if err := reader.Err(); err != nil {
