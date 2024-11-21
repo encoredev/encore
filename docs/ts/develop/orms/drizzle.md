@@ -5,6 +5,8 @@ title: Using Drizzle ORM with Encore
 lang: ts
 ---
 Encore.ts supports integrating [Drizzle](https://orm.drizzle.team/), a TypeScript ORM for Node.js and the browser. To use Drizzle with Encore, start by creating a `SQLDatabase` instance and providing the connection string to Drizzle.
+ 
+<GitHubLink href="https://github.com/encoredev/examples/tree/main/ts/drizzle" desc="Using Drizzle ORM with Encore.ts" />
 
 ## 1. Setting Up the Database Connection
 
@@ -74,8 +76,3 @@ drizzle-kit generate
 ## 5. Applying Migrations
 
 Migrations are automatically applied when you run your Encore application, so you don’t need to run `drizzle-kit migrate` or any similar commands manually.
-
----
-
-For more details, see the example on GitHub:  
-<GitHubLink href="https://github.com/encoredev/examples/tree/main/ts/drizzle" desc="Using Drizzle ORM with Encore.ts" />

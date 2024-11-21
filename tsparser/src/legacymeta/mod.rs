@@ -11,7 +11,7 @@ use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
 use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
-use crate::parser::resources::infra::{cron, pubsub_subscription, pubsub_topic, sqldb};
+use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
 use crate::parser::types::ObjectId;
 use crate::parser::usageparser::Usage;
@@ -72,6 +72,7 @@ impl<'a> MetaBuilder<'a> {
                 rel_path,
                 rpcs: vec![],      // filled in later
                 databases: vec![], // filled in later
+                buckets: vec![],   // filled in later
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -196,6 +197,10 @@ impl<'a> MetaBuilder<'a> {
 
                 Resource::SQLDatabase(db) => {
                     self.data.sql_databases.push(self.sql_database(db)?);
+                }
+
+                Resource::Bucket(bkt) => {
+                    self.data.buckets.push(self.bucket(bkt));
                 }
 
                 Resource::PubSubTopic(topic) => {
@@ -335,6 +340,8 @@ impl<'a> MetaBuilder<'a> {
 
         let mut seen_publishers = HashSet::new();
         let mut seen_calls = HashSet::new();
+
+        let mut bucket_perms = HashMap::new();
         for u in &self.parse.usages {
             match u {
                 Usage::PublishTopic(publish) => {
@@ -371,6 +378,42 @@ impl<'a> MetaBuilder<'a> {
                     let idx = svc_index.get(&svc.name).unwrap();
                     self.data.svcs[*idx].databases.push(access.db.name.clone());
                 }
+
+                Usage::Bucket(access) => {
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        access
+                            .range
+                            .err("cannot determine which service is accessing this bucket");
+                        continue;
+                    };
+
+                    use objects::Operation;
+                    let ops = access.ops.iter().map(|op| match op {
+                        Operation::DeleteObject => v1::bucket_usage::Operation::DeleteObject,
+                        Operation::ListObjects => v1::bucket_usage::Operation::ListObjects,
+                        Operation::ReadObjectContents => {
+                            v1::bucket_usage::Operation::ReadObjectContents
+                        }
+                        Operation::WriteObject => v1::bucket_usage::Operation::WriteObject,
+                        Operation::UpdateObjectMetadata => {
+                            v1::bucket_usage::Operation::UpdateObjectMetadata
+                        }
+                        Operation::GetObjectMetadata => {
+                            v1::bucket_usage::Operation::GetObjectMetadata
+                        }
+                    } as i32);
+
+                    let idx = svc_index.get(&svc.name).unwrap();
+                    bucket_perms
+                        .entry(*idx)
+                        .or_insert(v1::BucketUsage {
+                            bucket: access.bucket.name.clone(),
+                            operations: vec![],
+                        })
+                        .operations
+                        .extend(ops);
+                }
+
                 Usage::CallEndpoint(call) => {
                     let src_service = self
                         .service_for_range(&call.range)
@@ -402,6 +445,14 @@ impl<'a> MetaBuilder<'a> {
                     }
                 }
             }
+        }
+
+        // Add the computed bucket permissions to the services.
+        for (svc_idx, mut bucket_perm) in bucket_perms {
+            // Make the bucket perms sorted and unique.
+            bucket_perm.operations.sort();
+            bucket_perm.operations.dedup();
+            self.data.svcs[svc_idx].buckets.push(bucket_perm);
         }
 
         // Sort the packages for deterministic output.
@@ -524,6 +575,14 @@ impl<'a> MetaBuilder<'a> {
         })
     }
 
+    fn bucket(&self, bkt: &objects::Bucket) -> v1::Bucket {
+        v1::Bucket {
+            name: bkt.name.clone(),
+            doc: bkt.doc.clone(),
+            versioned: bkt.versioned,
+        }
+    }
+
     /// Compute the relative path from the app root.
     /// It reports an error if the path is not under the app root.
     fn rel_path<'b>(&self, path: &'b Path) -> Result<&'b Path> {
@@ -608,6 +667,7 @@ fn new_meta() -> v1::Data {
         experiments: vec![],
         metrics: vec![],
         sql_databases: vec![],
+        buckets: vec![],
         gateways: vec![],
         language: v1::Lang::Typescript as i32,
     }

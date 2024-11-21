@@ -277,6 +277,7 @@ impl InterfaceField {
 
 #[derive(Debug, Clone, Hash, Serialize)]
 pub struct ClassType {
+    pub methods: Vec<String>,
     // TODO: include class fields here
 }
 
@@ -826,10 +827,10 @@ pub fn intersect<'a: 'b, 'b>(
         }
 
         (Type::Class(_), Type::Class(_)) => {
-            HANDLER.with(|handler| {
-                handler.err("intersection of class types is not yet supported");
-            });
-            Cow::Owned(Type::Basic(Basic::Never))
+            Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
+                x: Box::new(a.into_owned()),
+                y: Box::new(b.into_owned()),
+            })))
         }
 
         (Type::Named(x), _) => {

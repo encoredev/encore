@@ -89,6 +89,136 @@ func (mr *MockLoggerMockRecorder) BodyStream(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BodyStream", reflect.TypeOf((*MockLogger)(nil).BodyStream), arg0)
 }
 
+// BucketDeleteObjectsEnd mocks base method.
+func (m *MockLogger) BucketDeleteObjectsEnd(arg0 trace2.BucketDeleteObjectsEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BucketDeleteObjectsEnd", arg0)
+}
+
+// BucketDeleteObjectsEnd indicates an expected call of BucketDeleteObjectsEnd.
+func (mr *MockLoggerMockRecorder) BucketDeleteObjectsEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketDeleteObjectsEnd", reflect.TypeOf((*MockLogger)(nil).BucketDeleteObjectsEnd), arg0)
+}
+
+// BucketDeleteObjectsStart mocks base method.
+func (m *MockLogger) BucketDeleteObjectsStart(arg0 trace2.BucketDeleteObjectsStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BucketDeleteObjectsStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// BucketDeleteObjectsStart indicates an expected call of BucketDeleteObjectsStart.
+func (mr *MockLoggerMockRecorder) BucketDeleteObjectsStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketDeleteObjectsStart", reflect.TypeOf((*MockLogger)(nil).BucketDeleteObjectsStart), arg0)
+}
+
+// BucketListObjectsEnd mocks base method.
+func (m *MockLogger) BucketListObjectsEnd(arg0 trace2.BucketListObjectsEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BucketListObjectsEnd", arg0)
+}
+
+// BucketListObjectsEnd indicates an expected call of BucketListObjectsEnd.
+func (mr *MockLoggerMockRecorder) BucketListObjectsEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketListObjectsEnd", reflect.TypeOf((*MockLogger)(nil).BucketListObjectsEnd), arg0)
+}
+
+// BucketListObjectsStart mocks base method.
+func (m *MockLogger) BucketListObjectsStart(arg0 trace2.BucketListObjectsStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BucketListObjectsStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// BucketListObjectsStart indicates an expected call of BucketListObjectsStart.
+func (mr *MockLoggerMockRecorder) BucketListObjectsStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketListObjectsStart", reflect.TypeOf((*MockLogger)(nil).BucketListObjectsStart), arg0)
+}
+
+// BucketObjectDownloadEnd mocks base method.
+func (m *MockLogger) BucketObjectDownloadEnd(arg0 trace2.BucketObjectDownloadEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BucketObjectDownloadEnd", arg0)
+}
+
+// BucketObjectDownloadEnd indicates an expected call of BucketObjectDownloadEnd.
+func (mr *MockLoggerMockRecorder) BucketObjectDownloadEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectDownloadEnd", reflect.TypeOf((*MockLogger)(nil).BucketObjectDownloadEnd), arg0)
+}
+
+// BucketObjectDownloadStart mocks base method.
+func (m *MockLogger) BucketObjectDownloadStart(arg0 trace2.BucketObjectDownloadStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BucketObjectDownloadStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// BucketObjectDownloadStart indicates an expected call of BucketObjectDownloadStart.
+func (mr *MockLoggerMockRecorder) BucketObjectDownloadStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectDownloadStart", reflect.TypeOf((*MockLogger)(nil).BucketObjectDownloadStart), arg0)
+}
+
+// BucketObjectGetAttrsEnd mocks base method.
+func (m *MockLogger) BucketObjectGetAttrsEnd(arg0 trace2.BucketObjectGetAttrsEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BucketObjectGetAttrsEnd", arg0)
+}
+
+// BucketObjectGetAttrsEnd indicates an expected call of BucketObjectGetAttrsEnd.
+func (mr *MockLoggerMockRecorder) BucketObjectGetAttrsEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectGetAttrsEnd", reflect.TypeOf((*MockLogger)(nil).BucketObjectGetAttrsEnd), arg0)
+}
+
+// BucketObjectGetAttrsStart mocks base method.
+func (m *MockLogger) BucketObjectGetAttrsStart(arg0 trace2.BucketObjectGetAttrsStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BucketObjectGetAttrsStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// BucketObjectGetAttrsStart indicates an expected call of BucketObjectGetAttrsStart.
+func (mr *MockLoggerMockRecorder) BucketObjectGetAttrsStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectGetAttrsStart", reflect.TypeOf((*MockLogger)(nil).BucketObjectGetAttrsStart), arg0)
+}
+
+// BucketObjectUploadEnd mocks base method.
+func (m *MockLogger) BucketObjectUploadEnd(arg0 trace2.BucketObjectUploadEndParams) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "BucketObjectUploadEnd", arg0)
+}
+
+// BucketObjectUploadEnd indicates an expected call of BucketObjectUploadEnd.
+func (mr *MockLoggerMockRecorder) BucketObjectUploadEnd(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectUploadEnd", reflect.TypeOf((*MockLogger)(nil).BucketObjectUploadEnd), arg0)
+}
+
+// BucketObjectUploadStart mocks base method.
+func (m *MockLogger) BucketObjectUploadStart(arg0 trace2.BucketObjectUploadStartParams) trace2.EventID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BucketObjectUploadStart", arg0)
+	ret0, _ := ret[0].(trace2.EventID)
+	return ret0
+}
+
+// BucketObjectUploadStart indicates an expected call of BucketObjectUploadStart.
+func (mr *MockLoggerMockRecorder) BucketObjectUploadStart(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BucketObjectUploadStart", reflect.TypeOf((*MockLogger)(nil).BucketObjectUploadStart), arg0)
+}
+
 // CacheCallEnd mocks base method.
 func (m *MockLogger) CacheCallEnd(arg0 trace2.CacheCallEndParams) {
 	m.ctrl.T.Helper()

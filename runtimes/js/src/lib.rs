@@ -7,6 +7,7 @@ mod headers;
 mod log;
 mod meta;
 mod napi_util;
+pub mod objects;
 pub mod pubsub;
 mod pvalue;
 mod raw_api;

@@ -44,4 +44,15 @@ type Logger interface {
 	LogMessage(LogMessageParams)
 	HTTPBeginRoundTrip(httpReq *http.Request, req *model.Request, goid uint32) (context.Context, error)
 	HTTPCompleteRoundTrip(req *http.Request, resp *http.Response, goid uint32, err error)
+
+	BucketObjectUploadStart(BucketObjectUploadStartParams) EventID
+	BucketObjectUploadEnd(BucketObjectUploadEndParams)
+	BucketObjectDownloadStart(BucketObjectDownloadStartParams) EventID
+	BucketObjectDownloadEnd(BucketObjectDownloadEndParams)
+	BucketObjectGetAttrsStart(BucketObjectGetAttrsStartParams) EventID
+	BucketObjectGetAttrsEnd(BucketObjectGetAttrsEndParams)
+	BucketListObjectsStart(BucketListObjectsStartParams) EventID
+	BucketListObjectsEnd(BucketListObjectsEndParams)
+	BucketDeleteObjectsStart(BucketDeleteObjectsStartParams) EventID
+	BucketDeleteObjectsEnd(BucketDeleteObjectsEndParams)
 }

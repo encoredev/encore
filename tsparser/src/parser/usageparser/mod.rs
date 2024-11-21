@@ -13,6 +13,8 @@ use crate::parser::resourceparser::bind::Bind;
 use crate::parser::resources::{apis, infra, Resource};
 use crate::parser::Range;
 
+use super::types::TypeChecker;
+
 #[derive(Debug)]
 pub struct UsageExpr {
     pub range: Range,
@@ -44,7 +46,7 @@ pub enum UsageExprKind {
 #[derive(Debug)]
 pub struct MethodCall {
     pub method: ast::Ident,
-    _call: ast::CallExpr,
+    pub call: ast::CallExpr,
 }
 
 #[derive(Debug)]
@@ -76,6 +78,7 @@ pub struct Other {
 
 pub struct UsageResolver<'a> {
     module_loader: &'a ModuleLoader,
+    type_checker: &'a TypeChecker,
     resources: &'a [Resource],
     binds_by_module: HashMap<ModuleId, Vec<Lrc<Bind>>>,
 }
@@ -83,11 +86,13 @@ pub struct UsageResolver<'a> {
 impl<'a> UsageResolver<'a> {
     pub fn new(
         module_loader: &'a ModuleLoader,
+        type_checker: &'a TypeChecker,
         resources: &'a [Resource],
         binds: &[Lrc<Bind>],
     ) -> Self {
         let mut resolver = Self {
             module_loader,
+            type_checker,
             resources,
             binds_by_module: HashMap::new(),
         };
@@ -217,20 +222,25 @@ pub enum Usage {
     CallEndpoint(apis::api::CallEndpointUsage),
     PublishTopic(infra::pubsub_topic::PublishUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
+    Bucket(infra::objects::BucketUsage),
 }
 
 pub struct ResolveUsageData<'a> {
+    pub module: &'a Lrc<Module>,
+    pub type_checker: &'a TypeChecker,
     pub expr: &'a UsageExpr,
     pub resources: &'a [Resource],
 }
 
 impl UsageResolver<'_> {
-    pub fn resolve_usage(&self, exprs: &[UsageExpr]) -> Result<Vec<Usage>> {
+    pub fn resolve_usage(&self, module: &Lrc<Module>, exprs: &[UsageExpr]) -> Result<Vec<Usage>> {
         let mut usages = Vec::new();
         for expr in exprs {
             let data = ResolveUsageData {
-                resources: self.resources,
+                module,
+                type_checker: self.type_checker,
                 expr,
+                resources: self.resources,
             };
             match &expr.bind.resource {
                 Resource::APIEndpoint(ep) => {
@@ -253,6 +263,11 @@ impl UsageResolver<'_> {
                 }
                 Resource::SQLDatabase(db) => {
                     if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone())? {
+                        usages.push(u)
+                    }
+                }
+                Resource::Bucket(bkt) => {
+                    if let Some(u) = infra::objects::resolve_bucket_usage(&data, bkt.clone())? {
                         usages.push(u)
                     }
                 }
@@ -349,7 +364,7 @@ impl<'a> UsageVisitor<'a> {
                                 range: call.span.into(),
                                 bind: bind.clone(),
                                 kind: UsageExprKind::MethodCall(MethodCall {
-                                    _call: (*call).to_owned(),
+                                    call: (*call).to_owned(),
                                     method: id.to_owned(),
                                 }),
                             })
@@ -544,7 +559,7 @@ export const Bar = 5;
             })];
 
             let resources = [res];
-            let ur = UsageResolver::new(&pc.loader, &resources, &bar_binds);
+            let ur = UsageResolver::new(&pc.loader, &pc.type_checker, &resources, &bar_binds);
 
             let result = ur.external_binds_to_scan_for(foo_mod);
             assert_eq!(result.len(), 1);
@@ -630,7 +645,7 @@ export const Bar = 5;
             })];
 
             let resources = [res];
-            let ur = UsageResolver::new(&pc.loader, &resources, &bar_binds);
+            let ur = UsageResolver::new(&pc.loader, &pc.type_checker, &resources, &bar_binds);
 
             let usages = ur.scan_usage_exprs(foo_mod);
             assert_eq!(usages.len(), 6);

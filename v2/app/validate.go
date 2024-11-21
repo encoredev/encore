@@ -7,6 +7,7 @@ import (
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
 	"encr.dev/v2/parser/infra/sqldb"
@@ -30,6 +31,7 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 	d.validateCrons(pc, result)
 	d.validateDatabases(pc, result)
 	d.validatePubSub(pc, result)
+	d.validateObjects(pc, result)
 
 	// Validate all resources are defined within a service
 	for _, b := range result.AllBinds() {
@@ -37,6 +39,9 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 		switch r.(type) {
 		case *pubsub.Topic:
 			// We allow pubsub topics to be declared outside of service code
+			continue
+		case *objects.Bucket:
+			// We allow buckets to be declared outside of service code
 			continue
 		case *middleware.Middleware:
 			// Middleware is also allowed to be declared outside of service code if it's global (validateMiddleware checks this already)

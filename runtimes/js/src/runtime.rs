@@ -5,7 +5,7 @@ use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::pvalue::{parse_pvalues, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
-use crate::{meta, websocket_api};
+use crate::{meta, objects, websocket_api};
 use encore_runtime_core::api::PValues;
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
@@ -92,6 +92,16 @@ impl Runtime {
             .topic(encore_name.into())
             .ok_or_else(|| Error::new(Status::GenericFailure, "topic not found"))?;
         Ok(PubSubTopic::new(topic))
+    }
+
+    #[napi]
+    pub fn bucket(&self, encore_name: String) -> napi::Result<objects::Bucket> {
+        let bkt = self
+            .runtime
+            .objects()
+            .bucket(encore_name.into())
+            .ok_or_else(|| Error::new(Status::GenericFailure, "bucket not found"))?;
+        Ok(objects::Bucket::new(bkt))
     }
 
     #[napi]

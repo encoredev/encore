@@ -77,6 +77,7 @@
       }
     }
   },
+  "bucket_providers": [],
   "redis_servers": [
     {
       "host": "my-redis-host",

@@ -199,7 +199,8 @@ func registerTypes(name string, fAST *ast.File) {
 						types[pkg][s.Name.Name] = registeredType{s.Type, removePosFromCommentGroup(d.Doc)}
 					}
 				case *ast.ValueSpec:
-					if d.Tok == token.CONST {
+					dir := lookupDirective(d.Doc)
+					if d.Tok == token.CONST || (d.Tok == token.VAR && dir == mustKeep) {
 						for i, name := range s.Names {
 							if len(s.Values) <= i {
 								if len(s.Values) == 0 && name.IsExported() {
@@ -484,7 +485,7 @@ func rewriteAST(f *ast.File) (usesPanicWrapper bool, err error) {
 
 				// else if we have a selector, rewrite the package name to see if this is an export from
 				// one of our private packages, in which case we want to copy it into the public API
-				if node.Tok == token.CONST {
+				if node.Tok == token.CONST || node.Tok == token.VAR {
 					for _, spec := range node.Specs {
 						switch spec := spec.(type) {
 						case *ast.ValueSpec:
