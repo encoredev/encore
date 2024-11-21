@@ -571,7 +571,10 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> anyhow::R
 
                 Segment::Param { name, value_type }
             }
-            Segment::Literal(_) | Segment::Wildcard { .. } | Segment::Fallback { .. } => seg,
+            Segment::Literal(_)
+            | Segment::Wildcard { .. }
+            | Segment::Fallback { .. }
+            | Segment::Root => seg,
         };
         segments.push(seg);
     }

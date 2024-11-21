@@ -33,6 +33,7 @@ impl Path {
         for seg in &path.segments {
             use meta::path_segment::SegmentType;
             match SegmentType::try_from(seg.r#type).context("invalid path segment type")? {
+                SegmentType::Root => segments.push(Segment::Root),
                 SegmentType::Literal => {
                     segments.push(Segment::Literal(seg.value.clone().into_boxed_str()))
                 }
@@ -91,6 +92,7 @@ impl Path {
                     capacity += 10;
                     dynamic_segments.push(jsonschema::Basic::String);
                 }
+                Root => capacity += 1,
             }
         }
 
@@ -117,6 +119,7 @@ pub enum Segment {
     Fallback {
         name: Box<str>,
     },
+    Root,
 }
 
 impl Path {
@@ -128,6 +131,7 @@ impl Path {
 
             use Segment::*;
             match seg {
+                Root => {}
                 Literal(lit) => path.push_str(lit),
                 Param { name, .. } | Wildcard { name } | Fallback { name } => {
                     let Some(payload) = payload else {

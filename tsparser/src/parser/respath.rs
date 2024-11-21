@@ -9,7 +9,7 @@ impl Path {
     pub fn dynamic_segments(&self) -> impl Iterator<Item = &Segment> {
         self.segments
             .iter()
-            .filter(|s| !matches!(s, Segment::Literal(_)))
+            .filter(|s| !matches!(s, Segment::Literal(_) | Segment::Root))
     }
 
     pub fn has_dynamic_segments(&self) -> bool {
@@ -36,6 +36,7 @@ pub enum Segment {
     Param { name: String, value_type: ValueType },
     Wildcard { name: String },
     Fallback { name: String },
+    Root,
 }
 
 impl Segment {
@@ -45,6 +46,7 @@ impl Segment {
             Segment::Param { .. } => Some(':'),
             Segment::Wildcard { .. } => Some('*'),
             Segment::Fallback { .. } => Some('!'),
+            Segment::Root => None,
         }
     }
 
@@ -54,6 +56,7 @@ impl Segment {
             Segment::Param { name, .. } => name,
             Segment::Wildcard { name } => name,
             Segment::Fallback { name } => name,
+            Segment::Root => "",
         }
     }
 
@@ -105,6 +108,12 @@ impl Path {
         let mut segments = vec![];
 
         let mut path = path;
+
+        if path == "/" {
+            segments.push(Segment::Root);
+            path = "";
+        }
+
         while !path.is_empty() {
             if opts.prefix_slash || !segments.is_empty() {
                 path = &path[1..]; // drop leading slash
@@ -150,6 +159,9 @@ impl Path {
         // Validate the segments.
         for (idx, seg) in segments.iter().enumerate() {
             match seg {
+                Segment::Root if (idx != 0 || segments.len() != 1) => {
+                    anyhow::bail!("invalid path: root cannot be combined with other segments")
+                }
                 Segment::Literal(lit) if lit.is_empty() => {
                     anyhow::bail!("invalid path: literal cannot be empty");
                 }
