@@ -119,34 +119,35 @@ function calculateMiddlewareChain(
   let middlewares = [];
 
   for (const m of ms) {
-    if (m.options === undefined) {
+    if (m.options === undefined || m.options.target === undefined) {
       middlewares.push(m);
     } else {
+      const target = m.options.target;
       // check if options are set and if they match the endpoint options
       if (
-        m.options.requiresAuth !== undefined &&
-        m.options.requiresAuth !== endpointOptions.requiresAuth
+        target.requiresAuth !== undefined &&
+        target.requiresAuth !== endpointOptions.requiresAuth
       ) {
         continue;
       }
 
       if (
-        m.options.exposed !== undefined &&
-        m.options.exposed !== endpointOptions.exposed
+        target.exposed !== undefined &&
+        target.exposed !== endpointOptions.exposed
       ) {
         continue;
       }
 
       if (
-        m.options.isRaw !== undefined &&
-        m.options.isRaw !== endpointOptions.isRaw
+        target.isRaw !== undefined &&
+        target.isRaw !== endpointOptions.isRaw
       ) {
         continue;
       }
 
       if (
-        m.options.isStream !== undefined &&
-        m.options.isStream !== endpointOptions.isStream
+        target.isStream !== undefined &&
+        target.isStream !== endpointOptions.isStream
       ) {
         continue;
       }
@@ -183,6 +184,17 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           stream = new IterableSocket(stream);
         }
 
+        if (middlewares.length === 0) {
+          const payload = req.payload();
+          return {
+            payload:
+              payload !== null
+                ? h.apiRoute.handler(payload, stream)
+                : h.apiRoute.handler(stream),
+            extraHeaders: {}
+          };
+        }
+
         const handler = async () => {
           // handshake payload
           const payload = req.payload();
@@ -210,6 +222,13 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         const rawReq = new RawRequest(req, body);
         const rawResp = new RawResponse(rawReq, resp);
 
+        if (middlewares.length === 0) {
+          return {
+            payload: h.apiRoute.handler(rawReq, rawResp),
+            extraHeaders: {}
+          };
+        }
+
         const handler = async () => {
           return h.apiRoute.handler(rawReq, rawResp);
         };
@@ -224,6 +243,17 @@ function transformHandler(h: Handler): runtime.ApiRoute {
     ...h.apiRoute,
     handler: (req: runtime.Request) => {
       setCurrentRequest(req);
+
+      if (middlewares.length === 0) {
+        const payload = req.payload();
+        return {
+          payload:
+            payload !== null
+              ? h.apiRoute.handler(payload)
+              : h.apiRoute.handler(),
+          extraHeaders: {}
+        };
+      }
 
       const handler = async () => {
         const payload = req.payload();

@@ -267,26 +267,31 @@ api.static = function staticAssets(options: StaticOptions) {
 
 export interface MiddlewareOptions {
   /**
-   * If set, only run middleware on endpoints that are either exposed or not
-   * exposed.
+   * Configuration for what endpoints that should be targeted by the middleware
    */
-  exposed?: boolean;
+  target?: {
+    /**
+     * If set, only run middleware on endpoints that are either exposed or not
+     * exposed.
+     */
+    exposed?: boolean;
 
-  /**
-   * If set, only run middleware on endpoints that either require or not
-   * requires auth.
-   */
-  requiresAuth?: boolean;
+    /**
+     * If set, only run middleware on endpoints that either require or not
+     * requires auth.
+     */
+    requiresAuth?: boolean;
 
-  /**
-   * If set, only run middleware on endpoints that are raw endpoints.
-   */
-  isRaw?: boolean;
+    /**
+     * If set, only run middleware on endpoints that are raw endpoints.
+     */
+    isRaw?: boolean;
 
-  /**
-   * If set, only run middleware on endpoints that are stream endpoints.
-   */
-  isStream?: boolean;
+    /**
+     * If set, only run middleware on endpoints that are stream endpoints.
+     */
+    isStream?: boolean;
+  };
 }
 
 export class MiddlewareRequest {
@@ -309,28 +314,28 @@ export class MiddlewareRequest {
    * requestMeta is set when the handler is a typed handler or a stream handler.
    * for raw handlers, see rawRequest and rawResponse.
    */
-  public get requestMeta() {
+  public get requestMeta(): RequestMeta | undefined {
     return this._reqMeta || (this._reqMeta = currentRequest());
   }
 
   /**
    * stream is set when the handler is a stream handler.
    */
-  public get stream() {
+  public get stream(): Sink | Stream | Socket | undefined {
     return this._stream;
   }
 
   /**
    * rawRequest is set when the handler is a raw request handler.
    */
-  public get rawRequest() {
+  public get rawRequest(): RawRequest | undefined {
     return this._rawReq;
   }
 
   /**
    * rawResponse is set when the handler is a raw request handler.
    */
-  public get rawResponse() {
+  public get rawResponse(): RawResponse | undefined {
     return this._rawResp;
   }
 }

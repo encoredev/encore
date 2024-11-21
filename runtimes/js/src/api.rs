@@ -115,7 +115,8 @@ impl PromiseHandler for APIPromiseHandler {
         match parse_pvalues(payload) {
             Ok(val) => Ok(HandlerResponseInner {
                 payload: val,
-                extra_headers: parse_header_map(extra_headers).unwrap(),
+                extra_headers: parse_header_map(extra_headers)
+                    .map_err(|e| api::Error::invalid_argument("unable to parse extraHeaders", e))?,
             }),
             Err(err) => self.error(env, err),
         }
