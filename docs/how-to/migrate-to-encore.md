@@ -5,7 +5,7 @@ seotitle: How to migrate your existing backend to Encore
 seodesc: Learn how to migrate your Go backend application to Encore, and unlock Encore's powerful set of backend development tools for your team.
 ---
 
-Encore features like [automatic infrastructure provisioning](/docs/deploy/infra), [distributed tracing](/docs/observability/tracing), [architecture diagrams](/docs/observability/encore-flow), and [API documentation](/docs/develop/api-docs), rely on the [Encore application model](/docs/introduction#meet-the-encore-application-model).
+Encore features like [automatic infrastructure provisioning](/docs/deploy/infra), [distributed tracing](/docs/observability/tracing), [architecture diagrams](/docs/observability/encore-flow), and [API documentation](/docs/develop/api-docs), rely on the [Encore application model](/docs/concepts/application-model).
 
 Building your backend using Encore's declarative [Backend Framework](/docs/primitives/overview) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
 
@@ -68,7 +68,7 @@ This can be relatively straightforward if your existing system is a monolith, or
 
 The benefits of this approach is that you'll get everything in one place from the start, and you'll be able to quickly use features like Encore's CI/CD system and secrets manager, for your entire backend application.
 
-However, you will not immediately be able to use some of the powerful Encore features, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](/docs/introduction#meet-the-encore-application-model).
+However, you will not immediately be able to use some of the powerful Encore features, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](/docs/concepts/application-model).
 
 Once your Encore app is up and running, you'll have something that looks like the image below. Notice how Encore doesn't have complete visibility into the inner workings of your application.
 

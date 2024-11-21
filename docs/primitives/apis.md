@@ -90,7 +90,7 @@ and lets you abort the request processing and save resources that nobody needs.
 The `error` return type is always required because APIs can always fail from the caller's perspective.
 Therefore even though our simple `Ping` API endpoint above never fails in its implementation, from the perspective of the caller perhaps the service is crashing or the network is down and the service cannot be reached.
 
-This approach is simple but very powerful. It lets Encore use [static analysis](/docs/introduction#meet-the-encore-application-model)
+This approach is simple but very powerful. It lets Encore use [static analysis](/docs/concepts/application-model)
 to understand the request and response schemas of all your APIs, which enables Encore to automatically generate API documentation, type-safe API clients, and much more.
 
 ### Request and response data types

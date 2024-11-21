@@ -55,7 +55,7 @@ When you quickly want to migrate to Encore.ts and don't need all the functionali
 
 **Approach drawbacks**
 
-- Because all requests will be proxied through the catch-all handler, you will not be able to get all the benefits from the [distributed tracing](/docs/observability/tracing), which rely on the [Encore application model](/docs/introduction#meet-the-encore-application-model).
+- Because all requests will be proxied through the catch-all handler, you will not be able to get all the benefits from the [distributed tracing](/docs/observability/tracing), which rely on the [Encore application model](/docs/concepts/application-model).
 - [Encore Flow](/docs/observability/encore-flow) and the [Service Catalog](/docs/develop/api-docs) will not be able to show you the full picture of your application until you start moving services and APIs over to Encore.ts. 
 - You will not be able to use the [API Client generation](/docs/develop/client-generation) feature until you start defining APIs in Encore.ts.
 
@@ -177,7 +177,7 @@ Below are two examples that you can use to identify the refactoring you will nee
 
 **Approach benefits**
 
-- Get all the advantages of Encore.ts, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](https://encore.dev/docs/introduction#meet-the-encore-application-model).
+- Get all the advantages of Encore.ts, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](/docs/concepts/application-model).
 - Get the [full performance benefit](https://encore.dev/blog/event-loops) of Encore.ts - **9x faster** than Express.js.
 
 **Approach drawbacks**

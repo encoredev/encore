@@ -8,7 +8,7 @@ subtitle: The environments you want, with none of the work
 Encore makes it simple to create the environments you need to build your application with confidence: local, preview, testing, and production.
 Each environment is an isolated fully working instance of your backend, automatically provisioned by Encore.
 
-Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/introduction#meet-the-encore-application-model). Environments are provisioned using contextually appropriate [infrastructure](/docs/deploy/infra) depending on the type of environment.
+Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/concepts/application-model). Environments are provisioned using contextually appropriate [infrastructure](/docs/deploy/infra) depending on the type of environment.
 
 ## Creating environments
 

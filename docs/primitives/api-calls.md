@@ -31,7 +31,7 @@ func MyOtherAPI(ctx context.Context) error {
 This means your development workflow is as simple as building a monolith, even if you use multiple services.
 You also get all the benefits of function calls, like compile-time checking of all the parameters and auto-completion in your editor, while still allowing the division of code into logical components, services, and systems.
 
-Then when building your application, Encore uses [static analysis](/docs/introduction#meet-the-encore-application-model) to parse all API calls and compiles them to proper API calls.
+Then when building your application, Encore uses [static analysis](/docs/concepts/application-model) to parse all API calls and compiles them to proper API calls.
 
 ## Current Request
 
