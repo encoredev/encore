@@ -59,6 +59,11 @@ fn check_headers(cors: &CorsHeadersConfig, allowed_headers: &[HeaderName], want_
 
     cors.apply(&req, &mut resp).expect("apply cors headers");
 
+    if !allowed_headers.is_empty() {
+        // check that the CORS response is valid (e.g if its a request with credentials)
+        assert!(resp.headers.get(ACCESS_CONTROL_ALLOW_ORIGIN).is_some())
+    }
+
     // check allowed headers.
     let allow_headers_val = resp
         .headers
@@ -148,7 +153,7 @@ fn test_empty() {
             HeaderValue::from_static("icanhazcheezburger.com"),
         ],
         nocreds_bad_origins: &[],
-        good_headers: &[AUTHORIZATION, CONTENT_TYPE, ORIGIN],
+        good_headers: &[CONTENT_TYPE, ORIGIN],
         bad_headers: &[
             HeaderName::from_static("x-requested-with"),
             HeaderName::from_static("x-forwarded-for"),
@@ -386,7 +391,6 @@ fn test_extra_headers() {
         nocreds_good_origins: &[],
         nocreds_bad_origins: &[],
         good_headers: &[
-            AUTHORIZATION,
             CONTENT_TYPE,
             ORIGIN,
             HeaderName::from_static("x-requested-with"),
@@ -420,7 +424,6 @@ fn test_extra_headers_wildcard() {
         nocreds_good_origins: &[],
         nocreds_bad_origins: &[],
         good_headers: &[
-            AUTHORIZATION,
             CONTENT_TYPE,
             ORIGIN,
             HeaderName::from_static("x-requested-with"),
@@ -449,7 +452,6 @@ fn test_static_headers() {
         nocreds_good_origins: &[],
         nocreds_bad_origins: &[],
         good_headers: &[
-            AUTHORIZATION,
             CONTENT_TYPE,
             ORIGIN,
             HeaderName::from_static("x-static-test"),
