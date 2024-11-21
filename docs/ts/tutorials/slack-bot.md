@@ -3,6 +3,7 @@ seotitle: Tutorial – How to build a Slack bot
 seodesc: Learn how to build a Slack bot with an Encore.ts backend, and get it running in the cloud in just a few minutes.
 title: Building a Slack bot
 subtitle: Learn how to build a Slack bot with an Encore backend
+lang: ts
 ---
 
 In this tutorial you will create a Slack bot that brings the greatness of the `cowsay` utility to Slack!

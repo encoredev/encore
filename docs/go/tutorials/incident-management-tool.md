@@ -4,6 +4,7 @@ seodesc: Learn how to build an incident management tool like PagerDuty using Go 
 title: Building an Incident Management Tool
 subtitle: Set up your own PagerDuty from zero-to-production in just 30 minutes
 social_card: /assets/docs/incident-og-image.png
+lang: go
 ---
 
 In this tutorial, we're going to walk through together how to build our very own Incident Management Tool like [Incident.io](https://incident.io) or [PagerDuty](https://pagerduty.com). We can then have our own on call schedule that can be rotated between many users, and have incidents come and be assigned according to the schedule!

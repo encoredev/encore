@@ -3,6 +3,7 @@ title: Building an Uptime Monitor
 subtitle: Learn how to build an event-driven uptime monitoring system
 seotitle: How to build an event-driven Uptime Monitoring System using Encore.go
 seodesc: Learn how to build an event-driven uptime monitoring tool using Go and Encore. Get your application running in the cloud in 30 minutes!
+lang: go
 ---
 
 Want to be notified when your website goes down so you can fix it before your users notice?
