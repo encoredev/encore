@@ -8,7 +8,9 @@ use tokio::io::AsyncRead;
 use crate::objects;
 use crate::{encore::runtime::v1 as pb, EncoreName};
 
-use super::{AttrsOptions, DeleteOptions, DownloadOptions, ExistsOptions, ListOptions};
+use super::{
+    AttrsOptions, DeleteOptions, DownloadOptions, ExistsOptions, ListOptions, PublicUrlError,
+};
 
 #[derive(Debug)]
 pub struct Cluster;
@@ -118,5 +120,9 @@ impl objects::ObjectImpl for Object {
         Box::pin(future::ready(Err(objects::Error::Internal(
             anyhow::anyhow!("noop bucket does not support delete"),
         ))))
+    }
+
+    fn public_url(&self) -> Result<String, PublicUrlError> {
+        Err(PublicUrlError::NoopBucket)
     }
 }

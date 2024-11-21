@@ -349,6 +349,10 @@ message Bucket {
   // Note: make sure it ends with a slash ("/") if you want
   // to group objects within a certain folder.
   optional string key_prefix = 4;
+
+  // Public base URL for accessing objects in this bucket.
+  // Must be set for public buckets.
+  optional string public_base_url = 5;
 }
 
 message Gateway {

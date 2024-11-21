@@ -582,6 +582,15 @@ Bar();          // Callee
 foo(x, Bar)     // CallArg
 new Class(Bar); // ConstructorArg
 let foo = Bar;  // Other
+
+// Inside nested function calls
+const _ = nested(
+  () => {
+    bb.on('close', async () => {
+      const _ = await Bar.nested_method();
+    })
+  }
+)
 -- bar.ts --
 export const Bar = 5;
             ",
@@ -648,7 +657,7 @@ export const Bar = 5;
             let ur = UsageResolver::new(&pc.loader, &pc.type_checker, &resources, &bar_binds);
 
             let usages = ur.scan_usage_exprs(foo_mod);
-            assert_eq!(usages.len(), 6);
+            assert_eq!(usages.len(), 7);
 
             assert_matches!(&usages[0].kind, UsageExprKind::FieldAccess(field) if field.field.as_ref() == "field");
             assert_matches!(&usages[1].kind, UsageExprKind::MethodCall(method) if method.method.as_ref() == "method");
@@ -656,6 +665,7 @@ export const Bar = 5;
             assert_matches!(&usages[3].kind, UsageExprKind::CallArg(arg) if arg.arg_idx == 1);
             assert_matches!(&usages[4].kind, UsageExprKind::ConstructorArg(arg) if arg.arg_idx == 0);
             assert_matches!(&usages[5].kind, UsageExprKind::Other(_));
+            assert_matches!(&usages[6].kind, UsageExprKind::MethodCall(method) if method.method.as_ref() == "nested_method");
         });
     }
 }

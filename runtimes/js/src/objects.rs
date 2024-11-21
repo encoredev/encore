@@ -133,6 +133,17 @@ impl BucketObject {
             Err(err) => Some(err.into()),
         }
     }
+
+    #[napi]
+    pub fn public_url(&self) -> napi::Result<String> {
+        match self.obj.public_url() {
+            Ok(url) => Ok(url),
+            Err(err) => Err(napi::Error::new(
+                napi::Status::GenericFailure,
+                err.to_string(),
+            )),
+        }
+    }
 }
 
 #[napi]

@@ -53,6 +53,7 @@ pub struct S3 {
 pub struct Bucket {
     pub name: String,
     pub key_prefix: Option<String>,
+    pub public_base_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -390,16 +391,15 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         });
 
     // Map ServiceDiscovery
-    let service_discovery = infra.service_discovery.as_ref().map(|services| {
+    let service_discovery = infra.service_discovery.map(|services| {
         let services_mapped = services
-            .iter()
+            .into_iter()
             .map(|(name, sd)| {
                 let svc_auth_methods = sd
                     .auth
-                    .as_ref()
                     .map(|auths| {
                         auths
-                            .iter()
+                            .into_iter()
                             .map(|auth| match auth {
                                 Auth::Key(k) => pbruntime::ServiceAuth {
                                     auth_method: Some(service_auth::AuthMethod::EncoreAuth(
@@ -416,9 +416,9 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     })
                     .unwrap_or(auth_methods.clone());
                 (
-                    name.clone(),
+                    name,
                     service_discovery::Location {
-                        base_url: sd.base_url.clone(),
+                        base_url: sd.base_url,
                         auth_methods: svc_auth_methods,
                     },
                 )
@@ -431,25 +431,26 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     });
 
     // Map Buckets
-    let buckets = infra.object_storage.as_ref().map(|object_storages| {
+    let buckets = infra.object_storage.map(|object_storages| {
         object_storages
-            .iter()
+            .into_iter()
             .map(|os| match os {
                 ObjectStorage::GCS(gcs) => pbruntime::BucketCluster {
                     rid: get_next_rid(),
                     provider: Some(pbruntime::bucket_cluster::Provider::Gcs(
                         pbruntime::bucket_cluster::Gcs {
-                            endpoint: gcs.endpoint.clone(),
+                            endpoint: gcs.endpoint,
                             anonymous: false,
                         },
                     )),
                     buckets: gcs
                         .buckets
-                        .iter()
+                        .into_iter()
                         .map(|(name, bucket)| pbruntime::Bucket {
-                            encore_name: name.clone(),
-                            cloud_name: bucket.name.clone(),
-                            key_prefix: bucket.key_prefix.clone(),
+                            encore_name: name,
+                            cloud_name: bucket.name,
+                            key_prefix: bucket.key_prefix,
+                            public_base_url: bucket.public_base_url,
                             rid: get_next_rid(),
                         })
                         .collect(),
@@ -458,17 +459,18 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     rid: get_next_rid(),
                     provider: Some(pbruntime::bucket_cluster::Provider::S3(
                         pbruntime::bucket_cluster::S3 {
-                            region: s3.region.clone(),
-                            endpoint: s3.endpoint.clone(),
+                            region: s3.region,
+                            endpoint: s3.endpoint,
                         },
                     )),
                     buckets: s3
                         .buckets
-                        .iter()
+                        .into_iter()
                         .map(|(name, bucket)| pbruntime::Bucket {
-                            encore_name: name.clone(),
-                            cloud_name: bucket.name.clone(),
-                            key_prefix: bucket.key_prefix.clone(),
+                            encore_name: name,
+                            cloud_name: bucket.name,
+                            key_prefix: bucket.key_prefix,
+                            public_base_url: bucket.public_base_url,
                             rid: get_next_rid(),
                         })
                         .collect(),
@@ -478,7 +480,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     });
 
     // Map Metrics
-    let metrics = infra.metrics.as_ref().map(|metrics| {
+    let metrics = infra.metrics.map(|metrics| {
         let (provider, interval) = match metrics {
             Metrics::Prometheus(pm) => (
                 metrics_provider::Provider::PromRemoteWrite(
@@ -490,26 +492,23 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
             ),
             Metrics::Datadog(dd) => (
                 metrics_provider::Provider::Datadog(metrics_provider::Datadog {
-                    site: dd.site.clone(),
+                    site: dd.site,
                     api_key: Some(map_env_string_to_secret_data(&dd.api_key)),
                 }),
                 dd.collection_interval,
             ),
             Metrics::GCPCloudMonitoring(gcp) => (
                 metrics_provider::Provider::Gcp(metrics_provider::GcpCloudMonitoring {
-                    project_id: gcp.project_id.clone(),
-                    monitored_resource_type: gcp.monitored_resource_type.clone(),
-                    monitored_resource_labels: gcp
-                        .monitored_resource_labels
-                        .clone()
-                        .unwrap_or_default(),
-                    metric_names: gcp.metric_names.clone().unwrap_or_default(),
+                    project_id: gcp.project_id,
+                    monitored_resource_type: gcp.monitored_resource_type,
+                    monitored_resource_labels: gcp.monitored_resource_labels.unwrap_or_default(),
+                    metric_names: gcp.metric_names.unwrap_or_default(),
                 }),
                 gcp.collection_interval,
             ),
             Metrics::AWSCloudWatch(aws) => (
                 metrics_provider::Provider::Aws(metrics_provider::AwsCloudWatch {
-                    namespace: aws.namespace.clone(),
+                    namespace: aws.namespace,
                 }),
                 aws.collection_interval,
             ),
@@ -532,40 +531,33 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         logs: Vec::new(),
     });
 
+    let cors = infra.cors.map(|cors| gateway::Cors {
+        debug: cors.debug.unwrap_or(false),
+        disable_credentials: false,
+        allowed_origins_without_credentials: cors
+            .allow_origins_without_credentials
+            .map(|f| gateway::CorsAllowedOrigins { allowed_origins: f }),
+        allowed_origins_with_credentials: cors.allow_origins_with_credentials.map(|f| {
+            gateway::cors::AllowedOriginsWithCredentials::AllowedOrigins(
+                gateway::CorsAllowedOrigins { allowed_origins: f },
+            )
+        }),
+        extra_allowed_headers: cors.allow_headers.unwrap_or_default(),
+        extra_exposed_headers: cors.expose_headers.unwrap_or_default(),
+        allow_private_network_access: true,
+    });
+
     let gateways = infra
         .hosted_gateways
-        .as_ref()
         .map(|gateways| {
             gateways
-                .iter()
+                .into_iter()
                 .map(|gateway| pbruntime::Gateway {
                     rid: get_next_rid(),
-                    encore_name: gateway.clone(),
+                    encore_name: gateway,
                     base_url: metadata.base_url.clone().unwrap_or_default(),
                     hostnames: vec![],
-                    cors: infra.cors.as_ref().map(|cors| gateway::Cors {
-                        debug: cors.debug.unwrap_or(false),
-                        disable_credentials: false,
-                        allowed_origins_without_credentials: cors
-                            .allow_origins_without_credentials
-                            .as_ref()
-                            .map(|f| gateway::CorsAllowedOrigins {
-                                allowed_origins: f.clone(),
-                            }),
-                        allowed_origins_with_credentials: cors
-                            .allow_origins_with_credentials
-                            .as_ref()
-                            .map(|f| {
-                                gateway::cors::AllowedOriginsWithCredentials::AllowedOrigins(
-                                    gateway::CorsAllowedOrigins {
-                                        allowed_origins: f.clone(),
-                                    },
-                                )
-                            }),
-                        extra_allowed_headers: cors.allow_headers.clone().unwrap_or_default(),
-                        extra_exposed_headers: cors.expose_headers.clone().unwrap_or_default(),
-                        allow_private_network_access: true,
-                    }),
+                    cors: cors.clone(),
                 })
                 .collect::<Vec<_>>()
         })
@@ -601,9 +593,9 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     };
 
     // Map SQL Servers
-    let sql_clusters = infra.sql_servers.as_ref().map(|servers| {
+    let sql_clusters = infra.sql_servers.map(|servers| {
         servers
-            .iter()
+            .into_iter()
             .map(|server| {
                 let default_client_cert = server
                     .tls_config
@@ -622,16 +614,15 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
 
                 let databases = server
                     .databases
-                    .iter()
+                    .into_iter()
                     .map(|(name, db)| {
                         let client_cert = db
                             .client_cert
-                            .as_ref()
                             .map(|f| {
                                 let rid = get_next_rid();
                                 let client_cert = pbruntime::ClientCert {
                                     rid: rid.clone(),
-                                    cert: f.cert.clone(),
+                                    cert: f.cert,
                                     key: Some(map_env_string_to_secret_data(&f.key)),
                                 };
                                 credentials.client_certs.push(client_cert);
@@ -642,14 +633,14 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         let role = SqlRole {
                             rid: role_rid.clone(),
                             client_cert_rid: client_cert,
-                            username: db.username.clone(),
+                            username: db.username,
                             password: Some(map_env_string_to_secret_data(&db.password)),
                         };
                         credentials.sql_roles.push(role);
                         SqlDatabase {
                             rid: get_next_rid(),
                             encore_name: name.clone(),
-                            cloud_name: name.clone(),
+                            cloud_name: name,
                             conn_pools: vec![SqlConnectionPool {
                                 is_readonly: false,
                                 role_rid,
@@ -664,14 +655,14 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     rid: get_next_rid(),
                     servers: vec![SqlServer {
                         rid: get_next_rid(),
-                        host: server.host.clone(),
+                        host: server.host,
                         kind: pbruntime::ServerKind::Primary as i32,
-                        tls_config: server.tls_config.as_ref().map_or_else(
+                        tls_config: server.tls_config.map_or_else(
                             || Some(TlsConfig::default()),
                             |tls| match tls.disabled {
                                 true => None,
                                 false => Some(TlsConfig {
-                                    server_ca_cert: tls.ca.clone(),
+                                    server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
                                 }),
@@ -685,9 +676,9 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     });
 
     // Map Redis
-    let redis_clusters = infra.redis.as_ref().map(|redis_map| {
+    let redis_clusters = infra.redis.map(|redis_map| {
         redis_map
-            .iter()
+            .into_iter()
             .map(|(name, redis)| {
                 let client_cert = redis
                     .tls_config
@@ -703,12 +694,12 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         credentials.client_certs.push(client_cert);
                         rid
                     });
-                let auth = redis.auth.as_ref().map(|ra| match ra.r#type.as_str() {
+                let auth = redis.auth.map(|ra| match ra.r#type.as_str() {
                     "auth_string" => redis_role::Auth::AuthString(map_env_string_to_secret_data(
                         ra.auth_string.as_ref().unwrap(),
                     )),
                     "acl" => redis_role::Auth::Acl(redis_role::AuthAcl {
-                        username: ra.username.as_ref().unwrap().clone(),
+                        username: ra.username.unwrap(),
                         password: Some(map_env_string_to_secret_data(
                             ra.password.as_ref().unwrap(),
                         )),
@@ -727,9 +718,9 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                 credentials.redis_roles.push(role);
                 let database = RedisDatabase {
                     rid: get_next_rid(),
-                    encore_name: name.clone(), // Use the key as the name
+                    encore_name: name, // Use the key as the name
                     database_idx: redis.database_index,
-                    key_prefix: redis.key_prefix.clone(),
+                    key_prefix: redis.key_prefix,
                     conn_pools: vec![RedisConnectionPool {
                         is_readonly: false,
                         role_rid,
@@ -742,14 +733,14 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     rid: String::new(), // Assign a unique RID
                     servers: vec![RedisServer {
                         rid: String::new(), // Assign a unique RID
-                        host: redis.host.clone(),
+                        host: redis.host,
                         kind: pbruntime::ServerKind::Primary as i32,
-                        tls_config: redis.tls_config.as_ref().map_or_else(
+                        tls_config: redis.tls_config.map_or_else(
                             || Some(TlsConfig::default()),
                             |tls| match tls.disabled {
                                 true => None,
                                 false => Some(TlsConfig {
-                                    server_ca_cert: tls.ca.clone(),
+                                    server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
                                 }),
@@ -763,9 +754,9 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     });
 
     // Map PubSub
-    let pubsub_clusters = infra.pubsub.as_ref().map(|pubsubs| {
+    let pubsub_clusters = infra.pubsub.map(|pubsubs| {
         pubsubs
-            .iter()
+            .into_iter()
             .map(|pubsub| {
                 // Handle different PubSub types
                 let (provider, topics, subscriptions) = match pubsub {
@@ -918,18 +909,18 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
     });
 
     // Map Secrets
-    let app_secrets: Vec<AppSecret> = match &infra.secrets {
+    let app_secrets: Vec<AppSecret> = match infra.secrets {
         Some(Secrets::Map(secrets_map)) => secrets_map
-            .iter()
+            .into_iter()
             .map(|(name, value)| AppSecret {
                 rid: get_next_rid(),
                 encore_name: name.clone(),
-                data: Some(map_env_string_to_secret_data(value)),
+                data: Some(map_env_string_to_secret_data(&value)),
             })
             .collect(),
         Some(Secrets::EnvRef(env_ref)) => {
             // Fetch the environment variable
-            match std::env::var(&env_ref.env) {
+            match std::env::var(env_ref.env) {
                 Ok(secrets_json) => {
                     // Parse the JSON string into a HashMap
                     match serde_json::from_str::<HashMap<String, String>>(&secrets_json) {

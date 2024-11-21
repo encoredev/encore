@@ -6,6 +6,12 @@ import { BucketPerms, Uploader, Downloader, Attrser, Lister, Remover } from "./r
 
 export interface BucketConfig {
   /**
+   * Whether the objects in the bucket should be publicly
+   * accessible, via CDN. Defaults to false if unset.
+  */
+  public?: boolean;
+
+  /**
    * Whether to enable versioning of the objects in the bucket.
    * Defaults to false if unset.
    */
@@ -101,6 +107,14 @@ export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser
     if (err) {
       unwrapErr(err);
     }
+  }
+
+  /**
+  * Returns the public URL for accessing the object with the given name.
+  * Throws an error if the bucket is not public.
+  */
+  publicUrl(name: string): string {
+    this.impl.publicUrl(name);
   }
 
   ref<P extends BucketPerms>(): P {
