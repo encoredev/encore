@@ -23,9 +23,9 @@ We believe that adopting Encore is a low-risk decision for several reasons:
 
 - There's no upfront investment needed to get the benefits
 - Encore apps are normal programs where less than 1% of the code is Encore-specific
-- All infrastructure and data is in your own account on AWS/GCP
-- It's simple to integrate with "unsupported" cloud services and other systems
-- Everything you need to develop your application is Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), and [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
+- All infrastructure and data is in your own cloud
+- It's simple to integrate with cloud services and systems not natively supported by Encore
+- Everything you need to develop your application is Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
 - Everything you need to self-host your application is [Open Source and documented](/docs/how-to/self-host)
 
 ## What to expect when migrating away
@@ -40,7 +40,9 @@ This means that the changes required to stop using the Backend Framework is almo
 
 ### Deployment
 
-If you are using Encore's Cloud Platform to manage deployments and want to migrate to your own solution, you can use the [self-hosting instructions](/docs/how-to/self-host) and Open Source CLI tooling. The `encore build docker` command produces a Docker image, containing the compiled application, using exactly the same code path as Encore's CI system to ensure compatibility.
+If you are self-hosting your application, then you're already done.
+
+If you are using Encore Cloud Platform to manage deployments and want to migrate to your own solution, you can use the [self-hosting instructions](/docs/how-to/self-host) and Open Source CLI tooling. The `encore build docker` command produces a Docker image, containing the compiled application, using exactly the same code path as Encore's CI system to ensure compatibility.
 
 Learn more in the [self-hosting docs](/docs/how-to/self-host).
 
