@@ -218,19 +218,13 @@ For more information on using ORMs with Encore, see the [ORMs](/docs/ts/develop/
 
 ## Sharing databases between services
 
-Encore tracks which databases are used by which services. This allows Encore's Cloud Platform
-to automatically manage permissions and set up database credentials for the services that use
-each database.
+There are two primary ways of sharing a database between services:
 
-In order to share a database between services, you have two options.
-
-You can define the `SQLDatabase` object in a shared module as an exported variable, and reference this object
+- You can define the `SQLDatabase` object in a shared module as an exported variable, and reference this object
 from every service that needs to access the database.
+- You can define the `SQLDatabase` object in one service using `new SQLDatabase("name", ...)`, and have other services access it by creating a reference using `SQLDatabase.named("name")`.
 
-Or, alternatively, you can have define the `SQLDatabase` object inside one of the services using `new SQLDatabase("name", ...)`,
-and have the other services that need to access it create their own reference using `SQLDatabase.named("name")`.
-
-Both of these approaches have the same effect, but the latter is more explicit.
+Both approaches have the same effect, but the latter is more explicit.
 
 ## PostgreSQL Extensions
 
