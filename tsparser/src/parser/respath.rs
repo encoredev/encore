@@ -227,6 +227,7 @@ mod tests {
     #[test]
     fn test_parse() {
         let tests = vec![
+            ("/", Ok(vec![Segment::Root])),
             ("/foo", Ok(vec![Segment::Literal("foo".to_string())])),
             (
                 "/foo/bar",
