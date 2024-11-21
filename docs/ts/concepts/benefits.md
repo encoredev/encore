@@ -2,7 +2,6 @@
 seotitle: Benefits of using Encore.ts
 seodesc: Get to know the benefits of using Encore's Backend Framework for TypeScript to build cloud-native backend applications.
 title: Benefits of using Encore.ts
-toc: false
 lang: ts
 ---
 

@@ -1,61 +1,51 @@
 ---
-seotitle: Start building backends using Encore.ts
-seodesc: Learn how Encore.ts works, and get to know the powerful features that help you build cloud backend applications easier than ever before.
-title: Encore.ts
-subtitle: Use Encore.ts to build production-ready backend applications and distributed systems
+seotitle: Encore Cloud Platform Docs
+seodesc: How Encore Cloud Platform helps you reduce DevOps work by 90% by automating infra in your cloud on AWS/GCP.
+title: Encore Cloud Platform
+subtitle: The easiest way to develop and deploy your application to AWS/GCP
 toc: false
-lang: ts
 ---
 
-Encore.ts simplifies backend development by providing an application-centric approach to common infrastructure primitives like microservices, APIs, databases, queues, caches, cron jobs, and storage buckets.
+Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP — trusted by thousands of developers to **3x** their development speed and reduce DevOps work by **90%**.
 
-It allows you to define these primitives as type-safe objects in your application code, streamlining development through:
+**If you're new, learn all about how Encore works in the [introduction](/docs/introduction).**
 
-1. **Local Environment Management**: Automatically sets up and runs local development environments.
-2. **Enhanced Observability**: Offers [built-in tools](/docs/observability/dev-dash) for monitoring application behavior.
-3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/develop/api-docs) for APIs and services.
-4. **Cloud Integration**: Simplifies [cloud infrastructure integration](/docs/how-to/self-host) for easier deployment and scaling.
-5. **DevOps Automation**: Provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.
-
-With these features, Encore.ts lets you focus on application logic while automating backend complexities.
-
-<div className="min-h-72 bg-blue p-8 relative overflow-hidden not-prose">
-    <img className="absolute left-[55%] -mt-8 top-0 right-0 bottom-0 noshadow" src="/assets/img/dithered-clouds.png" />
+<div className="min-h-72 bg-black p-8 relative overflow-hidden not-prose">
     <div className="w-[75%] lg:w-[60%]">
-        <h2 className="text-white lead-medium">Quick Start Guide</h2>
+        <h2 className="text-white lead-medium">Get Started</h2>
         <div className="body-small text-white mt-2">
-            Dive right in and build your first Encore application.
+            Sign up and take a tour of the Cloud Dashboard.
         </div>
-        <a href="/docs/ts/quick-start">
-            <Button className="mt-4" kind="primary" section="black">Get started</Button>
+        <a href="/signup">
+            <Button className="mt-4" kind="primary" section="black">Sign up</Button>
         </a>
     </div>
 </div>
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
-    <a className="block group relative no-brandient" target="_blank" href="https://www.youtube.com/watch?v=vvqTGfoXVsw">
+<a className="block group relative no-brandient" href="/docs/introduction">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
         <div
-            className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
+            className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">
             <div className="flex items-center justify-between">
-                <h3 className="body-small">Watch an intro video</h3>
-                <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/preview-envs.png" />
+                <h3 className="body-small">Introduction</h3>
+                <img className="-mt-2 h-16 w-16 p-3 noshadow" src="/assets/icons/features/higher.png" />
             </div>
             <div className="mt-2">
-                Get to know the core concepts of Encore in this short video.
+                Learn about the problems Encore solves and the philosophy behind it.
             </div>
         </div>
     </a>
-    <a className="block group relative no-brandient" target="_blank" href="https://github.com/encoredev/examples">
+    <a className="block group relative no-brandient" target="_blank" href="/book">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
         <div
             className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2">
             <div className="flex items-center justify-between">
-                <h3 className="body-small">Example apps</h3>
-                <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/flow.png" />
+                <h3 className="body-small">Book a call</h3>
+                <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/meet.png" />
             </div>
             <div className="mt-2">
-                Ready-made starter apps to inspire your development.
+                Speak to one of our experts to figure out if Encore will work for your project.
             </div>
         </div>
     </a>
@@ -73,7 +63,7 @@ With these features, Encore.ts lets you focus on application logic while automat
                 </div>
             </div>
             <div className="mt-2">
-                Find answers, ask questions, and chat with other Encore developers.
+                Ask questions and get help on Discord.
             </div>
         </div>
     </a>

@@ -29,7 +29,7 @@ Once you've created you app, [integrate it with your GitHub repository](/docs/ho
 
 ### 2. Prototype your new backend system
 
-Once you've created your app, it's time to start building. If you're new to Encore, we recommend trying out some of the [tutorials](/docs/tutorials).
+Once you've created your app, it's time to start building. If you're new to Encore, we recommend trying out some of the tutorials.
 
 If you need help or have questions, join the friendly developer community on [Discord](https://encore.dev/discord).
 

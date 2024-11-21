@@ -78,16 +78,6 @@ As well as the [Flow architecture diagram](/docs/observability/encore-flow).
 
 <img src="/assets/docs/microservices-flow.png" title="Encore Flow - Microservices" />
 
-## Microservices process allocation
-
-Just because you want to deploy each service separately in some environments, doesn't mean you want to do it in _all_ environments.
-
-Handily, Encore lets you decide how you want to deploy your services for _each_ environment. You don't need to change a single line of code.
-
-When you [create an environment](/docs/deploy/environments), you can simply decide which process allocation you want for that environment.
-
-<img src="/assets/docs/microservices-process-allocation.png" title="Microservices - Process Allocation" />
-
 ## Sharing databases between services (or not)
 
 Deciding whether to share a database between multiple services depends on your specific situation. Encore supports both options. Learn more in the [database documentation](/docs/how-to/share-db-between-services).
