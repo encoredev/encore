@@ -163,17 +163,19 @@ impl Builder<'_> {
                 let mut endpoint_ctx = Vec::new();
                 let mut subscription_ctx = Vec::new();
 
-                let service_ctx = service.map(|service| {
-                    let rel_path = get_svc_rel_path(&svc.root, service.range, true);
-                    let import_path = Path::new("../../../../../")
-                        .join(&svc_rel_path)
-                        .join(rel_path);
+                let service_ctx = service
+                    .map(|service| {
+                        let rel_path = get_svc_rel_path(&svc.root, service.range, true);
+                        let import_path = Path::new("../../../../../")
+                            .join(&svc_rel_path)
+                            .join(rel_path);
 
-                    json!({
-                        "name": service.name,
-                        "import_path": import_path,
+                        json!({
+                            "name": service.name,
+                            "import_path": import_path,
+                        })
                     })
-                });
+                    .unwrap_or_else(|| json!({"name": svc.name}));
 
                 for rpc in &endpoints {
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
@@ -402,6 +404,10 @@ impl Builder<'_> {
 
                 // Service Main
                 for rpc in &endpoints {
+                    if !services_ctx.contains_key(&svc.name) {
+                        services_ctx.insert(svc.name.clone(), json!({"name": svc.name}));
+                    }
+
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
@@ -411,7 +417,6 @@ impl Builder<'_> {
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "service_name": svc.name,
-                        "has_service_definition": services_ctx.contains_key(&svc.name),
                         "import_path": import_path,
                         "endpoint_options": json!({
                             "isRaw": rpc.raw,

@@ -6,7 +6,9 @@ import { {{name}} as {{name}}Impl{{@index}} } from {{toJSON import_path}};
 import {{toJSON import_path}};
 {{/each}}
 {{#with service}}
+{{#if import_path}}
 import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
+{{/if}}
 {{/with}}
 
 const handlers: Handler[] = [
@@ -21,7 +23,7 @@ const handlers: Handler[] = [
             streamingResponse: {{toJSON streaming_response}},
         },
         endpointOptions: {{toJSON endpoint_options}},
-        middlewares: {{#with ../service}}{{encoreNameToIdent name}}_service.default.cfg.middlewares || {{/with}}[],
+        middlewares: {{#if ../service.import_path}}{{encoreNameToIdent ../service.name}}_service.default.cfg.middlewares || {{/if}}[],
     },
 {{/each}}
 ];
