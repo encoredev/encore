@@ -61,9 +61,6 @@ where
                     result.push('*');
                     result.push_str(&seg.value);
                 }
-                SegmentType::Root => {
-                    result.push('/');
-                }
             }
         }
         entries.push(result);
@@ -254,7 +251,6 @@ mod tests {
                     result.push('*');
                     result.push_str(&seg.value)
                 }
-                SegmentType::Root => {}
             }
         }
 

@@ -95,7 +95,7 @@ impl EncodingConfig<'_, '_> {
                 for seg in &rpc_path.segments {
                     let typ = SegmentType::try_from(seg.r#type).context("invalid segment type")?;
                     match typ {
-                        SegmentType::Literal | SegmentType::Root => {}
+                        SegmentType::Literal => {}
                         SegmentType::Param | SegmentType::Wildcard | SegmentType::Fallback => {
                             path_fields.insert(seg.value.as_str());
                         }

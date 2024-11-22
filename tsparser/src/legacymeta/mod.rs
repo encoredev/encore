@@ -647,11 +647,6 @@ impl respath::Path {
                         value_type: ParamType::String as i32,
                         value: name.clone(),
                     },
-                    Segment::Root => v1::PathSegment {
-                        r#type: SegmentType::Root as i32,
-                        value_type: ParamType::String as i32,
-                        value: "".to_string(),
-                    },
                 })
                 .collect(),
         }

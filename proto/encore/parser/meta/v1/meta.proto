@@ -290,7 +290,6 @@ message PathSegment {
     PARAM = 1;
     WILDCARD = 2;
     FALLBACK = 3;
-    ROOT = 4;
   }
 
   enum ParamType {

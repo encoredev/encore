@@ -9,7 +9,7 @@ impl Path {
     pub fn dynamic_segments(&self) -> impl Iterator<Item = &Segment> {
         self.segments
             .iter()
-            .filter(|s| !matches!(s, Segment::Literal(_) | Segment::Root))
+            .filter(|s| !matches!(s, Segment::Literal(_)))
     }
 
     pub fn has_dynamic_segments(&self) -> bool {
@@ -36,7 +36,6 @@ pub enum Segment {
     Param { name: String, value_type: ValueType },
     Wildcard { name: String },
     Fallback { name: String },
-    Root,
 }
 
 impl Segment {
@@ -46,7 +45,6 @@ impl Segment {
             Segment::Param { .. } => Some(':'),
             Segment::Wildcard { .. } => Some('*'),
             Segment::Fallback { .. } => Some('!'),
-            Segment::Root => None,
         }
     }
 
@@ -56,7 +54,6 @@ impl Segment {
             Segment::Param { name, .. } => name,
             Segment::Wildcard { name } => name,
             Segment::Fallback { name } => name,
-            Segment::Root => "",
         }
     }
 
@@ -110,7 +107,7 @@ impl Path {
         let mut path = path;
 
         if path == "/" {
-            segments.push(Segment::Root);
+            segments.push(Segment::Literal("".to_string()));
             path = "";
         }
 
@@ -159,10 +156,7 @@ impl Path {
         // Validate the segments.
         for (idx, seg) in segments.iter().enumerate() {
             match seg {
-                Segment::Root if (idx != 0 || segments.len() != 1) => {
-                    anyhow::bail!("invalid path: root cannot be combined with other segments")
-                }
-                Segment::Literal(lit) if lit.is_empty() => {
+                Segment::Literal(lit) if lit.is_empty() && segments.len() > 1 => {
                     anyhow::bail!("invalid path: literal cannot be empty");
                 }
                 Segment::Param { name, .. } if name.is_empty() => {
@@ -227,7 +221,7 @@ mod tests {
     #[test]
     fn test_parse() {
         let tests = vec![
-            ("/", Ok(vec![Segment::Root])),
+            ("/", Ok(vec![Segment::Literal("".to_string())])),
             ("/foo", Ok(vec![Segment::Literal("foo".to_string())])),
             (
                 "/foo/bar",
