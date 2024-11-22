@@ -105,12 +105,6 @@ impl Path {
         let mut segments = vec![];
 
         let mut path = path;
-
-        if path == "/" {
-            segments.push(Segment::Literal("".to_string()));
-            path = "";
-        }
-
         while !path.is_empty() {
             if opts.prefix_slash || !segments.is_empty() {
                 path = &path[1..]; // drop leading slash
