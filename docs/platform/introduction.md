@@ -3,6 +3,7 @@ seotitle: Introduction to Encore Cloud Platform
 seodesc: Learn how Encore works and how it helps backend developers build cloud-based backend applications without manually dealing with infrastructure.
 title: Encore Cloud Platform
 subtitle: End-to-end development platform for building robust distributed systems
+lang: platform
 ---
 
 Cloud services enable us to build highly scalable applications, but offer a poor developer experience. They force developers to manage a lot of added complexity during development and commonly introduce repetitive work that steals time away from the real goal of building your product. Launching a new app, migrating to the cloud, or breaking apart a monolith into microservices, can therefore be a daunting task.

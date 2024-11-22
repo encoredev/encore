@@ -1,0 +1,271 @@
+---
+seotitle: Integrate your backend application with a frontend
+seodesc: Learn how to integrate your Go backend application with a frontend, using Encore's built-in frontend client generation feature.
+title: Integrate with a web frontend
+subtitle: Keep using your favorite frontend hosting provider
+lang: go
+---
+Encore is not opinionated about where you host your frontend, pick the platform that suits your situation best.
+
+If your frontend and backend use different domains, often the case when using PR preview environments for your frontend, you may need to [configure CORS](#handling-cors).
+
+Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) deployed to [GitHub Pages](https://pages.github.com/).
+
+## Generating a request client
+Encore is able to generate frontend request clients (TypeScript or JavaScript). This lets you to keep the request/response types in sync without manual work and assists you in calling the APIs. Generate a client by running:
+
+```bash
+$ encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=<ENV_NAME>
+```
+
+Adding this as a script to your `package.json` is often a good idea to be able to run it whenever a change is made to your Encore API:
+
+```json
+{
+...
+"scripts": {
+    ...
+    "generate-client:staging": "encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=staging",
+    "generate-client:local": "encore gen client <ENCORE-APP-ID> --output=./src/client.ts --env=local"
+  }
+}
+```
+
+After that you are ready to use the request client in your code. Here is an example from the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) for calling the `GetNote` endpoint on the `note` service in order to retrieve a specific meeting note (which has the properties `id`, `cover_url` & `text`):
+
+```ts
+import Client, { Environment, Local } from "src/client.ts";
+
+// Making request to locally running backend...
+const client = new Client(Local);
+// or to a specific deployed environment
+const client = new Client(Environment("staging"));
+
+// Calling APIs as typesafe functions 🌟
+const response = await client.note.GetNote("note-uuid");
+console.log(response.id);
+console.log(response.cover_url);
+console.log(response.text);
+```
+
+See more in the [client generation docs](/docs/develop/client-generation).
+
+### Asynchronous state management
+
+When building something a bit more complex, you will likely need to deal with caching, refetching, and data going stale.
+[TanStack Query](https://tanstack.com/query/latest) is a popular library that was built to solve exactly these problems and works well with the Encore request client.
+
+Here is a simple example of using an Encore request client together with TanStack Query:
+
+```ts
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query'
+import Client, { todo } from '../encore-client'
+
+// Create a Encore client
+const encoreClient = new Client(window.location.origin);
+
+// Create a react-query client
+const queryClient = new QueryClient()
+
+function App() {
+  return (
+    // Provide the client to your App
+    <QueryClientProvider client={queryClient}>
+      <Todos />
+    </QueryClientProvider>
+  )
+}
+
+function Todos() {
+  // Access the client
+  const queryClient = useQueryClient()
+
+  // Queries
+  const query = useQuery({
+    queryKey: ['todos'],
+    queryFn: () => encoreClient.todo.List()
+  })
+
+  // Mutations
+  const mutation = useMutation({
+    mutationFn: (params: todo.AddParams) => encoreClient.todo.Add(params),
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['todos'] })
+    },
+  })
+
+  return (
+    <div>
+      <ul>
+        {query.data?.map((todo) => (
+          <li key={todo.id}>{todo.title}</li>
+        ))}
+      </ul>
+
+      <button
+        onClick={() => {
+          mutation.mutate({
+            id: Date.now(),
+            title: 'Do Laundry',
+          })
+        }}
+      >
+        Add Todo
+      </button>
+    </div>
+  )
+}
+
+render(<App />, document.getElementById('root'))
+```
+
+This example assumes that we have a `todo` service with a `List` and `Add` endpoint. When adding the new todo,
+TanStack Query will automatically invalidate the `todos` query and refetch it.
+
+For a real-world example, take a look at the [Uptime Monitoring](https://github.com/encoredev/examples/tree/main/uptime) app which also makes use of
+TanStack Query's `refetchInterval` option for polling the backend.
+
+### Testing
+When unit testing a component that interacts with your Encore API you can mock methods on the request client to
+return a value suitable for the test. This makes your test URL agnostic because you are not intercepting
+specific requests on the fetch layer. You also get type errors in your tests if the request client gets updated.
+
+Here is an example from the [Uptime Monitoring Starter](https://github.com/encoredev/examples/tree/main/uptime) where we are mocking a GET request method and spying on a POST request method:
+
+```ts
+import { render, waitForElementToBeRemoved } from "@testing-library/react";
+import App from "./App";
+import { site } from "./client";
+import { userEvent } from "@testing-library/user-event";
+
+describe("App", () => {
+  beforeEach(() => {
+    // Return mocked data from the List (GET) endpoint
+    jest
+      .spyOn(site.ServiceClient.prototype, "List")
+      .mockReturnValue(Promise.resolve({
+        sites: [{
+          id: 1,
+          url: "test.dev"
+        }]
+      }));
+
+    // Spy on the Add (POST) endpoint
+    jest.spyOn(site.ServiceClient.prototype, "Add");
+  });
+
+  it("render sites", async () => {
+    render(<App />);
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading..."));
+
+    // Verify that the List endpoint has been called
+    expect(site.ServiceClient.prototype.List).toBeCalledTimes(1);
+
+    // Verify that the sites are rendered with our mocked data
+    screen.getAllByText("test.dev");
+  });
+
+  it("add site", async () => {
+    render(<App />);
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading..."));
+
+    // Interact with the page and add 'another.com'
+    await userEvent.click(screen.getByText("Add website"));
+    await userEvent.type(
+      screen.getByPlaceholderText("google.com"),
+      "another.com",
+    );
+    await userEvent.click(screen.getByText("Save"));
+
+    // Verify that the Add endpoint has been called with the correct parameters
+    expect(site.ServiceClient.prototype.Add).toHaveBeenCalledWith({
+      url: "another.com",
+    });
+  });
+})
+```
+
+<Callout type="info">
+
+  In the example above we need to mock the `List` method on `site.ServiceClient.prototype` because the request client has not
+  yet been initialized when we're creating the mock. If you have access to the instance of the request client in your test
+  (which could be the case if you are passing the client around in your components) you can instead do `jest.spyOn(client.site, "List")`
+  and `expect(client.site.List).toHaveBeenCalled()` which would give you the same result.
+
+</Callout>
+
+More examples of tests can be found in the [Uptime Monitoring Starter repo](https://github.com/encoredev/examples/tree/main/uptime).
+
+## Monorepo or Multi repo
+Encore is not opinionated about where your frontend lives, pick the approach that fits your application best.
+
+If you use a monorepo then it is often a good idea to place your backend and frontend in separate folders. There are two approaches to moving your Encore backend to a subfolder:
+
+1. Place your microservices together with the `encore.app` file in a subfolder. When moving `encore.app` to a subfolder you will need to configure the "Root Directory" in app settings in the [Cloud Dashboard](https://app.encore.dev).
+2. Place your microservices in a subfolder and keep the `encore.app` in the repo root directory. No configuration change is needed, but you will need to update the import paths if your services are calling each other.
+
+## REST vs. GraphQL
+Encore allows for building backends using both REST and GraphQL, you should pick the approach that suits your use case best.
+
+Take a look at the [GraphQL tutorial](/docs/tutorials/graphql) for an example of building a GraphQL backend with Encore.
+
+## Hosting a frontend on Encore for development
+Encore is primarily designed for backend development and does not (at the moment) support building or testing frontends in the deploy pipeline. For production use, we recommend that you deploy your frontend using Vercel, Netlify, or a similar service.
+
+For development purposes, you can create a `raw` endpoint that serves static frontend assets. It would look something like the example below (taken from the [Uptime Monitoring tutorial](https://encore.dev/docs/tutorials/uptime)), but keep in mind that you need to have the compiled frontend assets under version control (`dist` folder in the example below).
+
+```go
+package frontend
+
+import (
+	"embed"
+	"io/fs"
+	"net/http"
+)
+
+var (
+	//go:embed dist
+	dist embed.FS
+
+	assets, _ = fs.Sub(dist, "dist")
+	handler   = http.StripPrefix("/frontend/", http.FileServer(http.FS(assets)))
+)
+
+ //encore:api public raw path=/frontend/*path
+ func Serve(w http.ResponseWriter, req *http.Request) {
+	 handler.ServeHTTP(w, req)
+ }
+```
+
+## Handling CORS
+If you are running into CORS issues when calling your Encore API from your frontend you may need to specify which origins are allowed to access your API (via browsers). Do this by specifying the `global_cors` key in the `encore.app` file, which has the following structure:
+
+```json
+global_cors: {
+  // allow_origins_without_credentials specifies the allowed origins for requests
+  // that don't include credentials. If nil it defaults to allowing all domains
+  // (equivalent to ["*"]).
+  "allow_origins_without_credentials": [
+    "<ORIGIN-GOES-HERE>"
+  ],
+
+  // allow_origins_with_credentials specifies the allowed origins for requests
+  // that include credentials. If a request is made from an Origin in this list
+  // Encore responds with Access-Control-Allow-Origin: <Origin>.
+  //
+  // The URLs in this list may include wildcards (e.g. "https://*.example.com"
+  // or "https://*-myapp.example.com").
+  "allow_origins_with_credentials": [
+    "<DOMAIN-GOES-HERE>"
+  ]
+}
+```
+
+See more in the [CORS docs](/docs/develop/cors).

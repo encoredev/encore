@@ -4,6 +4,7 @@ seodesc: How Encore Cloud Platform helps you reduce DevOps work by 90% by automa
 title: Encore Cloud Platform
 subtitle: The easiest way to develop and deploy your application to AWS/GCP
 toc: false
+lang: platform
 ---
 
 Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP — trusted by thousands of developers to **3x** their development speed and reduce DevOps work by **90%**.
