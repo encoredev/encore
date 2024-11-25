@@ -7,7 +7,7 @@ lang: ts
 
 Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
 
-This can be a good choice if Encore's cloud platform isn't a good fit for your use case, or if you want to [migrate away](/ts/migration/migrate-away).
+This can be a good choice if Encore's cloud platform isn't a good fit for your use case, or if you want to [migrate away](/docs/ts/migration/migrate-away).
 
 ## Building your own Docker image
 
