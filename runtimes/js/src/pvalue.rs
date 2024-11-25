@@ -66,7 +66,7 @@ impl ToNapiValue for PVal {
             PValue::Object(obj) => unsafe { ToNapiValue::to_napi_value(env, PVals(obj)) },
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
-                let ts = dt.timestamp();
+                let ts = dt.timestamp_millis();
                 let dt = env2.create_date(ts as f64)?;
                 JsDate::to_napi_value(env, dt)
             }
@@ -100,7 +100,7 @@ impl ToNapiValue for &PVal {
             },
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
-                let ts = dt.timestamp();
+                let ts = dt.timestamp_millis();
                 let dt = env2.create_date(ts as f64)?;
                 JsDate::to_napi_value(env, dt)
             }
