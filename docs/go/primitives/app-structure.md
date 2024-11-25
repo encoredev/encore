@@ -40,7 +40,7 @@ On disk it might look like this:
     └── world.go                     // world service code
 ```
 
-<RelatedDocsLink paths={["/docs/go/primitives/services", "/docs/go/primitives/defining-apis", "/go/primitives/share-db-between-services"]} />
+<RelatedDocsLink paths={["/docs/go/primitives/services", "/docs/go/primitives/defining-apis", "/docs/go/primitives/share-db-between-services"]} />
 
 ## Structure services using sub-packages
 

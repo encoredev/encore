@@ -211,7 +211,7 @@ Encore Cloud Platform also provides tools to help you reduce DevOps work by >90%
 Encore Cloud Platform also includes cloud versions of Encore's built-in development tools:
 
 - [Service Catalog & API Docs](https://encore.dev/docs/ts/observability/service-catalog)
-- [Architecture Diagrams](https://encore.dev/docs/ts/observability/encore-flow)
+- [Architecture Diagrams](https://encore.dev/docs/ts/observability/flow)
 - [Tracing](https://encore.dev/docs/ts/observability/tracing)
 
 _Here's a video showing the Cloud Platform Dashboard:_

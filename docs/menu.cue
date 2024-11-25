@@ -128,7 +128,7 @@
 			kind:    "nav"
 			text:    "Encore Cloud"
 			path:    "/platform"
-			file:    "platform/introduction"
+			file:    "platform/overview"
 			submenu: #EncorePlatform
 			presentation: {
 				icon:  "typescript"
@@ -953,6 +953,16 @@
 		path: ""
 	}
 	items: [
+		{
+			kind: "section"
+			text: "Get started"
+			items: [{
+				kind: "basic"
+				text: "Introduction"
+				path: "/platform/introduction"
+				file: "platform/introduction"
+			}]
+		},
 		{
 			kind: "section"
 			text: "Deployment"

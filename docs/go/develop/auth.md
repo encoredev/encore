@@ -138,7 +138,7 @@ or in the [Local Development Dashboard](/docs/go/observability/dev-dash).
 
 When a token doesn't match your auth rules (for example if it's expired, the token has been revoked, or the token is invalid), you should return a non-nil error from the auth handler.
 
-Encore passes the error message on to the user when you use [Encore's built-in error package](errors), so we recommend using that with the error code `Unauthenticated` to communicate what happened. For example:
+Encore passes the error message on to the user when you use [Encore's built-in error package](/docs/go/primitives/api-errors), so we recommend using that with the error code `Unauthenticated` to communicate what happened. For example:
 
 ```go
 import "encore.dev/beta/errs"

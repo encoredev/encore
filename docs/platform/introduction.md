@@ -39,7 +39,7 @@ Aside from managing infrastructure, Encore's local development workflow comes wi
 - **Type-aware infrastructure:** With Encore, infrastructure like Pub/Sub queues are type-aware objects in your program. This enables full end-to-end type-safety when building event-driven applications.
 - **Secrets management:** Built-in [secrets management](/docs/ts/primitives/secrets) for all environments.
 - **Tracing:** The [local development dashboard](/docs/ts/observability/dev-dash) provides local tracing to help understand application behavior and find bugs.
-- **Automatic API docs & clients:** Encore generates [API docs](/docs/ts/develop/service-catalog) and [API clients](/docs/ts/cli/client-generation) in Go, TypeScript, JavaScript, and OpenAPI specification.
+- **Automatic API docs & clients:** Encore generates [API docs](/docs/ts/observability/service-catalog) and [API clients](/docs/ts/cli/client-generation) in Go, TypeScript, JavaScript, and OpenAPI specification.
 
 ## Testing
 
@@ -69,8 +69,8 @@ Here are some of the other benefits and DevOps tools provided by Encore:
 - **Infra tracking & approvals workflow:** Encore keeps track of all the [infrastructure](/docs/platform/infrastructure/infra) it provisions and provides an approval workflow as part of the deployment process, so Admins can verify and approve all infra changes.
 - **Cloud config 2-way sync:** Encore provides [a simple UI to make configuration changes](/docs/platform/infrastructure/infra#configurability), and also supports syncing changes you make in your cloud console on AWS/GCP.
 - **Cost analytics:** A simple overview to monitor costs for all infrastructure provisioned by Encore in your cloud.
-- **Logging & Metrics:** Encore automatically provides [logging](/docs/ts/observability/logging), [metrics](/docs/ts/observability/metrics), and [integrates with 3rd party tools](/docs/ts/observability/metrics#integrations-with-third-party-observability-services) like Datadog and Grafana.
-- **Service Catalog:**  Encore automatically generates a service catalog with complete [API documentation](/docs/ts/develop/service-catalog).
+- **Logging & Metrics:** Encore automatically provides [logging](/docs/ts/observability/logging), [metrics](/docs/platform/observability/metrics), and [integrates with 3rd party tools](/docs/platform/observability/metrics#integrations-with-third-party-observability-services) like Datadog and Grafana.
+- **Service Catalog:**  Encore automatically generates a service catalog with complete [API documentation](/docs/ts/observability/service-catalog).
 - **Architecture diagrams:** To help with onboarding and collaboration, Encore generates [architecture diagrams](/docs/ts/observability/encore-flow) for your application, including infrastructure dependencies.
 
 ## Why choose Encore?
