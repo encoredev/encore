@@ -12,7 +12,7 @@ Tracing is a revolutionary way to gain insight into what your applications are d
 
 As opposed to the labor intensive instrumentation you'd normally need to go through to use tracing, Encore automatically captures traces for your entire application – in all environments. Uniquely, this means you can use tracing even for local development to help debugging and speed up iterations.
 
-You view traces in the [Local Development Dashboard](./dev-dash) and in the [Cloud Dashboard](https://app.encore.dev) for Production and other environments.
+You view traces in the [Local Development Dashboard](/docs/ts/observability/dev-dash) and in the [Cloud Dashboard](https://app.encore.dev) for Production and other environments.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
 	<source src="/assets/docs/tracingvideo.mp4" className="w-full h-full" type="video/mp4" />
