@@ -20,7 +20,7 @@ This supports configuring things like:
 - How to call other services over the network ("service discovery"),
   most notably their base URLs.
 - Observability configuration (where to export metrics, etc.)
-- Metadata about the environment the application is running in, to power Encore's [metadata APIs](/docs/develop/metadata).
+- Metadata about the environment the application is running in, to power Encore's [metadata APIs](/docs/go/develop/metadata).
 - The values for any application-defined secrets.
 
 This configuration is necessary for the application to behave correctly.

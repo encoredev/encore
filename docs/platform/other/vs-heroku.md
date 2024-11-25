@@ -29,7 +29,7 @@ Let's take a look at how Encore compares to PaaS tools like Heroku:
 
 With Encore you don't need to be a cloud expert to make full use of the services offered by major cloud providers like AWS and GCP.
 
-You simply use Encore's [Backend Framework](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
+You simply use [Encore.ts](/docs/ts) or [Encore.go](/docs/go) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/platform/infrastructure/infra) in your cloud, and provides a local development environment that matches your cloud environment.
 
 You get the same, easy to use, "push to deploy" workflow that many developers appreciate with Heroku, while still being able to build large-scale distributed systems and event-driven applications deployed to AWS and GCP.
 
@@ -43,7 +43,7 @@ This can be a major distraction for application developers, because it forces th
 
 All this effort takes time away from product development and slows down onboarding time for new developers.
 
-**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
+**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/ts/observability/dev-dash) with built-in observability tools.
 
 This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 

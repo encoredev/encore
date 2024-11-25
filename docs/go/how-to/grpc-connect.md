@@ -29,7 +29,7 @@ $ go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 $ go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
 ```
 
-Next, inside your Encore application ([create one if you haven't already](/docs/quick-start))
+Next, inside your Encore application ([create one if you haven't already](/docs/go/quick-start))
 create a new file at `greet/v1/greet.proto` with the following contents:
 
 ```
@@ -129,8 +129,8 @@ there are no Encore specific changes required here.
 
 ## Mount the service in Encore
 
-Now we'll create an Encore [service struct](/docs/primitives/services-and-apis/service-structs)
-that initializes the Connect service, and a [raw endpoint](/docs/primitives/raw-endpoints)
+Now we'll create an Encore [service struct](/docs/go/primitives/service-structs)
+that initializes the Connect service, and a [raw endpoint](/docs/go/primitives/raw-endpoints)
 that forwards incoming requests to the Connect service.
 
 Add the file `greet/service.go` with the following contents:

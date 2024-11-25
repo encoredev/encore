@@ -22,7 +22,7 @@ contains information about the application, including:
 
  - `AppID` - the application name.
  - `APIBaseURL` - the URL the application API can be publicly accessed on.
- - `Environment` - the [environment](/docs/deploy/environments) the application is currently running in.
+ - `Environment` - the [environment](/docs/platform/deploy/environments) the application is currently running in.
  - `Build` - the revision information of the build from the version control system.
  - `Deploy` - the deployment ID and when this version of the app was deployed.
 
@@ -42,7 +42,7 @@ during request handling.  If no request is processed by the caller, which can ha
 initialization, the Type field returns None. If `CurrentRequest()` is called from a goroutine spawned during request
 processing it will continue to report the same request even if the request handler has already returned.
 
-This can be useful on [raw endpoints](/docs/primitives/raw-endpoints) with [path parameters](/docs/primitives/apis#rest-apis)
+This can be useful on [raw endpoints](/docs/go/primitives/raw-endpoints) with [path parameters](/docs/go/primitives/defining-apis#rest-apis)
 as the standard `http.Request` object passed into the raw endpoint does not provide access to the parsed path parameters,
 however by calling `encore.CurrentRequest().PathParams()` you can get access to the parsed path parameters.
 
@@ -51,8 +51,8 @@ however by calling `encore.CurrentRequest().PathParams()` you can get access to 
 
 ### Using Cloud Specific Services
 
-All the [clouds](/docs/deploy/own-cloud) contain a large number of services, not all of which Encore natively supports.
-By using information about the [environment](/docs/deploy/environments), you can define the implementation of these and
+All the [clouds](/docs/platform/infrastructure/own-cloud) contain a large number of services, not all of which Encore natively supports.
+By using information about the [environment](/docs/platform/deploy/environments), you can define the implementation of these and
 use different services for each environment's provider. For instance if you are pushing audit logs into a data warehouse, when running on GCP you could use BigQuery, but when running on AWS you could use Redshift, when running locally you could
 simply write them to a file.
 

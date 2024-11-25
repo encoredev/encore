@@ -16,8 +16,8 @@ See the [pricing page](https://encore.dev/pricing) for a feature comparison betw
 The Free plan comes with certain limitations, and should your needs exceed one or more of them, you may wish to upgrade to a paid plan:
 
 - When you need more than 2 cloud environments
-- When you want to [automate DevOps in your cloud on AWS/GCP](/docs/deploy/infra)
-- When you want [Preview Environments](/docs/deploy/preview-environments) for each Pull Request
+- When you want to [automate DevOps in your cloud on AWS/GCP](/docs/platform/infrastructure/infra)
+- When you want [Preview Environments](/docs/platform/deploy/preview-environments) for each Pull Request
 - When you want to use a Custom Domain
 - When you need multiple concurrent builds
 - When you need guaranteed logs & tracing retention
@@ -29,12 +29,12 @@ You can activate your trial from the [pricing page](https://encore.dev/pricing).
 
 ## Do I need to pay for hosting?
 
-All plans come with free use of Encore Cloud, subject to [Fair Use limits](/docs/about/usage).
+All plans come with free use of Encore Cloud, subject to [Fair Use limits](/docs/platform/management/usage).
 Encore Cloud is intended for development environments and limited scale professional use that does not require specific SLAs.
 
-For production use, you can [connect your own cloud account on AWS/GCP](/docs/deploy/own-cloud) and use Encore to deploy there, including provisioning infrastructure and managing IAM. When you connect your own cloud account, you pay for usage directly to your cloud provider.
+For production use, you can [connect your own cloud account on AWS/GCP](/docs/platform/infrastructure/own-cloud) and use Encore to deploy there, including provisioning infrastructure and managing IAM. When you connect your own cloud account, you pay for usage directly to your cloud provider.
 
-If you prefer to manage deployment yourself, you can export your application as a standalone Docker image and deploy in any way you prefer. ([Learn more](/docs/how-to/self-host))
+If you prefer to manage deployment yourself, you can export your application as a standalone Docker image and deploy in any way you prefer. ([Learn more](/docs/ts/self-host/build))
 
 ## Payments & Billing FAQ
 

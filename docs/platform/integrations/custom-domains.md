@@ -6,7 +6,7 @@ subtitle: Expose APIs from your own domain
 lang: platform
 ---
 
-By default, all application [environments](/docs/deploy/environments) are accessible as subdomains of the shared Encore domain `encr.app`. When exposing APIs publicly, you often want to provide a URL endpoint branded with your own domain.
+By default, all application [environments](/docs/platform/deploy/environments) are accessible as subdomains of the shared Encore domain `encr.app`. When exposing APIs publicly, you often want to provide a URL endpoint branded with your own domain.
 
 Follow these instructions to serve your backend using your own custom domain name. This also has the benefit of providing a built-in Web Application Firewall (WAF) using [Cloudflare WAF](https://www.cloudflare.com/en-gb/application-services/products/waf/).
 
@@ -27,7 +27,7 @@ Once you've added the CNAME record, go to the Custom Domains settings page by op
 **[Your apps](https://app.encore.dev/) > (Select your app) > Settings > Custom Domains**. Click on `Add Domain`
 on the top right of the page.
 
-Enter the domain name you configured the CNAME on and select which [environment](/docs/deploy/environments) you wish to
+Enter the domain name you configured the CNAME on and select which [environment](/docs/platform/deploy/environments) you wish to
 serve on that domain, then click `Add`.
 
 Encore will now set up your domain and issue SSL certificates to serve traffic through.

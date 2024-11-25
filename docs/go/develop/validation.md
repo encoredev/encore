@@ -17,7 +17,7 @@ If it does, Encore will call this method after deserializing the request payload
 and only call your API handler (and other middleware) if the validation function
 returns `nil`.
 
-If the validation function returns an [`*errs.Error`](/docs/develop/errors) that error
+If the validation function returns an [`*errs.Error`](/docs/primitives/api-errors) that error
 is reported unmodified to the caller. Other errors are converted to an `*errs.Error`
 with code `InvalidArgument`, which results in a HTTP response with status code `400 Bad Request`.
 

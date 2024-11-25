@@ -6,7 +6,7 @@ subtitle: Encore comes with built-in CI/CD and integrates with GitHub
 lang: platform
 ---
 
-Encore simplifies the deployment process, making it as straightforward as a `git push`. Encore's built-in integration with Git and GitHub, automated CI/CD pipeline, and automatic provisioning of [Preview Environments](/docs/deploy/preview-environments) and [cloud infrastructure](/docs/deploy/infra), is designed to speed up development and remove manual steps.
+Encore simplifies the deployment process, making it as straightforward as a `git push`. Encore's built-in integration with Git and GitHub, automated CI/CD pipeline, and automatic provisioning of [Preview Environments](/docs/platform/deploy/preview-environments) and [cloud infrastructure](/docs/platform/infrastructure/infra), is designed to speed up development and remove manual steps.
 
 ## Setting Up Your Encore Application 
 
@@ -16,7 +16,7 @@ Encore simplifies the deployment process, making it as straightforward as a `git
 $ encore app create
 ```
 
-2. **Integrate with GitHub (Optional)**: If you prefer to use GitHub, you can [integrate your app with GitHub](/docs/how-to/github). This way, you can push code to GitHub, which triggers Encore's deployment process. This is especially handy for teams as it enables collaborative development, version control, and other GitHub functionality.
+2. **Integrate with GitHub (Optional)**: If you prefer to use GitHub, you can [integrate your app with GitHub](/docs/platform/integrations/github). This way, you can push code to GitHub, which triggers Encore's deployment process. This is especially handy for teams as it enables collaborative development, version control, and other GitHub functionality.
 
 ## Deploying Your Application
 
@@ -48,7 +48,7 @@ To configure which branch name is used to trigger deploys, open your app in the 
 
 ### Preview Environments
 
-When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the [primary environment](/docs/deploy/environments#primary-environment).
+When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/platform/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the [primary environment](/docs/platform/deploy/environments#primary-environment).
 
 ## Custom build settings
 

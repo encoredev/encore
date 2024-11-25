@@ -5,7 +5,7 @@ title: Use Firebase Auth with your app
 lang: go
 ---
 
-Encore's [authentication support](/docs/concepts/auth) provides a simple yet powerful
+Encore's [authentication support](/docs/go/develop/auth) provides a simple yet powerful
 way of dealing with various authentication scenarios.
 
 <a href="https://firebase.google.com/docs/auth" target="_blank" rel="nofollow">Firebase Authentication</a>
@@ -23,7 +23,7 @@ First, install two modules:
 $ go get firebase.google.com/go/v4 go4.org/syncutil
 ```
 
-Next it's time to define your [authentication handler](/docs/concepts/auth).
+Next it's time to define your [authentication handler](/docs/go/develop/auth).
 It can live in whatever service you'd like, but it's usually easiest
 to create a designated `user` service.
 

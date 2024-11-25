@@ -32,7 +32,7 @@ When you use IaC you also end up with a separate codebase to maintain and keep i
 
 **Encore's _infrastructure from code_ approach means there are no configuration files to maintain**, nor any refactoring to do when changing the underlying infrastructure. Your application code is the source of truth for the semantic infrastructure requirements.
 
-In practise, you use Encore's [Backend Framework](/docs/primitives/overview) to declare infrastructure as type-safe objects in your application code, and **Encore [automatically provisions the necessary infrastructure](/docs/deploy/infra) in all environments.** Including in your own cloud, with support for major cloud providers like AWS/GCP. (This also means your application is cloud-agnostic by default and **you avoid cloud lock-in**.)
+In practise, you use [Encore.ts](/docs/ts) and [Encore.go](/docs/go) to declare infrastructure as type-safe objects in your application code, and **Encore [automatically provisions the necessary infrastructure](/docs/platform/infrastructure/infra) in all environments.** Including in your own cloud, with support for major cloud providers like AWS/GCP. (This also means your application is cloud-agnostic by default and **you avoid cloud lock-in**.)
 
 ## Encore's local development workflow lets application developers focus
 
@@ -44,7 +44,7 @@ This can be a major distraction for application developers, because it forces th
 
 All this effort takes time away from product development and slows down onboarding time for new developers.
 
-**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
+**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/ts/observability/dev-dash) with built-in observability tools.
 
 This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 

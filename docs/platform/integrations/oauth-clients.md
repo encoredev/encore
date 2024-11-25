@@ -58,7 +58,7 @@ When you revoke an OAuth client, any active API access tokens that were created 
 
 ### Encore Platform OAuth token endpoint
 The Encore Platform's OAuth token endpoint is https://api.encore.dev/api/oauth/token.
-See the [Platform API Reference](/docs/platform/api-reference) documentation for more information.
+See the [Platform API Reference](/docs/platform/integrations/api-reference) documentation for more information.
 
 Make requests to the OAuth token endpoint when you need an API access token. The OAuth token endpoint accepts requests that conform to the OAuth 2.0 client credentials grant request format, and returns responses that conform to the OAuth 2.0 client credentials grant response format.
 

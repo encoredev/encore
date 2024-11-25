@@ -23,7 +23,7 @@ messages to the actual Pub/Sub topic.
 ## Publishing messages to the outbox
 
 To publish messages to the outbox, a topic must first be bound to the outbox. This is done using
-[Pub/Sub topic references](/docs/primitives/pubsub#using-topic-references) which allows you to retain complete
+[Pub/Sub topic references](/docs/go/primitives/pubsub#using-topic-references) which allows you to retain complete
 type safety and the same interface as regular Pub/Sub topics, allowing existing code to continue to work without changes.
 
 <Callout type="info">

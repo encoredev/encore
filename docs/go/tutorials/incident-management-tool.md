@@ -833,7 +833,7 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 
 ### Architecture Diagram
 
-Take a look at the [Encore Flow](/docs/develop/encore-flow) diagram that was automatically generated for our new application too!
+Take a look at the [Encore Flow](/docs/go/observability/encore-flow) diagram that was automatically generated for our new application too!
 
 ![Being reminded on Slack about unacknowledged incidents](/assets/docs/incident-flow-diagram.png)
 
@@ -851,5 +851,5 @@ $ encore app create --example https://github.com/encoredev/example-app-oncall
 ### Feedback
 
 🥐 We'd love to hear your thoughts about this tutorial and learn about what you're building next.
-Let us know by [tweeting your experience](https://twitter.com/encoredotdev), blog about it, or talk to us about it on [Slack](https://encore.dev/slack).
+Let us know by [tweeting your experience](https://twitter.com/encoredotdev), blog about it, or talk to us about it on [Discord](https://encore.dev/discord).
 

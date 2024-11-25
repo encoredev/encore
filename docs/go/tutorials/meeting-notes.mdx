@@ -225,7 +225,7 @@ We get a lot more data from Pexels but here we only pick the fields that we want
 req.Header.Set("Authorization", secrets.PexelsApiKey)
 ```
 
-Here we could have hardcoded the API key but that would have made it readable for everyone with access to our repo. Instead, we made use of Encore's built-in [secrets management](https://encore.dev/docs/primitives/secrets). To set this secret, run the following command in your project folder and follow the prompt:
+Here we could have hardcoded the API key but that would have made it readable for everyone with access to our repo. Instead, we made use of Encore's built-in [secrets management](https://encore.dev/docs/go/primitives/secrets). To set this secret, run the following command in your project folder and follow the prompt:
 
 ```shell
 encore secret set --type dev,prod,local,pr PexelsApiKey
@@ -233,7 +233,7 @@ encore secret set --type dev,prod,local,pr PexelsApiKey
 
 ## Creating a request client
 
-Encore is able to generate frontend [request clients](https://encore.dev/docs/develop/client-generation) (TypeScript or JavaScript). This means that you do not need to manually keep the request/response objects in sync on the frontend, huge time saver. To generate a client run:
+Encore is able to generate frontend [request clients](https://encore.dev/docs/go/cli/client-generation) (TypeScript or JavaScript). This means that you do not need to manually keep the request/response objects in sync on the frontend, huge time saver. To generate a client run:
 
 ```shell
 $ encore gen client <APP_NAME> --output=./src/client.ts --env=<ENV_NAME>

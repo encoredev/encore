@@ -5,7 +5,7 @@ title: Use Clerk with your app
 lang: go
 ---
 
-In this guide you will learn how to set up an Encore [auth handler](/docs/develop/auth#the-auth-handler) that makes use of
+In this guide you will learn how to set up an Encore [auth handler](/docs/go/develop/auth#the-auth-handler) that makes use of
 [Clerk](https://clerk.com/) in order to add an integrated signup and login experience to your web app.
 
 For all the code and instructions of how to clone and run this example locally, see the [Clerk Example](https://github.com/encoredev/examples/tree/main/clerk) in our examples repo.
@@ -20,7 +20,7 @@ $ go get github.com/clerkinc/clerk-sdk-go/clerk
 
 Create a folder and naming it `auth`, this is where our authentication related backend code will live.
 
-It's time to define your [auth handler](/docs/concepts/auth). Create `auth/auth.go` and paste the following:
+It's time to define your [auth handler](/docs/go/develop/auth). Create `auth/auth.go` and paste the following:
 
 ```go
 package auth
@@ -106,7 +106,7 @@ Create a Clerk account if you haven't already. Then, in the Clerk dashboard, cre
 
 Next, go to the *API Keys* page for your app. Copy one of the "Secret keys" (the "Publishable Key" will be used by your frontend).
 
-The `Secret key` is sensitive and should not be hardcoded in your code/config. Instead, you should store that as an [Encore secret](/docs/primitives/secrets).
+The `Secret key` is sensitive and should not be hardcoded in your code/config. Instead, you should store that as an [Encore secret](/docs/go/primitives/secrets).
 
 From your terminal (inside your Encore app directory), run:
 

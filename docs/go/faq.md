@@ -30,15 +30,11 @@ Support for mixing languages in coming. Currently, if you want to use both TypeS
 
 Encore's Cloud Platform currently supports automating deployments to AWS and GCP. Azure support in on the [roadmap](https://encore.dev/roadmap) and will be available in 2025.
 
-If you want to use other cloud providers like Azure or Digital Ocean, you can follow the [self-hosting instructions](/docs/how-to/self-host).
+If you want to use other cloud providers like Azure or Digital Ocean, you can follow the [self-hosting instructions](/docs/go/self-host/docker-build).
 
 **Can I use MongoDB / MySQL with Encore?**
 
 Encore currently has built-in support for PostgreSQL. To use another type of database, like MongoDB and MySQL, you will need to set it up and integrate as you normally would when not using Encore.
-
-**Can I use S3 / object storage with Encore?**
-
-Built-in support for S3 / object storage is on the [roadmap](https://encore.dev/roadmap). Currently, you will need to set it up and integrate as you normally would when not using Encore.
 
 **Can I use AWS lambda with Encore?**
 

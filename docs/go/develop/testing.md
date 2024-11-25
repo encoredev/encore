@@ -70,7 +70,7 @@ against that database. When you later call `et.NewTestDatabase`, Encore creates 
 
 ### Service Structs
 
-In tests, [service structs](/docs/primitives/services-and-apis/service-structs) are initialized on demand when the first
+In tests, [service structs](/docs/go/primitives/service-structs) are initialized on demand when the first
 API call is made to that service and then that instance of the service struct for all future tests. This means your tests
 can run faster as they don't have to each initialize all the service struct's each time a new test starts.
 
@@ -97,4 +97,4 @@ It lets you run unit tests directly from within your IDE with support for debug 
 
 There's no official VS Code plugin available yet, but we are happy to include your contribution if you  build one. Reach out on [Discord](/discord) if you need help to get started.
 
-For advice on debugging when using VS Code, see the [Debugging docs](/docs/how-to/debug).
+For advice on debugging when using VS Code, see the [Debugging docs](/docs/go/how-to/debug).

@@ -172,9 +172,9 @@ Code generation commands
 
 #### Generate client
 
-Generates an API client for your app. For more information about the generated clients, see [this page](/docs/develop/client-generation).
+Generates an API client for your app. For more information about the generated clients, see [this page](/docs/go/cli/client-generation).
 
-By default generates the API based on your [primary environment](/docs/deploy/environments#primary-environment).
+By default generates the API based on your [primary environment](/docs/platform/deploy/environments#primary-environment).
 Use `--env=local` to generate it based on your local development version of the app.
 
 Use `--lang=<lang>` to specify the language. Supported language codes are:
@@ -308,7 +308,7 @@ $ encore vpn stop
 ```
 ## Build
 
-Generates an image for your app, which can be used to [self-host](/docs/how-to/self-host) your app.
+Generates an image for your app, which can be used to [self-host](/docs/go/self-host/docker-build) your app.
 
 #### Docker
 

@@ -13,7 +13,7 @@ lang: go
 
 Publishers & Subscribers (Pub/Sub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
 
-Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
+Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/platform/infrastructure/infra).
 
 ## Creating a Topic
 
@@ -174,7 +174,7 @@ Encore assumes that the service will publish messages to the topic and provision
 to support that.
 
 Note that a **TopicRef** must be declared _within a service_, but the reference itself
-can be freely passed around to library code, be dependency injected into [service structs](/docs/how-to/dependency-injection),
+can be freely passed around to library code, be dependency injected into [service structs](/docs/go/how-to/dependency-injection),
 and so on.
 
 ## Subscribing to Events
@@ -221,7 +221,7 @@ The timeout defaults to 30 seconds if you don't explicitly configure `AckDeadlin
 
 ### Method-based handlers
 
-When using [service structs](/docs/primitives/services-and-apis/service-structs) for dependency injection
+When using [service structs](/docs/go/primitives/service-structs) for dependency injection
 it's common to want to define the subscription handler as a method on the service struct, to be able to access the
 injected dependencies. The pubsub package provides the `pubsub.MethodHandler` function for this purpose:
 

@@ -9,7 +9,7 @@ lang: platform
 Encore lets you deploy your application to any of the major cloud providers, using your own cloud account.
 This lets you use Encore to improve your experience and productivity, while keeping the reliability of a major cloud provider.
 
-Each [environment](/docs/deploy/environments) can be configured to use a different cloud provider, and you can have as many environments as you wish.
+Each [environment](/docs/platform/deploy/environments) can be configured to use a different cloud provider, and you can have as many environments as you wish.
 This also lets you easily deploy a hybrid or multi-cloud application, as you see fit.
 
 <Callout type="info">

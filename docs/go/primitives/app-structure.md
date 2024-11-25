@@ -7,22 +7,22 @@ lang: go
 ---
 
 Encore uses a monorepo design and it's best to use one Encore app for your entire backend application. This lets Encore build an application model that spans your entire app, necessary to get the most value out of many
-features like [distributed tracing](/docs/observability/tracing) and [Encore Flow](/docs/develop/encore-flow).
+features like [distributed tracing](/docs/go/observability/tracing) and [Encore Flow](/docs/go/observability/encore-flow).
 
-If you have a large application, see advice on how to [structure an app with several systems](/docs/develop/app-structure#large-applications-with-several-systems). 
+If you have a large application, see advice on how to [structure an app with several systems](/docs/go/primitives/app-structure#large-applications-with-several-systems). 
 
-It's simple to integrate Encore applications with pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/develop/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/how-to/migrate-to-encore) documentation.
+It's simple to integrate Encore applications with pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/go/cli/client-generation).
 
 ## Monolith or Microservices
 
-Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/primitives/api-calls), along with cross-service type-safety.
+Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/go/primitives/api-calls), along with cross-service type-safety.
 
-When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#process-allocation).
+When using Encore Cloud Platform to create an environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/platform/deploy/environments#process-allocation).
 
 ## Creating services
 
 To create an Encore service, you create a Go package and
-[define an API](/docs/primitives/apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/develop/databases).
+[define an API](/docs/go/primitives/defining-apis) within it. When using databases, you add database migrations in a subfolder `migrations` to define the structure of the database(s). Learn more in the [SQL databases docs](/docs/go/primitives/databases).
 
 On disk it might look like this:
 
@@ -40,7 +40,7 @@ On disk it might look like this:
     └── world.go                     // world service code
 ```
 
-<RelatedDocsLink paths={["/docs/primitives/services", "/docs/primitives/apis", "/docs/how-to/share-db-between-services"]} />
+<RelatedDocsLink paths={["/docs/go/primitives/services", "/docs/go/primitives/defining-apis", "/go/primitives/share-db-between-services"]} />
 
 ## Structure services using sub-packages
 

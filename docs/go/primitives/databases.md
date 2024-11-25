@@ -16,7 +16,7 @@ Encore treats SQL databases as logical resources and natively supports **Postgre
 ## Creating a database
 
 To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
-Databases must be created from within an [Encore service](/docs/primitives/services).
+Databases must be created from within an [Encore service](/docs/go/primitives/services).
 
 For example:
 
@@ -170,14 +170,14 @@ When you [define a database](#creating-a-database), Encore will provision the da
 
 Encore provisions databases in an appropriate way depending on the environment.
 When running locally, Encore creates a database cluster using [Docker](https://www.docker.com/).
-In the cloud, it depends on the [environment type](/docs/deploy/environments#environment-types):
+In the cloud, it depends on the [environment type](/docs/platform/deploy/environments#environment-types):
 
 - In `production` environments, the database is provisioned through the Managed SQL Database
   service offered by the chosen cloud provider.
 - In `development` environments, the database is provisioned as a Kubernetes deployment
   with a persistent disk attached.
 
-See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/deploy/infra).
+See exactly what is provisioned for each cloud provider, and each environment type, in the [infrastructure documentation](/docs/platform/infrastructure/infra).
 
 ## Connecting to databases
 

@@ -5,7 +5,7 @@ title: Use Auth0 with your app
 lang: go
 ---
 
-In this guide you will learn how to set up an Encore [auth handler](/docs/develop/auth#the-auth-handler) that makes use of
+In this guide you will learn how to set up an Encore [auth handler](/docs/go/develop/auth#the-auth-handler) that makes use of
 [Auth0](https://auth0.com/) in order to add a seamless signup and login experience to your web app.
 
 For all the code and instructions of how to clone and run this example locally, see the [Auth0 Example](https://github.com/encoredev/examples/tree/main/auth0) in our examples repo.
@@ -109,7 +109,7 @@ func generateRandomState() (string, error) {
 
 ## Set up the auth handler
 
-It's time to define your [auth handler](/docs/concepts/auth) and the endpoints needed for the login and logout flow.
+It's time to define your [auth handler](/docs/go/develop/auth) and the endpoints needed for the login and logout flow.
 
 Create the `auth/auth.go` file and paste the following:
 
@@ -317,7 +317,7 @@ The same goes for the logout URL (were the user will get redirected after logout
 
 ## Config and secrets
 
-Create a [configuration file](/docs/develop/config) in the `auth` service and name it `auth-config.cue`. Add the following:
+Create a [configuration file](/docs/go/develop/config) in the `auth` service and name it `auth-config.cue`. Add the following:
 
 ```cue
 ClientID: "<your client_id from above>"
@@ -332,7 +332,7 @@ if #Meta.Environment.Type == "development" && #Meta.Environment.Cloud == "local"
 
 Replace the values for the `ClientID` and `Domain` that you got from the Auth0 dashboard.
 
-The `ClientSecret` is especially sensitive and should not be hardcoded in your code/config. Instead, you should store that as an [Encore secret](/docs/primitives/secrets).
+The `ClientSecret` is especially sensitive and should not be hardcoded in your code/config. Instead, you should store that as an [Encore secret](/docs/go/primitives/secrets).
 
 From your terminal (inside your Encore app directory), run:
 
@@ -356,7 +356,7 @@ That's it! Encore will run your auth handler and validate the token against Auth
 Now that the backend is set up, we can create a frontend application that uses the login flow.
 
 Here's an example using [React](https://react.dev/) together with [React Router](https://reactrouter.com/). This example 
-also makes use of a Encores ability to [generate request clients](/docs/develop/client-generation) to make the communication 
+also makes use of a Encores ability to [generate request clients](/docs/go/cli/client-generation) to make the communication 
 with our backend simple and typesafe.
 
 ```tsx

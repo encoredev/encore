@@ -15,7 +15,7 @@ For example, you can set up a webhook to be notified whenever a deployment start
 
 Webhooks are defined on a per-application basis, and are configured under Settings -> Webhooks in Encore's Cloud Dashboard.
 
-To simplify using webhooks, Encore provides a Go module, [go.encore.dev/webhooks](https://pkg.go.dev/go.encore.dev/webhooks), that provides
+To simplify using webhooks, Encore.go provides a Go module, [go.encore.dev/webhooks](https://pkg.go.dev/go.encore.dev/webhooks), that provides
 type definitions and documentation of all supported webhook events. This module is kept up to date as new events are added.
 
 ## Webhook Deliveries

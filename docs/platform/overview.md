@@ -9,7 +9,7 @@ lang: platform
 
 Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â€” trusted by thousands of developers to **3x** their development speed and reduce DevOps work by **90%**.
 
-**If you're new, learn all about how Encore works in the [introduction](/docs/introduction).**
+**If you're new, learn all about how Encore works in the [introduction](/docs/platform/introduction).**
 
 <div className="min-h-72 bg-black p-8 relative overflow-hidden not-prose">
     <div className="w-[75%] lg:w-[60%]">
@@ -24,7 +24,7 @@ Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â
 </div>
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
-<a className="block group relative no-brandient" href="/docs/introduction">
+<a className="block group relative no-brandient" href="/docs/platform/introduction">
         <div className="absolute inset-0 bg-black dark:bg-white -z-10" />
         <div
             className="min-h-full border border-black dark:border-white p-8 mobile:p-4 bg-white dark:bg-black transition-transform duration-100 ease-in-out group-active:-translate-x-2 group-active:-translate-y-2 group-hover:-translate-x-2 group-hover:-translate-y-2 relative">

@@ -71,15 +71,15 @@ On disk we now have:
     └── yo.go         // yo service code
 ```
 
-Encore now understands these are separate services, and when you run your app you'll see that the [Service Catalog](/docs/develop/api-docs) has been automatically updated accordingly.
+Encore now understands these are separate services, and when you run your app you'll see that the [Service Catalog](/docs/go/observability/service-catalog) has been automatically updated accordingly.
 
 <img src="/assets/docs/microservices-service-catalog.png" title="Service Catalog - Microservices" />
 
-As well as the [Flow architecture diagram](/docs/observability/encore-flow).
+As well as the [Flow architecture diagram](/docs/go/observability/encore-flow).
 
 <img src="/assets/docs/microservices-flow.png" title="Encore Flow - Microservices" />
 
 ## Sharing databases between services (or not)
 
-Deciding whether to share a database between multiple services depends on your specific situation. Encore supports both options. Learn more in the [database documentation](/docs/how-to/share-db-between-services).
+Deciding whether to share a database between multiple services depends on your specific situation. Encore supports both options. Learn more in the [database documentation](/docs/go/primitives/share-db-between-services).
 

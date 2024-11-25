@@ -18,7 +18,7 @@ If this does not resolve the issue, here are steps to resolve common errors:
 
 This error is often caused by a problem with the initial migration file, such as incorrect naming or location.
 
-- Verify that you've [created the migration file](/docs/develop/databases#defining-a-database-schema) correctly, then try `encore run` again.
+- Verify that you've [created the migration file](/docs/go/primitives/databases#defining-a-database-schema) correctly, then try `encore run` again.
 
 ** Error: could not connect to the database **
 

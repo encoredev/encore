@@ -12,7 +12,7 @@ infobox: {
 
 Encore offers built-in support for Structured Logging, which combines a free-form log message with structured and type-safe key-value pairs. This enables straightforward analysis of what your application is doing, in a way that is easy for a computer to parse, analyze, and index. This makes it simple to quickly filter and search through logs.
 
-Encore’s logging is integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality, and all logs are automatically included in the active trace. This dramatically simplifies debugging of your application.
+Encore’s logging is integrated with the built-in [Distributed Tracing](/docs/go/observability/tracing) functionality, and all logs are automatically included in the active trace. This dramatically simplifies debugging of your application.
 
 ## Usage
 First, import `encore.dev/rlog` in your package. Then simply call one of the package methods `Info`, `Error`, or `Debug`. For example:

@@ -37,7 +37,7 @@ Once you've declared the provider, Terraform will automatically download the pro
 working directory using `terraform init`.
 
 To authenticate with the Encore API, the provider need an Encore Auth Key. You can generate an auth key from
-Encore's [Cloud Dashboard](https://encore.dev/docs/develop/auth-keys). Once you have the auth key, you can configure the
+Encore's [Cloud Dashboard](https://encore.dev/docs/platform/integrations/auth-keys). Once you have the auth key, you can configure the
 provider in your Terraform configuration file like this:
 
 ```

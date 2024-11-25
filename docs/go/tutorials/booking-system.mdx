@@ -60,7 +60,7 @@ When we're done we'll have a backend with this [architecture](/docs/observabilit
 
 Let's start by creating the functionality to view bookable slots.
 
-With Encore you define a service by [defining one or more APIs](/docs/primitives/apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/deploy/infra) for each service.
+With Encore you define a service by [defining one or more APIs](/docs/go/primitives/defining-aps) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/platform/infrastructure/infra) for each service.
 
 We already have a Go package named `booking`, let's turn that into an Encore service.
 
@@ -181,7 +181,7 @@ a new terminal instead. Either way you should see the response:
 
 ## 3. Book an appointment
 
-Next, we want to make it possible to book an appointment. We'll need a database to store the bookings in. Encore makes it really simple to [create and use databases](/docs/primitives/databases) (both for local and cloud environments), but for this example we will also make use of [sqlc](https://sqlc.dev/) that will compile our SQL queries into type-safe Go code that we can use in our application.
+Next, we want to make it possible to book an appointment. We'll need a database to store the bookings in. Encore makes it really simple to [create and use databases](/docs/go/primitives/databases) (both for local and cloud environments), but for this example we will also make use of [sqlc](https://sqlc.dev/) that will compile our SQL queries into type-safe Go code that we can use in our application.
 
 🥐 Let's create a SQL database for our booking service and the required sqlc scaffolding. Create the following file structure:
 
@@ -338,7 +338,7 @@ func Book(ctx context.Context, p *BookParams) error {
 
 We are now using the generated type-safe `query.InsertBooking` function to make the database operation.
 
-Notice the `encore:"sensitive"` tag on the `Email` field. This tells Encore to scrub this field so that the data is not viewable in the traces for deployed environments. This is useful for fields that contain [sensitive data](/docs/primitives/apis#sensitive-data) such as email addresses, passwords, etc.
+Notice the `encore:"sensitive"` tag on the `Email` field. This tells Encore to scrub this field so that the data is not viewable in the traces for deployed environments. This is useful for fields that contain [sensitive data](/docs/go/primitives/defining-apis#sensitive-data) such as email addresses, passwords, etc.
 
 🥐 Restart `encore run` to cause the database to be created, and then call the `booking.Book` endpoint:
 
@@ -392,7 +392,7 @@ func AuthHandler(ctx context.Context, p *AuthParams) (auth.UID, *Data, error) {
 
 ```
 
-This function is our [auth handler](/docs/develop/auth#the-auth-handler). An Encore applications can designate a special function to handle authentication,
+This function is our [auth handler](/docs/go/develop/auth#the-auth-handler). An Encore applications can designate a special function to handle authentication,
 by defining a function and annotating it with `//encore:authhandler`. This annotation tells Encore to run the function whenever an
 incoming API call contains authentication data.
 
@@ -816,7 +816,7 @@ The frontend should now be working as expected.
 
 🥐 Go to [http://localhost:4000/frontend/](http://localhost:4000/frontend/) and try out your new booking system.
 
-The frontend is built using [React](https://react.dev/) and [Tailwind CSS](https://tailwindcss.com/). It uses Encore's ability to generate type-safe [request clients](https://encore.dev/docs/develop/client-generation). This means you don't need to manually keep the request/response objects in sync on the frontend. To generate a client:
+The frontend is built using [React](https://react.dev/) and [Tailwind CSS](https://tailwindcss.com/). It uses Encore's ability to generate type-safe [request clients](https://encore.dev/docs/go/cli/client-generation). This means you don't need to manually keep the request/response objects in sync on the frontend. To generate a client:
 
 ```bash
 $ encore gen client <APP_NAME> --output=./src/client.ts --env=<ENV_NAME>
@@ -844,7 +844,7 @@ See our the docs page about [integrating with a web frontend](/docs/how-to/integ
 Let's deploy the project to Encore's free development cloud.
 
 Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`.
-(You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/deploy/deploying).)
+(You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/platform/deploy/deploying).)
 
 🥐 Now, let's deploy your app to Encore's free development cloud by running:
 

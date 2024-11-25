@@ -16,7 +16,7 @@ by reducing latency, improving system performance, and avoiding expensive comput
 For scalable systems you typically want to deploy the cache as a separate
 infrastructure resource, allowing you to run multiple instances of your application concurrently.
 
-Encore's built-in Caching API lets you use high-performance caches (using [Redis](https://redis.io/)) in a cloud-agnostic declarative fashion. At deployment, Encore will automatically [provision the required infrastructure](/docs/deploy/infra).
+Encore's built-in Caching API lets you use high-performance caches (using [Redis](https://redis.io/)) in a cloud-agnostic declarative fashion. At deployment, Encore will automatically [provision the required infrastructure](/docs/platform/infrastructure/infra).
 
 ## Cache clusters
 

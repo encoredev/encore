@@ -36,7 +36,7 @@ $ encore app create uptime --example=github.com/encoredev/example-app-uptime/tre
 
 If this is the first time you're using Encore, you'll be asked if you wish to create a free account. This is needed when you want Encore to manage functionality like secrets and handle cloud deployments (which we'll use later on in the tutorial).
 
-When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
+When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/go/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/encore-flow.png" title="Encore Flow" />
 
@@ -208,7 +208,7 @@ CREATE TABLE sites (
 $ go get -u gorm.io/gorm gorm.io/driver/postgres
 ```
 
-Now let's create the `site` service itself. To do this we'll use Encore's support for [dependency injection](https://encore.dev/docs/how-to/dependency-injection) to inject the GORM database connection.
+Now let's create the `site` service itself. To do this we'll use Encore's support for [dependency injection](https://encore.dev/docs/go/how-to/dependency-injection) to inject the GORM database connection.
 
 🥐 Create `site/service.go` with the contents:
 
@@ -370,7 +370,7 @@ We'll insert a database row every time we check if a site is up.
 takes in a Site ID, pings the site, and inserts a database row
 in the `checks` table.
 
-For this service we'll use Encore's [`sqldb` package](https://encore.dev/docs/develop/databases#querying-databases)
+For this service we'll use Encore's [`sqldb` package](https://encore.dev/docs/go/primitives/databases#querying-databases)
 instead of GORM (in order to showcase both approaches).
 
 ```go
@@ -513,7 +513,7 @@ not treated as an error.)
 
 🥐 Run `go get golang.org/x/sync/errgroup` to install that dependency.
 
-🥐 Now that we have a `CheckAll` endpoint, define a [cron job](https://encore.dev/docs/primitives/cron-jobs) to automatically call it every 1 hour (since this is an example, we don't need to go too crazy and check every minute):
+🥐 Now that we have a `CheckAll` endpoint, define a [cron job](https://encore.dev/docs/go/primitives/cron-jobs) to automatically call it every 1 hour (since this is an example, we don't need to go too crazy and check every minute):
 
 ```go
 -- monitor/check.go --
@@ -597,7 +597,7 @@ Now try visiting http://localhost:4000/frontend in your browser again. This time
 To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
 
 Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`.
-(You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/deploy/deploying).)
+(You can also integrate with GitHub to activate per Pull Request Preview Environments, learn more in the [CI/CD docs](/docs/platform/deploy/deploying).)
 
 🥐 Now, let's deploy your app to Encore's free development cloud by running:
 
@@ -627,7 +627,7 @@ From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces
 Hold on, an uptime monitoring system isn't very useful if it doesn't
 actually notify you when a site goes down.
 
-To do so let's add a [Pub/Sub topic](https://encore.dev/docs/primitives/pubsub) on which we'll publish a message every time a site transitions from being up to being down, or vice versa.
+To do so let's add a [Pub/Sub topic](https://encore.dev/docs/go/primitives/pubsub) on which we'll publish a message every time a site transitions from being up to being down, or vice versa.
 
 🥐 Define the topic using Encore's Pub/Sub package in a new file, `monitor/alerts.go`:
 

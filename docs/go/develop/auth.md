@@ -13,7 +13,7 @@ Almost every application needs to know who's calling it, whether the user
 represents a person in a consumer-facing app or an organization in a B2B app.
 Encore supports both use cases in a simple yet powerful way.
 
-As described in the docs for [defining APIs](/docs/primitives/apis), Encore offers three access levels
+As described in the docs for [defining APIs](/docs/go/primitives/defining-apis), Encore offers three access levels
 for APIs:
 
 * `//encore:api public` &ndash; defines a public API that anybody on the internet can call.
@@ -44,7 +44,7 @@ tells Encore to run the function whenever an incoming API call contains authenti
 The auth handler is responsible for validating the incoming authentication data
 and returning an `auth.UID` (a string type representing a **user id**). The `auth.UID`
 can be whatever you wish, but in practice it usually maps directly to the primary key
-stored in a user table (either defined in the Encore service or in an external service like [Firebase](/docs/how-to/firebase-auth) or [Auth0](/docs/how-to/auth0-auth)).
+stored in a user table (either defined in the Encore service or in an external service like [Firebase](/docs/go/how-to/firebase-auth) or [Auth0](/docs/go/how-to/auth0-auth)).
 
 ### With custom user data
 
@@ -130,7 +130,7 @@ You can of course combine auth params like this with custom user data (see the s
 
 Cookies are generally only used by browsers and are automatically added to requests made by browsers.
 As a result Encore does not include cookie fields in generated clients' authentication payloads
-or in the [Local Development Dashboard](/docs/observability/dev-dash).
+or in the [Local Development Dashboard](/docs/go/observability/dev-dash).
 
 </Callout>
 

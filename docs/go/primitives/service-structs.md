@@ -7,7 +7,7 @@ lang: go
 
 Encore lets you define a type, called a service struct, to represent your running service. This lets you define an initialization function (similar to the `main` function in regular Go programs).
 
-You can also define API endpoints as methods on the service struct type, enabling you to use [dependency injection](/docs/how-to/dependency-injection) for testing purposes.
+You can also define API endpoints as methods on the service struct type, enabling you to use [dependency injection](/docs/go/how-to/dependency-injection) for testing purposes.
 
 It works by defining a struct type of your choice (typically called `Service`)
 and declaring it with `//encore:service`.

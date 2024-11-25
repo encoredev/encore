@@ -6,7 +6,7 @@ subtitle: Built-in tools for simplicity and productivity
 lang: go
 ---
 
-Encore provides an efficient local development workflow that automatically provisions [local infrastructure](/docs/deploy/infra#local-development) and supports automated testing with dedicated test infrastructure.
+Encore provides an efficient local development workflow that automatically provisions [local infrastructure](/docs/platform/infrastructure/infra#local-development) and supports automated testing with dedicated test infrastructure.
 
 The local environment also comes with a built-in Local Development Dashboard to simplify development and improve productivity. It has several features to help you design, develop, and debug your application:
 

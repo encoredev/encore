@@ -22,7 +22,7 @@ An API access token expires after one hour. For continuous access, shortly befor
 
 OAuth client libraries in popular programming languages can handle the API access token generation and renewal.
 
-See the [OAuth Clients](/docs/platform/oauth-clients) for more information on creating OAuth Clients.
+See the [OAuth Clients](/docs/platform/integrations/oauth-clients) for more information on creating OAuth Clients.
 
 ## OAuth
 

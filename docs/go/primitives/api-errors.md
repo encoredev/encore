@@ -12,7 +12,7 @@ lang: go
 
 Encore supports returning structured error information from your APIs using the [encore.dev/beta/errs](https://pkg.go.dev/encore.dev/beta/errs) package.
 
-Errors are propagated across the network to the [generated clients](/docs/develop/client-generation) and can be used within your front-ends without having to build any custom marshalling code.
+Errors are propagated across the network to the [generated clients](/docs/go/cli/client-generation) and can be used within your front-ends without having to build any custom marshalling code.
 
 ## The errs.Error type
 
@@ -90,25 +90,25 @@ The table below summarizes the error codes.
 You can find additional documentation about when to use them in the
 [package documentation](https://pkg.go.dev/encore.dev/beta/errs#ErrCode).
 
-| Code                  | String                  | HTTP Status               |
-|-----------------------|-------------------------|---------------------------|
-| `OK`                  | `"ok"`                  | 200 OK                    |
-| `Canceled`            | `"canceled"`            | 499 Client Closed Request |
-| `Unknown`             | `"unknown"`             | 500 Internal Server Error |
-| `InvalidArgument`     | `"invalid_argument"`    | 400 Bad Request           |
-| `DeadlineExceeded`    | `"deadline_exceeded"`   | 504 Gateway Timeout       |
-| `NotFound`            | `"not_found"`           | 404 Not Found             |
-| `AlreadyExists`       | `"already_exists"`      | 409 Conflict              |
-| `PermissionDenied`    | `"permission_denied"`   | 403 Forbidden             |
-| `ResourceExhausted`   | `"resource_exhausted"`  | 429 Too Many Requests     |
-| `FailedPrecondition`  | `"failed_precondition"` | 400 Bad Request           |
-| `Aborted`             | `"aborted"`             | 409 Conflict              |
-| `OutOfRange`          | `"out_of_range"`        | 400 Bad Request           |
-| `Unimplemented`       | `"unimplemented"`       | 501 Not Implemented       |
-| `Internal`            | `"internal"`            | 500 Internal Server Error |
-| `Unavailable`         | `"unavailable"`         | 503 Unavailable           |
-| `DataLoss`            | `"data_loss"`           | 500 Internal Server Error |
-| `Unauthenticated`     | `"unauthenticated"`     | 401 Unauthorized          |
+| Code                 | String                  | HTTP Status               |
+| -------------------- | ----------------------- | ------------------------- |
+| `OK`                 | `"ok"`                  | 200 OK                    |
+| `Canceled`           | `"canceled"`            | 499 Client Closed Request |
+| `Unknown`            | `"unknown"`             | 500 Internal Server Error |
+| `InvalidArgument`    | `"invalid_argument"`    | 400 Bad Request           |
+| `DeadlineExceeded`   | `"deadline_exceeded"`   | 504 Gateway Timeout       |
+| `NotFound`           | `"not_found"`           | 404 Not Found             |
+| `AlreadyExists`      | `"already_exists"`      | 409 Conflict              |
+| `PermissionDenied`   | `"permission_denied"`   | 403 Forbidden             |
+| `ResourceExhausted`  | `"resource_exhausted"`  | 429 Too Many Requests     |
+| `FailedPrecondition` | `"failed_precondition"` | 400 Bad Request           |
+| `Aborted`            | `"aborted"`             | 409 Conflict              |
+| `OutOfRange`         | `"out_of_range"`        | 400 Bad Request           |
+| `Unimplemented`      | `"unimplemented"`       | 501 Not Implemented       |
+| `Internal`           | `"internal"`            | 500 Internal Server Error |
+| `Unavailable`        | `"unavailable"`         | 503 Unavailable           |
+| `DataLoss`           | `"data_loss"`           | 500 Internal Server Error |
+| `Unauthenticated`    | `"unauthenticated"`     | 401 Unauthorized          |
 
 ## Error Building
 

@@ -31,7 +31,7 @@ Like any other Encore API endpoint, once deployed this will be exposed at the UR
 Experienced Go developers will have already noted this is just a regular Go HTTP handler.
 (See the <a href="https://pkg.go.dev/net/http#Handler" target="_blank" rel="nofollow">net/http documentation</a> for how Go HTTP handlers work.)
 
-Learn more about receiving webhooks and using WebSockets in the [receiving regular HTTP requests guide](/docs/how-to/http-requests).
+Learn more about receiving webhooks and using WebSockets in the [receiving regular HTTP requests guide](/docs/go/how-to/http-requests).
 
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/slack-bot" 

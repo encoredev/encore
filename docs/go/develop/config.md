@@ -23,7 +23,7 @@ Encore supports configuration files written in [CUE](https://cuelang.org/), whic
 
 <Callout type="important">
 
-For sensitive data use Encore's [secrets management](/docs/develop/secrets) functionality instead of configuration.
+For sensitive data use Encore's [secrets management](/docs/go/primitives/secrets) functionality instead of configuration.
 
 </Callout>
 

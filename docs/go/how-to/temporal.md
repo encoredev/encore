@@ -171,7 +171,7 @@ $ temporalite start --namespace default
 $ encore run
 ```
 
-Now try calling it, either from the [Local Development Dashboard](/docs/observability/dev-dash) or using cURL:
+Now try calling it, either from the [Local Development Dashboard](/docs/go/observability/dev-dash) or using cURL:
 
 ```bash
 $ curl 'http://localhost:4000/greeting/Temporal'
@@ -183,7 +183,7 @@ If you see this, it works!
 ## Run in the cloud
 
 To run it in the cloud, you will need to use Temporal Cloud or your own, self-hosted Temporal cluster.
-The easiest way to automatically pick up the correct cluster address is to use Encore's [config functionality](/docs/develop/config).
+The easiest way to automatically pick up the correct cluster address is to use Encore's [config functionality](/docs/go/develop/config).
 
 Add two new files:
 ```

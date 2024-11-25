@@ -14,9 +14,9 @@ Middleware is a way to write reusable code that runs before or after (or both)
 the handling of API requests, often across several (or all) API endpoints.
 
 It's commonly used to implement cross-cutting concerns like
-[request logging](/docs/observability/logging),
-[authentication](/docs/develop/auth),
-[tracing](/docs/observability/tracing),
+[request logging](/docs/go/observability/logging),
+[authentication](/docs/go/develop/auth),
+[tracing](/docs/go/observability/tracing),
 and so on. One of the benefits of Encore is that
 all of these use cases are already handled out-of-the-box, so there's no
 need to use middleware for those things.
@@ -101,7 +101,7 @@ func (s *Service) MyMiddleware(req middleware.Request, next middleware.Next) mid
 }
 ```
 
-See the [Dependency Injection](/docs/how-to/dependency-injection) docs for more information.
+See the [Dependency Injection](/docs/go/how-to/dependency-injection) docs for more information.
 
 </Callout>
 

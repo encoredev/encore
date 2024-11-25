@@ -7,7 +7,7 @@ lang: go
 
 Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
 
-This can be a good choice if Encore's cloud platform isn't a good fit for your use case, or if you want to [migrate away](/docs/how-to/migrate-away).
+This can be a good choice if Encore's cloud platform isn't a good fit for your use case, or if you want to [migrate away](/docs/go/migration/migrate-away).
 
 ## Building your own Docker image
 
@@ -30,4 +30,4 @@ docker run -e PORT=8081 -p 8081:8081 MY-IMAGE:TAG
 ```
 
 Congratulations, you've built your own Docker image! 🎉
-Continue to learn how to [configure infrastructure](/docs/self-host/configure-infra).
+Continue to learn how to [configure infrastructure](/docs/go/self-host/configure-infra).

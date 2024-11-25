@@ -10,7 +10,7 @@ Supabase and Firebase are two popular _Backend as a Service_ providers, that pro
 
 This can be a great way of getting off the ground quickly. But as many developers have come to learn, you risk finding yourself boxed into a corner if you're not in full control of your own backend when new use cases arise.
 
-**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account on AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and having to start over from scratch.
+**Encore is not a _Backend as a Service_, it's a platform _for_ backend development**. It gives you many of the same benefits that Supabase and Firebase offer, like not needing to manually provision your [databases](/docs/ts/primitives/databases) (or any other infrastructure for that matter). The key difference is, **Encore provisions your infrastructure in your own cloud account on AWS/GCP.** This also lets you easily use any cloud service offered by the major cloud providers, and you don't risk being limited by the platform and having to start over from scratch.
 
 Let's take a look at how Encore compares to BaaS platforms like Supabase and Firebase:
 
@@ -33,14 +33,14 @@ Let's take a look at how Encore compares to BaaS platforms like Supabase and Fir
 
 With Encore you don't need to be a cloud expert to make full use of the services offered by major cloud providers like AWS and GCP.
 
-You simply use Encore's [Backend Framework](/docs/primitives) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/deploy/infra) in your cloud, and provides a local development environment that matches your cloud environment.
+You simply use [Encore.ts](/docs/ts) or [Encore.go](/docs/go) to **declare the infrastructure semantics directly in your application code**, and Encore then [automatically provisions the necessary infrastructure](/docs/platform/infrastructure/infra) in your cloud, and provides a local development environment that matches your cloud environment.
 
 ### Example: Using PostgreSQL with Encore
 
-Here's an example of how to use Encore's [Backend Framework](/docs/primitives) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
+Here's an example of how to use [Encore.ts](/docs/ts) or [Encore.go](/docs/go) to define a PostgreSQL database (Go is used in the example, TypeScript support is also available):
 
 To create a database, import `encore.dev/storage/sqldb` and call `sqldb.NewDatabase`, assigning the result to a package-level variable.
-Databases must be created from within an [Encore service](/docs/primitives/services).
+Databases must be created from within an [Encore service](/docs/go/primitives/services).
 
 For example:
 
@@ -70,15 +70,15 @@ With this code in place Encore will automatically create the database when start
 or on the next deployment (in the cloud). Encore automatically injects the appropriate configuration to authenticate
 and connect to the database, so once the application starts up the database is ready to be used.
 
-[Learn more about using databases with Encore](/docs/primitives/databases)
+[Learn more about using databases with Encore](/docs/go/primitives/databases)
 
 ## Encore makes it simple to build type-safe event-driven systems
 
 Unlike BaaS platforms like Supabase and Firebase, Encore has extensive support for building microservices backends and event-driven systems.
 
-For example, Encore lets you [define APIs](/docs/primitives/apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
+For example, Encore lets you [define APIs](/docs/ts/primitives/apis) using regular functions and enables cross-service type-safety with IDE auto-complete when making API calls between services.
 
-With Encore's [Backend Framework](/docs/primitives), you can build event-driven systems by defining Pub/Sub topics and subscriptions as type-safe objects in your application.
+With [Encore.ts](/docs/ts) and [Encore.go](/docs/go), you can build event-driven systems by defining Pub/Sub topics and subscriptions as type-safe objects in your application.
 This gives you type-safety for Pub/Sub with compilation errors for any type-errors.
 
 ## Encore's local development workflow lets application developers focus
@@ -91,7 +91,7 @@ This can be a major distraction for application developers, because it forces th
 
 All this effort takes time away from product development and slows down onboarding time for new developers.
 
-**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/observability/dev-dash) with built-in observability tools.
+**When using Encore, your local and cloud environments are both defined by the same code base: your application code.** This means developers only need to use `encore run` to start their local dev environments. Encore's Open Source CLI takes care of setting up local version of all infrastructure and provides a [local development dashboard](/docs/ts/observability/dev-dash) with built-in observability tools.
 
 This greatly speeds up development iterations as developers can start using new infrastructure immediately, which makes building new services and event-driven systems extremely efficient.
 

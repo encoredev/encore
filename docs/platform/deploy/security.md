@@ -10,10 +10,10 @@ The security practices implemented by Encore are informed by our team's decades-
 
 We have designed Encore to make building secure applications an effortless task, rather than an inconvenience, allowing you to focus on functionality instead of laborious security concerns.
 
-For example, Encore's [secrets management](/docs/primitives/secrets) gives you a simple way of using secret keys, while at the same time providing state of the art security behind the scenes.
+For example, Encore's [secrets management](/docs/ts/primitives/secrets) gives you a simple way of using secret keys, while at the same time providing state of the art security behind the scenes.
 
 Furthermore, thanks to the Backend Framework, Encore understands which services require access to specific resources. **Encore automatically manages IAM policies** based on the _principle of least privilege_ by default. This ensures each service only has the minimum necessary permissions.
 
 When your application is running, all communication to Encore uses mutual TLSv1.3 connections, and all database access is encrypted with certificate validation and strong security credentials.
 
-For cloud environments, Encore automatically provisions infrastructure using security best practices for each of the supported cloud providers (GCP, AWS). Learn more in the [infrastructure documentation](/docs/deploy/infra).
+For cloud environments, Encore automatically provisions infrastructure using security best practices for each of the supported cloud providers (GCP, AWS). Learn more in the [infrastructure documentation](/docs/platform/infrastructure/infra).

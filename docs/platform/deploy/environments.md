@@ -9,7 +9,7 @@ lang: platform
 Encore makes it simple to create the environments you need to build your application with confidence: local, preview, testing, and production.
 Each environment is an isolated fully working instance of your backend, automatically provisioned by Encore.
 
-Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/concepts/application-model). Environments are provisioned using contextually appropriate [infrastructure](/docs/deploy/infra) depending on the type of environment.
+Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/ts/concepts/application-model). Environments are provisioned using contextually appropriate [infrastructure](/docs/platform/infrastructure/infra) depending on the type of environment.
 
 ## Creating environments
 
@@ -22,7 +22,7 @@ or **development environment** (see [Environment Types](#environment-types) belo
 You can also choose how you would like to **trigger deploys** for the environment (either by pushing
 to a Git branch or manually), and if you want to **manually approve infrastructure changes**.
 
-Finally, select which **cloud provider** you want to deploy to (see the [Cloud Providers](/docs/deploy/own-cloud) documentation to learn more) and decide which type of **process allocation** you want: should all services be deployed to one process or separately?
+Finally, select which **cloud provider** you want to deploy to (see the [Cloud Providers](/docs/platform/infrastructure/own-cloud) documentation to learn more) and decide which type of **process allocation** you want: should all services be deployed to one process or separately?
 
 Click `Create` and you're done!
 
@@ -40,18 +40,18 @@ Some environment types differ in how infrastructure is provisioned:
 - `preview` environments are provisioned in Encore Cloud and are optimized to be cost-efficient and fast to provision.
 - `local` is provisioned by Encore's CLI using local versions of infrastructure.
 
-Aside from determining infrastructure, environment type is also used for [Secrets management](/docs/develop/secrets).
+Aside from determining infrastructure, environment type is also used for [Secrets management](/docs/ts/primitives/secrets).
 
 ### Local environment
 
-When you've installed the [Encore CLI](/docs/install), you start your local environment by simply running `encore run`.
-This builds and tests your application, and provisions all the necessary infrastructure to run your application locally (see the [infra docs](/docs/deploy/infra#local-development) to learn exactly how local infrastructure is provisioned).
+When you've installed the [Encore CLI](/docs/ts/install), you start your local environment by simply running `encore run`.
+This builds and tests your application, and provisions all the necessary infrastructure to run your application locally (see the [infra docs](/docs/platform/infrastructure/infra#local-development) to learn exactly how local infrastructure is provisioned).
 
 By default, the local environment runs on `http://localhost:4000`.
 
 ### Preview environments
 
-When you [connect your application to GitHub](/docs/how-to/github), Encore will automatically provision ephemeral Preview Environments for each Pull Request. See the [Preview Environments documentation](/docs/deploy/preview-environments) to learn more.
+When you [connect your application to GitHub](/docs/platform/integrations/github), Encore will automatically provision ephemeral Preview Environments for each Pull Request. See the [Preview Environments documentation](/docs/platform/deploy/preview-environments) to learn more.
 
 #### Frontend Collaboration
 
@@ -59,12 +59,12 @@ Preview Environments make it really easy to collaborate and test changes with yo
 Just update your frontend API client to point to the `pr:#` environment.
 This is a one-line change since your API client always specifies the environment name, e.g. `https://<env>-<my-app>.encr.app/`.
 
-If your pull request makes changes to the API, you can [generate a new API client](/docs/develop/client-generation)
+If your pull request makes changes to the API, you can [generate a new API client](/docs/ts/cli/client-generation)
 for the new backend API using `encore gen client --env=pr:72 --lang=typescript my-app`
 
 ### Cloud environments
 
-Encore makes it simple to create multiple cloud environments in different cloud providers by [connecting your cloud account(s)](/docs/deploy/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/deploy/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
+Encore makes it simple to create multiple cloud environments in different cloud providers by [connecting your cloud account(s)](/docs/platform/infrastructure/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/platform/infrastructure/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
 
 #### Process Allocation
 

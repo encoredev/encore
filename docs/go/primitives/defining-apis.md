@@ -38,7 +38,7 @@ When you define an API, you have three options for how it can be accessed:
 
 You can optionally send in auth data to `public` and `private` APIs, in which case the auth handler will be used. When used for `private` APIs, they are still not accessible from the outside world.
 
-For more on defining APIs that require authentication, see the [authentication guide](/docs/develop/auth).
+For more on defining APIs that require authentication, see the [authentication guide](/docs/go/develop/auth).
 
 ## API Schemas
 
@@ -90,7 +90,7 @@ and lets you abort the request processing and save resources that nobody needs.
 The `error` return type is always required because APIs can always fail from the caller's perspective.
 Therefore even though our simple `Ping` API endpoint above never fails in its implementation, from the perspective of the caller perhaps the service is crashing or the network is down and the service cannot be reached.
 
-This approach is simple but very powerful. It lets Encore use [static analysis](/docs/concepts/application-model)
+This approach is simple but very powerful. It lets Encore use [static analysis](/docs/go/concepts/application-model)
 to understand the request and response schemas of all your APIs, which enables Encore to automatically generate API documentation, type-safe API clients, and much more.
 
 ### Request and response data types
@@ -217,7 +217,7 @@ func Login(ctx context.Context) (*LoginResponse, error) {
 }
 ````
 
-The cookies can then be read using e.g. [structured auth data](/docs/develop/auth#accepting-structured-auth-information). 
+The cookies can then be read using e.g. [structured auth data](/docs/go/develop/auth#accepting-structured-auth-information). 
 
 ### Query parameters
 
@@ -311,7 +311,7 @@ For those use cases Encore supports marking a field as sensitive using the struc
 Encore's tracing system will automatically redact fields tagged as sensitive. This works for both individual
 values as well as nested fields.
 
-Note that inputs to [auth handlers](/docs/develop/auth) are automatically marked as sensitive and are always redacted.
+Note that inputs to [auth handlers](/docs/go/develop/auth) are automatically marked as sensitive and are always redacted.
 
 Raw endpoints lack a schema, which means there's no way to add a struct tag to mark certain data as sensitive.
 For this reason Encore supports tagging the whole API endpoint as sensitive by adding `sensitive` to the `//encore:api` annotation.

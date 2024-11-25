@@ -9,7 +9,7 @@ Encore is not opinionated about where you host your frontend, pick the platform 
 
 If your frontend and backend use different domains, often the case when using PR preview environments for your frontend, you may need to [configure CORS](#handling-cors).
 
-Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/tutorials/meeting-notes) deployed to [GitHub Pages](https://pages.github.com/).
+Take a look at our [React starter template](https://encore.dev/templates/react) for an example of deploying a frontend to [Vercel](https://vercel.com/) or the [Meeting Notes tutorial](https://encore.dev/docs/go/tutorials/meeting-notes) deployed to [GitHub Pages](https://pages.github.com/).
 
 ## Generating a request client
 Encore is able to generate frontend request clients (TypeScript or JavaScript). This lets you to keep the request/response types in sync without manual work and assists you in calling the APIs. Generate a client by running:
@@ -214,12 +214,12 @@ If you use a monorepo then it is often a good idea to place your backend and fro
 ## REST vs. GraphQL
 Encore allows for building backends using both REST and GraphQL, you should pick the approach that suits your use case best.
 
-Take a look at the [GraphQL tutorial](/docs/tutorials/graphql) for an example of building a GraphQL backend with Encore.
+Take a look at the [GraphQL tutorial](/docs/go/tutorials/graphql) for an example of building a GraphQL backend with Encore.
 
 ## Hosting a frontend on Encore for development
 Encore is primarily designed for backend development and does not (at the moment) support building or testing frontends in the deploy pipeline. For production use, we recommend that you deploy your frontend using Vercel, Netlify, or a similar service.
 
-For development purposes, you can create a `raw` endpoint that serves static frontend assets. It would look something like the example below (taken from the [Uptime Monitoring tutorial](https://encore.dev/docs/tutorials/uptime)), but keep in mind that you need to have the compiled frontend assets under version control (`dist` folder in the example below).
+For development purposes, you can create a `raw` endpoint that serves static frontend assets. It would look something like the example below (taken from the [Uptime Monitoring tutorial](https://encore.dev/docs/go/tutorials/uptime)), but keep in mind that you need to have the compiled frontend assets under version control (`dist` folder in the example below).
 
 ```go
 package frontend
@@ -268,4 +268,4 @@ global_cors: {
 }
 ```
 
-See more in the [CORS docs](/docs/develop/cors).
+See more in the [CORS docs](/docs/go/develop/cors).

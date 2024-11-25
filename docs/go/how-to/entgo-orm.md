@@ -6,8 +6,8 @@ lang: go
 ---
 
 Encore has all the tools needed to support ORMs and migration frameworks out-of-the-box through
-[named databases](/docs/how-to/share-db-between-services) and 
-[migration files](/docs/develop/databases#defining-a-database-schema). Writing plain SQL might
+[named databases](/docs/go/primitives/share-db-between-services) and 
+[migration files](/docs/go/primitives/databases#defining-a-database-schema). Writing plain SQL might
 not work for your use case, or you may not want to use SQL in the first place. 
 
 ORMs like [ent](https://entgo.io/) and migration frameworks like [Atlas](https://atlasgo.io/) can
@@ -62,7 +62,7 @@ To integrate ent with Encore, we need to do three things:
 
 ### Create the Encore database
 
-Create the database using [`sqldb.NewDatabase`](/docs/primitives/databases) in `user/user.go`:
+Create the database using [`sqldb.NewDatabase`](/docs/go/primitives/databases) in `user/user.go`:
 
 ```
 -- user/user.go --
@@ -83,7 +83,7 @@ $ mkdir user/migrations
 
 ### Connect ent to the database
 
-Next, extend the user service with a [Service Struct](/docs/primitives/services-and-apis/service-structs) that
+Next, extend the user service with a [Service Struct](/docs/go/primitives/service-structs) that
 creates an ent client connected to the database.
 
 Replace the contents of the `user/user.go` file with:

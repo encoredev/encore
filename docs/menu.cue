@@ -265,7 +265,7 @@
 					kind: "basic"
 					text: "API Errors"
 					path: "/go/primitives/api-errors"
-					file: "go/primitives/appi-errors"
+					file: "go/primitives/api-errors"
 				}]
 			}, {
 				kind: "accordion"
@@ -451,11 +451,6 @@
 					text: "Configure Infrastructure"
 					path: "/go/self-host/configure-infra"
 					file: "go/self-host/configure-infra"
-				}, {
-					kind: "basic"
-					text: "Deploy to DigitalOcean"
-					path: "/go/self-host/deploy-digitalocean"
-					file: "go/self-host/deploy-to-digital-ocean"
 				}]
 		},
 		{
@@ -539,8 +534,8 @@
 			items: [{
 				kind: "basic"
 				text: "Migrate away from Encore"
-				path: "/how-to/migrate-away"
-				file: "how-to/migrate-away"
+				path: "/go/migration/migrate-away"
+				file: "go/migration/migrate-away"
 			}]
 		},
 		{
@@ -1052,7 +1047,7 @@
 			items: [{
 				kind: "basic"
 				text: "GitHub"
-				path: "/platform/integrations/custom-domains"
+				path: "/platform/integrations/github"
 				file: "platform/integrations/github"
 			}, {
 				kind: "basic"
@@ -1093,17 +1088,17 @@
 				kind: "basic"
 				text: "Try Encore for an existing project"
 				path: "/platform/migration/try-encore"
-				file: "how-to/try-encore"
+				file: "/platform/migration/try-encore"
 			}, {
 				kind: "basic"
 				text: "Migrate an existing backend to Encore"
 				path: "/platform/migration/migrate-to-encore"
-				file: "how-to/migrate-to-encore"
+				file: "/platform/migration/migrate-to-encore"
 			}, {
 				kind: "basic"
 				text: "Migrate away from Encore"
 				path: "/platform/migration/migrate-away"
-				file: "how-to/migrate-away"
+				file: "/platform/migration/migrate-away"
 			}]
 		},
 		{

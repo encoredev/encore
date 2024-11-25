@@ -10,7 +10,7 @@ This can be done is several ways depending on your use case.
 
 ## Using go:embed
 
-A straightforward way to insert test data is to conditionally insert it on startup using `go:embed` in combination with Encore's [metadata API](/docs/develop/metadata) control in which environments the data gets inserted. E.g. only in your local environment.
+A straightforward way to insert test data is to conditionally insert it on startup using `go:embed` in combination with Encore's [metadata API](/docs/go/develop/metadata) control in which environments the data gets inserted. E.g. only in your local environment.
 
 ### Example
 
@@ -39,8 +39,8 @@ func init() {
 
 Not included in the above example is preventing adding duplicate data. This is straightforward to do by making the fixtures idempotent, or by tracking it with a database table.
 
-## Populating databases in Preview Environments
+## Populating databases in Encore Cloud's Preview Environments
 
-In some cases, it can be useful to populate new Preview Environments with test data to simplify testing. 
+If you are using Encore Cloud's Preview Environment, it can sometimes be useful to populate new Preview Environments with test data to simplify testing. 
 
-The best way to do this depends a bit on your use case, but a common way to do this is by using Encore's [webhooks](/docs/deploy/webhooks) functionality, which provides notifications for when a deployment is completed and includes information about the environment in question.
+The best way to do this depends a bit on your use case, but a common way to do this is by using Encore's [webhooks](/docs/platform/integrations/webhooks) functionality, which provides notifications for when a deployment is completed and includes information about the environment in question.

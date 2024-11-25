@@ -129,7 +129,7 @@ func Login(ctx context.Context) (*LoginResponse, error) {
 }
 ````
 
-The cookies can then be read using e.g. [structured auth data](/docs/develop/auth#accepting-structured-auth-information). 
+The cookies can then be read using e.g. [structured auth data](/docs/go/develop/auth#accepting-structured-auth-information). 
 
 ## Query parameters
 
@@ -192,7 +192,7 @@ This often requires you to parse custom HTTP headers and do other low-level thin
 
 For these circumstances Encore lets you define raw endpoints. Raw endpoints operate at a lower abstraction level, giving you access to the underlying HTTP request.
 
-Learn more in the [raw endpoints documentation](/docs/primitives/raw-endpoints).
+Learn more in the [raw endpoints documentation](/docs/go/primitives/raw-endpoints).
 
 ## Sensitive data
 
@@ -204,7 +204,7 @@ For those use cases Encore supports marking a field as sensitive using the struc
 Encore's tracing system will automatically redact fields tagged as sensitive. This works for both individual
 values as well as nested fields.
 
-Note that inputs to [auth handlers](/docs/develop/auth) are automatically marked as sensitive and are always redacted.
+Note that inputs to [auth handlers](/docs/go/develop/auth) are automatically marked as sensitive and are always redacted.
 
 Raw endpoints lack a schema, which means there's no way to add a struct tag to mark certain data as sensitive.
 For this reason Encore supports tagging the whole API endpoint as sensitive by adding `sensitive` to the `//encore:api` annotation.

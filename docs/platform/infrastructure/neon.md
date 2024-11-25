@@ -73,7 +73,7 @@ before suspending the compute when it's not in use. The default is 5 minutes, bu
 (depending on your Neon plan).
 
 ## Use Neon for Preview Environments environments 
-Neon is a great choice for [Preview Environments environments](/docs/deploy/preview-environments) as it allows you to branch off a populated 
+Neon is a great choice for [Preview Environments environments](/docs/platform/deploy/preview-environments) as it allows you to branch off a populated 
 database and test your changes in isolation.  
 
 To configure which branch to use for Preview Environments, head to 
@@ -110,7 +110,7 @@ Three core roles are created to define access levels across all databases:
   - **Use Case:** Overseeing configurations, managing schemas, and handling elevated tasks.
 
 These global roles are used by Encore's CLI when using the `encore db shell` command.
-Learn more in the [CLI docs](/docs/primitives/databases#using-the-encore-cli).
+Learn more in the [CLI docs](/docs/ts/primitives/databases#using-the-encore-cli).
 
 #### 3. Database-Specific Roles
 For each database within the Neon integration, specific roles are created to provide fine-grained control:
