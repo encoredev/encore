@@ -47,7 +47,7 @@ Encore's Backend Framework makes it simple to add more primitives, such as addit
 See how to use each primitive:
 
 - [Services](/docs/ts/primitives/services)
-- [APIs](/docs/ts/primitives/apis)
+- [APIs](/docs/ts/primitives/defining-apis)
 - [Databases](/docs/ts/primitives/databases)
 - [Cron Jobs](/docs/ts/primitives/cron-jobs)
 - [Pub/Sub & Queues](/docs/ts/primitives/pubsub)

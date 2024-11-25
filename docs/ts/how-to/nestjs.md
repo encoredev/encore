@@ -65,7 +65,7 @@ The `applicationContext` variable can then be used to access your Nest modules/s
 ## Defining an Encore service
 
 When running an app using Encore you need at least
-one [Encore service](https://encore.dev/docs/ts/primitives/services-and-apis#defining-a-service). You can define a
+one [Encore service](/docs/ts/primitives/services#defining-a-service). You can define a
 service
 in two ways:
 
@@ -182,7 +182,7 @@ running and ready to take some requests!
 
 ### Open the Local Development Dashboard
 
-You can now start using your [Local Development Dashboard](/docs/observability/dev-dash).
+You can now start using your [Local Development Dashboard](/docs/ts/observability/dev-dash).
 
 Open [http://localhost:9400](http://localhost:9400) in your browser to access it.
 
@@ -194,4 +194,4 @@ The Local Development Dashboard is a powerful tool to help you move faster when 
 
 It comes with an API explorer, a Service Catalog with automatically generated documentation, and powerful
 oberservability features
-like [distributed tracing](/docs/observability/tracing).
+like [distributed tracing](/docs/ts/observability/tracing).

@@ -47,7 +47,7 @@ encore gen client hello-a8bc --lang=openapi --output=./openapi.json
 
 ### Environment Selection
 
-By default, `encore gen client` generates the client for the version of the application currently deployed on the primary [environment](/docs/deploy/environments)
+By default, `encore gen client` generates the client for the version of the application currently deployed on the primary [environment](/docs/platform/deploy/environments)
 of your application. You can change this using the `--env` flag and specifying the environment name.
 
 If you want to generate the client for the version of your application you have local running, then you can use the
@@ -100,8 +100,6 @@ each public or authenticated API exposed as a function on those objects.
 For instance, if you had a service called `email` with a function `Send`, on the generated client you would call this
 using; `client.email.Send(...)`.
 
-For more tips and examples of using a generated JavaScript/Typescript client, see the [Integrate with a web frontend](/docs/how-to/integrate-frontend#generating-a-request-client) docs.
-
 ### Creating an instance
 
 When constructing a client, you need to pass a `BaseURL` as the first parameter; this is the URL at which the API can
@@ -115,7 +113,7 @@ used as the BaseURL.
 
 ### Authentication
 
-If your application has any API's which require [authentication](/docs/develop/auth), then additional options will generated
+If your application has any API's which require [authentication](/docs/ts/develop/auth), then additional options will generated
 into the client, which can be used when constructing the client. Just like with API's schemas, the data type required by
 your application's `auth handler` will be part of the client library, allowing you to set it in two ways:
 
@@ -138,65 +136,11 @@ API](https://developer.mozilla.org/en-US/docs/Web/API/fetch).
 
 ### Structured Errors
 
-Errors created or wrapped using Encore's [`errs package`](/docs/develop/errors) will be returned to the client and deserialized
+Errors created or wrapped using Encore's [`errs package`](/docs/ts/primitives/errors) will be returned to the client and deserialized
 as an `APIError`, allowing the client to perform adaptive error handling based on the type of error returned. You can perform
 a type check on errors caused by calling an API to see if it is an `APIError`, and once cast as an `APIError` you can access
 the `Code`, `Message` and `Details` fields. For TypeScript Encore generates a `isAPIError` type guard which can be used.
 
 The `Code` field is an enum with all the possible values generated in the library, alone with description of when we
-would expect them to be returned by your API. See the [errors documentation](/docs/develop/errors#error-codes) for
+would expect them to be returned by your API. See the [errors documentation](/docs/ts/primitives/errors#error-codes) for
 an online reference of this list.
-
-## Example CLI Tool
-
-For instance, we could build a simple CLI application to use our [url shortener](/docs/tutorials/rest-api), and handle
-any structured errors in a way which makes sense for that error code.
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "os"
-    "time"
-
-    "shorten_cli/client"
-)
-
-func main() {
-    // Create a new client with the default BaseURL
-    client, err := client.New(
-        client.Environment("production"),
-        client.WithAuth(os.Getenv("SHORTEN_API_KEY")),
-    )
-    if err != nil {
-        panic(err)
-    }
-
-    // Timeout if the request takes more than 5 seconds
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    // Call the Shorten function in the URL service
-    resp, err := client.Url.Shorten(
-        ctx,
-        client.UrlShortenParams{ URL: os.Args[1] },
-    )
-    if err != nil {
-        // Check the error returned
-        if err, ok := err.(*client.APIError); ok {
-            switch err.Code {
-            case client.ErrUnauthenticated:
-                fmt.Println("SHORTEN_API_KEY was invalid, please check your environment")
-                os.Exit(1)
-            case client.ErrAlreadyExists:
-                fmt.Println("The URL you provided was already shortened")
-                os.Exit(0)
-            }
-        }
-        panic(err) // if here then something has gone wrong in an unexpected way
-    }
-    fmt.Printf("https://short.encr.app/%s", resp.ID)
-}
-```

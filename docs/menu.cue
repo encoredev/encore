@@ -696,8 +696,8 @@
 				}, {
 					kind: "basic"
 					text: "API Errors"
-					path: "/ts/develop/errors"
-					file: "ts/develop/errors"
+					path: "/ts/primitives/errors"
+					file: "ts/primitives/errors"
 				}, {
 					kind: "basic"
 					text: "Static Assets"

@@ -7,7 +7,7 @@ lang: ts
 ---
 
 Calling an API endpoint looks like a regular function call with Encore.ts. To call an endpoint you first need to import the service from `~encore/clients` and then call the API endpoint like a regular function.
-When compiling your application, Encore uses [static analysis](/docs/concepts/application-model) to parse all APIs and make then available through the `~encore/clients` module for internal calls.
+When compiling your application, Encore uses [static analysis](/docs/ts/concepts/application-model) to parse all APIs and make then available through the `~encore/clients` module for internal calls.
 
 In the example below, we import the service `hello` and call the `ping` endpoint using a function call to `hello.ping`.
 
@@ -23,7 +23,7 @@ export const myOtherAPI = api({}, async (): Promise<void> => {
 This means your development workflow is as simple as building a monolith, even if you use multiple services.
 You get all the benefits of function calls, like compile-time checking of all the parameters and auto-completion in your editor, while still allowing the division of code into logical components, services, and systems.
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
-    desc="Simple microservices example application with service-to-service API calls." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven"
+    desc="Simple microservices example application with service-to-service API calls."
 />

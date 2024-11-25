@@ -7,17 +7,17 @@ lang: ts
 ---
 
 Encore uses a monorepo design and it's best to use one Encore app for your entire backend application. This lets Encore build an application model that spans your entire app, necessary to get the most value out of many
-features like [distributed tracing](/docs/observability/tracing) and [Encore Flow](/docs/develop/encore-flow).
+features like [distributed tracing](/docs/ts/observability/tracing) and [Encore Flow](/docs/ts/observability/flow).
 
-If you have a large application, see advice on how to [structure an app with several systems](/docs/ts/develop/app-structure#large-applications-with-several-systems).
+If you have a large application, see advice on how to [structure an app with several systems](#large-applications-with-several-systems).
 
-It's simple to integrate Encore applications with pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/develop/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/how-to/migrate-to-encore) documentation.
+It's simple to integrate Encore applications with pre-existing systems you might have, using APIs and built-in tools like [client generation](/docs/ts/cli/client-generation). See more on how to approach building new functionality incrementally with Encore in the [migrating to Encore](/docs/platform/migration/migrate-to-encore) documentation.
 
 ## Monolith or Microservices
 
 Encore is not opinionated about monoliths vs. microservices. It does however let you build microservices applications with a monolith-style developer experience. For example, you automatically get IDE auto-complete when making [API calls between services](/docs/ts/primitives/api-calls), along with cross-service type-safety.
 
-When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/deploy/environments#process-allocation).
+When creating a cloud environment on AWS/GCP, Encore enables you to configure if you want to combine multiple services into one process or keep them separate. This can be useful for improved efficiency at smaller scales, and for co-locating services for increased performance. Learn more in the [environments documentation](/docs/platform/deploy/environments).
 
 ## Defining services
 
@@ -36,9 +36,9 @@ export default new Service("my-service");
 
 That's it! Encore will consider this directory and all its subdirectories as part of the service.
 
-Within the service, you can then [define APIs](/docs/ts/primitives/apis) and use infrastructure resources like querying databases.
+Within the service, you can then [define APIs](/docs/ts/primitives/defining-apis) and use infrastructure resources like querying databases.
 
-<RelatedDocsLink paths={["/docs/ts/primitives/services", "/docs/ts/primitives/apis"]} />
+<RelatedDocsLink paths={["/docs/ts/primitives/services", "/docs/ts/primitives/defining-apis"]} />
 
 ## Examples
 

@@ -6,13 +6,13 @@ subtitle: Built-in tools for simplicity and productivity
 lang: ts
 ---
 
-Encore provides an efficient local development workflow that automatically provisions [local infrastructure](/docs/deploy/infra#local-development) and supports automated testing with dedicated test infrastructure.
+Encore provides an efficient local development workflow that automatically provisions [local infrastructure](/docs/platform/infrastructure/infra#local-development) and supports automated testing with dedicated test infrastructure.
 
 The local environment also comes with a built-in Local Development Dashboard to simplify development and improve productivity. It has several features to help you design, develop, and debug your application:
 
-* [Service Catalog](/docs/develop/api-docs) with Automatic API Documentation
+* [Service Catalog](/docs/ts/observability/service-catalog) with Automatic API Documentation
 * API Explorer to call your APIs
-* [Distributed Tracing](./tracing) for simple and powerful debugging
+* [Distributed Tracing](/docs/ts/observability/tracing) for simple and powerful debugging
 * [Encore Flow](/docs/develop/encore-flow) for visualizing your microservices architecture
 
 All these features update in real-time as you make changes to your application.

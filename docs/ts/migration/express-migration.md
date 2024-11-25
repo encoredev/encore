@@ -20,27 +20,27 @@ TypeScript. Encore.ts has 0 npm dependencies, is built with performance in mind,
 ### Performance
 
 Unlike a lot of other Node.js frameworks, Encore.ts is not built on top of Express.js. Instead, Encore.ts has its own
-high-performance runtime, with a multi-threaded, asynchronous event loop written in Rust. The Encore Runtime handles all I/O like accepting and processing incoming HTTP requests. This runs as a completely independent event loop that utilizes as many threads as the underlying hardware supports. The result of this is that Encore.ts performs **9x faster** than Express.js. Learn more about the [Encore.ts Runtime](/blog/event-loops).
+high-performance runtime, with a multi-threaded, asynchronous event loop written in Rust. The Encore Runtime handles all I/O like accepting and processing incoming HTTP requests. This runs as a completely independent event loop that utilizes as many threads as the underlying hardware supports. The result of this is that Encore.ts performs
+**9x faster** than Express.js. Learn more about the [Encore.ts Runtime](/blog/event-loops).
 
 ### Built-in benefits
 
 When using Encore.ts you get a lot of built-in features without having to install any additional dependencies:
 
-| Built-in benefits                                           |                         <!-- -->                         |                                                 <!-- --> |
-| :---------------------------------------------------------- | :------------------------------------------------------: | -------------------------------------------------------: |
-| [Pub/Sub integrations](/docs/ts/primitives/pubsub)          |    [Type-safe API schemas](/docs/ts/primitives/apis)     | [API Client generation](/docs/develop/client-generation) |
-| [Secrets management](/docs/ts/primitives/secrets)           |          [CORS handling](/docs/ts/develop/cors)          |        [Infrastructure integrations](/docs/deploy/infra) |
-| [Database integrations](/docs/ts/primitives/databases)      | [Architecture Diagrams](/docs/observability/encore-flow) |                [Service Catalog](/docs/develop/api-docs) |
-| [Request validation](/blog/event-loops)                     |        [Cron Jobs](/docs/ts/primitives/cron-jobs)        |             [Local tracing](/docs/observability/tracing) |
-| [Local Development Dashboard](/docs/observability/dev-dash) |
+| Built-in benefits                                      |                          <!-- -->                           |                                                       <!-- --> |
+|:-------------------------------------------------------|:-----------------------------------------------------------:|---------------------------------------------------------------:|
+| [Pub/Sub integrations](/docs/ts/primitives/pubsub)     |      [Type-safe API schemas](/docs/ts/primitives/apis)      |        [API Client generation](/docs/ts/cli/client-generation) |
+| [Secrets management](/docs/ts/primitives/secrets)      |           [CORS handling](/docs/ts/develop/cors)            | [Local Development Dashboard](/docs/ts/observability/dev-dash) |
+| [Database integrations](/docs/ts/primitives/databases) | [Architecture Diagrams](/docs/ts/observability/flow) |      [Service Catalog](/docs/ts/observability/service-catalog) |
+| [Request validation](/blog/event-loops)                |         [Cron Jobs](/docs/ts/primitives/cron-jobs)          |                [Local tracing](/docs/ts/observability/tracing) |
 
 ## Migration guide
 
 Below we've outlined two main strategies you can use to migrate your existing Express.js application to Encore.ts. Pick the strategy that best suits your situation and application.
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/expressjs-migration" 
-    desc="Code examples for migrating an Express.js app to Encore.ts" 
+<GitHubLink
+href="https://github.com/encoredev/examples/tree/main/ts/expressjs-migration"
+desc="Code examples for migrating an Express.js app to Encore.ts"
 />
 
 <Accordion>
@@ -52,13 +52,13 @@ When you quickly want to migrate to Encore.ts and don't need all the functionali
 **Approach benefits**
 
 - You can get your application up and running with Encore.ts quickly and start moving features over to Encore.ts while the rest of the application is still untouched.
-- You will see a partial performance boost right away because the HTTP layer is now running on the Encore Rust runtime. But to get the full performance benefits, you will need to start using Encore's [API declarations](/docs/ts/primitives/apis) and [infrastructure declarations](/docs/ts#explore-how-to-use-each-backend-primitive).
+- You will see a partial performance boost right away because the HTTP layer is now running on the Encore Rust runtime. But to get the full performance benefits, you will need to start using Encore's [API declarations](/docs/ts/primitives/defining-apis) and [infrastructure declarations](/docs/ts#explore-how-to-use-each-backend-primitive).
 
 **Approach drawbacks**
 
-- Because all requests will be proxied through the catch-all handler, you will not be able to get all the benefits from the [distributed tracing](/docs/observability/tracing), which rely on the [Encore application model](/docs/concepts/application-model).
-- [Encore Flow](/docs/observability/encore-flow) and the [Service Catalog](/docs/develop/api-docs) will not be able to show you the full picture of your application until you start moving services and APIs over to Encore.ts. 
-- You will not be able to use the [API Client generation](/docs/develop/client-generation) feature until you start defining APIs in Encore.ts.
+- Because all requests will be proxied through the catch-all handler, you will not be able to get all the benefits from the [distributed tracing](/docs/ts/observability/tracing), which rely on the [Encore application model](/docs/ts/concepts/application-model).
+- [Encore Flow](/docs/ts/observability/flow) and the [Service Catalog](/docs/ts/observability/service-catalog) will not be able to show you the full picture of your application until you start moving services and APIs over to Encore.ts.
+- You will not be able to use the [API Client generation](/docs/ts/cli/client-generation) feature until you start defining APIs in Encore.ts.
 
 #### 1. Install Encore
 
@@ -94,13 +94,13 @@ To the `tsconfig.json` file in the root of your project, add the following:
 ```json
 -- tsconfig.json --
 {
-   "compilerOptions": {
-      "paths": {
-         "~encore/*": [
-            "./encore.gen/*"
-         ]
-      }
-   }
+  "compilerOptions": {
+    "paths": {
+      "~encore/*": [
+        "./encore.gen/*"
+      ]
+    }
+  }
 }
 ```
 
@@ -108,9 +108,10 @@ When Encore.ts is parsing your code it will specifically look for `~encore/*` im
 
 #### 5. Define an Encore.ts service
 
-When running an app using Encore.ts you need at least one [Encore service](https://encore.dev/docs/ts/primitives/services). Apart from that, Encore.ts in not opinionated in how you structure your code, you are free to go with a monolith or microservice approach. Learn more in our [App Structure docs](https://encore.dev/docs/ts/develop/app-structure).
+When running an app using Encore.ts you need at least one [Encore service](/docs/ts/primitives/services). Apart from that, Encore.ts in not opinionated in how you structure your code, you are free to go with a monolith or microservice approach. Learn more in our [App Structure docs](/docs/ts/primitives/app-structure).
 
-In the root of your App, add a file named `encore.service.ts`. The file must export a service instance, by calling `new Service`, imported from `encore.dev/service`:
+In the root of your App, add a file named `encore.service.ts`. The file must export a service instance, by calling
+`new Service`, imported from `encore.dev/service`:
 
 ```ts
 import {Service} from "encore.dev/service";
@@ -155,7 +156,7 @@ You will now be able to run your Express.js app locally using the `encore run` c
 
 You can now gradually break out specific endpoints using the Encore's [API declarations](#apis) and introduce infrastructure declarations for databases and cron jobs etc. This will let Encore.ts understand your application and unlock all Encore.ts features. See the [Feature-by-feature migration](#feature-by-feature-migration) section for more details. You will eventually be able to remove Express.js as a dependency and run your app entirely on Encore.ts.
 
-For more thoughts on migrating an existing backend to Encore.ts, check out our [general migration guide](/docs/how-to/migrate-to-encore). You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
+You can also [join Discord](https://encore.dev/discord) to ask questions and meet fellow Encore developers.
 
 #### Forklift example
 
@@ -169,7 +170,6 @@ For more thoughts on migrating an existing backend to Encore.ts, check out our [
 
 <Accordion>
 
-
 ### Full migration
 
 This approach aims to fully replace your applications dependency on Express.js with Encore.ts, unlocking all the features and performance of Encore.ts.
@@ -178,15 +178,14 @@ Below are two examples that you can use to identify the refactoring you will nee
 
 **Approach benefits**
 
-- Get all the advantages of Encore.ts, like [distributed tracing](/docs/observability/tracing) and [architecture diagrams](/docs/observability/encore-flow), which rely on the [Encore application model](/docs/concepts/application-model).
+- Get all the advantages of Encore.ts, like [distributed tracing](/docs/ts/observability/tracing) and [architecture diagrams](/docs/ts/observability/flow), which rely on the [Encore application model](/docs/ts/concepts/application-model).
 - Get the [full performance benefit](https://encore.dev/blog/event-loops) of Encore.ts - **9x faster** than Express.js.
 
 **Approach drawbacks**
 
 - This approach may require more time and effort up front compared to the [Incremental migration strategy](#incremental-migration-strategy).
 
-
-#### App comparison 
+#### App comparison
 
 Here is a side-by-side comparison of an Express.js app and an Encore.ts app. The examples show how to create APIs, handle request validation, error handling, serving static files, and rendering templates.
 
@@ -204,7 +203,6 @@ Here is a side-by-side comparison of an Express.js app and an Encore.ts app. The
 
 </Accordion>
 
-
 ## Feature-by-feature migration
 
 Check out our [Express.js compared to Encore.ts example](https://github.com/encoredev/examples/tree/main/ts/expressjs-migration) on GitHub for all of the code snippets in this feature comparison.
@@ -220,7 +218,7 @@ With Encore.ts, you create APIs using the `api` function. This function takes an
 The main difference compared to Express.js is that Encore.ts is type-safe, meaning you define the request and response
 schemas in the callback function. You then return an object matching the response schema. In case you need to operate at
 a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request.
-Learn more in the [API Schemas docs](/docs/ts/primitives/apis#api-schemas).
+Learn more in the [API Schemas docs](/docs/ts/primitives/defining-apis#api-schemas).
 
 **Express.js**
 
@@ -310,10 +308,11 @@ export const myRawEndpoint = api.raw(
 
 ### Microservices communication
 
-Express.js does not have built-in support for creating microservices or for service-to-service communication. You will most likely use `fetch` or something equivalent to call another service.
+Express.js does not have built-in support for creating microservices or for service-to-service communication. You will most likely use
+`fetch` or something equivalent to call another service.
 
 With Encore.ts, calling another service is just like calling a local function, with complete type-safety. Under the hood, Encore.ts will translate this function call into an actual service-to-service HTTP call, resulting in trace data being generated for each call.
-Learn more in our [Service-to-Service Communication docs](/docs/ts/develop/app-structure#multi-service-application-distributed-system).
+Learn more in our [Service-to-Service Communication docs](/docs/ts/primitives/app-structure#multi-service-application-distributed-system).
 
 **Express.js**
 
@@ -378,7 +377,8 @@ The authentication handler is defined similarly to API endpoints, using the `aut
 in the form of HTTP headers, query strings, or cookies.
 
 If a request has been successfully authenticated, the API Gateway forwards the authentication data to the target
-endpoint. The endpoint can query the available auth data from the `getAuthData` function, available from the `~encore/auth`
+endpoint. The endpoint can query the available auth data from the `getAuthData` function, available from the
+`~encore/auth`
 module.
 
 Learn more in our [Auth Handler docs](/docs/ts/develop/auth)
@@ -459,7 +459,7 @@ like [Zod](https://github.com/colinhacks/zod).
 
 With Encore.ts, request validation for headers, query params and body is. You supply a schema for the request object and
 in the request payload does not match the schema the API will return a 400 error.
-Learn more in the [API Schemas docs](/docs/ts/primitives/apis#api-schemas).
+Learn more in the [API Schemas docs](/docs/ts/primitives/defining-apis#api-schemas).
 
 **Express.js**
 
@@ -578,7 +578,7 @@ In Express.js you either throw an error (which results in a 500 response) or use
 code of the response.
 
 In Encore.ts throwing an error will result in a 500 response. You can also use the `APIError` class to return specific
-error codes. Learn more in our [API Errors docs](/docs/ts/develop/errors).
+error codes. Learn more in our [API Errors docs](/docs/ts/primitives/errors).
 
 **Express.js**
 
@@ -638,7 +638,8 @@ export const brokenWithErrorCode = api(
 Express.js has a built-in middleware function to serve static files. You can use the `express.static` function to serve
 files from a specific directory.
 
-Encore.ts also has built-in support for static file serving with the `api.static` method. The files are served directly from the Encore.ts Rust Runtime. This means that zero JavaScript code is executed to serve the files, freeing up the Node.js runtime to focus on executing business logic. This dramatically speeds up both the static file serving, as well as improving the latency of your API endpoints. Learn more in our [Static Assets docs](/docs/ts/primitives/static-assets).
+Encore.ts also has built-in support for static file serving with the
+`api.static` method. The files are served directly from the Encore.ts Rust Runtime. This means that zero JavaScript code is executed to serve the files, freeing up the Node.js runtime to focus on executing business logic. This dramatically speeds up both the static file serving, as well as improving the latency of your API endpoints. Learn more in our [Static Assets docs](/docs/ts/primitives/static-assets).
 
 **Express.js**
 
@@ -781,16 +782,18 @@ describe("Encore app", () => {
 
 ### Database
 
-Express.js does not have built-in database support. You can use libraries like [pg-promise](https://www.npmjs.com/package/pg-promise) to connect to a 
+Express.js does not have built-in database support. You can use libraries like [pg-promise](https://www.npmjs.com/package/pg-promise) to connect to a
 PostgreSQL database but you also have to manage Docker Compose files for different environments.
 
-With Encore.ts, you create a database by importing `encore.dev/storage/sqldb` and calling `new SQLDatabase`, assigning the result to a top-level variable. 
+With Encore.ts, you create a database by importing `encore.dev/storage/sqldb` and calling
+`new SQLDatabase`, assigning the result to a top-level variable.
 
 Database schemas are defined by creating migration files. Each migration runs in order and expresses the change in the database schema from the previous migration.
 
 Encore.ts automatically provisions databases to match what your application requires. Encore.ts provisions databases in an appropriate way depending on the environment. When running locally, Encore creates a database cluster using Docker. In the cloud, it depends on the environment type:
 
-To query data, use the `.query` or `.queryRow` methods. To insert data, or to make database queryies that don't return any rows, use `.exec`.
+To query data, use the `.query` or
+`.queryRow` methods. To insert data, or to make database queryies that don't return any rows, use `.exec`.
 
 Learn more in our [Database docs](/docs/ts/primitives/databases).
 
@@ -926,9 +929,10 @@ CREATE TABLE users (
 <Accordion>
 
 ### Logging
+
 Express.js does not have built-in support for logging. You can use libraries like [Winston](https://www.npmjs.com/package/winston) to log messages.
 
-Encore.ts offers built-in support for Structured Logging, which combines a free-form log message with structured and type-safe key-value pairs. Logging is integrated with the built-in [Distributed Tracing](/docs/observability/tracing) functionality, and all logs are automatically included in the active trace.
+Encore.ts offers built-in support for Structured Logging, which combines a free-form log message with structured and type-safe key-value pairs. Logging is integrated with the built-in [Distributed Tracing](/docs/ts/observability/tracing) functionality, and all logs are automatically included in the active trace.
 
 **Encore.ts**
 
@@ -936,7 +940,7 @@ Encore.ts offers built-in support for Structured Logging, which combines a free-
 import log from "encore.dev/log";
 
 log.error(err, "something went terribly wrong!");
-log.info("log message", { is_subscriber: true });
+log.info("log message", {is_subscriber: true});
 ```
 
 </Accordion>

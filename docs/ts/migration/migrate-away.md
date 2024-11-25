@@ -15,8 +15,8 @@ In practise Encore is opinionated only in certain areas which are critical for e
 ## Accommodating for your unique requirements
 
 Many software projects end up having a few novel requirements, which are highly specific to the problem domain. To accommodate for this, Encore is designed to let you go outside of the standardized Backend Framework when you need to, for example:
-- You can drop down in abstraction level in the API framework using [raw endpoints](/docs/ts/primitives/apis#raw-endpoints)
-- You can use tools like the [Terraform provider](/docs/deploy/terraform) to integrate infrastructure that is not managed by Encore
+- You can drop down in abstraction level in the API framework using [raw endpoints](/docs/ts/primitives/defining-apis#raw-endpoints)
+- You can use tools like the [Terraform provider](/docs/platform/integrations/terraform) to integrate infrastructure that is not managed by Encore
 
 ## Mitigating risk through Open Source and efficiency
 
@@ -27,7 +27,7 @@ We believe that adopting Encore is a low-risk decision for several reasons:
 - All infrastructure and data is in your own cloud
 - It's simple to integrate with cloud services and systems not natively supported by Encore
 - Everything you need to develop your application is Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
-- Everything you need to self-host your application is [Open Source and documented](/docs/how-to/self-host)
+- Everything you need to self-host your application is [Open Source and documented](/docs/self-host/build)
 
 ## What to expect when migrating away
 
@@ -43,9 +43,9 @@ This means that the changes required to stop using the Backend Framework is almo
 
 If you are self-hosting your application, then you're already done.
 
-If you are using Encore Cloud Platform to manage deployments and want to migrate to your own solution, you can use the [self-hosting instructions](/docs/how-to/self-host) and Open Source CLI tooling. The `encore build docker` command produces a Docker image, containing the compiled application, using exactly the same code path as Encore's CI system to ensure compatibility.
+If you are using Encore Cloud Platform to manage deployments and want to migrate to your own solution, you can use the [self-hosting instructions](/docs/self-host/build) and Open Source CLI tooling. The `encore build docker` command produces a Docker image, containing the compiled application, using exactly the same code path as Encore's CI system to ensure compatibility.
 
-Learn more in the [self-hosting docs](/docs/how-to/self-host).
+Learn more in the [self-hosting docs](/docs/self-host/build).
 
 ### Tell us what you need
 
