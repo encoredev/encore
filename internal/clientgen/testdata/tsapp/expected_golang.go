@@ -104,10 +104,20 @@ type SvcRequest struct {
 	headerNum float64 `encore:"optional" header:"num,optional"`
 }
 
+type SvcRequest struct {
+	foo       float64 `encore:"optional"` // Foo is good
+	baz       string  // Baz is better
+	queryFoo  bool    `encore:"optional" query:"foo,optional"`
+	queryBar  string  `encore:"optional" query:"bar,optional"`
+	headerBaz string  `encore:"optional" header:"baz,optional"`
+	headerNum float64 `encore:"optional" header:"num,optional"`
+}
+
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
 	dummy(ctx context.Context, params SvcRequest) error
+	root(ctx context.Context, params SvcRequest) error
 }
 
 type svcClient struct {
@@ -144,6 +154,37 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 	}
 
 	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/dummy?%s", queryString.Encode()), headers, body, nil)
+	return err
+}
+
+func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
+	// Convert our params into the objects we need for the request
+	reqEncoder := &serde{}
+
+	headers := http.Header{
+		"baz": {reqEncoder.FromString(params.headerBaz)},
+		"num": {reqEncoder.FromFloat64(params.headerNum)},
+	}
+
+	queryString := url.Values{
+		"bar": {reqEncoder.FromString(params.queryBar)},
+		"foo": {reqEncoder.FromBool(params.queryFoo)},
+	}
+
+	if reqEncoder.LastError != nil {
+		return fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
+	}
+
+	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+	body := struct {
+		foo float64 `json:"foo"`
+		baz string  `json:"baz"`
+	}{
+		baz: params.baz,
+		foo: params.foo,
+	}
+
+	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/?%s", queryString.Encode()), headers, body, nil)
 	return err
 }
 
