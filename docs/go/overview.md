@@ -22,7 +22,7 @@ lang: go
 
 Encore.go simplifies backend development through a structured API framework, which provides a declarative way of using common backend primitives like microservices, databases, queues, caches, cron jobs, and storage buckets.
 
-It helps you build robust distributed systems and provides a smooth developer experience with a lot of built-in tooling:
+Encore helps you build robust distributed systems and provides a smooth developer experience with a lot of built-in tooling:
 
 1. **Local Environment Management**: Automatically sets up and runs your local development environment and all local infrastructure.
 2. **Enhanced Observability**: Comes with tools like a [local dev dash](/docs/go/observability/dev-dash) and [tracing](/docs/go/observability/tracing) for monitoring application behavior.

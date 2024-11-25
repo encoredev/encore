@@ -20,9 +20,9 @@ lang: ts
     </div>
 </div>
 
-Encore.ts helps you build robust applications, providing a a high-performance API framework, which offers a declarative way of using common backend primitives like microservices, databases, queues, caches, cron jobs, and storage buckets.
+Encore.ts helps you build robust type-safe applications by providing a high-performance API framework, which offers a declarative way of using common backend primitives like microservices, databases, queues, caches, cron jobs, and storage buckets.
 
-It helps you build robust distributed systems and provides a smooth developer experience with a lot of built-in tooling:
+The framework comes with a lot of built-in tooling for a smooth developer experience:
 
 1. **Local Environment Management**: Automatically sets up and runs your local development environment and all local infrastructure.
 2. **Enhanced Observability**: Comes with tools like a [local dev dash](/docs/ts/observability/dev-dash) and [tracing](/docs/ts/observability/tracing) for monitoring application behavior.
