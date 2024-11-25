@@ -52,7 +52,7 @@ $ encore run
 Then visit [http://localhost:4000/frontend/](http://localhost:4000/frontend/) to see the frontend.
 It won't function yet, since we haven't yet built the backend, so let's do just that!
 
-When we're done we'll have a backend with this [architecture](/docs/observability/encore-flow):
+When we're done we'll have a backend with this [architecture](/docs/go/observability/encore-flow):
 
 <img className="w-full h-auto" src="/assets/tutorials/booking-system/booking-system-flow.png" title="Encore Flow" />
 
@@ -60,7 +60,7 @@ When we're done we'll have a backend with this [architecture](/docs/observabilit
 
 Let's start by creating the functionality to view bookable slots.
 
-With Encore you define a service by [defining one or more APIs](/docs/go/primitives/defining-aps) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/platform/infrastructure/infra) for each service.
+With Encore you define a service by [defining one or more APIs](/docs/go/primitives/defining-apis) within a regular Go package. Encore recognizes this as a service, and uses the package name as the service name. When deploying, Encore will automatically [provision the required infrastructure](/docs/platform/infrastructure/infra) for each service.
 
 We already have a Go package named `booking`, let's turn that into an Encore service.
 
