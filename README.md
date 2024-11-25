@@ -132,13 +132,13 @@ Signup.Publish(ctx, &User{...})
 
 See how to use the Backend Frameworks in the docs:
 
-- **Services:** [Go](https://encore.dev/docs/primitives/services) / [TypeScript](https://encore.dev/docs/ts/primitives/services)
-- **APIs:** [Go](https://encore.dev/docs/primitives/defining-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/defining-apis)
-- **Databases:** [Go](https://encore.dev/docs/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
-- **Cron Jobs:** [Go](https://encore.dev/docs/primitives/cron-jobs) / [TypeScript](https://encore.dev/docs/ts/primitives/cron-jobs)
-- **Pub/Sub:** [Go](https://encore.dev/docs/primitives/pubsub) / [TypeScript](https://encore.dev/docs/ts/primitives/pubsub)
-- **Object Storage:** [Go](https://encore.dev/docs/primitives/object-storage) / [TypeScript](https://encore.dev/docs/ts/primitives/object-storage)
-- **Caching:** [Go](https://encore.dev/docs/primitives/caching) / TypeScript (Coming soon)
+- **Services:** [Go](https://encore.dev/docs/go/primitives/services) / [TypeScript](https://encore.dev/docs/ts/primitives/services)
+- **APIs:** [Go](https://encore.dev/docs/go/primitives/defining-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/defining-apis)
+- **Databases:** [Go](https://encore.dev/docs/go/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
+- **Cron Jobs:** [Go](https://encore.dev/docs/go/primitives/cron-jobs) / [TypeScript](https://encore.dev/docs/ts/primitives/cron-jobs)
+- **Pub/Sub:** [Go](https://encore.dev/docs/go/primitives/pubsub) / [TypeScript](https://encore.dev/docs/ts/primitives/pubsub)
+- **Object Storage:** [Go](https://encore.dev/docs/go/primitives/object-storage) / [TypeScript](https://encore.dev/docs/ts/primitives/object-storage)
+- **Caching:** [Go](https://encore.dev/docs/go/primitives/caching) / TypeScript (Coming soon)
 
 
 ## Using Encore: An end-to-end workflow from local to cloud
