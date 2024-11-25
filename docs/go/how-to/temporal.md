@@ -2,6 +2,7 @@
 seotitle: How to use Temporal and Encore
 seodesc: Learn how to use Temporal for reliable workflow execution with Encore.
 title: Use Temporal with Encore
+lang: go
 ---
 
 [Temporal](https://temporal.io) is a workflow orchestration system for building highly reliable systems.

@@ -2,6 +2,7 @@
 seotitle: Integrate your Encore application with GitHub
 seodesc: Learn how to integrate your backend application with GitHub to get automatic Preview Environments for each Pull Request using Encore.
 title: Integrate with GitHub
+lang: platform
 ---
 
 Encore applications are easy to integrate with GitHub for source code hosting.
