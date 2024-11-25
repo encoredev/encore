@@ -13,9 +13,9 @@ lang: ts
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/url-shortener" 
-    desc="URL Shortener example that uses a PostgreSQL database." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/url-shortener"
+    desc="URL Shortener example that uses a PostgreSQL database."
 />
 
 ## Creating a database
@@ -215,6 +215,16 @@ ORMs like [Prisma](/docs/ts/develop/orms/prisma) and [Drizzle](/docs/ts/develop/
 * If your migration framework can generate SQL migration files without any modifications, then it can be used with Encore.
 
 For more information on using ORMs with Encore, see the [ORMs](/docs/ts/develop/orms) page.
+
+## Sharing databases between services
+
+There are two primary ways of sharing a database between services:
+
+- You can define the `SQLDatabase` object in a shared module as an exported variable, and reference this object
+from every service that needs to access the database.
+- You can define the `SQLDatabase` object in one service using `new SQLDatabase("name", ...)`, and have other services access it by creating a reference using `SQLDatabase.named("name")`.
+
+Both approaches have the same effect, but the latter is more explicit.
 
 ## PostgreSQL Extensions
 

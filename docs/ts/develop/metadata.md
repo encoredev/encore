@@ -167,7 +167,8 @@ export const signup = api(
 
     // If this is a testing environment, skip sending the verification email.
     switch (appMeta().environment.type) {
-      case ("test", "development"):
+      case "test":
+      case "development":
         await markEmailVerified(userID);
         break;
       default:
