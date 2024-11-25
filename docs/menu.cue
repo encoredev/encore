@@ -10,6 +10,9 @@
 	// Menu title to display when this submenu is active.
 	title: string
 
+	// ID for the submenu, used for tracking active menu in frontend.
+	id: string
+
 	// Additional presentation options for the menu item.
 	presentation?: #Presentation
 
@@ -101,848 +104,1062 @@
 #RootMenu
 {
 	items: [
-		#IntroSection,
-		#TutorialsSection,
-		#DevelopmentSection,
-		#ObservabilitySection,
-		#PlatformSection,
-		#SelfHostSection,
-		#ResourcesSection,
-		#CommunitySection,
-		#OtherSection,
+		{
+			kind:    "nav"
+			text:    "Encore.go"
+			path:    "/go"
+			file:    "go/overview"
+			submenu: #EncoreGO
+			presentation: {
+				icon:  "golang"
+				style: "card"
+			}
+		}, {
+			kind:    "nav"
+			text:    "Encore.ts"
+			path:    "/ts"
+			file:    "ts/overview"
+			submenu: #EncoreTS
+			presentation: {
+				icon:  "typescript"
+				style: "card"
+			}
+		}, {
+			kind:    "nav"
+			text:    "Encore Cloud"
+			path:    "/platform"
+			file:    "platform/introduction"
+			submenu: #EncorePlatform
+			presentation: {
+				icon:  "typescript"
+				style: "card"
+			}
+		},
 	]
-}
-
-#IntroSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Introduction"
-	items: [{
-		kind: "basic"
-		text: "Welcome"
-		path: "/"
-		file: "index"
-	}, {
-		kind: "basic"
-		text: "What is Encore?"
-		path: "/introduction"
-		file: "introduction"
-	}, {
-		kind: "basic"
-		text: "FAQ"
-		path: "/faq"
-		file: "faq"
-	}, {
-		kind: "basic"
-		text: "Installation"
-		path: "/install"
-		file: "install"
-	}, {
-		kind: "basic"
-		text: "Quick Start"
-		path: "/quick-start"
-		file: "quick-start"
-	}]
-}
-
-#TutorialsSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Tutorials"
-	items: [{
-		kind: "basic"
-		text: "Overview"
-		path: "/tutorials"
-		file: "tutorials/index"
-	}, {
-		kind: "basic"
-		text: "Building an Uptime Monitor"
-		path: "/tutorials/uptime"
-		file: "tutorials/uptime"
-	}, {
-		kind: "basic"
-		text: "Building a REST API"
-		path: "/tutorials/rest-api"
-		file: "tutorials/rest-api"
-	}, {
-		kind: "basic"
-		text: "Building a GraphQL API"
-		path: "/tutorials/graphql"
-		file: "tutorials/graphql"
-	}, {
-		kind: "basic"
-		text: "Building a Slack bot"
-		path: "/tutorials/slack-bot"
-		file: "tutorials/slack-bot"
-	}, {
-		kind: "basic"
-		text: "Building a Meeting Notes app"
-		path: "/tutorials/meeting-notes"
-		file: "tutorials/meeting-notes"
-	}, {
-		kind: "basic"
-		text: "Building a Booking System"
-		path: "/tutorials/booking-system"
-		file: "tutorials/booking-system"
-	}, {
-		kind:   "basic"
-		text:   "Building an Incident Management tool"
-		path:   "/tutorials/incident-management-tool"
-		file:   "tutorials/incident-management-tool"
-		hidden: true
-	}]
 }
 
 #EncoreGO: #SubMenu & {
 	title: "Encore.go"
+	id:    "go"
 	presentation: {
 		icon: "golang"
 	}
 	back: {
-		text: "Back to Main Menu"
-		path: "/docs"
+		text: ""
+		path: ""
 	}
-	items: [{
-		kind: "section"
-		text: "Concepts"
-		items: [{
-			kind: "basic"
-			text: "App Structure"
-			path: "/develop/app-structure"
-			file: "develop/app-structure"
-		}]
-	}, {
-		kind: "section"
-		text: "Primitives"
-		items: [{
-			kind: "basic"
-			text: "Services"
-			path: "/primitives/services"
-			file: "primitives/services"
-		}, {
-			kind: "accordion"
-			text: "APIs"
-			accordion: [{
+	items: [
+		{
+			kind: "section"
+			text: "Introduction"
+			items: [{
 				kind: "basic"
-				text: "Defining APIs"
-				path: "/primitives/apis"
-				file: "primitives/apis"
+				text: "Installation"
+				path: "/go/install"
+				file: "go/install"
 			}, {
 				kind: "basic"
-				text: "API Calls"
-				path: "/primitives/api-calls"
-				file: "primitives/api-calls"
+				text: "Quick Start"
+				path: "/go/quick-start"
+				file: "go/quick-start"
 			}, {
 				kind: "basic"
-				text: "Raw Endpoints"
-				path: "/primitives/raw-endpoints"
-				file: "primitives/raw-endpoints"
+				text: "FAQ"
+				path: "/go/faq"
+				file: "go/faq"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Concepts"
+			items: [{
+				kind: "basic"
+				text: "Benefits"
+				path: "/go/concepts/benefits"
+				file: "go/concepts/benefits"
 			}, {
 				kind: "basic"
-				text: "Service Structs"
-				path: "/primitives/services-and-apis/service-structs"
-				file: "primitives/service-structs"
+				text: "Application Model"
+				path: "/go/concepts/application-model"
+				file: "go/concepts/application-model"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Tutorials"
+			items: [{
+				kind: "basic"
+				text: "Building a REST API"
+				path: "/go/tutorials/rest-api"
+				file: "go/tutorials/rest-api"
 			}, {
 				kind: "basic"
-				text: "API Errors"
-				path: "/develop/errors"
-				file: "develop/errors"
+				text: "Building an Uptime Monitor"
+				path: "/go/tutorials/uptime"
+				file: "go/tutorials/uptime"
+			}, {
+				kind: "basic"
+				text: "Building a GraphQL API"
+				path: "/go/tutorials/graphql"
+				file: "go/tutorials/graphql"
+			}, {
+				kind: "basic"
+				text: "Building a Slack bot"
+				path: "/go/tutorials/slack-bot"
+				file: "go/tutorials/slack-bot"
+			}, {
+				kind: "basic"
+				text: "Building a Meeting Notes app"
+				path: "/go/tutorials/meeting-notes"
+				file: "go/tutorials/meeting-notes"
+			}, {
+				kind: "basic"
+				text: "Building a Booking System"
+				path: "/go/tutorials/booking-system"
+				file: "go/tutorials/booking-system"
+			}, {
+				kind:   "basic"
+				text:   "Building an Incident Management tool"
+				path:   "/go/tutorials/incident-management-tool"
+				file:   "go/tutorials/incident-management-tool"
+				hidden: true
+			}]
+		},
+		{
+			kind: "section"
+			text: "Primitives"
+			items: [{
+				kind: "basic"
+				text: "App Structure"
+				path: "/go/primitives/app-structure"
+				file: "go/primitives/app-structure"
+			}, {
+				kind: "basic"
+				text: "Services"
+				path: "/go/primitives/services"
+				file: "go/primitives/services"
+			}, {
+				kind: "accordion"
+				text: "APIs"
+				accordion: [{
+					kind: "basic"
+					text: "Defining APIs"
+					path: "/go/primitives/defining-apis"
+					file: "go/primitives/defining-apis"
+				}, {
+					kind: "basic"
+					text: "API Calls"
+					path: "/go/primitives/api-calls"
+					file: "go/primitives/api-calls"
+				}, {
+					kind: "basic"
+					text: "Raw Endpoints"
+					path: "/go/primitives/raw-endpoints"
+					file: "go/primitives/raw-endpoints"
+				}, {
+					kind: "basic"
+					text: "Service Structs"
+					path: "/go/primitives/service-structs"
+					file: "go/primitives/service-structs"
+				}, {
+					kind: "basic"
+					text: "API Errors"
+					path: "/go/primitives/api-errors"
+					file: "go/primitives/appi-errors"
+				}]
+			}, {
+				kind: "accordion"
+				text: "Databases"
+				accordion: [{
+					kind: "basic"
+					text: "Using SQL databases"
+					path: "/go/primitives/databases"
+					file: "go/primitives/databases"
+				}, {
+					kind: "basic"
+					text: "Change SQL database schema"
+					path: "/go/primitives/change-db-schema"
+					file: "go/primitives/change-db-schema"
+				}, {
+					kind: "basic"
+					text: "Integrate with existing databases"
+					path: "/go/primitives/connect-existing-db"
+					file: "go/primitives/connect-existing-db"
+				}, {
+					kind: "basic"
+					text: "Insert test data in a database"
+					path: "/go/primitives/insert-test-data-db"
+					file: "go/primitives/insert-test-data-db"
+				}, {
+					kind: "basic"
+					text: "Share databases between services"
+					path: "/go/primitives/share-db-between-services"
+					file: "go/primitives/share-db-between-services"
+				}, {
+					kind: "basic"
+					text: "PostgreSQL Extensions"
+					path: "/go/primitives/databases/extensions"
+					file: "go/primitives/database-extensions"
+				}, {
+					kind: "basic"
+					text: "Troubleshooting"
+					path: "/go/primitives/databases/troubleshooting"
+					file: "go/primitives/database-troubleshooting"
+				}]
+			}, {
+				kind: "basic"
+				text: "Object Storage"
+				path: "/go/primitives/object-storage"
+				file: "go/primitives/object-storage"
+			}, {
+				kind: "basic"
+				text: "Cron Jobs"
+				path: "/go/primitives/cron-jobs"
+				file: "go/primitives/cron-jobs"
+			}, {
+				kind: "basic"
+				text: "Pub/Sub"
+				path: "/go/primitives/pubsub"
+				file: "go/primitives/pubsub"
+			}, {
+				kind: "basic"
+				text: "Caching"
+				path: "/go/primitives/caching"
+				file: "go/primitives/caching"
+			}, {
+				kind: "basic"
+				text: "Secrets"
+				path: "/go/primitives/secrets"
+				file: "go/primitives/secrets"
+			}, {
+				kind: "basic"
+				text: "Code Snippets"
+				path: "/go/primitives/code-snippets"
+				file: "go/primitives/code-snippets"
 			}]
 		}, {
-			kind: "accordion"
-			text: "Databases"
-			accordion: [{
+			kind: "section"
+			text: "Development"
+			items: [{
 				kind: "basic"
-				text: "Using SQL databases"
-				path: "/primitives/databases"
-				file: "primitives/databases"
+				text: "Authentication"
+				path: "/go/develop/auth"
+				file: "go/develop/auth"
 			}, {
 				kind: "basic"
-				text: "Change SQL database schema"
-				path: "/how-to/change-db-schema"
-				file: "how-to/change-db-schema"
+				text: "Configuration"
+				path: "/go/develop/config"
+				file: "go/develop/config"
 			}, {
 				kind: "basic"
-				text: "Integrate with existing databases"
-				path: "/how-to/connect-existing-db"
-				file: "how-to/connect-existing-db"
+				text: "CORS"
+				path: "/go/develop/cors"
+				file: "go/develop/cors"
 			}, {
 				kind: "basic"
-				text: "Insert test data in a database"
-				path: "/how-to/insert-test-data-db"
-				file: "how-to/insert-test-data-db"
+				text: "Metadata"
+				path: "/go/develop/metadata"
+				file: "go/develop/metadata"
 			}, {
 				kind: "basic"
-				text: "Share databases between services"
-				path: "/how-to/share-db-between-services"
-				file: "how-to/share-db-between-services"
+				text: "Middleware"
+				path: "/go/develop/middleware"
+				file: "go/develop/middleware"
 			}, {
 				kind: "basic"
-				text: "Managing database user credentials"
-				path: "/how-to/manage-db-users"
-				file: "how-to/manage-db-users"
+				text: "Testing"
+				path: "/go/develop/testing"
+				file: "go/develop/testing"
 			}, {
 				kind: "basic"
-				text: "PostgreSQL Extensions"
-				path: "/primitives/databases/extensions"
-				file: "primitives/database-extensions"
+				text: "Mocking"
+				path: "/go/develop/testing/mocking"
+				file: "go/develop/mocking"
 			}, {
 				kind: "basic"
-				text: "Troubleshooting"
-				path: "/primitives/databases/troubleshooting"
-				file: "primitives/database-troubleshooting"
+				text: "Validation"
+				path: "/go/develop/validation"
+				file: "go/develop/validation"
 			}]
-		}, {
-			kind: "basic"
-			text: "Object Storage"
-			path: "/primitives/object-storage"
-			file: "primitives/object-storage"
-		}, {
-			kind: "basic"
-			text: "Cron Jobs"
-			path: "/primitives/cron-jobs"
-			file: "primitives/cron-jobs"
-		}, {
-			kind: "basic"
-			text: "Pub/Sub"
-			path: "/primitives/pubsub"
-			file: "primitives/pubsub"
-		}, {
-			kind: "basic"
-			text: "Caching"
-			path: "/primitives/caching"
-			file: "primitives/caching"
-		}, {
-			kind: "basic"
-			text: "Secrets"
-			path: "/primitives/secrets"
-			file: "primitives/secrets"
-		}, {
-			kind: "basic"
-			text: "Code Snippets"
-			path: "/primitives/code-snippets"
-			file: "primitives/code-snippets"
-		}]
-	}, {
-		kind: "section"
-		text: "Development"
-		items: [{
-			kind: "basic"
-			text: "Authentication"
-			path: "/develop/auth"
-			file: "develop/auth"
-		}, {
-			kind: "basic"
-			text: "Configuration"
-			path: "/develop/config"
-			file: "develop/config"
-		}, {
-			kind: "basic"
-			text: "CORS"
-			path: "/develop/cors"
-			file: "develop/cors"
-		}, {
-			kind: "basic"
-			text: "Metadata"
-			path: "/develop/metadata"
-			file: "develop/metadata"
-		}, {
-			kind: "basic"
-			text: "Middleware"
-			path: "/develop/middleware"
-			file: "develop/middleware"
-		}, {
-			kind: "basic"
-			text: "Testing"
-			path: "/develop/testing"
-			file: "develop/testing"
-		}, {
-			kind: "basic"
-			text: "Mocking"
-			path: "/develop/testing/mocking"
-			file: "develop/mocking"
-		}, {
-			kind: "basic"
-			text: "Validation"
-			path: "/develop/validation"
-			file: "develop/validation"
-		}, {
-			kind: "basic"
-			text: "Logging"
-			path: "/observability/logging"
-			file: "observability/logging"
-		}]
-	}, {
-		kind: "section"
-		text: "How to guides"
-		items: [{
-			kind: "basic"
-			text: "Build with cgo"
-			path: "/how-to/cgo"
-			file: "how-to/cgo"
-		}, {
-			kind: "basic"
-			text: "Debug with Delve"
-			path: "/how-to/debug"
-			file: "how-to/debug"
-		}, {
-			kind: "basic"
-			text: "Receive regular HTTP requests & Use websockets"
-			path: "/how-to/http-requests"
-			file: "how-to/http-requests"
-		}, {
-			kind: "basic"
-			text: "Use Atlas + GORM for database migrations"
-			path: "/how-to/atlas-gorm"
-			file: "how-to/atlas-gorm"
-		}, {
-			kind: "basic"
-			text: "Use the ent ORM for migrations"
-			path: "/how-to/entgo-orm"
-			file: "how-to/entgo-orm"
-		}, {
-			kind: "basic"
-			text: "Use Connect for gRPC communication"
-			path: "/how-to/grpc-connect"
-			file: "how-to/grpc-connect"
-		}, {
-			kind: "basic"
-			text: "Use a Pub/Sub Transactional Outbox"
-			path: "/primitives/pubsub-outbox"
-			file: "primitives/pubsub-outbox"
-		}, {
-			kind: "basic"
-			text: "Use Dependency Injection"
-			path: "/how-to/dependency-injection"
-			file: "how-to/dependency-injection"
-		}, {
-			kind: "basic"
-			text: "Use Auth0 Authentication"
-			path: "/how-to/auth0-auth"
-			file: "how-to/auth0-auth"
-		}, {
-			kind: "basic"
-			text: "Use Clerk Authentication"
-			path: "/how-to/clerk-auth"
-			file: "how-to/clerk-auth"
-		}, {
-			kind: "basic"
-			text: "Use Firebase Authentication"
-			path: "/how-to/firebase-auth"
-			file: "how-to/firebase-auth"
-		}]
-	}]
+		},
+		{
+			kind: "section"
+			text: "CLI"
+			items: [{
+				kind: "basic"
+				text: "CLI Reference"
+				path: "/go/cli/cli-reference"
+				file: "go/cli/cli-reference"
+			}, {
+				kind: "basic"
+				text: "Client Generation"
+				path: "/go/cli/client-generation"
+				file: "go/cli/client-generation"
+			}, {
+				kind: "basic"
+				text: "Infra Namespaces"
+				path: "/go/cli/infra-namespaces"
+				file: "go/cli/infra-namespaces"
+			}, {
+				kind: "basic"
+				text: "Telemetry"
+				path: "/go/cli/telemetry"
+				file: "go/cli/telemetry"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Observability"
+			items: [{
+				kind: "basic"
+				text: "Development Dashboard"
+				path: "/go/observability/dev-dash"
+				file: "go/observability/dev-dash"
+			}, {
+				kind: "basic"
+				text: "Distributed Tracing"
+				path: "/go/observability/tracing"
+				file: "go/observability/tracing"
+			}, {
+				kind: "basic"
+				text: "Flow Architecture Diagram"
+				path: "/go/observability/encore-flow"
+				file: "go/observability/encore-flow"
+			}, {
+				kind: "basic"
+				text: "Service Catalog"
+				path: "/go/observability/service-catalog"
+				file: "go/observability/service-catalog"
+			}, {
+				kind: "basic"
+				text: "Logging"
+				path: "/go/observability/logging"
+				file: "go/observability/logging"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Self Hosting"
+			items: [
+				{
+					kind: "basic"
+					text: "Build Docker Images"
+					path: "/go/self-host/docker-build"
+					file: "go/self-host/self-host"
+				}, {
+					kind: "basic"
+					text: "Configure Infrastructure"
+					path: "/go/self-host/configure-infra"
+					file: "go/self-host/configure-infra"
+				}, {
+					kind: "basic"
+					text: "Deploy to DigitalOcean"
+					path: "/go/self-host/deploy-digitalocean"
+					file: "go/self-host/deploy-to-digital-ocean"
+				}]
+		},
+		{
+			kind: "section"
+			text: "How to guides"
+			items: [{
+				kind: "basic"
+				text: "Break a monolith into microservices"
+				path: "/go/how-to/break-up-monolith"
+				file: "go/how-to/break-up-monolith"
+			}, {
+				kind: "basic"
+				text: "Integrate with a web frontend"
+				path: "/go/how-to/integrate-frontend"
+				file: "go/how-to/integrate-frontend"
+			}, {
+				kind: "basic"
+				text: "Use Temporal with Encore"
+				path: "/go/how-to/temporal"
+				file: "go/how-to/temporal"
+			}, {
+				kind: "basic"
+				text: "Build with cgo"
+				path: "/go/how-to/cgo"
+				file: "go/how-to/cgo"
+			}, {
+				kind: "basic"
+				text: "Debug with Delve"
+				path: "/go/how-to/debug"
+				file: "go/how-to/debug"
+			}, {
+				kind: "basic"
+				text: "Receive regular HTTP requests & Use websockets"
+				path: "/go/how-to/http-requests"
+				file: "go/how-to/http-requests"
+			}, {
+				kind: "basic"
+				text: "Use Atlas + GORM for database migrations"
+				path: "/go/how-to/atlas-gorm"
+				file: "go/how-to/atlas-gorm"
+			}, {
+				kind: "basic"
+				text: "Use the ent ORM for migrations"
+				path: "/go/how-to/entgo-orm"
+				file: "go/how-to/entgo-orm"
+			}, {
+				kind: "basic"
+				text: "Use Connect for gRPC communication"
+				path: "/go/how-to/grpc-connect"
+				file: "go/how-to/grpc-connect"
+			}, {
+				kind: "basic"
+				text: "Use a Pub/Sub Transactional Outbox"
+				path: "/go/how-to/pubsub-outbox"
+				file: "go/how-to/pubsub-outbox"
+			}, {
+				kind: "basic"
+				text: "Use Dependency Injection"
+				path: "/go/how-to/dependency-injection"
+				file: "go/how-to/dependency-injection"
+			}, {
+				kind: "basic"
+				text: "Use Auth0 Authentication"
+				path: "/go/how-to/auth0-auth"
+				file: "go/how-to/auth0-auth"
+			}, {
+				kind: "basic"
+				text: "Use Clerk Authentication"
+				path: "/go/how-to/clerk-auth"
+				file: "go/how-to/clerk-auth"
+			}, {
+				kind: "basic"
+				text: "Use Firebase Authentication"
+				path: "/go/how-to/firebase-auth"
+				file: "go/how-to/firebase-auth"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Migration guides"
+			items: [{
+				kind: "basic"
+				text: "Migrate away from Encore"
+				path: "/how-to/migrate-away"
+				file: "how-to/migrate-away"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Community"
+			items: [{
+				kind: "basic"
+				text: "Get Involved"
+				path: "/go/community/get-involved"
+				file: "go/community/get-involved"
+			}, {
+				kind: "basic"
+				text: "Contribute"
+				path: "/go/community/contribute"
+				file: "go/community/contribute"
+			}, {
+				kind: "basic"
+				text: "Open Source"
+				path: "/go/community/open-source"
+				file: "go/community/open-source"
+			}, {
+				kind: "basic"
+				text: "Principles"
+				path: "/go/community/principles"
+				file: "go/community/principles"
+			}, {
+				kind: "basic"
+				text: "Submit Template"
+				path: "/go/community/submit-template"
+				file: "go/community/submit-template"
+			}]
+		},
+	]
 }
 
 #EncoreTS: #SubMenu & {
 	title: "Encore.ts"
+	id:    "ts"
 	presentation: {
 		icon: "typescript"
 	}
 	back: {
-		text: "Back to Main Menu"
-		path: "/docs"
+		text: ""
+		path: ""
 	}
-	items: [{
-		kind: "section"
-		text: "Concepts"
-		items: [{
-			kind: "basic"
-			text: "Benefits"
-			path: "/ts/concepts/benefits"
-			file: "ts/concepts/benefits"
-		}, {
-			kind: "basic"
-			text: "App Structure"
-			path: "/ts/develop/app-structure"
-			file: "ts/develop/app-structure"
-		}, {
-			kind: "basic"
-			text: "Hello World"
-			path: "/ts/concepts/hello-world"
-			file: "ts/concepts/hello-world"
-		}]
-	}, {
-		kind: "section"
-		text: "Primitives"
-		items: [{
-			kind: "basic"
-			text: "Services"
-			path: "/ts/primitives/services"
-			file: "ts/primitives/services"
-		}, {
-			kind: "accordion"
-			text: "APIs"
-			accordion: [{
-				kind: "basic"
-				text: "Defining APIs"
-				path: "/ts/primitives/apis"
-				file: "ts/primitives/apis"
-			}, {
-				kind: "basic"
-				text: "Validation"
-				path: "/ts/primitives/validation"
-				file: "ts/primitives/validation"
-			}, {
-				kind: "basic"
-				text: "API Calls"
-				path: "/ts/primitives/api-calls"
-				file: "ts/primitives/api-calls"
-			}, {
-				kind: "basic"
-				text: "Raw Endpoints"
-				path: "/ts/primitives/raw-endpoints"
-				file: "ts/primitives/raw-endpoints"
-			}, {
-				kind: "basic"
-				text: "GraphQL"
-				path: "/ts/primitives/graphql"
-				file: "ts/primitives/graphql"
-			}, {
-				kind: "basic"
-				text: "Streaming APIs"
-				path: "/ts/primitives/streaming-apis"
-				file: "ts/primitives/streaming-apis"
-			}, {
-				kind: "basic"
-				text: "API Errors"
-				path: "/ts/develop/errors"
-				file: "ts/develop/errors"
-			}, {
-				kind: "basic"
-				text: "Static Assets"
-				path: "/ts/primitives/static-assets"
-				file: "ts/primitives/static-assets"
-			}]
-		}, {
-			kind: "basic"
-			text: "Databases"
-			path: "/ts/primitives/databases"
-			file: "ts/primitives/databases"
-		}, {
-			kind: "basic"
-			text: "Object Storage"
-			path: "/ts/primitives/object-storage"
-			file: "ts/primitives/object-storage"
-		}, {
-			kind: "basic"
-			text: "Cron Jobs"
-			path: "/ts/primitives/cron-jobs"
-			file: "ts/primitives/cron-jobs"
-		}, {
-			kind: "basic"
-			text: "Pub/Sub"
-			path: "/ts/primitives/pubsub"
-			file: "ts/primitives/pubsub"
-		}, {
-			kind: "basic"
-			text: "Secrets"
-			path: "/ts/primitives/secrets"
-			file: "ts/primitives/secrets"
-		}]
-	}, {
-		kind: "section"
-		text: "Development"
-		items: [{
-			kind: "basic"
-			text: "Authentication"
-			path: "/ts/develop/auth"
-			file: "ts/develop/auth"
-		}, {
-			kind: "accordion"
-			text: "ORMs"
-			accordion: [{
-				kind: "basic"
-				text: "Overview"
-				path: "/ts/develop/orms"
-				file: "ts/develop/orms/overview"
-			}, {
-				kind: "basic"
-				text: "Knex.js"
-				path: "/ts/develop/orms/knex"
-				file: "ts/develop/orms/knex"
-			}, {
-				kind: "basic"
-				text: "Prisma"
-				path: "/ts/develop/orms/prisma"
-				file: "ts/develop/orms/prisma"
-			}, {
-				kind: "basic"
-				text: "Drizzle"
-				path: "/ts/develop/orms/drizzle"
-				file: "ts/develop/orms/drizzle"
-			}, {
-				kind: "basic"
-				text: "Sequelize"
-				path: "/ts/develop/orms/sequelize"
-				file: "ts/develop/orms/sequelize"
-			}]
-	  },{
-			kind: "basic"
-			text: "CORS"
-			path: "/ts/develop/cors"
-			file: "develop/cors"
-		}, {
-			kind: "basic"
-			text: "Metadata"
-			path: "/ts/develop/metadata"
-			file: "ts/develop/metadata"
-		}, {
-			kind: "basic"
-			text: "Testing"
-			path: "/ts/develop/testing"
-			file: "ts/develop/testing"
-		}, {
-			kind: "basic"
-			text: "Logging"
-			path: "/ts/develop/logging"
-			file: "ts/develop/logging"
-		}, {
-			kind: "basic"
-			text: "Debugging"
-			path: "/ts/develop/debug"
-			file: "ts/develop/debug"
-		}]
-	}, {
-		kind: "section"
-		text: "How to guides"
-		items: [{
-			kind: "basic"
-			text: "Handle file uploads"
-			path: "/ts/how-to/file-uploads"
-			file: "how-to/file-uploads"
-		}, {
-			kind: "basic"
-			text: "Use Vercel for frontend hosting"
-			path: "/ts/how-to/vercel"
-			file: "how-to/vercel"
-		}, {
-			kind: "basic"
-			text: "Migrate from Express.js"
-			path: "/ts/how-to/express-migration"
-			file: "how-to/express-migration"
-		}, {
-			kind: "basic"
-			text: "Use NestJS with Encore"
-			path: "/ts/how-to/nestjs"
-			file: "how-to/nestjs"
-		}, {
-			kind: "basic"
-			text: "Use a template engine"
-			path: "/ts/how-to/template-engine"
-			file: "how-to/template-engine"
-		}]
-	}]
-}
-
-#DevelopmentSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Development"
-	items: [{
-		kind:    "nav"
-		text:    "Encore.go"
-		path:    "/go"
-		file:    "go/overview"
-		submenu: #EncoreGO
-		presentation: {
-			icon:  "golang"
-			style: "card"
-		}
-	}, {
-		kind:    "nav"
-		text:    "Encore.ts"
-		path:    "/ts"
-		file:    "ts/overview"
-		submenu: #EncoreTS
-		presentation: {
-			icon:  "typescript"
-			style: "card"
-		}
-	}, {
-		kind: "basic"
-		text: "CLI Reference"
-		path: "/develop/cli-reference"
-		file: "develop/cli-reference"
-	}, {
-		kind: "basic"
-		text: "Client Generation"
-		path: "/develop/client-generation"
-		file: "develop/client-generation"
-	}, {
-		kind: "basic"
-		text: "Infra Namespaces"
-		path: "/develop/infra-namespaces"
-		file: "develop/infra-namespaces"
-	}]
-}
-
-#ObservabilitySection: #SectionMenuItem & {
-	kind: "section"
-	text: "Observability"
-	items: [{
-		kind: "basic"
-		text: "Development Dashboard"
-		path: "/observability/dev-dash"
-		file: "observability/dev-dash"
-	}, {
-		kind: "basic"
-		text: "Distributed Tracing"
-		path: "/observability/tracing"
-		file: "observability/tracing"
-	}, {
-		kind: "basic"
-		text: "Flow Architecture Diagram"
-		path: "/observability/encore-flow"
-		file: "observability/encore-flow"
-	}, {
-		kind: "basic"
-		text: "Service Catalog"
-		path: "/develop/api-docs"
-		file: "develop/api-docs"
-	}]
-}
-
-#PlatformSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Cloud Platform"
-	items: [{
-		kind: "basic"
-		text: "Deploying & CI/CD"
-		path: "/deploy/deploying"
-		file: "deploy/deploying"
-	}, {
-		kind: "basic"
-		text: "Environments"
-		path: "/deploy/environments"
-		file: "deploy/environments"
-	}, {
-		kind: "basic"
-		text: "Infrastructure provisioning"
-		path: "/deploy/infra"
-		file: "deploy/infra"
-	}, {
-		kind: "basic"
-		text: "Preview Environments"
-		path: "/deploy/preview-environments"
-		file: "deploy/preview-environments"
-	}, {
-		kind: "basic"
-		text: "Metrics"
-		path: "/observability/metrics"
-		file: "observability/metrics"
-	}, {
-		kind: "basic"
-		text: "Connect your cloud account"
-		path: "/deploy/own-cloud"
-		file: "deploy/own-cloud"
-	}, {
-		kind: "basic"
-		text: "Neon Postgres"
-		path: "/deploy/neon"
-		file: "deploy/neon"
-	}, {
-		kind: "accordion"
-		text: "Kubernetes deployment"
-		accordion: [{
-			kind: "basic"
-			text: "Deploying to a new cluster"
-			path: "/deploy/kubernetes"
-			file: "deploy/kubernetes"
-		}, {
-			kind: "basic"
-			text: "Import an existing cluster"
-			path: "/how-to/import-kubernetes-cluster"
-			file: "how-to/import-kubernetes-cluster"
-		}, {
-			kind: "basic"
-			text: "Configure kubectl"
-			path: "/deploy/kubernetes/kubectl"
-			file: "deploy/configure-kubectl"
-		}]
-	}, {
-		kind: "basic"
-		text: "Custom Domains"
-		path: "/deploy/custom-domains"
-		file: "deploy/custom-domains"
-	}, {
-		kind: "basic"
-		text: "Application Security"
-		path: "/deploy/security"
-		file: "deploy/security"
-	}, {
-		kind: "basic"
-		text: "Webhooks"
-		path: "/deploy/webhooks"
-		file: "deploy/webhooks"
-	}, {
-		kind: "basic"
-		text: "OAuth Clients"
-		path: "/platform/oauth-clients"
-		file: "platform/oauth-clients"
-	}, {
-		kind: "basic"
-		text: "API Reference"
-		path: "/platform/api-reference"
-		file: "platform/api-reference"
-	}]
-}
-
-#SelfHostSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Self Hosting"
 	items: [
 		{
-			kind: "basic"
-			text: "Build Docker Images"
-			path: "/self-host/docker-build"
-			file: "how-to/self-host"
+			kind: "section"
+			text: "Get started"
+			items: [{
+				kind: "basic"
+				text: "Installation"
+				path: "/ts/install"
+				file: "ts/install"
+			}, {
+				kind: "basic"
+				text: "Quick Start"
+				path: "/ts/quick-start"
+				file: "ts/quick-start"
+			}, {
+				kind: "basic"
+				text: "FAQ"
+				path: "/ts/faq"
+				file: "ts/faq"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Concepts"
+			items: [{
+				kind: "basic"
+				text: "Benefits"
+				path: "/ts/concepts/benefits"
+				file: "ts/concepts/benefits"
+			}, {
+				kind: "basic"
+				text: "Application Model"
+				path: "/ts/concepts/application-model"
+				file: "ts/concepts/application-model"
+			}, {
+				kind: "basic"
+				text: "Hello World"
+				path: "/ts/concepts/hello-world"
+				file: "ts/concepts/hello-world"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Tutorials"
+			items: [{
+				kind: "basic"
+				text: "Building a REST API"
+				path: "/ts/tutorials/rest-api"
+				file: "ts/tutorials/rest-api"
+			}, {
+				kind: "basic"
+				text: "Building an Uptime Monitor"
+				path: "/ts/tutorials/uptime"
+				file: "ts/tutorials/uptime"
+			}, {
+				kind: "basic"
+				text: "Building a GraphQL API"
+				path: "/ts/tutorials/graphql"
+				file: "ts/tutorials/graphql"
+			}, {
+				kind: "basic"
+				text: "Building a Slack bot"
+				path: "/ts/tutorials/slack-bot"
+				file: "ts/tutorials/slack-bot"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Primitives"
+			items: [{
+				kind: "basic"
+				text: "App Structure"
+				path: "/ts/primitives/app-structure"
+				file: "ts/primitives/app-structure"
+			}, {
+				kind: "basic"
+				text: "Services"
+				path: "/ts/primitives/services"
+				file: "ts/primitives/services"
+			}, {
+				kind: "accordion"
+				text: "APIs"
+				accordion: [{
+					kind: "basic"
+					text: "Defining APIs"
+					path: "/ts/primitives/defining-apis"
+					file: "ts/primitives/defining-apis"
+				}, {
+					kind: "basic"
+					text: "Validation"
+					path: "/ts/primitives/validation"
+					file: "ts/primitives/validation"
+				}, {
+					kind: "basic"
+					text: "API Calls"
+					path: "/ts/primitives/api-calls"
+					file: "ts/primitives/api-calls"
+				}, {
+					kind: "basic"
+					text: "Raw Endpoints"
+					path: "/ts/primitives/raw-endpoints"
+					file: "ts/primitives/raw-endpoints"
+				}, {
+					kind: "basic"
+					text: "GraphQL"
+					path: "/ts/primitives/graphql"
+					file: "ts/primitives/graphql"
+				}, {
+					kind: "basic"
+					text: "Streaming APIs"
+					path: "/ts/primitives/streaming-apis"
+					file: "ts/primitives/streaming-apis"
+				}, {
+					kind: "basic"
+					text: "API Errors"
+					path: "/ts/develop/errors"
+					file: "ts/develop/errors"
+				}, {
+					kind: "basic"
+					text: "Static Assets"
+					path: "/ts/primitives/static-assets"
+					file: "ts/primitives/static-assets"
+				}]
+			}, {
+				kind: "basic"
+				text: "Databases"
+				path: "/ts/primitives/databases"
+				file: "ts/primitives/databases"
+			}, {
+				kind: "basic"
+				text: "Object Storage"
+				path: "/ts/primitives/object-storage"
+				file: "ts/primitives/object-storage"
+			}, {
+				kind: "basic"
+				text: "Cron Jobs"
+				path: "/ts/primitives/cron-jobs"
+				file: "ts/primitives/cron-jobs"
+			}, {
+				kind: "basic"
+				text: "Pub/Sub"
+				path: "/ts/primitives/pubsub"
+				file: "ts/primitives/pubsub"
+			}, {
+				kind: "basic"
+				text: "Secrets"
+				path: "/ts/primitives/secrets"
+				file: "ts/primitives/secrets"
+			}]
 		}, {
-			kind: "basic"
-			text: "Configure Infrastructure"
-			path: "/self-host/configure-infra"
-			file: "selfhost/configure-infra"
+			kind: "section"
+			text: "Development"
+			items: [{
+				kind: "basic"
+				text: "Authentication"
+				path: "/ts/develop/auth"
+				file: "ts/develop/auth"
+			}, {
+				kind: "accordion"
+				text: "ORMs"
+				accordion: [{
+					kind: "basic"
+					text: "Overview"
+					path: "/ts/develop/orms"
+					file: "ts/develop/orms/overview"
+				}, {
+					kind: "basic"
+					text: "Knex.js"
+					path: "/ts/develop/orms/knex"
+					file: "ts/develop/orms/knex"
+				}, {
+					kind: "basic"
+					text: "Prisma"
+					path: "/ts/develop/orms/prisma"
+					file: "ts/develop/orms/prisma"
+				}, {
+					kind: "basic"
+					text: "Drizzle"
+					path: "/ts/develop/orms/drizzle"
+					file: "ts/develop/orms/drizzle"
+				}, {
+					kind: "basic"
+					text: "Sequelize"
+					path: "/ts/develop/orms/sequelize"
+					file: "ts/develop/orms/sequelize"
+				}]
+			}, {
+				kind: "basic"
+				text: "CORS"
+				path: "/ts/develop/cors"
+				file: "develop/cors"
+			}, {
+				kind: "basic"
+				text: "Metadata"
+				path: "/ts/develop/metadata"
+				file: "ts/develop/metadata"
+			}, {
+				kind: "basic"
+				text: "Testing"
+				path: "/ts/develop/testing"
+				file: "ts/develop/testing"
+			}, {
+				kind: "basic"
+				text: "Debugging"
+				path: "/ts/develop/debug"
+				file: "ts/develop/debug"
+			}]
+		},
+		{
+			kind: "section"
+			text: "CLI"
+			items: [{
+				kind: "basic"
+				text: "CLI Reference"
+				path: "/ts/cli/cli-reference"
+				file: "ts/cli/cli-reference"
+			}, {
+				kind: "basic"
+				text: "Client Generation"
+				path: "/ts/cli/client-generation"
+				file: "ts/cli/client-generation"
+			}, {
+				kind: "basic"
+				text: "Infra Namespaces"
+				path: "/ts/cli/infra-namespaces"
+				file: "ts/cli/infra-namespaces"
+			}, {
+				kind: "basic"
+				text: "Telemetry"
+				path: "/ts/cli/telemetry"
+				file: "ts/cli/telemetry"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Observability"
+			items: [{
+				kind: "basic"
+				text: "Development Dashboard"
+				path: "/ts/observability/dev-dash"
+				file: "ts/observability/dev-dash"
+			}, {
+				kind: "basic"
+				text: "Logging"
+				path: "/ts/observability/logging"
+				file: "ts/observability/logging"
+			}, {
+				kind: "basic"
+				text: "Distributed Tracing"
+				path: "/ts/observability/tracing"
+				file: "ts/observability/tracing"
+			}, {
+				kind: "basic"
+				text: "Flow Architecture Diagram"
+				path: "/ts/observability/flow"
+				file: "ts/observability/flow"
+			}, {
+				kind: "basic"
+				text: "Service Catalog"
+				path: "/ts/observability/service-catalog"
+				file: "ts/observability/service-catalog"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Self Hosting"
+			items: [
+				{
+					kind: "basic"
+					text: "Build Docker Images"
+					path: "/ts/self-host/build"
+					file: "ts/self-host/build"
+				}, {
+					kind: "basic"
+					text: "Configure Infrastructure"
+					path: "/ts/self-host/configure-infra"
+					file: "ts/self-host/configure-infra"
+				}, {
+					kind: "basic"
+					text: "Deploy to DigitalOcean"
+					path: "/ts/self-host/deploy-digitalocean"
+					file: "ts/self-host/deploy-to-digital-ocean"
+				}]
+		},
+		{
+			kind: "section"
+			text: "How to guides"
+			items: [{
+				kind: "basic"
+				text: "Handle file uploads"
+				path: "/ts/how-to/file-uploads"
+				file: "ts/how-to/file-uploads"
+			}, {
+				kind: "basic"
+				text: "Use Vercel for frontend hosting"
+				path: "/ts/how-to/vercel"
+				file: "ts/how-to/vercel"
+			}, {
+				kind: "basic"
+				text: "Use NestJS with Encore"
+				path: "/ts/how-to/nestjs"
+				file: "ts/how-to/nestjs"
+			}, {
+				kind: "basic"
+				text: "Use a template engine"
+				path: "/ts/how-to/template-engine"
+				file: "ts/how-to/template-engine"
+			}]
 		}, {
-		  kind: "basic"
-		  text: "Deploy to DigitalOcean"
-		  path: "/self-host/deploy-digitalocean"
-		  file: "selfhost/deploy-to-digital-ocean"
-	}]
+			kind: "section"
+			text: "Migration guides"
+			items: [{
+				kind: "basic"
+				text: "Migrate away from Encore"
+				path: "/ts/migration/migrate-away"
+				file: "ts/migration/migrate-away"
+			}, {
+				kind: "basic"
+				text: "Migrate from Express.js"
+				path: "/ts/migration/express-migration"
+				file: "ts/migration/express-migration"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Community"
+			items: [{
+				kind: "basic"
+				text: "Get Involved"
+				path: "/ts/community/get-involved"
+				file: "ts/community/get-involved"
+			}, {
+				kind: "basic"
+				text: "Contribute"
+				path: "/ts/community/contribute"
+				file: "ts/community/contribute"
+			}, {
+				kind: "basic"
+				text: "Open Source"
+				path: "/ts/community/open-source"
+				file: "ts/community/open-source"
+			}, {
+				kind: "basic"
+				text: "Principles"
+				path: "/ts/community/principles"
+				file: "ts/community/principles"
+			}, {
+				kind: "basic"
+				text: "Submit Template"
+				path: "/ts/community/submit-template"
+				file: "ts/community/submit-template"
+			}]
+		},
+	]
 }
 
-#ResourcesSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Resources"
-	items: [{
-		kind: "accordion"
-		text: "How to guides"
-		accordion: [{
-			kind: "basic"
-			text: "Break a monolith into microservices"
-			path: "/how-to/break-up-monolith"
-			file: "how-to/break-up-monolith"
+#EncorePlatform: #SubMenu & {
+	title: "Encore Cloud"
+	id:    "platform"
+	presentation: {
+		icon: ""
+	}
+	back: {
+		text: ""
+		path: ""
+	}
+	items: [
+		{
+			kind: "section"
+			text: "Deployment"
+			items: [{
+				kind: "basic"
+				text: "Deploying & CI/CD"
+				path: "/platform/deploy/deploying"
+				file: "platform/deploy/deploying"
+			}, {
+				kind: "basic"
+				text: "Environments"
+				path: "/platform/deploy/environments"
+				file: "platform/deploy/environments"
+			}, {
+				kind: "basic"
+				text: "Preview Environments"
+				path: "/platform/deploy/preview-environments"
+				file: "platform/deploy/preview-environments"
+			}, {
+				kind: "basic"
+				text: "Application Security"
+				path: "/platform/deploy/security"
+				file: "platform/deploy/security"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Infrastructure"
+			items: [{
+				kind: "basic"
+				text: "Connect your cloud account"
+				path: "/platform/infrastructure/own-cloud"
+				file: "platform/infrastructure/own-cloud"
+			}, {
+				kind: "basic"
+				text: "Infrastructure provisioning"
+				path: "/platform/infrastructure/infra"
+				file: "platform/infrastructure/infra"
+			}, {
+				kind: "accordion"
+				text: "Kubernetes deployment"
+				accordion: [{
+					kind: "basic"
+					text: "Deploying to a new cluster"
+					path: "/platform/infrastructure/kubernetes"
+					file: "platform/infrastructure/kubernetes"
+				}, {
+					kind: "basic"
+					text: "Import an existing cluster"
+					path: "/platform/infrastructure/import-kubernetes-cluster"
+					file: "platform/infrastructure/import-kubernetes-cluster"
+				}, {
+					kind: "basic"
+					text: "Configure kubectl"
+					path: "/platform/infrastructure/configure-kubectl"
+					file: "platform/infrastructure/configure-kubectl"
+				}]
+			}, {
+				kind: "basic"
+				text: "Managing database users"
+				path: "/platform/infrastructure/manage-db-users"
+				file: "platform/infrastructure/manage-db-users"
+			}, {
+				kind: "basic"
+				text: "Neon Postgres"
+				path: "/platform/infrastructure/neon"
+				file: "platform/infrastructure/neon"
+			}]
 		}, {
-			kind: "basic"
-			text: "Generate Auth Keys"
-			path: "/develop/auth-keys"
-			file: "develop/auth-keys"
-		}, {
-			kind: "basic"
-			text: "Integrate with GitHub"
-			path: "/how-to/github"
-			file: "how-to/github"
-		}, {
-			kind: "basic"
-			text: "Integrate with a web frontend"
-			path: "/how-to/integrate-frontend"
-			file: "how-to/integrate-frontend"
-		}, {
-			kind: "basic"
-			text: "Integrate with Terraform"
-			path: "/deploy/terraform"
-			file: "deploy/terraform"
-		}, {
-			kind: "basic"
-			text: "Use Temporal with Encore"
-			path: "/how-to/temporal"
-			file: "how-to/temporal"
-		}, {
-			kind: "basic"
-			text: "Submit a Template"
-			path: "/how-to/submit-template"
-			file: "how-to/submit-template"
-		}]
-	}, {
-		kind: "accordion"
-		text: "Migration guides"
-		accordion: [{
-			kind: "basic"
-			text: "Try Encore for an existing project"
-			path: "/how-to/try-encore"
-			file: "how-to/try-encore"
-		}, {
-			kind: "basic"
-			text: "Migrate an existing backend to Encore"
-			path: "/how-to/migrate-to-encore"
-			file: "how-to/migrate-to-encore"
-		}, {
-			kind: "basic"
-			text: "Migrate away from Encore"
-			path: "/how-to/migrate-away"
-			file: "how-to/migrate-away"
-		}]
-	}, {
-		kind: "accordion"
-		text: "Product comparisons"
-		accordion: [{
-			kind: "basic"
-			text: "Encore vs. Heroku"
-			path: "/other/vs-heroku"
-			file: "other/vs-heroku"
-		}, {
-			kind: "basic"
-			text: "Encore vs. Supabase / Firebase"
-			path: "/other/vs-supabase"
-			file: "other/vs-supabase"
-		}, {
-			kind: "basic"
-			text: "Encore vs. Terraform / Pulumi"
-			path: "/other/vs-terraform"
-			file: "other/vs-terraform"
-		}]
-	}]
-}
-
-#OtherSection: #SectionMenuItem & {
-	kind: "section"
-	text: "Other"
-	items: [{
-		kind: "basic"
-		text: "Compliance & Security"
-		path: "/about/compliance"
-		file: "about/compliance"
-	}, {
-		kind: "basic"
-		text: "Plans & billing"
-		path: "/about/billing"
-		file: "about/billing"
-	}, {
-		kind: "basic"
-		text: "Telemetry"
-		path: "/telemetry"
-		file: "other/telemetry"
-	}, {
-		kind: "basic"
-		text: "Roles & Permissions"
-		path: "/about/permissions"
-		file: "about/permissions"
-	}, {
-		kind: "basic"
-		text: "Usage limits"
-		path: "/about/usage"
-		file: "about/usage"
-	}]
-}
-
-#CommunitySection: #SectionMenuItem & {
-	kind: "section"
-	text: "Community"
-	items: [{
-		kind: "basic"
-		text: "Contribute"
-		path: "/community/contribute"
-		file: "community/contribute"
-	}, {
-		kind: "basic"
-		text: "Get involved"
-		path: "/community"
-		file: "community/index"
-	}, {
-		kind: "basic"
-		text: "Open Source"
-		path: "/community/open-source"
-		file: "community/open-source"
-	}, {
-		kind: "basic"
-		text: "Principles"
-		path: "/community/principles"
-		file: "community/principles"
-	}]
+			kind: "section"
+			text: "Observability"
+			items: [{
+				kind: "basic"
+				text: "Metrics"
+				path: "/platform/observability/metrics"
+				file: "platform/observability/metrics"
+			}, {
+				kind: "basic"
+				text: "Distributed Tracing"
+				path: "/platform/observability/tracing"
+				file: "platform/observability/tracing"
+			}, {
+				kind: "basic"
+				text: "Flow Architecture Diagram"
+				path: "/platform/observability/encore-flow"
+				file: "platform/observability/encore-flow"
+			}, {
+				kind: "basic"
+				text: "Service Catalog"
+				path: "/platform/observability/service-catalog"
+				file: "platform/observability/service-catalog"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Integrations"
+			items: [{
+				kind: "basic"
+				text: "GitHub"
+				path: "/platform/integrations/custom-domains"
+				file: "platform/integrations/github"
+			}, {
+				kind: "basic"
+				text: "Custom Domains"
+				path: "/platform/integrations/custom-domains"
+				file: "platform/integrations/custom-domains"
+			}, {
+				kind: "basic"
+				text: "Webhooks"
+				path: "/platform/integrations/webhooks"
+				file: "platform/integrations/webhooks"
+			}, {
+				kind: "basic"
+				text: "OAuth Clients"
+				path: "/platform/integrations/oauth-clients"
+				file: "platform/integrations/oauth-clients"
+			}, {
+				kind: "basic"
+				text: "Auth Keys"
+				path: "/platform/integrations/auth-keys"
+				file: "platform/integrations/auth-keys"
+			}, {
+				kind: "basic"
+				text: "API Reference"
+				path: "/platform/integrations/api-reference"
+				file: "platform/integrations/api-reference"
+			}, {
+				kind: "basic"
+				text: "Terraform"
+				path: "/platform/integrations/terraform"
+				file: "platform/integrations/terraform"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Migration guides"
+			items: [{
+				kind: "basic"
+				text: "Try Encore for an existing project"
+				path: "/platform/migration/try-encore"
+				file: "how-to/try-encore"
+			}, {
+				kind: "basic"
+				text: "Migrate an existing backend to Encore"
+				path: "/platform/migration/migrate-to-encore"
+				file: "how-to/migrate-to-encore"
+			}, {
+				kind: "basic"
+				text: "Migrate away from Encore"
+				path: "/platform/migration/migrate-away"
+				file: "how-to/migrate-away"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Management & Billing"
+			items: [{
+				kind: "basic"
+				text: "Compliance & Security"
+				path: "/platform/management/compliance"
+				file: "platform/management/compliance"
+			}, {
+				kind: "basic"
+				text: "Plans & billing"
+				path: "/platform/management/billing"
+				file: "platform/management/billing"
+			}, {
+				kind: "basic"
+				text: "Telemetry"
+				path: "/platform/management/telemetry"
+				file: "platform/management/telemetry"
+			}, {
+				kind: "basic"
+				text: "Roles & Permissions"
+				path: "/platform/management/permissions"
+				file: "platform/management/permissions"
+			}, {
+				kind: "basic"
+				text: "Usage limits"
+				path: "/platform/management/usage"
+				file: "platform/management/usage"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Other"
+			items: [
+				{
+					kind: "accordion"
+					text: "Product comparisons"
+					accordion: [{
+						kind: "basic"
+						text: "Encore vs. Heroku"
+						path: "/platform/other/vs-heroku"
+						file: "platform/other/vs-heroku"
+					}, {
+						kind: "basic"
+						text: "Encore vs. Supabase / Firebase"
+						path: "/platform/other/vs-supabase"
+						file: "platform/other/vs-supabase"
+					}, {
+						kind: "basic"
+						text: "Encore vs. Terraform / Pulumi"
+						path: "/platform/other/vs-terraform"
+						file: "platform/other/vs-terraform"
+					}]
+				}]
+		},
+	]
 }

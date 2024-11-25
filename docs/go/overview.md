@@ -1,7 +1,7 @@
 ---
 seotitle: Encore.go Introduction
 seodesc: Learn how Encore's Go Backend Framework works, and get to know the powerful features that help you build cloud backend applications faster.
-title: Encore.go Introduction
+title: Encore.go
 subtitle: Use Encore.go to build robust backend applications and distributed systems
 toc: false
 lang: go
