@@ -36,7 +36,7 @@ $ encore app create uptime --example=github.com/encoredev/example-app-uptime/tre
 
 If this is the first time you're using Encore, you'll be asked if you wish to create a free account. This is needed when you want Encore to manage functionality like secrets and handle cloud deployments (which we'll use later on in the tutorial).
 
-When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
+When we're done we'll have a backend with an event-driven architecture, as seen below in the [automatically generated diagram](/docs/ts/observability/encore-flow) where white boxes are services and black boxes are Pub/Sub topics:
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/encore-flow.png" title="Encore Flow" />
 
@@ -519,7 +519,7 @@ Now that the backend is working, let's open [http://localhost:4000/](http://loca
 
 To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
 
-Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`. (You can also integrate with GitHub, learn more in the [CI/CD docs](/docs/deploy/deploying).)
+Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`. (You can also integrate with GitHub, learn more in the [CI/CD docs](/docs/platform/deploy/deploying).)
 
 🥐 Let's deploy your app to Encore's free development cloud by running:
 

@@ -10,7 +10,7 @@ If you prefer manual deployment over the automation offered by Encore's Platform
 ### Prerequisites
 1. **DigitalOcean Account**: Make sure you have a DigitalOcean account. If not, you can [sign up here](https://www.digitalocean.com/).
 2. **Docker Installed**: Ensure Docker is installed on your local machine. You can download it from the [Docker website](https://www.docker.com/get-started).
-3. **Encore CLI**: Install the Encore CLI if you haven’t already. You can follow the installation instructions from the [Encore documentation](https://encore.dev/docs/install).
+3. **Encore CLI**: Install the Encore CLI if you haven’t already. You can follow the installation instructions from the [Encore documentation](https://encore.dev/docs/ts/install).
 4. **DigitalOcean CLI (Optional)**: You can install the DigitalOcean CLI for more flexibility and automation, but it’s not necessary for this tutorial.
 
 ### Step 1: Create an Encore App

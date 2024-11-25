@@ -171,7 +171,7 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 🥐 Next, start the application again with `encore run` and Encore automatically sets up your database.
 
-(In case your application won't run, check the [databases troubleshooting guide](/docs/develop/databases#troubleshooting).)
+(In case your application won't run, check the [databases troubleshooting guide](/docs/ts/primitives/databases#troubleshooting).)
 
 You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
 
@@ -223,7 +223,7 @@ export const get = api(
 
 Encore uses the `/url/:id` syntax to represent a path with a parameter. The `id` name corresponds to the parameter name in the function signature. In this case it is of type `string`, but you can also use other built-in types like `number` or `boolean` if you want to restrict the values.
 
-🥐 We can make sure it works by reviewing the endpoint in the Service Catalog in the local development dashboard, where we can call it using the `id` you got in the previous step:
+🥐 We can make sure it works by reviewing the endpoint in the [Service Catalog](/docs/ts/observability/service-catalog) in the local development dashboard, where we can call it using the `id` you got in the previous step:
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/rest_tut_3.mp4" className="w-full h-full" type="video/mp4"/>
@@ -329,6 +329,6 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 
 Now that you know how to build a backend with a database, you're ready to let your creativity flow and begin building your next great idea!
 
-🥐 A great next step is to [integrate with GitHub](/docs/how-to/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
+🥐 A great next step is to [integrate with GitHub](/docs/platform/integrations/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
 
 We're excited to hear what you're going to build with Encore, join the pioneering developer community on [Discord](/discord) and share your story.

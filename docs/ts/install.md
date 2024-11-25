@@ -6,7 +6,7 @@ subtitle: Install the Encore CLI to get started with local development
 lang: ts
 ---
 
-If you are new to Encore, we recommend following the [quick start guide](/docs/quick-start).
+If you are new to Encore, we recommend following the [quick start guide](/docs/ts/quick-start).
 
 ## Install the Encore CLI
 To develop locally with Encore, you first need to install the Encore CLI.

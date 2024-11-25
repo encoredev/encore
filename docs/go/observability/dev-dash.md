@@ -10,10 +10,10 @@ Encore provides an efficient local development workflow that automatically provi
 
 The local environment also comes with a built-in Local Development Dashboard to simplify development and improve productivity. It has several features to help you design, develop, and debug your application:
 
-* [Service Catalog](/docs/develop/api-docs) with Automatic API Documentation
+* [Service Catalog](/docs/go/observability/service-catalog) with Automatic API Documentation
 * API Explorer to call your APIs
-* [Distributed Tracing](./tracing) for simple and powerful debugging
-* [Encore Flow](/docs/develop/encore-flow) for visualizing your microservices architecture
+* [Distributed Tracing](/docs/go/observability/tracing) for simple and powerful debugging
+* [Encore Flow](/docs/go/observability/encore-flow) for visualizing your microservices architecture
 
 All these features update in real-time as you make changes to your application.
 

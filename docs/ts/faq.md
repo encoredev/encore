@@ -36,10 +36,6 @@ If you want to use other cloud providers like Azure or Digital Ocean, you can fo
 
 Encore currently has built-in support for PostgreSQL. To use another type of database, like MongoDB and MySQL, you will need to set it up and integrate as you normally would when not using Encore.
 
-**Can I use S3 / object storage with Encore?**
-
-Built-in support for S3 / object storage is on the [roadmap](https://encore.dev/roadmap). Currently, you will need to set it up and integrate as you normally would when not using Encore.
-
 **Can I use AWS lambda with Encore?**
 
 Not right now. Encore currently supports AWS Fargate and EKS (along with CloudRun and GKE on Google Cloud Platform).
