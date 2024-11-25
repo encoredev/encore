@@ -14,7 +14,7 @@ It allows you to define these primitives as type-safe objects in your applicatio
 1. **Local Environment Management**: Automatically sets up and runs local development environments.
 2. **Enhanced Observability**: Offers [built-in tools](/docs/go/observability/dev-dash) for monitoring application behavior.
 3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/go/observability/service-catalog) for APIs and services.
-4. **Cloud Integration**: Simplifies [cloud infrastructure integration](/docs/go/docker-build) for easier deployment and scaling.
+4. **Cloud Integration**: Simplifies [cloud infrastructure integration](/docs/go/self-host/docker-build) for easier deployment and scaling.
 5. **DevOps Automation**: Provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.
 
 With these features, Encore.go lets you focus on application logic while automating backend complexities.
