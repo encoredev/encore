@@ -151,7 +151,7 @@
 	items: [
 		{
 			kind: "section"
-			text: "Introduction"
+			text: "Get Started"
 			items: [{
 				kind: "basic"
 				text: "Installation"
