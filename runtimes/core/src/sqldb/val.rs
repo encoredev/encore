@@ -1,7 +1,7 @@
 use anyhow::Context;
 use bytes::BytesMut;
 use std::error::Error;
-use tokio_postgres::types::{FromSql, IsNull, ToSql, Type};
+use tokio_postgres::types::{FromSql, IsNull, Kind, ToSql, Type};
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -240,6 +240,7 @@ impl<'a> FromSql<'a> for RowValue {
                 let val: String = FromSql::from_sql(ty, raw)?;
                 Self::Json(serde_json::Value::String(val))
             }
+
             Type::INT2 => {
                 let val: i16 = FromSql::from_sql(ty, raw)?;
                 Self::Json(serde_json::Value::Number(serde_json::Number::from(val)))
@@ -303,7 +304,12 @@ impl<'a> FromSql<'a> for RowValue {
             }
 
             _ => {
-                return Err(format!("unsupported type: {:?}", ty).into());
+                if let Kind::Enum(_) = ty.kind() {
+                    let val = std::str::from_utf8(raw)?;
+                    Self::Json(serde_json::Value::String(val.to_string()))
+                } else {
+                    return Err(format!("unsupported type: {:?}", ty).into());
+                }
             }
         })
     }
@@ -313,25 +319,25 @@ impl<'a> FromSql<'a> for RowValue {
     }
 
     fn accepts(ty: &Type) -> bool {
-        matches!(
-            *ty,
+        match *ty {
             Type::BOOL
-                | Type::BYTEA
-                | Type::TEXT
-                | Type::VARCHAR
-                | Type::INT2
-                | Type::INT4
-                | Type::INT8
-                | Type::OID
-                | Type::JSONB
-                | Type::JSON
-                | Type::UUID
-                | Type::FLOAT4
-                | Type::FLOAT8
-                | Type::TIMESTAMP
-                | Type::TIMESTAMPTZ
-                | Type::DATE
-                | Type::TIME
-        )
+            | Type::BYTEA
+            | Type::TEXT
+            | Type::VARCHAR
+            | Type::INT2
+            | Type::INT4
+            | Type::INT8
+            | Type::OID
+            | Type::JSONB
+            | Type::JSON
+            | Type::UUID
+            | Type::FLOAT4
+            | Type::FLOAT8
+            | Type::TIMESTAMP
+            | Type::TIMESTAMPTZ
+            | Type::DATE
+            | Type::TIME => true,
+            ref other => matches!(other.kind(), Kind::Enum(_)),
+        }
     }
 }
