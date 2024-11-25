@@ -28,7 +28,7 @@ Path parameters, query parameters and headers can be passed via the handshake re
 
 ## Defining streaming APIs
 
-Similar to how you can define [RESTful API endpoints](/docs/ts/primitives/apis) with Encore, you can also easily define type-safe streaming API endpoints. They accept a handshake type, an incoming and an outgoing message type (depending on your choice of stream direction). The type parameters are required for Encore to understand your API.
+Similar to how you can define [RESTful API endpoints](/docs/ts/primitives/defining-apis) with Encore, you can also easily define type-safe streaming API endpoints. They accept a handshake type, an incoming and an outgoing message type (depending on your choice of stream direction). The type parameters are required for Encore to understand your API.
 
 If you don't need any data from the handshake, you can ignore that type, and only specify the incoming and outgoing message types.
 
@@ -270,7 +270,7 @@ export const chat = api.streamInOut<HandshakeRequest, ChatMessage, ChatMessage>(
 
 ## Connecting with the client
 
-Using the [generated client](/docs/develop/client-generation), you can connect to a streaming API endpoint that have `expose` set to `true`. The client stream acts as an async iterator, allowing you to retrieve messages by simply iterating over it:
+Using the [generated client](/docs/ts/cli/client-generation), you can connect to a streaming API endpoint that have `expose` set to `true`. The client stream acts as an async iterator, allowing you to retrieve messages by simply iterating over it:
 
 ```typescript
 const stream = client.serviceName.endpointName();
