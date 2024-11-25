@@ -7,30 +7,28 @@ toc: false
 lang: ts
 ---
 
-Encore.ts simplifies backend development by providing an application-centric approach to common infrastructure primitives like microservices, APIs, databases, queues, caches, cron jobs, and storage buckets.
-
-It allows you to define these primitives as type-safe objects in your application code, streamlining development through:
-
-1. **Local Environment Management**: Automatically sets up and runs local development environments.
-2. **Enhanced Observability**: Offers [built-in tools](/docs/ts/observability/dev-dash) for monitoring application behavior.
-3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/ts/observability/service-catalog) for APIs and services.
-4. **Cloud Integration**: Simplifies [cloud infrastructure integration](/docs/ts/self-host/build) for easier deployment and scaling.
-5. **DevOps Automation**: Provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.
-
-With these features, Encore.ts lets you focus on application logic while automating backend complexities.
-
 <div className="min-h-72 bg-blue p-8 relative overflow-hidden not-prose">
     <img className="absolute left-[55%] -mt-8 top-0 right-0 bottom-0 noshadow" src="/assets/img/dithered-clouds.png" />
-    <div className="w-[75%] lg:w-[60%]">
+    <div className="w-[75%] lg:w-[75%]">
         <h2 className="text-white lead-medium">Quick Start Guide</h2>
         <div className="body-small text-white mt-2">
-            Dive right in and build your first Encore application.
+            Dive right in and build your first Encore.ts application.
         </div>
         <a href="/docs/ts/quick-start">
             <Button className="mt-4" kind="primary" section="black">Get started</Button>
         </a>
     </div>
 </div>
+
+Encore.ts helps you build robust type-safe applications by providing a high-performance API framework, which offers a declarative way of using common backend primitives like microservices, databases, queues, caches, cron jobs, and storage buckets.
+
+The framework comes with a lot of built-in tooling for a smooth developer experience:
+
+1. **Local Environment Management**: Automatically sets up and runs your local development environment and all local infrastructure.
+2. **Enhanced Observability**: Comes with tools like a [local dev dash](/docs/ts/observability/dev-dash) and [tracing](/docs/ts/observability/tracing) for monitoring application behavior.
+3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/ts/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/ts/observability/flow) for your system.
+
+Optional: **DevOps Automation**: Encore provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.
 
 <div className="mt-6 grid grid-cols-2 gap-6 mobile:grid-cols-1 not-prose">
     <a className="block group relative no-brandient" target="_blank" href="https://www.youtube.com/watch?v=vvqTGfoXVsw">
