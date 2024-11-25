@@ -133,7 +133,7 @@ Signup.Publish(ctx, &User{...})
 See how to use the Backend Frameworks in the docs:
 
 - **Services:** [Go](https://encore.dev/docs/primitives/services) / [TypeScript](https://encore.dev/docs/ts/primitives/services)
-- **APIs:** [Go](https://encore.dev/docs/primitives/apis) / [TypeScript](https://encore.dev/docs/ts/primitives/apis)
+- **APIs:** [Go](https://encore.dev/docs/primitives/defining-apis) / [TypeScript](https://encore.dev/docs/ts/primitives/defining-apis)
 - **Databases:** [Go](https://encore.dev/docs/primitives/databases) / [TypeScript](https://encore.dev/docs/ts/primitives/databases)
 - **Cron Jobs:** [Go](https://encore.dev/docs/primitives/cron-jobs) / [TypeScript](https://encore.dev/docs/ts/primitives/cron-jobs)
 - **Pub/Sub:** [Go](https://encore.dev/docs/primitives/pubsub) / [TypeScript](https://encore.dev/docs/ts/primitives/pubsub)

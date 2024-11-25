@@ -234,7 +234,7 @@ CI/CD, and for databases hosted on Encore Cloud.
 This docker image ships with many popular PostgreSQL extensions pre-installed.
 In particular, [pgvector](https://github.com/pgvector/pgvector) and [PostGIS](https://postgis.net) are available.
 
-See [the full list of available extensions](/docs/primitives/databases/extensions).
+See [the full list of available extensions](/docs/ts/primitives/databases-extensions).
 
 ## Troubleshooting
 
@@ -247,7 +247,7 @@ If this does not resolve the issue, here are steps to resolve common errors:
 
 This error is often caused by a problem with the initial migration file, such as incorrect naming or location.
 
-- Verify that you've [created the migration file](/docs/ts/primitives/databases#defining-the-database-schema) correctly, then try `encore run` again.
+- Verify that you've [created the migration file](#defining-the-database-schema) correctly, then try `encore run` again.
 
 ** Error: could not connect to the database **
 

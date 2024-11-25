@@ -6,14 +6,14 @@ subtitle: Decoupling services and building asynchronous systems
 infobox: {
   title: "Pub/Sub Messaging",
   import: "encore.dev/pubsub",
-  example_link: "/docs/tutorials/uptime"
+  example_link: "/docs/ts/tutorials/uptime"
 }
 lang: ts
 ---
 
 Publishers & Subscribers (Pub/Sub) let you build systems that communicate by broadcasting events asynchronously. This is a great way to decouple services for better reliability and responsiveness.
 
-Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/deploy/infra).
+Encore's Backend Framework lets you use Pub/Sub in a cloud-agnostic declarative fashion. At deployment, Encore automatically [provisions the required infrastructure](/docs/platform/infrastructure/infra).
 
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
