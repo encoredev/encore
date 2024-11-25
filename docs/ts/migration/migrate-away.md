@@ -27,7 +27,7 @@ We believe that adopting Encore is a low-risk decision for several reasons:
 - All infrastructure and data is in your own cloud
 - It's simple to integrate with cloud services and systems not natively supported by Encore
 - Everything you need to develop your application is Open Source, including the [parser](https://github.com/encoredev/encore/tree/main/v2/parser), [compiler](https://github.com/encoredev/encore/tree/main/v2/compiler), [runtime](https://github.com/encoredev/encore/tree/main/runtimes)
-- Everything you need to self-host your application is [Open Source and documented](/docs/self-host/build)
+- Everything you need to self-host your application is [Open Source and documented](/docs/ts/self-host/build)
 
 ## What to expect when migrating away
 

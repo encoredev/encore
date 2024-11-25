@@ -48,7 +48,7 @@ Follow Encore on Twitter to keep up with the latest. Share what you've built to 
 
 ### Contribute to the project
 
-Want to make a contribution to Encore? Great, start by reading about the different [ways to contribute](/docs/community/contribute).
+Want to make a contribution to Encore? Great, start by reading about the different [ways to contribute](/docs/go/community/contribute).
 
 ### Feedback on the Roadmap
 
@@ -56,6 +56,6 @@ Want to make a contribution to Encore? Great, start by reading about the differe
 
 ## Community Governance
 
-We recommend everyone read the [Community Principles](/docs/community/principles).
+We recommend everyone read the [Community Principles](/docs/go/community/principles).
 
 If you need assistance, have concerns, or have questions for the Community team, please email us at [support@encore.dev](mailto:support@encore.dev).

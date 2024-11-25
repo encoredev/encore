@@ -6,7 +6,7 @@ seodesc: Learn how to migrate your Go backend application to Encore, and unlock 
 lang: platform
 ---
 
-Encore features like [automatic infrastructure provisioning](/docs/platform/infrastructure/infra), [distributed tracing](/docs/ts/observability/tracing), [architecture diagrams](/docs/ts/observability/encore-flow), and [Service Catalog](/docs/ts/develop/service-catalog), rely on the [Encore application model](/docs/ts/concepts/application-model).
+Encore features like [automatic infrastructure provisioning](/docs/platform/infrastructure/infra), [distributed tracing](/docs/ts/observability/tracing), [architecture diagrams](/docs/ts/observability/encore-flow), and [Service Catalog](/docs/ts/observability/service-catalog), rely on the [Encore application model](/docs/ts/concepts/application-model).
 
 Building your backend using Encore's declarative backend frameworks [Encore.ts](/docs/ts) and [Encore.go](/docs/go) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
 
