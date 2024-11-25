@@ -18,7 +18,7 @@ Using Encore.go to declare infrastructure in application code helps unlock sever
 ## No DevOps experience required
 
 Encore provides open source tools to help you integrate with your cloud infrastructure, enabling you to self-host your application anywhere to supports Docker containers.
-Learn more in the [self-host documentation](/go/self-host/docker-build).
+Learn more in the [self-host documentation](/docs/go/self-host/docker-build).
 
 You can also use [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully automates provisioning and managing infrastructure in your own cloud on AWS and GCP.
 
