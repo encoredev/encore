@@ -3,6 +3,7 @@ package objects
 import (
 	"context"
 	"iter"
+	"net/url"
 )
 
 // BucketPerms is the type constraint for all permission-declaring
@@ -115,6 +116,25 @@ type Attrser interface {
 
 	// Exists checks whether an object exists in the bucket.
 	Exists(ctx context.Context, object string, options ...ExistsOption) (bool, error)
+
+	perms()
+}
+
+// PublicURLer is the interface for resolving the public URL for an object.
+// It can be used in conjunction with [BucketRef] to declare
+// a reference that can resolve an object's public URL.
+//
+// For example:
+//
+//	var MyBucket = objects.NewBucket(...)
+//	var ref = objects.BucketRef[objects.PublicURLer](MyBucket)
+//
+// The ref object can then be used to remove objects and can be
+// passed around freely within the service, without being subject
+// to Encore's static analysis restrictions that apply to MyBucket.
+type PublicURLer interface {
+	// PublicURL resolves the public URL for retrieving an object.
+	PublicURL(object string, options ...PublicURLOption) *url.URL
 
 	perms()
 }

@@ -25,6 +25,10 @@ export abstract class Remover extends BucketPerms {
   abstract remove(name: string, options?: DeleteOptions): Promise<void>;
 }
 
+export abstract class PublicUrler extends BucketPerms {
+  abstract publicUrl(name: string): string;
+}
+
 export type ReadWriter =
   & Uploader
   & Downloader

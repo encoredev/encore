@@ -164,16 +164,16 @@ func (rm *ResourceManager) StartObjects(md *meta.Data) func(context.Context) err
 	return func(ctx context.Context) error {
 		var srv *objects.Server
 		if rm.forTests {
-			srv = objects.NewInMemoryServer()
+			srv = objects.NewInMemoryServer(rm.objectsMgr)
 		} else {
-			if rm.sqlMgr == nil {
+			if rm.objectsMgr == nil {
 				return fmt.Errorf("StartObjects: no Object Storage cluster manager provided")
 			}
-			baseDir, err := rm.objectsMgr.BaseDir(ctx, rm.ns)
+			baseDir, err := rm.objectsMgr.BaseDir(rm.ns.ID)
 			if err != nil {
 				return err
 			}
-			srv = objects.NewDirServer(baseDir)
+			srv = objects.NewDirServer(rm.objectsMgr, rm.ns.ID, baseDir)
 		}
 
 		if err := srv.Initialize(md); err != nil {
@@ -459,15 +459,15 @@ func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisSe
 }
 
 // BucketProviderConfig returns the bucket provider configuration.
-func (rm *ResourceManager) BucketProviderConfig() (config.BucketProvider, error) {
+func (rm *ResourceManager) BucketProviderConfig() (config.BucketProvider, string, error) {
 	obj := rm.GetObjects()
 	if obj == nil {
-		return config.BucketProvider{}, errors.New("no object storage found")
+		return config.BucketProvider{}, "", errors.New("no object storage found")
 	}
 
 	return config.BucketProvider{
 		GCS: &config.GCSBucketProvider{
 			Endpoint: obj.Endpoint(),
 		},
-	}, nil
+	}, obj.PublicBaseURL(), nil
 }

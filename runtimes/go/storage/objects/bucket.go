@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"net/url"
 	"strings"
 
 	"encore.dev/appruntime/exported/config"
@@ -25,10 +26,16 @@ type Bucket struct {
 
 	// Prefix to prepend to all cloud names.
 	baseCloudPrefix string
+
+	// publicBaseURL, if the bucket is public
+	publicBaseURL *url.URL
 }
 
 // BucketConfig is the configuration for a Bucket.
 type BucketConfig struct {
+	// Whether objects in the bucket should be publicly accessible, via CDN.
+	Public bool
+
 	// Whether objects stored in the bucket should be versioned.
 	//
 	// If true, the bucket will store multiple versions of each object
@@ -56,14 +63,26 @@ func newBucket(mgr *Manager, name string) *Bucket {
 	for _, p := range mgr.providers {
 		if p.Matches(provider) {
 			impl := p.NewBucket(provider, bkt)
+
+			var publicBaseURL *url.URL
+			if bkt.PublicBaseURL != "" {
+				var err error
+				publicBaseURL, err = url.Parse(bkt.PublicBaseURL)
+				if err != nil {
+					mgr.rootLogger.Fatal().Msgf("invalid public base url for bucket %s: %v", name, err)
+				}
+			}
+
 			return &Bucket{
 				mgr:             mgr,
 				runtimeCfg:      bkt,
 				impl:            impl,
 				name:            name,
 				baseCloudPrefix: bkt.KeyPrefix,
+				publicBaseURL:   publicBaseURL,
 			}
 		}
+
 		tried = append(tried, p.ProviderName())
 	}
 
@@ -108,6 +127,25 @@ func (b *Bucket) Upload(ctx context.Context, object string, options ...UploadOpt
 	}
 
 	return w
+}
+
+// PublicURL returns the public URL for accessing an object in the bucket.
+func (b *Bucket) PublicURL(object string, options ...PublicURLOption) *url.URL {
+	if b.publicBaseURL == nil {
+		// This should never happen, since access to this method is controlled
+		// by static analysis.
+		panic("internal encore error: missing publicBaseURL for bucket " + b.name)
+	}
+
+	// Clone the base url
+	u := *b.publicBaseURL
+
+	if !strings.HasSuffix(u.Path, "/") {
+		u.Path += "/"
+	}
+	u.Path += escape(object, encodePath)
+
+	return &u
 }
 
 // Writer is the writer for an object being uploaded to a bucket.

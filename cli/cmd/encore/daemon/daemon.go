@@ -94,12 +94,13 @@ func runMain() (err error) {
 
 // Daemon orchestrates setting up the different daemon subsystems.
 type Daemon struct {
-	Daemon   *net.UnixListener
-	Runtime  *retryingTCPListener
-	DBProxy  *retryingTCPListener
-	Dash     *retryingTCPListener
-	Debug    *retryingTCPListener
-	EncoreDB *sql.DB
+	Daemon        *net.UnixListener
+	Runtime       *retryingTCPListener
+	DBProxy       *retryingTCPListener
+	Dash          *retryingTCPListener
+	Debug         *retryingTCPListener
+	ObjectStorage *retryingTCPListener
+	EncoreDB      *sql.DB
 
 	Apps       *apps.Manager
 	Secret     *secret.Manager
@@ -126,6 +127,7 @@ func (d *Daemon) init(ctx context.Context) {
 	d.DBProxy = d.listenTCPRetry("dbproxy", option.None[string](), 9500)
 	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
 	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
+	d.ObjectStorage = d.listenTCPRetry("objectstorage", option.None[string](), 9800)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
@@ -146,7 +148,7 @@ func (d *Daemon) init(ctx context.Context) {
 
 	d.NS = namespace.NewManager(d.EncoreDB)
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
-	d.ObjectsMgr = objects.NewClusterManager(d.NS)
+	d.ObjectsMgr = objects.NewClusterManager(d.NS, d.ObjectStorage.ClientAddr())
 
 	d.Trace = sqlite.New(ctx, d.EncoreDB)
 	d.Secret = secret.New()
@@ -173,6 +175,7 @@ func (d *Daemon) serve() {
 	go d.serveDBProxy()
 	go d.serveDash()
 	go d.serveDebug()
+	go d.serveObjects()
 }
 
 // listenDaemonSocket listens on the encored.sock UNIX socket
@@ -248,6 +251,11 @@ func (d *Daemon) serveRuntime() {
 func (d *Daemon) serveDBProxy() {
 	log.Info().Stringer("addr", d.DBProxy.Addr()).Msg("serving dbproxy")
 	d.exit <- d.ClusterMgr.ServeProxy(d.DBProxy)
+}
+
+func (d *Daemon) serveObjects() {
+	log.Info().Stringer("addr", d.ObjectStorage.Addr()).Msg("serving object storage")
+	d.exit <- d.ObjectsMgr.ServePublic(d.ObjectStorage)
 }
 
 func (d *Daemon) serveDash() {
