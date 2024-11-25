@@ -711,6 +711,11 @@
 				file: "ts/primitives/databases"
 			}, {
 				kind: "basic"
+				text: "PostgreSQL Extensions"
+				path: "/ts/primitives/databases-extensions"
+				file: "ts/primitives/database-extensions"
+			}, {
+				kind: "basic"
 				text: "Object Storage"
 				path: "/ts/primitives/object-storage"
 				file: "ts/primitives/object-storage"
