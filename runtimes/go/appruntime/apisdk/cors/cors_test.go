@@ -106,7 +106,7 @@ func TestOptions(t *testing.T) {
 				ExtraAllowedHeaders: []string{"Not-Authorization", "X-Forwarded-For", "X-Real-Ip"},
 			},
 			goodHeaders: []string{"Not-Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
-			badHeaders:  []string{"X-Requested-With", "X-Evil-Header"},
+			badHeaders:  []string{"X-Requested-With", "X-Evil-Header", "Authorization"},
 		},
 		{
 			name: "extra_headers_wildcard",
@@ -114,6 +114,7 @@ func TestOptions(t *testing.T) {
 				ExtraAllowedHeaders: []string{"X-Forwarded-For", "*", "X-Real-Ip"},
 			},
 			goodHeaders: []string{"Not-Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
+			badHeaders:  []string{"Authorization"},
 		},
 		{
 			name:        "static_headers",

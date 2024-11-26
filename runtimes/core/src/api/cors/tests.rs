@@ -59,11 +59,11 @@ fn check_headers(cors: &CorsHeadersConfig, allowed_headers: &[HeaderName], want_
 
     cors.apply(&req, &mut resp).expect("apply cors headers");
 
-    if !allowed_headers.is_empty() {
+    if !allowed_headers.is_empty() && want_ok {
         // check that the CORS response is valid (e.g if its a request with credentials)
         assert!(
             resp.headers.get(ACCESS_CONTROL_ALLOW_ORIGIN).is_some(),
-            "cors request not valid"
+            "expected cors request to be valid, but access-control-allow-origin is not set"
         )
     }
 
@@ -407,6 +407,7 @@ fn test_extra_headers() {
         bad_headers: &[
             HeaderName::from_static("x-forwarded-for"),
             HeaderName::from_static("x-evil-header"),
+            HeaderName::from_static("authorization"),
         ],
     });
 }
@@ -440,7 +441,7 @@ fn test_extra_headers_wildcard() {
             HeaderName::from_static("x-evil-header"),
             HeaderName::from_static("not-authorization"),
         ],
-        bad_headers: &[],
+        bad_headers: &[HeaderName::from_static("authorization")],
     });
 }
 
