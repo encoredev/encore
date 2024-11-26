@@ -74,8 +74,12 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 				}
 
 				if r.Method == http.MethodOptions {
-					values := r.Header.Values("Access-Control-Request-Headers")
-					return slices.Contains(values, "authorization")
+					return slices.ContainsFunc(
+						r.Header.Values("Access-Control-Request-Headers"),
+						func(val string) bool {
+							return val == "authorization" || val == "cookie"
+						},
+					)
 				}
 
 				return false

@@ -100,7 +100,7 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
                             .map(|val| {
                                 val.split(",")
                                     .map(|val| val.trim())
-                                    .any(|val| val == "authorization")
+                                    .any(|val| val == "authorization" || val == "cookie")
                             })
                             .unwrap_or(false)
                     });
