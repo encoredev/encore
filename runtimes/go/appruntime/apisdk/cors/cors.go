@@ -69,7 +69,7 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.
 			hasCreds := func(r *http.Request) bool {
-				if len(r.Cookies()) > 0 || r.Header["Authorization"] != nil || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0) {
+				if len(r.Cookies()) > 0 || len(r.Header.Values("Authorization")) > 0 || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0) {
 					return true
 				}
 
