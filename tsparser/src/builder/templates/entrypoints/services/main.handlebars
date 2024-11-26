@@ -1,5 +1,7 @@
 import { registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
-import { isMainThread } from "node:worker_threads";
+import { Worker, isMainThread } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import { availableParallelism } from "node:os";
 
 {{#each endpoints}}
 import { {{name}} as {{name}}Impl{{@index}} } from {{toJSON import_path}};
@@ -21,7 +23,15 @@ const handlers: Handler[] = [
 {{/each}}
 ];
 
+registerHandlers(handlers);
+
 if (isMainThread) {
-    registerHandlers(handlers);
-    await run();
+  const path = fileURLToPath(import.meta.url);
+  for (let i = 0; i < availableParallelism()-1; i++) {
+    new Worker(path);
+  }
+
+  await run();
+} else {
+  await new Promise(() => { });
 }
