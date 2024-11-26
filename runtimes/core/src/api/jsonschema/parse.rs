@@ -102,10 +102,22 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
         // Recurse
         Value::Ref(idx) => parse_header_value(header, reg, &reg.values[*idx]),
 
-        Value::Validation(v) => match &v.bov {
-            BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
-            BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
-        },
+        Value::Validation(v) => {
+            let inner = match &v.bov {
+                BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
+                BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+            }?;
+            match v.validate_pval(&inner) {
+                Ok(()) => Ok(inner),
+                Err(err) => Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: "invalid header value".to_string(),
+                    internal_message: Some(format!("invalid header value: {}", err)),
+                    stack: None,
+                    details: None,
+                }),
+            }
+        }
 
         // If we have an empty header for an option, that's fine.
         Value::Option(_) if header.is_empty() => Ok(PValue::Null),
@@ -206,6 +218,10 @@ impl ParseWithSchema<PValue> for PValue {
     }
 }
 
+#[cfg_attr(
+    feature = "rttrace",
+    tracing::instrument(skip(reg), ret, level = "trace")
+)]
 fn parse_json_value(this: PValue, reg: &Registry, schema: &Value) -> APIResult<PValue> {
     match schema {
         // Recurse
@@ -216,7 +232,7 @@ fn parse_json_value(this: PValue, reg: &Registry, schema: &Value) -> APIResult<P
                 BasicOrValue::Basic(basic) => parse_basic_json(reg, basic, this),
                 BasicOrValue::Value(idx) => parse_json_value(this, reg, &reg.values[*idx]),
             }?;
-            match v.validate(&inner) {
+            match v.validate_pval(&inner) {
                 Ok(()) => Ok(inner),
                 Err(err) => Err(api::Error {
                     code: api::ErrCode::InvalidArgument,

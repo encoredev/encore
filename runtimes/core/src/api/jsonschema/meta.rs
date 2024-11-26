@@ -310,7 +310,7 @@ impl BuilderCtx<'_, '_> {
     }
 }
 
-trait ToType {
+trait ToType: std::fmt::Debug {
     fn tt(&self) -> Result<&Typ>;
     fn validation(&self) -> Option<&schema::ValidationExpr>;
 }

@@ -270,6 +270,26 @@ macro_rules! recurse {
     }};
 }
 
+macro_rules! validate_pval {
+    ($self:ident, $v:ident, $method:ident, $value:expr) => {{
+        let inner = recurse!($self, &$v.bov, $method, $value)?;
+        match $v.validate_pval(&inner) {
+            Ok(()) => Ok(inner),
+            Err(err) => Err(serde::de::Error::custom(err)),
+        }
+    }};
+}
+
+macro_rules! validate_jval {
+    ($self:ident, $v:ident, $method:ident, $value:expr) => {{
+        recurse!($self, &$v.bov, $method, $value)?;
+        match $v.validate_jval($value) {
+            Ok(()) => Ok(()),
+            Err(err) => Err(serde::de::Error::custom(err)),
+        }
+    }};
+}
+
 macro_rules! recurse0 {
     ($self:ident, $bov:expr, $method:ident) => {{
         match $bov {
@@ -350,6 +370,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                 recurse!(self, val, visit_bool, value)
             }
             Value::Literal(Literal::Bool(bool)) if *bool == value => Ok(PValue::Bool(value)),
+            Value::Validation(v) => validate_pval!(self, v, visit_bool, value),
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_bool, value);
@@ -381,6 +402,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                 recurse!(self, val, visit_i64, value)
             }
             Value::Literal(Literal::Int(val)) if *val == value => Ok(PValue::Number(value.into())),
+            Value::Validation(v) => validate_pval!(self, v, visit_i64, value),
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_i64, value);
@@ -414,6 +436,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
             Value::Literal(Literal::Int(val)) if *val == value as i64 => {
                 Ok(PValue::Number(value.into()))
             }
+            Value::Validation(v) => validate_pval!(self, v, visit_u64, value),
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_u64, value);
@@ -456,6 +479,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                     )))
                 }
             }
+            Value::Validation(v) => validate_pval!(self, v, visit_f64, value),
             Value::Union(types) => {
                 for typ in types {
                     let res: Result<_, E> = recurse!(self, typ, visit_f64, value);
@@ -484,6 +508,10 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
     }
 
     #[inline]
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self), ret, level = "trace")
+    )]
     fn visit_string<E>(self, value: String) -> Result<PValue, E>
     where
         E: serde::de::Error,
@@ -582,6 +610,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                     value,
                 ))),
             },
+            Value::Validation(v) => validate_pval!(self, v, visit_string, value),
 
             Value::Union(types) => {
                 for typ in types {
@@ -671,6 +700,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
             },
             Value::Ref(idx) => recurse_ref!(self, idx, visit_seq, seq),
             Value::Option(bov) => recurse!(self, bov, visit_seq, seq),
+            Value::Validation(v) => validate_pval!(self, v, visit_seq, seq),
             Value::Union(candidates) => {
                 let mut vec: Vec<serde_json::Value> = Vec::new();
                 while let Some(val) = seq.next_element()? {
@@ -826,6 +856,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
 
             Value::Ref(idx) => recurse_ref!(self, idx, visit_map, map),
             Value::Option(bov) => recurse!(self, bov, visit_map, map),
+            Value::Validation(v) => validate_pval!(self, v, visit_map, map),
             Value::Union(candidates) => {
                 let mut values = serde_json::Map::new();
                 while let Some((key, value)) = map.next_entry()? {
@@ -905,6 +936,7 @@ impl DecodeValue<'_> {
                 Value::Basic(Basic::Any | Basic::Null) => Ok(()),
                 Value::Option(_) => Ok(()),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
+                Value::Validation(v) => validate_jval!(self, v, validate, value),
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -930,6 +962,7 @@ impl DecodeValue<'_> {
                         bool,
                     ))),
                 },
+                Value::Validation(v) => validate_jval!(self, v, validate, value),
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -962,6 +995,7 @@ impl DecodeValue<'_> {
                         num,
                     ))),
                 },
+                Value::Validation(v) => validate_jval!(self, v, validate, value),
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -999,6 +1033,7 @@ impl DecodeValue<'_> {
                         string,
                     ))),
                 },
+                Value::Validation(v) => validate_jval!(self, v, validate, value),
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -1051,6 +1086,7 @@ impl DecodeValue<'_> {
                     }
                     Ok(())
                 }
+                Value::Validation(v) => validate_jval!(self, v, validate, value),
                 Value::Union(types) => {
                     for typ in types {
                         let res: Result<_, E> = recurse!(self, typ, validate, value);
@@ -1170,6 +1206,7 @@ impl DecodeValue<'_> {
 
                     Ok(())
                 }
+                Value::Validation(v) => validate_jval!(self, v, validate, value),
 
                 _ => Err(serde::de::Error::invalid_type(Unexpected::Map, self)),
             },

@@ -10,8 +10,12 @@ pub struct Validation {
 }
 
 impl Validation {
-    pub fn validate<'a>(&'a self, val: &'a PValue) -> Result<(), Error<'a>> {
-        self.expr.validate(val)
+    pub fn validate_pval<'a>(&'a self, val: &'a PValue) -> Result<(), Error<'a>> {
+        self.expr.validate_pval(val)
+    }
+
+    pub fn validate_jval<'a>(&'a self, val: &'a serde_json::Value) -> Result<(), Error<'a>> {
+        self.expr.validate_jval(val)
     }
 }
 
@@ -22,35 +26,42 @@ pub enum Expr {
     Or(Vec<Expr>),
 }
 
-impl Expr {
-    pub fn validate<'a>(&'a self, val: &'a PValue) -> Result<(), Error<'a>> {
-        match self {
-            Expr::Rule(rule) => rule.validate(val),
-            Expr::And(exprs) => {
-                for expr in exprs {
-                    expr.validate(val)?;
+macro_rules! impl_validate {
+    ($method:ident, $typ:ty) => {
+        pub fn $method<'a>(&'a self, val: &'a $typ) -> Result<(), Error<'a>> {
+            match self {
+                Expr::Rule(rule) => rule.$method(val),
+                Expr::And(exprs) => {
+                    for expr in exprs {
+                        expr.$method(val)?;
+                    }
+                    Ok(())
                 }
-                Ok(())
-            }
-            Expr::Or(exprs) => {
-                let mut first_err = None;
-                for expr in exprs {
-                    match expr.validate(val) {
-                        Ok(()) => return Ok(()),
-                        Err(err) => {
-                            if first_err.is_none() {
-                                first_err = Some(err);
+                Expr::Or(exprs) => {
+                    let mut first_err = None;
+                    for expr in exprs {
+                        match expr.$method(val) {
+                            Ok(()) => return Ok(()),
+                            Err(err) => {
+                                if first_err.is_none() {
+                                    first_err = Some(err);
+                                }
                             }
                         }
                     }
-                }
-                match first_err {
-                    Some(err) => Err(err),
-                    None => Ok(()),
+                    match first_err {
+                        Some(err) => Err(err),
+                        None => Ok(()),
+                    }
                 }
             }
         }
-    }
+    };
+}
+
+impl Expr {
+    impl_validate!(validate_pval, PValue);
+    impl_validate!(validate_jval, serde_json::Value);
 }
 
 #[derive(Debug, Clone)]
@@ -101,12 +112,16 @@ pub enum Error<'a> {
     #[error("value is not {expected}")]
     Is { expected: &'a str },
 
-    #[error("unexpected type (got {got}, expected {want})")]
-    UnexpectedType { got: &'a PValue, want: &'a str },
+    #[error("unexpected type (expected {want})")]
+    UnexpectedType { want: &'a str },
 }
 
 impl Rule {
-    pub fn validate<'a>(&'a self, val: &'a PValue) -> Result<(), Error<'a>> {
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self), ret, level = "trace")
+    )]
+    pub fn validate_pval<'a>(&'a self, val: &'a PValue) -> Result<(), Error<'a>> {
         match self {
             Rule::MinLen(min_len) => match val {
                 PValue::Array(arr) => {
@@ -130,8 +145,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
+                _ => Err(Error::UnexpectedType {
                     want: "string or array",
                 }),
             },
@@ -158,8 +172,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
+                _ => Err(Error::UnexpectedType {
                     want: "string or array",
                 }),
             },
@@ -171,12 +184,9 @@ impl Rule {
                     } else if num.is_u64() {
                         num.as_u64().unwrap() < *min_val as u64
                     } else if num.is_f64() {
-                        num.as_f64().unwrap() < *min_val as f64
+                        num.as_f64().unwrap() < *min_val
                     } else {
-                        return Err(Error::UnexpectedType {
-                            got: val,
-                            want: "number",
-                        });
+                        return Err(Error::UnexpectedType { want: "number" });
                     };
                     if bad {
                         Err(Error::MinVal {
@@ -188,10 +198,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string or array",
-                }),
+                _ => Err(Error::UnexpectedType { want: "number" }),
             },
 
             Rule::MaxVal(max_val) => match val {
@@ -201,12 +208,9 @@ impl Rule {
                     } else if num.is_u64() {
                         num.as_u64().unwrap() > *max_val as u64
                     } else if num.is_f64() {
-                        num.as_f64().unwrap() > *max_val as f64
+                        num.as_f64().unwrap() > *max_val
                     } else {
-                        return Err(Error::UnexpectedType {
-                            got: val,
-                            want: "number",
-                        });
+                        return Err(Error::UnexpectedType { want: "number" });
                     };
                     if bad {
                         Err(Error::MaxVal {
@@ -218,10 +222,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string or array",
-                }),
+                _ => Err(Error::UnexpectedType { want: "number" }),
             },
 
             Rule::StartsWith(want) => match val {
@@ -233,10 +234,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string",
-                }),
+                _ => Err(Error::UnexpectedType { want: "string" }),
             },
 
             Rule::EndsWith(want) => match val {
@@ -248,10 +246,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string",
-                }),
+                _ => Err(Error::UnexpectedType { want: "string" }),
             },
 
             Rule::MatchesRegexp(re) => match val {
@@ -265,10 +260,7 @@ impl Rule {
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string",
-                }),
+                _ => Err(Error::UnexpectedType { want: "string" }),
             },
 
             Rule::Is(Is::Email) => match val {
@@ -279,14 +271,13 @@ impl Rule {
                     );
                     match email {
                         Ok(_) => Ok(()),
-                        Err(_) => Err(Error::Is { expected: "email" }),
+                        Err(_) => Err(Error::Is {
+                            expected: "an email",
+                        }),
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string",
-                }),
+                _ => Err(Error::UnexpectedType { want: "string" }),
             },
 
             Rule::Is(Is::Url) => match val {
@@ -294,14 +285,188 @@ impl Rule {
                     let u = url::Url::parse(str);
                     match u {
                         Ok(_) => Ok(()),
+                        Err(_) => Err(Error::Is { expected: "a url" }),
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "string" }),
+            },
+        }
+    }
+
+    #[cfg_attr(
+        feature = "rttrace",
+        tracing::instrument(skip(self), ret, level = "trace")
+    )]
+    pub fn validate_jval<'a>(&'a self, val: &'a serde_json::Value) -> Result<(), Error<'a>> {
+        use serde_json::Value as JVal;
+
+        match self {
+            Rule::MinLen(min_len) => match val {
+                JVal::Array(arr) => {
+                    if arr.len() < *min_len as usize {
+                        Err(Error::MinLen {
+                            got: arr.len(),
+                            min: *min_len as usize,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+                JVal::String(str) => {
+                    if str.len() < *min_len as usize {
+                        Err(Error::MinLen {
+                            got: str.len(),
+                            min: *min_len as usize,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType {
+                    want: "string or array",
+                }),
+            },
+
+            Rule::MaxLen(max_len) => match val {
+                JVal::Array(arr) => {
+                    if arr.len() > *max_len as usize {
+                        Err(Error::MaxLen {
+                            got: arr.len(),
+                            max: *max_len as usize,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+                JVal::String(str) => {
+                    if str.len() > *max_len as usize {
+                        Err(Error::MaxLen {
+                            got: str.len(),
+                            max: *max_len as usize,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType {
+                    want: "string or array",
+                }),
+            },
+
+            Rule::MinVal(min_val) => match val {
+                JVal::Number(num) => {
+                    let bad = if num.is_i64() {
+                        num.as_i64().unwrap() < *min_val as i64
+                    } else if num.is_u64() {
+                        num.as_u64().unwrap() < *min_val as u64
+                    } else if num.is_f64() {
+                        num.as_f64().unwrap() < *min_val
+                    } else {
+                        return Err(Error::UnexpectedType { want: "number" });
+                    };
+                    if bad {
+                        Err(Error::MinVal {
+                            got: num,
+                            min: *min_val,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "number" }),
+            },
+
+            Rule::MaxVal(max_val) => match val {
+                JVal::Number(num) => {
+                    let bad = if num.is_i64() {
+                        num.as_i64().unwrap() > *max_val as i64
+                    } else if num.is_u64() {
+                        num.as_u64().unwrap() > *max_val as u64
+                    } else if num.is_f64() {
+                        num.as_f64().unwrap() > *max_val
+                    } else {
+                        return Err(Error::UnexpectedType { want: "number" });
+                    };
+                    if bad {
+                        Err(Error::MaxVal {
+                            got: num,
+                            max: *max_val,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "number" }),
+            },
+
+            Rule::StartsWith(want) => match val {
+                JVal::String(got) => {
+                    if got.starts_with(got) {
+                        Ok(())
+                    } else {
+                        Err(Error::StartsWith { want })
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "string" }),
+            },
+
+            Rule::EndsWith(want) => match val {
+                JVal::String(got) => {
+                    if got.ends_with(got) {
+                        Ok(())
+                    } else {
+                        Err(Error::EndsWith { want })
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "string" }),
+            },
+
+            Rule::MatchesRegexp(re) => match val {
+                JVal::String(str) => {
+                    if re.is_match(str) {
+                        Ok(())
+                    } else {
+                        Err(Error::MatchesRegexp {
+                            regexp: re.as_str(),
+                        })
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "string" }),
+            },
+
+            Rule::Is(Is::Email) => match val {
+                JVal::String(str) => {
+                    let email = email_address::EmailAddress::parse_with_options(
+                        str,
+                        email_address::Options::default().without_display_text(),
+                    );
+                    match email {
+                        Ok(_) => Ok(()),
+                        Err(_) => Err(Error::Is { expected: "email" }),
+                    }
+                }
+
+                _ => Err(Error::UnexpectedType { want: "string" }),
+            },
+
+            Rule::Is(Is::Url) => match val {
+                JVal::String(str) => {
+                    let u = url::Url::parse(str);
+                    match u {
+                        Ok(_) => Ok(()),
                         Err(_) => Err(Error::Is { expected: "url" }),
                     }
                 }
 
-                other => Err(Error::UnexpectedType {
-                    got: other,
-                    want: "string",
-                }),
+                _ => Err(Error::UnexpectedType { want: "string" }),
             },
         }
     }
