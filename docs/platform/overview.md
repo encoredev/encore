@@ -12,7 +12,7 @@ Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â
 **If you're new, learn all about how Encore works in the [introduction](/docs/platform/introduction).**
 
 <div className="min-h-72 bg-black p-8 relative overflow-hidden not-prose">
-    <div className="w-[75%] lg:w-[60%]">
+    <div className="w-[75%] lg:w-[85%]">
         <h2 className="text-white lead-medium">Get Started</h2>
         <div className="body-small text-white mt-2">
             Sign up and take a tour of the Cloud Dashboard.
