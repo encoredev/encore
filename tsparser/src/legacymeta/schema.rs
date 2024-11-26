@@ -186,7 +186,7 @@ impl BuilderCtx<'_, '_> {
                 let mut typ = self.typ(typ)?;
                 // Simplify the validation expression, if possible.
                 let expr = expr.clone().simplify();
-                typ.validation = Some(validation(&expr));
+                typ.validation = Some(expr.to_pb());
                 typ
             }
         })
@@ -593,37 +593,4 @@ pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> R
         src_col_start: loc.src_col_start as i32,
         src_col_end: loc.src_col_end as i32,
     })
-}
-
-/// Transforms a validation expression to the schema equivalent.
-fn validation(expr: &validation::Expr) -> schema::ValidationExpr {
-    use schema::validation_expr::Expr as VE;
-    use schema::validation_rule::Rule as VR;
-    use validation::{Expr, Rule};
-
-    fn rule(r: &Rule) -> schema::validation_rule::Rule {
-        match r {
-            Rule::MinLen(n) => VR::MinLen(*n),
-            Rule::MaxLen(n) => VR::MaxLen(*n),
-            Rule::MinVal(n) => VR::MinVal(*n),
-            Rule::MaxVal(n) => VR::MaxVal(*n),
-        }
-    }
-
-    schema::ValidationExpr {
-        expr: Some(match expr {
-            Expr::Rule(r) => VE::Rule(schema::ValidationRule {
-                rule: Some(rule(r)),
-            }),
-            Expr::And(exprs) => VE::And(schema::validation_expr::And {
-                exprs: exprs.iter().map(validation).collect(),
-            }),
-            Expr::Or(exprs) => VE::Or(schema::validation_expr::Or {
-                exprs: exprs.iter().map(validation).collect(),
-            }),
-            Expr::Not(expr) => VE::Not(Box::new(schema::validation_expr::Not {
-                expr: Some(Box::new(validation(expr))),
-            })),
-        }),
-    }
 }

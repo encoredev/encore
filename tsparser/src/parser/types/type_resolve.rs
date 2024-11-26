@@ -1928,6 +1928,8 @@ impl Ctx<'_> {
 
     fn parse_validation(&self, named: &Named) -> Option<validation::Expr> {
         let name = named.obj.name.as_deref()?;
+
+        #[allow(dead_code)]
         fn i64_lit(typ: &Type) -> Option<i64> {
             if let Type::Literal(Literal::Number(n)) = typ {
                 let i = *n as i64;
@@ -1948,27 +1950,59 @@ impl Ctx<'_> {
             None
         }
 
+        fn f64_lit(typ: &Type) -> Option<f64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                return Some(*n);
+            }
+            None
+        }
+
+        fn str_lit(typ: &Type) -> Option<String> {
+            if let Type::Literal(Literal::String(s)) = typ {
+                return Some(s.clone());
+            }
+            None
+        }
+
+        use validation::{Expr, Is, Rule, N};
         Some(match name {
             "Min" => {
                 let typ = named.type_arguments.first()?;
-                let num = i64_lit(typ)?;
-                validation::Expr::Rule(validation::Rule::MinVal(num))
+                let num = f64_lit(typ)?;
+                Expr::Rule(Rule::MinVal(N(num)))
             }
             "Max" => {
                 let typ = named.type_arguments.first()?;
-                let num = i64_lit(typ)?;
-                validation::Expr::Rule(validation::Rule::MinVal(num))
+                let num = f64_lit(typ)?;
+                Expr::Rule(Rule::MaxVal(validation::N(num)))
             }
             "MinLen" => {
                 let typ = named.type_arguments.first()?;
                 let num = u64_lit(typ)?;
-                validation::Expr::Rule(validation::Rule::MinLen(num))
+                Expr::Rule(Rule::MinLen(num))
             }
             "MaxLen" => {
                 let typ = named.type_arguments.first()?;
                 let num = u64_lit(typ)?;
-                validation::Expr::Rule(validation::Rule::MaxLen(num))
+                Expr::Rule(Rule::MaxLen(num))
             }
+            "StartsWith" => {
+                let typ = named.type_arguments.first()?;
+                let str = str_lit(typ)?;
+                Expr::Rule(Rule::StartsWith(str))
+            }
+            "EndsWith" => {
+                let typ = named.type_arguments.first()?;
+                let str = str_lit(typ)?;
+                Expr::Rule(Rule::EndsWith(str))
+            }
+            "MatchesRegexp" => {
+                let typ = named.type_arguments.first()?;
+                let str = str_lit(typ)?;
+                Expr::Rule(Rule::MatchesRegexp(str))
+            }
+            "IsEmail" => Expr::Rule(Rule::Is(Is::Email)),
+            "IsURL" => Expr::Rule(Rule::Is(Is::Url)),
             _ => return None,
         })
     }

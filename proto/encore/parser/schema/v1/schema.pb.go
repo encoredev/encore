@@ -124,6 +124,55 @@ func (Builtin) EnumDescriptor() ([]byte, []int) {
 	return file_encore_parser_schema_v1_schema_proto_rawDescGZIP(), []int{0}
 }
 
+type ValidationRule_Is int32
+
+const (
+	ValidationRule_UNKNOWN ValidationRule_Is = 0
+	ValidationRule_EMAIL   ValidationRule_Is = 1
+	ValidationRule_URL     ValidationRule_Is = 2
+)
+
+// Enum value maps for ValidationRule_Is.
+var (
+	ValidationRule_Is_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "EMAIL",
+		2: "URL",
+	}
+	ValidationRule_Is_value = map[string]int32{
+		"UNKNOWN": 0,
+		"EMAIL":   1,
+		"URL":     2,
+	}
+)
+
+func (x ValidationRule_Is) Enum() *ValidationRule_Is {
+	p := new(ValidationRule_Is)
+	*p = x
+	return p
+}
+
+func (x ValidationRule_Is) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ValidationRule_Is) Descriptor() protoreflect.EnumDescriptor {
+	return file_encore_parser_schema_v1_schema_proto_enumTypes[1].Descriptor()
+}
+
+func (ValidationRule_Is) Type() protoreflect.EnumType {
+	return &file_encore_parser_schema_v1_schema_proto_enumTypes[1]
+}
+
+func (x ValidationRule_Is) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ValidationRule_Is.Descriptor instead.
+func (ValidationRule_Is) EnumDescriptor() ([]byte, []int) {
+	return file_encore_parser_schema_v1_schema_proto_rawDescGZIP(), []int{1, 0}
+}
+
 // Type represents the base of our schema on which everything else is built on-top of. It has to be one, and only one,
 // thing from our list of meta types.
 //
@@ -344,6 +393,10 @@ type ValidationRule struct {
 	//	*ValidationRule_MaxLen
 	//	*ValidationRule_MinVal
 	//	*ValidationRule_MaxVal
+	//	*ValidationRule_StartsWith
+	//	*ValidationRule_EndsWith
+	//	*ValidationRule_MatchesRegexp
+	//	*ValidationRule_Is_
 	Rule isValidationRule_Rule `protobuf_oneof:"rule"`
 }
 
@@ -400,18 +453,46 @@ func (x *ValidationRule) GetMaxLen() uint64 {
 	return 0
 }
 
-func (x *ValidationRule) GetMinVal() int64 {
+func (x *ValidationRule) GetMinVal() float64 {
 	if x, ok := x.GetRule().(*ValidationRule_MinVal); ok {
 		return x.MinVal
 	}
 	return 0
 }
 
-func (x *ValidationRule) GetMaxVal() int64 {
+func (x *ValidationRule) GetMaxVal() float64 {
 	if x, ok := x.GetRule().(*ValidationRule_MaxVal); ok {
 		return x.MaxVal
 	}
 	return 0
+}
+
+func (x *ValidationRule) GetStartsWith() string {
+	if x, ok := x.GetRule().(*ValidationRule_StartsWith); ok {
+		return x.StartsWith
+	}
+	return ""
+}
+
+func (x *ValidationRule) GetEndsWith() string {
+	if x, ok := x.GetRule().(*ValidationRule_EndsWith); ok {
+		return x.EndsWith
+	}
+	return ""
+}
+
+func (x *ValidationRule) GetMatchesRegexp() string {
+	if x, ok := x.GetRule().(*ValidationRule_MatchesRegexp); ok {
+		return x.MatchesRegexp
+	}
+	return ""
+}
+
+func (x *ValidationRule) GetIs() ValidationRule_Is {
+	if x, ok := x.GetRule().(*ValidationRule_Is_); ok {
+		return x.Is
+	}
+	return ValidationRule_UNKNOWN
 }
 
 type isValidationRule_Rule interface {
@@ -427,11 +508,27 @@ type ValidationRule_MaxLen struct {
 }
 
 type ValidationRule_MinVal struct {
-	MinVal int64 `protobuf:"varint,3,opt,name=min_val,json=minVal,proto3,oneof"`
+	MinVal float64 `protobuf:"fixed64,3,opt,name=min_val,json=minVal,proto3,oneof"`
 }
 
 type ValidationRule_MaxVal struct {
-	MaxVal int64 `protobuf:"varint,4,opt,name=max_val,json=maxVal,proto3,oneof"`
+	MaxVal float64 `protobuf:"fixed64,4,opt,name=max_val,json=maxVal,proto3,oneof"`
+}
+
+type ValidationRule_StartsWith struct {
+	StartsWith string `protobuf:"bytes,5,opt,name=starts_with,json=startsWith,proto3,oneof"`
+}
+
+type ValidationRule_EndsWith struct {
+	EndsWith string `protobuf:"bytes,6,opt,name=ends_with,json=endsWith,proto3,oneof"`
+}
+
+type ValidationRule_MatchesRegexp struct {
+	MatchesRegexp string `protobuf:"bytes,7,opt,name=matches_regexp,json=matchesRegexp,proto3,oneof"`
+}
+
+type ValidationRule_Is_ struct {
+	Is ValidationRule_Is `protobuf:"varint,8,opt,name=is,proto3,enum=encore.parser.schema.v1.ValidationRule_Is,oneof"`
 }
 
 func (*ValidationRule_MinLen) isValidationRule_Rule() {}
@@ -441,6 +538,14 @@ func (*ValidationRule_MaxLen) isValidationRule_Rule() {}
 func (*ValidationRule_MinVal) isValidationRule_Rule() {}
 
 func (*ValidationRule_MaxVal) isValidationRule_Rule() {}
+
+func (*ValidationRule_StartsWith) isValidationRule_Rule() {}
+
+func (*ValidationRule_EndsWith) isValidationRule_Rule() {}
+
+func (*ValidationRule_MatchesRegexp) isValidationRule_Rule() {}
+
+func (*ValidationRule_Is_) isValidationRule_Rule() {}
 
 type ValidationExpr struct {
 	state         protoimpl.MessageState
@@ -1852,15 +1957,28 @@ var file_encore_parser_schema_v1_schema_proto_rawDesc = []byte{
 	0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69, 0x6f,
 	0x6e, 0x45, 0x78, 0x70, 0x72, 0x48, 0x01, 0x52, 0x0a, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74,
 	0x69, 0x6f, 0x6e, 0x88, 0x01, 0x01, 0x42, 0x05, 0x0a, 0x03, 0x74, 0x79, 0x70, 0x42, 0x0d, 0x0a,
-	0x0b, 0x5f, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x84, 0x01, 0x0a,
+	0x0b, 0x5f, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0xd4, 0x02, 0x0a,
 	0x0e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x75, 0x6c, 0x65, 0x12,
 	0x19, 0x0a, 0x07, 0x6d, 0x69, 0x6e, 0x5f, 0x6c, 0x65, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04,
 	0x48, 0x00, 0x52, 0x06, 0x6d, 0x69, 0x6e, 0x4c, 0x65, 0x6e, 0x12, 0x19, 0x0a, 0x07, 0x6d, 0x61,
 	0x78, 0x5f, 0x6c, 0x65, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x48, 0x00, 0x52, 0x06, 0x6d,
 	0x61, 0x78, 0x4c, 0x65, 0x6e, 0x12, 0x19, 0x0a, 0x07, 0x6d, 0x69, 0x6e, 0x5f, 0x76, 0x61, 0x6c,
-	0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x48, 0x00, 0x52, 0x06, 0x6d, 0x69, 0x6e, 0x56, 0x61, 0x6c,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x01, 0x48, 0x00, 0x52, 0x06, 0x6d, 0x69, 0x6e, 0x56, 0x61, 0x6c,
 	0x12, 0x19, 0x0a, 0x07, 0x6d, 0x61, 0x78, 0x5f, 0x76, 0x61, 0x6c, 0x18, 0x04, 0x20, 0x01, 0x28,
-	0x03, 0x48, 0x00, 0x52, 0x06, 0x6d, 0x61, 0x78, 0x56, 0x61, 0x6c, 0x42, 0x06, 0x0a, 0x04, 0x72,
+	0x01, 0x48, 0x00, 0x52, 0x06, 0x6d, 0x61, 0x78, 0x56, 0x61, 0x6c, 0x12, 0x21, 0x0a, 0x0b, 0x73,
+	0x74, 0x61, 0x72, 0x74, 0x73, 0x5f, 0x77, 0x69, 0x74, 0x68, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09,
+	0x48, 0x00, 0x52, 0x0a, 0x73, 0x74, 0x61, 0x72, 0x74, 0x73, 0x57, 0x69, 0x74, 0x68, 0x12, 0x1d,
+	0x0a, 0x09, 0x65, 0x6e, 0x64, 0x73, 0x5f, 0x77, 0x69, 0x74, 0x68, 0x18, 0x06, 0x20, 0x01, 0x28,
+	0x09, 0x48, 0x00, 0x52, 0x08, 0x65, 0x6e, 0x64, 0x73, 0x57, 0x69, 0x74, 0x68, 0x12, 0x27, 0x0a,
+	0x0e, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x5f, 0x72, 0x65, 0x67, 0x65, 0x78, 0x70, 0x18,
+	0x07, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x0d, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73,
+	0x52, 0x65, 0x67, 0x65, 0x78, 0x70, 0x12, 0x3c, 0x0a, 0x02, 0x69, 0x73, 0x18, 0x08, 0x20, 0x01,
+	0x28, 0x0e, 0x32, 0x2a, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73,
+	0x65, 0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x56, 0x61, 0x6c,
+	0x69, 0x64, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x75, 0x6c, 0x65, 0x2e, 0x49, 0x73, 0x48, 0x00,
+	0x52, 0x02, 0x69, 0x73, 0x22, 0x25, 0x0a, 0x02, 0x49, 0x73, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e,
+	0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05, 0x45, 0x4d, 0x41, 0x49, 0x4c,
+	0x10, 0x01, 0x12, 0x07, 0x0a, 0x03, 0x55, 0x52, 0x4c, 0x10, 0x02, 0x42, 0x06, 0x0a, 0x04, 0x72,
 	0x75, 0x6c, 0x65, 0x22, 0xe1, 0x02, 0x0a, 0x0e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x69,
 	0x6f, 0x6e, 0x45, 0x78, 0x70, 0x72, 0x12, 0x3d, 0x0a, 0x04, 0x72, 0x75, 0x6c, 0x65, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x0b, 0x32, 0x27, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61,
@@ -2039,71 +2157,73 @@ func file_encore_parser_schema_v1_schema_proto_rawDescGZIP() []byte {
 	return file_encore_parser_schema_v1_schema_proto_rawDescData
 }
 
-var file_encore_parser_schema_v1_schema_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_encore_parser_schema_v1_schema_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_encore_parser_schema_v1_schema_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_encore_parser_schema_v1_schema_proto_goTypes = []interface{}{
 	(Builtin)(0),               // 0: encore.parser.schema.v1.Builtin
-	(*Type)(nil),               // 1: encore.parser.schema.v1.Type
-	(*ValidationRule)(nil),     // 2: encore.parser.schema.v1.ValidationRule
-	(*ValidationExpr)(nil),     // 3: encore.parser.schema.v1.ValidationExpr
-	(*TypeParameterRef)(nil),   // 4: encore.parser.schema.v1.TypeParameterRef
-	(*Decl)(nil),               // 5: encore.parser.schema.v1.Decl
-	(*TypeParameter)(nil),      // 6: encore.parser.schema.v1.TypeParameter
-	(*Loc)(nil),                // 7: encore.parser.schema.v1.Loc
-	(*Named)(nil),              // 8: encore.parser.schema.v1.Named
-	(*Struct)(nil),             // 9: encore.parser.schema.v1.Struct
-	(*Field)(nil),              // 10: encore.parser.schema.v1.Field
-	(*WireSpec)(nil),           // 11: encore.parser.schema.v1.WireSpec
-	(*Tag)(nil),                // 12: encore.parser.schema.v1.Tag
-	(*Map)(nil),                // 13: encore.parser.schema.v1.Map
-	(*List)(nil),               // 14: encore.parser.schema.v1.List
-	(*Pointer)(nil),            // 15: encore.parser.schema.v1.Pointer
-	(*Union)(nil),              // 16: encore.parser.schema.v1.Union
-	(*Literal)(nil),            // 17: encore.parser.schema.v1.Literal
-	(*ConfigValue)(nil),        // 18: encore.parser.schema.v1.ConfigValue
-	(*ValidationExpr_And)(nil), // 19: encore.parser.schema.v1.ValidationExpr.And
-	(*ValidationExpr_Or)(nil),  // 20: encore.parser.schema.v1.ValidationExpr.Or
-	(*WireSpec_Header)(nil),    // 21: encore.parser.schema.v1.WireSpec.Header
-	(*WireSpec_Query)(nil),     // 22: encore.parser.schema.v1.WireSpec.Query
+	(ValidationRule_Is)(0),     // 1: encore.parser.schema.v1.ValidationRule.Is
+	(*Type)(nil),               // 2: encore.parser.schema.v1.Type
+	(*ValidationRule)(nil),     // 3: encore.parser.schema.v1.ValidationRule
+	(*ValidationExpr)(nil),     // 4: encore.parser.schema.v1.ValidationExpr
+	(*TypeParameterRef)(nil),   // 5: encore.parser.schema.v1.TypeParameterRef
+	(*Decl)(nil),               // 6: encore.parser.schema.v1.Decl
+	(*TypeParameter)(nil),      // 7: encore.parser.schema.v1.TypeParameter
+	(*Loc)(nil),                // 8: encore.parser.schema.v1.Loc
+	(*Named)(nil),              // 9: encore.parser.schema.v1.Named
+	(*Struct)(nil),             // 10: encore.parser.schema.v1.Struct
+	(*Field)(nil),              // 11: encore.parser.schema.v1.Field
+	(*WireSpec)(nil),           // 12: encore.parser.schema.v1.WireSpec
+	(*Tag)(nil),                // 13: encore.parser.schema.v1.Tag
+	(*Map)(nil),                // 14: encore.parser.schema.v1.Map
+	(*List)(nil),               // 15: encore.parser.schema.v1.List
+	(*Pointer)(nil),            // 16: encore.parser.schema.v1.Pointer
+	(*Union)(nil),              // 17: encore.parser.schema.v1.Union
+	(*Literal)(nil),            // 18: encore.parser.schema.v1.Literal
+	(*ConfigValue)(nil),        // 19: encore.parser.schema.v1.ConfigValue
+	(*ValidationExpr_And)(nil), // 20: encore.parser.schema.v1.ValidationExpr.And
+	(*ValidationExpr_Or)(nil),  // 21: encore.parser.schema.v1.ValidationExpr.Or
+	(*WireSpec_Header)(nil),    // 22: encore.parser.schema.v1.WireSpec.Header
+	(*WireSpec_Query)(nil),     // 23: encore.parser.schema.v1.WireSpec.Query
 }
 var file_encore_parser_schema_v1_schema_proto_depIdxs = []int32{
-	8,  // 0: encore.parser.schema.v1.Type.named:type_name -> encore.parser.schema.v1.Named
-	9,  // 1: encore.parser.schema.v1.Type.struct:type_name -> encore.parser.schema.v1.Struct
-	13, // 2: encore.parser.schema.v1.Type.map:type_name -> encore.parser.schema.v1.Map
-	14, // 3: encore.parser.schema.v1.Type.list:type_name -> encore.parser.schema.v1.List
+	9,  // 0: encore.parser.schema.v1.Type.named:type_name -> encore.parser.schema.v1.Named
+	10, // 1: encore.parser.schema.v1.Type.struct:type_name -> encore.parser.schema.v1.Struct
+	14, // 2: encore.parser.schema.v1.Type.map:type_name -> encore.parser.schema.v1.Map
+	15, // 3: encore.parser.schema.v1.Type.list:type_name -> encore.parser.schema.v1.List
 	0,  // 4: encore.parser.schema.v1.Type.builtin:type_name -> encore.parser.schema.v1.Builtin
-	15, // 5: encore.parser.schema.v1.Type.pointer:type_name -> encore.parser.schema.v1.Pointer
-	16, // 6: encore.parser.schema.v1.Type.union:type_name -> encore.parser.schema.v1.Union
-	17, // 7: encore.parser.schema.v1.Type.literal:type_name -> encore.parser.schema.v1.Literal
-	4,  // 8: encore.parser.schema.v1.Type.type_parameter:type_name -> encore.parser.schema.v1.TypeParameterRef
-	18, // 9: encore.parser.schema.v1.Type.config:type_name -> encore.parser.schema.v1.ConfigValue
-	3,  // 10: encore.parser.schema.v1.Type.validation:type_name -> encore.parser.schema.v1.ValidationExpr
-	2,  // 11: encore.parser.schema.v1.ValidationExpr.rule:type_name -> encore.parser.schema.v1.ValidationRule
-	19, // 12: encore.parser.schema.v1.ValidationExpr.and:type_name -> encore.parser.schema.v1.ValidationExpr.And
-	20, // 13: encore.parser.schema.v1.ValidationExpr.or:type_name -> encore.parser.schema.v1.ValidationExpr.Or
-	1,  // 14: encore.parser.schema.v1.Decl.type:type_name -> encore.parser.schema.v1.Type
-	6,  // 15: encore.parser.schema.v1.Decl.type_params:type_name -> encore.parser.schema.v1.TypeParameter
-	7,  // 16: encore.parser.schema.v1.Decl.loc:type_name -> encore.parser.schema.v1.Loc
-	1,  // 17: encore.parser.schema.v1.Named.type_arguments:type_name -> encore.parser.schema.v1.Type
-	10, // 18: encore.parser.schema.v1.Struct.fields:type_name -> encore.parser.schema.v1.Field
-	1,  // 19: encore.parser.schema.v1.Field.typ:type_name -> encore.parser.schema.v1.Type
-	12, // 20: encore.parser.schema.v1.Field.tags:type_name -> encore.parser.schema.v1.Tag
-	11, // 21: encore.parser.schema.v1.Field.wire:type_name -> encore.parser.schema.v1.WireSpec
-	21, // 22: encore.parser.schema.v1.WireSpec.header:type_name -> encore.parser.schema.v1.WireSpec.Header
-	22, // 23: encore.parser.schema.v1.WireSpec.query:type_name -> encore.parser.schema.v1.WireSpec.Query
-	1,  // 24: encore.parser.schema.v1.Map.key:type_name -> encore.parser.schema.v1.Type
-	1,  // 25: encore.parser.schema.v1.Map.value:type_name -> encore.parser.schema.v1.Type
-	1,  // 26: encore.parser.schema.v1.List.elem:type_name -> encore.parser.schema.v1.Type
-	1,  // 27: encore.parser.schema.v1.Pointer.base:type_name -> encore.parser.schema.v1.Type
-	1,  // 28: encore.parser.schema.v1.Union.types:type_name -> encore.parser.schema.v1.Type
-	1,  // 29: encore.parser.schema.v1.ConfigValue.elem:type_name -> encore.parser.schema.v1.Type
-	3,  // 30: encore.parser.schema.v1.ValidationExpr.And.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
-	3,  // 31: encore.parser.schema.v1.ValidationExpr.Or.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
-	32, // [32:32] is the sub-list for method output_type
-	32, // [32:32] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	16, // 5: encore.parser.schema.v1.Type.pointer:type_name -> encore.parser.schema.v1.Pointer
+	17, // 6: encore.parser.schema.v1.Type.union:type_name -> encore.parser.schema.v1.Union
+	18, // 7: encore.parser.schema.v1.Type.literal:type_name -> encore.parser.schema.v1.Literal
+	5,  // 8: encore.parser.schema.v1.Type.type_parameter:type_name -> encore.parser.schema.v1.TypeParameterRef
+	19, // 9: encore.parser.schema.v1.Type.config:type_name -> encore.parser.schema.v1.ConfigValue
+	4,  // 10: encore.parser.schema.v1.Type.validation:type_name -> encore.parser.schema.v1.ValidationExpr
+	1,  // 11: encore.parser.schema.v1.ValidationRule.is:type_name -> encore.parser.schema.v1.ValidationRule.Is
+	3,  // 12: encore.parser.schema.v1.ValidationExpr.rule:type_name -> encore.parser.schema.v1.ValidationRule
+	20, // 13: encore.parser.schema.v1.ValidationExpr.and:type_name -> encore.parser.schema.v1.ValidationExpr.And
+	21, // 14: encore.parser.schema.v1.ValidationExpr.or:type_name -> encore.parser.schema.v1.ValidationExpr.Or
+	2,  // 15: encore.parser.schema.v1.Decl.type:type_name -> encore.parser.schema.v1.Type
+	7,  // 16: encore.parser.schema.v1.Decl.type_params:type_name -> encore.parser.schema.v1.TypeParameter
+	8,  // 17: encore.parser.schema.v1.Decl.loc:type_name -> encore.parser.schema.v1.Loc
+	2,  // 18: encore.parser.schema.v1.Named.type_arguments:type_name -> encore.parser.schema.v1.Type
+	11, // 19: encore.parser.schema.v1.Struct.fields:type_name -> encore.parser.schema.v1.Field
+	2,  // 20: encore.parser.schema.v1.Field.typ:type_name -> encore.parser.schema.v1.Type
+	13, // 21: encore.parser.schema.v1.Field.tags:type_name -> encore.parser.schema.v1.Tag
+	12, // 22: encore.parser.schema.v1.Field.wire:type_name -> encore.parser.schema.v1.WireSpec
+	22, // 23: encore.parser.schema.v1.WireSpec.header:type_name -> encore.parser.schema.v1.WireSpec.Header
+	23, // 24: encore.parser.schema.v1.WireSpec.query:type_name -> encore.parser.schema.v1.WireSpec.Query
+	2,  // 25: encore.parser.schema.v1.Map.key:type_name -> encore.parser.schema.v1.Type
+	2,  // 26: encore.parser.schema.v1.Map.value:type_name -> encore.parser.schema.v1.Type
+	2,  // 27: encore.parser.schema.v1.List.elem:type_name -> encore.parser.schema.v1.Type
+	2,  // 28: encore.parser.schema.v1.Pointer.base:type_name -> encore.parser.schema.v1.Type
+	2,  // 29: encore.parser.schema.v1.Union.types:type_name -> encore.parser.schema.v1.Type
+	2,  // 30: encore.parser.schema.v1.ConfigValue.elem:type_name -> encore.parser.schema.v1.Type
+	4,  // 31: encore.parser.schema.v1.ValidationExpr.And.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
+	4,  // 32: encore.parser.schema.v1.ValidationExpr.Or.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_encore_parser_schema_v1_schema_proto_init() }
@@ -2394,6 +2514,10 @@ func file_encore_parser_schema_v1_schema_proto_init() {
 		(*ValidationRule_MaxLen)(nil),
 		(*ValidationRule_MinVal)(nil),
 		(*ValidationRule_MaxVal)(nil),
+		(*ValidationRule_StartsWith)(nil),
+		(*ValidationRule_EndsWith)(nil),
+		(*ValidationRule_MatchesRegexp)(nil),
+		(*ValidationRule_Is_)(nil),
 	}
 	file_encore_parser_schema_v1_schema_proto_msgTypes[2].OneofWrappers = []interface{}{
 		(*ValidationExpr_Rule)(nil),
@@ -2419,7 +2543,7 @@ func file_encore_parser_schema_v1_schema_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_encore_parser_schema_v1_schema_proto_rawDesc,
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,

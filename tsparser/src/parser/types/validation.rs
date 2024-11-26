@@ -1,19 +1,31 @@
+use crate::encore::parser::schema::v1 as schema;
+use core::hash::{Hash, Hasher};
 use serde::Serialize;
+use std::ops::Deref;
 
-#[derive(Debug, Clone, Hash, Serialize)]
+#[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
 pub enum Expr {
     Rule(Rule),
     And(Vec<Expr>),
     Or(Vec<Expr>),
-    Not(Box<Expr>),
 }
 
-#[derive(Debug, Clone, Hash, Serialize)]
+#[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
 pub enum Rule {
     MinLen(u64),
     MaxLen(u64),
-    MinVal(i64),
-    MaxVal(i64),
+    MinVal(N),
+    MaxVal(N),
+    StartsWith(String),
+    EndsWith(String),
+    MatchesRegexp(String),
+    Is(Is),
+}
+
+#[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
+pub enum Is {
+    Email,
+    Url,
 }
 
 impl Rule {
@@ -22,8 +34,8 @@ impl Rule {
         Some(match (self, other) {
             (MinLen(a), MinLen(b)) => MinLen((*a).min(*b)),
             (MaxLen(a), MaxLen(b)) => MaxLen((*a).max(*b)),
-            (MinVal(a), MinVal(b)) => MinVal((*a).min(*b)),
-            (MaxVal(a), MaxVal(b)) => MaxVal((*a).max(*b)),
+            (MinVal(a), MinVal(b)) => MinVal(N((*a).min(**b))),
+            (MaxVal(a), MaxVal(b)) => MaxVal(N((*a).max(**b))),
             _ => return None,
         })
     }
@@ -33,10 +45,27 @@ impl Rule {
         Some(match (self, other) {
             (MinLen(a), MinLen(b)) => MinLen((*a).max(*b)),
             (MaxLen(a), MaxLen(b)) => MaxLen((*a).min(*b)),
-            (MinVal(a), MinVal(b)) => MinVal((*a).max(*b)),
-            (MaxVal(a), MaxVal(b)) => MaxVal((*a).min(*b)),
+            (MinVal(a), MinVal(b)) => MinVal(N((*a).max(**b))),
+            (MaxVal(a), MaxVal(b)) => MaxVal(N((*a).min(**b))),
             _ => return None,
         })
+    }
+
+    pub fn to_pb(&self) -> schema::validation_rule::Rule {
+        use schema::validation_rule::Rule as VR;
+        match self {
+            Rule::MinLen(n) => VR::MinLen(*n),
+            Rule::MaxLen(n) => VR::MaxLen(*n),
+            Rule::MinVal(n) => VR::MinVal(**n),
+            Rule::MaxVal(n) => VR::MaxVal(**n),
+            Rule::StartsWith(str) => VR::StartsWith(str.clone()),
+            Rule::EndsWith(str) => VR::EndsWith(str.clone()),
+            Rule::MatchesRegexp(str) => VR::MatchesRegexp(str.clone()),
+            Rule::Is(is) => VR::Is(match is {
+                Is::Email => schema::validation_rule::Is::Email,
+                Is::Url => schema::validation_rule::Is::Url,
+            } as i32),
+        }
     }
 }
 
@@ -75,15 +104,6 @@ impl Expr {
                 Expr::Or(b)
             }
             (a, b) => Expr::Or(vec![a, b]),
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn not(self) -> Self {
-        if let Expr::Not(inner) = self {
-            *inner
-        } else {
-            Expr::Not(Box::new(self))
         }
     }
 
@@ -179,5 +199,72 @@ impl Expr {
 
             _ => self,
         }
+    }
+
+    pub fn to_pb(&self) -> schema::ValidationExpr {
+        use schema::validation_expr::Expr as VE;
+
+        schema::ValidationExpr {
+            expr: Some(match self {
+                Expr::Rule(r) => VE::Rule(schema::ValidationRule {
+                    rule: Some(r.to_pb()),
+                }),
+                Expr::And(exprs) => VE::And(schema::validation_expr::And {
+                    exprs: exprs.iter().map(Self::to_pb).collect(),
+                }),
+                Expr::Or(exprs) => VE::Or(schema::validation_expr::Or {
+                    exprs: exprs.iter().map(Self::to_pb).collect(),
+                }),
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct N(pub f64);
+
+impl Deref for N {
+    type Target = f64;
+
+    fn deref(&self) -> &f64 {
+        &self.0
+    }
+}
+
+impl PartialEq for N {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for N {}
+
+impl Hash for N {
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        if self.0 == 0.0f64 {
+            // There are 2 zero representations, +0 and -0, which
+            // compare equal but have different bits. We use the +0 hash
+            // for both so that hash(+0) == hash(-0).
+            0.0f64.to_bits().hash(h);
+        } else {
+            self.0.to_bits().hash(h);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_simplify() {
+        use super::*;
+
+        let expr = Expr::Or(vec![
+            Expr::Rule(Rule::MinLen(10)),
+            Expr::Rule(Rule::MinLen(20)),
+            Expr::Rule(Rule::MinLen(30)),
+        ]);
+
+        let simplified = expr.simplify();
+        assert_eq!(simplified, Expr::Rule(Rule::MinLen(10)));
     }
 }

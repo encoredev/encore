@@ -33,10 +33,20 @@ message Type {
 
 message ValidationRule {
   oneof rule {
-    uint64 min_len = 1;
-    uint64 max_len = 2;
-    int64 min_val = 3;
-    int64 max_val = 4;
+    uint64 min_len          = 1;
+    uint64 max_len          = 2;
+    double min_val          = 3;
+    double max_val          = 4;
+    string starts_with      = 5;
+    string ends_with        = 6;
+    string matches_regexp   = 7;
+    Is     is               = 8;
+  }
+
+  enum Is {
+    UNKNOWN = 0;
+    EMAIL   = 1;
+    URL     = 2;
   }
 }
 
@@ -45,7 +55,6 @@ message ValidationExpr {
     ValidationRule rule = 1;
     And            and  = 2;
     Or             or   = 3;
-    Not            not  = 4;
   }
 
   message And {
@@ -54,10 +63,6 @@ message ValidationExpr {
 
   message Or {
     repeated ValidationExpr exprs = 1;
-  }
-
-  message Not {
-    ValidationExpr expr = 1;
   }
 }
 

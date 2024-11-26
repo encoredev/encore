@@ -102,6 +102,11 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
         // Recurse
         Value::Ref(idx) => parse_header_value(header, reg, &reg.values[*idx]),
 
+        Value::Validation(v) => match &v.bov {
+            BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
+            BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+        },
+
         // If we have an empty header for an option, that's fine.
         Value::Option(_) if header.is_empty() => Ok(PValue::Null),
 
@@ -205,6 +210,23 @@ fn parse_json_value(this: PValue, reg: &Registry, schema: &Value) -> APIResult<P
     match schema {
         // Recurse
         Value::Ref(idx) => parse_json_value(this, reg, &reg.values[*idx]),
+
+        Value::Validation(v) => {
+            let inner = match &v.bov {
+                BasicOrValue::Basic(basic) => parse_basic_json(reg, basic, this),
+                BasicOrValue::Value(idx) => parse_json_value(this, reg, &reg.values[*idx]),
+            }?;
+            match v.validate(&inner) {
+                Ok(()) => Ok(inner),
+                Err(err) => Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: err.to_string(),
+                    internal_message: None,
+                    stack: None,
+                    details: None,
+                }),
+            }
+        }
 
         // If we have a null value for an option, that's fine.
         Value::Option(_) if this.is_null() => Ok(PValue::Null),
