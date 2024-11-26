@@ -955,7 +955,7 @@
 	items: [
 		{
 			kind: "section"
-			text: "Get started"
+			text: "Concepts"
 			items: [{
 				kind: "basic"
 				text: "Introduction"
