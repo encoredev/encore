@@ -61,7 +61,10 @@ fn check_headers(cors: &CorsHeadersConfig, allowed_headers: &[HeaderName], want_
 
     if !allowed_headers.is_empty() {
         // check that the CORS response is valid (e.g if its a request with credentials)
-        assert!(resp.headers.get(ACCESS_CONTROL_ALLOW_ORIGIN).is_some())
+        assert!(
+            resp.headers.get(ACCESS_CONTROL_ALLOW_ORIGIN).is_some(),
+            "cors request not valid"
+        )
     }
 
     // check allowed headers.
@@ -382,7 +385,11 @@ fn test_extra_headers() {
             disable_credentials: false,
             allowed_origins_with_credentials: None,
             allowed_origins_without_credentials: None,
-            extra_allowed_headers: vec!["X-Forwarded-For".to_string(), "X-Real-Ip".to_string()],
+            extra_allowed_headers: vec![
+                "Not-Authorization".to_string(),
+                "X-Forwarded-For".to_string(),
+                "X-Real-Ip".to_string(),
+            ],
             extra_exposed_headers: vec![],
             allow_private_network_access: false,
         },
@@ -395,6 +402,7 @@ fn test_extra_headers() {
             ORIGIN,
             HeaderName::from_static("x-requested-with"),
             HeaderName::from_static("x-real-ip"),
+            HeaderName::from_static("not-authorization"),
         ],
         bad_headers: &[
             HeaderName::from_static("x-forwarded-for"),
@@ -430,6 +438,7 @@ fn test_extra_headers_wildcard() {
             HeaderName::from_static("x-real-ip"),
             HeaderName::from_static("x-forwarded-for"),
             HeaderName::from_static("x-evil-header"),
+            HeaderName::from_static("not-authorization"),
         ],
         bad_headers: &[],
     });

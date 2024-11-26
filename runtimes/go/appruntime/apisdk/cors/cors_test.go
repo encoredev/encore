@@ -103,9 +103,9 @@ func TestOptions(t *testing.T) {
 		{
 			name: "extra_headers",
 			cfg: config.CORS{
-				ExtraAllowedHeaders: []string{"X-Forwarded-For", "X-Real-Ip"},
+				ExtraAllowedHeaders: []string{"Not-Authorization", "X-Forwarded-For", "X-Real-Ip"},
 			},
-			goodHeaders: []string{"Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
+			goodHeaders: []string{"Not-Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
 			badHeaders:  []string{"X-Requested-With", "X-Evil-Header"},
 		},
 		{
@@ -113,7 +113,7 @@ func TestOptions(t *testing.T) {
 			cfg: config.CORS{
 				ExtraAllowedHeaders: []string{"X-Forwarded-For", "*", "X-Real-Ip"},
 			},
-			goodHeaders: []string{"Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
+			goodHeaders: []string{"Not-Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
 		},
 		{
 			name:        "static_headers",
@@ -136,7 +136,7 @@ func TestOptions(t *testing.T) {
 			h := make(http.Header)
 			h.Set("Origin", o)
 			if creds {
-				h.Set("Access-Control-Request-Headers", "Authorization")
+				h.Set("Access-Control-Request-Headers", "authorization")
 			}
 			allowed := c.OriginAllowed(&http.Request{Header: h, Method: "OPTIONS"})
 			if allowed != good {
@@ -151,7 +151,7 @@ func TestOptions(t *testing.T) {
 		req := httptest.NewRequest("OPTIONS", "/", nil)
 		req.Header.Set("Origin", "https://example.org")
 		req.Header.Set("Access-Control-Request-Method", "GET")
-		req.Header.Set("Access-Control-Request-Headers", strings.Join(allowedHeaders, ", "))
+		req.Header.Set("Access-Control-Request-Headers", strings.ToLower(strings.Join(allowedHeaders, ",")))
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, req, nil)
 

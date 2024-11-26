@@ -93,10 +93,17 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
             if req.method == http::method::Method::OPTIONS {
                 return req
                     .headers
-                    .get(ACCESS_CONTROL_REQUEST_HEADERS)
-                    .and_then(|val| val.to_str().ok())
-                    .map(|val| val.to_lowercase().contains("authorization"))
-                    .unwrap_or(false);
+                    .get_all(ACCESS_CONTROL_REQUEST_HEADERS)
+                    .iter()
+                    .any(|val| {
+                        val.to_str()
+                            .map(|val| {
+                                val.split(",")
+                                    .map(|val| val.trim())
+                                    .any(|val| val == "authorization")
+                            })
+                            .unwrap_or(false)
+                    });
             }
 
             false

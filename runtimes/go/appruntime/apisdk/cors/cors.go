@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -73,9 +74,8 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 				}
 
 				if r.Method == http.MethodOptions {
-					if val := r.Header.Get("Access-Control-Request-Headers"); val != "" {
-						return strings.Contains(strings.ToLower(val), "authorization")
-					}
+					values := r.Header.Values("Access-Control-Request-Headers")
+					return slices.Contains(values, "authorization")
 				}
 
 				return false
