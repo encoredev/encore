@@ -9,7 +9,7 @@ import { {{bind_name}} as {{encoreNameToIdent encore_name}}Impl } from {{toJSON 
 
 const gateways = [
 {{#each gateways}}
-    {{encore_name}}Impl,
+    {{encoreNameToIdent encore_name}}Impl,
 {{/each}}
 ];
 
