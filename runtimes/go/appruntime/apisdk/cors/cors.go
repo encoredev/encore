@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -67,8 +68,29 @@ func Options(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []stri
 		AllowOriginRequestFunc: func(r *http.Request, origin string) bool {
 			// If the request has credentials, look up origins in AllowOriginsWithCredentials.
 			// Credentials are cookies, authorization headers, or TLS client certificates.
-			hasCreds := len(r.Cookies()) > 0 || r.Header["Authorization"] != nil || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0)
-			if hasCreds {
+			hasCreds := func(r *http.Request) bool {
+				if len(r.Cookies()) > 0 || len(r.Header.Values("Authorization")) > 0 || (r.TLS != nil && len(r.TLS.PeerCertificates) > 0) {
+					return true
+				}
+
+				if r.Method == http.MethodOptions {
+					return slices.ContainsFunc(
+						r.Header.Values("Access-Control-Request-Headers"),
+						func(val string) bool {
+							return slices.ContainsFunc(
+								strings.Split(val, ","),
+								func(val string) bool {
+									val = strings.TrimSpace(val)
+									return val == "authorization" || val == "cookie"
+								},
+							)
+						},
+					)
+				}
+
+				return false
+			}
+			if hasCreds(r) {
 				ok := hasUnsafeWildcardOriginWithCreds || sortedSliceContains(originsCreds, origin)
 				if !ok {
 					// Not an exact match. Check any glob origins.

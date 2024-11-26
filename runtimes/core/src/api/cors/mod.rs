@@ -1,13 +1,18 @@
 use crate::api::{auth, EndpointMap};
 use crate::encore::runtime::v1 as pb;
+use crate::encore::runtime::v1::gateway::CorsAllowedOrigins;
 use anyhow::Context;
 use axum::http::{HeaderName, HeaderValue};
+use http::header::{ACCESS_CONTROL_REQUEST_HEADERS, AUTHORIZATION, COOKIE};
 use std::collections::HashSet;
 use std::str::FromStr;
 
 use self::cors_headers_config::{ensure_usable_cors_rules, CorsHeadersConfig};
 
 pub mod cors_headers_config;
+
+#[cfg(test)]
+mod tests;
 
 /// The default set of allowed headers.
 #[allow(clippy::declare_interior_mutable_const)]
@@ -30,15 +35,23 @@ pub const ALWAYS_EXPOSED_HEADERS: [HeaderName; 3] = [
 ];
 
 pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<CorsHeadersConfig> {
-    let mut allowed_headers = cfg
-        .extra_allowed_headers
-        .iter()
-        .map(|s| HeaderName::from_str(s))
-        .collect::<Result<Vec<_>, _>>()
-        .context("failed to parse extra allowed headers")?;
-    #[allow(clippy::borrow_interior_mutable_const)]
-    allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
-    allowed_headers.extend(meta.allow_headers);
+    let allow_any_headers = cfg.extra_allowed_headers.iter().any(|val| val == "*");
+
+    let allow_headers = if allow_any_headers {
+        cors_headers_config::AllowHeaders::mirror_request()
+    } else {
+        let mut allowed_headers = cfg
+            .extra_allowed_headers
+            .iter()
+            .map(|s| HeaderName::from_str(s))
+            .collect::<Result<Vec<_>, _>>()
+            .context("failed to parse extra allowed headers")?;
+        #[allow(clippy::borrow_interior_mutable_const)]
+        allowed_headers.extend_from_slice(&ALWAYS_ALLOWED_HEADERS);
+        allowed_headers.extend(meta.allow_headers);
+
+        cors_headers_config::AllowHeaders::list(allowed_headers)
+    };
 
     let mut exposed_headers = cfg
         .extra_exposed_headers
@@ -62,21 +75,45 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
             }
             _ => OriginSet::Some(vec![]),
         };
-        let without_creds = OriginSet::new(
-            cfg.allowed_origins_without_credentials
-                .clone()
-                .unwrap_or_default()
-                .allowed_origins,
-        );
+        let without_creds = {
+            if let Some(CorsAllowedOrigins { allowed_origins }) =
+                &cfg.allowed_origins_without_credentials
+            {
+                OriginSet::new(allowed_origins.to_vec())
+            } else {
+                OriginSet::All
+            }
+        };
+
+        let request_has_creds = |req: &axum::http::request::Parts| -> bool {
+            if req.headers.contains_key(AUTHORIZATION) || req.headers.contains_key(COOKIE) {
+                return true;
+            }
+
+            if req.method == http::method::Method::OPTIONS {
+                return req
+                    .headers
+                    .get_all(ACCESS_CONTROL_REQUEST_HEADERS)
+                    .iter()
+                    .any(|val| {
+                        val.to_str()
+                            .map(|val| {
+                                val.split(",")
+                                    .map(|val| val.trim())
+                                    .any(|val| val == "authorization" || val == "cookie")
+                            })
+                            .unwrap_or(false)
+                    });
+            }
+
+            false
+        };
 
         let pred = move |origin: &HeaderValue, req: &axum::http::request::Parts| {
             let Ok(origin) = origin.to_str() else {
                 return false;
             };
-            let headers = &req.headers;
-            if headers.contains_key(axum::http::header::AUTHORIZATION)
-                || headers.contains_key(axum::http::header::COOKIE)
-            {
+            if request_has_creds(req) {
                 with_creds.allows(origin)
             } else {
                 without_creds.allows(origin)
@@ -87,7 +124,7 @@ pub fn config(cfg: &pb::gateway::Cors, meta: MetaHeaders) -> anyhow::Result<Cors
 
     let config = CorsHeadersConfig::new()
         .allow_private_network(cfg.allow_private_network_access)
-        .allow_headers(cors_headers_config::AllowHeaders::list(allowed_headers))
+        .allow_headers(allow_headers)
         .expose_headers(cors_headers_config::ExposeHeaders::list(exposed_headers))
         .allow_credentials(!cfg.disable_credentials)
         .allow_methods(cors_headers_config::AllowMethods::mirror_request())
