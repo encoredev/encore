@@ -19,7 +19,7 @@ contains information about the application, including:
 
 - `appId` - the application name.
 - `apiBaseUrl` - the URL the application API can be publicly accessed on.
-- `environment` - the [environment](/docs/deploy/environments) the application is currently running in.
+- `environment` - the [environment](/docs/platform/deploy/environments) the application is currently running in.
 - `build` - the revision information of the build from the version control system.
 - `deploy` - the deployment ID and when this version of the app was deployed.
 
@@ -126,9 +126,9 @@ initialization, `currentRequest()` returns `undefined`.
 
 ### Using Cloud Specific Services
 
-All the [clouds](/docs/deploy/own-cloud) contain a large number of services, not all of which Encore natively supports.
+All the [clouds](/docs/platform/infrastructure/own-cloud) contain a large number of services, not all of which Encore natively supports.
 
-By using information about the [environment](/docs/deploy/environments), you can define the implementation of these and use different services for each environment's provider.
+By using information about the [environment](/docs/platform/deploy/environments), you can define the implementation of these and use different services for each environment's provider.
 
 For instance if you are pushing audit logs into a data warehouse, when running on GCP you could use BigQuery, but when running on AWS you could use Redshift, when running locally you could simply write them to a file.
 
@@ -167,7 +167,8 @@ export const signup = api(
 
     // If this is a testing environment, skip sending the verification email.
     switch (appMeta().environment.type) {
-      case ("test", "development"):
+      case "test":
+      case "development":
         await markEmailVerified(userID);
         break;
       default:

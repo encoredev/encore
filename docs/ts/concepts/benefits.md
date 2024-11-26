@@ -2,7 +2,6 @@
 seotitle: Benefits of using Encore.ts
 seodesc: Get to know the benefits of using Encore's Backend Framework for TypeScript to build cloud-native backend applications.
 title: Benefits of using Encore.ts
-toc: false
 lang: ts
 ---
 
@@ -13,7 +12,7 @@ lang: ts
 - **No manual configuration required**: No need for Infrastructure-as-Code. Your code is the single source of truth.
 - **Unified codebase**: One codebase for all environments; local, preview, and cloud.
 - **Cloud-agnostic by default**: Encore.ts provides an abstraction layer on top of the cloud provider's APIs, so you avoid becoming locked in to a single cloud.
-- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/how-to/self-host) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
+- **Evolve infrastructure without code changes**: As requirements evolve, you can change the provisioned infrastructure without needing application code changes. Either using the Open Source [self-hosting tools](/docs/ts/self-host/build) or with the optional [Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully-automates infrastructure management in your own AWS/GCP account.
   
 ## High-performance Rust runtime
 
@@ -45,7 +44,7 @@ Encore.ts is designed to let the Node.js event loop — which is single-threaded
 ## Enhanced type-safety for distributed systems
 
 Encore leverages static code analysis to parse the API schema and TypeScript types you define. This enables a number of features:
-- Built-in [local development dashboard](/docs/observability/dev-dash)
+- Built-in [local development dashboard](/docs/ts/observability/dev-dash)
 - API Explorer, automatic documentation, and local tracing
 - Runtime type-safety, automatically validating incoming requests against the API schema
 - Eliminating runtime errors due to missing required fields
@@ -53,7 +52,7 @@ Encore leverages static code analysis to parse the API schema and TypeScript typ
 ## No DevOps experience required
 
 Encore provides open source tools to help you integrate with your cloud infrastructure, enabling you to self-host your application anywhere that supports Docker containers.
-Learn more in the [self-host documentation](/docs/how-to/self-host).
+Learn more in the [self-host documentation](/docs/ts/self-host/build).
 
 You can also use [Encore's Cloud Platform](https://encore.dev/use-cases/devops-automation), which fully automates provisioning and managing infrastructure in your own cloud on AWS and GCP.
 
@@ -65,4 +64,4 @@ Encore.ts provides integrations for common infrastructure primitives, but also a
 
 For example, you can always use any cloud infrastructure, even if it's not built into the Encore.ts framework. You can use any database, message broker, or other service that your application needs, just set up the infrastructure and then reference it in your code as you would do traditionally.
 
-If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/deploy/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
+If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.

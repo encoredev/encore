@@ -30,8 +30,6 @@ interface Response {
 }
 ```
 
-To run it, you simply use `encore run` and the Open Source CLI will automatically set up your local infrastructure.
-
 <GitHubLink 
     href="https://github.com/encoredev/examples/tree/main/ts/hello-world" 
     desc="Hello World REST API example application." 
@@ -49,7 +47,7 @@ Encore's Backend Framework makes it simple to add more primitives, such as addit
 See how to use each primitive:
 
 - [Services](/docs/ts/primitives/services)
-- [APIs](/docs/ts/primitives/apis)
+- [APIs](/docs/ts/primitives/defining-apis)
 - [Databases](/docs/ts/primitives/databases)
 - [Cron Jobs](/docs/ts/primitives/cron-jobs)
 - [Pub/Sub & Queues](/docs/ts/primitives/pubsub)
