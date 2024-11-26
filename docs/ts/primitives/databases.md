@@ -13,9 +13,9 @@ lang: ts
 
 Encore treats SQL databases as logical resources and natively supports **PostgreSQL** databases.
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/url-shortener" 
-    desc="URL Shortener example that uses a PostgreSQL database." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/url-shortener"
+    desc="URL Shortener example that uses a PostgreSQL database."
 />
 
 ## Creating a database
@@ -216,6 +216,16 @@ ORMs like [Prisma](/docs/ts/develop/orms/prisma) and [Drizzle](/docs/ts/develop/
 
 For more information on using ORMs with Encore, see the [ORMs](/docs/ts/develop/orms) page.
 
+## Sharing databases between services
+
+There are two primary ways of sharing a database between services:
+
+- You can define the `SQLDatabase` object in a shared module as an exported variable, and reference this object
+from every service that needs to access the database.
+- You can define the `SQLDatabase` object in one service using `new SQLDatabase("name", ...)`, and have other services access it by creating a reference using `SQLDatabase.named("name")`.
+
+Both approaches have the same effect, but the latter is more explicit.
+
 ## PostgreSQL Extensions
 
 Encore uses the [encoredotdev/postgres](https://github.com/encoredev/postgres-image) docker image for local development,
@@ -224,7 +234,7 @@ CI/CD, and for databases hosted on Encore Cloud.
 This docker image ships with many popular PostgreSQL extensions pre-installed.
 In particular, [pgvector](https://github.com/pgvector/pgvector) and [PostGIS](https://postgis.net) are available.
 
-See [the full list of available extensions](/docs/primitives/databases/extensions).
+See [the full list of available extensions](/docs/ts/primitives/databases-extensions).
 
 ## Troubleshooting
 
@@ -237,7 +247,7 @@ If this does not resolve the issue, here are steps to resolve common errors:
 
 This error is often caused by a problem with the initial migration file, such as incorrect naming or location.
 
-- Verify that you've [created the migration file](/docs/ts/primitives/databases#defining-the-database-schema) correctly, then try `encore run` again.
+- Verify that you've [created the migration file](#defining-the-database-schema) correctly, then try `encore run` again.
 
 ** Error: could not connect to the database **
 

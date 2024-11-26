@@ -150,7 +150,7 @@ impl Path {
         // Validate the segments.
         for (idx, seg) in segments.iter().enumerate() {
             match seg {
-                Segment::Literal(lit) if lit.is_empty() => {
+                Segment::Literal(lit) if lit.is_empty() && segments.len() > 1 => {
                     anyhow::bail!("invalid path: literal cannot be empty");
                 }
                 Segment::Param { name, .. } if name.is_empty() => {
@@ -215,6 +215,7 @@ mod tests {
     #[test]
     fn test_parse() {
         let tests = vec![
+            ("/", Ok(vec![Segment::Literal("".to_string())])),
             ("/foo", Ok(vec![Segment::Literal("foo".to_string())])),
             (
                 "/foo/bar",

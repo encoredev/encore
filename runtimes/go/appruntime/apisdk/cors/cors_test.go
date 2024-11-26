@@ -34,7 +34,7 @@ func TestOptions(t *testing.T) {
 			credsBadOrigins:    []string{"foo.com", "evil.com", "localhost"},
 			nocredsGoodOrigins: []string{"foo.com", "localhost", "", "icanhazcheezburger.com"},
 			nocredsBadOrigins:  []string{},
-			goodHeaders:        []string{"Authorization", "Content-Type", "Origin"},
+			goodHeaders:        []string{"Content-Type", "Origin"},
 			badHeaders:         []string{"X-Requested-With", "X-Forwarded-For"},
 		},
 		{
@@ -103,22 +103,23 @@ func TestOptions(t *testing.T) {
 		{
 			name: "extra_headers",
 			cfg: config.CORS{
-				ExtraAllowedHeaders: []string{"X-Forwarded-For", "X-Real-Ip"},
+				ExtraAllowedHeaders: []string{"Not-Authorization", "X-Forwarded-For", "X-Real-Ip"},
 			},
-			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
-			badHeaders:  []string{"X-Requested-With", "X-Evil-Header"},
+			goodHeaders: []string{"Not-Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip"},
+			badHeaders:  []string{"X-Requested-With", "X-Evil-Header", "Authorization"},
 		},
 		{
 			name: "extra_headers_wildcard",
 			cfg: config.CORS{
 				ExtraAllowedHeaders: []string{"X-Forwarded-For", "*", "X-Real-Ip"},
 			},
-			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
+			goodHeaders: []string{"Not-Authorization", "Content-Type", "Origin", "X-Forwarded-For", "X-Real-Ip", "X-Requested-With", "X-Evil-Header"},
+			badHeaders:  []string{"Authorization"},
 		},
 		{
 			name:        "static_headers",
 			cfg:         config.CORS{},
-			goodHeaders: []string{"Authorization", "Content-Type", "Origin", "X-Static-Test"},
+			goodHeaders: []string{"Content-Type", "Origin", "X-Static-Test"},
 		},
 		{
 			name: "wildcard_without_creds",
@@ -136,9 +137,9 @@ func TestOptions(t *testing.T) {
 			h := make(http.Header)
 			h.Set("Origin", o)
 			if creds {
-				h.Set("Authorization", "dummy")
+				h.Set("Access-Control-Request-Headers", "authorization")
 			}
-			allowed := c.OriginAllowed(&http.Request{Header: h})
+			allowed := c.OriginAllowed(&http.Request{Header: h, Method: "OPTIONS"})
 			if allowed != good {
 				t.Fatalf("origin=%s creds=%v: got allowed=%v, want %v", o, creds, allowed, good)
 			} else {
@@ -147,11 +148,11 @@ func TestOptions(t *testing.T) {
 		}
 	}
 
-	checkHeaders := func(t *testing.T, c *cors.Cors, allowedHeaders, exposedHeaders []string, wantOK bool) {
+	checkHeaders := func(t *testing.T, c *cors.Cors, allowedHeaders []string, wantOK bool) {
 		req := httptest.NewRequest("OPTIONS", "/", nil)
 		req.Header.Set("Origin", "https://example.org")
 		req.Header.Set("Access-Control-Request-Method", "GET")
-		req.Header.Set("Access-Control-Request-Headers", strings.Join(allowedHeaders, ", "))
+		req.Header.Set("Access-Control-Request-Headers", strings.ToLower(strings.Join(allowedHeaders, ",")))
 		w := httptest.NewRecorder()
 		c.ServeHTTP(w, req, nil)
 
@@ -160,28 +161,6 @@ func TestOptions(t *testing.T) {
 		}
 
 		// Check allowed headers.
-		{
-			rawAllowedHeaders := w.Header().Get("Access-Control-Allow-Headers")
-			allowHeaders := strings.Split(rawAllowedHeaders, ", ")
-			allowed := make(map[string]bool)
-			for _, val := range allowHeaders {
-				allowed[strings.TrimSpace(val)] = true
-			}
-
-			if wantOK {
-				for _, val := range allowedHeaders {
-					if !allowed[val] {
-						t.Fatalf("want header %q to be allowed, got false; resp header=%q", val, rawAllowedHeaders)
-					}
-				}
-			} else {
-				if rawAllowedHeaders != "" {
-					t.Fatalf("want headers not to be allowed, got %q", rawAllowedHeaders)
-				}
-			}
-		}
-
-		// Check exposed headers.
 		{
 			rawAllowedHeaders := w.Header().Get("Access-Control-Allow-Headers")
 			allowHeaders := strings.Split(rawAllowedHeaders, ", ")
@@ -219,12 +198,12 @@ func TestOptions(t *testing.T) {
 			checkOrigins(t, c, false, false, tt.nocredsBadOrigins)
 
 			// Only good headers should always be ok
-			checkHeaders(t, c, tt.goodHeaders, nil, true)
+			checkHeaders(t, c, tt.goodHeaders, true)
 
 			// Make sure all the bad headers are invalid, one by one
 			for _, vad := range tt.badHeaders {
 				headers := append(tt.goodHeaders, vad)
-				checkHeaders(t, c, headers, nil, false)
+				checkHeaders(t, c, headers, false)
 			}
 		})
 	}

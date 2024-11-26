@@ -405,12 +405,8 @@ impl<'a> MetaBuilder<'a> {
 
                     let idx = svc_index.get(&svc.name).unwrap();
                     bucket_perms
-                        .entry(*idx)
-                        .or_insert(v1::BucketUsage {
-                            bucket: access.bucket.name.clone(),
-                            operations: vec![],
-                        })
-                        .operations
+                        .entry((*idx, &access.bucket.name))
+                        .or_insert(vec![])
                         .extend(ops);
                 }
 
@@ -448,11 +444,14 @@ impl<'a> MetaBuilder<'a> {
         }
 
         // Add the computed bucket permissions to the services.
-        for (svc_idx, mut bucket_perm) in bucket_perms {
+        for ((svc_idx, bucket), mut operations) in bucket_perms {
             // Make the bucket perms sorted and unique.
-            bucket_perm.operations.sort();
-            bucket_perm.operations.dedup();
-            self.data.svcs[svc_idx].buckets.push(bucket_perm);
+            operations.sort();
+            operations.dedup();
+            self.data.svcs[svc_idx].buckets.push(v1::BucketUsage {
+                bucket: bucket.clone(),
+                operations,
+            });
         }
 
         // Sort the packages for deterministic output.
@@ -468,6 +467,9 @@ impl<'a> MetaBuilder<'a> {
             // Remove duplicate database access.
             svc.databases.sort();
             svc.databases.dedup();
+
+            // Sort buckets by name for deterministic output.
+            svc.buckets.sort_by(|a, b| a.bucket.cmp(&b.bucket));
 
             // Sort the endpoints for deterministic output.
             svc.rpcs.sort_by(|a, b| a.name.cmp(&b.name));
