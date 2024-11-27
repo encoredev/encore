@@ -78,6 +78,7 @@ impl Type {
 
     /// Returns a union type that merges `self` and `other`, if possible.
     /// If the types cannot be merged, it returns None.
+    #[tracing::instrument(ret, level = "trace")]
     pub(super) fn union_merge(&self, other: &Type) -> Option<Type> {
         match (self, other) {
             // 'any' and any type unify to 'any'.
@@ -92,14 +93,14 @@ impl Type {
                 Some(Type::Basic(*basic))
             }
 
-            // TODO need to support unification of validation types
-            // (Type::Validation((a_typ, a_expr)), Type::Validation((b_typ, b_expr))) => {
-            //     // Merge the two types.
-            //     let typ = a_typ.union_merge(b_typ);
-            //     typ
-            // }
-            // (Type::Validation((typ, expr)), other) | (other, Type::Validation((typ, expr))) => {
-            // }
+            // Unify validation.
+            (Type::Validation(a), Type::Validation(b)) => {
+                Some(Type::Validation(a.clone().or(b.clone())))
+            }
+            (Type::Validated((typ, a)), Type::Validation(b))
+            | (Type::Validation(a), Type::Validated((typ, b))) => {
+                Some(Type::Validated((typ.to_owned(), a.clone().or(b.clone()))))
+            }
 
             // TODO more rules?
 

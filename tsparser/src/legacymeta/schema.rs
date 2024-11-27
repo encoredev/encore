@@ -14,8 +14,8 @@ use crate::parser::parser::ParseContext;
 use crate::parser::resources::apis::api::Endpoint;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, validation, Basic, EnumValue, FieldName, Generic, Interface, Literal,
-    Named, ObjectId, Type,
+    drop_empty_or_void, Basic, EnumValue, FieldName, Generic, Interface, Literal, Named, ObjectId,
+    Type,
 };
 use crate::parser::{FilePath, FileSet, Range};
 

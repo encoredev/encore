@@ -116,8 +116,9 @@ impl Expr {
             Self::And(mut exprs) => {
                 let mut i = 0;
                 let mut size = exprs.len();
-                while i < exprs.len() {
+                while i < size {
                     if !matches!(&exprs[i], Expr::Rule(_)) {
+                        i += 1;
                         continue;
                     };
 
@@ -158,8 +159,9 @@ impl Expr {
             Self::Or(mut exprs) => {
                 let mut i = 0;
                 let mut size = exprs.len();
-                while i < exprs.len() {
+                while i < size {
                     if !matches!(&exprs[i], Expr::Rule(_)) {
+                        i += 1;
                         continue;
                     };
 

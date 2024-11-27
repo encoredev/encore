@@ -662,7 +662,7 @@ impl Ctx<'_> {
                     .state
                     .is_module_path(named.obj.module_id, "encore.dev/validate")
                 {
-                    if let Some(expr) = self.parse_validation(&named) {
+                    if let Some(expr) = self.parse_validation(typ.span, &named) {
                         return Type::Validation(expr);
                     }
                 }
@@ -777,9 +777,8 @@ impl Ctx<'_> {
     }
 
     fn union(&self, union_type: &ast::TsUnionType) -> Type {
-        // TODO handle unifying e.g. "string | 'foo'" into "string"
         let types = self.types(union_type.types.iter().map(|t| t.as_ref()));
-        Type::Union(types)
+        simplify_union(types)
     }
 
     // https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
@@ -1926,7 +1925,7 @@ impl Ctx<'_> {
             .and_then(|m| m.base.preceding_comments(pos.into()))
     }
 
-    fn parse_validation(&self, named: &Named) -> Option<validation::Expr> {
+    fn parse_validation(&self, sp: Span, named: &Named) -> Option<validation::Expr> {
         let name = named.obj.name.as_deref()?;
 
         #[allow(dead_code)]
@@ -1965,45 +1964,66 @@ impl Ctx<'_> {
         }
 
         use validation::{Expr, Is, Rule, N};
-        Some(match name {
+        match name {
             "Min" => {
-                let typ = named.type_arguments.first()?;
-                let num = f64_lit(typ)?;
-                Expr::Rule(Rule::MinVal(N(num)))
+                if let Some(num) = named.type_arguments.first().and_then(f64_lit) {
+                    Some(Expr::Rule(Rule::MinVal(N(num))))
+                } else {
+                    sp.err("Min requires a number literal as its first type argument");
+                    None
+                }
             }
             "Max" => {
-                let typ = named.type_arguments.first()?;
-                let num = f64_lit(typ)?;
-                Expr::Rule(Rule::MaxVal(validation::N(num)))
+                if let Some(num) = named.type_arguments.first().and_then(f64_lit) {
+                    Some(Expr::Rule(Rule::MaxVal(validation::N(num))))
+                } else {
+                    sp.err("Max requires a number literal as its first type argument");
+                    None
+                }
             }
             "MinLen" => {
-                let typ = named.type_arguments.first()?;
-                let num = u64_lit(typ)?;
-                Expr::Rule(Rule::MinLen(num))
+                if let Some(num) = named.type_arguments.first().and_then(u64_lit) {
+                    Some(Expr::Rule(Rule::MinLen(num)))
+                } else {
+                    sp.err("MinLen requires a number literal as its first type argument");
+                    None
+                }
             }
             "MaxLen" => {
-                let typ = named.type_arguments.first()?;
-                let num = u64_lit(typ)?;
-                Expr::Rule(Rule::MaxLen(num))
+                if let Some(num) = named.type_arguments.first().and_then(u64_lit) {
+                    Some(Expr::Rule(Rule::MaxLen(num)))
+                } else {
+                    sp.err("MaxLen requires a number literal as its first type argument");
+                    None
+                }
             }
             "StartsWith" => {
-                let typ = named.type_arguments.first()?;
-                let str = str_lit(typ)?;
-                Expr::Rule(Rule::StartsWith(str))
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::StartsWith(str)))
+                } else {
+                    sp.err("StartsWith requires a string literal as its first type argument");
+                    None
+                }
             }
             "EndsWith" => {
-                let typ = named.type_arguments.first()?;
-                let str = str_lit(typ)?;
-                Expr::Rule(Rule::EndsWith(str))
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::EndsWith(str)))
+                } else {
+                    sp.err("EndsWith requires a string literal as its first type argument");
+                    None
+                }
             }
             "MatchesRegexp" => {
-                let typ = named.type_arguments.first()?;
-                let str = str_lit(typ)?;
-                Expr::Rule(Rule::MatchesRegexp(str))
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::MatchesRegexp(str)))
+                } else {
+                    sp.err("MatchesRegexp requires a string literal as its first type argument");
+                    None
+                }
             }
-            "IsEmail" => Expr::Rule(Rule::Is(Is::Email)),
-            "IsURL" => Expr::Rule(Rule::Is(Is::Url)),
-            _ => return None,
-        })
+            "IsEmail" => Some(Expr::Rule(Rule::Is(Is::Email))),
+            "IsURL" => Some(Expr::Rule(Rule::Is(Is::Url))),
+            _ => None,
+        }
     }
 }
