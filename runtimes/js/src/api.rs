@@ -102,23 +102,40 @@ impl PromiseHandler for APIPromiseHandler {
             .try_into()
             .map_err(|e| api::Error::invalid_argument("invalid handler response", e))?;
 
-        let payload = obj
-            .get_named_property::<napi::JsUnknown>("payload")
-            .map_err(|e| api::Error::invalid_argument("payload missing in handler response", e))?;
+        let is_handler_response = env
+            .symbol_for("encore_handler_response")
+            .and_then(|sym| obj.has_property_js(sym))
+            .map_err(api::Error::internal)?;
 
-        let extra_headers = obj
-            .get_named_property::<napi::JsUnknown>("extraHeaders")
-            .map_err(|e| {
-                api::Error::invalid_argument("extraHeaders missing in handler response", e)
-            })?;
+        if is_handler_response {
+            let payload = obj
+                .get_named_property::<napi::JsUnknown>("payload")
+                .map_err(|e| {
+                    api::Error::invalid_argument("payload missing in handler response", e)
+                })?;
 
-        match parse_pvalues(payload) {
-            Ok(val) => Ok(HandlerResponseInner {
-                payload: val,
-                extra_headers: parse_header_map(extra_headers)
-                    .map_err(|e| api::Error::invalid_argument("unable to parse extraHeaders", e))?,
-            }),
-            Err(err) => self.error(env, err),
+            let extra_headers = obj
+                .get_named_property::<napi::JsUnknown>("extraHeaders")
+                .map_err(|e| {
+                    api::Error::invalid_argument("extraHeaders missing in handler response", e)
+                })?;
+            match parse_pvalues(payload) {
+                Ok(val) => Ok(HandlerResponseInner {
+                    payload: val,
+                    extra_headers: parse_header_map(extra_headers).map_err(|e| {
+                        api::Error::invalid_argument("unable to parse extraHeaders", e)
+                    })?,
+                }),
+                Err(err) => self.error(env, err),
+            }
+        } else {
+            match parse_pvalues(obj.into_unknown()) {
+                Ok(val) => Ok(HandlerResponseInner {
+                    payload: val,
+                    extra_headers: None,
+                }),
+                Err(err) => self.error(env, err),
+            }
         }
     }
 

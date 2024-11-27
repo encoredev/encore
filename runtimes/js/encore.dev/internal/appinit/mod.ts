@@ -1,5 +1,10 @@
 import { Gateway } from "../../api/gateway";
-import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
+import {
+  Middleware,
+  MiddlewareRequest,
+  HandlerResponse,
+  createResponse
+} from "../../api/mod";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -96,10 +101,7 @@ function invokeMiddlewareChain(
 
     // no more middlewares, execute the handler
     if (currentMiddleware === undefined) {
-      return {
-        payload: await handler(),
-        extraHeaders: {}
-      };
+      return createResponse(await handler());
     }
 
     // execute current middleare middleware
@@ -186,13 +188,9 @@ function transformHandler(h: Handler): runtime.ApiRoute {
 
         if (middlewares.length === 0) {
           const payload = req.payload();
-          return {
-            payload:
-              payload !== null
-                ? h.apiRoute.handler(payload, stream)
-                : h.apiRoute.handler(stream),
-            extraHeaders: {}
-          };
+          return payload !== null
+            ? h.apiRoute.handler(payload, stream)
+            : h.apiRoute.handler(stream);
         }
 
         const handler = async () => {
@@ -223,10 +221,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         const rawResp = new RawResponse(rawReq, resp);
 
         if (middlewares.length === 0) {
-          return {
-            payload: h.apiRoute.handler(rawReq, rawResp),
-            extraHeaders: {}
-          };
+          return h.apiRoute.handler(rawReq, rawResp);
         }
 
         const handler = async () => {
@@ -246,13 +241,9 @@ function transformHandler(h: Handler): runtime.ApiRoute {
 
       if (middlewares.length === 0) {
         const payload = req.payload();
-        return {
-          payload:
-            payload !== null
-              ? h.apiRoute.handler(payload)
-              : h.apiRoute.handler(),
-          extraHeaders: {}
-        };
+        return payload !== null
+          ? h.apiRoute.handler(payload)
+          : h.apiRoute.handler();
       }
 
       const handler = async () => {
