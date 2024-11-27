@@ -103,11 +103,11 @@ pub enum Error<'a> {
     #[error("value does not match the regexp {regexp:#?}")]
     MatchesRegexp { regexp: &'a str },
 
-    #[error("value does not start with {want:#?}")]
-    StartsWith { want: &'a str },
+    #[error("value does not start with {prefix:#?}")]
+    StartsWith { prefix: &'a str },
 
-    #[error("value does not end with {want:#?}")]
-    EndsWith { want: &'a str },
+    #[error("value does not end with {suffix:#?}")]
+    EndsWith { suffix: &'a str },
 
     #[error("value is not {expected}")]
     Is { expected: &'a str },
@@ -225,24 +225,24 @@ impl Rule {
                 _ => Err(Error::UnexpectedType { want: "number" }),
             },
 
-            Rule::StartsWith(want) => match val {
-                PValue::String(got) => {
-                    if got.starts_with(got) {
+            Rule::StartsWith(prefix) => match val {
+                PValue::String(str) => {
+                    if str.starts_with(prefix) {
                         Ok(())
                     } else {
-                        Err(Error::StartsWith { want })
+                        Err(Error::StartsWith { prefix })
                     }
                 }
 
                 _ => Err(Error::UnexpectedType { want: "string" }),
             },
 
-            Rule::EndsWith(want) => match val {
-                PValue::String(got) => {
-                    if got.ends_with(got) {
+            Rule::EndsWith(suffix) => match val {
+                PValue::String(str) => {
+                    if str.ends_with(suffix) {
                         Ok(())
                     } else {
-                        Err(Error::EndsWith { want })
+                        Err(Error::EndsWith { suffix })
                     }
                 }
 
@@ -409,7 +409,7 @@ impl Rule {
                     if got.starts_with(got) {
                         Ok(())
                     } else {
-                        Err(Error::StartsWith { want })
+                        Err(Error::StartsWith { prefix: want })
                     }
                 }
 
@@ -421,7 +421,7 @@ impl Rule {
                     if got.ends_with(got) {
                         Ok(())
                     } else {
-                        Err(Error::EndsWith { want })
+                        Err(Error::EndsWith { suffix: want })
                     }
                 }
 
