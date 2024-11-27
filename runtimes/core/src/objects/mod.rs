@@ -496,17 +496,13 @@ fn escape_path(s: &str) -> Cow<'_, str> {
 /// Computes the public url given a base url, optional key prefix, and object name.
 fn public_url(base_url: String, key_prefix: Option<&str>, name: &str) -> String {
     let mut url = base_url;
-    if let Some(key_prefix) = key_prefix {
-        if !url.ends_with('/') {
-            url.push('/');
-        }
-        url.push_str(&escape_path(key_prefix));
-    }
 
     if !url.ends_with('/') {
         url.push('/');
     }
-
+    if let Some(key_prefix) = key_prefix {
+        url.push_str(&escape_path(key_prefix));
+    }
     url.push_str(&escape_path(name));
     url
 }
