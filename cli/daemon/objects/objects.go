@@ -19,7 +19,7 @@ import (
 
 type Server struct {
 	id        string
-	cm        *ClusterManager
+	public    *PublicBucketServer
 	startOnce syncutil.Once
 	cancel    func() // set by Start
 	store     gcsemu.Store
@@ -29,20 +29,20 @@ type Server struct {
 	inMemory  bool
 }
 
-func NewInMemoryServer(cm *ClusterManager) *Server {
+func NewInMemoryServer(public *PublicBucketServer) *Server {
 	id := xid.New().String()
 	store := gcsemu.NewMemStore()
-	return newServer(cm, id, store, true)
+	return newServer(public, id, store, true)
 }
 
-func NewDirServer(cm *ClusterManager, nsID namespace.ID, baseDir string) *Server {
+func NewDirServer(public *PublicBucketServer, nsID namespace.ID, baseDir string) *Server {
 	store := gcsemu.NewFileStore(baseDir)
-	return newServer(cm, nsID.String(), store, false)
+	return newServer(public, nsID.String(), store, false)
 }
 
-func newServer(cm *ClusterManager, id string, store gcsemu.Store, isInMem bool) *Server {
+func newServer(public *PublicBucketServer, id string, store gcsemu.Store, isInMem bool) *Server {
 	return &Server{
-		cm:       cm,
+		public:   public,
 		id:       id,
 		store:    store,
 		emu:      gcsemu.NewGcsEmu(gcsemu.Options{Store: store}),
@@ -62,7 +62,7 @@ func (s *Server) Initialize(md *meta.Data) error {
 func (s *Server) Start() error {
 	return s.startOnce.Do(func() error {
 		if s.inMemory {
-			s.cm.registerInMem(s)
+			s.public.Register(s.id, s.store)
 		}
 		mux := http.NewServeMux()
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -86,7 +86,7 @@ func (s *Server) Start() error {
 func (s *Server) Stop() {
 	_ = s.srv.Close()
 	if s.inMemory {
-		s.cm.deregisterInMem(s)
+		s.public.Deregister(s.id)
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *Server) Endpoint() string {
 }
 
 func (s *Server) PublicBaseURL() string {
-	return fmt.Sprintf("http://%s/%s", s.cm.publicAddr, s.id)
+	return fmt.Sprintf("%s/%s", s.public.BaseAddr(), s.id)
 }
 
 // IsUsed reports whether the application uses object storage at all.

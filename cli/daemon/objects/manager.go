@@ -2,12 +2,8 @@ package objects
 
 import (
 	"context"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"sync"
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
@@ -15,20 +11,15 @@ import (
 )
 
 // NewClusterManager creates a new ClusterManager.
-func NewClusterManager(ns *namespace.Manager, publicAddr string) *ClusterManager {
-	return &ClusterManager{
-		ns:          ns,
-		publicAddr:  publicAddr,
-		inMemStores: make(map[string]*Server),
+func NewClusterManager(ns *namespace.Manager) *ClusterManager {
+	mgr := &ClusterManager{
+		ns: ns,
 	}
+	return mgr
 }
 
 type ClusterManager struct {
-	ns         *namespace.Manager
-	publicAddr string
-
-	inMemMu     sync.RWMutex
-	inMemStores map[string]*Server
+	ns *namespace.Manager
 }
 
 func (cm *ClusterManager) BaseDir(ns namespace.ID) (string, error) {
@@ -54,67 +45,13 @@ func (cm *ClusterManager) DeleteNamespace(ctx context.Context, app *apps.Instanc
 	return err
 }
 
-func (cm *ClusterManager) ServePublic(ln net.Listener) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/{namespace}/{bucket}/{object...}", cm.publicHandler)
-	return http.Serve(ln, mux)
-}
-
-func (cm *ClusterManager) registerInMem(s *Server) {
-	cm.inMemMu.Lock()
-	defer cm.inMemMu.Unlock()
-	cm.inMemStores[s.id] = s
-}
-
-func (cm *ClusterManager) deregisterInMem(s *Server) {
-	cm.inMemMu.Lock()
-	defer cm.inMemMu.Unlock()
-	delete(cm.inMemStores, s.id)
-}
-
-func (cm *ClusterManager) getInMem(id string) (*Server, bool) {
-	cm.inMemMu.RLock()
-	defer cm.inMemMu.RUnlock()
-	s, ok := cm.inMemStores[id]
-	return s, ok
-}
-
-func (cm *ClusterManager) publicHandler(w http.ResponseWriter, req *http.Request) {
-	nsID := req.PathValue("namespace")
-	bucketName := req.PathValue("bucket")
-	objName := req.PathValue("object")
-
-	// Determine which store to use
-	var store gcsemu.Store
-	if s, ok := cm.getInMem(nsID); ok {
-		store = s.store
-	} else if nsID, ok := namespace.ParseID(nsID); ok {
-		dir, err := cm.BaseDir(nsID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+// PersistentStoreFallback is a public server fallback handler
+// for resolving stores based on the cluster manager's base directory.
+func (cm *ClusterManager) PersistentStoreFallback(id string) (gcsemu.Store, bool) {
+	if baseDir, err := cm.BaseDir(namespace.ID(id)); err == nil {
+		if _, err := os.Stat(baseDir); err == nil {
+			return gcsemu.NewFileStore(baseDir), true
 		}
-		store = gcsemu.NewFileStore(dir)
-	} else {
-		http.Error(w, "unknown namespace", http.StatusNotFound)
-		return
 	}
-
-	obj, contents, err := store.Get("", bucketName, objName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	} else if obj == nil {
-		http.Error(w, "object not found", http.StatusNotFound)
-		return
-	}
-
-	if obj.ContentType != "" {
-		w.Header().Set("Content-Type", obj.ContentType)
-	}
-	if obj.Etag != "" {
-		w.Header().Set("Etag", obj.Etag)
-	}
-	w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
-	w.Write(contents)
+	return nil, false
 }

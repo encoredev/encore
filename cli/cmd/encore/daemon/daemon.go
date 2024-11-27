@@ -102,14 +102,15 @@ type Daemon struct {
 	ObjectStorage *retryingTCPListener
 	EncoreDB      *sql.DB
 
-	Apps       *apps.Manager
-	Secret     *secret.Manager
-	RunMgr     *run.Manager
-	NS         *namespace.Manager
-	ClusterMgr *sqldb.ClusterManager
-	ObjectsMgr *objects.ClusterManager
-	Trace      trace2.Store
-	Server     *daemon.Server
+	Apps          *apps.Manager
+	Secret        *secret.Manager
+	RunMgr        *run.Manager
+	NS            *namespace.Manager
+	ClusterMgr    *sqldb.ClusterManager
+	ObjectsMgr    *objects.ClusterManager
+	PublicBuckets *objects.PublicBucketServer
+	Trace         trace2.Store
+	Server        *daemon.Server
 
 	dev bool // whether we're in development mode
 
@@ -148,17 +149,19 @@ func (d *Daemon) init(ctx context.Context) {
 
 	d.NS = namespace.NewManager(d.EncoreDB)
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
-	d.ObjectsMgr = objects.NewClusterManager(d.NS, d.ObjectStorage.ClientAddr())
+	d.ObjectsMgr = objects.NewClusterManager(d.NS)
+	d.PublicBuckets = objects.NewPublicBucketServer("http://"+d.ObjectStorage.ClientAddr(), d.ObjectsMgr.PersistentStoreFallback)
 
 	d.Trace = sqlite.New(ctx, d.EncoreDB)
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
-		RuntimePort: d.Runtime.Port(),
-		DBProxyPort: d.DBProxy.Port(),
-		DashBaseURL: fmt.Sprintf("http://%s", d.Dash.ClientAddr()),
-		Secret:      d.Secret,
-		ClusterMgr:  d.ClusterMgr,
-		ObjectsMgr:  d.ObjectsMgr,
+		RuntimePort:   d.Runtime.Port(),
+		DBProxyPort:   d.DBProxy.Port(),
+		DashBaseURL:   fmt.Sprintf("http://%s", d.Dash.ClientAddr()),
+		Secret:        d.Secret,
+		ClusterMgr:    d.ClusterMgr,
+		ObjectsMgr:    d.ObjectsMgr,
+		PublicBuckets: d.PublicBuckets,
 	}
 
 	// Register namespace deletion handlers.
@@ -255,7 +258,7 @@ func (d *Daemon) serveDBProxy() {
 
 func (d *Daemon) serveObjects() {
 	log.Info().Stringer("addr", d.ObjectStorage.Addr()).Msg("serving object storage")
-	d.exit <- d.ObjectsMgr.ServePublic(d.ObjectStorage)
+	d.exit <- d.PublicBuckets.Serve(d.ObjectStorage)
 }
 
 func (d *Daemon) serveDash() {

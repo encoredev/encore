@@ -573,7 +573,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 
 	mgr := &Manager{}
 	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
-	rm := infra.NewResourceManager(app, nil, nil, ns, nil, 0, false)
+	rm := infra.NewResourceManager(app, nil, nil, nil, ns, nil, 0, false)
 	run := &Run{
 		ID:              GenID(),
 		App:             app,
