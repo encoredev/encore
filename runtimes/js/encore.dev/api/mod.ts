@@ -343,7 +343,7 @@ export class MiddlewareRequest {
 // internal marker
 const sym = Symbol.for("encore_handler_response");
 
-export interface HandlerResponse {
+export class HandlerResponse {
   /**
    * The payload returned by the handler when the handler is either
    * a typed handler or stream handler.
@@ -358,14 +358,12 @@ export interface HandlerResponse {
   extraHeaders: Record<string, string | string[]>;
 
   [sym]: "internal";
-}
 
-export function createResponse(payload: any): HandlerResponse {
-  return {
-    payload,
-    extraHeaders: {},
-    [sym]: "internal"
-  };
+  constructor(payload: any) {
+    this.payload = payload;
+    this.extraHeaders = {};
+    this[sym] = "internal";
+  }
 }
 
 export type Next = (req: MiddlewareRequest) => Promise<HandlerResponse>;

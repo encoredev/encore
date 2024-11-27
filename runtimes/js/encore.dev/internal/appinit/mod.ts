@@ -1,10 +1,5 @@
 import { Gateway } from "../../api/gateway";
-import {
-  Middleware,
-  MiddlewareRequest,
-  HandlerResponse,
-  createResponse
-} from "../../api/mod";
+import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -101,7 +96,7 @@ function invokeMiddlewareChain(
 
     // no more middlewares, execute the handler
     if (currentMiddleware === undefined) {
-      return createResponse(await handler());
+      return new HandlerResponse(await handler());
     }
 
     // execute current middleare middleware
