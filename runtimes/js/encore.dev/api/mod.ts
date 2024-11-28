@@ -360,7 +360,7 @@ export class HandlerResponse {
   }
 }
 
-export type Next = () => Promise<HandlerResponse>;
+export type Next = (req: MiddlewareRequest) => Promise<HandlerResponse>;
 
 export type MiddlewareFn = (
   req: MiddlewareRequest,

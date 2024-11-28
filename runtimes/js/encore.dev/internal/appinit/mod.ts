@@ -91,7 +91,10 @@ function invokeMiddlewareChain(
   chain: Middleware[],
   handler: () => Promise<any>
 ): Promise<any> {
-  const execute = async (index: number): Promise<HandlerResponse> => {
+  const execute = async (
+    index: number,
+    req: MiddlewareRequest
+  ): Promise<HandlerResponse> => {
     const currentMiddleware = chain.at(index);
 
     // no more middlewares, execute the handler
@@ -100,12 +103,12 @@ function invokeMiddlewareChain(
     }
 
     // execute current middleware
-    return currentMiddleware(req, () => {
-      return execute(index + 1);
+    return currentMiddleware(req, (req) => {
+      return execute(index + 1, req);
     });
   };
 
-  return execute(0);
+  return execute(0, req);
 }
 
 // calculate what middlewares should run for an endpoint
