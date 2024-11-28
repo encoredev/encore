@@ -1,17 +1,22 @@
 use swc_common::sync::Lrc;
+use swc_common::Spanned;
 use swc_ecma_ast as ast;
 
 use litparser::LitParser;
 use litparser_derive::LitParser;
 
+use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::parseutil::NamedClassResourceOptionalConfig;
-use crate::parser::resources::parseutil::{iter_references, TrackedNames};
+use crate::parser::resources::parseutil::ReferenceParser;
+use crate::parser::resources::parseutil::{
+    extract_bind_name, extract_resource_name, iter_references, TrackedNames,
+};
 use crate::parser::resources::Resource;
 use crate::parser::{FilePath, Range};
+use crate::span_err::ErrReporter;
 
 #[derive(Debug, Clone)]
 pub struct Service {
@@ -21,7 +26,7 @@ pub struct Service {
 }
 
 #[allow(dead_code)]
-#[derive(LitParser, Default)]
+#[derive(LitParser, Default, Debug)]
 struct DecodedServiceConfig {
     middlewares: Option<ast::Expr>,
 }
@@ -35,8 +40,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
 
         let module = pass.module.clone();
         {
-            type Res = NamedClassResourceOptionalConfig<DecodedServiceConfig>;
-            for (i, r) in iter_references::<Res>(&module, &names).enumerate() {
+            for (i, r) in iter_references::<ServiceLiteral>(&module, &names).enumerate() {
                 let r = r?;
 
                 if i > 0 {
@@ -56,13 +60,6 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     }
                 }
 
-                let object = match &r.bind_name {
-                    None => None,
-                    Some(id) => pass
-                        .type_checker
-                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
-                };
-
                 let resource = Resource::Service(Lrc::new(Service {
                     range: r.range,
                     name: r.resource_name,
@@ -72,9 +69,9 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 pass.add_bind(BindData {
                     range: r.range,
                     resource: ResourceOrPath::Resource(resource),
-                    object,
+                    object: None,
                     kind: BindKind::Create,
-                    ident: r.bind_name,
+                    ident: None,
                 });
             }
         }
@@ -82,3 +79,74 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
         Ok(())
     },
 };
+
+#[allow(dead_code)]
+#[derive(Debug)]
+struct ServiceLiteral {
+    pub range: Range,
+    pub doc_comment: Option<String>,
+    pub resource_name: String,
+    pub config: Option<DecodedServiceConfig>,
+}
+
+impl ReferenceParser for ServiceLiteral {
+    fn parse_resource_reference(
+        module: &Module,
+        path: &swc_ecma_visit::AstNodePath,
+    ) -> anyhow::Result<Option<Self>> {
+        for node in path.iter().rev() {
+            if let swc_ecma_visit::AstParentNodeRef::NewExpr(
+                expr,
+                swc_ecma_visit::fields::NewExprField::Callee,
+            ) = node
+            {
+                let Some(args) = &expr.args else {
+                    expr.span().err("missing constructor arguments");
+                    continue;
+                };
+
+                if let Some(bind_name) = extract_bind_name(path)? {
+                    bind_name
+                        .span()
+                        .err("service definitions should not be bound to a variable");
+                    continue;
+                }
+
+                let Some(resource_name) = extract_resource_name(expr.span, args, 0) else {
+                    continue;
+                };
+
+                let doc_comment = module.preceding_comments(expr.span.lo.into());
+
+                let config = args
+                    .get(1)
+                    .map(|arg| DecodedServiceConfig::parse_lit(&arg.expr))
+                    .transpose()?;
+
+                if !is_default_export(path) {
+                    expr.span().err("service must be default export");
+                    continue;
+                }
+
+                return Ok(Some(Self {
+                    range: expr.span.into(),
+                    doc_comment,
+                    resource_name: resource_name.to_string(),
+                    config,
+                }));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
+fn is_default_export(path: &swc_ecma_visit::AstNodePath) -> bool {
+    for item in path.iter().rev() {
+        match item {
+            swc_ecma_visit::AstParentNodeRef::ExportDefaultExpr(..) => return true,
+            _ => continue,
+        }
+    }
+    false
+}
