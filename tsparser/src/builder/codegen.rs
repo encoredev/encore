@@ -191,10 +191,10 @@ impl Builder<'_> {
                         "import_path": import_path,
                         "service_name": svc.name,
                         "endpoint_options": json!({
+                            "expose": rpc.expose,
+                            "auth": rpc.require_auth,
                             "isRaw": rpc.raw,
                             "isStream": rpc.streaming_request || rpc.streaming_response,
-                            "requiresAuth": rpc.require_auth,
-                            "exposed": rpc.expose,
                         }),
                     }));
                 }
@@ -419,10 +419,10 @@ impl Builder<'_> {
                         "service_name": svc.name,
                         "import_path": import_path,
                         "endpoint_options": json!({
+                            "expose": rpc.expose,
+                            "auth": rpc.require_auth,
                             "isRaw": rpc.raw,
                             "isStream": rpc.streaming_request || rpc.streaming_response,
-                            "requiresAuth": rpc.require_auth,
-                            "exposed": rpc.expose,
                         }),
                     }));
                 }

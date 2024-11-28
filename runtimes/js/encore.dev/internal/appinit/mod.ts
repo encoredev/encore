@@ -28,8 +28,8 @@ export async function run() {
 }
 
 interface EndpointOptions {
-  requiresAuth: boolean;
-  exposed: boolean;
+  expose: boolean;
+  auth: boolean;
   isRaw: boolean;
   isStream: boolean;
 }
@@ -121,16 +121,13 @@ function calculateMiddlewareChain(
     } else {
       const target = m.options.target;
       // check if options are set and if they match the endpoint options
-      if (
-        target.requiresAuth !== undefined &&
-        target.requiresAuth !== endpointOptions.requiresAuth
-      ) {
+      if (target.auth !== undefined && target.auth !== endpointOptions.auth) {
         continue;
       }
 
       if (
-        target.exposed !== undefined &&
-        target.exposed !== endpointOptions.exposed
+        target.expose !== undefined &&
+        target.expose !== endpointOptions.expose
       ) {
         continue;
       }

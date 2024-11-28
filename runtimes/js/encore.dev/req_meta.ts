@@ -12,7 +12,7 @@ export interface APIDesc {
   raw: boolean;
 
   /** Whether the endpoint requires auth. */
-  requiresAuth: boolean;
+  auth: boolean;
 }
 
 export type Method =
@@ -166,7 +166,7 @@ export function currentRequest(): RequestMeta | undefined {
         service: meta.apiCall.api.service,
         endpoint: meta.apiCall.api.endpoint,
         raw: meta.apiCall.api.raw,
-        requiresAuth: meta.apiCall.api.requiresAuth
+        auth: meta.apiCall.api.requiresAuth
       },
       method: meta.apiCall.method as Method,
       path: meta.apiCall.path,
