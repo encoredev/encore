@@ -36,9 +36,9 @@ pub struct EndpointEncoding {
     pub handshake: Option<RequestEncoding>,
 
     /// The raw request and schemas, from the source code.
-    pub raw_handshake_schema: Option<Type>,
-    pub raw_req_schema: Option<Type>,
-    pub raw_resp_schema: Option<Type>,
+    pub raw_handshake_schema: Option<Sp<Type>>,
+    pub raw_req_schema: Option<Sp<Type>>,
+    pub raw_resp_schema: Option<Sp<Type>>,
 }
 
 impl EndpointEncoding {
@@ -222,10 +222,6 @@ pub fn describe_stream_endpoint(
         path
     };
 
-    let raw_handshake_schema = handshake.map(|sp| sp.take());
-    let raw_req_schema = req.map(|sp| sp.take());
-    let raw_resp_schema = resp.map(|sp| sp.take());
-
     Ok(EndpointEncoding {
         span: def_span,
         path,
@@ -234,9 +230,9 @@ pub fn describe_stream_endpoint(
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,
-        raw_handshake_schema,
-        raw_req_schema,
-        raw_resp_schema,
+        raw_handshake_schema: handshake,
+        raw_req_schema: req,
+        raw_resp_schema: resp,
     })
 }
 
@@ -263,9 +259,6 @@ pub fn describe_endpoint(
 
     let path = rewrite_path_types(&req_enc[0], path, raw)?;
 
-    let raw_req_schema = req.map(|sp| sp.take());
-    let raw_resp_schema = resp.map(|sp| sp.take());
-
     Ok(EndpointEncoding {
         span: def_span,
         path,
@@ -275,8 +268,8 @@ pub fn describe_endpoint(
         resp: resp_enc,
         handshake: None,
         raw_handshake_schema: None,
-        raw_req_schema,
-        raw_resp_schema,
+        raw_req_schema: req,
+        raw_resp_schema: resp,
     })
 }
 

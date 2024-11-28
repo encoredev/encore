@@ -9,7 +9,7 @@ use swc_common::sync::Lrc;
 use swc_common::{Span, Spanned};
 use swc_ecma_ast as ast;
 
-use litparser::{report_and_continue, LitParser, ToParseErr};
+use litparser::{report_and_continue, LitParser, Sp, ToParseErr};
 use litparser::{LocalRelPath, ParseResult};
 
 use crate::parser::resourceparser::bind::ResourceOrPath;
@@ -26,9 +26,10 @@ use crate::span_err::{ErrReporter, ErrorWithSpanExt};
 
 #[derive(Debug, Clone)]
 pub struct SQLDatabase {
+    pub span: Span,
     pub name: String,
     pub doc: Option<String>,
-    pub migrations: Option<DBMigrations>,
+    pub migrations: Option<Sp<DBMigrations>>,
 }
 
 #[derive(Clone, Debug)]
@@ -110,11 +111,14 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                         let dir = path.parent().unwrap().join(rel.buf);
                         let migrations =
                             report_and_continue!(parse_migrations(rel.span, &dir, None));
-                        Some(DBMigrations {
-                            dir,
-                            migrations,
-                            non_seq_migrations: false,
-                        })
+                        Some(Sp::new(
+                            rel.span,
+                            DBMigrations {
+                                dir,
+                                migrations,
+                                non_seq_migrations: false,
+                            },
+                        ))
                     }
                     (Some(Either::Right(cfg)), FilePath::Real(path)) => {
                         let dir = path.parent().unwrap().join(cfg.path.buf);
@@ -137,11 +141,14 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                         ));
                         let non_seq_migrations =
                             matches!(source, Some(MigrationFileSource::Prisma));
-                        Some(DBMigrations {
-                            dir,
-                            migrations,
-                            non_seq_migrations,
-                        })
+                        Some(Sp::new(
+                            cfg.path.span,
+                            DBMigrations {
+                                dir,
+                                migrations,
+                                non_seq_migrations,
+                            },
+                        ))
                     }
                 };
 
@@ -153,6 +160,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                 };
 
                 let resource = Resource::SQLDatabase(Lrc::new(SQLDatabase {
+                    span: r.range.to_span(),
                     name: r.resource_name,
                     doc: r.doc_comment,
                     migrations,

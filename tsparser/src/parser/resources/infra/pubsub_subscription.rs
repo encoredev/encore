@@ -2,9 +2,10 @@ use std::rc::Rc;
 
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
+use swc_common::Spanned;
 use swc_ecma_ast as ast;
 
-use litparser::{report_and_continue, LitParser};
+use litparser::{report_and_continue, LitParser, Sp};
 
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
@@ -18,7 +19,7 @@ use crate::span_err::ErrReporter;
 #[derive(Debug, Clone)]
 pub struct Subscription {
     pub range: Range,
-    pub topic: Rc<Object>,
+    pub topic: Sp<Rc<Object>>,
     pub name: String,
     pub doc: Option<String>,
     pub config: SubscriptionConfig,
@@ -87,7 +88,7 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
 
             let resource = Resource::PubSubSubscription(Lrc::new(Subscription {
                 range: r.range,
-                topic,
+                topic: Sp::new(topic_expr.expr.span(), topic),
                 name: r.resource_name.to_owned(),
                 doc: r.doc_comment,
                 config: SubscriptionConfig {

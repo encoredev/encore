@@ -1,11 +1,10 @@
 use std::fmt::Display;
 use std::path::Path;
 
-use anyhow::Result;
-
 use crate::app::{validate_and_describe, AppDesc};
 use crate::parser::parser::{ParseContext, Parser};
 use crate::parser::resourceparser::PassOneParser;
+use litparser::ParseResult as PResult;
 
 use super::{App, Builder};
 
@@ -27,7 +26,7 @@ impl Display for ParseError {
 }
 
 impl Builder<'_> {
-    pub fn parse(&self, params: &ParseParams) -> Result<AppDesc> {
+    pub fn parse(&self, params: &ParseParams) -> Option<AppDesc> {
         let pc = params.pc;
         let pass1 = PassOneParser::new(
             pc.file_set.clone(),
@@ -37,11 +36,18 @@ impl Builder<'_> {
         let parser = Parser::new(pc, pass1);
 
         let result = parser.parse();
-        let desc = validate_and_describe(pc, result)?;
+        let desc = match validate_and_describe(pc, result) {
+            Ok(desc) => desc,
+            Err(err) => {
+                err.report();
+                return None;
+            }
+        };
 
         if pc.errs.has_errors() {
-            anyhow::bail!(ParseError);
+            None
+        } else {
+            Some(desc)
         }
-        Ok(desc)
     }
 }

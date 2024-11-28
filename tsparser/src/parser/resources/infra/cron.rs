@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
-use swc_common::Span;
+use swc_common::{Span, Spanned};
 use swc_ecma_ast as ast;
 
 use litparser::{report_and_continue, LitParser, ParseResult, Sp, ToParseErr};
@@ -21,7 +21,7 @@ pub struct CronJob {
     pub title: Option<String>,
     pub doc: Option<String>,
     pub schedule: CronJobSchedule,
-    pub endpoint: Rc<Object>,
+    pub endpoint: Sp<Rc<Object>>,
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +78,7 @@ fn parse_cron_job(
         name: r.resource_name.to_owned(),
         doc: r.doc_comment,
         title: r.config.title,
-        endpoint,
+        endpoint: Sp::new(r.config.endpoint.span(), endpoint),
         schedule,
     }));
     pass.add_resource(resource.clone());

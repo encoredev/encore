@@ -460,20 +460,34 @@ impl BuilderCtx<'_, '_> {
     }
 
     fn transform_handshake(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
-        self.transform_request_type(ep, &ep.encoding.raw_handshake_schema)
-            .map_err(|err| ep.range.to_span().parse_err(err.to_string()))
+        let schema = ep.encoding.raw_handshake_schema.as_ref().map(|s| s.get());
+        self.transform_request_type(ep, schema).map_err(|err| {
+            let sp = ep
+                .encoding
+                .raw_handshake_schema
+                .as_ref()
+                .map_or(ep.range.to_span(), |s| s.span());
+            sp.parse_err(err.to_string())
+        })
     }
     fn transform_request(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
-        self.transform_request_type(ep, &ep.encoding.raw_req_schema)
-            .map_err(|err| ep.range.to_span().parse_err(err.to_string()))
+        let schema = ep.encoding.raw_req_schema.as_ref().map(|s| s.get());
+        self.transform_request_type(ep, schema).map_err(|err| {
+            let sp = ep
+                .encoding
+                .raw_req_schema
+                .as_ref()
+                .map_or(ep.range.to_span(), |s| s.span());
+            sp.parse_err(err.to_string())
+        })
     }
 
     fn transform_request_type(
         &mut self,
         ep: &Endpoint,
-        raw_schema: &Option<Type>,
+        raw_schema: Option<&Type>,
     ) -> Result<Option<schema::Type>> {
-        let Some(typ) = raw_schema.clone() else {
+        let Some(typ) = raw_schema.cloned() else {
             return Ok(None);
         };
 
@@ -543,25 +557,31 @@ fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
     (Cow::Borrowed(typ), false)
 }
 
-pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> Result<schema::Loc> {
+pub(super) fn loc_from_range(
+    app_root: &Path,
+    fset: &FileSet,
+    range: Range,
+) -> ParseResult<schema::Loc> {
     let loc = range.loc(fset)?;
     let (pkg_path, pkg_name, filename) = match loc.file {
-        FilePath::Custom(ref str) => anyhow::bail!("unsupported file path in schema: {}", str),
+        FilePath::Custom(ref str) => {
+            return Err(range.parse_err(format!("unsupported file path in schema: {}", str)));
+        }
         FilePath::Real(buf) => match buf.strip_prefix(app_root) {
             Ok(rel_path) => {
                 let file_name = rel_path
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing file name"))?;
+                    .ok_or(range.parse_err("missing file name"))?;
                 let pkg_name = rel_path
                     .parent()
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing package name"))?;
+                    .ok_or(range.parse_err("missing package name"))?;
                 let pkg_path = rel_path
                     .parent()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing package path"))?;
+                    .ok_or(range.parse_err("missing package path"))?;
                 (pkg_path, pkg_name, file_name)
             }
             Err(_) => {
@@ -570,15 +590,14 @@ pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> R
                 let file_name = buf
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing file name: {}", buf.display()))?;
+                    .ok_or(range.parse_err(format!("missing file name: {}", buf.display())))?;
                 let pkg_name = buf
                     .parent()
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!(
-                        "missing package name for {}",
-                        buf.display()
-                    ))?;
+                    .ok_or(
+                        range.parse_err(format!("missing package name for {}", buf.display())),
+                    )?;
                 let pkg_path = format!("unknown/{}", pkg_name);
                 (pkg_path, pkg_name, file_name)
             }

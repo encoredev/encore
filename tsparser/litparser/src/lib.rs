@@ -321,6 +321,10 @@ impl<T> Sp<T> {
         Self::new(Span::dummy(), val)
     }
 
+    pub fn with<U>(&self, val: U) -> Sp<U> {
+        Sp::new(self.0, val)
+    }
+
     pub fn split(self) -> (Span, T) {
         (self.0, self.1)
     }
