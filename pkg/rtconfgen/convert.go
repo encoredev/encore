@@ -401,10 +401,11 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 				cfg.BucketProviders = append(cfg.BucketProviders, p)
 				for _, bkt := range cluster.Buckets {
 					cfg.Buckets[bkt.EncoreName] = &config.Bucket{
-						ProviderID: providerID,
-						EncoreName: bkt.EncoreName,
-						CloudName:  bkt.CloudName,
-						KeyPrefix:  bkt.GetKeyPrefix(),
+						ProviderID:    providerID,
+						EncoreName:    bkt.EncoreName,
+						CloudName:     bkt.CloudName,
+						KeyPrefix:     bkt.GetKeyPrefix(),
+						PublicBaseURL: bkt.GetPublicBaseUrl(),
 					}
 				}
 

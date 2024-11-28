@@ -94,21 +94,23 @@ func runMain() (err error) {
 
 // Daemon orchestrates setting up the different daemon subsystems.
 type Daemon struct {
-	Daemon   *net.UnixListener
-	Runtime  *retryingTCPListener
-	DBProxy  *retryingTCPListener
-	Dash     *retryingTCPListener
-	Debug    *retryingTCPListener
-	EncoreDB *sql.DB
+	Daemon        *net.UnixListener
+	Runtime       *retryingTCPListener
+	DBProxy       *retryingTCPListener
+	Dash          *retryingTCPListener
+	Debug         *retryingTCPListener
+	ObjectStorage *retryingTCPListener
+	EncoreDB      *sql.DB
 
-	Apps       *apps.Manager
-	Secret     *secret.Manager
-	RunMgr     *run.Manager
-	NS         *namespace.Manager
-	ClusterMgr *sqldb.ClusterManager
-	ObjectsMgr *objects.ClusterManager
-	Trace      trace2.Store
-	Server     *daemon.Server
+	Apps          *apps.Manager
+	Secret        *secret.Manager
+	RunMgr        *run.Manager
+	NS            *namespace.Manager
+	ClusterMgr    *sqldb.ClusterManager
+	ObjectsMgr    *objects.ClusterManager
+	PublicBuckets *objects.PublicBucketServer
+	Trace         trace2.Store
+	Server        *daemon.Server
 
 	dev bool // whether we're in development mode
 
@@ -126,6 +128,7 @@ func (d *Daemon) init(ctx context.Context) {
 	d.DBProxy = d.listenTCPRetry("dbproxy", option.None[string](), 9500)
 	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
 	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
+	d.ObjectStorage = d.listenTCPRetry("objectstorage", option.None[string](), 9800)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
@@ -147,16 +150,18 @@ func (d *Daemon) init(ctx context.Context) {
 	d.NS = namespace.NewManager(d.EncoreDB)
 	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
 	d.ObjectsMgr = objects.NewClusterManager(d.NS)
+	d.PublicBuckets = objects.NewPublicBucketServer("http://"+d.ObjectStorage.ClientAddr(), d.ObjectsMgr.PersistentStoreFallback)
 
 	d.Trace = sqlite.New(ctx, d.EncoreDB)
 	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
-		RuntimePort: d.Runtime.Port(),
-		DBProxyPort: d.DBProxy.Port(),
-		DashBaseURL: fmt.Sprintf("http://%s", d.Dash.ClientAddr()),
-		Secret:      d.Secret,
-		ClusterMgr:  d.ClusterMgr,
-		ObjectsMgr:  d.ObjectsMgr,
+		RuntimePort:   d.Runtime.Port(),
+		DBProxyPort:   d.DBProxy.Port(),
+		DashBaseURL:   fmt.Sprintf("http://%s", d.Dash.ClientAddr()),
+		Secret:        d.Secret,
+		ClusterMgr:    d.ClusterMgr,
+		ObjectsMgr:    d.ObjectsMgr,
+		PublicBuckets: d.PublicBuckets,
 	}
 
 	// Register namespace deletion handlers.
@@ -173,6 +178,7 @@ func (d *Daemon) serve() {
 	go d.serveDBProxy()
 	go d.serveDash()
 	go d.serveDebug()
+	go d.serveObjects()
 }
 
 // listenDaemonSocket listens on the encored.sock UNIX socket
@@ -248,6 +254,11 @@ func (d *Daemon) serveRuntime() {
 func (d *Daemon) serveDBProxy() {
 	log.Info().Stringer("addr", d.DBProxy.Addr()).Msg("serving dbproxy")
 	d.exit <- d.ClusterMgr.ServeProxy(d.DBProxy)
+}
+
+func (d *Daemon) serveObjects() {
+	log.Info().Stringer("addr", d.ObjectStorage.Addr()).Msg("serving object storage")
+	d.exit <- d.PublicBuckets.Serve(d.ObjectStorage)
 }
 
 func (d *Daemon) serveDash() {

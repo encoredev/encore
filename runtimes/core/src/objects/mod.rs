@@ -1,8 +1,10 @@
 use bytes::Bytes;
 use futures::{Stream, StreamExt};
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 use std::{fmt::Debug, pin::Pin};
+use thiserror::Error;
 use tokio::io::AsyncRead;
 
 pub use manager::Manager;
@@ -63,6 +65,8 @@ trait ObjectImpl: Debug + Send + Sync {
         self: Arc<Self>,
         options: DeleteOptions,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>;
+
+    fn public_url(&self) -> Result<String, PublicUrlError>;
 }
 
 #[derive(Debug)]
@@ -129,6 +133,16 @@ impl Bucket {
 pub struct Object {
     tracer: Tracer,
     imp: Arc<dyn ObjectImpl>,
+}
+
+#[derive(Debug, Error)]
+pub enum PublicUrlError {
+    #[error("bucket is not public")]
+    PrivateBucket,
+    #[error("invalid object name")]
+    InvalidObjectName,
+    #[error("public url not supported in noop bucket")]
+    NoopBucket,
 }
 
 impl Object {
@@ -340,6 +354,12 @@ impl Object {
             self.imp.clone().delete(options).await
         }
     }
+
+    /// Returns the public URL of the object, if available.
+    /// If the bucket is not public, it reports None.
+    pub fn public_url(&self) -> Result<String, PublicUrlError> {
+        self.imp.public_url()
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -460,4 +480,29 @@ impl Drop for ListIterator {
                 });
         }
     }
+}
+
+use percent_encoding::{AsciiSet, CONTROLS};
+
+// From https://url.spec.whatwg.org/#c0-control-percent-encode-set
+
+const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
+const PATH: &AsciiSet = &QUERY.add(b'?').add(b'`').add(b'{').add(b'}');
+
+fn escape_path(s: &str) -> Cow<'_, str> {
+    percent_encoding::percent_encode(s.as_bytes(), PATH).into()
+}
+
+/// Computes the public url given a base url, optional key prefix, and object name.
+fn public_url(base_url: String, key_prefix: Option<&str>, name: &str) -> String {
+    let mut url = base_url;
+
+    if !url.ends_with('/') {
+        url.push('/');
+    }
+    if let Some(key_prefix) = key_prefix {
+        url.push_str(&escape_path(key_prefix));
+    }
+    url.push_str(&escape_path(name));
+    url
 }

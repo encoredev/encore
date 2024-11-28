@@ -73,7 +73,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 
 	mgr := &Manager{}
 	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
-	rm := infra.NewResourceManager(app, mgr.ClusterMgr, mgr.ObjectsMgr, ns, nil, 0, false)
+	rm := infra.NewResourceManager(app, mgr.ClusterMgr, mgr.ObjectsMgr, mgr.PublicBuckets, ns, nil, 0, false)
 	run := &Run{
 		ID:              GenID(),
 		ListenAddr:      ln.Addr().String(),

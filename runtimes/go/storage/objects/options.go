@@ -150,3 +150,14 @@ type ExistsOption interface {
 type existsOptions struct {
 	version string
 }
+
+// PublicURLOption describes available options for the PublicURL operation.
+type PublicURLOption interface {
+	//publicapigen:keep
+	publicURLOption()
+
+	applyPublicURL(*publicURLOptions)
+}
+
+// No options yet
+type publicURLOptions struct{}

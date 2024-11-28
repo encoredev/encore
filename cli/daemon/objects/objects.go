@@ -7,8 +7,10 @@ import (
 	"net"
 	"net/http"
 
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/pkg/emulators/storage/gcsemu"
 	"github.com/cockroachdb/errors"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog/log"
 	"go4.org/syncutil"
 
@@ -16,28 +18,35 @@ import (
 )
 
 type Server struct {
-	cm        *ClusterManager
+	id        string
+	public    *PublicBucketServer
 	startOnce syncutil.Once
 	cancel    func() // set by Start
+	store     gcsemu.Store
 	emu       *gcsemu.GcsEmu
 	ln        net.Listener
 	srv       *http.Server
+	inMemory  bool
 }
 
-func NewInMemoryServer() *Server {
-	return &Server{
-		// TODO set up dir storage
-		emu: gcsemu.NewGcsEmu(gcsemu.Options{
-			Store: gcsemu.NewMemStore(),
-		}),
-	}
+func NewInMemoryServer(public *PublicBucketServer) *Server {
+	id := xid.New().String()
+	store := gcsemu.NewMemStore()
+	return newServer(public, id, store, true)
 }
 
-func NewDirServer(baseDir string) *Server {
+func NewDirServer(public *PublicBucketServer, nsID namespace.ID, baseDir string) *Server {
+	store := gcsemu.NewFileStore(baseDir)
+	return newServer(public, nsID.String(), store, false)
+}
+
+func newServer(public *PublicBucketServer, id string, store gcsemu.Store, isInMem bool) *Server {
 	return &Server{
-		emu: gcsemu.NewGcsEmu(gcsemu.Options{
-			Store: gcsemu.NewFileStore(baseDir),
-		}),
+		public:   public,
+		id:       id,
+		store:    store,
+		emu:      gcsemu.NewGcsEmu(gcsemu.Options{Store: store}),
+		inMemory: isInMem,
 	}
 }
 
@@ -52,6 +61,9 @@ func (s *Server) Initialize(md *meta.Data) error {
 
 func (s *Server) Start() error {
 	return s.startOnce.Do(func() error {
+		if s.inMemory {
+			s.public.Register(s.id, s.store)
+		}
 		mux := http.NewServeMux()
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -73,6 +85,9 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop() {
 	_ = s.srv.Close()
+	if s.inMemory {
+		s.public.Deregister(s.id)
+	}
 }
 
 func (s *Server) Endpoint() string {
@@ -82,6 +97,10 @@ func (s *Server) Endpoint() string {
 	}
 	port := s.ln.Addr().(*net.TCPAddr).Port
 	return fmt.Sprintf("http://localhost:%d", port)
+}
+
+func (s *Server) PublicBaseURL() string {
+	return fmt.Sprintf("%s/%s", s.public.BaseAddr(), s.id)
 }
 
 // IsUsed reports whether the application uses object storage at all.

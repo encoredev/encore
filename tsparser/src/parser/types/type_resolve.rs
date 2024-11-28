@@ -1274,7 +1274,7 @@ impl<'a> Ctx<'a> {
 
         let typ = {
             // Create a nested ctx that uses the object's module.
-            let ctx = Ctx::new(self.state, self.module).with_type_params(&type_params);
+            let ctx = Ctx::new(self.state, obj.module_id).with_type_params(&type_params);
             ctx.resolve_obj_type(obj)
         };
 

@@ -58,7 +58,7 @@ type RuntimeConfigGenerator struct {
 		PubSubTopicConfig(topic *meta.PubSubTopic) (config.PubsubProvider, config.PubsubTopic, error)
 		PubSubSubscriptionConfig(topic *meta.PubSubTopic, sub *meta.PubSubTopic_Subscription) (config.PubsubSubscription, error)
 		RedisConfig(redis *meta.CacheCluster) (config.RedisServer, config.RedisDatabase, error)
-		BucketProviderConfig() (config.BucketProvider, error)
+		BucketProviderConfig() (config.BucketProvider, string, error)
 	}
 
 	AppID         option.Option[string]
@@ -339,7 +339,7 @@ func (g *RuntimeConfigGenerator) initialize() error {
 		}
 
 		if len(g.md.Buckets) > 0 {
-			bktProviderConfig, err := g.infraManager.BucketProviderConfig()
+			bktProviderConfig, publicBaseURL, err := g.infraManager.BucketProviderConfig()
 			if err != nil {
 				return errors.Wrap(err, "failed to generate bucket provider config")
 			}
@@ -357,10 +357,16 @@ func (g *RuntimeConfigGenerator) initialize() error {
 			for _, bkt := range g.md.Buckets {
 				bktRid := newRid()
 
+				var publicURL *string
+				if bkt.Public {
+					u := publicBaseURL + "/" + bkt.Name
+					publicURL = &u
+				}
 				cluster.Bucket(&runtimev1.Bucket{
-					Rid:        bktRid,
-					EncoreName: bkt.Name,
-					CloudName:  bkt.Name,
+					Rid:           bktRid,
+					EncoreName:    bkt.Name,
+					CloudName:     bkt.Name,
+					PublicBaseUrl: publicURL,
 				})
 			}
 		}

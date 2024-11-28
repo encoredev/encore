@@ -384,10 +384,11 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		cfg.Buckets = map[string]*Bucket{}
 		for bucketName, bucket := range storage.GetBuckets() {
 			cfg.Buckets[bucketName] = &Bucket{
-				ProviderID: i,
-				EncoreName: bucketName,
-				CloudName:  bucket.Name,
-				KeyPrefix:  "",
+				ProviderID:    i,
+				EncoreName:    bucketName,
+				CloudName:     bucket.Name,
+				KeyPrefix:     bucket.KeyPrefix,
+				PublicBaseURL: bucket.PublicBaseURL,
 			}
 		}
 	}

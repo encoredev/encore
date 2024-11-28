@@ -42,6 +42,7 @@ const (
 	UpdateObjectMetadata Perm = "update-object-metadata"
 	GetObjectMetadata    Perm = "get-object-metadata"
 	DeleteObject         Perm = "delete-object"
+	GetPublicURL         Perm = "get-public-url"
 )
 
 func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
@@ -58,12 +59,14 @@ func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
 		return meta.BucketUsage_GET_OBJECT_METADATA, true
 	case DeleteObject:
 		return meta.BucketUsage_DELETE_OBJECT, true
+	case GetPublicURL:
+		return meta.BucketUsage_GET_PUBLIC_URL, true
 	default:
 		return meta.BucketUsage_UNKNOWN, false
 	}
 }
 
-func ResolveBucketUsage(data usage.ResolveData, topic *Bucket) usage.Usage {
+func ResolveBucketUsage(data usage.ResolveData, bkt *Bucket) usage.Usage {
 	switch expr := data.Expr.(type) {
 	case *usage.MethodCall:
 		var perm Perm
@@ -76,6 +79,11 @@ func ResolveBucketUsage(data usage.ResolveData, topic *Bucket) usage.Usage {
 			perm = ListObjects
 		case "Remove":
 			perm = DeleteObject
+		case "PublicURL":
+			perm = GetPublicURL
+			if !bkt.Public {
+
+			}
 		default:
 			return nil
 		}
@@ -125,6 +133,8 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 				perms = append(perms, DeleteObject)
 			case isNamed(typ, "Attrser"):
 				perms = append(perms, GetObjectMetadata)
+			case isNamed(typ, "PublicURLer"):
+				perms = append(perms, GetPublicURL)
 			case isNamed(typ, "ReadWriter"):
 				perms = append(perms, WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, UpdateObjectMetadata)
 			default:
