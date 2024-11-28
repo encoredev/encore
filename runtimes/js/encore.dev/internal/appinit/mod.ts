@@ -183,9 +183,11 @@ function transformHandler(h: Handler): runtime.ApiRoute {
 
         if (middlewares.length === 0) {
           const payload = req.payload();
-          return payload !== null
-            ? h.apiRoute.handler(payload, stream)
-            : h.apiRoute.handler(stream);
+          return toResponse(
+            payload !== null
+              ? h.apiRoute.handler(payload, stream)
+              : h.apiRoute.handler(stream)
+          );
         }
 
         const handler = async () => {
@@ -216,7 +218,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         const rawResp = new RawResponse(rawReq, resp);
 
         if (middlewares.length === 0) {
-          return h.apiRoute.handler(rawReq, rawResp);
+          return toResponse(h.apiRoute.handler(rawReq, rawResp));
         }
 
         const handler = async () => {
@@ -236,9 +238,9 @@ function transformHandler(h: Handler): runtime.ApiRoute {
 
       if (middlewares.length === 0) {
         const payload = req.payload();
-        return payload !== null
-          ? h.apiRoute.handler(payload)
-          : h.apiRoute.handler();
+        return toResponse(
+          payload !== null ? h.apiRoute.handler(payload) : h.apiRoute.handler()
+        );
       }
 
       const handler = async () => {
@@ -252,4 +254,14 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       return invokeMiddlewareChain(mwRequest, middlewares, handler);
     }
   };
+}
+
+function toResponse(payload: any): any {
+  if (payload instanceof Promise) {
+    return (async () => {
+      return new HandlerResponse(await payload);
+    })();
+  } else {
+    return new HandlerResponse(payload);
+  }
 }

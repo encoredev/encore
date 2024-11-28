@@ -340,9 +340,6 @@ export class MiddlewareRequest {
   }
 }
 
-// internal marker
-const sym = Symbol.for("encore_handler_response");
-
 export class HandlerResponse {
   /**
    * The payload returned by the handler when the handler is either
@@ -357,16 +354,14 @@ export class HandlerResponse {
    */
   extraHeaders: Record<string, string | string[]>;
 
-  [sym]: "internal";
-
   constructor(payload: any) {
     this.payload = payload;
     this.extraHeaders = {};
-    this[sym] = "internal";
   }
 }
 
 export type Next = (req: MiddlewareRequest) => Promise<HandlerResponse>;
+
 export type MiddlewareFn = (
   req: MiddlewareRequest,
   next: Next
