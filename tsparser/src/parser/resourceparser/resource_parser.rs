@@ -30,7 +30,7 @@ pub struct ResourceParserRegistry<'a> {
     interested_for_paths: HashMap<PkgPath<'a>, Vec<&'a ResourceParser>>,
 }
 
-impl<'a> Default for ResourceParserRegistry<'a> {
+impl Default for ResourceParserRegistry<'_> {
     fn default() -> Self {
         Self::new(DEFAULT_RESOURCE_PARSERS)
     }

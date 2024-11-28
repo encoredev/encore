@@ -191,7 +191,7 @@ impl<'a> Parser<'a> {
 
                 // Skip non-".ts" files.
                 let ext = entry.path().extension().and_then(OsStr::to_str);
-                if !ext.is_some_and(|ext| ext == "ts") {
+                if ext.is_none_or(|ext| ext != "ts") {
                     continue;
                 }
 

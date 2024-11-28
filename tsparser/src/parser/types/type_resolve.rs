@@ -140,7 +140,7 @@ impl<'a> Ctx<'a> {
     }
 }
 
-impl<'a> Ctx<'a> {
+impl Ctx<'_> {
     pub fn typ(&self, typ: &ast::TsType) -> Type {
         match typ {
             ast::TsType::TsKeywordType(tt) => self.keyword(tt),
@@ -1244,7 +1244,7 @@ impl<'a> Ctx<'a> {
     }
 }
 
-impl<'a> Ctx<'a> {
+impl Ctx<'_> {
     pub fn obj_type(&self, obj: &Object) -> Type {
         if matches!(&obj.kind, ObjectKind::Module(_)) {
             // Modules don't have a type.
@@ -1417,7 +1417,7 @@ impl<'a> Ctx<'a> {
     }
 }
 
-impl<'a> Ctx<'a> {
+impl Ctx<'_> {
     #[tracing::instrument(skip(self), ret, level = "trace")]
     pub fn concrete<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         match typ {

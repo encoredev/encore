@@ -27,7 +27,7 @@ pub struct ManagerConfig<'a> {
     pub runtime: tokio::runtime::Handle,
 }
 
-impl<'a> ManagerConfig<'a> {
+impl ManagerConfig<'_> {
     pub fn build(self) -> anyhow::Result<Manager> {
         // Start listening so we can tell which port it is when we generate configuration.
         let listener =

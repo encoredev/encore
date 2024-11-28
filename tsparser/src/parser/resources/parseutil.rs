@@ -368,7 +368,7 @@ impl<'a, R> IterReferenceVisitor<'a, R> {
     }
 }
 
-impl<'a, R: ReferenceParser> swc_ecma_visit::VisitAstPath for IterReferenceVisitor<'a, R> {
+impl<R: ReferenceParser> swc_ecma_visit::VisitAstPath for IterReferenceVisitor<'_, R> {
     fn visit_ident<'ast: 'r, 'r>(
         &mut self,
         n: &'ast ast::Ident,

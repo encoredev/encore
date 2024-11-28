@@ -7,7 +7,7 @@ struct SchemaSerializeWrapper<'a> {
     payload: &'a JSONPayload,
 }
 
-impl<'a> Serialize for SchemaSerializeWrapper<'a> {
+impl Serialize for SchemaSerializeWrapper<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

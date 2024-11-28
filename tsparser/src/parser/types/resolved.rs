@@ -93,7 +93,7 @@ where
     }
 }
 
-impl<'a, 'b, B: ?Sized, C: ?Sized> PartialEq<Resolved<'b, C>> for Resolved<'a, B>
+impl<'b, B: ?Sized, C: ?Sized> PartialEq<Resolved<'b, C>> for Resolved<'_, B>
 where
     B: PartialEq<C> + ToOwned,
     C: ToOwned,
