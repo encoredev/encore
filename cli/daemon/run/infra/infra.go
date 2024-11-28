@@ -45,28 +45,30 @@ const (
 // ResourceManager manages a set of infrastructure resources
 // to support the running Encore application.
 type ResourceManager struct {
-	app         *apps.Instance
-	dbProxyPort int
-	sqlMgr      *sqldb.ClusterManager
-	objectsMgr  *objects.ClusterManager
-	ns          *namespace.Namespace
-	environ     environ.Environ
-	log         zerolog.Logger
-	forTests    bool
+	app           *apps.Instance
+	dbProxyPort   int
+	sqlMgr        *sqldb.ClusterManager
+	objectsMgr    *objects.ClusterManager
+	publicBuckets *objects.PublicBucketServer
+	ns            *namespace.Namespace
+	environ       environ.Environ
+	log           zerolog.Logger
+	forTests      bool
 
 	mutex   sync.Mutex
 	servers map[Type]Resource
 }
 
-func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, objectsMgr *objects.ClusterManager, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
+func NewResourceManager(app *apps.Instance, sqlMgr *sqldb.ClusterManager, objectsMgr *objects.ClusterManager, publicBuckets *objects.PublicBucketServer, ns *namespace.Namespace, environ environ.Environ, dbProxyPort int, forTests bool) *ResourceManager {
 	return &ResourceManager{
-		app:         app,
-		dbProxyPort: dbProxyPort,
-		sqlMgr:      sqlMgr,
-		objectsMgr:  objectsMgr,
-		ns:          ns,
-		environ:     environ,
-		forTests:    forTests,
+		app:           app,
+		dbProxyPort:   dbProxyPort,
+		sqlMgr:        sqlMgr,
+		objectsMgr:    objectsMgr,
+		publicBuckets: publicBuckets,
+		ns:            ns,
+		environ:       environ,
+		forTests:      forTests,
 
 		servers: make(map[Type]Resource),
 		log:     log.With().Str("app_id", app.PlatformOrLocalID()).Logger(),
@@ -164,16 +166,18 @@ func (rm *ResourceManager) StartObjects(md *meta.Data) func(context.Context) err
 	return func(ctx context.Context) error {
 		var srv *objects.Server
 		if rm.forTests {
-			srv = objects.NewInMemoryServer()
+			srv = objects.NewInMemoryServer(rm.publicBuckets)
 		} else {
-			if rm.sqlMgr == nil {
+			if rm.objectsMgr == nil {
 				return fmt.Errorf("StartObjects: no Object Storage cluster manager provided")
+			} else if rm.publicBuckets == nil {
+				return fmt.Errorf("StartObjects: no Object Storage public bucket server provided")
 			}
-			baseDir, err := rm.objectsMgr.BaseDir(ctx, rm.ns)
+			baseDir, err := rm.objectsMgr.BaseDir(rm.ns.ID)
 			if err != nil {
 				return err
 			}
-			srv = objects.NewDirServer(baseDir)
+			srv = objects.NewDirServer(rm.publicBuckets, rm.ns.ID, baseDir)
 		}
 
 		if err := srv.Initialize(md); err != nil {
@@ -459,15 +463,15 @@ func (rm *ResourceManager) RedisConfig(redis *meta.CacheCluster) (config.RedisSe
 }
 
 // BucketProviderConfig returns the bucket provider configuration.
-func (rm *ResourceManager) BucketProviderConfig() (config.BucketProvider, error) {
+func (rm *ResourceManager) BucketProviderConfig() (config.BucketProvider, string, error) {
 	obj := rm.GetObjects()
 	if obj == nil {
-		return config.BucketProvider{}, errors.New("no object storage found")
+		return config.BucketProvider{}, "", errors.New("no object storage found")
 	}
 
 	return config.BucketProvider{
 		GCS: &config.GCSBucketProvider{
 			Endpoint: obj.Endpoint(),
 		},
-	}, nil
+	}, obj.PublicBaseURL(), nil
 }

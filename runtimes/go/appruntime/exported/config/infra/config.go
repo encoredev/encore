@@ -3,7 +3,9 @@ package infra
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"net/url"
 	"os"
 )
 
@@ -74,7 +76,7 @@ func (p *ObjectStorage) MarshalJSON() ([]byte, error) {
 	// Always add the type
 	m["type"] = p.Type
 
-	// Add the specific pubsub configuration based on the type
+	// Add the specific object storage configuration based on the type
 	switch p.Type {
 	case "gcs":
 		if p.GCS != nil {
@@ -150,12 +152,22 @@ func (a *GCS) Validate(v *validator) {
 }
 
 type Bucket struct {
-	Name      string `json:"name,omitempty"`
-	KeyPrefix string `json:"key_prefix,omitempty"`
+	Name          string `json:"name,omitempty"`
+	KeyPrefix     string `json:"key_prefix,omitempty"`
+	PublicBaseURL string `json:"public_base_url,omitempty`
 }
 
 func (a *Bucket) Validate(v *validator) {
 	v.ValidateField("name", NotZero(a.Name))
+
+	v.ValidateField("public_base_url", func() error {
+		if a.PublicBaseURL != "" {
+			if _, err := url.Parse(a.PublicBaseURL); err != nil {
+				return fmt.Errorf("Not a valid URL: %v", err)
+			}
+		}
+		return nil
+	})
 }
 
 type Metadata struct {

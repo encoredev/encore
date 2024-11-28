@@ -1587,6 +1587,7 @@ dependencies = [
  "once_cell",
  "openssl",
  "openssl-probe",
+ "percent-encoding",
  "pingora",
  "postgres-native-tls",
  "postgres-protocol",

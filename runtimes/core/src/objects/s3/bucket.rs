@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
     self, AttrsOptions, DeleteOptions, DownloadOptions, Error, ExistsOptions, ListEntry,
-    ListOptions, ObjectAttrs,
+    ListOptions, ObjectAttrs, PublicUrlError,
 };
 use crate::{CloudName, EncoreName};
 
@@ -28,6 +28,7 @@ pub struct Bucket {
     client: Arc<LazyS3Client>,
     encore_name: EncoreName,
     cloud_name: CloudName,
+    public_base_url: Option<String>,
     key_prefix: Option<String>,
 }
 
@@ -37,6 +38,7 @@ impl Bucket {
             client,
             encore_name: cfg.encore_name.clone().into(),
             cloud_name: cfg.cloud_name.clone().into(),
+            public_base_url: cfg.public_base_url.clone(),
             key_prefix: cfg.key_prefix.clone(),
         }
     }
@@ -366,6 +368,15 @@ impl objects::ObjectImpl for Object {
                 Err(err) => Err(Error::Other(err.into())),
             }
         })
+    }
+
+    fn public_url(&self) -> Result<String, PublicUrlError> {
+        let Some(base_url) = self.bkt.public_base_url.clone() else {
+            return Err(PublicUrlError::PrivateBucket);
+        };
+
+        let url = objects::public_url(base_url, self.bkt.key_prefix.as_deref(), &self.name);
+        Ok(url)
     }
 }
 

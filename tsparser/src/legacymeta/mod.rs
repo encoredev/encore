@@ -401,6 +401,7 @@ impl<'a> MetaBuilder<'a> {
                         Operation::GetObjectMetadata => {
                             v1::bucket_usage::Operation::GetObjectMetadata
                         }
+                        Operation::GetPublicUrl => v1::bucket_usage::Operation::GetPublicUrl,
                     } as i32);
 
                     let idx = svc_index.get(&svc.name).unwrap();
@@ -582,6 +583,7 @@ impl<'a> MetaBuilder<'a> {
             name: bkt.name.clone(),
             doc: bkt.doc.clone(),
             versioned: bkt.versioned,
+            public: bkt.public,
         }
     }
 

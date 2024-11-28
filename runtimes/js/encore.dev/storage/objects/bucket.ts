@@ -2,9 +2,15 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 import { unwrapErr } from "./error";
-import { BucketPerms, Uploader, Downloader, Attrser, Lister, Remover } from "./refs";
+import { BucketPerms, Uploader, Downloader, Attrser, Lister, Remover, PublicUrler } from "./refs";
 
 export interface BucketConfig {
+  /**
+   * Whether the objects in the bucket should be publicly
+   * accessible, via CDN. Defaults to false if unset.
+  */
+  public?: boolean;
+
   /**
    * Whether to enable versioning of the objects in the bucket.
    * Defaults to false if unset.
@@ -15,7 +21,7 @@ export interface BucketConfig {
 /**
  * Defines a new Object Storage bucket infrastructure resource.
  */
-export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser, Lister, Remover {
+export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser, Lister, Remover, PublicUrler {
   impl: runtime.Bucket;
 
   /**
@@ -101,6 +107,15 @@ export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser
     if (err) {
       unwrapErr(err);
     }
+  }
+
+  /**
+  * Returns the public URL for accessing the object with the given name.
+  * Throws an error if the bucket is not public.
+  */
+  publicUrl(name: string): string {
+    const obj = this.impl.object(name);
+    return obj.publicUrl();
   }
 
   ref<P extends BucketPerms>(): P {

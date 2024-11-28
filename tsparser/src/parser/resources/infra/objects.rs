@@ -24,11 +24,13 @@ pub struct Bucket {
     pub name: String,
     pub doc: Option<String>,
     pub versioned: bool,
+    pub public: bool,
 }
 
 #[derive(LitParser, Default)]
 struct DecodedBucketConfig {
     pub versioned: Option<bool>,
+    pub public: Option<bool>,
 }
 
 pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
@@ -56,6 +58,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                     name: r.resource_name,
                     doc: r.doc_comment,
                     versioned: cfg.versioned.unwrap_or(false),
+                    public: cfg.public.unwrap_or(false),
                 }));
                 pass.add_resource(resource.clone());
                 pass.add_bind(BindData {
@@ -121,6 +124,21 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Res
                 "upload" => Operation::WriteObject,
                 "download" => Operation::ReadObjectContents,
                 "remove" => Operation::DeleteObject,
+
+                "publicUrl" => {
+                    // Make sure the bucket is public.
+                    if !bucket.public {
+                        call.call
+                            .span
+                            .err("cannot call publicUrl on a non-public bucket");
+                    }
+
+                    // Technically, getting a public URL does not require additional
+                    // permissions, but we track it anyway so that we can track which
+                    // service(s) need to receive the bucket configuration.
+                    Operation::GetPublicUrl
+                }
+
                 _ => {
                     call.method.err("unsupported bucket operation");
                     return Ok(None);
@@ -169,6 +187,7 @@ fn parse_bucket_ref(
                     Some("Uploader") => vec![Operation::WriteObject],
                     Some("Downloader") => vec![Operation::ReadObjectContents],
                     Some("Remover") => vec![Operation::DeleteObject],
+                    Some("PublicUrler") => vec![Operation::GetPublicUrl],
                     _ => {
                         let underlying = data.type_checker.resolve_obj_type(&named.obj);
                         return process_type(data, sp, &underlying, depth + 1);
@@ -189,6 +208,7 @@ fn parse_bucket_ref(
                             "upload" => Operation::WriteObject,
                             "download" => Operation::ReadObjectContents,
                             "remove" => Operation::DeleteObject,
+                            "publicUrl" => Operation::GetPublicUrl,
                             _ => {
                                 // Ignore other methods.
                                 return None;
@@ -228,6 +248,11 @@ fn parse_bucket_ref(
         .resolve_type(data.module.clone(), type_arg);
 
     if let Some(ops) = process_type(data, &typ.span(), typ.deref(), 0) {
+        if !bucket.public && ops.iter().any(|o| *o == Operation::GetPublicUrl) {
+            typ.span()
+                .err("cannot use publicUrl on a non-public bucket");
+        }
+
         Ok(Some(Usage::Bucket(BucketUsage {
             range: data.expr.range,
             bucket,
@@ -246,7 +271,7 @@ pub struct BucketUsage {
     pub ops: Vec<Operation>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Operation {
     /// Listing objects and accessing their metadata during list operations.
     ListObjects,
@@ -265,4 +290,7 @@ pub enum Operation {
 
     /// Deleting an object.
     DeleteObject,
+
+    /// Getting the public URL for the bucket/an object.
+    GetPublicUrl,
 }

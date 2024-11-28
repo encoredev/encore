@@ -26,6 +26,10 @@ func (d *Desc) validateObjects(pc *parsectx.Context, result *parser.Result) {
 			for _, use := range d.Parse.Usages(res) {
 				switch use := use.(type) {
 				case *objects.RefUsage:
+					if use.HasPerm(objects.GetPublicURL) && !res.Public {
+						pc.Errs.Add(objects.ErrBucketNotPublic.
+							AtGoNode(use, errors.AsError("used here")))
+					}
 					errTxt := "used here"
 					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok && !use.DeclaredIn().TestFile {
 						pc.Errs.Add(objects.ErrBucketRefOutsideService.
@@ -34,6 +38,11 @@ func (d *Desc) validateObjects(pc *parsectx.Context, result *parser.Result) {
 					}
 
 				case *objects.MethodUsage:
+					if use.Perm == objects.GetPublicURL && !res.Public {
+						pc.Errs.Add(objects.ErrBucketNotPublic.
+							AtGoNode(use, errors.AsError("used here")))
+					}
+
 					errTxt := "used here"
 					if _, ok := d.ServiceForPath(use.DeclaredIn().FSPath); !ok && !use.DeclaredIn().TestFile {
 						pc.Errs.Add(objects.ErrUnsupportedOperationOutsideService(use.Method).

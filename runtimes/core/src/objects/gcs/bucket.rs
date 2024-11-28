@@ -12,7 +12,7 @@ use tokio::io::AsyncRead;
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
     AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, Error, ExistsOptions, ListEntry,
-    ListOptions, ObjectAttrs, UploadOptions,
+    ListOptions, ObjectAttrs, PublicUrlError, UploadOptions,
 };
 use crate::{objects, CloudName, EncoreName};
 use google_cloud_storage as gcs;
@@ -24,6 +24,7 @@ pub struct Bucket {
     client: Arc<LazyGCSClient>,
     encore_name: EncoreName,
     cloud_name: CloudName,
+    public_base_url: Option<String>,
     key_prefix: Option<String>,
 }
 
@@ -33,6 +34,7 @@ impl Bucket {
             client,
             encore_name: cfg.encore_name.clone().into(),
             cloud_name: cfg.cloud_name.clone().into(),
+            public_base_url: cfg.public_base_url.clone(),
             key_prefix: cfg.key_prefix.clone(),
         }
     }
@@ -354,6 +356,15 @@ impl objects::ObjectImpl for Object {
                 ))),
             }
         })
+    }
+
+    fn public_url(&self) -> Result<String, PublicUrlError> {
+        let Some(base_url) = self.bkt.public_base_url.clone() else {
+            return Err(PublicUrlError::PrivateBucket);
+        };
+
+        let url = objects::public_url(base_url, self.bkt.key_prefix.as_deref(), &self.key);
+        Ok(url)
     }
 }
 

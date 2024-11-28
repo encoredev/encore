@@ -289,7 +289,18 @@ func buildAndValidateInfraConfig(params EmbeddedInfraConfigParams) (*infra.Infra
 	buckets = slices.Compact(buckets)
 
 	for _, storage := range infraCfg.ObjectStorage {
-		for name, _ := range storage.GetBuckets() {
+		for name, infraCfg := range storage.GetBuckets() {
+			metaBkt, ok := fns.Find(md.Buckets, func(b *meta.Bucket) bool {
+				return b.Name == name
+			})
+			if ok {
+				if metaBkt.Public && infraCfg.PublicBaseURL == "" {
+					path := infra.JSONPath("buckets").Append(infra.JSONPath(name)).Append("public_base_url")
+					validationErrors[path] = errors.New("Bucket is public but no public base URL is set")
+					return nil, "", configError(missing, validationErrors)
+				}
+			}
+
 			buckets, ok = fns.Delete(buckets, name)
 			if !ok {
 				storage.DeleteBucket(name)
