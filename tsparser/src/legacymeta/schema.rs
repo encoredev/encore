@@ -80,7 +80,7 @@ impl<'a> SchemaBuilder<'a> {
     }
 }
 
-impl<'a, 'b> BuilderCtx<'a, 'b> {
+impl BuilderCtx<'_, '_> {
     #[tracing::instrument(skip(self), ret, level = "trace")]
     fn typ(&mut self, typ: &Type) -> Result<schema::Type> {
         Ok(match typ {

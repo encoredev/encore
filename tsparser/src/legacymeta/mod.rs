@@ -45,7 +45,7 @@ struct MetaBuilder<'a> {
     data: v1::Data,
 }
 
-impl<'a> MetaBuilder<'a> {
+impl MetaBuilder<'_> {
     pub fn build(mut self) -> Result<v1::Data> {
         // self.data.app_revision = parse_app_revision(&self.app_root)?;
         self.data.app_revision = std::env::var("ENCORE_APP_REVISION").unwrap_or_default();
