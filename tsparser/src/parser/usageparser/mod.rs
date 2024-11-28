@@ -332,7 +332,7 @@ impl<'a> UsageVisitor<'a> {
         let parent = path.get(idx - 1);
         let grandparent = path.get(idx - 2);
 
-        return match parent {
+        match parent {
             Some(AstParentNodeRef::MemberExpr(sel, MemberExprField::Obj)) => {
                 // We have a member expression, where the object ("foo" in foo.bar) is the bind.
                 // Ensure "bar" is a static identifier and not a private field or a computed property.
@@ -439,7 +439,7 @@ impl<'a> UsageVisitor<'a> {
                     }
                 }
             }
-        };
+        }
     }
 }
 

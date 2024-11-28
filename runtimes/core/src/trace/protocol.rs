@@ -76,7 +76,7 @@ pub struct LogMessageData<'a, I> {
     pub fields: Option<I>,
 }
 
-impl<'a, I> LogMessageData<'a, I> {
+impl<I> LogMessageData<'_, I> {
     fn level_byte(&self) -> u8 {
         match self.level {
             log::Level::Error => 4,
