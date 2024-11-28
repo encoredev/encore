@@ -624,7 +624,7 @@ impl respath::Path {
             segments: self
                 .segments
                 .iter()
-                .map(|seg| match seg {
+                .map(|seg| match seg.get() {
                     Segment::Literal(lit) => v1::PathSegment {
                         r#type: SegmentType::Literal as i32,
                         value_type: ParamType::String as i32,

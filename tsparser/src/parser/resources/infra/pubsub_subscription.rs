@@ -4,7 +4,7 @@ use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
-use litparser::LitParser;
+use litparser::{report_and_continue, LitParser};
 
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
@@ -13,6 +13,7 @@ use crate::parser::resources::parseutil::{iter_references, NamedClassResource, T
 use crate::parser::resources::Resource;
 use crate::parser::types::Object;
 use crate::parser::Range;
+use crate::span_err::ErrReporter;
 
 #[derive(Debug, Clone)]
 pub struct Subscription {
@@ -63,10 +64,11 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
 
         type Res = NamedClassResource<DecodedSubscriptionConfig, 1, 2>;
         for r in iter_references::<Res>(&module, &names) {
-            let r = r?;
+            let r = report_and_continue!(r);
             let topic_expr = r.constructor_args[0].clone();
-            if topic_expr.spread.is_some() {
-                anyhow::bail!("can't use ... for PubSub topic reference");
+            if let Some(spread) = topic_expr.spread.as_ref() {
+                spread.err("cannot use ... for PubSub topic reference");
+                continue;
             }
             let object = match &r.bind_name {
                 None => None,
@@ -75,10 +77,13 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                     .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
             };
 
-            let topic = pass
+            let Some(topic) = pass
                 .type_checker
                 .resolve_obj(pass.module.clone(), &topic_expr.expr)
-                .ok_or(anyhow::anyhow!("can't resolve topic"))?;
+            else {
+                topic_expr.expr.err("cannot resolve topic reference");
+                continue;
+            };
 
             let resource = Resource::PubSubSubscription(Lrc::new(Subscription {
                 range: r.range,
@@ -124,6 +129,5 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                 ident: r.bind_name,
             });
         }
-        Ok(())
     },
 };

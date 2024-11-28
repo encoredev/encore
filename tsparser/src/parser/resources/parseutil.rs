@@ -1,9 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::Result;
-use litparser::LitParser;
-use swc_common::errors::HANDLER;
-use swc_common::Spanned;
+use litparser::{LitParser, ParseResult, ToParseErr};
+use swc_common::{Span, Spanned};
 use swc_ecma_ast::{self as ast, TsTypeParamInstantiation};
 use swc_ecma_visit::VisitWithPath;
 
@@ -17,7 +15,7 @@ where
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>>;
+    ) -> ParseResult<Option<Self>>;
 }
 
 pub struct NamedClassResource<Config, const NAME_IDX: usize = 0, const CONFIG_IDX: usize = 1> {
@@ -30,35 +28,41 @@ pub struct NamedClassResource<Config, const NAME_IDX: usize = 0, const CONFIG_ID
     pub expr: ast::NewExpr,
 }
 
+impl<Config, const NAME_IDX: usize, const CONFIG_IDX: usize> Spanned
+    for NamedClassResource<Config, NAME_IDX, CONFIG_IDX>
+{
+    fn span(&self) -> Span {
+        self.range.to_span()
+    }
+}
+
 impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> ReferenceParser
     for NamedClassResource<Config, NAME_IDX, CONFIG_IDX>
 {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
-        let res= NamedClassResourceOptionalConfig::<Config, NAME_IDX, CONFIG_IDX>::parse_resource_reference(module, path)?;
-        match res {
-            None => Ok(None),
-            Some(res) => {
-                let Some(config) = res.config else {
-                    HANDLER.with(|handler| {
-                        handler.span_err(res.range.to_span(), "missing required config object");
-                    });
-                    return Ok(None);
-                };
+    ) -> ParseResult<Option<Self>> {
+        let res = match NamedClassResourceOptionalConfig::<Config, NAME_IDX, CONFIG_IDX>::parse_resource_reference(module, path)? {
+            None => return Ok(None),
+            Some(res) => res,
+        };
+        let Some(config) = res.config else {
+            return Err(res
+                .range
+                .to_span()
+                .parse_err("missing required config object"));
+        };
 
-                Ok(Some(Self {
-                    range: res.range,
-                    constructor_args: res.constructor_args,
-                    doc_comment: res.doc_comment,
-                    resource_name: res.resource_name,
-                    bind_name: res.bind_name,
-                    config,
-                    expr: res.expr,
-                }))
-            }
-        }
+        Ok(Some(Self {
+            range: res.range,
+            constructor_args: res.constructor_args,
+            doc_comment: res.doc_comment,
+            resource_name: res.resource_name,
+            bind_name: res.bind_name,
+            config,
+            expr: res.expr,
+        }))
     }
 }
 
@@ -76,13 +80,21 @@ pub struct NamedClassResourceOptionalConfig<
     pub expr: ast::NewExpr,
 }
 
+impl<Config, const NAME_IDX: usize, const CONFIG_IDX: usize> Spanned
+    for NamedClassResourceOptionalConfig<Config, NAME_IDX, CONFIG_IDX>
+{
+    fn span(&self) -> Span {
+        self.range.to_span()
+    }
+}
+
 impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> ReferenceParser
     for NamedClassResourceOptionalConfig<Config, NAME_IDX, CONFIG_IDX>
 {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         for node in path.iter().rev() {
             if let swc_ecma_visit::AstParentNodeRef::NewExpr(
                 expr,
@@ -90,14 +102,11 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
             ) = node
             {
                 let Some(args) = &expr.args else {
-                    HANDLER.with(|h| h.span_err(expr.span, "missing constructor arguments"));
-                    continue;
+                    return Err(expr.span.parse_err("missing constructor arguments"));
                 };
 
                 let bind_name = extract_bind_name(path)?;
-                let Some(resource_name) = extract_resource_name(expr.span, args, NAME_IDX) else {
-                    continue;
-                };
+                let resource_name = extract_resource_name(expr.span, args, NAME_IDX)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
                 let config = args
@@ -129,13 +138,19 @@ pub struct UnnamedClassResource<Config, const CONFIG_IDX: usize = 0> {
     pub config: Config,
 }
 
+impl<Config, const CONFIG_IDX: usize> Spanned for UnnamedClassResource<Config, CONFIG_IDX> {
+    fn span(&self) -> Span {
+        self.range.to_span()
+    }
+}
+
 impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
     for UnnamedClassResource<Config, CONFIG_IDX>
 {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         for node in path.iter().rev() {
             if let swc_ecma_visit::AstParentNodeRef::NewExpr(
                 expr,
@@ -143,7 +158,7 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
             ) = node
             {
                 let Some(args) = &expr.args else {
-                    anyhow::bail!("missing constructor arguments")
+                    return Err(expr.span.parse_err("missing constructor arguments"));
                 };
 
                 let bind_name = extract_bind_name(path)?;
@@ -177,7 +192,7 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         for (idx, node) in path.iter().rev().enumerate() {
             if let swc_ecma_visit::AstParentNodeRef::MemberExpr(
                 expr,
@@ -209,10 +224,7 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                 };
 
                 let bind_name = extract_bind_name(path)?;
-                let Some(resource_name) = extract_resource_name(call.span, &call.args, NAME_IDX)
-                else {
-                    continue;
-                };
+                let resource_name = extract_resource_name(call.span, &call.args, NAME_IDX)?;
                 let doc_comment = module.preceding_comments(call.span.lo.into());
 
                 return Ok(Some(Self {
@@ -229,42 +241,42 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
 }
 
 /// Extracts the name of a resource.
-/// Returns None if the parse failed.
 pub fn extract_resource_name(
     span: swc_common::Span,
     args: &[ast::ExprOrSpread],
     idx: usize,
-) -> Option<&str> {
+) -> ParseResult<&str> {
     let Some(val) = args.get(idx) else {
-        HANDLER.with(|h| h.span_err(span, &format!("missing resource name as argument[{}]", idx)));
-        return None;
+        return Err(span.parse_err(format!("missing resource name as argument[{}]", idx)));
     };
     if val.spread.is_none() {
         if let ast::Expr::Lit(ast::Lit::Str(str)) = val.expr.as_ref() {
-            return Some(str.value.as_ref());
+            return Ok(str.value.as_ref());
         }
     }
 
-    HANDLER.with(|h| h.span_err(val.span(), "expected string literal"));
-    None
+    Err(span.parse_err("expected string literal"))
 }
 
-pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> Result<Option<ast::Ident>> {
+pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> ParseResult<Option<ast::Ident>> {
     for node in path.iter().rev() {
         if let swc_ecma_visit::AstParentNodeRef::VarDecl(
             var,
             swc_ecma_visit::fields::VarDeclField::Decls(idx),
         ) = node
         {
-            let decl = var
-                .decls
-                .get(*idx)
-                .ok_or(anyhow::anyhow!("missing declaration at index {}", idx))?;
+            let Some(decl) = var.decls.get(*idx) else {
+                return Err(var
+                    .span
+                    .parse_err(format!("missing declaration at index {}", idx)));
+            };
             match &decl.name {
                 ast::Pat::Ident(bind_name) => {
                     return Ok(Some(bind_name.id.clone()));
                 }
-                _ => anyhow::bail!("expected identifier as bind name"),
+                _ => {
+                    return Err(decl.name.parse_err("expected identifier as bind name"));
+                }
             }
         }
     }
@@ -343,7 +355,7 @@ fn collect_import_idents<'a>(
 pub fn iter_references<R: ReferenceParser>(
     module: &Module,
     names: &TrackedNames,
-) -> impl Iterator<Item = Result<R>> {
+) -> impl Iterator<Item = ParseResult<R>> {
     let (local_ids, _module_ids) = collect_import_idents(module, names);
     let mut visitor = <IterReferenceVisitor<'_, R>>::new(module, local_ids);
     module
@@ -355,7 +367,7 @@ pub fn iter_references<R: ReferenceParser>(
 struct IterReferenceVisitor<'a, R> {
     module: &'a Module,
     local_ids: HashSet<ast::Id>,
-    results: Vec<Result<R>>,
+    results: Vec<ParseResult<R>>,
 }
 
 impl<'a, R> IterReferenceVisitor<'a, R> {

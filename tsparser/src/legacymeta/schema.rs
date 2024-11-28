@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use itertools::Itertools;
+use litparser::{ParseResult, ToParseErr};
 use swc_common::errors::HANDLER;
 
 use crate::encore::parser::schema::v1 as schema;
@@ -57,14 +58,14 @@ impl<'a> SchemaBuilder<'a> {
         ctx.typ(typ)
     }
 
-    pub fn transform_handshake(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+    pub fn transform_handshake(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
         let mut ctx = BuilderCtx {
             builder: self,
             decl_id: None,
         };
         ctx.transform_handshake(ep)
     }
-    pub fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+    pub fn transform_request(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
         let mut ctx = BuilderCtx {
             builder: self,
             decl_id: None,
@@ -458,11 +459,13 @@ impl BuilderCtx<'_, '_> {
         Ok(result)
     }
 
-    fn transform_handshake(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+    fn transform_handshake(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
         self.transform_request_type(ep, &ep.encoding.raw_handshake_schema)
+            .map_err(|err| ep.range.to_span().parse_err(err.to_string()))
     }
-    fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+    fn transform_request(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
         self.transform_request_type(ep, &ep.encoding.raw_req_schema)
+            .map_err(|err| ep.range.to_span().parse_err(err.to_string()))
     }
 
     fn transform_request_type(

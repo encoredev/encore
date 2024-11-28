@@ -7,8 +7,8 @@ use crate::parser::resources::parseutil::{
 };
 use crate::parser::resources::Resource;
 use crate::parser::Range;
-use anyhow::Result;
-use litparser::LitParser;
+use crate::span_err::ErrReporter;
+use litparser::{report_and_continue, LitParser, ParseResult};
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Span;
@@ -30,7 +30,7 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
         let names = TrackedNames::new(&[("encore.dev/config", "secret")]);
 
         for r in iter_references::<SecretLiteral>(&module, &names) {
-            let r = r?;
+            let r = report_and_continue!(r);
             let resource = Resource::Secret(Lrc::new(Secret {
                 range: r.range,
                 name: r.secret_name,
@@ -50,7 +50,6 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
                 ident: Some(r.bind_name),
             });
         }
-        Ok(())
     },
 };
 
@@ -78,7 +77,7 @@ impl ReferenceParser for SecretLiteral {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         for node in path.iter().rev() {
             if let swc_ecma_visit::AstParentNodeRef::CallExpr(
                 expr,
@@ -97,16 +96,12 @@ impl ReferenceParser for SecretLiteral {
 
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
                 let Some(bind_name) = extract_bind_name(path)? else {
-                    HANDLER.with(|handler| {
-                        handler.span_err(expr.span, "secrets must be bound to a variable")
-                    });
+                    expr.span.err("secrets must be bound to a variable");
                     continue;
                 };
 
                 let Some(secret_name) = &expr.args.first() else {
-                    HANDLER.with(|handler| {
-                        handler.span_err(expr.span, "secret() takes a single argument, the name of the secret as a string literal")
-                    });
+                    expr.span.err("secret() takes a single argument, the name of the secret as a string literal");
                     continue;
                 };
                 let secret_name = String::parse_lit(secret_name.expr.as_ref())?;

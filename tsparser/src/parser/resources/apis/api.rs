@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{anyhow, Result};
-use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::Spanned;
+use swc_common::{Span, Spanned};
 use swc_ecma_ast::{self as ast, FnExpr};
 
-use litparser::{LitParser, LocalRelPath, Nullable, Sp};
+use litparser::{
+    report_and_continue, LitParser, LocalRelPath, Nullable, ParseResult, Sp, ToParseErr,
+};
 use litparser_derive::LitParser;
 
 use crate::parser::module_loader::Module;
@@ -130,9 +130,19 @@ impl Method {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct InvalidMethodError;
+
+impl std::fmt::Display for InvalidMethodError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid method")
+    }
+}
+
 impl FromStr for Method {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = InvalidMethodError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "CONNECT" => Self::Connect,
             "DELETE" => Self::Delete,
@@ -143,7 +153,7 @@ impl FromStr for Method {
             "POST" => Self::Post,
             "PUT" => Self::Put,
             "TRACE" => Self::Trace,
-            _ => anyhow::bail!("invalid method: {}", s),
+            _ => return Err(InvalidMethodError),
         })
     }
 }
@@ -165,7 +175,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
         let module = pass.module.clone();
 
         let service_name = match &pass.service_name {
-            Some(name) => name.to_string(),
+            Some(name) => Some(name.to_string()),
             None => {
                 // TODO handle this in a better way.
                 match &module.file_path {
@@ -173,13 +183,8 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         .parent()
                         .and_then(|p| p.file_name())
                         .and_then(|s| s.to_str())
-                        .map(|s| s.to_string())
-                        .ok_or(anyhow::anyhow!(
-                            "unable to determine service name for endpoint"
-                        ))?,
-                    FilePath::Custom(ref str) => {
-                        anyhow::bail!("unsupported file path for service: {}", str)
-                    }
+                        .map(|s| s.to_string()),
+                    FilePath::Custom(_) => None,
                 }
             }
         };
@@ -187,7 +192,12 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
         let names = TrackedNames::new(&[("encore.dev/api", "api")]);
 
         for r in iter_references::<APIEndpointLiteral>(&module, &names) {
-            let r = r?;
+            let r = report_and_continue!(r);
+            let Some(service_name) = service_name.as_ref() else {
+                module.err("unable to determine service name for file");
+                continue;
+            };
+
             let path_span = r
                 .config
                 .path
@@ -198,7 +208,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 Sp::with_dummy(format!("/{}.{}", &service_name, r.endpoint_name))
             });
 
-            let path = match Path::parse(&path_str, Default::default()) {
+            let path = match Path::parse(path_str.span(), &path_str, Default::default()) {
                 Ok(path) => path,
                 Err(err) => {
                     path_span.err(&err.to_string());
@@ -229,29 +239,26 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
 
-                    match describe_endpoint(
+                    report_and_continue!(describe_endpoint(
+                        r.range.to_span(),
                         pass.type_checker,
                         methods,
                         path,
                         request,
                         response,
                         false,
-                    ) {
-                        Ok(encoding) => encoding,
-                        Err(err) => {
-                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
-                            continue;
-                        }
-                    }
+                    ))
                 }
                 EndpointKind::Raw => {
-                    match describe_endpoint(pass.type_checker, methods, path, None, None, true) {
-                        Ok(encoding) => encoding,
-                        Err(err) => {
-                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
-                            continue;
-                        }
-                    }
+                    report_and_continue!(describe_endpoint(
+                        r.range.to_span(),
+                        pass.type_checker,
+                        methods,
+                        path,
+                        None,
+                        None,
+                        true,
+                    ))
                 }
                 EndpointKind::TypedStream {
                     handshake,
@@ -273,27 +280,25 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     let handshake =
                         handshake.map(|t| pass.type_checker.resolve_type(module.clone(), &t));
 
-                    match describe_stream_endpoint(
+                    report_and_continue!(describe_stream_endpoint(
+                        r.range.to_span(),
                         pass.type_checker,
                         methods,
                         path,
                         request,
                         response,
                         handshake,
-                    ) {
-                        Ok(encoding) => encoding,
-                        Err(err) => {
-                            HANDLER.with(|handler| handler.span_err(r.range, &err.to_string()));
-                            continue;
-                        }
-                    }
+                    ))
                 }
                 EndpointKind::StaticAssets { dir, not_found } => {
                     // Support HEAD and GET for static assets.
                     let methods = Methods::Some(vec![Method::Head, Method::Get]);
 
                     let FilePath::Real(module_file_path) = &module.file_path else {
-                        anyhow::bail!("cannot use custom file path for static assets");
+                        module
+                            .ast
+                            .err("cannot use custom file path for static assets");
+                        continue;
                     };
 
                     // Ensure the path has at most one dynamic segment, at the end.
@@ -315,7 +320,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         }
                     }
 
-                    let assets_dir = module_file_path.parent().unwrap().join(&dir.0);
+                    let assets_dir = module_file_path.parent().unwrap().join(&dir.buf);
                     if let Err(err) = std::fs::read_dir(&assets_dir) {
                         dir.err(&format!("unable to read static assets directory: {}", err));
                     }
@@ -323,7 +328,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     // Ensure the not_found file exists.
                     let not_found_path = not_found
                         .as_ref()
-                        .map(|p| module_file_path.parent().unwrap().join(&p.0));
+                        .map(|p| module_file_path.parent().unwrap().join(&p.buf));
                     if let Some(not_found_path) = &not_found_path {
                         if !not_found_path.is_file() {
                             not_found.err("file does not exist");
@@ -335,7 +340,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         not_found: not_found_path,
                     });
 
-                    describe_static_assets(methods, path)
+                    describe_static_assets(r.range.to_span(), methods, path)
                 }
             };
 
@@ -370,7 +375,6 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 ident: Some(r.bind_name),
             });
         }
-        Ok(())
     },
 };
 
@@ -389,16 +393,6 @@ pub struct ReferenceEndpointUsage {
 pub fn resolve_endpoint_usage(_data: &ResolveUsageData, _endpoint: Lrc<Endpoint>) -> Option<Usage> {
     // Endpoints are just normal functions in TS, so no usage to resolve.
     None
-    // Ok(match &data.expr.kind {
-    //     UsageExprKind::Callee(_) => {
-    //         // Considered just a normal function call.
-    //     },
-    //     UsageExprKind::Other(_other) => Usage::ReferenceEndpoint(ReferenceEndpointUsage {
-    //         range: data.expr.range,
-    //         endpoint,
-    //     }),
-    //     _ => anyhow::bail!("invalid endpoint usage"),
-    // })
 }
 
 #[derive(Debug)]
@@ -409,6 +403,12 @@ struct APIEndpointLiteral {
     pub bind_name: ast::Ident,
     pub config: EndpointConfig,
     pub kind: EndpointKind,
+}
+
+impl Spanned for APIEndpointLiteral {
+    fn span(&self) -> Span {
+        self.range.to_span()
+    }
 }
 
 #[derive(Debug)]
@@ -468,7 +468,7 @@ impl ReferenceParser for APIEndpointLiteral {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         for node in path.iter().rev() {
             if let swc_ecma_visit::AstParentNodeRef::CallExpr(
                 expr,
@@ -477,19 +477,20 @@ impl ReferenceParser for APIEndpointLiteral {
             {
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
                 let Some(bind_name) = extract_bind_name(path)? else {
-                    expr.err("API endpoint must be bound to an exported variable");
-                    continue;
+                    return Err(
+                        expr.parse_err("API endpoint must be bound to an exported variable")
+                    );
                 };
 
                 let Some(config) = expr.args.first() else {
-                    expr.err("API endpoint must have a config object as its first argument");
-                    continue;
+                    return Err(expr.parse_err(
+                        "API endpoint must have a config object as its first argument",
+                    ));
                 };
                 let cfg = EndpointConfig::parse_lit(config.expr.as_ref())?;
 
                 let ast::Callee::Expr(callee) = &expr.callee else {
-                    expr.callee.err("invalid api definition expression");
-                    continue;
+                    return Err(expr.callee.parse_err("invalid api definition expression"));
                 };
 
                 // Determine what kind of endpoint it is.
@@ -497,10 +498,9 @@ impl ReferenceParser for APIEndpointLiteral {
                     ast::Expr::Member(member) if member.prop.is_ident_with("raw") => {
                         // Raw endpoint
                         let Some(_) = &expr.args.get(1) else {
-                            expr.args[0].span_hi().err(
+                            return Err(expr.args[0].span_hi().parse_err(
                                 "API endpoint must have a handler function as its second argument",
-                            );
-                            continue;
+                            ));
                         };
 
                         Self {
@@ -516,15 +516,15 @@ impl ReferenceParser for APIEndpointLiteral {
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamInOut") => {
                         // Bidirectional stream
                         let Some(handler) = &expr.args.get(1) else {
-                            expr.args[0].span_hi().err(
+                            return Err(expr.args[0].span_hi().parse_err(
                                 "API endpoint must have a handler function as its second argument",
-                            );
-                            continue;
+                            ));
                         };
 
                         let Some(type_params) = expr.type_args.as_deref() else {
-                            expr.err("missing type parameters in call to streamInOut");
-                            continue;
+                            return Err(
+                                expr.parse_err("missing type parameters in call to streamInOut")
+                            );
                         };
 
                         let (has_handshake, _return_type) =
@@ -534,14 +534,14 @@ impl ReferenceParser for APIEndpointLiteral {
                         let expected_count = if has_handshake { 3 } else { 2 };
 
                         if type_params_count != expected_count {
-                            type_params.err(&format!("wrong number of type parameters, expected {expected_count}, found {type_params_count}"));
-                            continue;
+                            return Err(type_params.parse_err(format!("wrong number of type parameters, expected {expected_count}, found {type_params_count}")));
                         }
 
                         let handshake = has_handshake
                             .then(|| {
-                                extract_type_param(Some(type_params), 0)
-                                    .ok_or_else(|| anyhow!("missing type for handshake"))
+                                extract_type_param(Some(type_params), 0).ok_or_else(|| {
+                                    type_params.parse_err("missing type for stream handshake")
+                                })
                             })
                             .transpose()?;
 
@@ -549,16 +549,14 @@ impl ReferenceParser for APIEndpointLiteral {
                             Some(type_params),
                             if has_handshake { 1 } else { 0 },
                         ) else {
-                            type_params.err("missing request type parameter");
-                            continue;
+                            return Err(type_params.parse_err("missing request type parameter"));
                         };
 
                         let Some(response) = extract_type_param(
                             Some(type_params),
                             if has_handshake { 2 } else { 1 },
                         ) else {
-                            type_params.err("missing response type parameter");
-                            continue;
+                            return Err(type_params.parse_err("missing response type parameter"));
                         };
 
                         Self {
@@ -577,15 +575,15 @@ impl ReferenceParser for APIEndpointLiteral {
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
                         // Incoming stream
                         let Some(handler) = &expr.args.get(1) else {
-                            expr.args[0].span_hi().err(
+                            return Err(expr.args[0].span_hi().parse_err(
                                 "API endpoint must have a handler function as its second argument",
-                            );
-                            continue;
+                            ));
                         };
 
                         let Some(type_params) = expr.type_args.as_deref() else {
-                            expr.err("missing type parameters in call to streamIn");
-                            continue;
+                            return Err(
+                                expr.parse_err("missing type parameters in call to streamIn")
+                            );
                         };
 
                         let (has_handshake, return_type) =
@@ -595,14 +593,14 @@ impl ReferenceParser for APIEndpointLiteral {
                         let expected_count = if has_handshake { [2, 3] } else { [1, 2] };
 
                         if !expected_count.contains(&type_params_count) {
-                            type_params.err(&format!("wrong number of type parameters, expected one of {expected_count:?}, found {type_params_count}"));
-                            continue;
+                            return Err(type_params.parse_err(format!("wrong number of type parameters, expected one of {expected_count:?}, found {type_params_count}")));
                         }
 
                         let handshake = has_handshake
                             .then(|| {
-                                extract_type_param(Some(type_params), 0)
-                                    .ok_or_else(|| anyhow!("missing type for handshake"))
+                                extract_type_param(Some(type_params), 0).ok_or_else(|| {
+                                    type_params.parse_err("missing type for handshake")
+                                })
                             })
                             .transpose()?;
 
@@ -610,8 +608,7 @@ impl ReferenceParser for APIEndpointLiteral {
                             Some(type_params),
                             if has_handshake { 1 } else { 0 },
                         ) else {
-                            type_params.err("missing request type parameter");
-                            continue;
+                            return Err(type_params.parse_err("missing request type parameter"));
                         };
 
                         let response = extract_type_param(
@@ -643,15 +640,15 @@ impl ReferenceParser for APIEndpointLiteral {
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
                         // Outgoing stream
                         let Some(handler) = &expr.args.get(1) else {
-                            expr.args[0].span_hi().err(
+                            return Err(expr.args[0].span_hi().parse_err(
                                 "API endpoint must have a handler function as its second argument",
-                            );
-                            continue;
+                            ));
                         };
 
                         let Some(type_params) = expr.type_args.as_deref() else {
-                            expr.err("missing type parameters in call to streamOut");
-                            continue;
+                            return Err(
+                                expr.parse_err("missing type parameters in call to streamOut")
+                            );
                         };
 
                         let (has_handshake, _return_type) =
@@ -661,14 +658,15 @@ impl ReferenceParser for APIEndpointLiteral {
                         let expected_count = if has_handshake { 2 } else { 1 };
 
                         if type_params_count != expected_count {
-                            type_params.err(&format!("wrong number of type parameters, expected {expected_count}, found {type_params_count}"));
-                            continue;
+                            return Err(type_params.parse_err(format!("wrong number of type parameters, expected {expected_count}, found {type_params_count}")));
                         }
 
                         let handshake = if has_handshake {
                             let t = extract_type_param(Some(type_params), 0);
                             if t.is_none() {
-                                type_params.err("missing type parameter for handshake");
+                                return Err(
+                                    type_params.parse_err("missing type parameter for handshake")
+                                );
                             }
                             t
                         } else {
@@ -679,8 +677,9 @@ impl ReferenceParser for APIEndpointLiteral {
                             Some(type_params),
                             if has_handshake { 1 } else { 0 },
                         ) else {
-                            type_params.err("missing type parameter for response");
-                            continue;
+                            return Err(
+                                type_params.parse_err("missing type parameter for response")
+                            );
                         };
 
                         Self {
@@ -700,10 +699,9 @@ impl ReferenceParser for APIEndpointLiteral {
                     ast::Expr::Member(member) if member.prop.is_ident_with("static") => {
                         // Static assets
                         let Some(dir) = cfg.dir.clone() else {
-                            config
+                            return Err(config
                                 .expr
-                                .err("static assets must have the 'dir' field set");
-                            continue;
+                                .parse_err("static assets must have the 'dir' field set"));
                         };
 
                         let not_found = cfg.notFound.clone();
@@ -720,10 +718,9 @@ impl ReferenceParser for APIEndpointLiteral {
                     _ => {
                         // Regular endpoint
                         let Some(handler) = &expr.args.get(1) else {
-                            expr.args[0]
+                            return Err(expr.args[0]
                                 .span_hi()
-                                .err("API endpoint must have a handler function");
-                            continue;
+                                .parse_err("API endpoint must have a handler function"));
                         };
                         let (mut req, mut resp) = parse_endpoint_signature(&handler.expr)?;
 
@@ -754,7 +751,7 @@ impl ReferenceParser for APIEndpointLiteral {
     }
 }
 
-fn parse_stream_endpoint_signature(expr: &ast::Expr) -> Result<(bool, Option<&ast::TsType>)> {
+fn parse_stream_endpoint_signature(expr: &ast::Expr) -> ParseResult<(bool, Option<&ast::TsType>)> {
     let (has_handshake_param, type_params, return_type) = match expr {
         ast::Expr::Fn(FnExpr { function, .. }) => (
             function.params.len() == 2,
@@ -770,7 +767,7 @@ fn parse_stream_endpoint_signature(expr: &ast::Expr) -> Result<(bool, Option<&as
     };
 
     if let Some(type_params) = type_params {
-        type_params.err("stream endpoint handler cannot have type parameters");
+        return Err(type_params.parse_err("stream endpoint handler cannot have type parameters"));
     }
 
     let return_type = return_type.map(|t| t.type_ann.as_ref());
@@ -780,7 +777,7 @@ fn parse_stream_endpoint_signature(expr: &ast::Expr) -> Result<(bool, Option<&as
 
 fn parse_endpoint_signature(
     expr: &ast::Expr,
-) -> Result<(Option<&ast::TsType>, Option<&ast::TsType>)> {
+) -> ParseResult<(Option<&ast::TsType>, Option<&ast::TsType>)> {
     let (req_param, type_params, return_type) = match expr {
         ast::Expr::Fn(func) => (
             func.function.params.first().map(|p| &p.pat),
@@ -796,7 +793,7 @@ fn parse_endpoint_signature(
     };
 
     if let Some(type_params) = type_params {
-        type_params.err("endpoint handler cannot have type parameters");
+        return Err(type_params.parse_err("endpoint handler cannot have type parameters"));
     }
 
     let req_type = match req_param {
@@ -818,7 +815,7 @@ fn parse_endpoint_signature(
 }
 
 impl LitParser for Methods {
-    fn parse_lit(expr: &ast::Expr) -> Result<Self> {
+    fn parse_lit(expr: &ast::Expr) -> ParseResult<Self> {
         Ok(match expr {
             ast::Expr::Lit(ast::Lit::Str(s)) => {
                 if s.value.as_ref() == "*" {
@@ -827,8 +824,7 @@ impl LitParser for Methods {
                     match Method::from_str(s.value.as_ref()) {
                         Ok(m) => Self::Some(vec![m]),
                         Err(err) => {
-                            s.err(&format!("invalid method: {err}"));
-                            Self::Some(vec![Method::Get])
+                            return Err(s.parse_err(format!("invalid method: {err}")));
                         }
                     }
                 }
@@ -838,12 +834,16 @@ impl LitParser for Methods {
                 for ast::ExprOrSpread { expr, .. } in arr.elems.iter().flatten() {
                     if let ast::Expr::Lit(ast::Lit::Str(s)) = expr.as_ref() {
                         if s.value.as_ref() == "*" {
-                            if arr.elems.len() > 1 {
-                                arr.err("invalid methods: cannot mix * and other methods");
-                            }
-                            return Ok(Self::All);
+                            return if arr.elems.len() > 1 {
+                                Err(arr
+                                    .parse_err("invalid methods: cannot mix * and other methods"))
+                            } else {
+                                Ok(Self::All)
+                            };
                         }
-                        methods.push(Method::from_str(s.value.as_ref())?);
+                        let m = Method::from_str(s.value.as_ref())
+                            .map_err(|err| s.parse_err(err.to_string()))?;
+                        methods.push(m);
                     }
                 }
                 methods.sort();
@@ -851,8 +851,7 @@ impl LitParser for Methods {
                 Self::Some(methods)
             }
             _ => {
-                expr.err("invalid methods: must be string or array of strings");
-                Self::Some(vec![Method::Get])
+                return Err(expr.parse_err("invalid methods: must be string or array of strings"));
             }
         })
     }

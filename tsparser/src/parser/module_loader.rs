@@ -352,6 +352,12 @@ impl Module {
     }
 }
 
+impl Spanned for Module {
+    fn span(&self) -> Span {
+        self.ast.span
+    }
+}
+
 /// imports_from_mod returns the import declarations in the given module.
 fn imports_from_mod(ast: &ast::Module) -> Vec<ast::ImportDecl> {
     (ast.body)

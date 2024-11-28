@@ -1,18 +1,16 @@
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use anyhow::Context;
-use anyhow::{anyhow, Result};
 use itertools::Either;
 use litparser_derive::LitParser;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
+use swc_common::{Span, Spanned};
 use swc_ecma_ast as ast;
 
-use litparser::LitParser;
-use litparser::LocalRelPath;
+use litparser::{report_and_continue, LitParser, ToParseErr};
+use litparser::{LocalRelPath, ParseResult};
 
 use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
@@ -24,7 +22,7 @@ use crate::parser::resources::Resource;
 use crate::parser::resources::ResourcePath;
 use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
 use crate::parser::{FilePath, Range};
-use crate::span_err::ErrorWithSpanExt;
+use crate::span_err::{ErrReporter, ErrorWithSpanExt};
 
 #[derive(Debug, Clone)]
 pub struct SQLDatabase {
@@ -39,15 +37,21 @@ pub enum MigrationFileSource {
     Drizzle,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum MigrationFileSourceParseError {
+    #[error("unexpected value for migration file source: {0}")]
+    UnexpectedValue(String),
+}
+
 impl FromStr for MigrationFileSource {
-    type Err = anyhow::Error;
+    type Err = MigrationFileSourceParseError;
 
     fn from_str(input: &str) -> Result<MigrationFileSource, Self::Err> {
         match input {
             "prisma" => Ok(MigrationFileSource::Prisma),
             "drizzle" => Ok(MigrationFileSource::Drizzle),
-            _ => Err(anyhow!(
-                "unexpected value for migration file source: {input}"
+            _ => Err(MigrationFileSourceParseError::UnexpectedValue(
+                input.to_string(),
             )),
         }
     }
@@ -89,17 +93,23 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
         {
             type Res = NamedClassResourceOptionalConfig<DecodedDatabaseConfig>;
             for r in iter_references::<Res>(&module, &names) {
-                let r = r?;
+                let r = report_and_continue!(r);
                 let cfg = r.config.unwrap_or_default();
 
                 let migrations = match (cfg.migrations, &pass.module.file_path) {
                     (None, _) => None,
                     (_, FilePath::Custom(_)) => {
-                        anyhow::bail!("cannot use custom file path for db migrations")
+                        pass.module
+                            .ast
+                            .span()
+                            .shrink_to_lo()
+                            .err("cannot use custom file path for db migrations");
+                        continue;
                     }
                     (Some(Either::Left(rel)), FilePath::Real(path)) => {
-                        let dir = path.parent().unwrap().join(rel.0);
-                        let migrations = parse_migrations(&dir, None)?;
+                        let dir = path.parent().unwrap().join(rel.buf);
+                        let migrations =
+                            report_and_continue!(parse_migrations(rel.span, &dir, None));
                         Some(DBMigrations {
                             dir,
                             migrations,
@@ -107,7 +117,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                         })
                     }
                     (Some(Either::Right(cfg)), FilePath::Real(path)) => {
-                        let dir = path.parent().unwrap().join(cfg.path.0);
+                        let dir = path.parent().unwrap().join(cfg.path.buf);
                         let source = if let Some(ref string) = cfg.source {
                             match MigrationFileSource::from_str(string) {
                                 Ok(source) => Some(source),
@@ -120,7 +130,11 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                             None
                         };
 
-                        let migrations = parse_migrations(&dir, source.as_ref())?;
+                        let migrations = report_and_continue!(parse_migrations(
+                            cfg.path.span,
+                            &dir,
+                            source.as_ref()
+                        ));
                         let non_seq_migrations =
                             matches!(source, Some(MigrationFileSource::Prisma));
                         Some(DBMigrations {
@@ -156,7 +170,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
 
         {
             for r in iter_references::<NamedStaticMethod>(&module, &names) {
-                let r = r?;
+                let r = report_and_continue!(r);
                 let object = match &r.bind_name {
                     None => None,
                     Some(id) => pass
@@ -175,23 +189,23 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                 });
             }
         }
-
-        Ok(())
     },
 };
 
 fn visit_dirs(
+    span: Span,
     dir: &Path,
     depth: i8,
     max_depth: i8,
-    cb: &mut dyn FnMut(&std::fs::DirEntry) -> Result<()>,
-) -> Result<()> {
+    cb: &mut dyn FnMut(&std::fs::DirEntry) -> ParseResult<()>,
+) -> ParseResult<()> {
     if dir.is_dir() {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
+        let entries = std::fs::read_dir(dir).map_err(|err| span.parse_err(err.to_string()))?;
+        for entry in entries {
+            let entry = entry.map_err(|err| span.parse_err(err.to_string()))?;
             let path = entry.path();
             if path.is_dir() && depth < max_depth {
-                visit_dirs(&path, depth + 1, max_depth, cb)?;
+                visit_dirs(span, &path, depth + 1, max_depth, cb)?;
             } else {
                 cb(&entry)?;
             }
@@ -200,18 +214,18 @@ fn visit_dirs(
     Ok(())
 }
 
-fn parse_default(dir: &Path) -> Result<Vec<DBMigration>> {
+fn parse_default(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
     static FILENAME_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)\.(up|down).sql$").unwrap());
 
-    visit_dirs(dir, 0, 0, &mut |entry| -> Result<()> {
+    visit_dirs(span, dir, 0, 0, &mut |entry| -> ParseResult<()> {
         let path = entry.path();
         let name = entry.file_name();
-        let name = name.to_str().ok_or(anyhow!(
+        let name = name.to_str().ok_or(span.parse_err(format!(
             "invalid migration filename: {}",
             name.to_string_lossy()
-        ))?;
+        )))?;
 
         // If the file is not an SQL file ignore it, to allow for other files to be present
         // in the migration directory. For SQL files we want to ensure they're properly named
@@ -225,12 +239,14 @@ fn parse_default(dir: &Path) -> Result<Vec<DBMigration>> {
         // Ensure the file name matches the regex.
         let captures = FILENAME_RE
             .captures(name)
-            .ok_or(anyhow!("invalid migration filename: {}", name))?;
+            .ok_or(span.parse_err(format!("invalid migration filename: {}", name)))?;
         if captures[3].eq("up") {
             migrations.push(DBMigration {
                 file_name: name.to_string(),
                 description: captures[2].to_string(),
-                number: captures[1].parse()?,
+                number: captures[1]
+                    .parse::<u64>()
+                    .map_err(|err| span.parse_err(err.to_string()))?,
             });
         }
         Ok(())
@@ -240,18 +256,18 @@ fn parse_default(dir: &Path) -> Result<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
+fn parse_drizzle(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
 
     static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_([^.]+)\.sql$").unwrap());
 
-    visit_dirs(dir, 0, 0, &mut |entry| -> Result<()> {
+    visit_dirs(span, dir, 0, 0, &mut |entry| -> ParseResult<()> {
         let path = entry.path();
         let name = entry.file_name();
-        let name = name.to_str().ok_or(anyhow!(
+        let name = name.to_str().ok_or(span.parse_err(format!(
             "invalid migration filename: {}",
             name.to_string_lossy()
-        ))?;
+        )))?;
 
         // If the file is not an SQL file ignore it, to allow for other files to be present
         // in the migration directory. For SQL files we want to ensure they're properly named
@@ -265,11 +281,13 @@ fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
         // Ensure the file name matches the regex.
         let captures = FILENAME_RE
             .captures(name)
-            .ok_or(anyhow!("invalid migration filename: {}", name))?;
+            .ok_or(span.parse_err(format!("invalid migration filename: {}", name)))?;
         migrations.push(DBMigration {
             file_name: name.to_string(),
             description: captures[2].to_string(),
-            number: captures[1].parse()?,
+            number: captures[1]
+                .parse::<u64>()
+                .map_err(|err| span.parse_err(err.to_string()))?,
         });
 
         Ok(())
@@ -277,66 +295,70 @@ fn parse_drizzle(dir: &Path) -> Result<Vec<DBMigration>> {
     Ok(migrations)
 }
 
-fn parse_prisma(dir: &Path) -> Result<Vec<DBMigration>> {
+fn parse_prisma(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = vec![];
 
     static FILENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_(.*)$").unwrap());
 
-    visit_dirs(dir, 0, 1, &mut |entry| -> Result<()> {
+    visit_dirs(span, dir, 0, 1, &mut |entry| -> ParseResult<()> {
         let path = entry.path();
         let name = entry.file_name();
-        let name = name.to_str().ok_or(anyhow!(
+        let name = name.to_str().ok_or(span.parse_err(format!(
             "invalid migration filename: {}",
             name.to_string_lossy()
-        ))?;
+        )))?;
         if name != "migration.sql" {
             return Ok(());
         }
         let dir_name = path
             .parent()
-            .context(anyhow!("migration directory has no parent"))?
+            .ok_or(span.parse_err("migration directory has no parent"))?
             .file_name()
-            .context(anyhow!("migration directory has no file name"))?
+            .ok_or(span.parse_err("migration directory has no name"))?
             .to_str()
-            .context(anyhow!("migration directory has invalid file name"))?;
+            .ok_or(span.parse_err("migration directory has invalid name"))?;
 
         // Ensure the file name matches the regex.
         let captures = FILENAME_RE
             .captures(dir_name)
-            .ok_or(anyhow!("invalid migration directory name: {}", dir_name))?;
+            .ok_or(span.parse_err(format!("invalid migration directory name: {}", dir_name)))?;
         migrations.push(DBMigration {
             file_name: path
                 .strip_prefix(dir)
-                .context(anyhow!(
-                    "migration directory is not a subdirectory of {}",
-                    dir.display()
-                ))?
+                .map_err(|_| {
+                    span.parse_err(format!(
+                        "migration directory is not a subdirectory of {}",
+                        dir.display()
+                    ))
+                })?
                 .to_string_lossy()
                 .to_string(),
             description: captures[2].to_string(),
-            number: captures[1].parse()?,
+            number: captures[1]
+                .parse::<u64>()
+                .map_err(|err| span.parse_err(err.to_string()))?,
         });
         Ok(())
     })?;
     Ok(migrations)
 }
 
-fn parse_migrations(dir: &Path, source: Option<&MigrationFileSource>) -> Result<Vec<DBMigration>> {
+fn parse_migrations(
+    span: Span,
+    dir: &Path,
+    source: Option<&MigrationFileSource>,
+) -> ParseResult<Vec<DBMigration>> {
     let mut migrations = match source {
-        Some(MigrationFileSource::Drizzle) => parse_drizzle(dir),
-        Some(MigrationFileSource::Prisma) => parse_prisma(dir),
-        _ => parse_default(dir),
-    }
-    .context("failed to parse migrations")?;
+        Some(MigrationFileSource::Drizzle) => parse_drizzle(span, dir),
+        Some(MigrationFileSource::Prisma) => parse_prisma(span, dir),
+        _ => parse_default(span, dir),
+    }?;
     migrations.sort_by_key(|m| m.number);
     Ok(migrations)
 }
 
-pub fn resolve_database_usage(
-    data: &ResolveUsageData,
-    db: Lrc<SQLDatabase>,
-) -> Result<Option<Usage>> {
-    Ok(match &data.expr.kind {
+pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> Option<Usage> {
+    match &data.expr.kind {
         UsageExprKind::MethodCall(_)
         | UsageExprKind::FieldAccess(_)
         | UsageExprKind::CallArg(_)
@@ -346,15 +368,10 @@ pub fn resolve_database_usage(
         })),
 
         _ => {
-            HANDLER.with(|h| {
-                h.span_err(
-                    data.expr.range.to_span(),
-                    "invalid use of database resource",
-                )
-            });
+            data.expr.err("invalid use of database resource");
             None
         }
-    })
+    }
 }
 
 #[derive(Debug)]
