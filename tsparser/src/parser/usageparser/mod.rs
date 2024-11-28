@@ -477,7 +477,7 @@ mod tests {
 
     use assert_matches::assert_matches;
     use swc_common::errors::Handler;
-    use swc_common::{Globals, SourceMap, GLOBALS};
+    use swc_common::{Globals, SourceMap, DUMMY_SP, GLOBALS};
 
     use crate::parser::parser::ParseContext;
     use crate::parser::resourceparser::bind::BindKind;
@@ -534,6 +534,7 @@ export const Bar = 5;
                 require_auth: false,
                 body_limit: None,
                 encoding: EndpointEncoding {
+                    span: DUMMY_SP,
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
                     handshake: None,
@@ -542,7 +543,7 @@ export const Bar = 5;
                         params: vec![],
                     }],
                     resp: ResponseEncoding { params: vec![] },
-                    path: Path::parse("/svc.Bar", Default::default()).unwrap(),
+                    path: Path::parse(DUMMY_SP, "/svc.Bar", Default::default()).unwrap(),
                     raw_handshake_schema: None,
                     raw_req_schema: None,
                     raw_resp_schema: None,
@@ -628,6 +629,7 @@ export const Bar = 5;
                 require_auth: false,
                 body_limit: None,
                 encoding: EndpointEncoding {
+                    span: DUMMY_SP,
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
                     handshake: None,
@@ -638,7 +640,7 @@ export const Bar = 5;
                     resp: ResponseEncoding {
                         params: vec![],
                     },
-                    path: Path::parse("/svc.Bar", Default::default()).unwrap(),
+                    path: Path::parse(DUMMY_SP, "/svc.Bar", Default::default()).unwrap(),
                     raw_handshake_schema: None,
                     raw_req_schema: None,
                     raw_resp_schema: None,

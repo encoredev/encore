@@ -767,8 +767,8 @@ mod tests {
             Some(cm.clone()),
         ));
 
-        GLOBALS.set(&globals, || {
-            HANDLER.set(&errs, || {
+        GLOBALS.set(&globals, || -> anyhow::Result<_> {
+            HANDLER.set(&errs, || -> anyhow::Result<_> {
                 let ar = txtar::from_str(src);
                 ar.materialize(tmp_dir)?;
 
@@ -790,7 +790,8 @@ mod tests {
                 );
                 let parser = Parser::new(&pc, pass1);
                 let parse = parser.parse();
-                compute_meta(&pc, &parse).into()
+                let md = compute_meta(&pc, &parse)?;
+                Ok(md)
             })
         })
     }

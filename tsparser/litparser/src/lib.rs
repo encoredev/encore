@@ -347,6 +347,13 @@ impl<T> Sp<T> {
     pub fn get(&self) -> &T {
         &self.1
     }
+
+    pub fn as_deref(&self) -> &T::Target
+    where
+        T: Deref,
+    {
+        self.1.deref()
+    }
 }
 
 impl<T, E> Sp<Result<T, E>> {
@@ -358,8 +365,21 @@ impl<T, E> Sp<Result<T, E>> {
     }
 }
 
+impl<T> AsRef<T> for Sp<T> {
+    fn as_ref(&self) -> &T {
+        &self.1
+    }
+}
+
+impl<T> AsMut<T> for Sp<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.1
+    }
+}
+
 impl<T> Deref for Sp<T> {
     type Target = T;
+
     fn deref(&self) -> &Self::Target {
         &self.1
     }

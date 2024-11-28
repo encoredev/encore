@@ -179,7 +179,7 @@ mod tests {
 
     use super::*;
 
-    fn parse(tmp_dir: &Path, src: &str) -> Result<Vec<DiscoveredService>> {
+    fn parse(tmp_dir: &Path, src: &str) -> anyhow::Result<Vec<DiscoveredService>> {
         let globals = Globals::new();
         let cm: Rc<SourceMap> = Default::default();
         let errs = Rc::new(Handler::with_tty_emitter(
@@ -212,7 +212,7 @@ mod tests {
                 );
                 let parser = Parser::new(&pc, pass1);
                 let result = parser.parse();
-                discover_services(&pc.file_set, &result.binds)
+                Ok(discover_services(&pc.file_set, &result.binds))
             })
         })
     }

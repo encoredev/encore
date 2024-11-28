@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::{Span, Spanned};
 use swc_ecma_ast::{self as ast, FnExpr};
@@ -198,20 +199,30 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 continue;
             };
 
-            let path_span = r
-                .config
+            let (config_span, cfg) = r.config.split();
+            let path_span = cfg.path.as_ref().map_or(config_span, |p| p.span());
+            let path_str = cfg
                 .path
-                .as_ref()
-                .map_or(r.range.to_span(), |p| p.span());
+                .as_deref()
+                .cloned()
+                .unwrap_or_else(|| format!("/{}.{}", &service_name, r.endpoint_name));
 
-            let path_str = r.config.path.unwrap_or_else(|| {
-                Sp::with_dummy(format!("/{}.{}", &service_name, r.endpoint_name))
-            });
-
-            let path = match Path::parse(path_str.span(), &path_str, Default::default()) {
+            let path = match Path::parse(path_span, &path_str, Default::default()) {
                 Ok(path) => path,
                 Err(err) => {
-                    path_span.err(&err.to_string());
+                    if cfg.path.is_some() {
+                        err.report();
+                    } else {
+                        // We don't have an explicit path, so add a note to the error.
+                        HANDLER.with(|h| {
+                            h.struct_span_err(err.span, &err.error.to_string())
+                                .span_note(
+                                    config_span,
+                                    &format!("no path provided, so defaulting to {}", path_str),
+                                )
+                                .emit();
+                        });
+                    }
                     continue;
                 }
             };
@@ -220,7 +231,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 .type_checker
                 .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
 
-            let methods = r.config.method.unwrap_or(Methods::Some(vec![Method::Post]));
+            let methods = cfg.method.unwrap_or(Methods::Some(vec![Method::Post]));
 
             let raw = matches!(r.kind, EndpointKind::Raw);
 
@@ -344,7 +355,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             };
 
             // Compute the body limit. Null means no limit. No value means 2MiB.
-            let body_limit: Option<u64> = match r.config.bodyLimit {
+            let body_limit: Option<u64> = match cfg.bodyLimit {
                 Some(Nullable::Present(val)) => Some(val),
                 Some(Nullable::Null) => None,
                 None => Some(2 * 1024 * 1024),
@@ -355,8 +366,8 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 name: r.endpoint_name,
                 service_name: service_name.clone(),
                 doc: r.doc_comment,
-                expose: r.config.expose.unwrap_or(false),
-                require_auth: r.config.auth.unwrap_or(false),
+                expose: cfg.expose.unwrap_or(false),
+                require_auth: cfg.auth.unwrap_or(false),
                 raw,
                 streaming_request,
                 streaming_response,
@@ -400,7 +411,7 @@ struct APIEndpointLiteral {
     pub doc_comment: Option<String>,
     pub endpoint_name: String,
     pub bind_name: ast::Ident,
-    pub config: EndpointConfig,
+    pub config: Sp<EndpointConfig>,
     pub kind: EndpointKind,
 }
 
@@ -486,7 +497,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         "API endpoint must have a config object as its first argument",
                     ));
                 };
-                let cfg = EndpointConfig::parse_lit(config.expr.as_ref())?;
+                let cfg = <Sp<EndpointConfig>>::parse_lit(config.expr.as_ref())?;
 
                 let ast::Callee::Expr(callee) = &expr.callee else {
                     return Err(expr.callee.parse_err("invalid api definition expression"));

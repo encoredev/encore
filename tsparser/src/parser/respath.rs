@@ -152,17 +152,12 @@ impl Path {
             }
 
             let seg_start = idx;
-            let seg_end = path.find('/').unwrap_or(path_end);
+            let seg_end = {
+                let remainder = &path[idx..];
+                idx + remainder.find('/').unwrap_or(remainder.len())
+            };
 
             // Find the next path segment.
-            if seg_start == seg_end {
-                // Empty segment.
-                return Err(PathParseError::EmptySegment.with_span(
-                    span.with_lo(span.lo + BytePos(seg_start as u32))
-                        .shrink_to_lo(),
-                ));
-            }
-
             let val = &path[seg_start..seg_end];
             let seg: Segment = match val.chars().next() {
                 Some(':') => Segment::Param {
@@ -183,12 +178,13 @@ impl Path {
                 .with_hi(span.hi + BytePos(seg_end as u32));
 
             segments.push(Sp::new(span, seg));
+            idx = seg_end;
         }
 
         // Validate the segments.
         for (idx, seg) in segments.iter().enumerate() {
             match seg.deref() {
-                Segment::Literal(lit) if lit.is_empty() => {
+                Segment::Literal(lit) if lit.is_empty() && segments.len() > 1 => {
                     return Err(PathParseError::EmptySegment.with_span(seg.span()));
                 }
                 Segment::Param { name, .. } if name.is_empty() => {
@@ -278,6 +274,9 @@ mod tests {
                     },
                 ]),
             ),
+            ("", Err(PathParseError::EmptyPath)),
+            ("/foo//bar", Err(PathParseError::EmptySegment)),
+            ("/foo/", Err(PathParseError::EmptySegment)),
             ("/:foo/*", Err(PathParseError::UnnamedParam)),
             ("/:foo/*/bar", Err(PathParseError::UnnamedParam)),
             ("/:foo/*bar/baz", Err(PathParseError::WildcardNotAtEnd)),

@@ -4,7 +4,6 @@ use std::path::Path;
 use crate::app::{validate_and_describe, AppDesc};
 use crate::parser::parser::{ParseContext, Parser};
 use crate::parser::resourceparser::PassOneParser;
-use litparser::ParseResult as PResult;
 
 use super::{App, Builder};
 
