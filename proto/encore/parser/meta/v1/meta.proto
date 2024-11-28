@@ -89,6 +89,9 @@ message BucketUsage {
 
     // Deleting an object.
     DELETE_OBJECT = 6;
+
+    // Get an bucket/object's public url.
+    GET_PUBLIC_URL = 7;
   }
 }
 
@@ -354,6 +357,7 @@ message Bucket {
   string name         = 1;
   optional string doc = 2;
   bool versioned      = 3;
+  bool public         = 4;
 }
 
 message PubSubTopic {

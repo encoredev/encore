@@ -330,6 +330,7 @@ func (b *builder) Build() *meta.Data {
 				Name:      r.Name,
 				Doc:       zeroNil(r.Doc),
 				Versioned: r.Versioned,
+				Public:    r.Public,
 			}
 			md.Buckets = append(md.Buckets, bkt)
 

@@ -18,6 +18,7 @@ type Bucket struct {
 	Name      string // The unique name of the bucket
 	Doc       string // The documentation on the bucket
 	Versioned bool
+	Public    bool
 }
 
 func (t *Bucket) Kind() resource.Kind       { return resource.Bucket }
@@ -74,6 +75,7 @@ func parseBucket(d parseutil.ReferenceInfo) {
 	// Decode the config
 	type decodedConfig struct {
 		Versioned bool `literal:",optional"`
+		Public    bool `literal:",optional"`
 	}
 	config := literals.Decode[decodedConfig](d.Pass.Errs, cfgLit, nil)
 
@@ -83,6 +85,7 @@ func parseBucket(d parseutil.ReferenceInfo) {
 		Name:      bucketName,
 		Doc:       d.Doc,
 		Versioned: config.Versioned,
+		Public:    config.Public,
 	}
 	d.Pass.RegisterResource(bkt)
 	d.Pass.AddBind(d.File, d.Ident, bkt)

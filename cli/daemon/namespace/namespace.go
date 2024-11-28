@@ -24,6 +24,14 @@ type (
 
 func (id ID) String() string { return string(id) }
 
+func ParseID(s string) (ID, bool) {
+	id, err := xid.FromString(s)
+	if err != nil {
+		return "", false
+	}
+	return ID(id.String()), true
+}
+
 func NewManager(db *sql.DB) *Manager {
 	return &Manager{db, nil}
 }

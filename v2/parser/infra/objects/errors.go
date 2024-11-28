@@ -47,11 +47,16 @@ var (
 
 	errBucketRefInvalidPerms = errRange.New(
 		"Unrecognized permissions in call to objects.BucketRef",
-		"The supported permissions are objects.{Uploader,Downloader,Attrser,Lister,Remover}.",
+		"The supported permissions are objects.{Uploader,Downloader,Attrser,Lister,Remover,PublicURLer,ReadWriter}.",
 	)
 
 	ErrBucketRefOutsideService = errRange.New(
 		"Call to objects.BucketRef outside service",
 		"objects.BucketRef can only be called from within a service.",
+	)
+
+	ErrBucketNotPublic = errRange.New(
+		"Call to PublicURL for non-public objects.Bucket",
+		"The PublicURL method can only be called on a public bucket.",
 	)
 )
