@@ -290,7 +290,7 @@ macro_rules! recurse0 {
     }};
 }
 
-impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
+impl<'de> Visitor<'de> for DecodeValue<'_> {
     type Value = PValue;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -492,7 +492,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                         serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
                     }),
                 Basic::Bool if self.cfg.coerce_strings => {
-                    return if value == "true" {
+                    if value == "true" {
                         Ok(PValue::Bool(true))
                     } else if value == "false" {
                         Ok(PValue::Bool(false))
@@ -504,7 +504,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                     }
                 }
                 Basic::Number if self.cfg.coerce_strings => {
-                    return if let Ok(num) = value.parse::<i64>() {
+                    if let Ok(num) = value.parse::<i64>() {
                         Ok(PValue::Number(num.into()))
                     } else if let Ok(num) = value.parse::<f64>() {
                         Ok(JSONNumber::from_f64(num).map_or(PValue::Null, PValue::Number))
@@ -516,7 +516,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                     }
                 }
                 Basic::Null if self.cfg.coerce_strings => {
-                    return if value == "null" {
+                    if value == "null" {
                         Ok(PValue::Null)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
@@ -539,7 +539,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
             Value::Literal(lit) => match lit {
                 Literal::Str(val) if val.as_str() == value => Ok(PValue::String(value)),
                 Literal::Bool(_) if self.cfg.coerce_strings => {
-                    return if let Ok(got) = value.parse::<bool>() {
+                    if let Ok(got) = value.parse::<bool>() {
                         self.visit_bool(got)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
@@ -550,7 +550,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                     }
                 }
                 Literal::Int(_) if self.cfg.coerce_strings => {
-                    return if let Ok(got) = value.parse::<i64>() {
+                    if let Ok(got) = value.parse::<i64>() {
                         self.visit_i64(got)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
@@ -561,7 +561,7 @@ impl<'de, 'a> Visitor<'de> for DecodeValue<'a> {
                     }
                 }
                 Literal::Float(_) if self.cfg.coerce_strings => {
-                    return if let Ok(got) = value.parse::<f64>() {
+                    if let Ok(got) = value.parse::<f64>() {
                         self.visit_f64(got)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
@@ -886,7 +886,7 @@ struct FieldList<'a> {
     names: &'a [&'a str],
 }
 
-impl<'a> DecodeValue<'a> {
+impl DecodeValue<'_> {
     #[cfg_attr(
         feature = "rttrace",
         tracing::instrument(skip(self), ret, level = "trace")

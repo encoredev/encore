@@ -39,7 +39,7 @@ struct ServiceDiscoverer<'a> {
     strong_root: HashSet<PathBuf>,
 }
 
-impl<'a> ServiceDiscoverer<'a> {
+impl ServiceDiscoverer<'_> {
     fn discover(mut self) -> Result<Vec<DiscoveredService>> {
         for b in self.binds {
             match &b.resource {

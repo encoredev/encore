@@ -106,7 +106,7 @@ impl<'a> Builder<'a> {
     }
 }
 
-impl<'a, 'b> BuilderCtx<'a, 'b> {
+impl BuilderCtx<'_, '_> {
     /// Computes the JSONSchema value for the given type.
     #[inline]
     fn typ<T: ToType>(&mut self, typ: T) -> Result<Value> {
