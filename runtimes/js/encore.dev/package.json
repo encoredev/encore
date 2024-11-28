@@ -64,6 +64,11 @@
       "bun": "./storage/sqldb/mod.ts",
       "default": "./dist/storage/sqldb/mod.js"
     },
+    "./storage/objects": {
+      "types": "./storage/objects/mod.ts",
+      "bun": "./storage/objects/mod.ts",
+      "default": "./dist/storage/objects/mod.js"
+    },
     "./validate": {
       "types": "./validate/mod.ts",
       "bun": "./validate/mod.ts",

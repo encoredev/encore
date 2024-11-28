@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use litparser::{report_and_continue, LitParser};
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
@@ -101,14 +103,14 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Opt
                     call.call
                         .span
                         .err("expected a type argument in call to Bucket.ref");
-                    return Ok(None);
+                    return None;
                 };
 
                 let Some(type_arg) = type_args.params.first() else {
                     call.call
                         .span
                         .err("expected a type argument in call to Bucket.ref");
-                    return Ok(None);
+                    return None;
                 };
 
                 return parse_bucket_ref(data, bucket, call, type_arg);
@@ -163,7 +165,7 @@ fn parse_bucket_ref(
     bucket: Lrc<Bucket>,
     _call: &MethodCall,
     type_arg: &ast::TsType,
-) -> Result<Option<Usage>> {
+) -> Option<Usage> {
     fn process_type(
         data: &ResolveUsageData,
         sp: &swc_common::Span,
@@ -249,14 +251,14 @@ fn parse_bucket_ref(
                 .err("cannot use publicUrl on a non-public bucket");
         }
 
-        Ok(Some(Usage::Bucket(BucketUsage {
+        Some(Usage::Bucket(BucketUsage {
             range: data.expr.range,
             bucket,
             ops,
-        })))
+        }))
     } else {
         typ.err("no bucket permissions found in type argument");
-        Ok(None)
+        None
     }
 }
 
