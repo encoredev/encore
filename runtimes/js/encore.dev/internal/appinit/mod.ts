@@ -99,7 +99,7 @@ function invokeMiddlewareChain(
       return new HandlerResponse(await handler());
     }
 
-    // execute current middleare middleware
+    // execute current middleware
     return currentMiddleware(req, () => {
       return execute(index + 1);
     });
