@@ -9,13 +9,13 @@ lang: lang
 Middleware is a way to write reusable code that runs before, after, or both before and after
 the handling of API requests, often across several (or all) API endpoints.
 
-It's commonly used to implement cross-cutting concerns like
+Middleware is commonly used to implement cross-cutting concerns like
 [request logging](/docs/ts/observability/logging),
 [authentication](/docs/ts/develop/auth),
 [tracing](/docs/ts/observability/tracing),
-and so on. One of the benefits of Encore is that
-all of these use cases are already handled out-of-the-box, so there's no
-need to use middleware for those things.
+and so on. One of the benefits of Encore.ts is that
+it handles these common use cases out-of-the-box, so there's no
+need to write your own middleware.
 
 Nonetheless, there are several use cases where it can be useful to write
 reusable functionality that applies to multiple API endpoints, and middleware
