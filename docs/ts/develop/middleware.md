@@ -1,5 +1,5 @@
 ---
-seotitle: Using Middleware in your backend application
+seotitle: Using Middleware in your Encore.ts application
 seodesc: See how you can use middleware in your backend application to handle cross-cutting generic functionality, like request logging, auth, or tracing.
 title: Middleware
 subtitle: Handling cross-cutting, generic functionality
