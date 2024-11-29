@@ -17,9 +17,9 @@ and so on. One of the benefits of Encore.ts is that
 it handles these common use cases out-of-the-box, so there's no
 need to write your own middleware.
 
-Nonetheless, there are several use cases where it can be useful to write
+However, when developing applications there's often some use cases where it can be useful to write
 reusable functionality that applies to multiple API endpoints, and middleware
-is a good solution in those cases.
+is a good solution for this.
 
 Encore provides built-in support for middlewares by adding functions to the 
 [Service definitions](/docs/ts/primitives/services) configuration.
