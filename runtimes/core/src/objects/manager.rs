@@ -75,7 +75,7 @@ fn make_cfg_maps(
             }
         };
 
-        for bucket_cfg in cluster.buckets {
+        for bucket_cfg in cluster_cfg.buckets {
             bucket_map.insert(
                 bucket_cfg.encore_name.clone().into(),
                 (cluster.clone(), bucket_cfg),
@@ -92,7 +92,10 @@ fn new_cluster(
 ) -> Arc<dyn ClusterImpl> {
     match provider {
         pb::bucket_cluster::Provider::S3(s3cfg) => {
-            let secret_access_key = s3cfg.secret_access_key.map(|k| secrets.load(k.clone()));
+            let secret_access_key = s3cfg
+                .secret_access_key
+                .as_ref()
+                .map(|k| secrets.load(k.clone()));
             Arc::new(s3::Cluster::new(s3cfg, secret_access_key))
         }
         pb::bucket_cluster::Provider::Gcs(gcscfg) => Arc::new(gcs::Cluster::new(gcscfg.clone())),

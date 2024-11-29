@@ -65,7 +65,7 @@ impl LazyS3Client {
                     let secret_access_key = secret_access_key
                         .get()
                         .expect("unable to resolve s3 secret access key");
-                    let secret_access_key = std::str::from_utf8(&secret_access_key)
+                    let secret_access_key = std::str::from_utf8(secret_access_key)
                         .expect("unable to parse s3 secret access key as utf-8");
 
                     builder = builder.credentials_provider(Credentials::new(
