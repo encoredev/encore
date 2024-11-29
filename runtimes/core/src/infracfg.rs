@@ -46,6 +46,8 @@ pub struct GCS {
 pub struct S3 {
     pub region: String,
     pub endpoint: Option<String>,
+    pub access_key_id: Option<String>,
+    pub secret_access_key: Option<EnvString>,
     pub buckets: HashMap<String, Bucket>,
 }
 
@@ -461,6 +463,11 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         pbruntime::bucket_cluster::S3 {
                             region: s3.region,
                             endpoint: s3.endpoint,
+                            access_key_id: s3.access_key_id,
+                            secret_access_key: s3
+                                .secret_access_key
+                                .as_ref()
+                                .map(map_env_string_to_secret_data),
                         },
                     )),
                     buckets: s3

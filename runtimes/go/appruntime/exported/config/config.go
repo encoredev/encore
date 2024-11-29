@@ -406,6 +406,10 @@ type S3BucketProvider struct {
 	// The endpoint to use. If nil, the default endpoint for the region is used.
 	// Must be set for non-AWS endpoints.
 	Endpoint *string `json:"endpoint"`
+
+	// The access key to use. If either is nil, the default credentials are used.
+	AccessKeyID     *string `json:"access_key_id"`
+	SecretAccessKey *string `json:"secret_access_key"`
 }
 
 type GCSBucketProvider struct {
