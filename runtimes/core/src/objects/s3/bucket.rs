@@ -375,7 +375,7 @@ impl objects::ObjectImpl for Object {
             return Err(PublicUrlError::PrivateBucket);
         };
 
-        let url = objects::public_url(base_url, self.bkt.key_prefix.as_deref(), &self.name);
+        let url = objects::public_url(base_url, &self.name);
         Ok(url)
     }
 }

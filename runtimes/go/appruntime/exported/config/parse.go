@@ -376,8 +376,10 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		case "s3":
 			cfg.BucketProviders[i] = &BucketProvider{
 				S3: &S3BucketProvider{
-					Region:   storage.S3.Region,
-					Endpoint: nilOr(storage.S3.Endpoint),
+					Region:          storage.S3.Region,
+					Endpoint:        nilOr(storage.S3.Endpoint),
+					AccessKeyID:     nilOr(storage.S3.AccessKeyID),
+					SecretAccessKey: nilOr(storage.S3.SecretAccessKey.Value()),
 				},
 			}
 		}
