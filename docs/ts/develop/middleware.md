@@ -55,7 +55,7 @@ chain, calling `next` results in the actual API handler being called.
 The `req` parameter provides information about the incoming request, it has different fields
 depending on what kind of handler it is.
 
-Get information about the current request via `req.requestMeta` if the endpoint is a
+You can get information about the current request via `req.requestMeta` if the endpoint is a
 [typed API endpoint](/docs/ts/primitives/defining-apis) or a
 [Streaming API endpoint](/docs/ts/primitives/streaming-apis).
 
