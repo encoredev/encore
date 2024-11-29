@@ -71,7 +71,7 @@ a [typed API endpoint](/docs/ts/primitives/defining-apis).
 
 ## Middleware ordering
 
-Middlewares run in the order they are defined in the [Service definitions](/docs/ts/primitives/services)
+Middleware runs in the order they are defined in the [Service definitions](/docs/ts/primitives/services)
 configuration, i.e:
 
 ```ts
