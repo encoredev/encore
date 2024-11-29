@@ -5,6 +5,7 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
 use crate::objects::{gcs, noop, s3, BucketImpl, ClusterImpl};
+use crate::secrets;
 use crate::trace::Tracer;
 
 use super::Bucket;
@@ -17,8 +18,13 @@ pub struct Manager {
 }
 
 impl Manager {
-    pub fn new(tracer: Tracer, clusters: Vec<pb::BucketCluster>, md: &meta::Data) -> Self {
-        let bucket_cfg = make_cfg_maps(clusters, md);
+    pub fn new(
+        secrets: &secrets::Manager,
+        tracer: Tracer,
+        clusters: Vec<pb::BucketCluster>,
+        md: &meta::Data,
+    ) -> Self {
+        let bucket_cfg = make_cfg_maps(secrets, clusters, md);
 
         Self {
             tracer,
@@ -54,13 +60,20 @@ impl Manager {
 }
 
 fn make_cfg_maps(
+    secrets: &secrets::Manager,
     clusters: Vec<pb::BucketCluster>,
     _md: &meta::Data,
 ) -> HashMap<EncoreName, (Arc<dyn ClusterImpl>, pb::Bucket)> {
     let mut bucket_map = HashMap::new();
 
     for cluster_cfg in clusters {
-        let cluster = new_cluster(&cluster_cfg);
+        let cluster = match cluster_cfg.provider {
+            Some(provider) => new_cluster(secrets, provider),
+            None => {
+                log::error!("missing bucket cluster provider: {}", cluster_cfg.rid);
+                Arc::new(noop::Cluster)
+            }
+        };
 
         for bucket_cfg in cluster_cfg.buckets {
             bucket_map.insert(
@@ -73,14 +86,18 @@ fn make_cfg_maps(
     bucket_map
 }
 
-fn new_cluster(cluster: &pb::BucketCluster) -> Arc<dyn ClusterImpl> {
-    let Some(provider) = &cluster.provider else {
-        log::error!("missing bucket cluster provider: {}", cluster.rid);
-        return Arc::new(noop::Cluster);
-    };
-
+fn new_cluster(
+    secrets: &secrets::Manager,
+    provider: pb::bucket_cluster::Provider,
+) -> Arc<dyn ClusterImpl> {
     match provider {
-        pb::bucket_cluster::Provider::S3(s3cfg) => Arc::new(s3::Cluster::new(s3cfg)),
+        pb::bucket_cluster::Provider::S3(s3cfg) => {
+            let secret_access_key = s3cfg
+                .secret_access_key
+                .as_ref()
+                .map(|k| secrets.load(k.clone()));
+            Arc::new(s3::Cluster::new(s3cfg, secret_access_key))
+        }
         pb::bucket_cluster::Provider::Gcs(gcscfg) => Arc::new(gcs::Cluster::new(gcscfg.clone())),
     }
 }

@@ -143,11 +143,6 @@ func (b *Bucket) PublicURL(object string, options ...PublicURLOption) *url.URL {
 	if !strings.HasSuffix(u.Path, "/") {
 		u.Path += "/"
 	}
-
-	if b.runtimeCfg.KeyPrefix != "" {
-		u.Path += escape(b.runtimeCfg.KeyPrefix, encodePath)
-	}
-
 	u.Path += escape(object, encodePath)
 
 	return &u

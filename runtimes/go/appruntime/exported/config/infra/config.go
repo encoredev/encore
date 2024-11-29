@@ -132,13 +132,20 @@ func (p *ObjectStorage) UnmarshalJSON(data []byte) error {
 }
 
 type S3 struct {
-	Region   string             `json:"region"`
-	Endpoint string             `json:"endpoint,omitempty"`
-	Buckets  map[string]*Bucket `json:"buckets,omitempty"`
+	Region   string `json:"region"`
+	Endpoint string `json:"endpoint,omitempty"`
+
+	AccessKeyID     string    `json:"access_key_id,omitempty"`
+	SecretAccessKey EnvString `json:"secret_access_key,omitempty"`
+
+	Buckets map[string]*Bucket `json:"buckets,omitempty"`
 }
 
 func (a *S3) Validate(v *validator) {
 	v.ValidateField("region", NotZero(a.Region))
+	if a.AccessKeyID != "" {
+		v.ValidatePtrEnvRef("secret_access_key", &a.SecretAccessKey, "S3 Secret Access Key", NotZero[string])
+	}
 	ValidateChildMap(v, "buckets", a.Buckets)
 }
 
