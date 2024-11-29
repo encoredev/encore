@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"iter"
-	"sync"
 
 	"cloud.google.com/go/storage"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	awsCreds "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -23,9 +21,6 @@ type Manager struct {
 	ctx     context.Context
 	runtime *config.Runtime
 	clients map[*config.BucketProvider]*s3.Client
-
-	cfgOnce          sync.Once
-	awsDefaultConfig aws.Config
 }
 
 func NewManager(ctx context.Context, runtime *config.Runtime) *Manager {
@@ -156,40 +151,28 @@ func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {
 		return client
 	}
 
+	cfgOpts := []func(*awsConfig.LoadOptions) error{
+		awsConfig.WithRegion(prov.S3.Region),
+	}
 	// If we have a custom access key and secret, use them instead of the default config.
-	var cfg aws.Config
 	if prov.S3.AccessKeyID != nil && prov.S3.SecretAccessKey != nil {
-		var err error
-		cfg, err = awsConfig.LoadDefaultConfig(context.Background(),
+		cfgOpts = append(cfgOpts,
 			awsConfig.WithCredentialsProvider(awsCreds.NewStaticCredentialsProvider(*prov.S3.AccessKeyID, *prov.S3.SecretAccessKey, "")),
 		)
-		if err != nil {
-			panic(fmt.Sprintf("unable to load AWS config: %v", err))
-		}
-	} else {
-		cfg = mgr.defaultConfig()
 	}
 
-	client := s3.New(s3.Options{
-		Region:       prov.S3.Region,
-		BaseEndpoint: prov.S3.Endpoint,
-		Credentials:  cfg.Credentials,
+	cfg, err := awsConfig.LoadDefaultConfig(context.Background(), cfgOpts...)
+	if err != nil {
+		panic(fmt.Sprintf("unable to load AWS config: %v", err))
+	}
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if prov.S3.Endpoint != nil {
+			o.BaseEndpoint = prov.S3.Endpoint
+		}
 	})
 
 	mgr.clients[prov] = client
 	return client
-}
-
-// defaultConfig loads the required AWS config to connect to AWS
-func (mgr *Manager) defaultConfig() aws.Config {
-	mgr.cfgOnce.Do(func() {
-		cfg, err := awsConfig.LoadDefaultConfig(context.Background())
-		if err != nil {
-			panic(fmt.Sprintf("unable to load AWS config: %v", err))
-		}
-		mgr.awsDefaultConfig = cfg
-	})
-	return mgr.awsDefaultConfig
 }
 
 func mapErr(err error) error {
