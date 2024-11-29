@@ -87,8 +87,7 @@ export default new Service("myService", {
 
 ## Targeting APIs
 
-The `target` option can be used to decide what endpoints within the service the middleware should run for.
-If the target option is not set, it will run for all endpoints.
+The target option specifies which endpoints within the service the middleware should run on. If not set, the middleware will run for all endpoints by default.
 
 It is preferable performance-wise to use the `target` option over filtering within the middleware function,
 as we calculate what middlewares should run for each endpoint during startup.
