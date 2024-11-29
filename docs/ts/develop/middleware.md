@@ -6,7 +6,7 @@ subtitle: Handling cross-cutting, generic functionality
 lang: lang
 ---
 
-Middleware is a way to write reusable code that runs before or after (or both)
+Middleware is a way to write reusable code that runs before, after, or both before and after
 the handling of API requests, often across several (or all) API endpoints.
 
 It's commonly used to implement cross-cutting concerns like
