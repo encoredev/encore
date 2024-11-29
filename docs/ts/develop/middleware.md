@@ -21,7 +21,7 @@ However, when developing applications there's often some use cases where it can 
 reusable functionality that applies to multiple API endpoints, and middleware
 is a good solution for this.
 
-Encore provides built-in support for middlewares by adding functions to the 
+Encore provides built-in support for middleware by adding functions to the 
 [Service definitions](/docs/ts/primitives/services) configuration.
 Each middleware can be configured with a `target` option to specify what
 API endpoints it applies to.
