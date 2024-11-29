@@ -89,6 +89,6 @@ export default new Service("myService", {
 
 The target option specifies which endpoints within the service the middleware should run on. If not set, the middleware will run for all endpoints by default.
 
-It is preferable performance-wise to use the `target` option over filtering within the middleware function,
-as we calculate what middlewares should run for each endpoint during startup.
+For better performance, use the `target` option instead of filtering within the middleware function. 
+This enables calculating applicable middleware per endpoint during startup, reducing runtime overhead.
 
