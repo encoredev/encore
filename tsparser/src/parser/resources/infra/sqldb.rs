@@ -207,16 +207,14 @@ fn visit_dirs(
     max_depth: i8,
     cb: &mut dyn FnMut(&std::fs::DirEntry) -> ParseResult<()>,
 ) -> ParseResult<()> {
-    if dir.is_dir() {
-        let entries = std::fs::read_dir(dir).map_err(|err| span.parse_err(err.to_string()))?;
-        for entry in entries {
-            let entry = entry.map_err(|err| span.parse_err(err.to_string()))?;
-            let path = entry.path();
-            if path.is_dir() && depth < max_depth {
-                visit_dirs(span, &path, depth + 1, max_depth, cb)?;
-            } else {
-                cb(&entry)?;
-            }
+    let entries = std::fs::read_dir(dir).map_err(|err| span.parse_err(err.to_string()))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| span.parse_err(err.to_string()))?;
+        let path = entry.path();
+        if path.is_dir() && depth < max_depth {
+            visit_dirs(span, &path, depth + 1, max_depth, cb)?;
+        } else {
+            cb(&entry)?;
         }
     }
     Ok(())
@@ -356,6 +354,12 @@ fn parse_migrations(
     dir: &Path,
     source: Option<&MigrationFileSource>,
 ) -> ParseResult<Vec<DBMigration>> {
+    if !dir.exists() {
+        return Err(span.parse_err("migrations directory does not exist"));
+    } else if !dir.is_dir() {
+        return Err(span.parse_err("migrations path is not a directory"));
+    }
+
     let mut migrations = match source {
         Some(MigrationFileSource::Drizzle) => parse_drizzle(span, dir),
         Some(MigrationFileSource::Prisma) => parse_prisma(span, dir),
