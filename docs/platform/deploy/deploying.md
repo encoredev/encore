@@ -8,7 +8,7 @@ lang: platform
 
 Encore simplifies the deployment process, making it as straightforward as a `git push`. Encore's built-in integration with Git and GitHub, automated CI/CD pipeline, and automatic provisioning of [Preview Environments](/docs/platform/deploy/preview-environments) and [cloud infrastructure](/docs/platform/infrastructure/infra), is designed to speed up development and remove manual steps.
 
-## Setting Up Your Encore Application 
+## Setting Up Your Encore Application
 
 1. **Create your Application**: If you haven't already, create an application using the Encore CLI. This automatically creates a new git repository managed by Encore.
 
@@ -44,7 +44,7 @@ In both scenarios, this will trigger Encore's built-in CI/CD pipeline. This incl
 
 When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
 
-To configure which branch name is used to trigger deploys, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
+To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
 ### Preview Environments
 
@@ -67,19 +67,19 @@ with their default values:
         // Enables cgo when building the application and running tests
         // in Encore's CI/CD system.
         "cgo_enabled": false,
-        
+
         // Docker-related configuration
         "docker": {
         	// The Docker base image to use when deploying the application.
         	// It must be a publicly accessible image, and defaults to "scratch".
             "base_image": "scratch",
-            
+
             // Whether to bundle the source code in the docker image.
             // The source code will be copied into /workspace as part
             // of the build process. This is primarily useful for tools like
             // Sentry that need access to the source code to generate stack traces.
             "bundle_source": false,
-            
+
             // The working directory to start the docker image in.
             // If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
             "working_dir": ""

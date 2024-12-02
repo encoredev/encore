@@ -14,7 +14,7 @@ To support this use case, Encore enables you to import existing Kubernetes clust
 
 ## Importing a cluster
 
-To import your cluster, go to **Create Environment** in the [Cloud Dashboard](https://app.encore.dev), select **Kubernetes: Existing GKE Cluster** as the compute platform, and then specify your cluster's `Project ID`, `Region`, and `Cluster Name`.
+To import your cluster, go to **Create Environment** in the [Encore Cloud dashboard](https://app.encore.cloud), select **Kubernetes: Existing GKE Cluster** as the compute platform, and then specify your cluster's `Project ID`, `Region`, and `Cluster Name`.
 
 When you deploy to this environment, Encore will use your imported cluster as the compute instance.
 

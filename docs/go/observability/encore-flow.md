@@ -36,7 +36,7 @@ the `authentication` service:
 
 ## Real-time updates
 
-Flow is accessible in the [Local Development Dashboard](/docs/go/observability/dev-dash) and, when using Encore Cloud Platform, in the [Cloud Dashboard](https://app.encore.dev) for cloud environments.
+Flow is accessible in the [Local Development Dashboard](/docs/go/observability/dev-dash) and, when using Encore Cloud, in the [Encore Cloud dashboard](https://app.encore.cloud) for cloud environments.
 
 When developing locally, Flow will auto update in real-time to reflect your architecture as you
 make code changes. This helps you be mindful of important dependencies and makes it clear if you introduce new ones.

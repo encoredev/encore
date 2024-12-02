@@ -3,10 +3,10 @@
 <b>Open Source Development Platform for building robust type-safe distributed systems with declarative infrastructure</b><br/><br/>
 </p>
 
-Encore provides Open Source development tools, from local development to your cloud:
+Encore offers open-source development tools to improve your workflow, from local development to cloud deployment.
 - **Backend frameworks:** [Encore.ts](https://encore.dev) and [Encore.go](https://encore.dev/go) simplify defining services and type-safe APIs, and provide a declarative approach to define infrastructure in code.
-- **Local development environment:** Automates local infrastructure and provides a built-in local development dashboard with Tracing, Service Catalog, and API Explorer.
-- **Infrastructure integration:** Encore provides open source tooling to simplify integrating with cloud infrastructure, and offers a [Cloud Platform](https://encore.dev/use-cases/devops-automation) that fully automates DevOps and infrastructure provisioning in your cloud on AWS and GCP.
+- **Local development environment:** Encore's CLI automates local infrastructure and provides a built-in local development dashboard with Tracing, Service Catalog, and API Explorer.
+- **Infrastructure integration:** Encore provides open source tooling in the CLI to simplify integrating cloud infrastructure ([learn more](https://encore.dev/docs/ts/self-host/build)).<br/>Optional: [Encore Cloud](https://encore.cloud) is a managed service that automates DevOps and infrastructure provisioning for your cloud on AWS and GCP.
 
 
 **⭐ Star this repository** to help spread the word.
@@ -117,13 +117,13 @@ Using Encore.go, it looks like this:
 
 ```go
 import "encore.dev/pubsub"
- 
+
 type User struct { /* fields... */ }
- 
+
 var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
   DeliveryGuarantee: pubsub.AtLeastOnce,
 })
- 
+
 // Publish messages by calling a method
 Signup.Publish(ctx, &User{...})
 ```
@@ -176,7 +176,7 @@ Encore comes with several built-in tools to help with testing:
 
 - **Built-in service/API mocking:** Encore provides built-in support for [mocking API calls](https://encore.dev/docs/go/develop/testing/mocking), and interfaces for automatically generating mock objects for your services.
 - **Local test infra:** When running tests locally, Encore automatically provides dedicated [test infrastructure](https://encore.dev/docs/go/develop/testing#test-only-infrastructure) to isolate individual tests.
-- **Local test tracing:** The [local dev dashboard](https://encore.dev/docs/ts/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
+- **Local test tracing:** The [Local Development Dashboard](https://encore.dev/docs/ts/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
 - **Preview Environments:** Encore automatically provisions a [Preview Environment](https://encore.dev/docs/platform/deploy/preview-environments) for each Pull Request, an effective tool when doing end-to-end testing.
 
 ### DevOps automation using Encore Cloud Platform

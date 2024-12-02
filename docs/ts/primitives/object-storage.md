@@ -129,7 +129,7 @@ Other errors are returned as `ObjectsError` errors (which the above errors also 
 Encore uses static analysis to determine which services are accessing each bucket,
 and what operations each service is performing.
 
-That information is used for features such as rendering architecture diagrams, and can be used by Encore's Cloud Platform to provision infrastructure correctly and configure IAM permissions.
+That information is used for features such as rendering architecture diagrams, and is used by Encore Cloud to provision infrastructure correctly and configure IAM permissions.
 
 This means `Bucket` objects can't be passed around however you like,
 as it makes static analysis impossible in many cases. To simplify your workflow, given these restrictions,

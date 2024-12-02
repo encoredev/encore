@@ -6,7 +6,7 @@ lang: go
 ---
 Telemetry helps us improve the Encore by collecting usage data. This data provides insights into how Encore is used, enabling us to make informed decisions to enhance performance, add new features, and fix bugs more efficiently.
 
-Only Encore only collects telemetry data in the local development tools and Encore's Cloud Dashboard, it does **not** collect any telemetry data from your running applications or cloud services, ensuring complete privacy and security for your operations.
+Encore only collects telemetry data in the local development tools and the Encore Cloud dashboard. It does **not** collect any telemetry data from your running applications or cloud services, ensuring complete privacy and security for your operations.
 
 ## Why We Collect Data
 

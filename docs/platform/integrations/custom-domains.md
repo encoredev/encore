@@ -24,7 +24,7 @@ CNAME record using wildcards, e.g. `*.example.com`, are not currently supported.
 </Callout>
 
 Once you've added the CNAME record, go to the Custom Domains settings page by opening
-**[Your apps](https://app.encore.dev/) > (Select your app) > Settings > Custom Domains**. Click on `Add Domain`
+**[Your apps](https://app.encore.cloud/) > (Select your app) > Settings > Custom Domains**. Click on `Add Domain`
 on the top right of the page.
 
 Enter the domain name you configured the CNAME on and select which [environment](/docs/platform/deploy/environments) you wish to

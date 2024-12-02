@@ -173,7 +173,7 @@ See `encore help db` for more information on database management commands.
 
 For cloud environments on AWS/GCP you can view database user credentials (created by Encore when provisioning databases) via the Cloud Dashboard:
 
-* Open your app in the [Cloud Dashboard](https://app.encore.dev), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
+* Open your app in the [Encore Cloud dashboard](https://app.encore.cloud), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
 
 ## Handling migration errors
 
