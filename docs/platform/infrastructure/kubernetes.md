@@ -6,7 +6,7 @@ subtitle: Deploying your app to a new Kubernetes cluster
 lang: platform
 ---
 
-When you build your app using Encore's [Backend Framework](/docs/ts), you can deploy the same code to many different types of [cloud infrastructure](/docs/platform/infrastructure/infra). Encore will automatically handle provisioning different infrastructure for each environment — depending on your goals. Configuring what type of compute platform you want is done through the [Cloud Dashboard](https://app.encore.dev) rather than in the application code.
+When you build your app using Encore's [Backend Framework](/docs/ts), you can deploy the same code to many different types of [cloud infrastructure](/docs/platform/infrastructure/infra). Encore will automatically handle provisioning different infrastructure for each environment — depending on your goals. Configuring what type of compute platform you want is done through the [Encore Cloud Dashboard](https://app.encore.cloud) rather than in the application code.
 
 If you already have a Kubernetes cluster, you may want to deploy your Encore application into this pre-existing cluster. [See the docs](/docs/platform/infrastructure/import-kubernetes-cluster) for how to do this.
 
@@ -14,7 +14,7 @@ If you already have a Kubernetes cluster, you may want to deploy your Encore app
 
 **1. Connect your cloud account:** Ensure your cloud account (such as Google Cloud Platform or AWS) is connected to Encore. ([See docs](/docs/platform/infrastructure/own-cloud))
 
-**2. Create environment:** Open your app in the [Cloud Dashboard](https://app.encore.dev) and go to **Environments**, then click on **Create Environment**.  
+**2. Create environment:** Open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to **Environments**, then click on **Create Environment**.
 
 Next, select your cloud (AWS or GCP) and then specify Kubernetes as the compute platform. Encore supports deploying to GKE on GCP, and EKS Fargate on AWS.
 

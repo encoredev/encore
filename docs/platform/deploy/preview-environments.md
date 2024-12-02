@@ -1,5 +1,5 @@
 ---
-seotitle: Preview Environments – Temporary dev environments per Pull Request 
+seotitle: Preview Environments – Temporary dev environments per Pull Request
 seodesc: Learn how to use Encore to activate automatic Preview Environments for every Pull Request to simplify testing and collaborating.
 title: Preview Environments
 subtitle: Accelerate development with isolated test environments for each Pull Request
@@ -10,7 +10,7 @@ When you [connect your application to GitHub](/docs/platform/integrations/github
 
 Preview Environments are named after the pull request, for example PR #72 creates a Preview Environment named `pr:72` with the API base url `https://pr72-$APP_ID.encr.app`.
 
-You can also view the environment in the Cloud Dashboard, where the url will be `https://app.encore.dev/$APP_ID/envs/pr:72`.
+You can also view the environment in the Encore Cloud dashboard, where the url will be `https://app.encore.cloud/$APP_ID/envs/pr:72`.
 
 ## Preview Infrastructure
 
@@ -25,9 +25,9 @@ See the [infra docs](/docs/platform/infrastructure/infra#preview-environments) i
 Encore Cloud, and Encore managed environments on AWS and GCP, can be provisioned using [Neon](/docs/platform/infrastructure/neon) as the database provider.
 
 Neon is a serverless postgres provider that supports [database branches](https://neon.tech/docs/introduction/branching), which are similar to branches in git.
-Branches enable you to automatically seed your Preview Environments with test data by branching off a populated database, e.g. the database in a staging environment. 
+Branches enable you to automatically seed your Preview Environments with test data by branching off a populated database, e.g. the database in a staging environment.
 
-To configure which branch to use for PR environments, head to Encore's Cloud Dashboard > (Select your app) > App Settings > Preview Environments 
+To configure which branch to use for PR environments, head to the [Encore Cloud dashboard](https://app.encore.cloud) > (Select your app) > App Settings > Preview Environments
 and select the environment with the database you want to branch from. Hit save and you're all done.
 
 Keep in mind that you can only branch from environments that use Neon as the database provider; this is the default for Encore Cloud environments, but is a configurable option when creating AWS and GCP environments.

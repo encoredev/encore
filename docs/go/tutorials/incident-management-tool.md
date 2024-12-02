@@ -815,7 +815,7 @@ $ git push encore
 
 Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
-After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+After triggering the deployment, you will see a URL where you can view its progress in the [Encore Cloud dashboard](https://app.encore.cloud). It will look something like: `https://app.encore.cloud/$APP_ID/deploys/...`
 
 From there you can also see metrics, traces, link your app to a GitHub repo to get automatic deploys on new commits, and connect your own AWS or GCP account to use for production deployment.
 
@@ -852,4 +852,3 @@ $ encore app create --example https://github.com/encoredev/example-app-oncall
 
 🥐 We'd love to hear your thoughts about this tutorial and learn about what you're building next.
 Let us know by [tweeting your experience](https://twitter.com/encoredotdev), blog about it, or talk to us about it on [Discord](https://encore.dev/discord).
-

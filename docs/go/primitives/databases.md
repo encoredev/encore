@@ -50,9 +50,9 @@ If your application is already running when you define a new database, you will 
 
 </Callout>
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/sql-database" 
-    desc="Simple PostgreSQL example application." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/sql-database"
+    desc="Simple PostgreSQL example application."
 />
 
 ## Database Migrations
@@ -203,9 +203,9 @@ See `encore help db` for more information on database management commands.
 
 ### Using database user credentials
 
-For cloud environments on AWS/GCP you can view database user credentials (created by Encore when provisioning databases) via the Cloud Dashboard:
+For cloud environments on AWS/GCP you can view database user credentials (created by Encore when provisioning databases) via the Encore Cloud dashboard:
 
-* Open your app in the [Cloud Dashboard](https://app.encore.dev), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
+* Open your app in the [Encore Cloud dashboard](https://app.encore.cloud), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
 
 ## Handling migration errors
 
