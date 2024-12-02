@@ -25,7 +25,7 @@ Encore.ts helps you build robust type-safe applications by providing a high-perf
 The framework comes with a lot of built-in tooling for a smooth developer experience:
 
 1. **Local Environment Management**: Automatically sets up and runs your local development environment and all local infrastructure.
-2. **Enhanced Observability**: Comes with tools like a [local dev dash](/docs/ts/observability/dev-dash) and [tracing](/docs/ts/observability/tracing) for monitoring application behavior.
+2. **Enhanced Observability**: Comes with tools like a [Local Development Dashboard](/docs/ts/observability/dev-dash) and [tracing](/docs/ts/observability/tracing) for monitoring application behavior.
 3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/ts/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/ts/observability/flow) for your system.
 
 Optional: **DevOps Automation**: Encore provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.

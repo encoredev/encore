@@ -10,7 +10,7 @@ The Encore Platform provides an API for programmatic access to control certain p
 We're working on expanding the set of features available over the API.
 Please reach out to us [on Discord](https://encore.dev/discord) if you have use cases where additional API functionality would be useful.
 
-The Base URL for the Encore Platform API is `https://api.encore.dev`.
+The Base URL for the Encore Platform API is `https://api.encore.cloud`.
 
 ## Authentication
 

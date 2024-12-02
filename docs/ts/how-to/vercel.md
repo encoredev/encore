@@ -8,9 +8,9 @@ lang: ts
 Encore is not opinionated about where you host your frontend, pick the platform that suits your situation best. In this
 guide, we'll show you how to use Vercel to host your frontend and Encore to host your backend.
 
-<GitHubLink 
-    href="https://github.com/encoredev/nextjs-starter" 
-    desc="Next.js + Encore TS Web App Starter" 
+<GitHubLink
+    href="https://github.com/encoredev/nextjs-starter"
+    desc="Next.js + Encore TS Web App Starter"
 />
 
 ## Folder structure
@@ -36,7 +36,7 @@ both your frontend and backend automatically deployed.
 
 ### Encore
 
-1. Open your app in the Encore [Cloud Dashboard](https://app.encore.dev).
+1. Open your app in the [Encore Cloud dashboard](https://app.encore.cloud).
 2. Go to your app settings and set the "Root Directory" to `backend`. We need to do this because the `encore.app` file is not in the repo root (given the folder structure suggested above).
 3. In the app settings as well, link your app to GitHub and select the repo you just created.
 
@@ -74,7 +74,7 @@ global_cors: {
   "allow_origins_without_credentials": [
     "<ORIGIN-GOES-HERE>"
   ],
-        
+
   // allow_origins_with_credentials specifies the allowed origins for requests
   // that include credentials. If a request is made from an Origin in this list
   // Encore responds with Access-Control-Allow-Origin: <Origin>.

@@ -31,7 +31,7 @@ Pre-authentication keys (“auth keys” for short) let you authenticate the Enc
 
 ### Step 1: Generate an auth key
 
-As an Encore user, visit the auth key page by going to **[Your apps](https://app.encore.dev/) > (Select your app) > App Settings > Auth Keys**.
+As an Encore user, visit the auth key page by going to **[Your apps](https://app.encore.cloud/) > (Select your app) > App Settings > Auth Keys**.
 
 A key can be both **reusable** and **ephemeral** at the same time (you can decide the combination based on your particular use case).
 

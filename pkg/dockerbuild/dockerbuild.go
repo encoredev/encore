@@ -304,7 +304,7 @@ func tryFetch(ctx context.Context, url string) (*http.Response, error) {
 
 func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
 	const (
-		encoreCachedRootCerts                     = "https://api.encore.dev/artifacts/build/root-certs"
+		encoreCachedRootCerts                     = "https://api.encore.cloud/artifacts/build/root-certs"
 		mozillaRootStoreWebsiteTrustBitEnabledURL = "https://ccadb-public.secure.force.com/mozilla/IncludedRootsPEMTxt?TrustBitsInclude=Websites"
 	)
 	var (

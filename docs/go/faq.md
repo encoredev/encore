@@ -28,7 +28,7 @@ Support for mixing languages in coming. Currently, if you want to use both TypeS
 
 **Can I use Azure / Digital Ocean?**
 
-Encore's Cloud Platform currently supports automating deployments to AWS and GCP. Azure support in on the [roadmap](https://encore.dev/roadmap) and will be available in 2025.
+Encore Cloud currently supports automating deployments to AWS and GCP. Azure support in on the [roadmap](https://encore.dev/roadmap) and will be available in 2025.
 
 If you want to use other cloud providers like Azure or Digital Ocean, you can follow the [self-hosting instructions](/docs/go/self-host/docker-build).
 
@@ -58,7 +58,7 @@ Not yet, it's coming soon.
 
 **symlink creation error on Windows**
 
-Encore currently relies on symbolic links, which may be disabled by default. A common fix for this issue is to enable "developer mode" in the Windows settings (Settings > System > For developers > Developer mode). 
+Encore currently relies on symbolic links, which may be disabled by default. A common fix for this issue is to enable "developer mode" in the Windows settings (Settings > System > For developers > Developer mode).
 
 **`node` errors**
 

@@ -117,13 +117,13 @@ Using Encore.go, it looks like this:
 
 ```go
 import "encore.dev/pubsub"
- 
+
 type User struct { /* fields... */ }
- 
+
 var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
   DeliveryGuarantee: pubsub.AtLeastOnce,
 })
- 
+
 // Publish messages by calling a method
 Signup.Publish(ctx, &User{...})
 ```
@@ -176,7 +176,7 @@ Encore comes with several built-in tools to help with testing:
 
 - **Built-in service/API mocking:** Encore provides built-in support for [mocking API calls](https://encore.dev/docs/go/develop/testing/mocking), and interfaces for automatically generating mock objects for your services.
 - **Local test infra:** When running tests locally, Encore automatically provides dedicated [test infrastructure](https://encore.dev/docs/go/develop/testing#test-only-infrastructure) to isolate individual tests.
-- **Local test tracing:** The [local dev dashboard](https://encore.dev/docs/ts/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
+- **Local test tracing:** The [Local Development Dashboard](https://encore.dev/docs/ts/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
 - **Preview Environments:** Encore automatically provisions a [Preview Environment](https://encore.dev/docs/platform/deploy/preview-environments) for each Pull Request, an effective tool when doing end-to-end testing.
 
 ### DevOps automation using Encore Cloud Platform
