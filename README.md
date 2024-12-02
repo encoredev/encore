@@ -3,10 +3,10 @@
 <b>Open Source Development Platform for building robust type-safe distributed systems with declarative infrastructure</b><br/><br/>
 </p>
 
-Encore provides Open Source development tools, from local development to your cloud:
+Encore offers open-source development tools to improve your workflow, from local development to cloud deployment.
 - **Backend frameworks:** [Encore.ts](https://encore.dev) and [Encore.go](https://encore.dev/go) simplify defining services and type-safe APIs, and provide a declarative approach to define infrastructure in code.
 - **Local development environment:** Encore's CLI automates local infrastructure and provides a built-in local development dashboard with Tracing, Service Catalog, and API Explorer.
-- **Infrastructure integration:** Encore provides open source tooling in the CLI to simplify integrating cloud infrastructure, and offers [Encore Cloud](https://encore.cloud)—a managed service which automates DevOps and infrastructure provisioning for your cloud on AWS and GCP.
+- **Infrastructure integration:** Encore provides open source tooling in the CLI to simplify integrating cloud infrastructure ([learn more](https://encore.dev/docs/ts/self-host/build)).<br/>Optional: [Encore Cloud](https://encore.cloud) is a managed service that automates DevOps and infrastructure provisioning for your cloud on AWS and GCP.
 
 
 **⭐ Star this repository** to help spread the word.
