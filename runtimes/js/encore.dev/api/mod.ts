@@ -377,14 +377,19 @@ export function middleware(
   fn: MiddlewareFn
 ): Middleware;
 
-export function middleware(...args: unknown[]): Middleware {
-  if (args.length > 1) {
-    let m = args[1] as Middleware;
-    let o = args[0] as MiddlewareOptions;
-    m.options = o;
-    return m;
+export function middleware(
+  a: MiddlewareFn | MiddlewareOptions,
+  b?: MiddlewareFn
+): Middleware {
+  if (b === undefined) {
+    return a as Middleware;
+  } else {
+    const opts = a as MiddlewareOptions;
+    let mw = b as Middleware;
+    mw.options = opts;
+
+    return mw;
   }
-  return args[0] as Middleware;
 }
 
 export { APIError, ErrCode } from "./error";
