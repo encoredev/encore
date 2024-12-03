@@ -5,6 +5,7 @@ import { RequestMeta, currentRequest } from "../mod";
 import { RawResponse } from "./mod";
 import { RawRequest } from "./mod";
 import { Sink, Stream, Socket } from "../internal/runtime/mod";
+import { InternalHandlerResponse } from "../internal/appinit/mod";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -340,6 +341,36 @@ export class MiddlewareRequest {
   }
 }
 
+export class ResponseHeader {
+  headers: Record<string, string | string[]>;
+
+  constructor() {
+    this.headers = {};
+  }
+
+  /**
+   * set will set a header value for a key, if a previous middleware has
+   * already set a value, it will be overridden.
+   */
+  public set(key: string, value: string | string[]) {
+    this.headers[key] = value;
+  }
+
+  /**
+   * add adds a header value to a key, if a previous middleware has
+   * already set a value, they will be appended.
+   */
+  public add(key: string, value: string | string[]) {
+    const prev = this.headers[key];
+
+    if (prev === undefined) {
+      this.headers[key] = value;
+    } else {
+      this.headers[key] = [prev, value].flat();
+    }
+  }
+}
+
 export class HandlerResponse {
   /**
    * The payload returned by the handler when the handler is either
@@ -347,23 +378,34 @@ export class HandlerResponse {
    */
   payload: any;
 
-  private extraHeaders?: Record<string, string | string[]>;
+  private _headers?: ResponseHeader;
 
   constructor(payload: any) {
     this.payload = payload;
   }
 
   /**
-   * setHeader can be used by middlewares to set headers to the
+   * header can be used by middlewares to set headers to the
    * response. This only works for typed handler. For raw handlers
    * see MiddlewareRequest.rawResponse.
    */
-  setHeader(key: string, value: string | string[]) {
-    if (this.extraHeaders === undefined) {
-      this.extraHeaders = {};
+  public get header(): ResponseHeader {
+    if (this._headers === undefined) {
+      this._headers = new ResponseHeader();
     }
 
-    this.extraHeaders[key] = value;
+    return this._headers;
+  }
+
+  /**
+   * toResponse converts a response to the internal representation
+   */
+  toResponse(): InternalHandlerResponse {
+    return {
+      payload: this.payload,
+      extraHeaders:
+        this._headers === undefined ? undefined : this._headers?.headers
+    };
   }
 }
 

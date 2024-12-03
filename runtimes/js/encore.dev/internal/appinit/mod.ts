@@ -85,12 +85,17 @@ class IterableSocket {
   }
 }
 
+export interface InternalHandlerResponse {
+  payload: any;
+  extraHeaders?: Record<string, string | string[]>;
+}
+
 // recursively calls all middlewares
-function invokeMiddlewareChain(
+async function invokeMiddlewareChain(
   req: MiddlewareRequest,
   chain: Middleware[],
   handler: () => Promise<any>
-): Promise<any> {
+): Promise<InternalHandlerResponse> {
   const execute = async (
     index: number,
     req: MiddlewareRequest
@@ -108,7 +113,7 @@ function invokeMiddlewareChain(
     });
   };
 
-  return execute(0, req);
+  return (await execute(0, req)).toResponse();
 }
 
 // calculate what middlewares should run for an endpoint
@@ -256,12 +261,14 @@ function transformHandler(h: Handler): runtime.ApiRoute {
   };
 }
 
-function toResponse(payload: any): any {
+function toResponse(
+  payload: any
+): InternalHandlerResponse | Promise<InternalHandlerResponse> {
   if (payload instanceof Promise) {
-    return (async () => {
-      return new HandlerResponse(await payload);
-    })();
+    return payload.then((payload) => {
+      return new HandlerResponse(payload).toResponse();
+    });
   } else {
-    return new HandlerResponse(payload);
+    return new HandlerResponse(payload).toResponse();
   }
 }
