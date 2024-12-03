@@ -1,6 +1,15 @@
-import { Min, Max, MinLen, MaxLen } from "encore.dev/validate";
+import { Min, Max, MinLen, MaxLen, IsURL, IsEmail } from "encore.dev/validate";
 
-export type Validate1 = number & Min<3>;
-export type Validate2 = number & Min<3> & Max<5>;
-export type Validate3 = number & Min<3> & Min<5>;
-export type Validate4 = MinLen<3> & string & MaxLen<10>;
+export interface Params {
+  // A number between 3 and 1000 (inclusive).
+  foo: number & (Min<3> & Max<1000>);
+
+  // A string between 5 and 20 characters long.
+  bar: string & (MinLen<5> & MaxLen<20>);
+
+  // A string that is either a URL or an email address.
+  urlOrEmail: string & (IsURL | IsEmail);
+
+  // An array of up to 10 email addresses.
+  emails: Array<string & IsEmail> & MaxLen<10>;
+}

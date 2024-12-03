@@ -67,7 +67,7 @@ fn main() {
             };
 
             match builder.parse(&pp) {
-                Some(desc) => {
+                Some(_desc) => {
                     println!("successfully parsed {}", app_root.display());
                 }
                 None => {

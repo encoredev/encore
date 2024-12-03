@@ -32,10 +32,10 @@ impl Rule {
     pub fn merge_and(&self, other: &Self) -> Option<Self> {
         use Rule::*;
         Some(match (self, other) {
-            (MinLen(a), MinLen(b)) => MinLen((*a).min(*b)),
-            (MaxLen(a), MaxLen(b)) => MaxLen((*a).max(*b)),
-            (MinVal(a), MinVal(b)) => MinVal(N((*a).min(**b))),
-            (MaxVal(a), MaxVal(b)) => MaxVal(N((*a).max(**b))),
+            (MinLen(a), MinLen(b)) => MinLen((*a).max(*b)),
+            (MaxLen(a), MaxLen(b)) => MaxLen((*a).min(*b)),
+            (MinVal(a), MinVal(b)) => MinVal(N((*a).max(**b))),
+            (MaxVal(a), MaxVal(b)) => MaxVal(N((*a).min(**b))),
             _ => return None,
         })
     }
@@ -43,10 +43,10 @@ impl Rule {
     pub fn merge_or(&self, other: &Self) -> Option<Self> {
         use Rule::*;
         Some(match (self, other) {
-            (MinLen(a), MinLen(b)) => MinLen((*a).max(*b)),
-            (MaxLen(a), MaxLen(b)) => MaxLen((*a).min(*b)),
-            (MinVal(a), MinVal(b)) => MinVal(N((*a).max(**b))),
-            (MaxVal(a), MaxVal(b)) => MaxVal(N((*a).min(**b))),
+            (MinLen(a), MinLen(b)) => MinLen((*a).min(*b)),
+            (MaxLen(a), MaxLen(b)) => MaxLen((*a).max(*b)),
+            (MinVal(a), MinVal(b)) => MinVal(N((*a).min(**b))),
+            (MaxVal(a), MaxVal(b)) => MaxVal(N((*a).max(**b))),
             _ => return None,
         })
     }
@@ -153,7 +153,11 @@ impl Expr {
                 }
 
                 exprs.truncate(size);
-                Self::And(exprs)
+                if exprs.len() == 1 {
+                    exprs.pop().unwrap()
+                } else {
+                    Self::And(exprs)
+                }
             }
 
             Self::Or(mut exprs) => {
@@ -196,7 +200,11 @@ impl Expr {
                 }
 
                 exprs.truncate(size);
-                Self::Or(exprs)
+                if exprs.len() == 1 {
+                    exprs.pop().unwrap()
+                } else {
+                    Self::Or(exprs)
+                }
             }
 
             _ => self,
@@ -260,13 +268,22 @@ mod tests {
     fn test_simplify() {
         use super::*;
 
-        let expr = Expr::Or(vec![
-            Expr::Rule(Rule::MinLen(10)),
-            Expr::Rule(Rule::MinLen(20)),
-            Expr::Rule(Rule::MinLen(30)),
-        ]);
+        {
+            let expr = Expr::Or(vec![
+                Expr::Rule(Rule::MinLen(10)),
+                Expr::Rule(Rule::MinLen(30)),
+            ]);
+            let simplified = expr.simplify();
+            assert_eq!(simplified, Expr::Rule(Rule::MinLen(10)));
+        }
 
-        let simplified = expr.simplify();
-        assert_eq!(simplified, Expr::Rule(Rule::MinLen(10)));
+        {
+            let expr = Expr::And(vec![
+                Expr::Rule(Rule::MaxVal(N(10.0))),
+                Expr::Rule(Rule::MaxVal(N(30.0))),
+            ]);
+            let simplified = expr.simplify();
+            assert_eq!(simplified, Expr::Rule(Rule::MaxVal(N(10.0))));
+        }
     }
 }

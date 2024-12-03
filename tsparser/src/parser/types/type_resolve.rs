@@ -654,6 +654,13 @@ impl Ctx<'_> {
             }
         }
 
+        // Is this a reference to the built-in 'Array' class?
+        if obj.name.as_ref().is_some_and(|s| s == "Array") && self.state.is_universe(obj.module_id)
+        {
+            let elem = type_arguments.pop().unwrap_or(Type::Basic(Basic::Never));
+            return Type::Array(Box::new(elem));
+        }
+
         match &obj.kind {
             ObjectKind::TypeName(_) => {
                 let named = Named::new(obj, type_arguments);
