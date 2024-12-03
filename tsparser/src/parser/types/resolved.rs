@@ -55,6 +55,14 @@ impl<B: ?Sized + ToOwned> Resolved<'_, B> {
             _ => self,
         }
     }
+    ///
+    /// Converts `Same` to `Changed`.
+    pub fn into_new(self) -> Resolved<'static, B> {
+        match self {
+            Same(borrowed) | Changed(borrowed) => New(borrowed.to_owned()),
+            New(typ) => New(typ),
+        }
+    }
 
     /// Extracts the owned data.
     ///

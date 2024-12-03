@@ -1,90 +1,146 @@
-use anyhow::Result;
 use duration_string::DurationString;
 use num_bigint::{BigInt, ToBigInt};
 use std::{
+    error::Error,
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
     path::{Component, PathBuf},
 };
-use swc_common::{pass::Either, util::take::Take, Span, Spanned};
+use swc_common::{errors::HANDLER, pass::Either, util::take::Take, Span, Spanned};
 use swc_ecma_ast as ast;
 
+#[derive(Debug, Clone, Hash)]
+pub struct ParseError {
+    pub span: Span,
+    pub message: String,
+}
+
+impl Error for ParseError {}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl ParseError {
+    pub fn report(self) {
+        HANDLER.with(|handler| {
+            handler.span_err(self.span, &self.message);
+        });
+    }
+}
+
+#[macro_export]
+macro_rules! report_and_continue {
+    ($e:expr) => {
+        match $e {
+            Ok(v) => v,
+            Err(err) => {
+                err.report();
+                continue;
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! report_and_return {
+    ($e:expr) => {
+        match $e {
+            Ok(v) => v,
+            Err(err) => {
+                err.report();
+                return;
+            }
+        }
+    };
+}
+
+pub trait ToParseErr {
+    fn parse_err<S: Into<String>>(&self, message: S) -> ParseError;
+}
+
+impl<T> ToParseErr for T
+where
+    T: Spanned,
+{
+    fn parse_err<S: Into<String>>(&self, message: S) -> ParseError {
+        ParseError {
+            span: self.span(),
+            message: message.into(),
+        }
+    }
+}
+
+pub type ParseResult<T> = Result<T, ParseError>;
+
 pub trait LitParser: Sized {
-    fn parse_lit(input: &ast::Expr) -> Result<Self>;
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self>;
 }
 
 impl<T> LitParser for Sp<T>
 where
     T: LitParser,
 {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         let res = T::parse_lit(input)?;
         Ok(Sp(input.span(), res))
     }
 }
 
 impl LitParser for String {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         match input {
             ast::Expr::Lit(ast::Lit::Str(str)) => Ok(str.value.to_string()),
-            _ => {
-                anyhow::bail!("expected string literal, got {:?}", input)
-            }
+            _ => Err(input.parse_err("expected string literal")),
         }
     }
 }
 
 impl LitParser for bool {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         match input {
             ast::Expr::Lit(ast::Lit::Bool(b)) => Ok(b.value),
-            _ => anyhow::bail!("expected boolean literal, got {:?}", input),
+            _ => Err(input.parse_err("expected boolean literal")),
         }
     }
 }
 
 impl LitParser for i32 {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         let big = parse_const_bigint(input)?;
-        let val: i32 = big
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("expected number literal, got {:?}", input))?;
-        Ok(val)
+        big.try_into()
+            .map_err(|_| input.parse_err("expected number literal"))
     }
 }
 
 impl LitParser for u32 {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         let big = parse_const_bigint(input)?;
-        let val: u32 = big
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("expected unsigned number literal, got {:?}", input))?;
-        Ok(val)
+        big.try_into()
+            .map_err(|_| input.parse_err("expected unsigned number literal"))
     }
 }
 
 impl LitParser for i64 {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         let big = parse_const_bigint(input)?;
-        let val: i64 = big
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("expected number literal, got {:?}", input))?;
-        Ok(val)
+        big.try_into()
+            .map_err(|_| input.parse_err("expected number literal"))
     }
 }
 
 impl LitParser for u64 {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         let big = parse_const_bigint(input)?;
-        let val: u64 = big
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("expected unsigned number literal, got {:?}", input))?;
-        Ok(val)
+        big.try_into()
+            .map_err(|_| input.parse_err("expected unsigned number literal"))
     }
 }
 
 impl LitParser for ast::Expr {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         Ok(input.clone())
     }
 }
@@ -93,7 +149,7 @@ impl<T> LitParser for Option<T>
 where
     T: LitParser,
 {
-    fn parse_lit(input: &ast::Expr) -> Result<Option<T>> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Option<T>> {
         let t = T::parse_lit(input)?;
         Ok(Some(t))
     }
@@ -104,7 +160,7 @@ where
     L: LitParser,
     R: LitParser,
 {
-    fn parse_lit(input: &ast::Expr) -> Result<Either<L, R>> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Either<L, R>> {
         let res = L::parse_lit(input)
             .map(Either::Left)
             .or_else(|_| R::parse_lit(input).map(Either::Right))?;
@@ -114,42 +170,54 @@ where
 }
 
 impl LitParser for std::time::Duration {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         match input {
             ast::Expr::Lit(ast::Lit::Str(str)) => {
-                let dur =
-                    DurationString::try_from(str.value.to_string()).map_err(anyhow::Error::msg)?;
+                let dur = DurationString::try_from(str.value.to_string())
+                    .map_err(|e| str.parse_err(e))?;
                 Ok(dur.into())
             }
-            _ => anyhow::bail!("expected duration string, got {:?}", input),
+            _ => Err(input.parse_err("expected duration string literal")),
         }
     }
 }
 
 /// Represents a local, relative path (without ".." or a root).
 #[derive(Debug, Clone)]
-pub struct LocalRelPath(pub PathBuf);
+pub struct LocalRelPath {
+    pub span: Span,
+    pub buf: PathBuf,
+}
+
+impl Spanned for LocalRelPath {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
 
 impl LocalRelPath {
-    pub fn try_from<S: AsRef<str>>(str: S) -> Result<Self> {
+    pub fn try_from<S: AsRef<str>>(sp: Span, str: S) -> ParseResult<Self> {
         let str = str.as_ref();
         let path = PathBuf::from(str);
         for c in path.components() {
             match c {
                 Component::CurDir => {}
                 Component::Normal(_) => {}
-                _ => anyhow::bail!("expected a local relative path, got {:?}", str),
+                _ => return Err(sp.parse_err("expected a local relative path")),
             }
         }
-        Ok(LocalRelPath(clean_path::clean(path)))
+        Ok(LocalRelPath {
+            span: sp,
+            buf: clean_path::clean(path),
+        })
     }
 }
 
 impl LitParser for LocalRelPath {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         match input {
-            ast::Expr::Lit(ast::Lit::Str(str)) => LocalRelPath::try_from(&str.value),
-            _ => anyhow::bail!("expected a local relative path, got {:?}", input),
+            ast::Expr::Lit(ast::Lit::Str(str)) => LocalRelPath::try_from(str.span, &str.value),
+            _ => Err(input.parse_err("expected a local relative path")),
         }
     }
 }
@@ -164,7 +232,7 @@ impl<T> LitParser for Nullable<T>
 where
     T: LitParser,
 {
-    fn parse_lit(input: &ast::Expr) -> Result<Self> {
+    fn parse_lit(input: &ast::Expr) -> ParseResult<Self> {
         match input {
             ast::Expr::Lit(ast::Lit::Null(_)) => Ok(Nullable::Null),
             _ => {
@@ -187,16 +255,16 @@ where
     }
 }
 
-fn parse_const_bigint(expr: &ast::Expr) -> Result<BigInt> {
+fn parse_const_bigint(expr: &ast::Expr) -> ParseResult<BigInt> {
     match expr {
         ast::Expr::Lit(ast::Lit::Num(num)) => {
             let int = num.value as i64;
             if int as f64 != num.value {
-                anyhow::bail!("expected integer literal, got float");
+                return Err(num.parse_err("expected integer literal"));
             }
-            let big = int.to_bigint().ok_or_else(|| {
-                anyhow::anyhow!("expected integer literal, got too large integer")
-            })?;
+            let Some(big) = int.to_bigint() else {
+                return Err(num.parse_err("integer too large"));
+            };
             Ok(big)
         }
         ast::Expr::Unary(unary) => match unary.op {
@@ -205,7 +273,7 @@ fn parse_const_bigint(expr: &ast::Expr) -> Result<BigInt> {
                 Ok(-x)
             }
             ast::UnaryOp::Plus => parse_const_bigint(&unary.arg),
-            _ => anyhow::bail!("unsupported unary operator {:?}", unary.op),
+            _ => Err(unary.parse_err(format!("unsupported unary operator {:?}", unary.op))),
         },
         ast::Expr::Bin(bin) => {
             let x = parse_const_bigint(&bin.left)?;
@@ -223,17 +291,26 @@ fn parse_const_bigint(expr: &ast::Expr) -> Result<BigInt> {
                     if remainder.is_zero() {
                         Ok(quo)
                     } else {
-                        anyhow::bail!("expected integer division, got {:?}", expr)
+                        Err(bin.parse_err("expected integer division"))
                     }
                 }
-                _ => anyhow::bail!("expected arithmetic operator, got {:?}", bin.op),
+                _ => Err(bin.parse_err(format!("expected arithmetic operator, got {:?}", bin.op))),
             }
         }
-        _ => anyhow::bail!("expected integer literal, got {:?}", expr),
+        _ => Err(expr.parse_err("expected integer literal")),
     }
 }
 
 pub struct Sp<T>(Span, T);
+
+impl<T> Clone for Sp<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Sp(self.0, self.1.clone())
+    }
+}
 
 impl<T> Sp<T> {
     pub fn new(sp: Span, val: T) -> Self {
@@ -242,6 +319,10 @@ impl<T> Sp<T> {
 
     pub fn with_dummy(val: T) -> Self {
         Self::new(Span::dummy(), val)
+    }
+
+    pub fn with<U>(&self, val: U) -> Sp<U> {
+        Sp::new(self.0, val)
     }
 
     pub fn split(self) -> (Span, T) {
@@ -262,10 +343,43 @@ impl<T> Sp<T> {
     {
         Sp(self.0, f(self.1))
     }
+
+    pub fn get(&self) -> &T {
+        &self.1
+    }
+
+    pub fn as_deref(&self) -> &T::Target
+    where
+        T: Deref,
+    {
+        self.1.deref()
+    }
+}
+
+impl<T, E> Sp<Result<T, E>> {
+    pub fn transpose(self) -> Result<Sp<T>, E> {
+        match self.1 {
+            Ok(inner) => Ok(Sp(self.0, inner)),
+            Err(err) => Err(err),
+        }
+    }
+}
+
+impl<T> AsRef<T> for Sp<T> {
+    fn as_ref(&self) -> &T {
+        &self.1
+    }
+}
+
+impl<T> AsMut<T> for Sp<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.1
+    }
 }
 
 impl<T> Deref for Sp<T> {
     type Target = T;
+
     fn deref(&self) -> &Self::Target {
         &self.1
     }
@@ -303,15 +417,6 @@ where
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.1.cmp(&other.1)
-    }
-}
-
-impl<T> Clone for Sp<T>
-where
-    T: Clone,
-{
-    fn clone(&self) -> Self {
-        Self(self.0, self.1.clone())
     }
 }
 

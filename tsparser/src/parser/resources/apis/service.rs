@@ -1,5 +1,6 @@
-use swc_common::errors::HANDLER;
+use litparser::report_and_continue;
 use swc_common::sync::Lrc;
+use swc_common::Spanned;
 use swc_ecma_ast as ast;
 
 use litparser_derive::LitParser;
@@ -12,6 +13,7 @@ use crate::parser::resources::parseutil::NamedClassResourceOptionalConfig;
 use crate::parser::resources::parseutil::{iter_references, TrackedNames};
 use crate::parser::resources::Resource;
 use crate::parser::FilePath;
+use crate::span_err::ErrReporter;
 
 #[derive(Debug, Clone)]
 pub struct Service {
@@ -33,15 +35,11 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
         {
             type Res = NamedClassResourceOptionalConfig<DecodedServiceConfig>;
             for (i, r) in iter_references::<Res>(&module, &names).enumerate() {
-                let r = r?;
+                let r = report_and_continue!(r);
 
                 if i > 0 {
-                    HANDLER.with(|h| {
-                        h.span_err(
-                            r.range,
-                            "cannot have multiple service declarations in the same module",
-                        );
-                    });
+                    r.span()
+                        .err("cannot have multiple service declarations in the same module");
                     continue;
                 }
 
@@ -50,12 +48,8 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 match &pass.module.file_path {
                     FilePath::Real(buf) if buf.ends_with("encore.service.ts") => {}
                     _ => {
-                        HANDLER.with(|h| {
-                            h.span_err(
-                                r.range,
-                                "service declarations are only allowed in encore.service.ts",
-                            );
-                        });
+                        r.span()
+                            .err("service declarations are only allowed in encore.service.ts");
                         continue;
                     }
                 }
@@ -81,7 +75,5 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 });
             }
         }
-
-        Ok(())
     },
 };

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use anyhow::Result;
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 
@@ -12,7 +11,7 @@ use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
 use encore_tsparser::{app, builder};
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
 
     let js_runtime_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -34,8 +33,8 @@ fn main() -> Result<()> {
 
     let errs = Rc::new(Handler::with_emitter(true, false, Box::new(emitter)));
 
-    GLOBALS.set(&globals, || -> Result<()> {
-        HANDLER.set(&errs, || -> Result<()> {
+    GLOBALS.set(&globals, || {
+        HANDLER.set(&errs, || {
             let builder = Builder::new()?;
             let _parse: Option<(builder::App, app::AppDesc)> = None;
 
@@ -68,12 +67,10 @@ fn main() -> Result<()> {
             };
 
             match builder.parse(&pp) {
-                Ok(_) => {
+                Some(desc) => {
                     println!("successfully parsed {}", app_root.display());
-                    Ok(())
                 }
-                Err(err) => {
-                    log::error!("failed to parse: {:?}", err);
+                None => {
                     // Get any errors from the emitter.
                     let errs = errors.lock().unwrap();
                     let mut err_msg = String::new();
@@ -83,7 +80,7 @@ fn main() -> Result<()> {
                     }
                     err_msg.push_str(&format!("{:?}", err));
                     eprintln!("{}", err_msg);
-                    anyhow::bail!("parse failure")
+                    panic!("parse failure")
                 }
             }
         })

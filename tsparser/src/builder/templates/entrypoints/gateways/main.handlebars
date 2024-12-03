@@ -1,4 +1,7 @@
 import { registerGateways, run } from "encore.dev/internal/codegen/appinit";
+import { Worker, isMainThread } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import { availableParallelism } from "node:os";
 
 {{#each gateways}}
 import { {{bind_name}} as {{encoreNameToIdent encore_name}}Impl } from {{toJSON import_path}};
@@ -6,10 +9,19 @@ import { {{bind_name}} as {{encoreNameToIdent encore_name}}Impl } from {{toJSON 
 
 const gateways = [
 {{#each gateways}}
-    {{encore_name}}Impl,
+    {{encoreNameToIdent encore_name}}Impl,
 {{/each}}
 ];
 
 registerGateways(gateways);
 
-await run();
+if (isMainThread) {
+  const path = fileURLToPath(import.meta.url);
+  for (let i = 0; i < availableParallelism()-1; i++) {
+    new Worker(path);
+  }
+
+  await run();
+} else {
+  await new Promise(() => { });
+}

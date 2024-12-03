@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
-use anyhow::Result;
-use litparser::LitParser;
+use litparser::{report_and_continue, LitParser};
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
@@ -44,7 +43,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
         {
             type Res = NamedClassResourceOptionalConfig<DecodedBucketConfig>;
             for r in iter_references::<Res>(&module, &names) {
-                let r = r?;
+                let r = report_and_continue!(r);
                 let cfg = r.config.unwrap_or_default();
 
                 let object = match &r.bind_name {
@@ -60,6 +59,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                     versioned: cfg.versioned.unwrap_or(false),
                     public: cfg.public.unwrap_or(false),
                 }));
+
                 pass.add_resource(resource.clone());
                 pass.add_bind(BindData {
                     range: r.range,
@@ -73,7 +73,7 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
 
         {
             for r in iter_references::<NamedStaticMethod>(&module, &names) {
-                let r = r?;
+                let r = report_and_continue!(r);
                 let object = match &r.bind_name {
                     None => None,
                     Some(id) => pass
@@ -92,27 +92,25 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                 });
             }
         }
-
-        Ok(())
     },
 };
 
-pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Result<Option<Usage>> {
-    Ok(match &data.expr.kind {
+pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Option<Usage> {
+    match &data.expr.kind {
         UsageExprKind::MethodCall(call) => {
             if call.method.as_ref() == "ref" {
                 let Some(type_args) = call.call.type_args.as_deref() else {
                     call.call
                         .span
                         .err("expected a type argument in call to Bucket.ref");
-                    return Ok(None);
+                    return None;
                 };
 
                 let Some(type_arg) = type_args.params.first() else {
                     call.call
                         .span
                         .err("expected a type argument in call to Bucket.ref");
-                    return Ok(None);
+                    return None;
                 };
 
                 return parse_bucket_ref(data, bucket, call, type_arg);
@@ -141,7 +139,7 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Res
 
                 _ => {
                     call.method.err("unsupported bucket operation");
-                    return Ok(None);
+                    return None;
                 }
             };
 
@@ -159,7 +157,7 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Res
                 .err("invalid use of bucket resource");
             None
         }
-    })
+    }
 }
 
 fn parse_bucket_ref(
@@ -167,7 +165,7 @@ fn parse_bucket_ref(
     bucket: Lrc<Bucket>,
     _call: &MethodCall,
     type_arg: &ast::TsType,
-) -> Result<Option<Usage>> {
+) -> Option<Usage> {
     fn process_type(
         data: &ResolveUsageData,
         sp: &swc_common::Span,
@@ -253,14 +251,14 @@ fn parse_bucket_ref(
                 .err("cannot use publicUrl on a non-public bucket");
         }
 
-        Ok(Some(Usage::Bucket(BucketUsage {
+        Some(Usage::Bucket(BucketUsage {
             range: data.expr.range,
             bucket,
             ops,
-        })))
+        }))
     } else {
         typ.err("no bucket permissions found in type argument");
-        Ok(None)
+        None
     }
 }
 

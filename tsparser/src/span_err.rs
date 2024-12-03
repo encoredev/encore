@@ -15,8 +15,8 @@ where
 
 #[derive(Debug)]
 pub struct SpErr<E> {
-    span: Span,
-    error: E,
+    pub span: Span,
+    pub error: E,
 }
 
 impl<E> SpErr<E>

@@ -67,7 +67,7 @@ fn parse_txtar(app_root: &Path) -> Result<app::AppDesc> {
                 parse_tests: false,
             };
 
-            builder.parse(&pp)
+            builder.parse(&pp).ok_or(anyhow::anyhow!("parse failed"))
         })
     })
 }

@@ -1,4 +1,7 @@
 import { registerGateways, registerHandlers, run, type Handler } from "encore.dev/internal/codegen/appinit";
+import { Worker, isMainThread } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import { availableParallelism } from "node:os";
 
 {{#each gateways}}
 import { {{bind_name}} as {{encoreNameToIdent encore_name}}GW } from {{toJSON import_path}};
@@ -33,4 +36,13 @@ const handlers: Handler[] = [
 registerGateways(gateways);
 registerHandlers(handlers);
 
-await run();
+if (isMainThread) {
+  const path = fileURLToPath(import.meta.url);
+  for (let i = 0; i < availableParallelism()-1; i++) {
+    new Worker(path);
+  }
+
+  await run();
+} else {
+  await new Promise(() => { });
+}

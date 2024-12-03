@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::borrow::Cow::{Borrowed, Owned};
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -7,12 +8,12 @@ use std::rc::Rc;
 use litparser::Sp;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::{Span, Spanned};
+use swc_common::{BytePos, Span, Spanned};
 use swc_ecma_ast as ast;
 
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
-use crate::parser::types::Object;
+use crate::parser::types::{validation, Object};
 use crate::parser::{module_loader, Range};
 use crate::span_err::ErrReporter;
 
@@ -100,6 +101,13 @@ pub struct Ctx<'a> {
 
     /// The mapped key type to substitute when concretising, if any.
     mapped_key_type: Option<&'a Type>,
+
+    /// Encountered "infer Type" type parameters in the current scope.
+    /// Rc<RefCell<...>> so we can mutate it in nested contexts.
+    infer_type_params: Option<Rc<RefCell<Vec<ast::Id>>>>,
+
+    /// Type arguments to fill in for inferred type parameters.
+    infer_type_args: &'a [Cow<'a, Type>],
 }
 
 impl<'a> Ctx<'a> {
@@ -111,6 +119,8 @@ impl<'a> Ctx<'a> {
             type_args: &[],
             mapped_key_id: None,
             mapped_key_type: None,
+            infer_type_params: None,
+            infer_type_args: &[],
         }
     }
 
@@ -138,6 +148,20 @@ impl<'a> Ctx<'a> {
             ..self
         }
     }
+
+    fn with_infer_type_params(self, infer_type_params: Rc<RefCell<Vec<ast::Id>>>) -> Self {
+        Self {
+            infer_type_params: Some(infer_type_params),
+            ..self
+        }
+    }
+
+    fn with_infer_type_args(self, infer_type_args: &'a [Cow<'a, Type>]) -> Self {
+        Self {
+            infer_type_args,
+            ..self
+        }
+    }
 }
 
 impl Ctx<'_> {
@@ -160,12 +184,13 @@ impl Ctx<'_> {
             ast::TsType::TsTypeOperator(tt) => self.type_op(tt),
             ast::TsType::TsMappedType(tt) => self.mapped(tt),
             ast::TsType::TsIndexedAccessType(tt) => self.indexed_access(tt),
+            ast::TsType::TsInferType(tt) => self.infer(tt),
 
             ast::TsType::TsFnOrConstructorType(_)
             | ast::TsType::TsRestType(_) // same?
             | ast::TsType::TsTypePredicate(_) // https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates, https://www.typescriptlang.org/docs/handbook/2/classes.html#this-based-type-guards
             | ast::TsType::TsImportType(_) // ??
-            | ast::TsType::TsInferType(_) => {
+            => {
                 HANDLER.with(|handler| handler.span_err(typ.span(), &format!("unsupported: {:#?}", typ)));
                 Type::Basic(Basic::Never)
             }, // typeof
@@ -293,6 +318,11 @@ impl Ctx<'_> {
                 }
             },
 
+            (Type::Validated((inner, expr)), idx) => {
+                let typ = self.type_index(span, inner, idx);
+                Type::Validated((Box::new(typ), expr.clone()))
+            }
+
             (obj, idx) => {
                 HANDLER.with(|handler| {
                     handler.span_err(
@@ -306,6 +336,22 @@ impl Ctx<'_> {
                 Type::Basic(Basic::Never)
             }
         }
+    }
+
+    fn infer(&self, tt: &ast::TsInferType) -> Type {
+        // Do we have an infer context?
+        if let Some(params) = self.infer_type_params.as_ref() {
+            let id = tt.type_param.name.to_id();
+            let mut params = params.borrow_mut();
+            let idx = params.len();
+            params.push(id);
+            Type::Generic(Generic::Inferred(idx))
+        } else {
+            tt.span.err("infer type outside of infer context");
+            Type::Basic(Basic::Never)
+        }
+
+        // TODO figure out what type to return here
     }
 
     /// Given a type, produces a union type of the underlying keys,
@@ -383,6 +429,11 @@ impl Ctx<'_> {
 
             Type::Generic(generic) => {
                 Type::Generic(Generic::Keyof(Box::new(Type::Generic(generic.clone()))))
+            }
+            Type::Validated((inner, _)) => self.keyof(inner),
+            Type::Validation(_) => {
+                HANDLER.with(|handler| handler.err("keyof ValidationExpr unsupported"));
+                Type::Basic(Basic::Never)
             }
         }
     }
@@ -529,12 +580,13 @@ impl Ctx<'_> {
     fn type_ref(&self, typ: &ast::TsTypeRef) -> Type {
         let obj = match &typ.type_name {
             ast::TsEntityName::Ident(ident) => {
+                let ident_id = ident.to_id();
                 // Is this a reference to a type parameter?
                 let type_param = self
                     .type_params
                     .iter()
                     .enumerate()
-                    .find(|tp| tp.1.name.to_id() == ident.to_id())
+                    .find(|tp| tp.1.name.to_id() == ident_id)
                     .map(|tp| (tp.0, *tp.1));
                 if let Some((idx, type_param)) = type_param {
                     return if let Some(type_arg) = self.type_args.get(idx) {
@@ -553,6 +605,23 @@ impl Ctx<'_> {
                             mapped_key_type.clone()
                         } else {
                             Type::Generic(Generic::MappedKeyType)
+                        };
+                    }
+                }
+
+                // Otherwise, is this a reference to an inferred type parameter?
+                if let Some(infer_type_params) = &self.infer_type_params {
+                    let inferred_type_param = infer_type_params
+                        .borrow()
+                        .iter()
+                        .enumerate()
+                        .find(|tp| *tp.1 == ident_id)
+                        .map(|tp| tp.0);
+                    if let Some(idx) = inferred_type_param {
+                        return if let Some(type_arg) = self.infer_type_args.get(idx) {
+                            type_arg.clone().into_owned()
+                        } else {
+                            Type::Generic(Generic::Inferred(idx))
                         };
                     }
                 }
@@ -588,6 +657,15 @@ impl Ctx<'_> {
         match &obj.kind {
             ObjectKind::TypeName(_) => {
                 let named = Named::new(obj, type_arguments);
+
+                if self
+                    .state
+                    .is_module_path(named.obj.module_id, "encore.dev/validate")
+                {
+                    if let Some(expr) = self.parse_validation(typ.span, &named) {
+                        return Type::Validation(expr);
+                    }
+                }
 
                 // Don't reference named types in the universe,
                 // otherwise we try to find them on disk.
@@ -699,15 +777,18 @@ impl Ctx<'_> {
     }
 
     fn union(&self, union_type: &ast::TsUnionType) -> Type {
-        // TODO handle unifying e.g. "string | 'foo'" into "string"
         let types = self.types(union_type.types.iter().map(|t| t.as_ref()));
-        Type::Union(types)
+        simplify_union(types)
     }
 
     // https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
     fn conditional(&self, tt: &ast::TsConditionalType) -> Type {
         let check = self.typ(&tt.check_type);
-        let extends = self.typ(&tt.extends_type);
+        let infer_params: Rc<RefCell<Vec<ast::Id>>> = Default::default();
+        let extends = self
+            .clone()
+            .with_infer_type_params(infer_params.clone())
+            .typ(&tt.extends_type);
 
         // Do we have a union type in `check`, and the AST is a naked type parameter?
         // If so, we need to treat it as a distributive conditional type.
@@ -742,13 +823,33 @@ impl Ctx<'_> {
             }
         }
 
-        match check.assignable(self.state, &extends) {
-            Some(true) => self.typ(&tt.true_type),
-            Some(false) => self.typ(&tt.false_type),
-            None => Type::Generic(Generic::Conditional(Conditional {
+        match check.extends(self.state, &extends) {
+            Extends::Yes(mut inferred) => {
+                // Convert the inferred types to a vector with the gaps
+                // filled in with the `unknown` type.
+                inferred.sort_by_key(|(i, _)| *i);
+                let mut inf = Vec::new();
+                for (idx, typ) in inferred {
+                    while inf.len() < idx {
+                        inf.push(Cow::Owned(Type::Basic(Basic::Unknown)));
+                    }
+                    inf.push(typ);
+                }
+
+                self.clone()
+                    .with_infer_type_params(infer_params)
+                    .with_infer_type_args(&inf[..])
+                    .typ(&tt.true_type)
+            }
+
+            Extends::No => self.typ(&tt.false_type),
+            Extends::Unknown => Type::Generic(Generic::Conditional(Conditional {
                 check_type: Box::new(check),
                 extends_type: Box::new(extends),
-                true_type: self.btyp(&tt.true_type),
+                true_type: self
+                    .clone()
+                    .with_infer_type_params(infer_params)
+                    .btyp(&tt.true_type),
                 false_type: self.btyp(&tt.false_type),
             })),
         }
@@ -891,8 +992,14 @@ impl Ctx<'_> {
             }
             ast::Expr::New(expr) => {
                 // The type of a class instance is the same as the class itself.
-                // TODO type args
-                self.expr(&expr.callee)
+                if let Some(type_args) = &expr.type_args {
+                    let type_args: Vec<_> = self.types(type_args.params.iter().map(|t| t.as_ref()));
+                    self.clone()
+                        .with_type_args(&type_args[..])
+                        .expr(&expr.callee)
+                } else {
+                    self.expr(&expr.callee)
+                }
             }
             ast::Expr::Seq(expr) => match expr.exprs.last() {
                 Some(expr) => self.expr(expr),
@@ -997,8 +1104,13 @@ impl Ctx<'_> {
             ast::Expr::TsSatisfies(expr) => self.expr(&expr.expr),
 
             ast::Expr::TsInstantiation(expr) => {
-                // TODO handle type args
-                self.expr(&expr.expr)
+                if !expr.type_args.params.is_empty() {
+                    let type_args: Vec<_> =
+                        self.types(expr.type_args.params.iter().map(|t| t.as_ref()));
+                    self.clone().with_type_args(&type_args[..]).expr(&expr.expr)
+                } else {
+                    self.expr(&expr.expr)
+                }
             }
 
             // The "foo!" operator
@@ -1163,7 +1275,8 @@ impl Ctx<'_> {
             | Type::Optional(_)
             | Type::This
             | Type::Generic(_)
-            | Type::Class(_) => {
+            | Type::Class(_)
+            | Type::Validation(_) => {
                 HANDLER.with(|handler| handler.span_err(prop.span(), "unsupported member on type"));
                 Type::Basic(Basic::Never)
             }
@@ -1218,27 +1331,28 @@ impl Ctx<'_> {
                 let underlying = self.underlying(obj_type);
                 self.resolve_member_prop(&underlying, prop)
             }
+            Type::Validated((inner, _)) => self.resolve_member_prop(inner, prop),
         }
     }
 
     /// Resolves a prop name to the underlying string literal.
     fn prop_name_to_string<'b>(&self, prop: &'b ast::PropName) -> Cow<'b, str> {
         match prop {
-            ast::PropName::Ident(id) => Cow::Borrowed(id.sym.as_ref()),
-            ast::PropName::Str(str) => Cow::Borrowed(str.value.as_ref()),
-            ast::PropName::Num(num) => Cow::Owned(num.value.to_string()),
-            ast::PropName::BigInt(bigint) => Cow::Owned(bigint.value.to_string()),
+            ast::PropName::Ident(id) => Borrowed(id.sym.as_ref()),
+            ast::PropName::Str(str) => Borrowed(str.value.as_ref()),
+            ast::PropName::Num(num) => Owned(num.value.to_string()),
+            ast::PropName::BigInt(bigint) => Owned(bigint.value.to_string()),
             ast::PropName::Computed(expr) => {
                 if let Type::Literal(lit) = self.expr(&expr.expr) {
                     match lit {
-                        Literal::String(str) => return Cow::Owned(str),
-                        Literal::Number(num) => return Cow::Owned(num.to_string()),
+                        Literal::String(str) => return Owned(str),
+                        Literal::Number(num) => return Owned(num.to_string()),
                         _ => {}
                     }
                 }
 
                 HANDLER.with(|handler| handler.span_err(expr.span, "unsupported computed prop"));
-                Cow::Borrowed("")
+                Borrowed("")
             }
         }
     }
@@ -1529,6 +1643,16 @@ impl Ctx<'_> {
                     }
                 }
 
+                Generic::Inferred(idx) => {
+                    // If we have a concrete inferred type, return that.
+                    if let Some(arg) = self.infer_type_args.get(*idx) {
+                        Changed(arg)
+                    } else {
+                        // We don't have a concrete type, so return the original type.
+                        Same(typ)
+                    }
+                }
+
                 Generic::Keyof(source) => {
                     let concrete_source = self.concrete(source);
                     let keys = self.keyof(&concrete_source);
@@ -1588,18 +1712,40 @@ impl Ctx<'_> {
                         }
 
                         // Otherwise just check the single element.
-                        (_, check) => match check.assignable(self.state, &extends) {
-                            Some(true) => self.concrete(&cond.true_type).same_to_changed(),
-                            Some(false) => self.concrete(&cond.false_type).same_to_changed(),
+                        (_, check) => match check.extends(self.state, &extends).into_static() {
+                            Extends::Yes(mut inferred) => {
+                                // Convert the inferred types to a vector with the gaps
+                                // filled in with the `unknown` type.
+                                inferred.sort_by_key(|(i, _)| *i);
+                                let mut inf = Vec::new();
+                                for (idx, typ) in inferred {
+                                    while inf.len() < idx {
+                                        inf.push(Cow::Owned(Type::Basic(Basic::Unknown)));
+                                    }
+                                    inf.push(typ);
+                                }
+
+                                self.clone()
+                                    .with_infer_type_args(&inf[..])
+                                    .concrete(&cond.true_type)
+                                    .into_new()
+                            }
+                            Extends::No => self.concrete(&cond.false_type).same_to_changed(),
 
                             // We don't yet have enough type information to resolve the conditional.
                             // Still, return a new type with the concretized types we have.
-                            None => New(Type::Generic(Generic::Conditional(Conditional {
-                                check_type: Box::new(check),
-                                extends_type: Box::new(extends.into_owned()),
-                                true_type: Box::new(self.concrete(&cond.true_type).into_owned()),
-                                false_type: Box::new(self.concrete(&cond.false_type).into_owned()),
-                            }))),
+                            Extends::Unknown => {
+                                New(Type::Generic(Generic::Conditional(Conditional {
+                                    check_type: Box::new(check),
+                                    extends_type: Box::new(extends.into_owned()),
+                                    true_type: Box::new(
+                                        self.concrete(&cond.true_type).into_owned(),
+                                    ),
+                                    false_type: Box::new(
+                                        self.concrete(&cond.false_type).into_owned(),
+                                    ),
+                                })))
+                            }
                         },
                     }
                 }
@@ -1706,6 +1852,14 @@ impl Ctx<'_> {
                     None => Same(typ),
                 },
             },
+
+            Type::Validated((inner, expr)) => match self.concrete(inner) {
+                New(inner) => New(Type::Validated((Box::new(inner), expr.clone()))),
+                Changed(inner) => New(Type::Validated((Box::new(inner.clone()), expr.clone()))),
+                Same(_) => Same(typ),
+            },
+
+            Type::Validation(_) => Same(typ),
         }
     }
 
@@ -1762,5 +1916,114 @@ impl Ctx<'_> {
 
         // All types are the same, so we can just return the original list.
         Same(v)
+    }
+
+    #[allow(dead_code)]
+    fn doc_comment(&self, pos: BytePos) -> Option<String> {
+        self.state
+            .lookup_module(self.module)
+            .and_then(|m| m.base.preceding_comments(pos.into()))
+    }
+
+    fn parse_validation(&self, sp: Span, named: &Named) -> Option<validation::Expr> {
+        let name = named.obj.name.as_deref()?;
+
+        #[allow(dead_code)]
+        fn i64_lit(typ: &Type) -> Option<i64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                let i = *n as i64;
+                if i as f64 == *n {
+                    return Some(i);
+                }
+            }
+            None
+        }
+
+        fn u64_lit(typ: &Type) -> Option<u64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                let u = *n as u64;
+                if u as f64 == *n {
+                    return Some(u);
+                }
+            }
+            None
+        }
+
+        fn f64_lit(typ: &Type) -> Option<f64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                return Some(*n);
+            }
+            None
+        }
+
+        fn str_lit(typ: &Type) -> Option<String> {
+            if let Type::Literal(Literal::String(s)) = typ {
+                return Some(s.clone());
+            }
+            None
+        }
+
+        use validation::{Expr, Is, Rule, N};
+        match name {
+            "Min" => {
+                if let Some(num) = named.type_arguments.first().and_then(f64_lit) {
+                    Some(Expr::Rule(Rule::MinVal(N(num))))
+                } else {
+                    sp.err("Min requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "Max" => {
+                if let Some(num) = named.type_arguments.first().and_then(f64_lit) {
+                    Some(Expr::Rule(Rule::MaxVal(validation::N(num))))
+                } else {
+                    sp.err("Max requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "MinLen" => {
+                if let Some(num) = named.type_arguments.first().and_then(u64_lit) {
+                    Some(Expr::Rule(Rule::MinLen(num)))
+                } else {
+                    sp.err("MinLen requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "MaxLen" => {
+                if let Some(num) = named.type_arguments.first().and_then(u64_lit) {
+                    Some(Expr::Rule(Rule::MaxLen(num)))
+                } else {
+                    sp.err("MaxLen requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "StartsWith" => {
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::StartsWith(str)))
+                } else {
+                    sp.err("StartsWith requires a string literal as its first type argument");
+                    None
+                }
+            }
+            "EndsWith" => {
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::EndsWith(str)))
+                } else {
+                    sp.err("EndsWith requires a string literal as its first type argument");
+                    None
+                }
+            }
+            "MatchesRegexp" => {
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::MatchesRegexp(str)))
+                } else {
+                    sp.err("MatchesRegexp requires a string literal as its first type argument");
+                    None
+                }
+            }
+            "IsEmail" => Some(Expr::Rule(Rule::Is(Is::Email))),
+            "IsURL" => Some(Expr::Rule(Rule::Is(Is::Url))),
+            _ => None,
+        }
     }
 }

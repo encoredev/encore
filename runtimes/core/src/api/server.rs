@@ -4,6 +4,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
+use rand::Rng;
+
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::paths::Pather;
 use crate::api::reqauth::svcauth;
@@ -143,7 +145,12 @@ impl Server {
         endpoint_name: EndpointName,
         handler: Arc<dyn BoxedHandler>,
     ) -> anyhow::Result<()> {
-        match self.hosted_endpoints.lock().unwrap().remove(&endpoint_name) {
+        match self
+            .hosted_endpoints
+            .lock()
+            .unwrap()
+            .get_mut(&endpoint_name)
+        {
             None => Ok(()), // anyhow::bail!("no handler found for endpoint: {}", endpoint_name),
             Some(h) => {
                 let endpoint = self.endpoints.get(&endpoint_name).unwrap().to_owned();
@@ -154,7 +161,7 @@ impl Server {
                     shared: self.shared.clone(),
                 };
 
-                h.set(handler);
+                h.add(handler);
                 Ok(())
             }
         }
@@ -185,7 +192,7 @@ impl Pather for EndpointPathResolver {
 #[derive(Clone)]
 struct ReplaceableHandler<H> {
     /// Underlying handler. The RwLock is used to be able to inject the underlying handler.
-    handler: Arc<RwLock<Option<H>>>,
+    handler: Arc<RwLock<Vec<H>>>,
 }
 
 impl<H> Debug for ReplaceableHandler<H> {
@@ -203,13 +210,18 @@ impl<H> Default for ReplaceableHandler<H> {
 impl<H> ReplaceableHandler<H> {
     pub fn new() -> Self {
         Self {
-            handler: Arc::new(RwLock::new(None)),
+            handler: Arc::new(RwLock::new(vec![])),
         }
     }
 
     /// Set sets the handler.
     pub fn set(&self, handler: H) {
-        *self.handler.write().unwrap() = Some(handler);
+        *self.handler.write().unwrap() = vec![handler];
+    }
+
+    /// Set sets the handler.
+    pub fn add(&self, handler: H) {
+        self.handler.write().unwrap().push(handler);
     }
 }
 
@@ -220,11 +232,24 @@ where
     type Future = MaybeHandlerFuture<H::Future>;
 
     fn call(self, req: axum::extract::Request, state: ()) -> Self::Future {
-        match self.handler.read().unwrap().as_ref() {
-            None => MaybeHandlerFuture { fut: None },
-            Some(handler) => MaybeHandlerFuture {
-                fut: Some(Box::pin(handler.clone().call(req, state))),
-            },
+        let handlers = self.handler.read().unwrap();
+        match handlers.len() {
+            0 => MaybeHandlerFuture { fut: None },
+            1 => {
+                let handler = handlers[0].clone();
+                MaybeHandlerFuture {
+                    fut: Some(Box::pin(handler.call(req, state))),
+                }
+            }
+            n => {
+                // Get a random handler between 0 and n.
+                let idx = rand::thread_rng().gen_range(0..n);
+                let handler = handlers[idx].clone();
+
+                MaybeHandlerFuture {
+                    fut: Some(Box::pin(handler.call(req, state))),
+                }
+            }
         }
     }
 }
