@@ -66,7 +66,7 @@ For [Raw Endpoints](/docs/ts/primitives/raw-endpoints) you can access the raw re
 raw response via `req.rawRequest` and `req.rawResponse`.
 
 The `next` function returns a `HandlerResponse` object which contains the response from the API.
-Extra http headers can be added to the response objects `extraHeaders` fields if the endpoint is
+Extra response headers can be added using `req.setHeader(key, value)`, if the endpoint is
 a [typed API endpoint](/docs/ts/primitives/defining-apis).
 
 ## Middleware ordering
