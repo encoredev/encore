@@ -35,7 +35,7 @@ fn main() {
 
     GLOBALS.set(&globals, || {
         HANDLER.set(&errs, || {
-            let builder = Builder::new()?;
+            let builder = Builder::new().expect("unable to construct builder");
             let _parse: Option<(builder::App, app::AppDesc)> = None;
 
             {
@@ -78,7 +78,6 @@ fn main() {
                         err_msg.push_str(err);
                         err_msg.push('\n');
                     }
-                    err_msg.push_str(&format!("{:?}", err));
                     eprintln!("{}", err_msg);
                     panic!("parse failure")
                 }
