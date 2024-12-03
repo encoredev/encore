@@ -59,10 +59,10 @@ impl MetaBuilder<'_> {
                 rel_path: rel_path.clone(),
                 name: svc.name.clone(),
                 service_name: svc.name.clone(),
-                rpc_calls: vec![], // added below
-                secrets: vec![],   // added below
+                doc: svc.doc.clone().unwrap_or_default(),
 
-                doc: "".into(),      // TODO
+                rpc_calls: vec![],   // added below
+                secrets: vec![],     // added below
                 trace_nodes: vec![], // TODO?
             });
 
