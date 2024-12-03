@@ -104,13 +104,11 @@ impl PromiseHandler for APIPromiseHandler {
 
         let payload = obj
             .get_named_property::<napi::JsUnknown>("payload")
-            .map_err(|e| api::Error::invalid_argument("payload missing in handler response", e))?;
+            .map_err(api::Error::internal)?;
 
         let extra_headers = obj
             .get_named_property::<napi::JsUnknown>("extraHeaders")
-            .map_err(|e| {
-                api::Error::invalid_argument("extraHeaders missing in handler response", e)
-            })?;
+            .map_err(api::Error::internal)?;
 
         match parse_pvalues(payload) {
             Ok(val) => Ok(HandlerResponseInner {
