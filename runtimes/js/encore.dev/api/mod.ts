@@ -347,16 +347,23 @@ export class HandlerResponse {
    */
   payload: any;
 
-  /**
-   * extraHeaders can be used by middlewares to add headers to the
-   * response. This only works for typed handler. For raw handlers
-   * see MiddlewareRequest.rawResponse.
-   */
-  extraHeaders: Record<string, string | string[]>;
+  private extraHeaders?: Record<string, string | string[]>;
 
   constructor(payload: any) {
     this.payload = payload;
-    this.extraHeaders = {};
+  }
+
+  /**
+   * setHeader can be used by middlewares to set headers to the
+   * response. This only works for typed handler. For raw handlers
+   * see MiddlewareRequest.rawResponse.
+   */
+  setHeader(key: string, value: string | string[]) {
+    if (this.extraHeaders === undefined) {
+      this.extraHeaders = {};
+    }
+
+    this.extraHeaders[key] = value;
   }
 }
 
