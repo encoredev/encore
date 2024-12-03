@@ -210,11 +210,7 @@ fn extract_type_param(
     params: Option<&TsTypeParamInstantiation>,
     idx: usize,
 ) -> Option<&ast::TsType> {
-    let Some(params) = params else {
-        return None;
-    };
-    let Some(param) = params.params.get(idx) else {
-        return None;
-    };
+    let params = params?;
+    let param = params.params.get(idx)?;
     Some(param.as_ref())
 }

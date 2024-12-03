@@ -692,7 +692,7 @@ pub enum Extends<'a> {
     Unknown,
 }
 
-impl<'a> Extends<'a> {
+impl Extends<'_> {
     pub fn into_static(self) -> Extends<'static> {
         match self {
             Extends::Yes(v) => Extends::Yes(

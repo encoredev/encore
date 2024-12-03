@@ -556,12 +556,10 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> ParseResu
         Type::Basic(Basic::String) => Ok(ValueType::String),
         Type::Basic(Basic::Boolean) => Ok(ValueType::Bool),
         Type::Basic(Basic::Number | Basic::BigInt) => Ok(ValueType::Int),
-        typ => {
-            return Err(param
-                .range
-                .to_span()
-                .parse_err(format!("unsupported path parameter type: {:?}", typ)));
-        }
+        typ => Err(param
+            .range
+            .to_span()
+            .parse_err(format!("unsupported path parameter type: {:?}", typ))),
     };
 
     let mut segments = Vec::with_capacity(path.segments.len());

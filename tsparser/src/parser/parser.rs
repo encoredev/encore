@@ -277,14 +277,12 @@ impl<'a> Parser<'a> {
 
         let services = collect_services(&self.pc.file_set, &binds, services);
 
-        let result = ParseResult {
+        ParseResult {
             resources,
             binds,
             usages,
             services,
-        };
-
-        result
+        }
     }
 
     fn inject_generated_service_clients(
