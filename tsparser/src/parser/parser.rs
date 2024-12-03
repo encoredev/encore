@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::sync::Lrc;
-use swc_common::{SourceMap, Spanned};
+use swc_common::{SourceMap, Spanned, DUMMY_SP};
 use swc_ecma_loader::resolve::Resolve;
 use swc_ecma_loader::resolvers::node::NodeModulesResolver;
 use swc_ecma_loader::TargetEnv;
@@ -22,6 +22,7 @@ use crate::parser::types::TypeChecker;
 use crate::parser::usageparser::{Usage, UsageResolver};
 use crate::parser::{FilePath, FileSet};
 use crate::runtimeresolve::{EncoreRuntimeResolver, TsConfigPathResolver};
+use crate::span_err::ErrReporter;
 
 use super::resourceparser::bind::ResourceOrPath;
 use super::resourceparser::UnresolvedBind;
@@ -127,7 +128,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Run the parser.
-    pub fn parse(mut self) -> Result<ParseResult> {
+    pub fn parse(mut self) -> ParseResult {
         fn ignored(entry: &walkdir::DirEntry) -> bool {
             match entry.file_name().to_str().unwrap_or_default() {
                 "node_modules" | "encore.gen" | "__tests__" => true,
@@ -169,7 +170,13 @@ impl<'a> Parser<'a> {
             let mut curr_service: Option<(PathBuf, String)> = None;
 
             for entry in walker {
-                let entry = entry?;
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(err) => {
+                        HANDLER.with(|h| h.err(&format!("unable to walk filesystem: {}", err)));
+                        continue;
+                    }
+                };
 
                 if entry.file_type().is_dir() {
                     // Is this directory outside the service directory?
@@ -211,25 +218,28 @@ impl<'a> Parser<'a> {
                 };
                 let module_span = module.ast.span();
                 let service_name = curr_service.as_ref().map(|(_, name)| name.as_str());
-                let (resources, binds) = self.pass1.parse(module, service_name)?;
+                let (resources, binds) = self.pass1.parse(module, service_name);
 
                 // Is this a service file? If so, make sure there was a service defined.
                 if is_service(&entry) {
                     let found = resources.iter().any(|r| matches!(r, Resource::Service(_)));
                     if !found {
-                        HANDLER.with(|h| {
-                            h.span_err(
-                                module_span.shrink_to_lo(),
-                                "encore.service.ts must define a Service resource",
-                            );
-                        });
+                        module_span
+                            .shrink_to_lo()
+                            .err("encore.service.ts must define a Service resource");
                     }
                 }
 
                 // Check if we should update the service being parsed.
                 for res in &resources {
                     if let Resource::Service(svc) = res {
-                        let parent = path.parent().expect("have a parent directory");
+                        let Some(parent) = path.parent() else {
+                            HANDLER.with(|h| {
+                                h.err(&format!("path {:?} does not have a parent directory", path))
+                            });
+                            continue;
+                        };
+
                         curr_service = Some((parent.to_path_buf(), svc.name.clone()));
                         break;
                     }
@@ -243,10 +253,10 @@ impl<'a> Parser<'a> {
         };
 
         // Resolve the initial binds.
-        let mut binds = resolve_binds(&resources, binds)?;
+        let mut binds = resolve_binds(&resources, binds);
 
         // Discover the services we have.
-        let services = discover_services(&self.pc.file_set, &binds)?;
+        let services = discover_services(&self.pc.file_set, &binds);
 
         // Inject additional binds for the generated services.
         let (additional_resources, additional_binds) =
@@ -261,20 +271,18 @@ impl<'a> Parser<'a> {
 
         for module in self.pc.loader.modules() {
             let exprs = resolver.scan_usage_exprs(&module);
-            let u = resolver.resolve_usage(&module, &exprs)?;
+            let u = resolver.resolve_usage(&module, &exprs);
             usages.extend(u);
         }
 
         let services = collect_services(&self.pc.file_set, &binds, services);
 
-        let result = ParseResult {
+        ParseResult {
             resources,
             binds,
             usages,
             services,
-        };
-
-        Ok(result)
+        }
     }
 
     fn inject_generated_service_clients(
@@ -310,7 +318,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Result<Vec<Lrc<Bind>>> {
+fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Vec<Lrc<Bind>> {
     // Collect the resources we support by path.
     let resource_paths = resources
         .iter()
@@ -330,9 +338,12 @@ fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Result<V
         let resource: Resource = match b.resource {
             ResourceOrPath::Resource(res) => res,
             ResourceOrPath::Path(path) => {
-                let res = resource_paths
-                    .get(&path)
-                    .ok_or_else(|| anyhow::anyhow!("resource not found: {:?}", path))?;
+                let Some(res) = resource_paths.get(&path) else {
+                    b.range
+                        .map_or(DUMMY_SP, |r| r.to_span())
+                        .err(&format!("resource not found: {:?}", path));
+                    continue;
+                };
                 (*res).to_owned()
             }
         };
@@ -349,7 +360,7 @@ fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Result<V
         }));
     }
 
-    Ok(result)
+    result
 }
 
 /// Describes an Encore service.

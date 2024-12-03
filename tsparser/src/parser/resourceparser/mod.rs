@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::rc::Rc;
 
-use anyhow::Result;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
@@ -77,7 +76,7 @@ impl<'a> PassOneParser<'a> {
         &mut self,
         module: Lrc<Module>,
         service_name: Option<&str>,
-    ) -> Result<(Vec<Resource>, Vec<UnresolvedBind>)> {
+    ) -> (Vec<Resource>, Vec<UnresolvedBind>) {
         let parsers = self.registry.interested_parsers(&module);
 
         let mut ctx = ResourceParseContext::new(
@@ -89,7 +88,7 @@ impl<'a> PassOneParser<'a> {
 
         for parser in parsers {
             let num_resources = ctx.resources.len();
-            (parser.run)(&mut ctx)?;
+            (parser.run)(&mut ctx);
 
             // Look at any new resources to see if we have a new service.
             // If so, update our ctx so that later parsers have up-to-date information.
@@ -116,7 +115,7 @@ impl<'a> PassOneParser<'a> {
             });
         }
 
-        Ok((ctx.resources, binds))
+        (ctx.resources, binds)
     }
 }
 

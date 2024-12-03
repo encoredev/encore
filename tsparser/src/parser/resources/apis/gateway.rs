@@ -2,7 +2,7 @@ use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
-use litparser::LitParser;
+use litparser::{report_and_continue, LitParser};
 
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
@@ -11,6 +11,7 @@ use crate::parser::resources::parseutil::{iter_references, TrackedNames, Unnamed
 use crate::parser::resources::Resource;
 use crate::parser::types::Object;
 use crate::parser::Range;
+use crate::span_err::ErrReporter;
 
 #[derive(Debug, Clone)]
 pub struct Gateway {
@@ -20,7 +21,7 @@ pub struct Gateway {
     pub auth_handler: Option<Lrc<Object>>,
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, dead_code)]
 #[derive(Debug, LitParser)]
 struct DecodedGatewayConfig {
     authHandler: Option<ast::Expr>,
@@ -36,7 +37,8 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
         let module = pass.module.clone();
         type Res = UnnamedClassResource<DecodedGatewayConfig>;
         for r in iter_references::<Res>(&module, &names) {
-            let r = r?;
+            let r = report_and_continue!(r);
+
             let object = match &r.bind_name {
                 None => None,
                 Some(id) => pass
@@ -45,10 +47,10 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
             };
 
             let auth_handler = if let Some(expr) = r.config.authHandler {
-                let obj = pass
-                    .type_checker
-                    .resolve_obj(pass.module.clone(), &expr)
-                    .ok_or(anyhow::anyhow!("can't resolve endpoint"))?;
+                let Some(obj) = pass.type_checker.resolve_obj(pass.module.clone(), &expr) else {
+                    expr.err("cannot resolve auth handler");
+                    continue;
+                };
                 Some(obj)
             } else {
                 None
@@ -69,6 +71,5 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
                 ident: r.bind_name,
             });
         }
-        Ok(())
     },
 };

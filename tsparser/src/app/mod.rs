@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
 use matchit::InsertError;
 use swc_common::errors::HANDLER;
 
@@ -11,6 +10,7 @@ use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
 use crate::parser::Range;
+use litparser::ParseResult as PResult;
 
 #[derive(Debug)]
 pub struct AppDesc {
@@ -78,7 +78,7 @@ impl AppDesc {
     }
 }
 
-pub fn validate_and_describe(pc: &ParseContext, parse: ParseResult) -> Result<AppDesc> {
+pub fn validate_and_describe(pc: &ParseContext, parse: ParseResult) -> PResult<AppDesc> {
     let meta = compute_meta(pc, &parse)?;
     let desc = AppDesc { parse, meta };
 

@@ -1,0 +1,129 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/validation.ts
+---
+{
+    "Params": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Validated(
+                        (
+                            Basic(
+                                Number,
+                            ),
+                            And(
+                                [
+                                    Rule(
+                                        MinVal(
+                                            N(
+                                                3.0,
+                                            ),
+                                        ),
+                                    ),
+                                    Rule(
+                                        MaxVal(
+                                            N(
+                                                1000.0,
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Validated(
+                        (
+                            Basic(
+                                String,
+                            ),
+                            And(
+                                [
+                                    Rule(
+                                        MinLen(
+                                            5,
+                                        ),
+                                    ),
+                                    Rule(
+                                        MaxLen(
+                                            20,
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "urlOrEmail",
+                    ),
+                    optional: false,
+                    typ: Validated(
+                        (
+                            Basic(
+                                String,
+                            ),
+                            Or(
+                                [
+                                    Rule(
+                                        Is(
+                                            Url,
+                                        ),
+                                    ),
+                                    Rule(
+                                        Is(
+                                            Email,
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "emails",
+                    ),
+                    optional: false,
+                    typ: Validated(
+                        (
+                            Array(
+                                Validated(
+                                    (
+                                        Basic(
+                                            String,
+                                        ),
+                                        Rule(
+                                            Is(
+                                                Email,
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            Rule(
+                                MaxLen(
+                                    10,
+                                ),
+                            ),
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

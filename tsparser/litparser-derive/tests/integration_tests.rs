@@ -9,7 +9,7 @@ use swc_common::{FileName, SourceMap};
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::{Parser, Syntax};
 
-use litparser::LitParser;
+use litparser::{LitParser, ParseResult};
 
 #[test]
 fn test_parse() {
@@ -46,7 +46,7 @@ fn test_parse_refs() {
         foo: Option<&'a str>,
     }
     impl LitParser for Dummy<'_> {
-        fn parse_lit(_input: &swc_ecma_ast::Expr) -> anyhow::Result<Self> {
+        fn parse_lit(_input: &swc_ecma_ast::Expr) -> ParseResult<Self> {
             Ok(Self { foo: None })
         }
     }

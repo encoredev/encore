@@ -1,0 +1,5 @@
+export type Iface<T> = T extends { X: infer A } ? A : never;
+
+export type Infer1 = Iface<{ X: string }>; // string
+export type Infer2 = Iface<{ Y: string }>; // never
+export type Infer3 = { X: string } extends { X: infer A } ? A : never; // string

@@ -14,7 +14,7 @@ pub struct ResourceParser {
 
     pub interesting_pkgs: &'static [PkgPath<'static>],
 
-    pub run: fn(&mut ResourceParseContext) -> anyhow::Result<()>,
+    pub run: fn(&mut ResourceParseContext),
 }
 
 impl PartialEq for ResourceParser {
