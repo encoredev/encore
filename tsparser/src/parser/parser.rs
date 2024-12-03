@@ -357,6 +357,9 @@ fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Result<V
 pub struct Service {
     pub name: String,
 
+    /// Associated documentation.
+    pub doc: Option<String>,
+
     /// The root directory of the service.
     pub root: PathBuf,
 
@@ -374,7 +377,10 @@ fn collect_services(
         services.push(Service {
             name: svc.name,
             root: svc.root,
+
+            // Filled in below.
             binds: vec![],
+            doc: None,
         });
     }
 
@@ -401,6 +407,11 @@ fn collect_services(
                 if idx > 0 {
                     let svc = &mut services[idx - 1];
                     if path.starts_with(&svc.root) {
+                        // If we have a service resource, copy its documentation.
+                        if let Resource::Service(s) = &b.resource {
+                            svc.doc = s.doc.clone();
+                        }
+
                         svc.binds.push(b.clone());
                         continue;
                     }
