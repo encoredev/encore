@@ -289,13 +289,33 @@ impl Builder<'_> {
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
+                        "endpoint_options": json!({
+                            "expose": rpc.expose,
+                            "auth": rpc.require_auth,
+                            "isRaw": rpc.raw,
+                            "isStream": rpc.streaming_request || rpc.streaming_response,
+                        }),
                     }));
                 }
+
+                let service_ctx = service
+                    .map(|service| {
+                        let rel_path = get_svc_rel_path(&svc.root, service.range, true);
+                        let import_path =
+                            Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+
+                        json!({
+                            "name": service.name,
+                            "import_path": import_path,
+                        })
+                    })
+                    .unwrap_or_else(|| json!({"name": svc.name}));
 
                 let ctx = &json!({
                     "name": svc.name,
                     "endpoints": endpoint_ctx,
                     "has_streams": has_streams,
+                    "service": service_ctx,
                 });
 
                 let service_d_ts = self.catalog_clients_service_d_ts.render(&self.reg, ctx)?;
