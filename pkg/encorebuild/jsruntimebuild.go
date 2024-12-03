@@ -108,7 +108,8 @@ func (b *JSRuntimeBuilder) makeDistFolder() {
 	b.log.Info().Msg("creating dist folder")
 	// Sanity-check the runtime dir configuration so we don't delete the wrong thing.
 	base := filepath.Base(b.cfg.RepoDir)
-	if b.cfg.RepoDir == "" || (base != "encore" && base != "encr.dev") {
+	parentBase := filepath.Base(filepath.Dir(b.cfg.RepoDir))
+	if b.cfg.RepoDir == "" || (base != "encore" && base != "encr.dev" && parentBase != "encore.worktrees") {
 		Bailf("invalid repo directory %q, aborting", b.cfg.RepoDir)
 	}
 

@@ -111,14 +111,13 @@ fn main() -> Result<()> {
                         };
 
                         match builder.parse(&pp) {
-                            Ok(result) => {
+                            Some(result) => {
                                 log::info!("parse successful");
                                 write_result(Ok(result.meta.encode_to_vec().as_slice()))?;
                                 parse = Some((app, result));
                             }
-                            Err(err) => {
-                                log::error!("failed to parse: {:?}", err);
-                                // Get any errors from the emitter.
+                            None => {
+                                // Get errors from the emitter.
                                 let errs = errors.lock().unwrap();
                                 let mut err_msg = String::new();
                                 for err in errs.iter() {
@@ -126,14 +125,9 @@ fn main() -> Result<()> {
                                     err_msg.push('\n');
                                 }
 
-                                if err.is::<builder::ParseError>() {
-                                    // Don't include stack trace or detailed error info
-                                    // if this is a parse error.
-                                    write_result(Err(anyhow::anyhow!(PlainError(err_msg))))?
-                                } else {
-                                    err_msg.push_str(&format!("{:?}", err));
-                                    write_result(Err(anyhow::anyhow!(err_msg)))?
-                                }
+                                // Don't include stack trace or detailed error info
+                                // if this is a parse error.
+                                write_result(Err(anyhow::anyhow!(PlainError(err_msg))))?
                             }
                         }
                     }

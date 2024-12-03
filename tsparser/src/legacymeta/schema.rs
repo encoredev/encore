@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use itertools::Itertools;
+use litparser::{ParseResult, ToParseErr};
 use swc_common::errors::HANDLER;
 
 use crate::encore::parser::schema::v1 as schema;
@@ -57,14 +58,14 @@ impl<'a> SchemaBuilder<'a> {
         ctx.typ(typ)
     }
 
-    pub fn transform_handshake(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+    pub fn transform_handshake(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
         let mut ctx = BuilderCtx {
             builder: self,
             decl_id: None,
         };
         ctx.transform_handshake(ep)
     }
-    pub fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
+    pub fn transform_request(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
         let mut ctx = BuilderCtx {
             builder: self,
             decl_id: None,
@@ -91,6 +92,7 @@ impl BuilderCtx<'_, '_> {
                     typ: Some(styp::Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(elem)),
                     }))),
+                    validation: None,
                 }
             }
             Type::Interface(tt) => self.interface(tt)?,
@@ -109,19 +111,23 @@ impl BuilderCtx<'_, '_> {
                                     EnumValue::Number(n) => schema::literal::Value::Int(n),
                                 }),
                             })),
+                            validation: None,
                         })
                         .collect(),
                 })),
+                validation: None,
             },
 
             Type::Union(types) => schema::Type {
                 typ: Some(styp::Typ::Union(schema::Union {
                     types: self.types(types)?,
                 })),
+                validation: None,
             },
             Type::Tuple(_) => anyhow::bail!("tuple types are not yet supported in schemas"),
             Type::Literal(tt) => schema::Type {
                 typ: Some(styp::Typ::Literal(self.literal(tt))),
+                validation: None,
             },
             Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
             Type::Named(tt) => {
@@ -142,6 +148,7 @@ impl BuilderCtx<'_, '_> {
                 } else {
                     schema::Type {
                         typ: Some(styp::Typ::Named(self.named(tt)?)),
+                        validation: None,
                     }
                 }
             }
@@ -157,6 +164,7 @@ impl BuilderCtx<'_, '_> {
                             decl_id,
                             param_idx: param.idx as u32,
                         })),
+                        validation: None,
                     }
                 }
 
@@ -167,12 +175,28 @@ impl BuilderCtx<'_, '_> {
                     )
                 }
             },
+
+            Type::Validation(expr) => {
+                anyhow::bail!(
+                    "unresolved standalone validation expression not supported in api schema: {:#?}",
+                    expr
+                )
+            }
+
+            Type::Validated((typ, expr)) => {
+                let mut typ = self.typ(typ)?;
+                // Simplify the validation expression, if possible.
+                let expr = expr.clone().simplify();
+                typ.validation = Some(expr.to_pb());
+                typ
+            }
         })
     }
 
     fn basic(&self, typ: &Basic) -> schema::Type {
         let b = |b: schema::Builtin| schema::Type {
             typ: Some(styp::Typ::Builtin(b as i32)),
+            validation: None,
         };
         match typ {
             Basic::Any | Basic::Unknown => b(schema::Builtin::Any),
@@ -187,6 +211,7 @@ impl BuilderCtx<'_, '_> {
                 typ: Some(styp::Typ::Literal(schema::Literal {
                     value: Some(schema::literal::Value::Null(true)),
                 })),
+                validation: None,
             },
 
             Basic::Void
@@ -233,6 +258,7 @@ impl BuilderCtx<'_, '_> {
                     key: Some(Box::new(self.typ(key)?)),
                     value: Some(Box::new(self.typ(value)?)),
                 }))),
+                validation: None,
             });
         }
 
@@ -345,6 +371,7 @@ impl BuilderCtx<'_, '_> {
 
         Ok(schema::Type {
             typ: Some(styp::Typ::Struct(schema::Struct { fields })),
+            validation: None,
         })
     }
 
@@ -432,19 +459,35 @@ impl BuilderCtx<'_, '_> {
         Ok(result)
     }
 
-    fn transform_handshake(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
-        self.transform_request_type(ep, &ep.encoding.raw_handshake_schema)
+    fn transform_handshake(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
+        let schema = ep.encoding.raw_handshake_schema.as_ref().map(|s| s.get());
+        self.transform_request_type(ep, schema).map_err(|err| {
+            let sp = ep
+                .encoding
+                .raw_handshake_schema
+                .as_ref()
+                .map_or(ep.range.to_span(), |s| s.span());
+            sp.parse_err(err.to_string())
+        })
     }
-    fn transform_request(&mut self, ep: &Endpoint) -> Result<Option<schema::Type>> {
-        self.transform_request_type(ep, &ep.encoding.raw_req_schema)
+    fn transform_request(&mut self, ep: &Endpoint) -> ParseResult<Option<schema::Type>> {
+        let schema = ep.encoding.raw_req_schema.as_ref().map(|s| s.get());
+        self.transform_request_type(ep, schema).map_err(|err| {
+            let sp = ep
+                .encoding
+                .raw_req_schema
+                .as_ref()
+                .map_or(ep.range.to_span(), |s| s.span());
+            sp.parse_err(err.to_string())
+        })
     }
 
     fn transform_request_type(
         &mut self,
         ep: &Endpoint,
-        raw_schema: &Option<Type>,
+        raw_schema: Option<&Type>,
     ) -> Result<Option<schema::Type>> {
-        let Some(typ) = raw_schema.clone() else {
+        let Some(typ) = raw_schema.cloned() else {
             return Ok(None);
         };
 
@@ -475,6 +518,7 @@ impl BuilderCtx<'_, '_> {
 
                     return Ok(Some(schema::Type {
                         typ: Some(styp::Typ::Named(named)),
+                        validation: None,
                     }));
                 } else {
                     match drop_empty_or_void(typ) {
@@ -513,25 +557,31 @@ fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
     (Cow::Borrowed(typ), false)
 }
 
-pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> Result<schema::Loc> {
+pub(super) fn loc_from_range(
+    app_root: &Path,
+    fset: &FileSet,
+    range: Range,
+) -> ParseResult<schema::Loc> {
     let loc = range.loc(fset)?;
     let (pkg_path, pkg_name, filename) = match loc.file {
-        FilePath::Custom(ref str) => anyhow::bail!("unsupported file path in schema: {}", str),
+        FilePath::Custom(ref str) => {
+            return Err(range.parse_err(format!("unsupported file path in schema: {}", str)));
+        }
         FilePath::Real(buf) => match buf.strip_prefix(app_root) {
             Ok(rel_path) => {
                 let file_name = rel_path
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing file name"))?;
+                    .ok_or(range.parse_err("missing file name"))?;
                 let pkg_name = rel_path
                     .parent()
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing package name"))?;
+                    .ok_or(range.parse_err("missing package name"))?;
                 let pkg_path = rel_path
                     .parent()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing package path"))?;
+                    .ok_or(range.parse_err("missing package path"))?;
                 (pkg_path, pkg_name, file_name)
             }
             Err(_) => {
@@ -540,15 +590,14 @@ pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> R
                 let file_name = buf
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing file name: {}", buf.display()))?;
+                    .ok_or(range.parse_err(format!("missing file name: {}", buf.display())))?;
                 let pkg_name = buf
                     .parent()
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!(
-                        "missing package name for {}",
-                        buf.display()
-                    ))?;
+                    .ok_or(
+                        range.parse_err(format!("missing package name for {}", buf.display())),
+                    )?;
                 let pkg_path = format!("unknown/{}", pkg_name);
                 (pkg_path, pkg_name, file_name)
             }

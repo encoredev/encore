@@ -1,15 +1,21 @@
-use std::fmt::Write;
+use std::{fmt::Write, ops::Deref};
+
+use litparser::Sp;
+use swc_common::{BytePos, Span};
+
+use crate::span_err::{ErrorWithSpanExt, SpErr};
 
 #[derive(Debug, Clone)]
 pub struct Path {
-    pub segments: Vec<Segment>,
+    pub span: Span,
+    pub segments: Vec<Sp<Segment>>,
 }
 
 impl Path {
-    pub fn dynamic_segments(&self) -> impl Iterator<Item = &Segment> {
+    pub fn dynamic_segments(&self) -> impl Iterator<Item = &Sp<Segment>> {
         self.segments
             .iter()
-            .filter(|s| !matches!(s, Segment::Literal(_)))
+            .filter(|s| !matches!(s.get(), Segment::Literal(_)))
     }
 
     pub fn has_dynamic_segments(&self) -> bool {
@@ -89,47 +95,70 @@ impl Default for ParseOptions {
     }
 }
 
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum PathParseError {
+    #[error("empty path")]
+    EmptyPath,
+    #[error("path must start with '/'")]
+    MustStartWithSlash,
+    #[error("path must not start with '/'")]
+    MustNotStartWithSlash,
+    #[error("path cannot contain empty path segment")]
+    EmptySegment,
+    #[error("path parameters must have a name")]
+    UnnamedParam,
+    #[error("wildcard segment must be at the end of the path")]
+    WildcardNotAtEnd,
+    #[error("fallback segment must be at the end of the path")]
+    FallbackNotAtEnd,
+    #[error("path cannot contain query parameters (the '?' character)")]
+    ContainsQuery,
+    #[error("path cannot contain url fragment (the '#' character)")]
+    ContainsFragment,
+    #[error("path cannot contain url scheme")]
+    ContainsScheme,
+    #[error("path cannot contain url authority")]
+    ContainsAuthority,
+    #[error("path cannot contain hostname")]
+    ContainsHostname,
+    #[error("path is invalid: {0}")]
+    Invalid(String),
+}
+
 impl Path {
-    pub fn parse(path: &str, opts: ParseOptions) -> anyhow::Result<Self> {
+    pub fn parse(
+        span: Span,
+        path: &str,
+        opts: ParseOptions,
+    ) -> Result<Self, SpErr<PathParseError>> {
         if path.is_empty() {
-            anyhow::bail!("empty path");
+            return Err(PathParseError::EmptyPath.with_span(span));
         } else if !path.starts_with('/') && opts.prefix_slash {
-            anyhow::bail!("path must start with '/'");
+            return Err(PathParseError::MustStartWithSlash.with_span(span));
         } else if path.starts_with('/') && !opts.prefix_slash {
-            anyhow::bail!("path must not start with '/'");
+            return Err(PathParseError::MustNotStartWithSlash.with_span(span));
         }
 
         // Ensure this is a valid url path.
-        parse_url_path(path)?;
+        parse_url_path(path).map_err(|err| err.with_span(span))?;
 
         let mut segments = vec![];
 
-        let mut path = path;
-        while !path.is_empty() {
+        let path_end = path.len();
+        let mut idx = 0;
+        while idx < path_end {
             if opts.prefix_slash || !segments.is_empty() {
-                path = &path[1..]; // drop leading slash
+                idx += 1; // drop leading slash
             }
 
-            // Find the next path segment.
-            let val = match path.find('/') {
-                Some(0) => {
-                    // Empty segment.
-                    anyhow::bail!("invalid path: cannot contain empty path segment");
-                }
-                Some(idx) => {
-                    // Non-empty segment.
-                    let val = &path[..idx];
-                    path = &path[idx..];
-                    val
-                }
-                None => {
-                    // Last segment.
-                    let val = path;
-                    path = "";
-                    val
-                }
+            let seg_start = idx;
+            let seg_end = {
+                let remainder = &path[idx..];
+                idx + remainder.find('/').unwrap_or(remainder.len())
             };
 
+            // Find the next path segment.
+            let val = &path[seg_start..seg_end];
             let seg: Segment = match val.chars().next() {
                 Some(':') => Segment::Param {
                     name: val[1..].to_string(),
@@ -144,72 +173,81 @@ impl Path {
                 _ => Segment::Literal(val.to_string()),
             };
 
-            segments.push(seg);
+            let span = span
+                .with_lo(span.lo + BytePos(seg_start as u32))
+                .with_hi(span.hi + BytePos(seg_end as u32));
+
+            segments.push(Sp::new(span, seg));
+            idx = seg_end;
         }
 
         // Validate the segments.
         for (idx, seg) in segments.iter().enumerate() {
-            match seg {
+            match seg.deref() {
                 Segment::Literal(lit) if lit.is_empty() && segments.len() > 1 => {
-                    anyhow::bail!("invalid path: literal cannot be empty");
+                    return Err(PathParseError::EmptySegment.with_span(seg.span()));
                 }
                 Segment::Param { name, .. } if name.is_empty() => {
-                    anyhow::bail!("path parameters must have a name");
+                    return Err(PathParseError::UnnamedParam.with_span(seg.span()));
                 }
                 Segment::Wildcard { name } if name.is_empty() => {
-                    anyhow::bail!("path parameters must have a name");
+                    return Err(PathParseError::UnnamedParam.with_span(seg.span()));
                 }
                 Segment::Wildcard { .. } if idx != segments.len() - 1 => {
-                    anyhow::bail!("path wildcards must be the last segment in the path");
+                    return Err(PathParseError::WildcardNotAtEnd.with_span(seg.span()));
                 }
                 Segment::Fallback { .. } if idx != segments.len() - 1 => {
-                    anyhow::bail!("path fallbacks must be the last segment in the path");
+                    return Err(PathParseError::FallbackNotAtEnd.with_span(seg.span()));
                 }
                 _ => {}
             }
         }
 
-        Ok(Path { segments })
+        Ok(Path { span, segments })
     }
 }
 
-fn parse_url_path(path: &str) -> anyhow::Result<()> {
+fn parse_url_path(path: &str) -> Result<(), PathParseError> {
     // The url crate only supports parsing absolute urls, so use a dummy base
     // and ensure it is the same after parsing.
-    let base = url::Url::parse("base://url.here")?;
+    let base = url::Url::parse("base://url.here").expect("internal error: invalid base url");
+
     let url = url::Url::options()
         .base_url(Some(&base))
         .parse(path)
-        .map_err(|err| anyhow::anyhow!("invalid path: {}", err))?;
+        .map_err(|err| PathParseError::Invalid(err.to_string()))?;
 
     if url.scheme() != base.scheme() {
-        anyhow::bail!("invalid path: cannot contain scheme")
+        return Err(PathParseError::ContainsScheme);
     } else if url.authority() != base.authority() {
-        anyhow::bail!("invalid path: cannot contain authority")
+        return Err(PathParseError::ContainsAuthority);
     }
+
     match url.host_str() {
         None => {
             // We should always have a host since the base url has one.
-            anyhow::bail!("invalid path: cannot contain host")
+            return Err(PathParseError::ContainsHostname);
         }
         Some(host) => {
             if host != base.host_str().unwrap() {
-                anyhow::bail!("invalid path: cannot contain host")
+                return Err(PathParseError::ContainsHostname);
             }
         }
     }
 
     if url.query().is_some() {
-        anyhow::bail!("path must not contain query parameters (the '?' character)")
+        Err(PathParseError::ContainsQuery)
     } else if url.fragment().is_some() {
-        anyhow::bail!("path must not contain url fragments (the '#' character)")
+        Err(PathParseError::ContainsFragment)
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use swc_common::DUMMY_SP;
+
     use super::*;
 
     #[test]
@@ -236,26 +274,14 @@ mod tests {
                     },
                 ]),
             ),
-            (
-                "/:foo/*",
-                Err("path parameters must have a name".to_string()),
-            ),
-            (
-                "/:foo/*/bar",
-                Err("path parameters must have a name".to_string()),
-            ),
-            (
-                "/:foo/*bar/baz",
-                Err("path wildcards must be the last segment in the path".to_string()),
-            ),
-            (
-                "/foo?bar=baz",
-                Err("path must not contain query parameters (the '?' character)".to_string()),
-            ),
-            (
-                "/foo#bar",
-                Err("path must not contain url fragments (the '#' character)".to_string()),
-            ),
+            ("", Err(PathParseError::EmptyPath)),
+            ("/foo//bar", Err(PathParseError::EmptySegment)),
+            ("/foo/", Err(PathParseError::EmptySegment)),
+            ("/:foo/*", Err(PathParseError::UnnamedParam)),
+            ("/:foo/*/bar", Err(PathParseError::UnnamedParam)),
+            ("/:foo/*bar/baz", Err(PathParseError::WildcardNotAtEnd)),
+            ("/foo?bar=baz", Err(PathParseError::ContainsQuery)),
+            ("/foo#bar", Err(PathParseError::ContainsFragment)),
             (
                 "/foo/!fallback",
                 Ok(vec![
@@ -268,13 +294,14 @@ mod tests {
         ];
 
         for (path, want) in tests {
-            let got = Path::parse(path, Default::default());
+            let got = Path::parse(DUMMY_SP, path, Default::default());
             match (got, want) {
                 (Ok(got), Ok(want)) => {
-                    assert_eq!(got.segments, want, "path {:?}", path);
+                    let segments: Vec<_> = got.segments.into_iter().map(|s| s.take()).collect();
+                    assert_eq!(segments, want, "path {:?}", path);
                 }
                 (Err(got), Err(want)) => {
-                    assert_eq!(got.to_string(), want, "path {:?}", path);
+                    assert_eq!(got.error, want, "path {:?}", path);
                 }
                 (Ok(got), Err(want)) => {
                     panic!("got {:?}, want err {:?}, path {:?}", got, want, path);
