@@ -4,7 +4,7 @@ import { registerTestHandler } from "encore.dev/internal/codegen/appinit";
 {{#each endpoints}}
 export async function {{name}}(params) {
     const handler = (await import({{toJSON (stripExt import_path)}})).{{name}};
-    registerTestHandler({ service: "{{../name}}", name: "{{name}}", raw: {{toJSON raw}}, handler, streamingRequest: {{ streaming_request }}, streamingResponse: {{ streaming_response }} });
+    registerTestHandler({ apiRoute: { service: "{{../name}}", name: "{{name}}", raw: {{toJSON raw}}, handler, streamingRequest: {{ streaming_request }}, streamingResponse: {{ streaming_response }} }, middlewares: [], endpointOptions: {}});
 
     {{#if (or streaming_request streaming_response)}}
     {{#if (and streaming_request streaming_response)}}
