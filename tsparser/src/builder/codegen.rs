@@ -477,7 +477,7 @@ impl Builder<'_> {
                 "endpoints": endpoint_ctx,
                 "gateways": gateway_ctx,
                 "subscriptions": subscription_ctx,
-                "services": services_ctx.values().collect::<Vec<_>>(),
+                "services": services_ctx,
             });
             let main = self.entrypoint_combined_main.render(&self.reg, ctx)?;
 
