@@ -111,10 +111,7 @@ impl ReferenceParser for ServiceLiteral {
                     continue;
                 }
 
-                let Ok(resource_name) = extract_resource_name(expr.span, args, 0) else {
-                    continue;
-                };
-
+                let resource_name = extract_resource_name(expr.span, args, 0)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
                 let config = args
