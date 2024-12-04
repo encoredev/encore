@@ -434,7 +434,7 @@ export function middleware(
     return a as Middleware;
   } else {
     const opts = a as MiddlewareOptions;
-    let mw = b as Middleware;
+    const mw = b as Middleware;
     mw.options = opts;
 
     return mw;
