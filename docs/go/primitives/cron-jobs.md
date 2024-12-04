@@ -17,13 +17,13 @@ When a Cron Job is defined in your application, Encore automatically calls your 
 
 <Callout type="info">
 
-Cron Jobs do not run when developing locally or in [Preview Environments](/docs/platform/deploy/preview-environments), but you can always call the API manually to test the behavior. 
+Cron Jobs do not run when developing locally or in [Preview Environments](/docs/platform/deploy/preview-environments), but you can always call the API manually to test the behavior.
 
 </Callout>
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/uptime" 
-    desc="Uptime Monitoring app that uses a Cron Job to periodically check the uptime of a website." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/uptime"
+    desc="Uptime Monitoring app that uses a Cron Job to periodically check the uptime of a website."
 />
 
 ## Defining a Cron Job
@@ -59,7 +59,7 @@ we use this ID to keep track that it's the same Cron Job and not a different one
 When this code gets deployed Encore will automatically register the Cron Job in Encore Cloud
 and begin calling the `SendWelcomeEmail` API every hour.
 
-Encore's Cloud Dashboard provides a convenient user interface for monitoring and debugging
+The Encore Cloud dashboard provides a convenient user interface for monitoring and debugging
 Cron Job executions across all your environments via the `Cron Jobs` menu item:
 
 ![Cron Jobs UI](/assets/docs/cron.png)

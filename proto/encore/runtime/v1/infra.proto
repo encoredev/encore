@@ -323,6 +323,11 @@ message BucketCluster {
 
     // Endpoint override, if any. Must be specified if using a non-standard AWS region.
     optional string endpoint = 2;
+
+    // Set these to use explicit credentials for this bucket,
+    // as opposed to resolving using AWS's default credential chain.
+    optional string access_key_id = 3;
+    optional SecretData secret_access_key = 4;
   }
 
   message GCS {

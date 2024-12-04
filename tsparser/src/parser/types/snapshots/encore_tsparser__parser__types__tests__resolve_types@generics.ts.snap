@@ -192,6 +192,59 @@ input_file: tsparser/src/parser/types/testdata/generics.ts
                         },
                     ),
                 },
+                InterfaceField {
+                    name: String(
+                        "five",
+                    ),
+                    optional: false,
+                    typ: Named(
+                        Named {
+                            obj: Object {
+                                name: Some(
+                                    "GenericIface",
+                                ),
+                            },
+                            type_arguments: [
+                                Named(
+                                    Named {
+                                        obj: Object {
+                                            name: Some(
+                                                "Generic1",
+                                            ),
+                                        },
+                                        type_arguments: [
+                                            Basic(
+                                                Boolean,
+                                            ),
+                                        ],
+                                    },
+                                ),
+                            ],
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "GenericIface": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 0,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
             ],
             index: None,
             call: None,

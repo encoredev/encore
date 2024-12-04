@@ -7,7 +7,7 @@ lang: platform
 
 Encore applications are easy to integrate with GitHub for source code hosting.
 
-To link your application to GitHub, open your application on [app.encore.dev](https://app.encore.dev), and click on **Settings** in the main navigation.
+To link your application to GitHub, open your application in the [Encore Cloud dashboard](https://app.encore.cloud), and click on **Settings** in the main navigation.
 Then select **GitHub** in the settings menu.
 
 Next, connect your account to GitHub by clicking the **Connect Account to GitHub** button. This will open GitHub where you can grant access either to all repositories or only the specific one(s) you want to link with Encore.
@@ -31,12 +31,12 @@ your Pull Requests, and provision Preview Environments for each Pull Request.
 
 If you already have a monorepo and want to place your Encore application in a sub-folder, you need to tell Encore which folder the `encore.app` file is in.
 
-Do this by opening your app in the [Cloud Dashboard](https://app.encore.dev) and go to **Settings** > **General**. Then in the **Root Directory** section, you specify the directory within your Git repository in which your `encore.app` file is located.
+Do this by opening your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to **Settings** > **General**. Then in the **Root Directory** section, you specify the directory within your Git repository in which your `encore.app` file is located.
 
 ## Configure deploy trigger
 
 When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
-To configure which branch name is used to trigger deploys, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
+To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
 ## Preview Environments for each Pull Request
 

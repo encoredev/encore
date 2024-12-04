@@ -10,6 +10,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	awsCreds "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
@@ -23,8 +24,8 @@ type Manager struct {
 	runtime *config.Runtime
 	clients map[*config.BucketProvider]*s3.Client
 
-	cfgOnce sync.Once
-	awsCfg  aws.Config
+	cfgOnce          sync.Once
+	awsDefaultConfig aws.Config
 }
 
 func NewManager(ctx context.Context, runtime *config.Runtime) *Manager {
@@ -155,7 +156,20 @@ func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {
 		return client
 	}
 
-	cfg := mgr.getConfig()
+	// If we have a custom access key and secret, use them instead of the default config.
+	var cfg aws.Config
+	if prov.S3.AccessKeyID != nil && prov.S3.SecretAccessKey != nil {
+		var err error
+		cfg, err = awsConfig.LoadDefaultConfig(context.Background(),
+			awsConfig.WithCredentialsProvider(awsCreds.NewStaticCredentialsProvider(*prov.S3.AccessKeyID, *prov.S3.SecretAccessKey, "")),
+		)
+		if err != nil {
+			panic(fmt.Sprintf("unable to load AWS config: %v", err))
+		}
+	} else {
+		cfg = mgr.defaultConfig()
+	}
+
 	client := s3.New(s3.Options{
 		Region:       prov.S3.Region,
 		BaseEndpoint: prov.S3.Endpoint,
@@ -166,17 +180,16 @@ func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {
 	return client
 }
 
-// getConfig loads the required AWS config to connect to AWS
-func (mgr *Manager) getConfig() aws.Config {
+// defaultConfig loads the required AWS config to connect to AWS
+func (mgr *Manager) defaultConfig() aws.Config {
 	mgr.cfgOnce.Do(func() {
 		cfg, err := awsConfig.LoadDefaultConfig(context.Background())
 		if err != nil {
 			panic(fmt.Sprintf("unable to load AWS config: %v", err))
 		}
-		mgr.awsCfg = cfg
-
+		mgr.awsDefaultConfig = cfg
 	})
-	return mgr.awsCfg
+	return mgr.awsDefaultConfig
 }
 
 func mapErr(err error) error {

@@ -1,3 +1,4 @@
+use litparser::{report_and_continue, ParseResult};
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
 use swc_ecma_ast as ast;
@@ -41,7 +42,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
         let module = pass.module.clone();
         {
             for (i, r) in iter_references::<ServiceLiteral>(&module, &names).enumerate() {
-                let r = r?;
+                let r = report_and_continue!(r);
 
                 if i > 0 {
                     r.range
@@ -75,8 +76,6 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 });
             }
         }
-
-        Ok(())
     },
 };
 
@@ -93,7 +92,7 @@ impl ReferenceParser for ServiceLiteral {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> anyhow::Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         for node in path.iter().rev() {
             if let swc_ecma_visit::AstParentNodeRef::NewExpr(
                 expr,
@@ -112,7 +111,7 @@ impl ReferenceParser for ServiceLiteral {
                     continue;
                 }
 
-                let Some(resource_name) = extract_resource_name(expr.span, args, 0) else {
+                let Ok(resource_name) = extract_resource_name(expr.span, args, 0) else {
                     continue;
                 };
 

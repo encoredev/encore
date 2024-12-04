@@ -331,7 +331,8 @@ impl Runtime {
             .context("failed to resolve gateway push subscriptions")?;
 
         let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md)?;
-        let objects = objects::Manager::new(tracer.clone(), resources.bucket_clusters, &md);
+        let objects =
+            objects::Manager::new(&secrets, tracer.clone(), resources.bucket_clusters, &md);
         let sqldb = sqldb::ManagerConfig {
             clusters: resources.sql_clusters,
             creds: &creds,

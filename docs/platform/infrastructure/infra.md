@@ -22,7 +22,7 @@ Having an end-to-end integration between application code and infrastructure als
 
 ## Environment types
 
-By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via Encore's Cloud Dashboard and your cloud provider's console. Encore takes care of syncing your changes.
+By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via the Encore Cloud dashboard and your cloud provider's console. Encore takes care of syncing your changes.
 
 |                        | Local              | Encore Cloud               | GCP / AWS                          |
 | ---------------------- | ------------------ | -------------------------- | ---------------------------------- |
@@ -48,7 +48,7 @@ Encore provisions infrastructure resources differently for each type of developm
 
 For local development Encore provisions a combination of Docker and in-memory infrastructure components.
 SQL Databases are provisioned using [Docker](https://docker.com). For Pub/Sub
-and Caching the infrastructure is run in-memory. 
+and Caching the infrastructure is run in-memory.
 
 When running tests, a separate SQL Database cluster is provisioned that is optimized for high performance
 (using an in-memory filesystem and fsync disabled) at the expense of reduced reliability.
@@ -96,7 +96,7 @@ Encore provisions production infrastructure resources using best-practice guidel
 
 ### Configurability
 
-With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in Encore's Cloud Dashboard. Encore takes care of syncing the changes automatically in both directions.
+With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in the Encore Cloud dashboard. Encore takes care of syncing the changes automatically in both directions.
 
 In the future, Encore will offer automated optimization of cloud environments according to your application's real-world behavior.
 

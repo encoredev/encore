@@ -25,7 +25,7 @@ within Encore, you need to manually remove the infrastructure that was created b
 
 Encore provides a GCP Service Account for each Encore application, letting you grant Encore access to provision all the necessary infrastructure directly in your own GCP Organization account.
 
-To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to Encore's **[Cloud Dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+To find your app's Service Account email and configure GCP deployments, head over to the Connect Cloud page by going to the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 ![Connect GCP account](/assets/docs/connectgcp.png "Connect GCP account")
 
@@ -44,20 +44,20 @@ If you're a GCP Organization Administrator, you can grant yourself the necessary
 
 **I can't grant access to the Encore service account**
 
-If you're unable to grant access to the Encore service account, you may have failed to add Encore to your `Domain restricted sharing` policy. 
+If you're unable to grant access to the Encore service account, you may have failed to add Encore to your `Domain restricted sharing` policy.
 Make sure you've followed all the steps in the Connect Cloud page to add Encore to the policy.
 If you're using several GCP accounts, make sure you're logged in with the correct account and that the correct organization is selected in the GCP Console.
 
 **Encore returns "Could not find Organization ID"**
 
-If you see this error message, it means that Encore was unable to connect to your GCP Organization. Make sure you've followed all the steps in the Connect Cloud page to grant Encore access to your GCP Organization. 
+If you see this error message, it means that Encore was unable to connect to your GCP Organization. Make sure you've followed all the steps in the Connect Cloud page to grant Encore access to your GCP Organization.
 If you're using several GCP accounts, make sure you're logged in with the correct account and that the correct organization is selected in the GCP Console.
 
 Still having issues? Drop us an email at [support@encore.dev](mailto:support@encore.dev) or chat with us in the [Encore Discord](https://encore.dev/discord.
 
 ## Amazon Web Services (AWS)
-To configure your Encore app to deploy to your AWS account, head over to the Connect Cloud page by going to Encore's
-**[Cloud Dashboard](https://app.encore.dev/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+To configure your Encore app to deploy to your AWS account, head over to the Connect Cloud page by going to the
+**[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
 Follow the instructions to create an IAM Role, and then connect the role with Encore.
 [Learn more in the AWS docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html).

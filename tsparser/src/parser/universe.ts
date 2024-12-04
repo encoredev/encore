@@ -58,3 +58,6 @@ export type NonNullable<T> = T & {};
 
 /** Builtin date class. */
 export class Date { };
+
+/** Builtin array type */
+export type Array<T> = T[];

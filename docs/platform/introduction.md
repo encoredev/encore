@@ -22,7 +22,7 @@ Encore provides a complete toolset for backend development, from local developme
 
 Much of Encore's functionality is enabled by the Open Source Backend Frameworks [Encore.ts](/docs/ts) and [Encore.go](/docs/go), which let you define resources like services, databases, cron jobs, and Pub/Sub, as type-safe objects in your application code.
 
-With the Backend Framework you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP. 
+With the Backend Framework you only define **infrastructure semantics** — _the things that matter to your application's behavior_ — not configuration for _specific_ cloud services. Encore then automatically generates boilerplate and orchestrates the relevant infrastructure for each environment. This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
 
 When your application is deployed to your cloud, there are **no runtime dependencies on Encore** and there is **no proprietary code running in your cloud**.
 
@@ -49,7 +49,7 @@ Encore comes with several built-in tools to help with testing:
 
 - **Built-in service/API mocking:** Encore provides built-in support for [mocking API calls](/docs/go/develop/testing/mocking), and interfaces for automatically generating mock objects for your services.
 - **Local test infra:** When running tests locally, Encore automatically provides dedicated [test infrastructure](/docs/go/develop/testing#test-only-infrastructure) to isolate individual tests.
-- **Local test tracing:** The [local dev dashboard](/docs/go/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
+- **Local test tracing:** The [Local Development Dashboard](/docs/go/observability/dev-dash) provides distributed tracing for tests, providing great visibility into what's happening and making it easier to understand why a test failed.
 - **Preview Environments:** Encore automatically provisions a [Preview Environment](/docs/platform/deploy/preview-environments) for each Pull Request, an effective tool when doing end-to-end testing.
 
 ## DevOps

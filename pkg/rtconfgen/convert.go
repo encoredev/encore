@@ -384,8 +384,10 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 				switch prov := cluster.Provider.(type) {
 				case *runtimev1.BucketCluster_S3_:
 					p.S3 = &config.S3BucketProvider{
-						Region:   prov.S3.GetRegion(),
-						Endpoint: prov.S3.Endpoint,
+						Region:          prov.S3.GetRegion(),
+						Endpoint:        prov.S3.Endpoint,
+						AccessKeyID:     prov.S3.AccessKeyId,
+						SecretAccessKey: ptrOrNil(c.secretString(prov.S3.SecretAccessKey)),
 					}
 				case *runtimev1.BucketCluster_Gcs:
 					p.GCS = &config.GCSBucketProvider{
@@ -637,6 +639,14 @@ func nilPtrToZero[T comparable](val *T) T {
 }
 
 func ptr[T comparable](val T) *T {
+	return &val
+}
+
+func ptrOrNil[T comparable](val T) *T {
+	var zero T
+	if val == zero {
+		return nil
+	}
 	return &val
 }
 

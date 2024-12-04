@@ -13,7 +13,7 @@ lang: platform
 Webhooks provide a way for notifications to be delivered to an HTTP endpoint of your choice whenever certain events happen within Encore.
 For example, you can set up a webhook to be notified whenever a deployment starts or finishes.
 
-Webhooks are defined on a per-application basis, and are configured under Settings -> Webhooks in Encore's Cloud Dashboard.
+Webhooks are defined on a per-application basis, and are configured under Settings -> Webhooks in the [Encore Cloud dashboard](https://app.encore.cloud).
 
 To simplify using webhooks, Encore.go provides a Go module, [go.encore.dev/webhooks](https://pkg.go.dev/go.encore.dev/webhooks), that provides
 type definitions and documentation of all supported webhook events. This module is kept up to date as new events are added.

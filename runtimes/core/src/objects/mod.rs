@@ -493,15 +493,12 @@ fn escape_path(s: &str) -> Cow<'_, str> {
     percent_encoding::percent_encode(s.as_bytes(), PATH).into()
 }
 
-/// Computes the public url given a base url, optional key prefix, and object name.
-fn public_url(base_url: String, key_prefix: Option<&str>, name: &str) -> String {
+/// Computes the public url given a base url and object name.
+fn public_url(base_url: String, name: &str) -> String {
     let mut url = base_url;
 
     if !url.ends_with('/') {
         url.push('/');
-    }
-    if let Some(key_prefix) = key_prefix {
-        url.push_str(&escape_path(key_prefix));
     }
     url.push_str(&escape_path(name));
     url

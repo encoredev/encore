@@ -25,7 +25,7 @@ Encore.go simplifies backend development through a structured API framework, whi
 Encore helps you build robust distributed systems and provides a smooth developer experience with a lot of built-in tooling:
 
 1. **Local Environment Management**: Automatically sets up and runs your local development environment and all local infrastructure.
-2. **Enhanced Observability**: Comes with tools like a [local dev dash](/docs/go/observability/dev-dash) and [tracing](/docs/go/observability/tracing) for monitoring application behavior.
+2. **Enhanced Observability**: Comes with tools like a [Local Development Dashboard](/docs/go/observability/dev-dash) and [tracing](/docs/go/observability/tracing) for monitoring application behavior.
 3. **Automatic Documentation**: Generates and maintains [up-to-date documentation](/docs/go/observability/service-catalog) for APIs and services, and created [architecture diagrams](/docs/go/observability/encore-flow) for your system.
 
 Optional: **DevOps Automation**: Encore provides an optional [Cloud Platform](/use-cases/devops-automation) for automating infrastructure provisioning and DevOps processes on AWS and GCP.

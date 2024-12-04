@@ -174,7 +174,7 @@ Test Files  1 passed (1)
 
 PASS  Waiting for file changes...
 ```
- 
+
 ## 3. Create site service
 
 Next, we want to keep track of a list of websites to monitor.
@@ -373,7 +373,7 @@ export const MonitorDB = new SQLDatabase("monitor", {
 
 🥐 Restart `encore run` to cause the `monitor` database to be created.
 
-We can again verify that the database was created in the Flow diagram, and also see the dependency between the `monitor` service and the `site` service that we just added. 
+We can again verify that the database was created in the Flow diagram, and also see the dependency between the `monitor` service and the `site` service that we just added.
 
 We can then call the `monitor.check` endpoint using the id `1` that we got in the last step, and view the trace where we see the database interactions.
 
@@ -468,7 +468,7 @@ To avoid confusion while developing, cron jobs are not triggered when running th
 
 </Callout>
 
-The frontend needs a way to list all sites and display if they are up or down. 
+The frontend needs a way to list all sites and display if they are up or down.
 
 🥐 Add a file `monitor/status.ts` with the following code:
 
@@ -531,7 +531,7 @@ $ git push encore
 
 Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
-After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+After triggering the deployment, you will see a URL where you can view its progress in the [Encore Cloud dashboard](https://app.encore.cloud). It will look something like: `https://app.encore.cloud/$APP_ID/deploys/...`
 
 From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces, and later connect your own AWS or GCP account to use for deployment.
 
@@ -597,14 +597,14 @@ async function getPreviousMeasurement(siteID: number): Promise<boolean> {
 -- monitor/check.ts --
 async function doCheck(site: Site): Promise<{ up: boolean }> {
   const { up } = await ping({ url: site.url });
-  
+
   // Publish a Pub/Sub message if the site transitions
   // from up->down or from down->up.
   const wasUp = await getPreviousMeasurement(site.id);
   if (up !== wasUp) {
     await TransitionTopic.publish({ site, up });
   }
-  
+
   await MonitorDB.exec`
       INSERT INTO checks (site_id, up, checked_at)
       VALUES (${site.id}, ${up}, NOW())

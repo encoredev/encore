@@ -69,6 +69,11 @@
       "bun": "./storage/objects/mod.ts",
       "default": "./dist/storage/objects/mod.js"
     },
+    "./validate": {
+      "types": "./validate/mod.ts",
+      "bun": "./validate/mod.ts",
+      "default": "./dist/validate/mod.js"
+    },
     "./internal/codegen/*": {
       "types": "./internal/codegen/*.ts",
       "bun": "./internal/codegen/*.ts",

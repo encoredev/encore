@@ -1,10 +1,8 @@
-use anyhow::Result;
 use litparser_derive::LitParser;
-use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
-use litparser::{LitParser, Sp};
+use litparser::{report_and_continue, LitParser, ParseResult, Sp, ToParseErr};
 
 use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
@@ -17,6 +15,7 @@ use crate::parser::resources::Resource;
 use crate::parser::types::Type;
 use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
 use crate::parser::Range;
+use crate::span_err::ErrReporter;
 
 #[derive(Debug, Clone)]
 pub struct Topic {
@@ -34,14 +33,14 @@ pub enum DeliveryGuarantee {
 }
 
 #[derive(Debug, LitParser)]
-#[allow(non_snake_case)]
+#[allow(non_snake_case, dead_code)]
 struct DecodedTopicConfig {
-    deliveryGuarantee: Option<String>,
+    deliveryGuarantee: Option<Sp<String>>,
     orderingAttribute: Option<String>,
 }
 
 impl DecodedTopicConfig {
-    fn delivery_guarantee(&self) -> Result<DeliveryGuarantee> {
+    fn delivery_guarantee(&self) -> ParseResult<DeliveryGuarantee> {
         let Some(delivery_guarantee) = &self.deliveryGuarantee else {
             return Ok(DeliveryGuarantee::AtLeastOnce);
         };
@@ -49,7 +48,7 @@ impl DecodedTopicConfig {
         match delivery_guarantee.as_str() {
             "at-least-once" => Ok(DeliveryGuarantee::AtLeastOnce),
             "exactly-once" => Ok(DeliveryGuarantee::ExactlyOnce),
-            _ => anyhow::bail!("invalid delivery guarantee"),
+            _ => Err(delivery_guarantee.parse_err("invalid delivery guarantee")),
         }
     }
 }
@@ -63,7 +62,7 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
         let module = pass.module.clone();
 
         for r in iter_references::<PubSubTopicDefinition>(&module, &names) {
-            let r = r?;
+            let r = report_and_continue!(r);
             let object = match &r.bind_name {
                 None => None,
                 Some(id) => pass
@@ -75,7 +74,7 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
                 .type_checker
                 .resolve_type(pass.module.clone(), &r.message_type);
 
-            let delivery_guarantee = r.config.delivery_guarantee()?;
+            let delivery_guarantee = report_and_continue!(r.config.delivery_guarantee());
             let resource = Resource::PubSubTopic(Lrc::new(Topic {
                 name: r.resource_name.to_owned(),
                 doc: r.doc_comment,
@@ -92,7 +91,6 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
                 ident: r.bind_name,
             });
         }
-        Ok(())
     },
 };
 
@@ -110,7 +108,7 @@ impl ReferenceParser for PubSubTopicDefinition {
     fn parse_resource_reference(
         module: &Module,
         path: &swc_ecma_visit::AstNodePath,
-    ) -> Result<Option<Self>> {
+    ) -> ParseResult<Option<Self>> {
         let Some(res) =
             NamedClassResource::<DecodedTopicConfig, 0, 1>::parse_resource_reference(module, path)?
         else {
@@ -118,8 +116,7 @@ impl ReferenceParser for PubSubTopicDefinition {
         };
 
         let Some(message_type) = extract_type_param(res.expr.type_args.as_deref(), 0) else {
-            HANDLER.with(|h| h.span_err(res.expr.span, "missing message type parameter"));
-            return Ok(None);
+            return Err(res.expr.parse_err("missing message type parameter"));
         };
 
         Ok(Some(Self {
@@ -139,8 +136,8 @@ pub struct PublishUsage {
     pub topic: Lrc<Topic>,
 }
 
-pub fn resolve_topic_usage(data: &ResolveUsageData, topic: Lrc<Topic>) -> Result<Option<Usage>> {
-    Ok(match &data.expr.kind {
+pub fn resolve_topic_usage(data: &ResolveUsageData, topic: Lrc<Topic>) -> Option<Usage> {
+    match &data.expr.kind {
         UsageExprKind::MethodCall(method) => {
             if method.method.as_ref() == "publish" {
                 Some(Usage::PublishTopic(PublishUsage {
@@ -155,6 +152,9 @@ pub fn resolve_topic_usage(data: &ResolveUsageData, topic: Lrc<Topic>) -> Result
             // TODO validate: used as a subscription arg most likely
             None
         }
-        _ => anyhow::bail!("invalid topic usage"),
-    })
+        _ => {
+            data.expr.err("invalid topic usage");
+            None
+        }
+    }
 }

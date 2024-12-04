@@ -12,9 +12,9 @@ Of course, we can’t do that &ndash; it's horrifyingly insecure!
 
 Encore's built-in secrets manager makes it simple to store secrets in a secure way and lets you use them in your program like regular variables.
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven" 
-    desc="Simple event driven example that uses secrets to store an API key" 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven"
+    desc="Simple event driven example that uses secrets to store an API key"
 />
 
 ## Using secrets in your application
@@ -61,9 +61,9 @@ Secret keys are globally unique for your whole application. If multiple services
 
 ## Storing secret values
 
-### Using the Cloud Dashboard
+### Using the Encore Cloud dashboard
 
-The simplest way to set up secrets is with the Secrets Manager in the Encore Cloud Dashboard. Open your app in [app.encore.dev](https://app.encore.dev), go to **Settings** in the main navigation, and then click on **Secrets** in the settings menu.
+The simplest way to set up secrets is with the Secrets Manager in the Encore Cloud Dashboard. Open your app in the [Encore Cloud dashboard](https://app.encore.cloud), go to **Settings** in the main navigation, and then click on **Secrets** in the settings menu.
 
 From here you can create secrets, save secret values, and configure different values for different environments.
 
@@ -83,7 +83,7 @@ take precedence over values for environment types.
 
 ### Environment settings
 
-Each secret can only have one secret value for each environment type. For example: If you have a secret value that's shared between `development`, `preview` and `local`, and you want to override the value for `local`, you must first edit the existing secret and remove `local` using the Secrets Manager in the [Cloud Dashboard](https://app.encore.dev). You can then add a new secret value for `local`. The end result should look something like the picture below.
+Each secret can only have one secret value for each environment type. For example: If you have a secret value that's shared between `development`, `preview` and `local`, and you want to override the value for `local`, you must first edit the existing secret and remove `local` using the Secrets Manager in the [Encore Cloud dashboard](https://app.encore.cloud). You can then add a new secret value for `local`. The end result should look something like the picture below.
 
 <img src="/assets/docs/secretoverride.png" title="Overriding a secret in Encore's Secrets Manager"/>
 

@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use anyhow::Result;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 
@@ -13,7 +12,7 @@ use crate::parser::{FilePath, FileSet};
 pub fn discover_services<'a>(
     file_set: &'a FileSet,
     binds: &'a Vec<Lrc<Bind>>,
-) -> Result<Vec<DiscoveredService>> {
+) -> Vec<DiscoveredService> {
     let sd = ServiceDiscoverer {
         file_set,
         binds,
@@ -40,7 +39,7 @@ struct ServiceDiscoverer<'a> {
 }
 
 impl ServiceDiscoverer<'_> {
-    fn discover(mut self) -> Result<Vec<DiscoveredService>> {
+    fn discover(mut self) -> Vec<DiscoveredService> {
         for b in self.binds {
             match &b.resource {
                 Resource::Service(svc) => {
@@ -84,7 +83,7 @@ impl ServiceDiscoverer<'_> {
         // Sort the services by name for deterministic output.
         svcs.sort_by(|a, b| a.name.cmp(&b.name));
 
-        Ok(svcs)
+        svcs
     }
 
     fn possible_service_root(&mut self, bind: &Bind, strong: bool, service_name: Option<String>) {
@@ -180,7 +179,7 @@ mod tests {
 
     use super::*;
 
-    fn parse(tmp_dir: &Path, src: &str) -> Result<Vec<DiscoveredService>> {
+    fn parse(tmp_dir: &Path, src: &str) -> anyhow::Result<Vec<DiscoveredService>> {
         let globals = Globals::new();
         let cm: Rc<SourceMap> = Default::default();
         let errs = Rc::new(Handler::with_tty_emitter(
@@ -212,8 +211,8 @@ mod tests {
                     Default::default(),
                 );
                 let parser = Parser::new(&pc, pass1);
-                let result = parser.parse()?;
-                discover_services(&pc.file_set, &result.binds)
+                let result = parser.parse();
+                Ok(discover_services(&pc.file_set, &result.binds))
             })
         })
     }

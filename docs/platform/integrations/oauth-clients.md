@@ -56,8 +56,8 @@ Select Revoke OAuth client to confirm you want to revoke the OAuth client.
 
 When you revoke an OAuth client, any active API access tokens that were created by the client are also revoked.
 
-### Encore Platform OAuth token endpoint
-The Encore Platform's OAuth token endpoint is https://api.encore.dev/api/oauth/token.
+### Encore Cloud OAuth token endpoint
+Encore Cloud's OAuth token endpoint is https://api.encore.cloud/api/oauth/token.
 See the [Platform API Reference](/docs/platform/integrations/api-reference) documentation for more information.
 
 Make requests to the OAuth token endpoint when you need an API access token. The OAuth token endpoint accepts requests that conform to the OAuth 2.0 client credentials grant request format, and returns responses that conform to the OAuth 2.0 client credentials grant response format.
@@ -82,13 +82,13 @@ func main() {
     oauthConfig := &clientcredentials.Config{
         ClientID:     os.Getenv("OAUTH_CLIENT_ID"),
         ClientSecret: os.Getenv("OAUTH_CLIENT_SECRET"),
-        TokenURL:     "https://api.encore.dev/api/oauth/token",
+        TokenURL:     "https://api.encore.cloud/api/oauth/token",
     }
 
     client := oauthConfig.Client(context.Background())
 
     // Make API calls using `client.Get` etc.
-    resp, err := client.Get("https://api.encore.dev.com/api/...")
+    resp, err := client.Get("https://api.encore.cloud.com/api/...")
     // ...
 }
 ```
@@ -101,7 +101,7 @@ After you set up an OAuth client, an easy way to confirm that you can generate A
 
 ```bash
 curl -d "client_id=${OAUTH_CLIENT_ID}" -d "client_secret=${OAUTH_CLIENT_SECRET}" \
-     -d "grant_type=client_credentials" "https://api.encore.dev/api/oauth/token"
+     -d "grant_type=client_credentials" "https://api.encore.cloud/api/oauth/token"
 ```
 
 The example requires that you define environment variables OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET, with their values set to your client ID and client secret.

@@ -13,7 +13,7 @@ Environments always stay in sync, as they are created based on the needs of your
 
 ## Creating environments
 
-To create an environment for your app, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Environments** page,
+To create an environment for your app, open your app in the [Encore Cloud dashboard](https://app.ewcloudev) and go to the **Environments** page,
 then click on `Create env` in the top right.
 
 There you can pick a name, and decide if you want a **production**
@@ -84,8 +84,6 @@ Deploying services as separate processes is not yet supported when using AWS Far
 
 ## Primary environment
 
-Encore application's have a **primary environment** that is used as the default environment for functionality like viewing API documentation or app insights in the [Cloud Dashboard](https://app.encore.dev), and as the default for CLI functionality like API client generation. It should generally reflect what you consider to be the main 'production' environment.
+Encore application's have a **primary environment** that is used as the default environment for functionality like viewing API documentation or app insights in the [Encore Cloud dashboard](https://app.encore.cloud), and as the default for CLI functionality like API client generation. It should generally reflect what you consider to be the main 'production' environment.
 
-To configure which environment should be used as the primary environment, open your app in the [Cloud Dashboard](https://app.encore.dev), go to **Settings** > **General** > **Primary Environment**, then select the environment you want from the dropdown and click **Update**.
-
-
+To configure which environment should be used as the primary environment, open your app in the [Encore Cloud dashboard](https://app.encore.cloud), go to **Settings** > **General** > **Primary Environment**, then select the environment you want from the dropdown and click **Update**.
