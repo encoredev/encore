@@ -92,6 +92,7 @@ export interface InternalHandlerResponse {
 
 // recursively calls all middlewares
 async function invokeMiddlewareChain(
+  curReq: runtime.Request,
   req: MiddlewareRequest,
   chain: Middleware[],
   handler: () => Promise<any>
@@ -104,6 +105,10 @@ async function invokeMiddlewareChain(
 
     // no more middlewares, execute the handler
     if (currentMiddleware === undefined) {
+      const mwMeta = req.middlewareMeta;
+      if (mwMeta !== undefined) {
+        curReq.setMiddlewareData(mwMeta);
+      }
       return new HandlerResponse(await handler());
     }
 
@@ -204,7 +209,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         };
 
         const mwRequest = new MiddlewareRequest(stream, undefined, undefined);
-        return invokeMiddlewareChain(mwRequest, middlewares, handler);
+        return invokeMiddlewareChain(req, mwRequest, middlewares, handler);
       }
     };
   }
@@ -231,7 +236,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         };
 
         const mwRequest = new MiddlewareRequest(undefined, rawReq, rawResp);
-        return invokeMiddlewareChain(mwRequest, middlewares, handler);
+        return invokeMiddlewareChain(req, mwRequest, middlewares, handler);
       }
     };
   }
@@ -256,7 +261,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       };
 
       const mwRequest = new MiddlewareRequest(undefined, undefined, undefined);
-      return invokeMiddlewareChain(mwRequest, middlewares, handler);
+      return invokeMiddlewareChain(req, mwRequest, middlewares, handler);
     }
   };
 }

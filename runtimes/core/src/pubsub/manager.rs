@@ -184,6 +184,7 @@ impl SubHandler {
                     payload: msg.data.raw_body.clone(),
                     parsed_payload,
                 }),
+                middleware_meta: None.into(),
             });
 
             let logger = crate::log::root();

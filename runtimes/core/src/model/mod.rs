@@ -149,6 +149,9 @@ pub struct Request {
 
     /// Type-specific data.
     pub data: RequestData,
+
+    /// Meta-data produced by middlewares
+    pub middleware_meta: Mutex<Option<PValues>>,
 }
 
 impl Request {

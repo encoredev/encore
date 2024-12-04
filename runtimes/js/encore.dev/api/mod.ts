@@ -300,6 +300,7 @@ export class MiddlewareRequest {
   private _stream?: Sink | Stream | Socket;
   private _rawReq?: RawRequest;
   private _rawResp?: RawResponse;
+  private _middlewareMeta?: Record<string, any>;
 
   constructor(
     stream?: Sink | Stream | Socket,
@@ -338,6 +339,33 @@ export class MiddlewareRequest {
    */
   public get rawResponse(): RawResponse | undefined {
     return this._rawResp;
+  }
+
+  /**
+   * setMeta sets data for a key, and can be retrieved by other middlewares,
+   * or in the handler through `currentRequest`.
+   */
+  public setMeta(key: string, data: any) {
+    if (this._middlewareMeta === undefined) {
+      this._middlewareMeta = {};
+    }
+
+    this._middlewareMeta[key] = data;
+  }
+
+  /**
+   * getMeta fetches middleware meta data set for a specific key.
+   */
+  public getMeta(key: string): any | undefined {
+    if (this._middlewareMeta !== undefined) {
+      return this._middlewareMeta[key];
+    }
+
+    return undefined;
+  }
+
+  public get middlewareMeta(): Record<string, any> | undefined {
+    return this._middlewareMeta;
   }
 }
 
