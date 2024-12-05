@@ -117,6 +117,7 @@ impl PromiseHandler for APIPromiseHandler {
             return Ok(HandlerResponseInner {
                 payload: None,
                 extra_headers: None,
+                status: None,
             });
         };
 
@@ -132,9 +133,33 @@ impl PromiseHandler for APIPromiseHandler {
             .get_named_property::<napi::JsUnknown>("extraHeaders")
             .map_err(api::Error::internal)?;
 
+        let status = obj
+            .get_named_property::<napi::JsUnknown>("status")
+            .map_err(api::Error::internal)?;
+
+        let status = if status
+            .get_type()
+            .is_ok_and(|t| matches!(t, napi::ValueType::Number))
+        {
+            Some(
+                status
+                    .coerce_to_number()
+                    .map_err(api::Error::internal)
+                    .and_then(|s| s.get_uint32().map_err(api::Error::internal))
+                    .and_then(|s| {
+                        u16::try_from(s).map_err(|e| {
+                            api::Error::invalid_argument("invalid http status code", e)
+                        })
+                    })?,
+            )
+        } else {
+            None
+        };
+
         match parse_pvalues(payload) {
             Ok(val) => Ok(HandlerResponseInner {
                 payload: val,
+                status,
                 extra_headers: parse_header_map(extra_headers)
                     .map_err(|e| api::Error::invalid_argument("unable to parse extraHeaders", e))?,
             }),

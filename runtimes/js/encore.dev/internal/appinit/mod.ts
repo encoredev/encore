@@ -88,6 +88,7 @@ class IterableSocket {
 export interface InternalHandlerResponse {
   payload: any;
   extraHeaders?: Record<string, string | string[]>;
+  status?: number;
 }
 
 // recursively calls all middlewares

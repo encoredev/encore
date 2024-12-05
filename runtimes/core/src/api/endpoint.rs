@@ -108,6 +108,7 @@ pub type HandlerResponse = APIResult<HandlerResponseInner>;
 pub struct HandlerResponseInner {
     pub payload: JSONPayload,
     pub extra_headers: Option<HeaderMap>,
+    pub status: Option<u16>,
 }
 
 /// A trait for handlers that accept a request and return a response.
@@ -601,20 +602,18 @@ impl EndpointHandler {
                 Some(fields)
             });
 
-            let (status_code, mut encoded_resp, resp_payload, extra_headers, error) = match resp {
-                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None, None),
+            let (mut encoded_resp, resp_payload, extra_headers, error) = match resp {
+                ResponseData::Raw(resp) => (resp, None, None, None),
                 ResponseData::Typed(Ok(response)) => (
-                    200,
                     self.endpoint
                         .response
-                        .encode(&response.payload)
+                        .encode(&response.payload, response.status.unwrap_or(200))
                         .unwrap_or_else(|err| err.to_response(internal_caller)),
                     Some(response.payload),
                     response.extra_headers,
                     None,
                 ),
                 ResponseData::Typed(Err(err)) => (
-                    err.code.status_code().as_u16(),
                     err.as_ref().to_response(internal_caller),
                     None,
                     None,
@@ -627,7 +626,7 @@ impl EndpointHandler {
                     request: request.clone(),
                     duration,
                     data: model::ResponseData::RPC(model::RPCResponseData {
-                        status_code,
+                        status_code: encoded_resp.status().as_u16(),
                         resp_payload,
                         error,
                         resp_headers: encoded_resp.headers().clone(),

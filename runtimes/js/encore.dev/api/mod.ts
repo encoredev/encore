@@ -407,6 +407,7 @@ export class HandlerResponse {
   payload: any;
 
   private _headers?: ResponseHeader;
+  private _status?: number;
 
   constructor(payload: any) {
     this.payload = payload;
@@ -426,11 +427,19 @@ export class HandlerResponse {
   }
 
   /**
+   * Override the http status code for successful requests for typed endpoints.
+   */
+  public set status(s: number) {
+    this._status = s;
+  }
+
+  /**
    * toResponse converts a response to the internal representation
    */
   toResponse(): InternalHandlerResponse {
     return {
       payload: this.payload,
+      status: this._status,
       extraHeaders:
         this._headers === undefined ? undefined : this._headers?.headers
     };
