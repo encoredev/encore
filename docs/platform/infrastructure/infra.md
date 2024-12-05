@@ -89,7 +89,7 @@ Encore provisions production infrastructure resources using best-practice guidel
 | **Compute:**        | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp)  | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws)   |
 | **SQL Databases:**  | [GCP Cloud SQL](#sql-databases), [Neon](/docs/platform/infrastructure/neon) | [Amazon RDS](#sql-databases-1), [Neon](/docs/platform/infrastructure/neon) |
 | **Pub/Sub:**        | [GCP Pub/Sub](#pubsub)                                                      | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                            |
-| **Object Storage:** | [GCS](#object-storage)                                                      | [Amazon S3](#object-storage-1)                                             |
+| **Object Storage:** | [GCS/Cloud CDN](#object-storage)                                                      | [Amazon S3/CloudFront](#object-storage-1)                                             |
 | **Caches:**         | [GCP Memorystore (Redis)](#caching)                                         | [Amazon ElastiCache (Redis)](#caching-1)                                   |
 | **Cron Jobs:**      | Encore Managed                                                              | Encore Managed                                                             | Encore Managed |
 | **Secrets:**        | [Secret Manager][gcp-secrets]                                               | [AWS Secrets Manager][aws-secrets]                                         |
@@ -147,6 +147,8 @@ When using [Pub/Sub](/docs/ts/primitives/pubsub), Encore provisions [GCP Pub/Sub
 #### Object Storage
 When using [Object Storage](/docs/ts/primitives/object-storage), Encore provisions [Google Cloud Storage][gcp-gcs] buckets. Encore also handles fine-grained permission management of per-service storage operations (read, list, write, delete, etc).
 
+For public buckets, Encore also configures a [Cloud CDN](https://cloud.google.com/cdn) for optimal content delivery.
+
 #### Caching
 When using [Caching](/docs/go/primitives/caching), Encore provisions [GCP Memorystore for Redis][gcp-redis] clusters.
 
@@ -202,6 +204,8 @@ Additionally, Encore automatically creates and configures dead-letter topics.
 
 #### Object Storage
 When using [Object Storage](/docs/ts/primitives/object-storage), Encore provisions [Amazon S3][aws-s3] buckets. Encore also handles fine-grained permission management of per-service storage operations (read, list, write, delete, etc).
+
+For public buckets, Encore also configures a [CloudFront](https://aws.amazon.com/cloudfront/) distribution for optimal content delivery.
 
 #### Caching
 When using [Caching](/docs/go/primitives/caching), Encore provisions [Amazon ElastiCache for Redis][aws-redis] clusters.
