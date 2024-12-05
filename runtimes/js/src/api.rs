@@ -91,7 +91,7 @@ impl Request {
         self.inner
             .middleware_data
             .lock()
-            .unwrap()
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{}", e)))?
             .replace(PVals::from_unknown(vals)?.0);
 
         Ok(())
