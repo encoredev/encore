@@ -75,7 +75,7 @@ export interface APICallMeta {
   parsedPayload?: Record<string, any>;
 
   /**
-   *
+   * Contains values set in middlewares via `MiddlewareRequest.data`.
    */
   middlewareData?: Record<string, any>;
 }
