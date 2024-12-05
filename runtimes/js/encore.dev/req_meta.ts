@@ -165,7 +165,6 @@ export function currentRequest(): RequestMeta | undefined {
   };
 
   if (meta.apiCall) {
-    const mwData = req.getMiddlewareData();
     const api: APICallMeta = {
       type: "api-call",
       api: {
@@ -180,7 +179,7 @@ export function currentRequest(): RequestMeta | undefined {
       pathParams: meta.apiCall.pathParams ?? {},
       parsedPayload: meta.apiCall.parsedPayload,
       headers: meta.apiCall.headers,
-      middlewareData: mwData
+      middlewareData: meta.apiCall.middlewareData
     };
     return { ...base, ...api };
   } else if (meta.pubsubMessage) {
