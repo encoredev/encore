@@ -1,4 +1,5 @@
 use crate::error::coerce_to_api_error;
+use crate::headers::parse_header_map;
 use crate::napi_util::{await_promise, PromiseHandler};
 use crate::pvalue::{encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null};
 use crate::request_meta::RequestMeta;
@@ -6,9 +7,9 @@ use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
 use crate::{raw_api, request_meta, websocket_api};
-use encore_runtime_core::api::{self, schema};
+use encore_runtime_core::api::{self, HandlerResponse, HandlerResponseInner};
 use encore_runtime_core::model::RequestData;
-use napi::{Env, JsFunction, JsUnknown, NapiRaw};
+use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
 use std::pin::Pin;
@@ -87,15 +88,34 @@ impl Request {
 pub struct APIPromiseHandler;
 
 impl PromiseHandler for APIPromiseHandler {
-    type Output = Result<schema::JSONPayload, api::Error>;
+    type Output = HandlerResponse;
 
     fn resolve(&self, env: Env, val: Option<napi::JsUnknown>) -> Self::Output {
         let Some(val) = val else {
-            return Ok(None);
+            return Ok(HandlerResponseInner {
+                payload: None,
+                extra_headers: None,
+            });
         };
 
-        match parse_pvalues(val) {
-            Ok(val) => Ok(val),
+        let obj: JsObject = val
+            .try_into()
+            .map_err(|e| api::Error::invalid_argument("invalid handler response", e))?;
+
+        let payload = obj
+            .get_named_property::<napi::JsUnknown>("payload")
+            .map_err(api::Error::internal)?;
+
+        let extra_headers = obj
+            .get_named_property::<napi::JsUnknown>("extraHeaders")
+            .map_err(api::Error::internal)?;
+
+        match parse_pvalues(payload) {
+            Ok(val) => Ok(HandlerResponseInner {
+                payload: val,
+                extra_headers: parse_header_map(extra_headers)
+                    .map_err(|e| api::Error::invalid_argument("unable to parse extraHeaders", e))?,
+            }),
             Err(err) => self.error(env, err),
         }
     }
@@ -117,7 +137,7 @@ impl PromiseHandler for APIPromiseHandler {
 
 struct TypedRequestMessage {
     req: Request,
-    tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
+    tx: tokio::sync::mpsc::UnboundedSender<HandlerResponse>,
 }
 
 pub struct JSTypedHandler {
