@@ -4,8 +4,8 @@ import type { IncomingMessage, ServerResponse } from "http";
 import { RequestMeta, currentRequest } from "../mod";
 import { RawResponse } from "./mod";
 import { RawRequest } from "./mod";
-import { Sink, Stream, Socket } from "../internal/runtime/mod";
 import { InternalHandlerResponse } from "../internal/appinit/mod";
+import { IterableSocket, IterableStream, Sink } from "./stream";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -297,12 +297,12 @@ export interface MiddlewareOptions {
 
 export class MiddlewareRequest {
   private _reqMeta?: RequestMeta;
-  private _stream?: Sink | Stream | Socket;
+  private _stream?: IterableStream | IterableSocket | Sink;
   private _rawReq?: RawRequest;
   private _rawResp?: RawResponse;
 
   constructor(
-    stream?: Sink | Stream | Socket,
+    stream?: IterableStream | IterableSocket | Sink,
     rawReq?: RawRequest,
     rawResp?: RawResponse
   ) {
@@ -322,7 +322,7 @@ export class MiddlewareRequest {
   /**
    * stream is set when the handler is a stream handler.
    */
-  public get stream(): Sink | Stream | Socket | undefined {
+  public get stream(): IterableStream | IterableSocket | Sink | undefined {
     return this._stream;
   }
 
@@ -442,4 +442,4 @@ export function middleware(
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
-export { Sink, Stream, Socket } from "../internal/runtime/mod";
+export { IterableSocket, IterableStream, Sink } from "./stream";
