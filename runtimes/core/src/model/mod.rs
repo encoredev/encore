@@ -150,7 +150,7 @@ pub struct Request {
     /// Type-specific data.
     pub data: RequestData,
 
-    /// Meta-data produced by middlewares
+    /// Data added by middlewares
     pub middleware_data: Mutex<Option<PValues>>,
 }
 
