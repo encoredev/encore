@@ -205,6 +205,30 @@ if err != nil {
 }
 ```
 
+## Using Public Buckets
+
+Encore supports creating public buckets where objects can be accessed directly via HTTP/HTTPS without authentication. This is useful for serving static assets like images, videos, or other public files.
+
+To create a public bucket, set `Public: true` in the `BucketConfig`:
+
+```go
+var PublicAssets = objects.NewBucket("public-assets", objects.BucketConfig{
+    Public: true,
+})
+```
+
+Once configured as public, you can get the public URL for any object using the `PublicURL` method:
+
+```go
+// Get the public URL for an object
+url := PublicAssets.PublicURL("path/to/image.jpg")
+
+// The URL can be used directly or shared publicly
+fmt.Println(url) // e.g. https://assets.example.com/path/to/image.jpg
+```
+
+When deploying with Encore Cloud it will automatically configure the bucket to be publicly accessible and [configure CDN](/docs/platform/infrastructure/infra#production-infrastructure) for optimal content delivery.
+
 ### Using bucket references
 
 Encore uses static analysis to determine which services are accessing each bucket,
