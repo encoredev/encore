@@ -1,5 +1,6 @@
 import { Gateway } from "../../api/gateway";
 import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
+import { IterableSocket, IterableStream, Sink } from "../../api/stream";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -32,57 +33,6 @@ interface EndpointOptions {
   auth: boolean;
   isRaw: boolean;
   isStream: boolean;
-}
-
-class IterableStream {
-  private stream: runtime.Stream;
-
-  constructor(stream: runtime.Stream) {
-    this.stream = stream;
-  }
-
-  recv(): Promise<Record<string, any>> {
-    return this.stream.recv();
-  }
-
-  async *[Symbol.asyncIterator]() {
-    while (true) {
-      try {
-        yield await this.stream.recv();
-      } catch (e) {
-        break;
-      }
-    }
-  }
-}
-
-class IterableSocket {
-  private socket: runtime.Socket;
-
-  constructor(socket: runtime.Socket) {
-    this.socket = socket;
-  }
-
-  send(msg: Record<string, any>): void {
-    return this.socket.send(msg);
-  }
-  recv(): Promise<Record<string, any>> {
-    return this.socket.recv();
-  }
-
-  close(): void {
-    this.socket.close();
-  }
-
-  async *[Symbol.asyncIterator]() {
-    while (true) {
-      try {
-        yield await this.socket.recv();
-      } catch (e) {
-        break;
-      }
-    }
-  }
 }
 
 export interface InternalHandlerResponse {
@@ -179,19 +129,19 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         setCurrentRequest(req);
 
         // make readable streams async iterators
-        if (stream instanceof runtime.Stream) {
-          stream = new IterableStream(stream);
-        }
-        if (stream instanceof runtime.Socket) {
-          stream = new IterableSocket(stream);
-        }
+        const streamArg: IterableStream | IterableSocket | Sink =
+          stream instanceof runtime.Stream
+            ? new IterableStream(stream)
+            : stream instanceof runtime.Socket
+              ? new IterableSocket(stream)
+              : new Sink(stream);
 
         if (middlewares.length === 0) {
           const payload = req.payload();
           return toResponse(
             payload !== null
-              ? h.apiRoute.handler(payload, stream)
-              : h.apiRoute.handler(stream)
+              ? h.apiRoute.handler(payload, streamArg)
+              : h.apiRoute.handler(streamArg)
           );
         }
 
@@ -199,11 +149,15 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           // handshake payload
           const payload = req.payload();
           return payload !== null
-            ? h.apiRoute.handler(payload, stream)
-            : h.apiRoute.handler(stream);
+            ? h.apiRoute.handler(payload, streamArg)
+            : h.apiRoute.handler(streamArg);
         };
 
-        const mwRequest = new MiddlewareRequest(stream, undefined, undefined);
+        const mwRequest = new MiddlewareRequest(
+          streamArg,
+          undefined,
+          undefined
+        );
         return invokeMiddlewareChain(mwRequest, middlewares, handler);
       }
     };
