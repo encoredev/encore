@@ -300,7 +300,7 @@ export class MiddlewareRequest {
   private _stream?: IterableStream | IterableSocket | Sink;
   private _rawReq?: RawRequest;
   private _rawResp?: RawResponse;
-  private _middlewareMeta?: Record<string, any>;
+  private _data?: Record<string, any>;
 
   constructor(
     stream?: IterableStream | IterableSocket | Sink,
@@ -342,30 +342,14 @@ export class MiddlewareRequest {
   }
 
   /**
-   * setMeta sets data for a key, and can be retrieved by other middlewares,
-   * or in the handler through `currentRequest`.
+   * data can be used to pass data from middlewares to the handler.
+   * The data will be available via `currentRequest()`
    */
-  public setMeta(key: string, data: any) {
-    if (this._middlewareMeta === undefined) {
-      this._middlewareMeta = {};
+  public get data(): Record<string, any> {
+    if (this._data === undefined) {
+      this._data = {};
     }
-
-    this._middlewareMeta[key] = data;
-  }
-
-  /**
-   * getMeta fetches middleware meta data set for a specific key.
-   */
-  public getMeta(key: string): any | undefined {
-    if (this._middlewareMeta !== undefined) {
-      return this._middlewareMeta[key];
-    }
-
-    return undefined;
-  }
-
-  public get middlewareMeta(): Record<string, any> | undefined {
-    return this._middlewareMeta;
+    return this._data;
   }
 }
 
