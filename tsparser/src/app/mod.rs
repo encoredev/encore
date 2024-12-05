@@ -2,15 +2,19 @@ use std::collections::HashMap;
 
 use matchit::InsertError;
 use swc_common::errors::HANDLER;
+use swc_common::Span;
 
 use crate::encore::parser::meta::v1;
 use crate::legacymeta::compute_meta;
 use crate::parser::parser::{ParseContext, ParseResult};
-use crate::parser::resources::apis::api::{Method, Methods};
+use crate::parser::resources::apis::api::{Endpoint, Method, Methods};
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
+use crate::parser::types::visitor::VisitWith;
+use crate::parser::types::{validation, visitor, ResolveState, Type, Validated};
 use crate::parser::Range;
-use litparser::ParseResult as PResult;
+use crate::span_err::ErrReporter;
+use litparser::Sp;
 
 #[derive(Debug)]
 pub struct AppDesc {
@@ -60,9 +64,31 @@ impl Router {
     }
 }
 
-impl AppDesc {
+pub fn validate_and_describe(pc: &ParseContext, parse: ParseResult) -> Option<AppDesc> {
+    AppValidator { pc, parse: &parse }.validate();
+
+    if pc.errs.has_errors() {
+        return None;
+    }
+
+    match compute_meta(pc, &parse) {
+        Ok(meta) => Some(AppDesc { parse, meta }),
+        Err(err) => {
+            err.report();
+            None
+        }
+    }
+}
+
+struct AppValidator<'a> {
+    pc: &'a ParseContext,
+    parse: &'a ParseResult,
+}
+
+impl AppValidator<'_> {
     fn validate(&self) {
-        self.validate_apis()
+        self.validate_apis();
+        self.validate_pubsub()
     }
 
     fn validate_apis(&self) {
@@ -72,17 +98,69 @@ impl AppDesc {
                 if let Resource::APIEndpoint(endpoint) = &bind.resource {
                     let encoding = &endpoint.encoding;
                     router.try_add(&encoding.methods, &encoding.path, endpoint.range);
+
+                    self.validate_endpoint(endpoint);
                 }
             }
         }
     }
-}
 
-pub fn validate_and_describe(pc: &ParseContext, parse: ParseResult) -> PResult<AppDesc> {
-    let meta = compute_meta(pc, &parse)?;
-    let desc = AppDesc { parse, meta };
+    fn validate_endpoint(&self, ep: &Endpoint) {
+        if let Some(schema) = &ep.encoding.raw_req_schema {
+            self.validate_validations(schema);
+        }
+        if let Some(schema) = &ep.encoding.raw_resp_schema {
+            self.validate_validations(schema);
+        }
+    }
 
-    desc.validate();
+    fn validate_validations(&self, schema: &Sp<Type>) {
+        struct Visitor<'a> {
+            state: &'a ResolveState,
+            span: Span,
+        }
 
-    Ok(desc)
+        impl visitor::Visit for Visitor<'_> {
+            fn resolve_state(&self) -> &ResolveState {
+                self.state
+            }
+
+            fn visit_validated(&mut self, node: &Validated) {
+                if let Err(err) = node.expr.supports_type(&node.typ) {
+                    let s = err.to_string();
+                    self.span.err(&s);
+                } else {
+                    // Don't recurse into the validation expression, as it would report an error
+                    // below as if the expression was standalone.
+                    node.typ.visit_with(self);
+                }
+            }
+
+            fn visit_validation(&mut self, node: &validation::Expr) {
+                HANDLER.with(|h| {
+                    h.struct_span_err(
+                        self.span,
+                        &format!("unsupported standalone validation expression: {}", node),
+                    )
+                    .note("validation expressions must be attached to a regular type using '&'")
+                    .emit()
+                });
+            }
+        }
+
+        let state = self.pc.type_checker.state();
+        let mut visitor = Visitor {
+            state,
+            span: schema.span(),
+        };
+        schema.visit_with(&mut visitor);
+    }
+
+    fn validate_pubsub(&self) {
+        for res in self.parse.resources.iter() {
+            if let Resource::PubSubTopic(topic) = &res {
+                self.validate_validations(&topic.message_type);
+            }
+        }
+    }
 }
