@@ -70,9 +70,9 @@ async function invokeMiddlewareChain(
 
     // no more middlewares, execute the handler
     if (currentMiddleware === undefined) {
-      const mwMeta = req.middlewareMeta;
-      if (mwMeta !== undefined) {
-        curReq.setMiddlewareData(mwMeta);
+      const mwData = req.data;
+      if (mwData !== undefined) {
+        curReq.setMiddlewareData(mwData);
       }
       return new HandlerResponse(await handler());
     }

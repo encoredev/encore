@@ -89,7 +89,7 @@ impl Request {
     #[napi]
     pub fn set_middleware_data(&self, vals: JsUnknown) -> napi::Result<()> {
         let vals = PVals::from_unknown(vals)?.0;
-        let _ = self.inner.middleware_meta.lock().unwrap().replace(vals);
+        let _ = self.inner.middleware_data.lock().unwrap().replace(vals);
 
         Ok(())
     }
@@ -98,7 +98,7 @@ impl Request {
     pub fn get_middleware_data(&self) -> napi::Result<Option<PVals>> {
         Ok(self
             .inner
-            .middleware_meta
+            .middleware_data
             .lock()
             .unwrap()
             .clone()

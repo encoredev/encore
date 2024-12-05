@@ -74,7 +74,7 @@ impl AuthHandler for LocalAuthHandler {
                     auth_handler: this.name().clone(),
                     parsed_payload: AuthPayload { query, header },
                 }),
-                middleware_meta: None.into(),
+                middleware_data: None.into(),
             });
 
             let logger = crate::log::root();
