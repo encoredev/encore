@@ -10,7 +10,7 @@ use tokio::sync::{
 
 use crate::model::{self, Request, RequestData};
 
-use super::{schema, APIResult, PValues};
+use super::{schema, APIResult, HandlerResponse, HandlerResponseInner, PValues};
 
 pub enum StreamMessagePayload {
     InOut(Socket),
@@ -23,11 +23,7 @@ pub fn upgrade_request<C, Fut>(
     callback: C,
 ) -> APIResult<axum::response::Response>
 where
-    C: FnOnce(
-            Arc<Request>,
-            StreamMessagePayload,
-            UnboundedSender<APIResult<schema::JSONPayload>>,
-        ) -> Fut
+    C: FnOnce(Arc<Request>, StreamMessagePayload, UnboundedSender<HandlerResponse>) -> Fut
         + Send
         + 'static,
     Fut: Future<Output = ()> + Send + 'static,
@@ -63,7 +59,7 @@ where
         }
     };
 
-    let (tx, mut rx) = mpsc::unbounded_channel::<APIResult<schema::JSONPayload>>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<HandlerResponse>();
 
     let direction = data.direction;
     Ok(upgrade
@@ -80,12 +76,17 @@ where
                     tokio::spawn(async move {
                         match rx.recv().await {
                             Some(resp) => match resp {
-                                Ok(Some(resp)) => {
+                                Ok(HandlerResponseInner {
+                                    payload: Some(resp),
+                                    ..
+                                }) => {
                                     if sink.send(resp).is_err() {
                                         log::debug!("sink channel closed");
                                     }
                                 }
-                                Ok(None) => log::warn!("responded with empty response"),
+                                Ok(HandlerResponseInner { payload: None, .. }) => {
+                                    log::warn!("responded with empty response")
+                                }
                                 Err(err) => log::warn!("responded with error: {err:?}"),
                             },
                             None => log::debug!("response channel closed"),

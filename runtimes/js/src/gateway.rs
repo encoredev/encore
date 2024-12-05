@@ -5,8 +5,8 @@ use crate::pvalue::parse_pvalues;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
-use encore_runtime_core::api::schema;
-use encore_runtime_core::api::{self, PValues};
+use encore_runtime_core::api::HandlerResponse;
+use encore_runtime_core::api::{self, HandlerResponseInner};
 use napi::{Env, JsFunction, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
@@ -90,7 +90,7 @@ impl api::TypedHandler for JSAuthHandler {
 
 struct AuthMessage {
     req: Request,
-    tx: tokio::sync::mpsc::UnboundedSender<Result<schema::JSONPayload, api::Error>>,
+    tx: tokio::sync::mpsc::UnboundedSender<HandlerResponse>,
 }
 
 fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result<()> {
@@ -113,12 +113,20 @@ fn resolve_on_js_thread(ctx: ThreadSafeCallContext<AuthMessage>) -> napi::Result
 struct AuthPromiseHandler;
 
 impl PromiseHandler for AuthPromiseHandler {
-    type Output = Result<Option<PValues>, api::Error>;
+    type Output = HandlerResponse;
 
     fn resolve(&self, env: Env, val: Option<napi::JsUnknown>) -> Self::Output {
-        let Some(val) = val else { return Ok(None) };
+        let Some(val) = val else {
+            return Ok(HandlerResponseInner {
+                payload: None,
+                extra_headers: None,
+            });
+        };
         match parse_pvalues(val) {
-            Ok(val) => Ok(val),
+            Ok(val) => Ok(HandlerResponseInner {
+                payload: val,
+                extra_headers: None,
+            }),
             Err(err) => self.error(env, err),
         }
     }
