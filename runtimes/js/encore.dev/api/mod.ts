@@ -403,8 +403,7 @@ export class HandlerResponse {
   __internalToResponse(): InternalHandlerResponse {
     return {
       payload: this.payload,
-      extraHeaders:
-        this._headers === undefined ? undefined : this._headers?.headers
+      extraHeaders: this._headers?.headers
     };
   }
 }
