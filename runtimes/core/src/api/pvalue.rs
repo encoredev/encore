@@ -100,3 +100,18 @@ impl Display for PValue {
         }
     }
 }
+
+impl From<serde_json::Value> for PValue {
+    fn from(value: serde_json::Value) -> Self {
+        match value {
+            serde_json::Value::Null => PValue::Null,
+            serde_json::Value::Bool(b) => PValue::Bool(b),
+            serde_json::Value::Number(n) => PValue::Number(n),
+            serde_json::Value::String(s) => PValue::String(s),
+            serde_json::Value::Array(a) => PValue::Array(a.into_iter().map(PValue::from).collect()),
+            serde_json::Value::Object(o) => {
+                PValue::Object(o.into_iter().map(|(k, v)| (k, PValue::from(v))).collect())
+            }
+        }
+    }
+}
