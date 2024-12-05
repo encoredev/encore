@@ -113,7 +113,7 @@ async function invokeMiddlewareChain(
     });
   };
 
-  return (await execute(0, req)).toResponse();
+  return (await execute(0, req)).__internalToResponse();
 }
 
 // calculate what middlewares should run for an endpoint
@@ -266,9 +266,9 @@ function toResponse(
 ): InternalHandlerResponse | Promise<InternalHandlerResponse> {
   if (payload instanceof Promise) {
     return payload.then((payload) => {
-      return new HandlerResponse(payload).toResponse();
+      return new HandlerResponse(payload).__internalToResponse();
     });
   } else {
-    return new HandlerResponse(payload).toResponse();
+    return new HandlerResponse(payload).__internalToResponse();
   }
 }

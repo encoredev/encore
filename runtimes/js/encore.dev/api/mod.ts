@@ -398,9 +398,9 @@ export class HandlerResponse {
   }
 
   /**
-   * toResponse converts a response to the internal representation
+   * __internalToResponse converts a response to the internal representation
    */
-  toResponse(): InternalHandlerResponse {
+  __internalToResponse(): InternalHandlerResponse {
     return {
       payload: this.payload,
       extraHeaders:
