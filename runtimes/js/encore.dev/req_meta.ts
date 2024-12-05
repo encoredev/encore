@@ -73,6 +73,11 @@ export interface APICallMeta {
    * request data.
    */
   parsedPayload?: Record<string, any>;
+
+  /**
+   *
+   */
+  middlewareData?: Record<string, any>;
 }
 
 /** Describes a Pub/Sub message being processed. */
@@ -160,6 +165,7 @@ export function currentRequest(): RequestMeta | undefined {
   };
 
   if (meta.apiCall) {
+    const mwData = req.getMiddlewareData();
     const api: APICallMeta = {
       type: "api-call",
       api: {
@@ -173,7 +179,8 @@ export function currentRequest(): RequestMeta | undefined {
       pathAndQuery: meta.apiCall.pathAndQuery,
       pathParams: meta.apiCall.pathParams ?? {},
       parsedPayload: meta.apiCall.parsedPayload,
-      headers: meta.apiCall.headers
+      headers: meta.apiCall.headers,
+      middlewareData: mwData
     };
     return { ...base, ...api };
   } else if (meta.pubsubMessage) {

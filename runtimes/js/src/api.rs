@@ -1,7 +1,9 @@
 use crate::error::coerce_to_api_error;
 use crate::headers::parse_header_map;
 use crate::napi_util::{await_promise, PromiseHandler};
-use crate::pvalue::{encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null};
+use crate::pvalue::{
+    encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null, PVals,
+};
 use crate::request_meta::RequestMeta;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -9,6 +11,7 @@ use crate::threadsafe_function::{
 use crate::{raw_api, request_meta, websocket_api};
 use encore_runtime_core::api::{self, HandlerResponse, HandlerResponseInner};
 use encore_runtime_core::model::RequestData;
+use napi::bindgen_prelude::FromNapiValue;
 use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
@@ -82,6 +85,25 @@ impl Request {
             Auth(_) | PubSub(_) => env.get_null().map(|val| val.into_unknown()),
         }
     }
+
+    #[napi]
+    pub fn set_middleware_data(&self, vals: JsUnknown) -> napi::Result<()> {
+        let vals = PVals::from_unknown(vals)?.0;
+        let _ = self.inner.middleware_meta.lock().unwrap().replace(vals);
+
+        Ok(())
+    }
+
+    #[napi]
+    pub fn get_middleware_data(&self) -> napi::Result<Option<PVals>> {
+        Ok(self
+            .inner
+            .middleware_meta
+            .lock()
+            .unwrap()
+            .clone()
+            .map(PVals))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -95,6 +117,7 @@ impl PromiseHandler for APIPromiseHandler {
             return Ok(HandlerResponseInner {
                 payload: None,
                 extra_headers: None,
+                status: None,
             });
         };
 
@@ -110,9 +133,33 @@ impl PromiseHandler for APIPromiseHandler {
             .get_named_property::<napi::JsUnknown>("extraHeaders")
             .map_err(api::Error::internal)?;
 
+        let status = obj
+            .get_named_property::<napi::JsUnknown>("status")
+            .map_err(api::Error::internal)?;
+
+        let status = if status
+            .get_type()
+            .is_ok_and(|t| matches!(t, napi::ValueType::Number))
+        {
+            Some(
+                status
+                    .coerce_to_number()
+                    .map_err(api::Error::internal)
+                    .and_then(|s| s.get_uint32().map_err(api::Error::internal))
+                    .and_then(|s| {
+                        u16::try_from(s).map_err(|e| {
+                            api::Error::invalid_argument("invalid http status code", e)
+                        })
+                    })?,
+            )
+        } else {
+            None
+        };
+
         match parse_pvalues(payload) {
             Ok(val) => Ok(HandlerResponseInner {
                 payload: val,
+                status,
                 extra_headers: parse_header_map(extra_headers)
                     .map_err(|e| api::Error::invalid_argument("unable to parse extraHeaders", e))?,
             }),
