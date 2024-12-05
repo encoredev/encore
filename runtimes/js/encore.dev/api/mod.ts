@@ -300,6 +300,7 @@ export class MiddlewareRequest {
   private _stream?: IterableStream | IterableSocket | Sink;
   private _rawReq?: RawRequest;
   private _rawResp?: RawResponse;
+  private _middlewareMeta?: Record<string, any>;
 
   constructor(
     stream?: IterableStream | IterableSocket | Sink,
@@ -338,6 +339,33 @@ export class MiddlewareRequest {
    */
   public get rawResponse(): RawResponse | undefined {
     return this._rawResp;
+  }
+
+  /**
+   * setMeta sets data for a key, and can be retrieved by other middlewares,
+   * or in the handler through `currentRequest`.
+   */
+  public setMeta(key: string, data: any) {
+    if (this._middlewareMeta === undefined) {
+      this._middlewareMeta = {};
+    }
+
+    this._middlewareMeta[key] = data;
+  }
+
+  /**
+   * getMeta fetches middleware meta data set for a specific key.
+   */
+  public getMeta(key: string): any | undefined {
+    if (this._middlewareMeta !== undefined) {
+      return this._middlewareMeta[key];
+    }
+
+    return undefined;
+  }
+
+  public get middlewareMeta(): Record<string, any> | undefined {
+    return this._middlewareMeta;
   }
 }
 
@@ -379,6 +407,7 @@ export class HandlerResponse {
   payload: any;
 
   private _headers?: ResponseHeader;
+  private _status?: number;
 
   constructor(payload: any) {
     this.payload = payload;
@@ -398,12 +427,20 @@ export class HandlerResponse {
   }
 
   /**
+   * Override the http status code for successful requests for typed endpoints.
+   */
+  public set status(s: number) {
+    this._status = s;
+  }
+
+  /**
    * __internalToResponse converts a response to the internal representation
    */
   __internalToResponse(): InternalHandlerResponse {
     return {
       payload: this.payload,
-      extraHeaders: this._headers?.headers
+      extraHeaders: this._headers?.headers,
+      status: this._status
     };
   }
 }
