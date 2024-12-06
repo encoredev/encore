@@ -168,7 +168,7 @@ impl Ctx<'_> {
     pub fn typ(&self, typ: &ast::TsType) -> Type {
         match typ {
             ast::TsType::TsKeywordType(tt) => self.keyword(tt),
-            ast::TsType::TsThisType(_) => Type::This(This),
+            ast::TsType::TsThisType(_) => Type::This,
             ast::TsType::TsArrayType(tt) => self.array(tt),
             ast::TsType::TsTupleType(tt) => self.tuple(tt),
             ast::TsType::TsUnionOrIntersectionType(ast::TsUnionOrIntersectionType::TsUnionType(tt)) => self.union(tt),
@@ -272,12 +272,9 @@ impl Ctx<'_> {
     fn type_index(&self, span: Span, obj: &Type, idx: &Type) -> Type {
         match (obj, idx) {
             // If either obj or index is a generic type, we need to store it as a Generic::Index.
-            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => {
-                Type::Generic(Generic::Index(Index {
-                    source: Box::new(pair.0.clone()),
-                    index: Box::new(pair.1.clone()),
-                }))
-            }
+            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => Type::Generic(
+                Generic::Index((Box::new(pair.0.clone()), Box::new(pair.1.clone()))),
+            ),
 
             (Type::Named(named), idx) => {
                 let underlying = named.underlying(self.state);
@@ -302,7 +299,7 @@ impl Ctx<'_> {
                         let typ = f.typ.clone();
                         // If the field is optional, wrap the type in Optional.
                         if f.optional {
-                            Type::Optional(Optional(Box::new(typ)))
+                            Type::Optional(Box::new(typ))
                         } else {
                             typ
                         }
@@ -321,12 +318,9 @@ impl Ctx<'_> {
                 }
             },
 
-            (Type::Validated(v), idx) => {
-                let typ = self.type_index(span, &v.typ, idx);
-                Type::Validated(Validated {
-                    typ: Box::new(typ),
-                    expr: v.expr.clone(),
-                })
+            (Type::Validated((inner, expr)), idx) => {
+                let typ = self.type_index(span, inner, idx);
+                Type::Validated((Box::new(typ), expr.clone()))
             }
 
             (obj, idx) => {
@@ -351,7 +345,7 @@ impl Ctx<'_> {
             let mut params = params.borrow_mut();
             let idx = params.len();
             params.push(id);
-            Type::Generic(Generic::Inferred(Inferred(idx)))
+            Type::Generic(Generic::Inferred(idx))
         } else {
             tt.span.err("infer type outside of infer context");
             Type::Basic(Basic::Never)
@@ -365,18 +359,16 @@ impl Ctx<'_> {
     fn keyof(&self, typ: &Type) -> Type {
         match typ {
             Type::Basic(tt) => match tt {
-                Basic::Any => Type::Union(Union {
-                    types: vec![
-                        Type::Basic(Basic::String),
-                        Type::Basic(Basic::Number),
-                        Type::Basic(Basic::Symbol),
-                    ],
-                }),
+                Basic::Any => Type::Union(vec![
+                    Type::Basic(Basic::String),
+                    Type::Basic(Basic::Number),
+                    Type::Basic(Basic::Symbol),
+                ]),
 
                 // These should technically enumerate the built-in properties
                 // on these types, but we haven't implemented that yet.
                 Basic::String | Basic::Boolean | Basic::Number | Basic::BigInt | Basic::Symbol => {
-                    Type::Union(Union { types: vec![] })
+                    Type::Union(vec![])
                 }
 
                 // keyof these yields never.
@@ -389,17 +381,16 @@ impl Ctx<'_> {
                 | Basic::Never => Type::Basic(Basic::Never),
             },
 
-            Type::Enum(tt) => Type::Union(Union {
-                types: tt
-                    .members
+            Type::Enum(tt) => Type::Union(
+                tt.members
                     .iter()
                     .map(|m| Type::Literal(Literal::String(m.name.clone())))
                     .collect(),
-            }),
+            ),
 
             // These should technically enumerate the built-in properties
             // on these types, but we haven't implemented that yet.
-            Type::Array(_) | Type::Tuple(_) => Type::Union(Union { types: vec![] }),
+            Type::Array(_) | Type::Tuple(_) => Type::Union(vec![]),
 
             Type::Interface(interface) => {
                 let keys = interface
@@ -412,7 +403,7 @@ impl Ctx<'_> {
                         FieldName::Symbol(_) => None,
                     })
                     .collect();
-                Type::Union(Union { types: keys })
+                Type::Union(keys)
             }
 
             Type::Named(_) => {
@@ -425,21 +416,21 @@ impl Ctx<'_> {
                 Type::Basic(Basic::Never)
             }
 
-            Type::Optional(typ) => self.keyof(&typ.0),
-            Type::Union(union) => {
-                let res: Vec<_> = union.types.iter().map(|t| self.keyof(t)).collect();
-                Type::Union(Union { types: res })
+            Type::Optional(typ) => self.keyof(typ),
+            Type::Union(types) => {
+                let res: Vec<_> = types.iter().map(|t| self.keyof(t)).collect();
+                Type::Union(res)
             }
 
             // keyof "blah" is the same as keyof string, which should yield all properties.
-            Type::Literal(_) => Type::Union(Union { types: vec![] }),
+            Type::Literal(_) => Type::Union(vec![]),
 
-            Type::This(This) => Type::Basic(Basic::Never),
+            Type::This => Type::Basic(Basic::Never),
 
-            Type::Generic(generic) => Type::Generic(Generic::Keyof(Keyof(Box::new(
-                Type::Generic(generic.clone()),
-            )))),
-            Type::Validated(v) => self.keyof(&v.typ),
+            Type::Generic(generic) => {
+                Type::Generic(Generic::Keyof(Box::new(Type::Generic(generic.clone()))))
+            }
+            Type::Validated((inner, _)) => self.keyof(inner),
             Type::Validation(_) => {
                 HANDLER.with(|handler| handler.err("keyof ValidationExpr unsupported"));
                 Type::Basic(Basic::Never)
@@ -613,7 +604,7 @@ impl Ctx<'_> {
                         return if let Some(mapped_key_type) = self.mapped_key_type {
                             mapped_key_type.clone()
                         } else {
-                            Type::Generic(Generic::MappedKeyType(MappedKeyType))
+                            Type::Generic(Generic::MappedKeyType)
                         };
                     }
                 }
@@ -630,7 +621,7 @@ impl Ctx<'_> {
                         return if let Some(type_arg) = self.infer_type_args.get(idx) {
                             type_arg.clone().into_owned()
                         } else {
-                            Type::Generic(Generic::Inferred(Inferred(idx)))
+                            Type::Generic(Generic::Inferred(idx))
                         };
                     }
                 }
@@ -667,7 +658,7 @@ impl Ctx<'_> {
         if obj.name.as_ref().is_some_and(|s| s == "Array") && self.state.is_universe(obj.module_id)
         {
             let elem = type_arguments.pop().unwrap_or(Type::Basic(Basic::Never));
-            return Type::Array(Array(Box::new(elem)));
+            return Type::Array(Box::new(elem));
         }
 
         match &obj.kind {
@@ -771,11 +762,11 @@ impl Ctx<'_> {
     }
 
     fn array(&self, tt: &ast::TsArrayType) -> Type {
-        Type::Array(Array(Box::new(self.typ(&tt.elem_type))))
+        Type::Array(Box::new(self.typ(&tt.elem_type)))
     }
 
     fn optional(&self, tt: &ast::TsOptionalType) -> Type {
-        Type::Optional(Optional(Box::new(self.typ(&tt.type_ann))))
+        Type::Optional(Box::new(self.typ(&tt.type_ann)))
     }
 
     fn tuple(&self, tuple: &ast::TsTupleType) -> Type {
@@ -789,7 +780,7 @@ impl Ctx<'_> {
                 Some(t.ty.as_ref())
             }));
 
-        Type::Tuple(Tuple { types })
+        Type::Tuple(types)
     }
 
     fn union(&self, union_type: &ast::TsUnionType) -> Type {
@@ -809,7 +800,7 @@ impl Ctx<'_> {
         // Do we have a union type in `check`, and the AST is a naked type parameter?
         // If so, we need to treat it as a distributive conditional type.
         // See: https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
-        if let Type::Union(union) = &check {
+        if let Type::Union(types) = &check {
             if let ast::TsType::TsTypeRef(ref check) = tt.check_type.as_ref() {
                 if check.type_params.is_none() {
                     if let Some(ident) = check.type_name.as_ident() {
@@ -819,8 +810,7 @@ impl Ctx<'_> {
                             .any(|tp| tp.name.to_id() == ident.to_id())
                         {
                             // Apply the conditional to each type in the union.
-                            let result = union
-                                .types
+                            let result = types
                                 .iter()
                                 .map(|t| match t.assignable(self.state, &extends) {
                                     Some(true) => self.typ(&tt.true_type),
@@ -955,7 +945,7 @@ impl Ctx<'_> {
 
     fn expr(&self, expr: &ast::Expr) -> Type {
         match expr {
-            ast::Expr::This(_) => Type::This(This),
+            ast::Expr::This(_) => Type::This,
             ast::Expr::Array(lit) => self.array_lit(lit),
             ast::Expr::Object(lit) => self.object_lit(lit),
             ast::Expr::Fn(_) => {
@@ -1134,10 +1124,9 @@ impl Ctx<'_> {
             ast::Expr::TsNonNull(expr) => {
                 let base = self.expr(&expr.expr);
                 match base {
-                    Type::Optional(typ) => *typ.0,
-                    Type::Union(union) => {
-                        let non_null = union
-                            .types
+                    Type::Optional(typ) => *typ,
+                    Type::Union(types) => {
+                        let non_null = types
                             .into_iter()
                             .filter(|t| {
                                 !matches!(
@@ -1146,10 +1135,10 @@ impl Ctx<'_> {
                                 )
                             })
                             .collect::<Vec<_>>();
-                        match non_null.len() {
+                        match &non_null.len() {
                             0 => Type::Basic(Basic::Never),
                             1 => non_null[0].clone(),
-                            _ => Type::Union(Union { types: non_null }),
+                            _ => Type::Union(non_null),
                         }
                     }
                     _ => base,
@@ -1179,16 +1168,14 @@ impl Ctx<'_> {
             if elem.spread.is_some() {
                 // The type of [...["a"]] is string[].
                 if let Type::Array(arr) = base {
-                    base = *arr.0;
+                    base = *arr;
                 }
             }
 
             match &elem_type {
                 Some(Type::Union(_elem_types)) => {}
                 Some(typ) => {
-                    elem_type = Some(Type::Union(Union {
-                        types: vec![typ.clone(), base],
-                    }));
+                    elem_type = Some(Type::Union(vec![typ.clone(), base]));
                 }
                 None => {
                     elem_type = Some(base);
@@ -1196,7 +1183,7 @@ impl Ctx<'_> {
             }
         }
 
-        Type::Union(Union { types: elem_types })
+        Type::Union(elem_types)
     }
 
     fn object_lit(&self, lit: &ast::ObjectLit) -> Type {
@@ -1293,7 +1280,7 @@ impl Ctx<'_> {
             | Type::Tuple(_)
             | Type::Union(_)
             | Type::Optional(_)
-            | Type::This(_)
+            | Type::This
             | Type::Generic(_)
             | Type::Class(_)
             | Type::Validation(_) => {
@@ -1351,7 +1338,7 @@ impl Ctx<'_> {
                 let underlying = self.underlying(obj_type);
                 self.resolve_member_prop(&underlying, prop)
             }
-            Type::Validated(v) => self.resolve_member_prop(&v.typ, prop),
+            Type::Validated((inner, _)) => self.resolve_member_prop(inner, prop),
         }
     }
 
@@ -1556,31 +1543,27 @@ impl Ctx<'_> {
     pub fn concrete<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         match typ {
             // Basic types that never change.
-            Type::Basic(_) | Type::Literal(_) | Type::Enum(_) | Type::This(_) => Same(typ),
+            Type::Basic(_) | Type::Literal(_) | Type::Enum(_) | Type::This => Same(typ),
 
             // Nested types that recurse.
-            Type::Array(elem) => match self.concrete(&elem.0) {
-                New(t) => New(Type::Array(Array(Box::new(t)))),
-                Changed(t) => New(Type::Array(Array(Box::new(t.clone())))),
+            Type::Array(elem) => match self.concrete(elem) {
+                New(t) => New(Type::Array(Box::new(t))),
+                Changed(t) => New(Type::Array(Box::new(t.clone()))),
                 Same(_) => Same(typ),
             },
-            Type::Tuple(tuple) => match self.concrete_list(&tuple.types) {
-                New(t) => New(Type::Tuple(Tuple { types: t })),
-                Changed(t) => New(Type::Tuple(Tuple {
-                    types: t.to_owned(),
-                })),
+            Type::Tuple(types) => match self.concrete_list(types) {
+                New(t) => New(Type::Tuple(t)),
+                Changed(t) => New(Type::Tuple(t.to_owned())),
                 Same(_) => Same(typ),
             },
-            Type::Union(union) => match self.concrete_list(&union.types) {
-                New(t) => New(Type::Union(Union { types: t })),
-                Changed(t) => New(Type::Union(Union {
-                    types: t.to_owned(),
-                })),
+            Type::Union(types) => match self.concrete_list(types) {
+                New(t) => New(Type::Union(t)),
+                Changed(t) => New(Type::Union(t.to_owned())),
                 Same(_) => Same(typ),
             },
-            Type::Optional(opt) => match self.concrete(&opt.0) {
-                New(t) => New(Type::Optional(Optional(Box::new(t)))),
-                Changed(t) => New(Type::Optional(Optional(Box::new(t.to_owned())))),
+            Type::Optional(typ) => match self.concrete(typ) {
+                New(t) => New(Type::Optional(Box::new(t))),
+                Changed(t) => New(Type::Optional(Box::new(t.to_owned()))),
                 Same(_) => Same(typ),
             },
 
@@ -1667,9 +1650,9 @@ impl Ctx<'_> {
                     }
                 }
 
-                Generic::Inferred(inferred) => {
+                Generic::Inferred(idx) => {
                     // If we have a concrete inferred type, return that.
-                    if let Some(arg) = self.infer_type_args.get(inferred.0) {
+                    if let Some(arg) = self.infer_type_args.get(*idx) {
                         Changed(arg)
                     } else {
                         // We don't have a concrete type, so return the original type.
@@ -1678,7 +1661,7 @@ impl Ctx<'_> {
                 }
 
                 Generic::Keyof(source) => {
-                    let concrete_source = self.concrete(&source.0);
+                    let concrete_source = self.concrete(source);
                     let keys = self.keyof(&concrete_source);
                     New(keys)
                 }
@@ -1711,7 +1694,6 @@ impl Ctx<'_> {
                             // Construct a modified context that modifies the given type argument
                             // to refer only to the concrete type for this union.
                             let result: Vec<_> = check
-                                .types
                                 .into_iter()
                                 .filter_map(|c| {
                                     // Modify the type args.
@@ -1775,9 +1757,9 @@ impl Ctx<'_> {
                     }
                 }
 
-                Generic::Index(index) => {
-                    let source = self.concrete(&index.source);
-                    let index = self.concrete(&index.index);
+                Generic::Index((source, index)) => {
+                    let source = self.concrete(source);
+                    let index = self.concrete(index);
                     let result = self.type_index(Span::default(), &source, &index);
                     New(result)
                 }
@@ -1812,9 +1794,6 @@ impl Ctx<'_> {
                                 });
                             }
 
-                            // An unresolved generic type means we can't resolve this yet.
-                            Type::Generic(_) => return Same(typ),
-
                             // Do we have a wildcard type like "string" or "number"?
                             // If so treat it as an index signature.
                             source @ (Type::Basic(Basic::String)
@@ -1830,7 +1809,7 @@ impl Ctx<'_> {
                                 let (typ, optional) = match value {
                                     // Never means the field should be excluded.
                                     Type::Basic(Basic::Never) => continue,
-                                    Type::Optional(typ) => (*typ.0, true),
+                                    Type::Optional(typ) => (*typ, true),
                                     typ => (typ, false),
                                 };
 
@@ -1857,9 +1836,9 @@ impl Ctx<'_> {
                             let value = if *optional {
                                 match value.as_ref() {
                                     Type::Optional(_) => value,
-                                    _ => Box::new(Type::Optional(Optional(value))),
+                                    _ => Box::new(Type::Optional(value)),
                                 }
-                            } else if let Type::Optional(Optional(inner)) = *value {
+                            } else if let Type::Optional(inner) = *value {
                                 inner
                             } else {
                                 value
@@ -1875,21 +1854,15 @@ impl Ctx<'_> {
                     New(Type::Interface(iface))
                 }
 
-                Generic::MappedKeyType(_) => match self.mapped_key_type {
+                Generic::MappedKeyType => match self.mapped_key_type {
                     Some(key) => Changed(key),
                     None => Same(typ),
                 },
             },
 
-            Type::Validated(v) => match self.concrete(&v.typ) {
-                New(inner) => New(Type::Validated(Validated {
-                    typ: Box::new(inner),
-                    expr: v.expr.clone(),
-                })),
-                Changed(inner) => New(Type::Validated(Validated {
-                    typ: Box::new(inner.clone()),
-                    expr: v.expr.clone(),
-                })),
+            Type::Validated((inner, expr)) => match self.concrete(inner) {
+                New(inner) => New(Type::Validated((Box::new(inner), expr.clone()))),
+                Changed(inner) => New(Type::Validated((Box::new(inner.clone()), expr.clone()))),
                 Same(_) => Same(typ),
             },
 

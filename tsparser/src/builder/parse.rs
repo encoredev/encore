@@ -35,7 +35,13 @@ impl Builder<'_> {
         let parser = Parser::new(pc, pass1);
 
         let result = parser.parse();
-        let desc = validate_and_describe(pc, result)?;
+        let desc = match validate_and_describe(pc, result) {
+            Ok(desc) => desc,
+            Err(err) => {
+                err.report();
+                return None;
+            }
+        };
 
         if pc.errs.has_errors() {
             None
