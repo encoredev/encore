@@ -289,7 +289,46 @@ describe("shorten", () => {
 
 If you use the local development dashboard ([localhost:9400](http://localhost:9400)), you can even see traces for tests.
 
-## 5. Deploy to the cloud
+<Accordion>
+
+## Self-hosting
+
+Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
+
+If your app is using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration. 
+Our URL shortener makes use of a PostgreSQL database, so we'll need to supply a runtime configuration so that our app knows how to connect to the database in the cloud.
+
+🥐 Create a new file `infra-config.json` in the root of your project with the following contents:
+
+```json
+{
+   "$schema": "https://encore.dev/schemas/infra.schema.json",
+   "sql_servers": [
+      {
+         "host": "my-db-host:5432",
+         "databases": {
+            "my-db": {
+               "username": "my-db-owner",
+                "password": {"$env": "DB_PASSWORD"}
+            }
+         }
+      }
+   ]
+}
+```
+
+The values in this configuration are just examples, you will need to replace them with the correct values for your database.
+Take a look at our guide for [deploying an Encore app with a PostgreSQL database to Digital Ocean](docs/ts/self-host/deploy-digitalocean) for more information.
+
+🥐 Build a Docker image by running `encore build docker MY-IMAGE-NAME`.
+
+This will compile your application using the host machine and then produce a Docker image containing the compiled application. 
+
+</Accordion>
+
+<Accordion>
+
+## Deploy to Encore Cloud
 
 The final step before you deploy is to commit all changes to the project repo.
 
@@ -325,10 +364,12 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 
 ![Fireworks](/assets/docs/fireworks.jpg)
 
+🥐 A great next step is to [integrate with GitHub](/docs/platform/integrations/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
+
+</Accordion>
+
 ## What's next
 
 Now that you know how to build a backend with a database, you're ready to let your creativity flow and begin building your next great idea!
-
-🥐 A great next step is to [integrate with GitHub](/docs/platform/integrations/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
 
 We're excited to hear what you're going to build with Encore, join the pioneering developer community on [Discord](/discord) and share your story.
