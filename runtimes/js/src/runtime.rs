@@ -38,7 +38,7 @@ impl Runtime {
 
         let test_mode = options
             .test_mode
-            .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
+            .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val != "production"));
         let is_worker = options.is_worker.unwrap_or(false);
         let runtime = encore_runtime_core::Runtime::builder()
             .with_test_mode(test_mode)
