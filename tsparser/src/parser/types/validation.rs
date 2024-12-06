@@ -1,47 +1,13 @@
 use crate::encore::parser::schema::v1 as schema;
 use core::hash::{Hash, Hasher};
 use serde::Serialize;
-use std::{
-    error::Error,
-    fmt::{Display, Write},
-    ops::Deref,
-};
-
-use super::{Basic, Type};
+use std::ops::Deref;
 
 #[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
 pub enum Expr {
     Rule(Rule),
     And(Vec<Expr>),
     Or(Vec<Expr>),
-}
-
-impl Display for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Rule(r) => f.write_fmt(format_args!("{}", r)),
-            Self::And(a) => {
-                f.write_char('(')?;
-                for (i, e) in a.iter().enumerate() {
-                    if i > 0 {
-                        f.write_str(" & ")?;
-                    }
-                    f.write_fmt(format_args!("{}", e))?;
-                }
-                f.write_char(')')
-            }
-            Self::Or(a) => {
-                f.write_char('(')?;
-                for (i, e) in a.iter().enumerate() {
-                    if i > 0 {
-                        f.write_str(" | ")?;
-                    }
-                    f.write_fmt(format_args!("{}", e))?;
-                }
-                f.write_char(')')
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
@@ -54,22 +20,6 @@ pub enum Rule {
     EndsWith(String),
     MatchesRegexp(String),
     Is(Is),
-}
-
-impl Display for Rule {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::MinLen(n) => f.write_fmt(format_args!("MinLen<{}>", n)),
-            Self::MaxLen(n) => f.write_fmt(format_args!("MaxLen<{}>", n)),
-            Self::MinVal(n) => f.write_fmt(format_args!("Min<{}>", n)),
-            Self::MaxVal(n) => f.write_fmt(format_args!("Max<{}>", n)),
-            Self::StartsWith(s) => f.write_fmt(format_args!("StartsWith<{:#?}>", s)),
-            Self::EndsWith(s) => f.write_fmt(format_args!("EndsWith<{:#?}", s)),
-            Self::MatchesRegexp(s) => f.write_fmt(format_args!("MatchesRegexp<{:#?}", s)),
-            Self::Is(Is::Email) => f.write_str("IsEmail"),
-            Self::Is(Is::Url) => f.write_str("IsURL"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
@@ -115,22 +65,6 @@ impl Rule {
                 Is::Email => schema::validation_rule::Is::Email,
                 Is::Url => schema::validation_rule::Is::Url,
             } as i32),
-        }
-    }
-
-    pub fn supports_type(&self, typ: &Type) -> bool {
-        match self {
-            Self::MinLen(_) | Self::MaxLen(_) => {
-                matches!(typ, Type::Array(_) | Type::Basic(Basic::String))
-            }
-            Self::MinVal(_) | Self::MaxVal(_) => matches!(typ, Type::Basic(Basic::Number)),
-            Self::StartsWith(_)
-            | Self::EndsWith(_)
-            | Self::MatchesRegexp(_)
-            | Self::Is(Is::Email)
-            | Self::Is(Is::Url) => {
-                matches!(typ, Type::Basic(Basic::String))
-            }
         }
     }
 }
@@ -294,83 +228,10 @@ impl Expr {
             }),
         }
     }
-
-    pub fn supports_type<'a>(
-        &'a self,
-        typ: &'a Type,
-    ) -> Result<(), UnsupportedValidationsError<'a>> {
-        match self {
-            Self::And(exprs) | Self::Or(exprs) => {
-                let mut errors = Vec::new();
-                for expr in exprs {
-                    if let Err(e) = expr.supports_type(typ) {
-                        errors.extend(e.0);
-                    }
-                }
-                if errors.is_empty() {
-                    Ok(())
-                } else {
-                    Err(UnsupportedValidationsError(errors))
-                }
-            }
-            Self::Rule(rule) => {
-                if !rule.supports_type(typ) {
-                    let v = UnsupportedValidation { typ, rule };
-                    Err(UnsupportedValidationsError(vec![v]))
-                } else {
-                    Ok(())
-                }
-            }
-        }
-    }
 }
-
-#[derive(Debug, Clone)]
-pub struct UnsupportedValidation<'a> {
-    pub typ: &'a Type,
-    pub rule: &'a Rule,
-}
-
-#[derive(Debug, Clone)]
-pub struct UnsupportedValidationsError<'a>(pub Vec<UnsupportedValidation<'a>>);
-
-impl Display for UnsupportedValidation<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} cannot be applied to {}",
-            self.rule, self.typ
-        ))
-    }
-}
-
-impl Display for UnsupportedValidationsError<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0.len() == 1 {
-            write!(f, "unsupported validation: {}", &self.0[0])
-        } else {
-            f.write_str("unsupported validation: ")?;
-            for (i, rule) in self.0.iter().enumerate() {
-                if i > 0 {
-                    f.write_str(", ")?;
-                }
-                write!(f, "{}", rule)?;
-            }
-            Ok(())
-        }
-    }
-}
-
-impl Error for UnsupportedValidationsError<'_> {}
-impl Error for UnsupportedValidation<'_> {}
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct N(pub f64);
-
-impl Display for N {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 impl Deref for N {
     type Target = f64;

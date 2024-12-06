@@ -326,7 +326,6 @@ func (db *Database) Begin(ctx context.Context) (*Tx, error) {
 // this will be made with backwards compatibility in mind, providing ample notice and
 // time to migrate in an opt-in fashion.
 func Driver[T SupportedDrivers](db *Database) T {
-	db.init()
 	if db.noopDB {
 		var zero T
 		return zero
