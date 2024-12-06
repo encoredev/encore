@@ -7,15 +7,15 @@ use crate::pvalue::PVals;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("invalid json")]
+    #[error("failed serializing json")]
     SerializeJson(#[from] serde_json::Error),
     #[error("mutex poisoned")]
-    MutexPoisoned,
+    MutexPoison,
 }
 
 impl<T> From<std::sync::PoisonError<T>> for Error {
     fn from(_value: std::sync::PoisonError<T>) -> Self {
-        Self::MutexPoisoned
+        Self::MutexPoison
     }
 }
 
@@ -23,7 +23,7 @@ impl From<Error> for napi::Error {
     fn from(err: Error) -> Self {
         match err {
             Error::SerializeJson(error) => napi::Error::from(error),
-            Error::MutexPoisoned => napi::Error::from(err),
+            Error::MutexPoison => napi::Error::from(err),
         }
     }
 }
