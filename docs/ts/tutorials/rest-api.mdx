@@ -289,13 +289,15 @@ describe("shorten", () => {
 
 If you use the local development dashboard ([localhost:9400](http://localhost:9400)), you can even see traces for tests.
 
+## 5. Deploy
+
 <Accordion>
 
-## Self-hosting
+### Self-hosting
 
 Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
 
-If your app is using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration. 
+If your app is using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration.
 Our URL shortener makes use of a PostgreSQL database, so we'll need to supply a runtime configuration so that our app knows how to connect to the database in the cloud.
 
 🥐 Create a new file `infra-config.json` in the root of your project with the following contents:
@@ -307,7 +309,7 @@ Our URL shortener makes use of a PostgreSQL database, so we'll need to supply a 
       {
          "host": "my-db-host:5432",
          "databases": {
-            "my-db": {
+            "url": {
                "username": "my-db-owner",
                 "password": {"$env": "DB_PASSWORD"}
             }
@@ -320,15 +322,17 @@ Our URL shortener makes use of a PostgreSQL database, so we'll need to supply a 
 The values in this configuration are just examples, you will need to replace them with the correct values for your database.
 Take a look at our guide for [deploying an Encore app with a PostgreSQL database to Digital Ocean](docs/ts/self-host/deploy-digitalocean) for more information.
 
-🥐 Build a Docker image by running `encore build docker MY-IMAGE-NAME`.
+🥐 Build a Docker image by running `encore build docker url-shortener:v1.0`.
 
-This will compile your application using the host machine and then produce a Docker image containing the compiled application. 
+This will compile your application using the host machine and then produce a Docker image containing the compiled application.
+
+🥐 Upload the Docker image to the cloud provider of your choice and run it.
 
 </Accordion>
 
 <Accordion>
 
-## Deploy to Encore Cloud
+### Encore Cloud (free)
 
 Encore Cloud provides automated infrastructure and DevOps. Deploy to a free development environment or to your own cloud account on AWS or GCP.
 
