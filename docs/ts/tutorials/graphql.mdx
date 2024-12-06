@@ -373,9 +373,42 @@ And you should now see the "The Hobbit" in the list of books.
 
 🥐 Try opening the Local Development Dashboard at [http://localhost:9400](http://localhost:9400) and view the traces that were generated when calling your GraphQL API.
 
-## 7. Deploy to the cloud
 
-You can see how to configure and deploy your application in the [self-hosting documentation](/docs/ts/self-host/build), or you can use Encore Cloud Platform to automate infrastructure provisioning. More on that below:
+## 7. Deploy
+
+<Accordion>
+
+### Self-hosting
+
+Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
+
+If your app is using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to supply a [runtime configuration](/docs/ts/self-host/configure-infra) your Docker image.
+
+🥐 Build a Docker image by running `encore build docker graphql:v1.0`.
+
+This will compile your application using the host machine and then produce a Docker image containing the compiled application.
+
+🥐 Upload the Docker image to the cloud provider of your choice and run it.
+
+</Accordion>
+
+<Accordion>
+
+### Encore Cloud (free)
+
+Encore Cloud provides automated infrastructure and DevOps. Deploy to a free development environment or to your own cloud account on AWS or GCP.
+
+### Create account
+
+Before deploying with Encore Cloud, you need to have a free Encore Cloud account and link your app to the platform. If you already have an account, you can move on to the next step.
+
+If you don’t have an account, the simplest way to get set up is by running `encore app create` and selecting **Y** when prompted to create a new account. Once your account is set up, continue creating a new app, selecting the `empty app` template.
+
+After creating the app, copy your project files into the new app directory, ensuring that you do not replace the `encore.app` file (this file holds a unique id which links your app to the platform).
+
+### Commit changes
+
+The final step before you deploy is to commit all changes to the project repo.
 
 🥐 Push your changes and deploy your application to Encore's free development cloud by running:
 
@@ -402,6 +435,8 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
 
 ![Fireworks](/assets/docs/fireworks.jpg)
+
+</Accordion>
 
 ## Conclusion
 
