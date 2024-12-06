@@ -4,9 +4,7 @@ pub mod custom;
 mod object;
 mod typ;
 mod type_resolve;
-mod type_string;
 mod utils;
-pub mod visitor;
 
 mod resolved;
 #[cfg(test)]
@@ -14,6 +12,9 @@ mod tests;
 pub mod validation;
 
 pub use object::{Object, ObjectId, ObjectKind, ResolveState};
-pub use typ::*;
+pub use typ::{
+    Basic, ClassType, EnumMember, EnumType, EnumValue, FieldName, Generic, Interface,
+    InterfaceField, Literal, Named, Type, TypeArgId,
+};
 pub use type_resolve::TypeChecker;
 pub use utils::*;
