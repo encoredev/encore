@@ -2,51 +2,51 @@
 seotitle: Cloud Infrastructure Provisioning
 seodesc: Learn how to provision appropriate cloud infrastructure depending on the environment type for AWS and GCP.
 title: Infrastructure provisioning
-subtitle: How Encore provisions infrastructure for your application
+subtitle: How Encore Cloud provisions infrastructure for your application
 lang: platform
 ---
 
-Encore automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring application code changes. You simply [connect your cloud account](/docs/platform/infrastructure/own-cloud) and create an environment.
+Encore Cloud automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring application code changes. You simply [connect your cloud account](/docs/platform/infrastructure/own-cloud) and create an environment.
 
 <img src="/assets/docs/encore_overview.png" title="Infrastructure Overview" className="noshadow"/>
 
 This is powered by Encore's [Backend Framework](/docs/ts), which lets you declare infrastructure resources (databases, caches, queues, scheduled jobs, etc.) as type-safe objects in application code.
 
-At compile time, Encore creates an [Application Model](/docs/ts/concepts/application-model) with a definition of the infrastructure your application requires. Encore then uses this model to provision the infrastructure in both your cloud account, and development and preview environments in Encore Cloud.
+At compile time, Encore creates an [Application Model](/docs/ts/concepts/application-model) with a definition of the infrastructure your application requires. Encore Cloud then uses this model to provision the infrastructure in both your cloud account, and development and preview environments hosted by Encore Cloud.
 
 The approach removes the need for infrastructure configuration files and avoids creating cloud-specific dependencies in your application.
 
-Having an end-to-end integration between application code and infrastructure also enables Encore to keep environments in sync and track cloud infrastructure, giving you an up-to-date view of your infrastructure to avoid unnecessary cloud costs.
+Having an end-to-end integration between application code and infrastructure also enables Encore Cloud to keep environments in sync and track cloud infrastructure, giving you an up-to-date view of your infrastructure to avoid unnecessary cloud costs.
 
 <img src="/assets/docs/infra_config_new.png" title="Infrastructure Tracking"/>
 
 ## Environment types
 
-By default, Encore provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via the Encore Cloud dashboard and your cloud provider's console. Encore takes care of syncing your changes.
+By default, Encore Cloud provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via the Encore Cloud dashboard and your cloud provider's console. Encore Cloud takes care of syncing your changes.
 
-|                        | Local              | Encore Cloud               | GCP / AWS                          |
+|                        | Local              | Encore Cloud Hosting              | GCP / AWS                          |
 | ---------------------- | ------------------ | -------------------------- | ---------------------------------- |
 | **Environment types:** | Development        | Preview, Development       | Development, Production            |
 | **Objectives:**        | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
 
-\*Encore Cloud is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/platform/management/usage)
+\*Encore Cloud Hostirng is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/platform/management/usage)
 
 ## Development Infrastructure
 
-Encore provisions infrastructure resources differently for each type of development environment.
+Encore Cloud provisions infrastructure resources differently for each type of development environment.
 
-|                     | Local                             | Preview / Development (Encore Cloud)                   | GCP / AWS                                                      |
+|                     | Local                             | Preview / Development (Encore Cloud Hosting)                   | GCP / AWS                                                      |
 | ------------------- | --------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
-| **SQL Databases:**  | Docker                            | Encore Managed (Kubernetes), [Neon](/docs/deploy/neon) | [See production](/docs/deploy/infra#production-infrastructure) |
+| **SQL Databases:**  | Docker                            | Encore Cloud Managed (Kubernetes), [Neon](/docs/deploy/neon) | [See production](/docs/deploy/infra#production-infrastructure) |
 | **Pub/Sub:**        | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub                                            | [See production](/docs/deploy/infra#production-infrastructure) |
 | **Caches:**         | In-memory (Redis)                 | In-memory (Redis)                                      | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Cron Jobs:**      | Disabled                          | [Encore Managed](/docs/primitives/cron-jobs)           | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Object Storage:** | Local Disk                        | Encore Managed                                         | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Cron Jobs:**      | Disabled                          | [Encore Cloud Managed](/docs/primitives/cron-jobs)           | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Object Storage:** | Local Disk                        | Encore Cloud Managed                                         | [See production](/docs/deploy/infra#production-infrastructure) |
 
 
 ### Local Development
 
-For local development Encore provisions a combination of Docker and in-memory infrastructure components.
+For local development Encore Cloud provisions a combination of Docker and in-memory infrastructure components.
 SQL Databases are provisioned using [Docker](https://docker.com). For Pub/Sub
 and Caching the infrastructure is run in-memory.
 
@@ -60,20 +60,20 @@ The application code itself is compiled and run natively on your machine (withou
 
 ### Preview Environments
 
-When you've [connected your application to GitHub](/docs/platform/integrations/github), Encore automatically provisions a temporary [Preview Environment](/docs/platform/deploy/preview-environments) for each Pull Request.
+When you've [connected your application to GitHub](/docs/platform/integrations/github), Encore Cloud automatically provisions a temporary [Preview Environment](/docs/platform/deploy/preview-environments) for each Pull Request.
 
-Preview Environments are created in Encore Cloud, and are optimized for provisioning speed and cost-effectiveness.
+Preview Environments are created in Encore Cloud Hosting, and are optimized for provisioning speed and cost-effectiveness.
 The Preview Environment is automatically destroyed when the Pull Request is merged or closed.
 
 Preview Environments are named after the pull request, so PR #72 will create an environment named `pr:72`.
 
-### Encore Cloud
+### Encore Cloud Hosting
 
-Encore Cloud is a simple, zero-configuration hosting solution provided by Encore.
+Encore Cloud Hosting is a simple, zero-configuration hosting solution provided by Encore.
 It's perfect for development environments and small-scale use that do not require any specific SLAs.
-It's also a great way to evaluate Encore without needing to connect your cloud account.
+It's also a great way to evaluate Encore Cloud without needing to connect your cloud account.
 
-Encore Cloud is not designed for business-critical use and does not offer reliability guarantees for persistent storage
+Encore Cloud Hosting is not designed for business-critical use and does not offer reliability guarantees for persistent storage
 like SQL Databases. Other infrastructure primitives like Pub/Sub and Caching
 are provisioned with small-scale use in mind.
 
@@ -81,7 +81,7 @@ are provisioned with small-scale use in mind.
 
 ## Production Infrastructure
 
-Encore provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
+Encore Cloud provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
 
 |                     | GCP                                                                         | AWS                                                                        |
 | ------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -91,14 +91,14 @@ Encore provisions production infrastructure resources using best-practice guidel
 | **Pub/Sub:**        | [GCP Pub/Sub](/docs/platform/infrastructure/gcp#pubsub)                                                      | [Amazon SQS & Amazon SNS](/docs/platform/infrastructure/aws#pubsub)                            |
 | **Object Storage:** | [GCS](/docs/platform/infrastructure/gcp#object-storage)                                                      | [Amazon S3](/docs/platform/infrastructure/aws#object-storage)                                             |
 | **Caches:**         | [GCP Memorystore (Redis)](/docs/platform/infrastructure/gcp#caching)                                         | [Amazon ElastiCache (Redis)](/docs/platform/infrastructure/aws#caching)                                   |
-| **Cron Jobs:**      | Encore Managed                                                              | Encore Managed                                                             | Encore Managed |
-| **Secrets:**        | [Secret Manager](/docs/platform/infrastructure/gcp#secrets-management)                                               | [AWS Secrets Manager](/docs/platform/infrastructure/aws#secrets-management)                                         |
+| **Cron Jobs:**      | Encore Cloud Managed                                                              | Encore Cloud Managed                                                             | Encore Cloud Managed |
+| **Secrets:**        | [Secret Manager](/docs/platform/infrastructure/gcp#secrets-management)                                               | [AWS Secrets Manager](/docs/platform/infrastructure/aws#se)                                         |
 
 ### Configurability
 
-With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in the Encore Cloud dashboard. Encore takes care of syncing the changes automatically in both directions.
+With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in the Encore Cloud dashboard. Encore Cloud takes care of syncing the changes automatically in both directions.
 
-In the future, Encore will offer automated optimization of cloud environments according to your application's real-world behavior.
+In the future, Encore Cloud will offer automated optimization of cloud environments according to your application's real-world behavior.
 
 <img src="/assets/docs/infra_config.png" title="Infra configuration UI"/>
 
