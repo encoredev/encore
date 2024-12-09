@@ -65,7 +65,7 @@ func promptAccountCreation() {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) && createAppOnPlatform {
 	PromptLoop:
 		for {
-			_, _ = cyan.Fprint(os.Stderr, "Create a free Encore account to enable Cloud Deployments, Secrets Management, and more? (Y/n): ")
+			_, _ = cyan.Fprint(os.Stderr, "Log in / Sign up for a free Encore Cloud account to enable automated cloud deployments? (Y/n): ")
 			var input string
 			_, _ = fmt.Scanln(&input)
 			input = strings.TrimSpace(input)
