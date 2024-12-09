@@ -126,6 +126,8 @@ export const publicProfilePictures = new Bucket("public-profile-pictures", {
 });
 ```
 
+When self-hosting, see how to configure public buckets in the [infrastructure configuration docs](/docs/go/self-host/configure-infra).
+
 When deploying with Encore Cloud it will automatically configure the bucket to be publicly accessible and [configure CDN](/docs/platform/infrastructure/infra#production-infrastructure) for optimal content delivery.
 
 ### Accessing Public Objects
