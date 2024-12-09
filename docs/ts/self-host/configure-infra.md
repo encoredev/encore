@@ -440,7 +440,7 @@ The configuration for each provider is different. Below are examples for each pr
 ### 10. Object Storage Configuration
 Encore currently supports the following object storage providers:
 - `gcs` for [Google Cloud Storage](https://cloud.google.com/storage)
-- `s3` for [AWS S3](https://aws.amazon.com/s3/)
+- `s3` for [AWS S3](https://aws.amazon.com/s3/) or a custom S3-compatible provider
 
 #### 10.1. GCS Configuration
 
@@ -451,7 +451,9 @@ Encore currently supports the following object storage providers:
       "type": "gcs",
       "buckets": {
         "my-gcs-bucket": {
-          "name": "my-gcs-bucket"
+          "name": "my-gcs-bucket",
+          "key_prefix": "my-optional-prefix/",
+          "public_base_url": "https://my-gcs-bucket-cdn.example.com/my-optional-prefix"
         }
       }
     }
@@ -460,6 +462,8 @@ Encore currently supports the following object storage providers:
 ```
 
 - `name`: The full name of the GCS bucket.
+- `key_prefix`: An optional prefix to apply to all keys in the bucket.
+- `public_base_url`: A URL to use for public access to the bucket. This field is required if you configure your bucket to be public. Encore will append the object key to this URL when generating public URLs. The optional prefix will not be appended.
 
 #### 10.2. S3 Configuration
 
@@ -471,7 +475,9 @@ Encore currently supports the following object storage providers:
       "region": "us-east-1",
       "buckets": {
         "my-s3-bucket": {
-          "name": "my-s3-bucket"
+          "name": "my-s3-bucket",
+          "key_prefix": "my-optional-prefix/",
+          "public_base_url": "https://my-gcs-bucket-cdn.example.com/my-optional-prefix"
         }
       }
     }
@@ -481,5 +487,37 @@ Encore currently supports the following object storage providers:
 
 - `region`: The AWS region where the bucket is located.
 - `name`: The full name of the S3 bucket.
+- `key_prefix`: An optional prefix to apply to all keys in the bucket.
+- `public_base_url`: A URL to use for public access to the bucket. This field is required if you configure your bucket to be public. Encore will append the object key to this URL when generating public URLs. The optional prefix will not be appended.
+
+#### 10.3. Custom S3 Provider Configuration
+You can also configure a custom S3 provider by specifying the endpoint, access key id, and secret access key. Custom S3 providers are useful if you are using a S3-compatible storage provider such as [Cloudflare R2](https://developers.cloudflare.com/r2/).
+```json
+{
+  "object_storage": [
+    {
+      "type": "s3",
+      "region": "auto",
+      "endpoint": "https://...",
+      "access_key_id": "...",
+      "secret_access_key": {
+          "$env": "BUCKET_SECRET_ACCESS_KEY"
+      },
+      "buckets": {
+        "my-s3-bucket": {
+          "name": "my-s3-bucket",
+          "key_prefix": "my-optional-prefix/",
+          "public_base_url": "https://my-gcs-bucket-cdn.example.com/my-optional-prefix"          
+        }
+      }
+    }
+  ]
+}
+```
+
+- `region`: The region where the bucket is located.
+- `name`: The full name of the bucket
+- `key_prefix`: An optional prefix to apply to all keys in the bucket.
+- `public_base_url`: A URL to use for public access to the bucket. This field is required if you configure your bucket to be public. Encore will append the object key to this URL when generating public URLs. The optional prefix will not be appended.
 
 This guide covers typical infrastructure configurations. Adjust according to your specific requirements to optimize your Encore app's infrastructure setup.

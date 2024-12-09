@@ -85,14 +85,14 @@ Encore provisions production infrastructure resources using best-practice guidel
 
 |                     | GCP                                                                         | AWS                                                                        |
 | ------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **Networking:**     | [VPC](#google-cloud-platform-gcp)                                           | [VPC](#amazon-web-services-aws)                                            |
-| **Compute:**        | [Cloud Run](#google-cloud-platform-gcp), [GKE](#google-cloud-platform-gcp)  | [Fargate ECS](#amazon-web-services-aws), [EKS](#amazon-web-services-aws)   |
-| **SQL Databases:**  | [GCP Cloud SQL](#sql-databases), [Neon](/docs/platform/infrastructure/neon) | [Amazon RDS](#sql-databases-1), [Neon](/docs/platform/infrastructure/neon) |
-| **Pub/Sub:**        | [GCP Pub/Sub](#pubsub)                                                      | [Amazon SQS][aws-sqs] & [Amazon SNS](#pubsub-1)                            |
-| **Object Storage:** | [GCS](#object-storage)                                                      | [Amazon S3](#object-storage-1)                                             |
-| **Caches:**         | [GCP Memorystore (Redis)](#caching)                                         | [Amazon ElastiCache (Redis)](#caching-1)                                   |
+| **Networking:**     | [VPC](/docs/platform/infrastructure/gcp#networking-architecture)                                           | [VPC](/docs/platform/infrastructure/aws#networking-architecture)                                            |
+| **Compute:**        | [Cloud Run](/docs/platform/infrastructure/gcp#google-cloud-run), [GKE](/docs/platform/infrastructure/gcp#google-kubernetes-engine)  | [Fargate ECS](/docs/platform/infrastructure/aws#aws-fargate), [EKS](/docs/platform/infrastructure/aws#aws-eks)   |
+| **SQL Databases:**  | [GCP Cloud SQL](/docs/platform/infrastructure/gcp#databases), [Neon](/docs/platform/infrastructure/neon) | [Amazon RDS](/docs/platform/infrastructure/aws#databases), [Neon](/docs/platform/infrastructure/neon) |
+| **Pub/Sub:**        | [GCP Pub/Sub](/docs/platform/infrastructure/gcp#pubsub)                                                      | [Amazon SQS & Amazon SNS](/docs/platform/infrastructure/aws#pubsub)                            |
+| **Object Storage:** | [GCS](/docs/platform/infrastructure/gcp#object-storage)                                                      | [Amazon S3](/docs/platform/infrastructure/aws#object-storage)                                             |
+| **Caches:**         | [GCP Memorystore (Redis)](/docs/platform/infrastructure/gcp#caching)                                         | [Amazon ElastiCache (Redis)](/docs/platform/infrastructure/aws#caching)                                   |
 | **Cron Jobs:**      | Encore Managed                                                              | Encore Managed                                                             | Encore Managed |
-| **Secrets:**        | [Secret Manager][gcp-secrets]                                               | [AWS Secrets Manager][aws-secrets]                                         |
+| **Secrets:**        | [Secret Manager](/docs/platform/infrastructure/gcp#secrets-management)                                               | [AWS Secrets Manager](/docs/platform/infrastructure/aws#secrets-management)                                         |
 
 ### Configurability
 
@@ -110,113 +110,3 @@ It's often recommended to deploy all services in one process in order to reduce 
 Deploying each service as its own process will improve scalability and decrease blast radius if things go wrong. This is only recommended for production environments.
 
 <img src="/assets/docs/microservices-process-allocation.png" title="Process allocation config"/>
-
-### Google Cloud Platform (GCP)
-
-[gcp-vpc]: https://cloud.google.com/vpc
-[gcp-cloudrun]: https://cloud.google.com/run
-[gcp-gke]: https://cloud.google.com/kubernetes-engine
-[gcp-secrets]: https://cloud.google.com/secret-manager
-[gcp-pubsub]: https://cloud.google.com/pubsub
-[gcp-gcs]: https://cloud.google.com/storage
-[gcp-cloudsql]: https://cloud.google.com/sql
-[gcp-redis]: https://cloud.google.com/memorystore
-
-Encore provisions a single GCP Project for each environment, containing a single [Virtual Private Cloud (VPC)][gcp-vpc], and a whole slew of miscellaneous resources (IAM roles, policies, subnets, security groups, route tables, and so on). Secrets are stored using [Secret Manager][gcp-secrets].
-
-#### Compute instances
-
-When using GCP you can decide between [Cloud Run][gcp-cloudrun] (a fully managed infrastructure that scales to zero) or a [Google Kubernetes Engine][gcp-gke] (GKE) cluster.
-If you prefer you can also [import an existing Kubernetes cluster](/docs/platform/infrastructure/import-kubernetes-cluster) and have Encore deploy to it.
-
-#### SQL Databases
-When using [SQL Databases](/docs/ts/primitives/databases), Encore provisions a single [GCP Cloud SQL][gcp-cloudsql] cluster, and separate databases within that cluster. The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
-
-The machine type is chosen as the smallest available that supports auto-scaling (1 vCPU / 3.75GiB memory).
-You can freely increase the machine type yourself to handle larger scales.
-
-Additionally, Encore sets up:
-* Automatic daily backups (retained for 7 days) with point-in-time recovery
-* Private networking, ensuring the database is only accessible from the VPC
-* Mutual TLS encryption for additional security
-* High availability mode with automatic failover (via disk replication to multiple zones)
-
-#### Pub/Sub
-When using [Pub/Sub](/docs/ts/primitives/pubsub), Encore provisions [GCP Pub/Sub][gcp-pubsub] topics and subscriptions. Additionally, Encore automatically creates and configures dead-letter topics.
-
-#### Object Storage
-When using [Object Storage](/docs/ts/primitives/object-storage), Encore provisions [Google Cloud Storage][gcp-gcs] buckets. Encore also handles fine-grained permission management of per-service storage operations (read, list, write, delete, etc).
-
-#### Caching
-When using [Caching](/docs/go/primitives/caching), Encore provisions [GCP Memorystore for Redis][gcp-redis] clusters.
-
-The machine type is chosen as the smallest available that supports auto-scaling (5GiB memory, with one read replica).
-You can freely change the machine type yourself to handle larger scales.
-
-Additionally, Encore sets up:
-* Redis authentication
-* Transit encryption with TLS for additional security
-* A 10% memory buffer to better memory fragmentation, and active defragmentation
-
-#### Cron Jobs
-When using [Cron Jobs](/docs/ts/primitives/cron-jobs), Encore Cloud triggers the execution
-of cron jobs by calling the corresponding API using a signed request so the application can verify
-the source of the request as coming from Encore's cron functionality. No infrastructure is
-provisioned for this to work.
-
-### Amazon Web Services (AWS)
-
-[aws-vpc]: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
-[aws-fargate]: https://aws.amazon.com/fargate/
-[aws-eks]: https://aws.amazon.com/eks/
-[aws-secrets]: https://aws.amazon.com/secrets-manager/
-[aws-rds]: https://aws.amazon.com/rds/postgresql/
-[aws-sqs]: https://aws.amazon.com/sqs/
-[aws-sns]: https://aws.amazon.com/sns/
-[aws-s3]: https://aws.amazon.com/s3/
-[aws-redis]: https://aws.amazon.com/elasticache/redis/
-[aws-ecr]: https://aws.amazon.com/ecr/
-
-Encore provisions a dedicated [Virtual Private Cloud (VPC)][aws-vpc] for each environment. It contains an [Elastic Container Registry][aws-ecr] to host Docker images,
-and a whole slew of miscellaneous resources (IAM roles, policies, subnets, security groups, route tables, and so on). Secrets are stored using [Secrets Manager][aws-secrets].
-
-#### Compute instances
-
-Encore provisions a [Fargate ECS][aws-fargate] cluster (managed, serverless, pay-as-you-go compute engine) or an [Elastic Kubernetes Service][aws-eks] (EKS) cluster.
-
-#### SQL Databases
-When using [SQL Databases](/docs/ts/primitives/databases), Encore provisions a single [Amazon RDS][aws-rds] cluster, and separate databases within that cluster.
-The cluster is configured with the latest PostgreSQL version available at the time of provisioning.
-
-The instance type is chosen as the smallest available latest-generation type that supports auto-scaling (currently `db.m5.large`, with 2 vCPU / 8GiB memory).
-You can freely change the instance type yourself to handle larger scales.
-
-Additionally, Encore sets up:
-* Automatic daily backups (retained for 7 days) with point-in-time recovery
-* Private networking, ensuring the database is only accessible from the VPC
-* Dedicated subnets for the database instances, with security group rules to secure them
-
-#### Pub/Sub
-When using [Pub/Sub](/docs/ts/primitives/pubsub), Encore provisions a combination of [Amazon SQS][aws-sqs] and [Amazon SNS][aws-sns] topics and subscriptions.
-Additionally, Encore automatically creates and configures dead-letter topics.
-
-#### Object Storage
-When using [Object Storage](/docs/ts/primitives/object-storage), Encore provisions [Amazon S3][aws-s3] buckets. Encore also handles fine-grained permission management of per-service storage operations (read, list, write, delete, etc).
-
-#### Caching
-When using [Caching](/docs/go/primitives/caching), Encore provisions [Amazon ElastiCache for Redis][aws-redis] clusters.
-
-The machine type is chosen as the smallest available that supports auto-scaling (currently `cache.m6g.large`, with one read replica).
-You can freely change the machine type yourself to handle larger scales.
-
-Additionally, Encore sets up:
-* Redis ACL authentication
-* A replication group, with multi-AZ replication and automatic failover for high availability
-* Transit encryption with TLS for additional security
-* A 10% memory buffer to better memory fragmentation, and active defragmentation
-
-#### Cron Jobs
-When using [Cron Jobs](/docs/ts/primitives/cron-jobs), Encore Cloud triggers the execution
-of cron jobs by calling the corresponding API using a signed request so the application can verify
-the source of the request as coming from Encore's cron functionality. No infrastructure is
-provisioned for this to work.
