@@ -792,6 +792,11 @@
 				text: "Debugging"
 				path: "/ts/develop/debug"
 				file: "ts/develop/debug"
+			}, {
+				kind: "basic"
+				text: "Middleware"
+				path: "/ts/develop/middleware"
+				file: "ts/develop/middleware"
 			}]
 		},
 		{
