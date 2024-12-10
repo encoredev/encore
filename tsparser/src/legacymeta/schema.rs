@@ -7,8 +7,8 @@ use itertools::Itertools;
 use litparser::{ParseResult, ToParseErr};
 use swc_common::errors::HANDLER;
 
-use crate::encore::parser::schema::v1 as schema;
 use crate::encore::parser::schema::v1::r#type as styp;
+use crate::encore::parser::schema::v1::{self as schema};
 use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
 
@@ -16,7 +16,7 @@ use crate::parser::resources::apis::api::Endpoint;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
     drop_empty_or_void, Basic, EnumValue, FieldName, Generic, Interface, Literal, Named, ObjectId,
-    Type,
+    Type, Union,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
@@ -87,7 +87,7 @@ impl BuilderCtx<'_, '_> {
         Ok(match typ {
             Type::Basic(tt) => self.basic(tt),
             Type::Array(tt) => {
-                let elem = self.typ(tt)?;
+                let elem = self.typ(&tt.0)?;
                 schema::Type {
                     typ: Some(styp::Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(elem)),
@@ -118,9 +118,9 @@ impl BuilderCtx<'_, '_> {
                 validation: None,
             },
 
-            Type::Union(types) => schema::Type {
+            Type::Union(union) => schema::Type {
                 typ: Some(styp::Typ::Union(schema::Union {
-                    types: self.types(types)?,
+                    types: self.types(&union.types)?,
                 })),
                 validation: None,
             },
@@ -153,7 +153,7 @@ impl BuilderCtx<'_, '_> {
                 }
             }
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
-            Type::This => anyhow::bail!("this types are not yet supported in schemas"),
+            Type::This(_) => anyhow::bail!("this types are not yet supported in schemas"),
             Type::Generic(typ) => match typ {
                 Generic::TypeParam(param) => {
                     let decl_id = self
@@ -183,10 +183,10 @@ impl BuilderCtx<'_, '_> {
                 )
             }
 
-            Type::Validated((typ, expr)) => {
-                let mut typ = self.typ(typ)?;
+            Type::Validated(validated) => {
+                let mut typ = self.typ(&validated.typ)?;
                 // Simplify the validation expression, if possible.
-                let expr = expr.clone().simplify();
+                let expr = validated.expr.clone().simplify();
                 typ.validation = Some(expr.to_pb());
                 typ
             }
@@ -539,16 +539,16 @@ impl BuilderCtx<'_, '_> {
 /// union and `true` to indicate the type included "| undefined".
 /// Otherwise, returns the original type and `false`.
 fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
-    if let Type::Union(types) = &typ {
-        for (i, t) in types.iter().enumerate() {
+    if let Type::Union(union) = &typ {
+        for (i, t) in union.types.iter().enumerate() {
             if let Type::Basic(Basic::Undefined) = &t {
                 // If we have a union with only two types, return the other type.
-                return if types.len() == 2 {
-                    (Cow::Borrowed(&types[1 - i]), true)
+                return if union.types.len() == 2 {
+                    (Cow::Borrowed(&union.types[1 - i]), true)
                 } else {
-                    let mut types = types.clone();
+                    let mut types = union.types.clone();
                     types.swap_remove(i);
-                    (Cow::Owned(Type::Union(types)), true)
+                    (Cow::Owned(Type::Union(Union { types })), true)
                 };
             }
         }
