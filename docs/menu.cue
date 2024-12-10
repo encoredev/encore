@@ -1018,9 +1018,19 @@
 				file: "platform/infrastructure/own-cloud"
 			}, {
 				kind: "basic"
-				text: "Infrastructure provisioning"
+				text: "Infrastructure overview"
 				path: "/platform/infrastructure/infra"
 				file: "platform/infrastructure/infra"
+			}, {
+				kind: "basic"
+				text: "GCP Infrastructure"
+				path: "/platform/infrastructure/gcp"
+				file: "platform/infrastructure/gcp"
+			}, {
+				kind: "basic"
+				text: "AWS Infrastructure"
+				path: "/platform/infrastructure/aws"
+				file: "platform/infrastructure/aws"
 			}, {
 				kind: "accordion"
 				text: "Kubernetes deployment"
@@ -1042,14 +1052,19 @@
 				}]
 			}, {
 				kind: "basic"
-				text: "Managing database users"
-				path: "/platform/infrastructure/manage-db-users"
-				file: "platform/infrastructure/manage-db-users"
-			}, {
-				kind: "basic"
 				text: "Neon Postgres"
 				path: "/platform/infrastructure/neon"
 				file: "platform/infrastructure/neon"
+			}, {
+				kind: "basic"
+				text: "Cloudflare R2"
+				path: "/platform/infrastructure/cloudflare"
+				file: "platform/infrastructure/cloudflare"
+			}, {
+				kind: "basic"
+				text: "Managing database users"
+				path: "/platform/infrastructure/manage-db-users"
+				file: "platform/infrastructure/manage-db-users"
 			}]
 		}, {
 			kind: "section"

@@ -113,6 +113,35 @@ For convenience there is also `exists` which returns a boolean indicating whethe
 const exists = await profilePictures.exists("my-image.jpeg");
 ```
 
+## Configuring Public Buckets
+
+To configure a bucket to be publicly accessible, set the `public` property to `true` when creating the bucket. This allows objects in the bucket to be accessed via a public URL.
+
+For example, to create a public bucket for storing profile pictures:
+
+```ts
+export const publicProfilePictures = new Bucket("public-profile-pictures", {
+  public: true,
+  versioned: false
+});
+```
+
+When self-hosting, see how to configure public buckets in the [infrastructure configuration docs](/docs/go/self-host/configure-infra).
+
+When deploying with Encore Cloud it will automatically configure the bucket to be publicly accessible and [configure CDN](/docs/platform/infrastructure/infra#production-infrastructure) for optimal content delivery.
+
+### Accessing Public Objects
+
+Once a bucket is configured as public, you can access its objects using the `publicUrl` method. This method returns the public URL for the specified object.
+
+For example, to get the public URL of a profile picture:
+
+```ts
+const url = publicProfilePictures.publicUrl("my-image.jpeg");
+console.log(`Public URL: ${url}`);
+```
+
+
 ## Error handling
 
 The methods throw exceptions if something goes wrong, like if the object doesn't exist or the operation fails.
