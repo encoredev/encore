@@ -10,7 +10,7 @@ createHook({
     if (cr) {
       resource[sym] = cr[sym];
     }
-  },
+  }
 }).enable();
 
 export function setCurrentRequest(req: runtime.Request) {

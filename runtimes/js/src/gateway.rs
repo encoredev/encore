@@ -120,12 +120,14 @@ impl PromiseHandler for AuthPromiseHandler {
             return Ok(HandlerResponseInner {
                 payload: None,
                 extra_headers: None,
+                status: None,
             });
         };
         match parse_pvalues(val) {
             Ok(val) => Ok(HandlerResponseInner {
                 payload: val,
                 extra_headers: None,
+                status: None,
             }),
             Err(err) => self.error(env, err),
         }

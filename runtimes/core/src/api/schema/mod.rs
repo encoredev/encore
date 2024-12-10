@@ -114,8 +114,9 @@ impl Response {
     pub fn encode(
         &self,
         payload: &JSONPayload,
+        status: u16,
     ) -> APIResult<axum::http::Response<axum::body::Body>> {
-        let mut bld = axum::http::Response::builder().status(200);
+        let mut bld = axum::http::Response::builder().status(status);
 
         if let Some(hdr) = &self.header {
             bld = hdr.to_response(payload, bld)?
