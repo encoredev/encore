@@ -444,6 +444,8 @@ impl Ctx<'_> {
                 HANDLER.with(|handler| handler.err("keyof ValidationExpr unsupported"));
                 Type::Basic(Basic::Never)
             }
+
+            Type::Custom(Custom::WireSpec(spec)) => self.keyof(&spec.underlying),
         }
     }
 
@@ -668,6 +670,18 @@ impl Ctx<'_> {
         {
             let elem = type_arguments.pop().unwrap_or(Type::Basic(Basic::Never));
             return Type::Array(Array(Box::new(elem)));
+        }
+
+        // Is this a reference to the "Header" or "Query" wire spec overrides?
+        if obj
+            .name
+            .as_ref()
+            .is_some_and(|s| s == "Header" || s == "Query")
+            && self.state.is_module_path(obj.module_id, "encore.dev/api")
+        {
+            if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
+                return Type::Custom(Custom::WireSpec(wire_spec));
+            }
         }
 
         match &obj.kind {
@@ -1352,6 +1366,9 @@ impl Ctx<'_> {
                 self.resolve_member_prop(&underlying, prop)
             }
             Type::Validated(v) => self.resolve_member_prop(&v.typ, prop),
+            Type::Custom(Custom::WireSpec(spec)) => {
+                self.resolve_member_prop(&spec.underlying, prop)
+            }
         }
     }
 
@@ -1894,6 +1911,17 @@ impl Ctx<'_> {
             },
 
             Type::Validation(_) => Same(typ),
+            Type::Custom(Custom::WireSpec(spec)) => match self.concrete(&spec.underlying) {
+                New(inner) => New(Type::Custom(Custom::WireSpec(WireSpec {
+                    underlying: Box::new(inner),
+                    ..spec.clone()
+                }))),
+                Changed(inner) => New(Type::Custom(Custom::WireSpec(WireSpec {
+                    underlying: Box::new(inner.clone()),
+                    ..spec.clone()
+                }))),
+                Same(_) => Same(typ),
+            },
         }
     }
 
@@ -2059,5 +2087,45 @@ impl Ctx<'_> {
             "IsURL" => Some(Expr::Rule(Rule::Is(Is::Url))),
             _ => None,
         }
+    }
+
+    fn parse_wire_spec(&self, span: Span, obj: &Object, type_args: &[Type]) -> Option<WireSpec> {
+        let location = match &obj.name.as_deref() {
+            Some("Header") => WireLocation::Header,
+            Some("Query") => WireLocation::Query,
+            _ => return None,
+        };
+
+        fn str_lit(sp: Span, typ: &Type) -> Option<String> {
+            if let Type::Literal(Literal::String(s)) = typ {
+                return Some(s.clone());
+            }
+            sp.err("expected a string literal as the second type argument");
+            None
+        }
+
+        let (underlying, name_override) = match (type_args.first(), type_args.get(1)) {
+            (None, None) => (Type::Basic(Basic::String), None),
+
+            (Some(first), None) => {
+                // If we only have a single argument, check its type.
+                // If it's a string literal it's the name, otherwise it's the type.
+                match first {
+                    Type::Literal(Literal::String(lit)) => {
+                        (Type::Basic(Basic::String), Some(lit.to_string()))
+                    }
+                    _ => (first.clone(), None),
+                }
+            }
+
+            (Some(typ), Some(name)) => (typ.clone(), str_lit(span, name)),
+            (None, Some(_)) => unreachable!(),
+        };
+
+        Some(WireSpec {
+            location,
+            underlying: Box::new(underlying),
+            name_override,
+        })
     }
 }

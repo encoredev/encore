@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use matchit::InsertError;
 use swc_common::errors::HANDLER;
@@ -11,7 +11,7 @@ use crate::parser::resources::apis::api::{Endpoint, Method, Methods};
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
 use crate::parser::types::visitor::VisitWith;
-use crate::parser::types::{validation, visitor, ResolveState, Type, Validated};
+use crate::parser::types::{validation, visitor, ObjectId, ResolveState, Type, Validated};
 use crate::parser::Range;
 use crate::span_err::ErrReporter;
 use litparser::Sp;
@@ -118,11 +118,15 @@ impl AppValidator<'_> {
         struct Visitor<'a> {
             state: &'a ResolveState,
             span: Span,
+            seen_decls: HashSet<ObjectId>,
         }
 
         impl visitor::Visit for Visitor<'_> {
             fn resolve_state(&self) -> &ResolveState {
                 self.state
+            }
+            fn seen_decls(&mut self) -> &mut HashSet<ObjectId> {
+                &mut self.seen_decls
             }
 
             fn visit_validated(&mut self, node: &Validated) {
@@ -152,6 +156,7 @@ impl AppValidator<'_> {
         let mut visitor = Visitor {
             state,
             span: schema.span(),
+            seen_decls: HashSet::new(),
         };
         schema.visit_with(&mut visitor);
     }

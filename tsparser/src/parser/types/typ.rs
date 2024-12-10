@@ -49,6 +49,9 @@ pub enum Type {
 
     /// A type with validation applied to it.
     Validated(Validated),
+
+    // A custom type of some kind.
+    Custom(Custom),
 }
 
 #[derive(Debug, Clone, Hash, Serialize)]
@@ -71,6 +74,46 @@ pub struct Union {
 pub struct Validated {
     pub typ: Box<Type>,
     pub expr: validation::Expr,
+}
+
+#[derive(Debug, Clone, Serialize, Hash)]
+pub enum Custom {
+    /// A specification of how the type should be encoded on the wire.
+    WireSpec(WireSpec),
+}
+
+impl Custom {
+    pub fn identical(&self, other: &Custom) -> bool {
+        match (self, other) {
+            (Custom::WireSpec(a), Custom::WireSpec(b)) => a.identical(b),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Hash)]
+pub struct WireSpec {
+    /// What location in the request should be used for this field.
+    pub location: WireLocation,
+
+    /// The underlying type this is.
+    pub underlying: Box<Type>,
+
+    /// Whether this specifies a name override.
+    pub name_override: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
+pub enum WireLocation {
+    Query,
+    Header,
+}
+
+impl WireSpec {
+    pub fn identical(&self, other: &WireSpec) -> bool {
+        self.location == other.location
+            && self.name_override == other.name_override
+            && self.underlying.identical(&other.underlying)
+    }
 }
 
 impl Type {
@@ -98,6 +141,7 @@ impl Type {
             (Type::This(This), Type::This(This)) => true,
             (Type::Generic(a), Type::Generic(b)) => a.identical(b),
             (Type::Enum(a), Type::Enum(b)) => a.identical(b),
+            (Type::Custom(a), Type::Custom(b)) => a.identical(b),
             _ => false,
         }
     }
@@ -1281,5 +1325,12 @@ pub fn intersect<'a: 'b, 'b>(
         }
 
         (_, _) => Cow::Owned(Type::Basic(Basic::Never)),
+    }
+}
+
+pub fn unwrap_validated(typ: &Type) -> (&Type, Option<&validation::Expr>) {
+    match typ {
+        Type::Validated(validated) => (&validated.typ, Some(&validated.expr)),
+        _ => (typ, None),
     }
 }

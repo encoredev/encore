@@ -5,6 +5,8 @@ use swc_common::{BytePos, Span};
 
 use crate::span_err::{ErrorWithSpanExt, SpErr};
 
+use super::types::validation;
+
 #[derive(Debug, Clone)]
 pub struct Path {
     pub span: Span,
@@ -39,9 +41,19 @@ impl std::fmt::Display for Path {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Segment {
     Literal(String),
-    Param { name: String, value_type: ValueType },
-    Wildcard { name: String },
-    Fallback { name: String },
+    Param {
+        name: String,
+        value_type: ValueType,
+        validation: Option<validation::Expr>,
+    },
+    Wildcard {
+        name: String,
+        validation: Option<validation::Expr>,
+    },
+    Fallback {
+        name: String,
+        validation: Option<validation::Expr>,
+    },
 }
 
 impl Segment {
@@ -58,8 +70,8 @@ impl Segment {
         match self {
             Segment::Literal(s) => s,
             Segment::Param { name, .. } => name,
-            Segment::Wildcard { name } => name,
-            Segment::Fallback { name } => name,
+            Segment::Wildcard { name, .. } => name,
+            Segment::Fallback { name, .. } => name,
         }
     }
 
@@ -163,12 +175,15 @@ impl Path {
                 Some(':') => Segment::Param {
                     name: val[1..].to_string(),
                     value_type: ValueType::String,
+                    validation: None,
                 },
                 Some('*') if opts.allow_wildcard => Segment::Wildcard {
                     name: val[1..].to_string(),
+                    validation: None,
                 },
                 Some('!') if opts.allow_wildcard => Segment::Fallback {
                     name: val[1..].to_string(),
+                    validation: None,
                 },
                 _ => Segment::Literal(val.to_string()),
             };
@@ -190,7 +205,7 @@ impl Path {
                 Segment::Param { name, .. } if name.is_empty() => {
                     return Err(PathParseError::UnnamedParam.with_span(seg.span()));
                 }
-                Segment::Wildcard { name } if name.is_empty() => {
+                Segment::Wildcard { name, .. } if name.is_empty() => {
                     return Err(PathParseError::UnnamedParam.with_span(seg.span()));
                 }
                 Segment::Wildcard { .. } if idx != segments.len() - 1 => {
@@ -268,9 +283,11 @@ mod tests {
                     Segment::Param {
                         name: "foo".to_string(),
                         value_type: ValueType::String,
+                        validation: None,
                     },
                     Segment::Wildcard {
                         name: "bar".to_string(),
+                        validation: None,
                     },
                 ]),
             ),
@@ -288,6 +305,7 @@ mod tests {
                     Segment::Literal("foo".to_string()),
                     Segment::Fallback {
                         name: "fallback".to_string(),
+                        validation: None,
                     },
                 ]),
             ),
