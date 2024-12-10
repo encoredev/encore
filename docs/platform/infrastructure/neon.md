@@ -72,8 +72,8 @@ You can edit the endpoint to set the CPU limits and the suspend timeout. The sus
 before suspending the compute when it's not in use. The default is 5 minutes, but you can increase this to up to a week
 (depending on your Neon plan).
 
-## Use Neon for Preview Environments environments
-Neon is a great choice for [Preview Environments environments](/docs/platform/deploy/preview-environments) as it allows you to branch off a populated
+## Use Neon for Preview Environments
+Neon is a great choice for [Preview Environments](/docs/platform/deploy/preview-environments) as it allows you to branch off a populated
 database and test your changes in isolation.
 
 To configure which branch to use for Preview Environments, head to the
