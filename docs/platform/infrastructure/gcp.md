@@ -93,7 +93,6 @@ Encore Cloud uses [GCP Memorystore for Redis][gcp-redis] to provide a high-perfo
 ### Cron Jobs
 Encore Cloud provides a streamlined approach to scheduled task execution that prioritizes both simplicity and security. Each cron job is executed through authenticated API requests that are cryptographically signed, ensuring that only legitimate, verified requests can trigger your scheduled tasks. The system includes robust source verification that validates all requests originate from Encore Cloud's trusted cron infrastructure. This elegant implementation requires no additional infrastructure components, making it both cost-effective and easy to maintain while providing the reliability and security needed for production workloads.
 
-## Links
 [gcp-vpc]: https://cloud.google.com/vpc
 [gcp-cloudrun]: https://cloud.google.com/run
 [gcp-gke]: https://cloud.google.com/kubernetes-engine
