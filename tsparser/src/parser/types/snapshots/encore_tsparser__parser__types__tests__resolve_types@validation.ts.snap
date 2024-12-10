@@ -13,11 +13,11 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                     ),
                     optional: false,
                     typ: Validated(
-                        (
-                            Basic(
+                        Validated {
+                            typ: Basic(
                                 Number,
                             ),
-                            And(
+                            expr: And(
                                 [
                                     Rule(
                                         MinVal(
@@ -35,7 +35,7 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                                     ),
                                 ],
                             ),
-                        ),
+                        },
                     ),
                 },
                 InterfaceField {
@@ -44,11 +44,11 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                     ),
                     optional: false,
                     typ: Validated(
-                        (
-                            Basic(
+                        Validated {
+                            typ: Basic(
                                 String,
                             ),
-                            And(
+                            expr: And(
                                 [
                                     Rule(
                                         MinLen(
@@ -62,7 +62,7 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                                     ),
                                 ],
                             ),
-                        ),
+                        },
                     ),
                 },
                 InterfaceField {
@@ -71,11 +71,11 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                     ),
                     optional: false,
                     typ: Validated(
-                        (
-                            Basic(
+                        Validated {
+                            typ: Basic(
                                 String,
                             ),
-                            Or(
+                            expr: Or(
                                 [
                                     Rule(
                                         Is(
@@ -89,7 +89,7 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                                     ),
                                 ],
                             ),
-                        ),
+                        },
                     ),
                 },
                 InterfaceField {
@@ -98,27 +98,29 @@ input_file: tsparser/src/parser/types/testdata/validation.ts
                     ),
                     optional: false,
                     typ: Validated(
-                        (
-                            Array(
-                                Validated(
-                                    (
-                                        Basic(
-                                            String,
-                                        ),
-                                        Rule(
-                                            Is(
-                                                Email,
+                        Validated {
+                            typ: Array(
+                                Array(
+                                    Validated(
+                                        Validated {
+                                            typ: Basic(
+                                                String,
                                             ),
-                                        ),
+                                            expr: Rule(
+                                                Is(
+                                                    Email,
+                                                ),
+                                            ),
+                                        },
                                     ),
                                 ),
                             ),
-                            Rule(
+                            expr: Rule(
                                 MaxLen(
                                     10,
                                 ),
                             ),
-                        ),
+                        },
                     ),
                 },
             ],

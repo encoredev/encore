@@ -176,6 +176,7 @@ mod tests {
             r#type: typ as i32,
             value: value.to_string(),
             value_type: meta::path_segment::ParamType::String as i32,
+            validation: None,
         }
     }
 

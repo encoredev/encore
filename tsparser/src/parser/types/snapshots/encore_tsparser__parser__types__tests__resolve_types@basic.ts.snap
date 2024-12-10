@@ -40,18 +40,20 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         },
     ),
     "Exclude1": Union(
-        [
-            Literal(
-                String(
-                    "bar",
+        Union {
+            types: [
+                Literal(
+                    String(
+                        "bar",
+                    ),
                 ),
-            ),
-            Literal(
-                String(
-                    "optional",
+                Literal(
+                    String(
+                        "optional",
+                    ),
                 ),
-            ),
-        ],
+            ],
+        },
     ),
     "Pick1": Interface(
         Interface {
@@ -183,14 +185,16 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
                         String,
                     ),
                     Union(
-                        [
-                            Basic(
-                                Boolean,
-                            ),
-                            Basic(
-                                Number,
-                            ),
-                        ],
+                        Union {
+                            types: [
+                                Basic(
+                                    Boolean,
+                                ),
+                                Basic(
+                                    Number,
+                                ),
+                            ],
+                        },
                     ),
                 ),
             ),
@@ -356,37 +360,39 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
         },
     ),
     "EnumFields": Union(
-        [
-            Literal(
-                String(
-                    "A",
+        Union {
+            types: [
+                Literal(
+                    String(
+                        "A",
+                    ),
                 ),
-            ),
-            Literal(
-                String(
-                    "B",
+                Literal(
+                    String(
+                        "B",
+                    ),
                 ),
-            ),
-            Literal(
-                String(
-                    "C",
+                Literal(
+                    String(
+                        "C",
+                    ),
                 ),
-            ),
-            Literal(
-                String(
-                    "D",
+                Literal(
+                    String(
+                        "D",
+                    ),
                 ),
-            ),
-            Literal(
-                String(
-                    "E",
+                Literal(
+                    String(
+                        "E",
+                    ),
                 ),
-            ),
-            Literal(
-                String(
-                    "F",
+                Literal(
+                    String(
+                        "F",
+                    ),
                 ),
-            ),
-        ],
+            ],
+        },
     ),
 }

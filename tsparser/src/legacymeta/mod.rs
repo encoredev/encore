@@ -12,6 +12,7 @@ use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
+use crate::parser::types::validation;
 use crate::parser::types::{Object, ObjectId};
 use crate::parser::usageparser::Usage;
 use crate::parser::{respath, FilePath, Range};
@@ -696,8 +697,13 @@ impl respath::Path {
                         r#type: SegmentType::Literal as i32,
                         value_type: ParamType::String as i32,
                         value: lit.clone(),
+                        validation: None,
                     },
-                    Segment::Param { name, value_type } => v1::PathSegment {
+                    Segment::Param {
+                        name,
+                        value_type,
+                        validation,
+                    } => v1::PathSegment {
                         r#type: SegmentType::Param as i32,
                         value_type: match value_type {
                             ValueType::String => ParamType::String as i32,
@@ -705,16 +711,19 @@ impl respath::Path {
                             ValueType::Bool => ParamType::Bool as i32,
                         },
                         value: name.clone(),
+                        validation: validation.as_ref().map(validation::Expr::to_pb),
                     },
-                    Segment::Wildcard { name } => v1::PathSegment {
+                    Segment::Wildcard { name, validation } => v1::PathSegment {
                         r#type: SegmentType::Wildcard as i32,
                         value_type: ParamType::String as i32,
                         value: name.clone(),
+                        validation: validation.as_ref().map(validation::Expr::to_pb),
                     },
-                    Segment::Fallback { name } => v1::PathSegment {
+                    Segment::Fallback { name, validation } => v1::PathSegment {
                         r#type: SegmentType::Fallback as i32,
                         value_type: ParamType::String as i32,
                         value: name.clone(),
+                        validation: validation.as_ref().map(validation::Expr::to_pb),
                     },
                 })
                 .collect(),

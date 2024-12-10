@@ -398,6 +398,7 @@ pub fn handshake_encoding(
             value: format!("{}.{}", rpc.service_name, rpc.name),
             r#type: SegmentType::Literal as i32,
             value_type: meta::path_segment::ParamType::String as i32,
+            validation: None,
         }],
         r#type: meta::path::Type::Url as i32,
     };
@@ -489,6 +490,7 @@ pub fn request_encoding(
             value: format!("{}.{}", rpc.service_name, rpc.name),
             r#type: SegmentType::Literal as i32,
             value_type: meta::path_segment::ParamType::String as i32,
+            validation: None,
         }],
         r#type: meta::path::Type::Url as i32,
     };

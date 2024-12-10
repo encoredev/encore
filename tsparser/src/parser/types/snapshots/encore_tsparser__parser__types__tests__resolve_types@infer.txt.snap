@@ -25,7 +25,9 @@ input_file: tsparser/src/parser/types/testdata/infer.txt
                                 optional: false,
                                 typ: Generic(
                                     Inferred(
-                                        0,
+                                        Inferred(
+                                            0,
+                                        ),
                                     ),
                                 ),
                             },
@@ -36,7 +38,9 @@ input_file: tsparser/src/parser/types/testdata/infer.txt
                 ),
                 true_type: Generic(
                     Inferred(
-                        0,
+                        Inferred(
+                            0,
+                        ),
                     ),
                 ),
                 false_type: Basic(

@@ -7,16 +7,16 @@ use itertools::Itertools;
 use litparser::{ParseResult, ToParseErr};
 use swc_common::errors::HANDLER;
 
-use crate::encore::parser::schema::v1 as schema;
 use crate::encore::parser::schema::v1::r#type as styp;
+use crate::encore::parser::schema::v1::{self as schema};
 use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
 
 use crate::parser::resources::apis::api::Endpoint;
-use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
+use crate::parser::resources::apis::encoding::resolve_wire_spec;
 use crate::parser::types::{
-    drop_empty_or_void, Basic, EnumValue, FieldName, Generic, Interface, Literal, Named, ObjectId,
-    Type,
+    drop_empty_or_void, unwrap_validated, Basic, Custom, EnumValue, FieldName, Generic, Interface,
+    Literal, Named, ObjectId, Type, Union, WireLocation,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
@@ -87,7 +87,7 @@ impl BuilderCtx<'_, '_> {
         Ok(match typ {
             Type::Basic(tt) => self.basic(tt),
             Type::Array(tt) => {
-                let elem = self.typ(tt)?;
+                let elem = self.typ(&tt.0)?;
                 schema::Type {
                     typ: Some(styp::Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(elem)),
@@ -118,9 +118,9 @@ impl BuilderCtx<'_, '_> {
                 validation: None,
             },
 
-            Type::Union(types) => schema::Type {
+            Type::Union(union) => schema::Type {
                 typ: Some(styp::Typ::Union(schema::Union {
-                    types: self.types(types)?,
+                    types: self.types(&union.types)?,
                 })),
                 validation: None,
             },
@@ -153,7 +153,7 @@ impl BuilderCtx<'_, '_> {
                 }
             }
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
-            Type::This => anyhow::bail!("this types are not yet supported in schemas"),
+            Type::This(_) => anyhow::bail!("this types are not yet supported in schemas"),
             Type::Generic(typ) => match typ {
                 Generic::TypeParam(param) => {
                     let decl_id = self
@@ -183,13 +183,15 @@ impl BuilderCtx<'_, '_> {
                 )
             }
 
-            Type::Validated((typ, expr)) => {
-                let mut typ = self.typ(typ)?;
+            Type::Validated(validated) => {
+                let mut typ = self.typ(&validated.typ)?;
                 // Simplify the validation expression, if possible.
-                let expr = expr.clone().simplify();
+                let expr = validated.expr.clone().simplify();
                 typ.validation = Some(expr.to_pb());
                 typ
             }
+
+            Type::Custom(Custom::WireSpec(spec)) => self.typ(&spec.underlying)?,
         })
     }
 
@@ -246,8 +248,6 @@ impl BuilderCtx<'_, '_> {
     }
 
     fn interface(&mut self, typ: &Interface) -> Result<schema::Type> {
-        let ctx = self.builder.pc.type_checker.state();
-
         // Is this an index signature?
         if let Some((key, value)) = typ.index.as_ref() {
             if !typ.fields.is_empty() {
@@ -270,32 +270,6 @@ impl BuilderCtx<'_, '_> {
             let (tt, had_undefined) = drop_undefined_union(&f.typ);
             let optional = f.optional || had_undefined;
 
-            let custom: Option<CustomType> = if let Type::Named(named) = tt.as_ref() {
-                resolve_custom_type_named(ctx, named)?
-            } else {
-                None
-            };
-
-            let (typ, wire) = match &custom {
-                None => (self.typ(&tt)?, None),
-                Some(CustomType::Header { typ, name }) => (
-                    self.typ(typ)?,
-                    Some(schema::WireSpec {
-                        location: Some(schema::wire_spec::Location::Header(
-                            schema::wire_spec::Header { name: name.clone() },
-                        )),
-                    }),
-                ),
-                Some(CustomType::Query { typ, name }) => (
-                    self.typ(typ)?,
-                    Some(schema::WireSpec {
-                        location: Some(schema::wire_spec::Location::Query(
-                            schema::wire_spec::Query { name: name.clone() },
-                        )),
-                    }),
-                ),
-            };
-
             let mut tags = vec![];
 
             // Tag it as `encore:"optional"` if the field is optional.
@@ -309,30 +283,56 @@ impl BuilderCtx<'_, '_> {
 
             let mut query_string_name = String::new();
 
-            match custom {
-                None => {}
-                Some(CustomType::Header { name, .. }) => tags.push(schema::Tag {
-                    key: "header".into(),
-                    name: name.unwrap_or(field_name.clone()),
-                    options: if f.optional {
-                        vec!["optional".into()]
-                    } else {
-                        vec![]
-                    },
-                }),
-                Some(CustomType::Query { name, .. }) => {
-                    query_string_name = name.unwrap_or(field_name.clone());
-                    tags.push(schema::Tag {
-                        key: "query".into(),
-                        name: query_string_name.clone(),
-                        options: if f.optional {
-                            vec!["optional".into()]
-                        } else {
-                            vec![]
-                        },
-                    })
-                }
+            // Resolve any wire spec overrides.
+            let (tt, validation_expr) = unwrap_validated(&tt);
+            let (mut typ, wire) = if let Some(spec) = resolve_wire_spec(tt) {
+                (
+                    self.typ(&spec.underlying)?,
+                    Some(schema::WireSpec {
+                        location: Some(match &spec.location {
+                            WireLocation::Header => {
+                                tags.push(schema::Tag {
+                                    key: "header".into(),
+                                    name: spec.name_override.clone().unwrap_or(field_name.clone()),
+                                    options: if f.optional {
+                                        vec!["optional".into()]
+                                    } else {
+                                        vec![]
+                                    },
+                                });
+
+                                schema::wire_spec::Location::Header(schema::wire_spec::Header {
+                                    name: spec.name_override.clone(),
+                                })
+                            }
+                            WireLocation::Query => {
+                                query_string_name =
+                                    spec.name_override.clone().unwrap_or(field_name.clone());
+                                tags.push(schema::Tag {
+                                    key: "query".into(),
+                                    name: query_string_name.clone(),
+                                    options: if f.optional {
+                                        vec!["optional".into()]
+                                    } else {
+                                        vec![]
+                                    },
+                                });
+
+                                schema::wire_spec::Location::Query(schema::wire_spec::Query {
+                                    name: spec.name_override.clone(),
+                                })
+                            }
+                        }),
+                    }),
+                )
+            } else {
+                (self.typ(tt)?, None)
             };
+
+            // Propagate the validation expression to the field.
+            if let Some(expr) = validation_expr {
+                typ.validation = Some(expr.to_pb());
+            }
 
             let raw_tag = tags
                 .iter()
@@ -539,16 +539,16 @@ impl BuilderCtx<'_, '_> {
 /// union and `true` to indicate the type included "| undefined".
 /// Otherwise, returns the original type and `false`.
 fn drop_undefined_union(typ: &Type) -> (Cow<'_, Type>, bool) {
-    if let Type::Union(types) = &typ {
-        for (i, t) in types.iter().enumerate() {
+    if let Type::Union(union) = &typ {
+        for (i, t) in union.types.iter().enumerate() {
             if let Type::Basic(Basic::Undefined) = &t {
                 // If we have a union with only two types, return the other type.
-                return if types.len() == 2 {
-                    (Cow::Borrowed(&types[1 - i]), true)
+                return if union.types.len() == 2 {
+                    (Cow::Borrowed(&union.types[1 - i]), true)
                 } else {
-                    let mut types = types.clone();
+                    let mut types = union.types.clone();
                     types.swap_remove(i);
-                    (Cow::Owned(Type::Union(types)), true)
+                    (Cow::Owned(Type::Union(Union { types })), true)
                 };
             }
         }

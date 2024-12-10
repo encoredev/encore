@@ -340,6 +340,7 @@ pub fn endpoints_from_meta(
                     r#type: meta::path_segment::SegmentType::Literal as i32,
                     value_type: meta::path_segment::ParamType::String as i32,
                     value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                    validation: None,
                 }],
             }),
             handshake,

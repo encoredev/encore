@@ -314,6 +314,8 @@ message PathSegment {
   SegmentType type = 1;
   string value = 2;
   ParamType value_type = 3;
+
+  optional schema.v1.ValidationExpr validation = 4;
 }
 
 message Gateway {

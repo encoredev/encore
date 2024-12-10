@@ -12,7 +12,7 @@ mod de;
 mod meta;
 mod parse;
 mod ser;
-mod validation;
+pub mod validation;
 
 use crate::api::jsonschema::parse::ParseWithSchema;
 use crate::api::APIResult;
