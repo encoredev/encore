@@ -21,7 +21,7 @@ use crate::encore::parser::meta::v1::path_segment::ParamType;
 pub struct Path {
     /// The path segments.
     segments: Vec<Segment>,
-    dynamic_segments: Vec<Basic>,
+    dynamic_segments: Vec<(Basic, Option<jsonschema::validation::Expr>)>,
 
     /// The capacity to use for generating requests.
     capacity: usize,
@@ -32,6 +32,15 @@ impl Path {
         let mut segments = Vec::with_capacity(path.segments.len());
         for seg in &path.segments {
             use meta::path_segment::SegmentType;
+            let validation = seg
+                .validation
+                .as_ref()
+                .map(|v| {
+                    jsonschema::validation::Expr::try_from(v)
+                        .context("invalid path segment validation")
+                })
+                .transpose()?;
+
             match SegmentType::try_from(seg.r#type).context("invalid path segment type")? {
                 SegmentType::Literal => {
                     segments.push(Segment::Literal(seg.value.clone().into_boxed_str()))
@@ -59,14 +68,17 @@ impl Path {
                     segments.push(Segment::Param {
                         name: name.clone().into_boxed_str(),
                         typ,
+                        validation,
                     });
                 }
 
                 SegmentType::Wildcard => segments.push(Segment::Wildcard {
                     name: seg.clone().value.into_boxed_str(),
+                    validation,
                 }),
                 SegmentType::Fallback => segments.push(Segment::Fallback {
                     name: seg.clone().value.into_boxed_str(),
+                    validation,
                 }),
             }
         }
@@ -82,14 +94,16 @@ impl Path {
             capacity += 1; // slash
             match seg {
                 Literal(lit) => capacity += lit.len(),
-                Param { typ, .. } => {
+                Param {
+                    typ, validation, ..
+                } => {
                     capacity += 10; // assume path parameters on average are 10 characters long
-                    dynamic_segments.push(*typ);
+                    dynamic_segments.push((*typ, validation.clone()));
                 }
-                Wildcard { .. } | Fallback { .. } => {
+                Wildcard { validation, .. } | Fallback { validation, .. } => {
                     // Assume path parameters on average are 10 characters long.
                     capacity += 10;
-                    dynamic_segments.push(jsonschema::Basic::String);
+                    dynamic_segments.push((jsonschema::Basic::String, validation.clone()));
                 }
             }
         }
@@ -110,12 +124,15 @@ pub enum Segment {
         name: Box<str>,
         /// The type of the path parameter.
         typ: jsonschema::Basic,
+        validation: Option<jsonschema::validation::Expr>,
     },
     Wildcard {
         name: Box<str>,
+        validation: Option<jsonschema::validation::Expr>,
     },
     Fallback {
         name: Box<str>,
+        validation: Option<jsonschema::validation::Expr>,
     },
 }
 
@@ -129,7 +146,7 @@ impl Path {
             use Segment::*;
             match seg {
                 Literal(lit) => path.push_str(lit),
-                Param { name, .. } | Wildcard { name } | Fallback { name } => {
+                Param { name, .. } | Wildcard { name, .. } | Fallback { name, .. } => {
                     let Some(payload) = payload else {
                         return Err(api::Error {
                             code: api::ErrCode::InvalidArgument,
@@ -220,7 +237,7 @@ impl Path {
 
                 // For each param, find the corresponding segment and deserialize it.
                 for (idx, (name, val)) in params.into_iter().enumerate() {
-                    if let Some(typ) = self.dynamic_segments.get(idx) {
+                    if let Some((typ, validation)) = self.dynamic_segments.get(idx) {
                         // Decode it into the correct type based on the type.
                         let val = match &typ {
                             // For strings and any, use the value directly.
@@ -269,6 +286,19 @@ impl Path {
                             // We shouldn't have null here, but handle it just in case.
                             Basic::Null => PValue::Null,
                         };
+
+                        // Validate the value, if we have a validation expression.
+                        if let Some(validation) = validation.as_ref() {
+                            if let Err(err) = validation.validate_pval(&val) {
+                                return Err(api::Error {
+                                    code: api::ErrCode::InvalidArgument,
+                                    message: format!("invalid path parameter {}: {}", name, err),
+                                    internal_message: None,
+                                    stack: None,
+                                    details: None,
+                                });
+                            }
+                        }
 
                         map.insert(name, val);
                     }

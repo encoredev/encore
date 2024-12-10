@@ -1,6 +1,5 @@
 mod ast_id;
 mod binding;
-pub mod custom;
 mod object;
 mod typ;
 mod type_resolve;

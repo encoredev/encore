@@ -7,7 +7,7 @@ use std::{
     ops::Deref,
 };
 
-use super::{Basic, Type};
+use super::{Basic, Custom, Type};
 
 #[derive(Debug, Clone, Hash, Serialize, PartialEq, Eq)]
 pub enum Expr {
@@ -119,6 +119,12 @@ impl Rule {
     }
 
     pub fn supports_type(&self, typ: &Type) -> bool {
+        // If this is a WireSpec, unwrap it as it is intended to be transparent.
+        let typ = match typ {
+            Type::Custom(Custom::WireSpec(spec)) => &spec.underlying,
+            _ => typ,
+        };
+
         match self {
             Self::MinLen(_) | Self::MaxLen(_) => {
                 matches!(typ, Type::Array(_) | Type::Basic(Basic::String))

@@ -1,13 +1,16 @@
+use std::collections::HashSet;
+
 use litparser::Sp;
 
 use super::{
-    validation, Array, Basic, ClassType, Conditional, EnumType, Generic, Index, Inferred,
+    validation, Array, Basic, ClassType, Conditional, Custom, EnumType, Generic, Index, Inferred,
     Interface, InterfaceField, Intersection, Keyof, Literal, Mapped, MappedKeyType, Named,
-    Optional, ResolveState, This, Tuple, Type, TypeParam, Union, Validated,
+    ObjectId, Optional, ResolveState, This, Tuple, Type, TypeParam, Union, Validated, WireSpec,
 };
 
 pub trait Visit {
     fn resolve_state(&self) -> &ResolveState;
+    fn seen_decls(&mut self) -> &mut HashSet<ObjectId>;
 
     #[inline]
     fn visit_basic(&mut self, node: &Basic) {
@@ -132,6 +135,16 @@ pub trait Visit {
     #[inline]
     fn visit_inferred(&mut self, node: &Inferred) {
         <Inferred as VisitWith<Self>>::visit_children_with(node, self)
+    }
+
+    #[inline]
+    fn visit_custom(&mut self, node: &Custom) {
+        <Custom as VisitWith<Self>>::visit_children_with(node, self)
+    }
+
+    #[inline]
+    fn visit_wire_spec(&mut self, node: &WireSpec) {
+        <WireSpec as VisitWith<Self>>::visit_children_with(node, self)
     }
 }
 
@@ -393,8 +406,12 @@ impl<V: ?Sized + Visit> VisitWith<V> for Named {
 
     #[inline]
     fn visit_children_with(&self, visitor: &mut V) {
-        let underlying = self.underlying(visitor.resolve_state());
-        <Type as VisitWith<V>>::visit_with(&underlying, visitor);
+        // Only recurse if we haven't seen this object before, to avoid infinite recursion
+        // with recursive types.
+        if visitor.seen_decls().insert(self.obj.id) {
+            let underlying = self.underlying(visitor.resolve_state());
+            <Type as VisitWith<V>>::visit_with(&underlying, visitor);
+        }
 
         self.type_arguments
             .iter()
@@ -429,6 +446,32 @@ impl<V: ?Sized + Visit> VisitWith<V> for Generic {
     }
 }
 
+impl<V: ?Sized + Visit> VisitWith<V> for Custom {
+    #[inline]
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_custom(visitor, self)
+    }
+
+    #[inline]
+    fn visit_children_with(&self, visitor: &mut V) {
+        match self {
+            Custom::WireSpec(inner) => <WireSpec as VisitWith<V>>::visit_with(inner, visitor),
+        }
+    }
+}
+
+impl<V: ?Sized + Visit> VisitWith<V> for WireSpec {
+    #[inline]
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_wire_spec(visitor, self)
+    }
+
+    #[inline]
+    fn visit_children_with(&self, visitor: &mut V) {
+        <Type as VisitWith<V>>::visit_with(&self.underlying, visitor)
+    }
+}
+
 impl<V: ?Sized + Visit> VisitWith<V> for Type {
     fn visit_with(&self, visitor: &mut V) {
         <V as Visit>::visit_type(visitor, self)
@@ -452,6 +495,7 @@ impl<V: ?Sized + Visit> VisitWith<V> for Type {
             Type::Generic(generic) => <Generic as VisitWith<V>>::visit_with(generic, visitor),
             Type::Validation(expr) => <validation::Expr as VisitWith<V>>::visit_with(expr, visitor),
             Type::Validated(expr) => <Validated as VisitWith<V>>::visit_with(expr, visitor),
+            Type::Custom(custom) => <Custom as VisitWith<V>>::visit_with(custom, visitor),
         }
     }
 }

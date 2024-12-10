@@ -1,6 +1,6 @@
 use std::fmt::{Display, Write};
 
-use super::{validation, Basic, Generic, Interface, Type, Validated};
+use super::{validation, Basic, Custom, Generic, Interface, Type, Validated, WireSpec};
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,6 +57,7 @@ where
             Type::Generic(g) => self.render_generic(g),
             Type::Validation(v) => self.render_validation(v),
             Type::Validated(v) => self.render_validated(v),
+            Type::Custom(c) => self.render_custom(c),
         }
     }
 
@@ -104,7 +105,7 @@ where
     fn render_literal(&mut self, lit: &super::Literal) -> std::fmt::Result {
         use super::Literal;
         match lit {
-            Literal::String(s) => self.buf.write_str(s),
+            Literal::String(s) => self.buf.write_fmt(format_args!("{:#?}", s)),
             Literal::Boolean(b) => self.buf.write_fmt(format_args!("{}", b)),
             Literal::Number(n) => self.buf.write_fmt(format_args!("{}", n)),
             Literal::BigInt(n) => self.buf.write_str(n),
@@ -150,6 +151,24 @@ where
     fn render_validated(&mut self, v: &Validated) -> std::fmt::Result {
         self.render_type(&v.typ)?;
         self.buf.write_fmt(format_args!(" & {}", v.expr))
+    }
+
+    fn render_custom(&mut self, c: &Custom) -> std::fmt::Result {
+        match c {
+            Custom::WireSpec(s) => self.render_wire_spec(s),
+        }
+    }
+
+    fn render_wire_spec(&mut self, s: &WireSpec) -> std::fmt::Result {
+        match &s.location {
+            super::WireLocation::Query => self.buf.write_str("Query<")?,
+            super::WireLocation::Header => self.buf.write_str("Header<")?,
+        }
+        self.render_type(&s.underlying)?;
+        if let Some(name) = &s.name_override {
+            self.buf.write_fmt(format_args!(", {:#?}", name))?;
+        }
+        self.buf.write_char('>')
     }
 
     fn render_generic(&mut self, g: &Generic) -> std::fmt::Result {

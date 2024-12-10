@@ -13,10 +13,10 @@ use crate::legacymeta::api_schema::strip_path_params;
 use crate::parser::parser::ParseContext;
 
 use crate::parser::resources::apis::api::Endpoint;
-use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
+use crate::parser::resources::apis::encoding::resolve_wire_spec;
 use crate::parser::types::{
-    drop_empty_or_void, Basic, EnumValue, FieldName, Generic, Interface, Literal, Named, ObjectId,
-    Type, Union,
+    drop_empty_or_void, unwrap_validated, Basic, Custom, EnumValue, FieldName, Generic, Interface,
+    Literal, Named, ObjectId, Type, Union, WireLocation,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
@@ -190,6 +190,8 @@ impl BuilderCtx<'_, '_> {
                 typ.validation = Some(expr.to_pb());
                 typ
             }
+
+            Type::Custom(Custom::WireSpec(spec)) => self.typ(&spec.underlying)?,
         })
     }
 
@@ -246,8 +248,6 @@ impl BuilderCtx<'_, '_> {
     }
 
     fn interface(&mut self, typ: &Interface) -> Result<schema::Type> {
-        let ctx = self.builder.pc.type_checker.state();
-
         // Is this an index signature?
         if let Some((key, value)) = typ.index.as_ref() {
             if !typ.fields.is_empty() {
@@ -270,32 +270,6 @@ impl BuilderCtx<'_, '_> {
             let (tt, had_undefined) = drop_undefined_union(&f.typ);
             let optional = f.optional || had_undefined;
 
-            let custom: Option<CustomType> = if let Type::Named(named) = tt.as_ref() {
-                resolve_custom_type_named(ctx, named)?
-            } else {
-                None
-            };
-
-            let (typ, wire) = match &custom {
-                None => (self.typ(&tt)?, None),
-                Some(CustomType::Header { typ, name }) => (
-                    self.typ(typ)?,
-                    Some(schema::WireSpec {
-                        location: Some(schema::wire_spec::Location::Header(
-                            schema::wire_spec::Header { name: name.clone() },
-                        )),
-                    }),
-                ),
-                Some(CustomType::Query { typ, name }) => (
-                    self.typ(typ)?,
-                    Some(schema::WireSpec {
-                        location: Some(schema::wire_spec::Location::Query(
-                            schema::wire_spec::Query { name: name.clone() },
-                        )),
-                    }),
-                ),
-            };
-
             let mut tags = vec![];
 
             // Tag it as `encore:"optional"` if the field is optional.
@@ -309,30 +283,56 @@ impl BuilderCtx<'_, '_> {
 
             let mut query_string_name = String::new();
 
-            match custom {
-                None => {}
-                Some(CustomType::Header { name, .. }) => tags.push(schema::Tag {
-                    key: "header".into(),
-                    name: name.unwrap_or(field_name.clone()),
-                    options: if f.optional {
-                        vec!["optional".into()]
-                    } else {
-                        vec![]
-                    },
-                }),
-                Some(CustomType::Query { name, .. }) => {
-                    query_string_name = name.unwrap_or(field_name.clone());
-                    tags.push(schema::Tag {
-                        key: "query".into(),
-                        name: query_string_name.clone(),
-                        options: if f.optional {
-                            vec!["optional".into()]
-                        } else {
-                            vec![]
-                        },
-                    })
-                }
+            // Resolve any wire spec overrides.
+            let (tt, validation_expr) = unwrap_validated(&tt);
+            let (mut typ, wire) = if let Some(spec) = resolve_wire_spec(tt) {
+                (
+                    self.typ(&spec.underlying)?,
+                    Some(schema::WireSpec {
+                        location: Some(match &spec.location {
+                            WireLocation::Header => {
+                                tags.push(schema::Tag {
+                                    key: "header".into(),
+                                    name: spec.name_override.clone().unwrap_or(field_name.clone()),
+                                    options: if f.optional {
+                                        vec!["optional".into()]
+                                    } else {
+                                        vec![]
+                                    },
+                                });
+
+                                schema::wire_spec::Location::Header(schema::wire_spec::Header {
+                                    name: spec.name_override.clone(),
+                                })
+                            }
+                            WireLocation::Query => {
+                                query_string_name =
+                                    spec.name_override.clone().unwrap_or(field_name.clone());
+                                tags.push(schema::Tag {
+                                    key: "query".into(),
+                                    name: query_string_name.clone(),
+                                    options: if f.optional {
+                                        vec!["optional".into()]
+                                    } else {
+                                        vec![]
+                                    },
+                                });
+
+                                schema::wire_spec::Location::Query(schema::wire_spec::Query {
+                                    name: spec.name_override.clone(),
+                                })
+                            }
+                        }),
+                    }),
+                )
+            } else {
+                (self.typ(tt)?, None)
             };
+
+            // Propagate the validation expression to the field.
+            if let Some(expr) = validation_expr {
+                typ.validation = Some(expr.to_pb());
+            }
 
             let raw_tag = tags
                 .iter()
