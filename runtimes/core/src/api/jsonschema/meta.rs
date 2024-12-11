@@ -238,9 +238,6 @@ impl BuilderCtx<'_, '_> {
 
     #[inline]
     fn struct_field<'c>(&mut self, f: &'c schema::Field) -> Result<(&'c String, Field)> {
-        // Note: Our JS/TS support don't include the ability to change
-        // the JSON name from the field name, so we use the field name unconditionally.
-
         let typ = self.typ(&f.typ)?;
         let value = match typ {
             Value::Basic(basic) => BasicOrValue::Basic(basic),
