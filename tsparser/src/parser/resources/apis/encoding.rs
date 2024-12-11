@@ -6,10 +6,9 @@ use thiserror::Error;
 
 use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
-use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, unwrap_promise, Basic, FieldName, Interface, InterfaceField, ResolveState,
-    Type, TypeChecker,
+    drop_empty_or_void, unwrap_promise, unwrap_validated, validation, Basic, Custom, FieldName,
+    Interface, InterfaceField, ResolveState, Type, TypeChecker, WireLocation, WireSpec,
 };
 use crate::parser::Range;
 use crate::span_err::{ErrorWithSpanExt, SpErr};
@@ -427,7 +426,7 @@ pub struct Field {
     name: String,
     typ: Type,
     optional: bool,
-    custom: Option<CustomType>,
+    custom: Option<WireSpec>,
     range: Range,
 }
 
@@ -453,19 +452,11 @@ pub(crate) fn iface_fields<'a>(
     tc: &'a TypeChecker,
     typ: &'a Sp<Type>,
 ) -> Result<FieldMap, SpErr<Error>> {
-    fn to_fields<'a>(
-        state: &'a ResolveState,
-        iface: &'a Interface,
-    ) -> Result<FieldMap, SpErr<Error>> {
+    fn to_fields(iface: &Interface) -> Result<FieldMap, SpErr<Error>> {
         let mut map = HashMap::new();
         for f in &iface.fields {
             if let FieldName::String(name) = &f.name {
-                map.insert(
-                    name.clone(),
-                    rewrite_custom_type_field(state, f, name)
-                        .map_err(Error::InvalidCustomType)
-                        .map_err(|e| e.with_span(f.range.into()))?,
-                );
+                map.insert(name.clone(), rewrite_custom_type_field(f, name));
             }
         }
         Ok(map)
@@ -475,7 +466,7 @@ pub(crate) fn iface_fields<'a>(
     let typ = unwrap_promise(tc.state(), typ);
     match typ {
         Type::Basic(Basic::Void) => Ok(HashMap::new()),
-        Type::Interface(iface) => to_fields(tc.state(), iface),
+        Type::Interface(iface) => to_fields(iface),
         Type::Named(named) => {
             let underlying = Sp::new(span, tc.underlying(named.obj.module_id, typ));
             iface_fields(tc, &underlying)
@@ -510,8 +501,13 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseRes
 
         // Determine the location.
         let (loc, loc_name) = match &f.custom {
-            Some(CustomType::Header { name, .. }) => (ParamLocation::Header, name.clone()),
-            Some(CustomType::Query { name, .. }) => (ParamLocation::Query, name.clone()),
+            Some(spec) => (
+                match spec.location {
+                    WireLocation::Header => ParamLocation::Header,
+                    WireLocation::Query => ParamLocation::Query,
+                },
+                spec.name_override.clone(),
+            ),
             None => (default_loc, None),
         };
 
@@ -549,42 +545,64 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> ParseResu
     // Get the path params into a map, keyed by name.
     let path_params = req
         .path()
-        .map(|param| (&param.name, param))
+        .map(|param| (param.name.as_str(), param))
         .collect::<HashMap<_, _>>();
 
-    let typ_to_value_type = |param: &Param| match &param.typ {
-        Type::Basic(Basic::String) => Ok(ValueType::String),
-        Type::Basic(Basic::Boolean) => Ok(ValueType::Bool),
-        Type::Basic(Basic::Number | Basic::BigInt) => Ok(ValueType::Int),
-        typ => Err(param
-            .range
-            .to_span()
-            .parse_err(format!("unsupported path parameter type: {:?}", typ))),
+    fn typ_to_value_type(param: &Param) -> ParseResult<(ValueType, Option<validation::Expr>)> {
+        // Unwrap any validation expression before we check the type.
+        let (typ, expr) = unwrap_validated(&param.typ);
+        if let Some(expr) = &expr {
+            if let Err(err) = expr.supports_type(typ) {
+                return Err(param.range.parse_err(err.to_string()));
+            }
+        }
+
+        match typ {
+            Type::Basic(Basic::String) => Ok((ValueType::String, expr.cloned())),
+            Type::Basic(Basic::Boolean) => Ok((ValueType::Bool, expr.cloned())),
+            Type::Basic(Basic::Number | Basic::BigInt) => Ok((ValueType::Int, expr.cloned())),
+            typ => Err(param
+                .range
+                .to_span()
+                .parse_err(format!("unsupported path parameter type: {:?}", typ))),
+        }
+    }
+
+    let resolve_value_type = |span: Span, name: &str| {
+        match path_params.get(name) {
+            Some(param) => typ_to_value_type(param),
+            None => {
+                // Raw endpoints assume path params are strings.
+                if raw {
+                    Ok((ValueType::String, None))
+                } else {
+                    Err(span.parse_err("path parameter not found in request schema"))
+                }
+            }
+        }
     };
 
     let mut segments = Vec::with_capacity(path.segments.len());
     for seg in path.segments.into_iter() {
         let (seg_span, seg) = seg.split();
         let seg = match seg {
+            Segment::Literal(_) => seg,
             Segment::Param { name, .. } => {
-                // Get the value type of the path parameter.
-                let value_type = match path_params.get(&name) {
-                    Some(param) => typ_to_value_type(param)?,
-                    None => {
-                        // Raw endpoints assume path params are strings.
-                        if raw {
-                            ValueType::String
-                        } else {
-                            return Err(
-                                seg_span.parse_err("path parameter not found in request schema")
-                            );
-                        }
-                    }
-                };
-
-                Segment::Param { name, value_type }
+                let (value_type, validation) = resolve_value_type(seg_span, &name)?;
+                Segment::Param {
+                    name,
+                    value_type,
+                    validation,
+                }
             }
-            Segment::Literal(_) | Segment::Wildcard { .. } | Segment::Fallback { .. } => seg,
+            Segment::Wildcard { name, .. } => {
+                let (_, validation) = resolve_value_type(seg_span, &name)?;
+                Segment::Wildcard { name, validation }
+            }
+            Segment::Fallback { name, .. } => {
+                let (_, validation) = resolve_value_type(seg_span, &name)?;
+                Segment::Fallback { name, validation }
+            }
         };
         segments.push(Sp::new(seg_span, seg));
     }
@@ -595,39 +613,27 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> ParseResu
     })
 }
 
-fn rewrite_custom_type_field(
-    ctx: &ResolveState,
-    field: &InterfaceField,
-    field_name: &str,
-) -> anyhow::Result<Field> {
-    let standard_field = Field {
+pub fn resolve_wire_spec(typ: &Type) -> Option<&WireSpec> {
+    match typ {
+        Type::Custom(Custom::WireSpec(spec)) => Some(spec),
+        Type::Validated(v) => resolve_wire_spec(&v.typ),
+        Type::Optional(opt) => resolve_wire_spec(&opt.0),
+        _ => None,
+    }
+}
+
+fn rewrite_custom_type_field(field: &InterfaceField, field_name: &str) -> Field {
+    let mut standard_field = Field {
         name: field_name.to_string(),
         typ: field.typ.clone(),
         optional: field.optional,
         custom: None,
         range: field.range,
     };
-    let Type::Named(named) = &field.typ else {
-        return Ok(standard_field);
+
+    if let Some(spec) = resolve_wire_spec(&field.typ) {
+        standard_field.custom = Some(spec.clone());
     };
 
-    Ok(match resolve_custom_type_named(ctx, named)? {
-        None => standard_field,
-        Some(CustomType::Header { typ, name }) => Field {
-            custom: Some(CustomType::Query {
-                typ: typ.clone(),
-                name,
-            }),
-            typ,
-            ..standard_field
-        },
-        Some(CustomType::Query { typ, name }) => Field {
-            custom: Some(CustomType::Query {
-                typ: typ.clone(),
-                name,
-            }),
-            typ,
-            ..standard_field
-        },
-    })
+    standard_field
 }

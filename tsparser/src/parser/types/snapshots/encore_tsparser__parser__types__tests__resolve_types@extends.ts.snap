@@ -13,17 +13,19 @@ input_file: tsparser/src/parser/types/testdata/extends.ts
                     ),
                     optional: false,
                     typ: Union(
-                        [
-                            Basic(
-                                String,
-                            ),
-                            Basic(
-                                Number,
-                            ),
-                            Basic(
-                                Null,
-                            ),
-                        ],
+                        Union {
+                            types: [
+                                Basic(
+                                    String,
+                                ),
+                                Basic(
+                                    Number,
+                                ),
+                                Basic(
+                                    Null,
+                                ),
+                            ],
+                        },
                     ),
                 },
                 InterfaceField {
@@ -58,14 +60,16 @@ input_file: tsparser/src/parser/types/testdata/extends.ts
                     ),
                     optional: false,
                     typ: Union(
-                        [
-                            Basic(
-                                String,
-                            ),
-                            Basic(
-                                Null,
-                            ),
-                        ],
+                        Union {
+                            types: [
+                                Basic(
+                                    String,
+                                ),
+                                Basic(
+                                    Null,
+                                ),
+                            ],
+                        },
                     ),
                 },
                 InterfaceField {
@@ -109,19 +113,21 @@ input_file: tsparser/src/parser/types/testdata/extends.ts
                     ),
                     optional: false,
                     typ: Union(
-                        [
-                            Generic(
-                                TypeParam(
-                                    TypeParam {
-                                        idx: 0,
-                                        constraint: None,
-                                    },
+                        Union {
+                            types: [
+                                Generic(
+                                    TypeParam(
+                                        TypeParam {
+                                            idx: 0,
+                                            constraint: None,
+                                        },
+                                    ),
                                 ),
-                            ),
-                            Basic(
-                                Null,
-                            ),
-                        ],
+                                Basic(
+                                    Null,
+                                ),
+                            ],
+                        },
                     ),
                 },
             ],
@@ -147,21 +153,25 @@ input_file: tsparser/src/parser/types/testdata/extends.ts
                     ),
                     optional: false,
                     typ: Union(
-                        [
-                            Union(
-                                [
-                                    Basic(
-                                        String,
-                                    ),
-                                    Basic(
-                                        Number,
-                                    ),
-                                ],
-                            ),
-                            Basic(
-                                Null,
-                            ),
-                        ],
+                        Union {
+                            types: [
+                                Union(
+                                    Union {
+                                        types: [
+                                            Basic(
+                                                String,
+                                            ),
+                                            Basic(
+                                                Number,
+                                            ),
+                                        ],
+                                    },
+                                ),
+                                Basic(
+                                    Null,
+                                ),
+                            ],
+                        },
                     ),
                 },
             ],
@@ -178,16 +188,18 @@ input_file: tsparser/src/parser/types/testdata/extends.ts
                     ),
                     optional: false,
                     typ: Union(
-                        [
-                            Literal(
-                                Number(
-                                    5.0,
+                        Union {
+                            types: [
+                                Literal(
+                                    Number(
+                                        5.0,
+                                    ),
                                 ),
-                            ),
-                            Basic(
-                                Null,
-                            ),
-                        ],
+                                Basic(
+                                    Null,
+                                ),
+                            ],
+                        },
                     ),
                 },
             ],
