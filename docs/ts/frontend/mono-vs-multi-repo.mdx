@@ -1,0 +1,38 @@
+---
+seotitle: Integrate your backend application with a frontend
+seodesc: Learn how to structure your application, using a Monorepo or a Multi-repo approach.
+title: Mono vs Multi Repo
+subtitle: How to structure your frontend and backend
+lang: ts
+---
+
+Encore is not opinionated about if you have your backend and frontend code in the same repo or not. Pick the approach that fits your application best.
+
+## Monorepo
+
+If you use a monorepo then it is often a good idea to place your backend and frontend in separate folders in the root of your repo, like so:
+
+```
+/my-app
+├── backend
+│   ├── encore.app
+│   ├── package.json // Backend dependencies
+│   └── ...
+└── frontend
+    ├── package.json // Frontend dependencies
+    └── ...
+```
+
+This way, you can keep your frontend and backend dependencies separate, while still having the codebases in the same repository. If you are using Encore Cloud for deployment, remember to configure the "Root Directory" in app settings in the [Encore Cloud dashboard](https://app.encore.cloud) to point to where you have your `encore.app` file.
+
+<GitHubLink
+    href="https://github.com/encoredev/nextjs-starter"
+    desc="Next.js + Encore Starter, separated into frontend and backend folders."
+/>
+
+You can also have a monorepo where the `encore.app` file is in the root of the repo, the frontend code will then be inside your Encore app. If you go this route you will most likely need two different `tsconfig.json` files, one for the frontend and one for the backend.
+
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/react-starter"
+    desc="React + Encore Starter, frontend code inside the Encore app."
+/>
