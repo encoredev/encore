@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"slices"
 	strconv "strconv"
-	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
