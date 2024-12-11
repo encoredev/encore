@@ -180,7 +180,7 @@ func (h HostPath) ToImage() ImagePath {
 		// convert windows path with volume to a unix path, i.e c:\some\path -> /c/some/path
 		volume := filepath.VolumeName(string(h))
 		if len(volume) == 2 && volume[1] == ':' {
-			return ImagePath("/" + string(volume[0]) + filepath.ToSlash(h[2:]))
+			return ImagePath("/" + string(volume[0]) + filepath.ToSlash(string(h[2:]))
 		}
 	}
 
