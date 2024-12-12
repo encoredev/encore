@@ -38,6 +38,9 @@ const (
 	// AdaptiveGCPPubSubGoroutines enables adaptive configuration of the number of
 	// goroutines to use on GCP. Useful for applications with a large number of subscriptions.
 	AdaptiveGCPPubSubGoroutines Name = "adaptive-gcp-pubsub-goroutines"
+
+	// TSWorkerThreads enables multiple worker threads for Encore.ts.
+	TSWorkerThreads Name = "ts-worker-threads"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -51,7 +54,8 @@ func (x Name) Valid() bool {
 		AuthDataRoundTrip,
 		TypeScript,
 		StreamTraces,
-		AdaptiveGCPPubSubGoroutines:
+		AdaptiveGCPPubSubGoroutines,
+		TSWorkerThreads:
 		return true
 	default:
 		return false

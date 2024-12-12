@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex, RwLock};
-
-use rand::Rng;
 
 use crate::api::endpoint::{EndpointHandler, SharedEndpointData};
 use crate::api::paths::Pather;
@@ -187,12 +186,58 @@ impl Pather for EndpointPathResolver {
     }
 }
 
+#[derive(Debug)]
+struct LoadBalancingHandler<H> {
+    handlers: Vec<H>,
+    counter: AtomicUsize,
+}
+
+impl<H> Default for LoadBalancingHandler<H> {
+    fn default() -> Self {
+        Self {
+            handlers: Vec::new(),
+            counter: AtomicUsize::new(0),
+        }
+    }
+}
+
+impl<H> LoadBalancingHandler<H> {
+    pub fn single(handler: H) -> Self {
+        Self {
+            handlers: vec![handler],
+            counter: AtomicUsize::new(1),
+        }
+    }
+
+    pub fn add(&mut self, handler: H) {
+        self.handlers.push(handler);
+    }
+
+    pub fn len(&self) -> usize {
+        self.handlers.len()
+    }
+
+    pub fn next(&self) -> &H {
+        let n = self.handlers.len();
+        // If we have a single handler, skip the increment and modulo steps.
+        if n == 1 {
+            return &self.handlers[0];
+        }
+
+        // Atomically increment the counter, and then get the next handler.
+        let idx = self
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        &self.handlers[idx % n]
+    }
+}
+
 /// A replaceable handler is a handler that can be replaced at runtime.
 /// It is used to support incremental registration of endpoints.
 #[derive(Clone)]
 struct ReplaceableHandler<H> {
     /// Underlying handler. The RwLock is used to be able to inject the underlying handler.
-    handler: Arc<RwLock<Vec<H>>>,
+    handler: Arc<RwLock<LoadBalancingHandler<H>>>,
 }
 
 impl<H> Debug for ReplaceableHandler<H> {
@@ -210,18 +255,18 @@ impl<H> Default for ReplaceableHandler<H> {
 impl<H> ReplaceableHandler<H> {
     pub fn new() -> Self {
         Self {
-            handler: Arc::new(RwLock::new(vec![])),
+            handler: Arc::new(RwLock::default()),
         }
     }
 
     /// Set sets the handler.
     pub fn set(&self, handler: H) {
-        *self.handler.write().unwrap() = vec![handler];
+        *self.handler.write().unwrap() = LoadBalancingHandler::single(handler);
     }
 
     /// Set sets the handler.
     pub fn add(&self, handler: H) {
-        self.handler.write().unwrap().push(handler);
+        self.handler.write().unwrap().add(handler);
     }
 }
 
@@ -235,17 +280,8 @@ where
         let handlers = self.handler.read().unwrap();
         match handlers.len() {
             0 => MaybeHandlerFuture { fut: None },
-            1 => {
-                let handler = handlers[0].clone();
-                MaybeHandlerFuture {
-                    fut: Some(Box::pin(handler.call(req, state))),
-                }
-            }
-            n => {
-                // Get a random handler between 0 and n.
-                let idx = rand::thread_rng().gen_range(0..n);
-                let handler = handlers[idx].clone();
-
+            _ => {
+                let handler = handlers.next().clone();
                 MaybeHandlerFuture {
                     fut: Some(Box::pin(handler.call(req, state))),
                 }

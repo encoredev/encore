@@ -9,6 +9,7 @@ use tokio_nsq::{
     NSQChannel, NSQConsumerConfig, NSQConsumerConfigSources, NSQMessage, NSQRequeueDelay, NSQTopic,
 };
 
+use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub;
@@ -77,8 +78,9 @@ impl Subscription for NsqSubscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let mut consumer = self.config.clone().build();
+        let max_retries = self.max_retries;
 
         Box::pin(async move {
             loop {
@@ -90,7 +92,7 @@ impl Subscription for NsqSubscription {
                 // Attempt starts at 1 for the first delivery, which means
                 // the retry count is (attempt-1).
                 let retry = msg.attempt as i64 - 1;
-                if retry > self.max_retries {
+                if retry > max_retries {
                     msg.finish().await;
                     continue;
                 }

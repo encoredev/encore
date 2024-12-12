@@ -1538,6 +1538,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "num_cpus",
  "prost",
  "prost-types",
  "serde_json",

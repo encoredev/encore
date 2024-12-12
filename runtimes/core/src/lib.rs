@@ -435,6 +435,12 @@ impl Runtime {
     pub fn app_meta(&self) -> &meta::AppMeta {
         &self.app_meta
     }
+
+    /// Reports the experiments enabled in the metadata.
+    #[inline]
+    pub fn experiments(&self) -> &[String] {
+        &self.md.experiments
+    }
 }
 
 #[derive(Debug)]

@@ -1,9 +1,11 @@
+import { isMainThread, Worker } from "node:worker_threads";
 import { Gateway } from "../../api/gateway";
 import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
 import { IterableSocket, IterableStream, Sink } from "../../api/stream";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
+import { fileURLToPath } from "node:url";
 
 export type Handler = {
   apiRoute: runtime.ApiRoute;
@@ -24,8 +26,20 @@ export function registerGateways(gateways: Gateway[]) {
   // It intentionally doesn't need to do anything.
 }
 
-export async function run() {
-  return runtime.RT.runForever();
+export async function run(entrypoint: string) {
+  if (isMainThread) {
+    const numWorkers = runtime.RT.numExtraWorkerThreads();
+    if (numWorkers > 0) {
+      const path = fileURLToPath(entrypoint);
+      for (let i = 0; i < numWorkers; i++) {
+        new Worker(path);
+      }
+    }
+    return runtime.RT.runForever();
+  }
+
+  // This is a worker thread. The runtime is already initialized, so block forever.
+  await new Promise(() => { });
 }
 
 interface EndpointOptions {

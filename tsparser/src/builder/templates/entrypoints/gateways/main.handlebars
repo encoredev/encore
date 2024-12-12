@@ -15,13 +15,4 @@ const gateways = [
 
 registerGateways(gateways);
 
-if (isMainThread) {
-  const path = fileURLToPath(import.meta.url);
-  for (let i = 0; i < availableParallelism()-1; i++) {
-    new Worker(path);
-  }
-
-  await run();
-} else {
-  await new Promise(() => { });
-}
+await run(import.meta.url);

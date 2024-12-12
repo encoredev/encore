@@ -57,13 +57,17 @@ impl Runtime {
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
 
         if test_mode {
-            let runtime = Arc::new(init_runtime(test_mode)?);
+            // Don't reuse the runtime in tests, as vitest and other test frameworks
+            // use multiple workers to isolate tests from each other. We don't want tests
+            // to be making API calls to other tests' workers.
+            let runtime = Arc::new(init_runtime(true)?);
+
             // If we're running tests, there's no specific entrypoint so
             // start the runtime in the background immediately.
-            if test_mode {
-                let runtime = runtime.clone();
+            {
+                let rt = runtime.clone();
                 thread::spawn(move || {
-                    runtime.run_blocking();
+                    rt.run_blocking();
                 });
             }
 
@@ -299,6 +303,20 @@ impl Runtime {
     pub fn app_meta(&self) -> meta::AppMeta {
         let md = self.runtime.app_meta();
         md.clone().into()
+    }
+
+    #[napi]
+    pub fn num_extra_worker_threads(&self) -> usize {
+        if self
+            .runtime
+            .experiments()
+            .iter()
+            .any(|v| v == "ts-worker-threads")
+        {
+            num_cpus::get() - 1
+        } else {
+            0
+        }
     }
 }
 
