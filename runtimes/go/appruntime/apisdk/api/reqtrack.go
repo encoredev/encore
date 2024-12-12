@@ -42,6 +42,9 @@ type beginRequestParams struct {
 	// It is copied from the parent request if it is empty.
 	ParentSpanID model.SpanID
 
+	// ParentSampled indicates whether the parent span sampled trace information.
+	ParentSampled bool
+
 	// CallerEventID is the event ID in the parent span that triggered this request.
 	// It's used to correlate the request with the originating call.
 	CallerEventID model.TraceEventID
@@ -81,6 +84,13 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		spanID = id
 	}
 
+	var traced bool
+	if p.ParentSpanID.IsZero() {
+		traced = s.rt.SampleTrace()
+	} else {
+		traced = p.ParentSampled
+	}
+
 	req := &model.Request{
 		Type:             p.Type,
 		TraceID:          traceID,
@@ -92,7 +102,7 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 		DefLoc:           p.DefLoc,
 		SvcNum:           p.Data.Desc.SvcNum,
 		Start:            s.clock.Now(),
-		Traced:           s.tracingEnabled,
+		Traced:           traced,
 		RPCData:          p.Data,
 	}
 

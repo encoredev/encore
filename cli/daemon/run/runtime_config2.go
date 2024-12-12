@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,10 +124,17 @@ func (g *RuntimeConfigGenerator) initialize() error {
 		})
 
 		if traceEndpoint, ok := g.TraceEndpoint.Get(); ok {
+			sampleRate := 1.0
+			if val, err := strconv.ParseFloat(os.Getenv("ENCORE_TRACE_SAMPLING_RATE"), 64); err == nil {
+				sampleRate = min(max(val, 0), 1)
+			}
 			g.conf.TracingProvider(&runtimev1.TracingProvider{
 				Rid: newRid(),
 				Provider: &runtimev1.TracingProvider_Encore{
-					Encore: &runtimev1.TracingProvider_EncoreTracingProvider{TraceEndpoint: traceEndpoint},
+					Encore: &runtimev1.TracingProvider_EncoreTracingProvider{
+						TraceEndpoint: traceEndpoint,
+						SamplingRate:  &sampleRate,
+					},
 				},
 			})
 		}
