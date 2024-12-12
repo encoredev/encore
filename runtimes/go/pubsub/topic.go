@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/model"
@@ -153,6 +154,10 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 			// Otherwise this is the first request in the event chain, so this trace ID becomes the correlation ID
 			attrs[extCorrelationIDAttribute] = req.TraceID.String()
 		}
+
+		attrs[parentSampledAttribute] = strconv.FormatBool(req.Traced)
+	} else {
+		attrs[parentSampledAttribute] = strconv.FormatBool(false)
 	}
 
 	// Start the trace span

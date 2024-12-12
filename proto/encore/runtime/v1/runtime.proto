@@ -111,6 +111,9 @@ message TracingProvider {
 
   message EncoreTracingProvider {
     string trace_endpoint = 1;
+    // The sampling rate to use for traces, between [0, 1].
+    // If unset it defaults to 1 (meaning all requests are traced).
+    optional double sampling_rate = 2;
   }
 }
 
