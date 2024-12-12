@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -119,8 +120,6 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		Str("subscription", name).
 		Logger()
 
-	tracingEnabled := mgr.rt.TracingEnabled()
-
 	// Subscribe to the topic
 	topic.topic.Subscribe(&log, cfg.MaxConcurrency, cfg.AckDeadline, cfg.RetryPolicy, subscription, func(ctx context.Context, msgID string, publishTime time.Time, deliveryAttempt int, attrs map[string]string, data []byte) (err error) {
 		if ctx.Err() != nil {
@@ -172,6 +171,14 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 		} else if parentTraceID != (model.TraceID{}) {
 			logCtx = logCtx.Str("x_correlation_id", parentTraceID.String())
 		}
+
+		traced := false
+		if val, ok := attrs[parentSampledAttribute]; ok {
+			traced, _ = strconv.ParseBool(val)
+		} else {
+			traced = mgr.rt.SampleTrace()
+		}
+
 		// Start the request tracing span
 		req := &model.Request{
 			Type:             model.PubSubMessage,
@@ -192,7 +199,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 			},
 			DefLoc: staticCfg.TraceIdx,
 			SvcNum: staticCfg.SvcNum,
-			Traced: tracingEnabled,
+			Traced: traced,
 		}
 		reqLogger := logCtx.Logger()
 		req.Logger = &reqLogger
@@ -205,7 +212,6 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 				// Maybe it doesn't matter since subscriptions are always root spans anyway.
 				req.ParentSpanID = prevReq.ParentSpanID
 
-				req.Traced = prevReq.Traced
 				req.Test = prevReq.Test
 			}
 		}

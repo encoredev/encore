@@ -13,6 +13,9 @@ const parentTraceIDAttribute = "encore_parent_trace_id"
 // extCorrelationIDAttribute is the attribute name we use to track externally provided correlation IDs
 const extCorrelationIDAttribute = "encore_ext_correlation_id"
 
+// parentSampledAttribute is the attribute name for determining if the parent was sampled.
+const parentSampledAttribute = "encore_parent_sampled"
+
 // SubscriptionConfig is used when creating a subscription
 //
 // The values given here may be clamped to the supported values by

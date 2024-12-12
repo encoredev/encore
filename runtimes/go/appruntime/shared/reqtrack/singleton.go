@@ -15,7 +15,9 @@ func init() {
 	var traceFactory traceprovider.Factory
 	tracingEnabled := appconf.Runtime.TraceEndpoint != "" && len(appconf.Runtime.AuthKeys) > 0
 	if tracingEnabled {
-		traceFactory = &traceprovider.DefaultFactory{}
+		traceFactory = &traceprovider.DefaultFactory{
+			SampleRate: appconf.Runtime.TraceSamplingRate,
+		}
 	}
 
 	Singleton = New(logging.RootLogger, platform.Singleton, traceFactory)
