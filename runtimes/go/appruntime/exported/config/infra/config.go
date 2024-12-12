@@ -21,6 +21,10 @@ type InfraConfig struct {
 	Secrets          Secrets                      `json:"secrets,omitempty"`
 	ObjectStorage    []*ObjectStorage             `json:"object_storage,omitempty"`
 
+	// Minimum log level for the application.
+	// If empty it defaults to "trace".
+	LogLevel string `json:"log_level,omitemty"`
+
 	// These fields are not defined in the json schema and should not be
 	// set by the user. They're computed during the build/eject process.
 	HostedServices []string `json:"hosted_services,omitempty"`
