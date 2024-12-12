@@ -208,6 +208,7 @@ pub struct Runtime {
     api: api::Manager,
     app_meta: meta::AppMeta,
     runtime: tokio::runtime::Runtime,
+    compute: runtimepb::Compute,
 }
 
 impl Runtime {
@@ -236,6 +237,7 @@ impl Runtime {
         let encore_platform = cfg.encore_platform.take().unwrap_or_default();
 
         let mut deployment = cfg.deployment.take().unwrap_or_default();
+        let compute = deployment.compute.take().unwrap_or_default();
         let service_discovery = deployment.service_discovery.take().unwrap_or_default();
 
         let http_client = reqwest::Client::builder()
@@ -381,6 +383,7 @@ impl Runtime {
             objects,
             api,
             app_meta,
+            compute,
             runtime: tokio_rt,
         })
     }
@@ -438,8 +441,8 @@ impl Runtime {
 
     /// Reports the experiments enabled in the metadata.
     #[inline]
-    pub fn experiments(&self) -> &[String] {
-        &self.md.experiments
+    pub fn compute(&self) -> &runtimepb::Compute {
+        &self.compute
     }
 }
 

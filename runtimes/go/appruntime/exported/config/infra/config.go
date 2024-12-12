@@ -25,6 +25,10 @@ type InfraConfig struct {
 	// If empty it defaults to "trace".
 	LogLevel string `json:"log_level,omitemty"`
 
+	// Number of worker threads to use for the application.
+	// If empty or 0 it defaults to the number of CPUs.
+	WorkerThreads int `json:"worker_threads,omitempty"`
+
 	// These fields are not defined in the json schema and should not be
 	// set by the user. They're computed during the build/eject process.
 	HostedServices []string `json:"hosted_services,omitempty"`

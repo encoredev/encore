@@ -307,16 +307,10 @@ impl Runtime {
 
     #[napi]
     pub fn num_extra_worker_threads(&self) -> usize {
-        if self
-            .runtime
-            .experiments()
-            .iter()
-            .any(|v| v == "ts-worker-threads")
-        {
-            num_cpus::get() - 1
-        } else {
-            0
-        }
+        self.runtime
+            .compute()
+            .worker_threads
+            .map_or_else(|| num_cpus::get() - 1, |v| v as usize)
     }
 }
 
