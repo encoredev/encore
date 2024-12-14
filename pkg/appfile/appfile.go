@@ -69,6 +69,9 @@ type Build struct {
 	// Docker configures the docker images built
 	// by Encore's CI/CD system.
 	Docker Docker `json:"docker,omitempty"`
+
+	// WorkerPooling enables worker pooling for Encore.ts.
+	WorkerPooling bool `json:"worker_pooling,omitempty"`
 }
 
 type Docker struct {

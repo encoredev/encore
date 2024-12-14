@@ -135,6 +135,9 @@ type Deployment struct {
 	// The service-discovery configuration for this deployment.
 	sd *runtimev1.ServiceDiscovery
 
+	// The compute configuration for this deployment.
+	compute *runtimev1.Compute
+
 	// The base URL for reaching this deployment from another service.
 	svc2svcBaseURL string
 
@@ -185,6 +188,11 @@ func (d *Deployment) ServiceDiscovery(sd *runtimev1.ServiceDiscovery) *Deploymen
 	return d
 }
 
+func (d *Deployment) Compute(c *runtimev1.Compute) *Deployment {
+	d.compute = c
+	return d
+}
+
 func (d *Deployment) ReduceWithMeta(md *meta.Data) *Deployment {
 	d.reduceWith = option.Some(md)
 	return d
@@ -228,6 +236,7 @@ func (d *Deployment) BuildRuntimeConfig() (*runtimev1.RuntimeConfig, error) {
 		HostedGateways:     gatewayRids,
 		HostedServices:     hostedServices,
 		ServiceDiscovery:   d.sd,
+		Compute:            d.compute,
 		GracefulShutdown:   graceful,
 		DynamicExperiments: d.dynamicExperiments,
 		Observability:      b.obs,

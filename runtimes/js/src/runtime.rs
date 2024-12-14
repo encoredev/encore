@@ -289,6 +289,22 @@ impl Runtime {
         let md = self.runtime.app_meta();
         md.clone().into()
     }
+
+    /// Reports the total number of worker threads,
+    /// including the main thread.
+    #[napi]
+    pub fn num_worker_threads(&self) -> u32 {
+        match self.runtime.compute().worker_threads {
+            Some(n) => {
+                if n > 0 {
+                    n as u32
+                } else {
+                    num_cpus::get() as u32
+                }
+            }
+            None => 1u32,
+        }
+    }
 }
 
 #[napi]
