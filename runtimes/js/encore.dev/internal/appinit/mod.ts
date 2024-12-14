@@ -28,10 +28,10 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run(entrypoint: string) {
   if (isMainThread) {
-    const numWorkers = runtime.RT.numExtraWorkerThreads();
-    if (numWorkers > 0) {
+    const extraWorkers = runtime.RT.numWorkerThreads() - 1;
+    if (extraWorkers > 0) {
       const path = fileURLToPath(entrypoint);
-      for (let i = 0; i < numWorkers; i++) {
+      for (let i = 0; i < extraWorkers; i++) {
         new Worker(path);
       }
     }

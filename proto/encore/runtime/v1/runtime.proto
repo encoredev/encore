@@ -76,23 +76,24 @@ message Deployment {
 }
 
 message Compute {
-   // Number of worker threads to use.
-   // If unset, the runtime automatically determines the number of threads to use
-   // based on the number of CPUs available.
-   optional int32 worker_threads = 1;
+  // Number of worker threads to use.
+  // If unset it defaults to 1. If set to 0 the runtime
+  // automatically determines the number of threads to use
+  // based on the number of CPUs available.
+  optional int32 worker_threads = 1;
 
-   // The minimum log level to use.
-   // If unset it defaults to LOG_LEVEL_TRACE.
-   optional LogLevel log_level = 2;
+  // The minimum log level to use.
+  // If unset it defaults to LOG_LEVEL_TRACE.
+  optional LogLevel log_level = 2;
 
-   enum LogLevel {
-     LOG_LEVEL_DISABLED = 0;
-     LOG_LEVEL_ERROR = 1;
-     LOG_LEVEL_WARN = 2;
-     LOG_LEVEL_INFO = 3;
-     LOG_LEVEL_DEBUG = 4;
-     LOG_LEVEL_TRACE = 5;
-   }
+  enum LogLevel {
+    LOG_LEVEL_DISABLED = 0;
+    LOG_LEVEL_ERROR = 1;
+    LOG_LEVEL_WARN = 2;
+    LOG_LEVEL_INFO = 3;
+    LOG_LEVEL_DEBUG = 4;
+    LOG_LEVEL_TRACE = 5;
+  }
 }
 
 message Observability {

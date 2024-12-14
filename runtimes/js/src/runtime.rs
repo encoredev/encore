@@ -305,12 +305,20 @@ impl Runtime {
         md.clone().into()
     }
 
+    /// Reports the total number of worker threads,
+    /// including the main thread.
     #[napi]
-    pub fn num_extra_worker_threads(&self) -> usize {
-        self.runtime
-            .compute()
-            .worker_threads
-            .map_or_else(|| num_cpus::get() - 1, |v| v as usize)
+    pub fn num_worker_threads(&self) -> u32 {
+        match self.runtime.compute().worker_threads {
+            Some(n) => {
+                if n > 0 {
+                    n as u32
+                } else {
+                    num_cpus::get() as u32
+                }
+            }
+            None => 1u32,
+        }
     }
 }
 

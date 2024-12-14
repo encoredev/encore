@@ -489,7 +489,8 @@ type Compute struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Number of worker threads to use.
-	// If unset, the runtime automatically determines the number of threads to use
+	// If unset it defaults to 1. If set to 0 the runtime
+	// automatically determines the number of threads to use
 	// based on the number of CPUs available.
 	WorkerThreads *int32 `protobuf:"varint,1,opt,name=worker_threads,json=workerThreads,proto3,oneof" json:"worker_threads,omitempty"`
 	// The minimum log level to use.
