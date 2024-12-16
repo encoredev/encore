@@ -161,14 +161,17 @@ func (tc *tarCopier) rewriteSymlink(desc *dirCopyDesc, path HostPath, linkTarget
 		// It's a link to an absolute destination.
 		// Determine its relative path, and see if that lives within the desc.SrcPath.
 		absTarget = linkTarget
-		relFromSrcPath, err = desc.SrcPath.Rel(absTarget)
-		if err != nil {
-			return "", err
-		}
+		// On Windows, we can only make a relative link if the source and target are on the same volume.
+		if runtime.GOOS != "windows" || filepath.VolumeName(desc.SrcPath.String()) == filepath.VolumeName(absTarget.String()) {
+			relFromSrcPath, err = desc.SrcPath.Rel(absTarget)
+			if err != nil {
+				return "", err
+			}
 
-		// If the relative path is local to the SrcPath, allow it.
-		if filepath.IsLocal(relFromSrcPath.String()) {
-			return desc.DstPath.JoinImage(relFromSrcPath.ToImage()), nil
+			// If the relative path is local to the SrcPath, allow it.
+			if filepath.IsLocal(relFromSrcPath.String()) {
+				return desc.DstPath.JoinImage(relFromSrcPath.ToImage()), nil
+			}
 		}
 	} else {
 		// We have a relative link target. Determine its absolute destination.
