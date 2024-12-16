@@ -792,6 +792,11 @@
 				text: "Middleware"
 				path: "/ts/develop/middleware"
 				file: "ts/develop/middleware"
+			}, {
+				kind: "basic"
+				text: "Multithreading"
+				path: "/ts/develop/multithreading"
+				file: "ts/develop/multithreading"
 			}]
 		},
 		{

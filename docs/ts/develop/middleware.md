@@ -3,7 +3,7 @@ seotitle: Using Middleware in your Encore.ts application
 seodesc: See how you can use middleware in your Encore.ts application to handle cross-cutting generic functionality, like request logging, auth, or tracing.
 title: Middleware
 subtitle: Handling cross-cutting, generic functionality
-lang: lang
+lang: ts
 ---
 
 Middleware is a way to write reusable code that runs before, after, or both before and after
@@ -21,14 +21,14 @@ However, when developing applications there's often some use cases where it can 
 reusable functionality that applies to multiple API endpoints, and middleware
 is a good solution for this.
 
-Encore provides built-in support for middleware by adding functions to the 
+Encore provides built-in support for middleware by adding functions to the
 [Service definitions](/docs/ts/primitives/services) configuration.
 Each middleware can be configured with a `target` option to specify what
 API endpoints it applies to.
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/middleware" 
-    desc="Example app with two middleware; a rate limiter and one for user authorization." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/middleware"
+    desc="Example app with two middleware; a rate limiter and one for user authorization."
 />
 
 ## Middleware functions
@@ -94,6 +94,5 @@ export default new Service("myService", {
 
 The target option specifies which endpoints within the service the middleware should run on. If not set, the middleware will run for all endpoints by default.
 
-For better performance, use the `target` option instead of filtering within the middleware function. 
+For better performance, use the `target` option instead of filtering within the middleware function.
 This enables calculating applicable middleware per endpoint during startup, reducing runtime overhead.
-
