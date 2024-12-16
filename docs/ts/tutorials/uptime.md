@@ -551,7 +551,7 @@ If your app is using infrastructure resources, such as SQL databases, Pub/Sub, o
 ```
 
 The values in this configuration are just examples, you will need to replace them with the correct values for your database.
-Take a look at our guide for [deploying an Encore app with a PostgreSQL database to Digital Ocean](docs/ts/self-host/deploy-digitalocean) for more information.
+Take a look at our guide for [deploying an Encore app with a PostgreSQL database to Digital Ocean](/docs/ts/self-host/deploy-digitalocean) for more information.
 
 🥐 Build a Docker image by running `encore build docker uptime:v1.0`.
 
