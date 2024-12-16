@@ -29,6 +29,7 @@ import (
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	. "encr.dev/internal/optracker"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -231,6 +232,9 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+
+		// Use the local JS runtime if this is a development build.
+		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
 	parse, err := bld.Parse(ctx, builder.ParseParams{

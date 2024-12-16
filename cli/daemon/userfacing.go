@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/fns"
@@ -45,6 +46,9 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+
+		// Use the local JS runtime if this is a development build.
+		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
 	bld := builderimpl.Resolve(app.Lang(), expSet)
