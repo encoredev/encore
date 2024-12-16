@@ -8,6 +8,7 @@ use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
+use http::HeaderMap;
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -102,7 +103,12 @@ impl ToResponse for Error {
 }
 
 pub type HandlerRequest = Arc<model::Request>;
-pub type HandlerResponse = APIResult<JSONPayload>;
+pub type HandlerResponse = APIResult<HandlerResponseInner>;
+
+pub struct HandlerResponseInner {
+    pub payload: JSONPayload,
+    pub extra_headers: Option<HeaderMap>,
+}
 
 /// A trait for handlers that accept a request and return a response.
 pub trait TypedHandler: Send + Sync + 'static {
@@ -121,7 +127,7 @@ pub trait BoxedHandler: Send + Sync + 'static {
 }
 
 pub enum ResponseData {
-    Typed(APIResult<JSONPayload>),
+    Typed(HandlerResponse),
     Raw(axum::http::Response<axum::body::Body>),
 }
 
@@ -334,6 +340,7 @@ pub fn endpoints_from_meta(
                     r#type: meta::path_segment::SegmentType::Literal as i32,
                     value_type: meta::path_segment::ParamType::String as i32,
                     value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                    validation: None,
                 }],
             }),
             handshake,
@@ -594,20 +601,22 @@ impl EndpointHandler {
                 Some(fields)
             });
 
-            let (status_code, mut encoded_resp, resp_payload, error) = match resp {
-                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None),
-                ResponseData::Typed(Ok(payload)) => (
+            let (status_code, mut encoded_resp, resp_payload, extra_headers, error) = match resp {
+                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None, None),
+                ResponseData::Typed(Ok(response)) => (
                     200,
                     self.endpoint
                         .response
-                        .encode(&payload)
+                        .encode(&response.payload)
                         .unwrap_or_else(|err| err.to_response(internal_caller)),
-                    Some(payload),
+                    Some(response.payload),
+                    response.extra_headers,
                     None,
                 ),
                 ResponseData::Typed(Err(err)) => (
                     err.code.status_code().as_u16(),
                     err.as_ref().to_response(internal_caller),
+                    None,
                     None,
                     Some(err),
                 ),
@@ -629,6 +638,10 @@ impl EndpointHandler {
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {
                 encoded_resp.headers_mut().insert("x-encore-trace-id", val);
+            }
+
+            if let Some(extra_headers) = extra_headers {
+                encoded_resp.headers_mut().extend(extra_headers)
             }
 
             encoded_resp

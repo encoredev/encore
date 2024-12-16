@@ -5,16 +5,25 @@ import { {{name}} as {{name}}Impl{{@index}} } from {{toJSON import_path}};
 {{#each subscriptions}}
 import {{toJSON import_path}};
 {{/each}}
+{{#with service}}
+{{#if import_path}}
+import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
+{{/if}}
+{{/with}}
 
 const handlers: Handler[] = [
 {{#each endpoints}}
     {
-        service:           {{toJSON ../name}},
-        name:              {{toJSON name}},
-        handler:           {{name}}Impl{{@index}},
-        raw:               {{toJSON raw}},
-        streamingRequest:  {{toJSON streaming_request}},
-        streamingResponse: {{toJSON streaming_response}},
+        apiRoute: {
+            service:           {{toJSON ../name}},
+            name:              {{toJSON name}},
+            handler:           {{name}}Impl{{@index}},
+            raw:               {{toJSON raw}},
+            streamingRequest:  {{toJSON streaming_request}},
+            streamingResponse: {{toJSON streaming_response}},
+        },
+        endpointOptions: {{toJSON endpoint_options}},
+        middlewares: {{#if ../service.import_path}}{{encoreNameToIdent ../service.name}}_service.default.cfg.middlewares || {{/if}}[],
     },
 {{/each}}
 ];

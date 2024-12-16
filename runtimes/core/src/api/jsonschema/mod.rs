@@ -12,6 +12,7 @@ mod de;
 mod meta;
 mod parse;
 mod ser;
+pub mod validation;
 
 use crate::api::jsonschema::parse::ParseWithSchema;
 use crate::api::APIResult;
@@ -128,6 +129,11 @@ impl Value {
                 Some(v) => v.write_debug(reg, f),
                 None => write!(f, "Ref({})", idx),
             },
+            Value::Validation(v) => f
+                .debug_struct("Validation")
+                .field("bov", &v.bov)
+                .field("expr", &v.expr)
+                .finish(),
         }
     }
 }

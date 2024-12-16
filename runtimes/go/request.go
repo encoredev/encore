@@ -36,7 +36,6 @@ type Request struct {
 	Started time.Time   // What time the trigger occurred
 
 	// Trace contains the trace information for the current request.
-	// It is nil if the request is not traced.
 	Trace *TraceData
 
 	// APICall specific parameters.
@@ -80,6 +79,7 @@ type TraceData struct {
 	ParentTraceID    string // empty if no parent trace
 	ParentSpanID     string // empty if no parent span
 	ExtCorrelationID string // empty if no correlation id
+	Recorded         bool   // true if this trace is being recorded
 }
 
 // MessageData describes the request data for a Pub/Sub message.
@@ -148,16 +148,14 @@ func (mgr *Manager) CurrentRequest() *Request {
 
 	result := &Request{
 		Started: req.Start,
-	}
-
-	if req.Traced {
-		result.Trace = &TraceData{
+		Trace: &TraceData{
 			TraceID:          req.TraceID.String(),
 			SpanID:           req.SpanID.String(),
 			ParentTraceID:    req.ParentTraceID.String(),
 			ParentSpanID:     req.ParentSpanID.String(),
 			ExtCorrelationID: req.ExtCorrelationID,
-		}
+			Recorded:         req.Traced,
+		},
 	}
 
 	switch req.Type {

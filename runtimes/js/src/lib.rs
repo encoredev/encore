@@ -3,6 +3,7 @@
 pub mod api;
 mod error;
 mod gateway;
+mod headers;
 mod log;
 mod meta;
 mod napi_util;

@@ -5,7 +5,7 @@ title: Configure kubectl
 lang: platform
 ---
 
-Encore automatically provisions and manages Kubernetes clusters for you, but sometimes it's useful to manually inspect
+Encore Cloud automatically provisions and manages Kubernetes clusters for you, but sometimes it's useful to manually inspect
 clusters using the [kubectl](https://kubernetes.io/docs/reference/kubectl/) cli. To do this, you need to configure `kubectl` to connect and authenticate through
 encore. You can do this by running the following command in your app directory:
 

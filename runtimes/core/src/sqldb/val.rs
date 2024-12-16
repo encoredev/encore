@@ -1,12 +1,15 @@
 use anyhow::Context;
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
+use serde::Serialize;
 use std::error::Error;
-use tokio_postgres::types::{FromSql, IsNull, Kind, ToSql, Type};
+use tokio_postgres::types::{accepts, to_sql_checked, FromSql, IsNull, Kind, ToSql, Type};
 use uuid::Uuid;
+
+use crate::api::{DateTime, PValue};
 
 #[derive(Debug)]
 pub enum RowValue {
-    Json(serde_json::Value),
+    PVal(PValue),
     Bytes(Vec<u8>),
     Uuid(uuid::Uuid),
 }
@@ -24,27 +27,25 @@ impl ToSql for RowValue {
                 _ => Err(format!("uuid not supported for column of type {}", ty).into()),
             },
 
-            Self::Json(val) => match *ty {
+            Self::PVal(val) => match *ty {
                 Type::JSON | Type::JSONB => val.to_sql(ty, out),
 
                 _ => match val {
-                    serde_json::Value::Null => Ok(IsNull::Yes),
-                    serde_json::Value::Bool(bool) => match *ty {
+                    PValue::Null => Ok(IsNull::Yes),
+                    PValue::Bool(bool) => match *ty {
                         Type::BOOL => bool.to_sql(ty, out),
                         Type::TEXT | Type::VARCHAR => bool.to_string().to_sql(ty, out),
                         _ => Err(format!("bool not supported for column of type {}", ty).into()),
                     },
 
-                    serde_json::Value::String(str) => match *ty {
+                    PValue::String(str) => match *ty {
                         Type::TEXT | Type::VARCHAR => str.to_sql(ty, out),
                         Type::BYTEA => {
                             let val = str.as_bytes();
                             val.to_sql(ty, out)
                         }
                         Type::TIMESTAMP => {
-                            let val =
-                                chrono::NaiveDateTime::parse_from_str(str, "%Y-%m-%d %H:%M:%S")
-                                    .map_err(Box::new)?;
+                            let val = str.parse::<chrono::NaiveDateTime>().map_err(Box::new)?;
                             val.to_sql(ty, out)
                         }
                         Type::TIMESTAMPTZ => {
@@ -69,7 +70,7 @@ impl ToSql for RowValue {
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
                     },
 
-                    serde_json::Value::Number(num) => match *ty {
+                    PValue::Number(num) => match *ty {
                         Type::INT2 => {
                             let val: Result<i16, _> = if num.is_i64() {
                                 num.as_i64().unwrap().try_into()
@@ -179,11 +180,11 @@ impl ToSql for RowValue {
                             }
                         }
                     },
-
-                    serde_json::Value::Array(_) => {
+                    PValue::DateTime(dt) => dt.to_sql(ty, out),
+                    PValue::Array(_) => {
                         Err(format!("array not supported for column of type {}", ty).into())
                     }
-                    serde_json::Value::Object(_) => {
+                    PValue::Object(_) => {
                         Err(format!("object not supported for column of type {}", ty).into())
                     }
                 },
@@ -230,7 +231,7 @@ impl<'a> FromSql<'a> for RowValue {
         Ok(match *ty {
             Type::BOOL => {
                 let val: bool = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::Bool(val))
+                Self::PVal(PValue::Bool(val))
             }
             Type::BYTEA => {
                 let val: Vec<u8> = FromSql::from_sql(ty, raw)?;
@@ -238,32 +239,32 @@ impl<'a> FromSql<'a> for RowValue {
             }
             Type::TEXT | Type::VARCHAR => {
                 let val: String = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::String(val))
+                Self::PVal(PValue::String(val))
             }
 
             Type::INT2 => {
                 let val: i16 = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::Number(serde_json::Number::from(val)))
+                Self::PVal(PValue::Number(serde_json::Number::from(val)))
             }
             Type::INT4 => {
                 let val: i32 = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::Number(serde_json::Number::from(val)))
+                Self::PVal(PValue::Number(serde_json::Number::from(val)))
             }
             Type::INT8 => {
                 let val: i64 = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::Number(serde_json::Number::from(val)))
+                Self::PVal(PValue::Number(serde_json::Number::from(val)))
             }
             Type::OID => {
                 let val: u32 = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::Number(serde_json::Number::from(val)))
+                Self::PVal(PValue::Number(serde_json::Number::from(val)))
             }
             Type::JSON | Type::JSONB => {
-                let val: serde_json::Value = FromSql::from_sql(ty, raw)?;
-                Self::Json(val)
+                let val: PValue = FromSql::from_sql(ty, raw)?;
+                Self::PVal(val)
             }
             Type::JSON_ARRAY | Type::JSONB_ARRAY => {
-                let val: Vec<serde_json::Value> = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::Array(val))
+                let val: Vec<PValue> = FromSql::from_sql(ty, raw)?;
+                Self::PVal(PValue::Array(val))
             }
             Type::UUID => {
                 let val: uuid::Uuid = FromSql::from_sql(ty, raw)?;
@@ -273,40 +274,40 @@ impl<'a> FromSql<'a> for RowValue {
             Type::FLOAT4 => {
                 let val: f32 = FromSql::from_sql(ty, raw)?;
                 match serde_json::Number::from_f64(val as f64) {
-                    Some(num) => Self::Json(serde_json::Value::Number(num)),
-                    None => Self::Json(serde_json::Value::Null),
+                    Some(num) => Self::PVal(PValue::Number(num)),
+                    None => Self::PVal(PValue::Null),
                 }
             }
 
             Type::FLOAT8 => {
                 let val: f64 = FromSql::from_sql(ty, raw)?;
                 match serde_json::Number::from_f64(val) {
-                    Some(num) => Self::Json(serde_json::Value::Number(num)),
-                    None => Self::Json(serde_json::Value::Null),
+                    Some(num) => Self::PVal(PValue::Number(num)),
+                    None => Self::PVal(PValue::Null),
                 }
             }
 
             Type::TIMESTAMP => {
-                let val: chrono::NaiveDateTime = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::String(val.to_string()))
+                let val: DateTime = FromSql::from_sql(ty, raw)?;
+                Self::PVal(PValue::DateTime(val))
             }
             Type::TIMESTAMPTZ => {
-                let val: chrono::DateTime<chrono::Utc> = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::String(val.to_string()))
+                let val: DateTime = FromSql::from_sql(ty, raw)?;
+                Self::PVal(PValue::DateTime(val))
             }
             Type::DATE => {
                 let val: chrono::NaiveDate = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::String(val.to_string()))
+                Self::PVal(PValue::String(val.to_string()))
             }
             Type::TIME => {
                 let val: chrono::NaiveTime = FromSql::from_sql(ty, raw)?;
-                Self::Json(serde_json::Value::String(val.to_string()))
+                Self::PVal(PValue::String(val.to_string()))
             }
 
             _ => {
                 if let Kind::Enum(_) = ty.kind() {
                     let val = std::str::from_utf8(raw)?;
-                    Self::Json(serde_json::Value::String(val.to_string()))
+                    Self::PVal(PValue::String(val.to_string()))
                 } else {
                     return Err(format!("unsupported type: {:?}", ty).into());
                 }
@@ -315,7 +316,7 @@ impl<'a> FromSql<'a> for RowValue {
     }
 
     fn from_sql_null(_: &Type) -> Result<Self, Box<dyn Error + Sync + Send>> {
-        Ok(Self::Json(serde_json::Value::Null))
+        Ok(Self::PVal(PValue::Null))
     }
 
     fn accepts(ty: &Type) -> bool {
@@ -340,4 +341,32 @@ impl<'a> FromSql<'a> for RowValue {
             ref other => matches!(other.kind(), Kind::Enum(_)),
         }
     }
+}
+
+impl<'a> FromSql<'a> for PValue {
+    fn from_sql(ty: &Type, raw: &'a [u8]) -> Result<PValue, Box<dyn Error + Sync + Send>> {
+        let val: serde_json::Value = FromSql::from_sql(ty, raw)?;
+        Ok(val.into())
+    }
+
+    accepts!(JSON, JSONB);
+}
+
+impl ToSql for PValue {
+    fn to_sql(
+        &self,
+        ty: &Type,
+        out: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+        if *ty == Type::JSONB {
+            out.put_u8(1);
+        }
+
+        let mut ser = serde_json::ser::Serializer::new(out.writer());
+        self.serialize(&mut ser)?;
+        Ok(IsNull::No)
+    }
+
+    accepts!(JSON, JSONB);
+    to_sql_checked!();
 }

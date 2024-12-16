@@ -6,7 +6,7 @@ use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
 };
 use encore_runtime_core::api::websocket::StreamMessagePayload;
-use encore_runtime_core::api::{self, schema, APIResult, HandlerRequest};
+use encore_runtime_core::api::{self, HandlerRequest, HandlerResponse};
 use encore_runtime_core::api::{websocket_client, ToResponse};
 use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 use napi_derive::napi;
@@ -17,7 +17,7 @@ use std::sync::Arc;
 struct WsRequestMessage {
     req: Request,
     payload: StreamMessagePayload,
-    tx: tokio::sync::mpsc::UnboundedSender<APIResult<schema::JSONPayload>>,
+    tx: tokio::sync::mpsc::UnboundedSender<HandlerResponse>,
 }
 
 pub struct JSWebSocketHandler {

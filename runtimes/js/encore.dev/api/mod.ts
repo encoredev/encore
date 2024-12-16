@@ -1,6 +1,11 @@
 /* eslint-disable */
 
 import type { IncomingMessage, ServerResponse } from "http";
+import { RequestMeta, currentRequest } from "../mod";
+import { RawResponse } from "./mod";
+import { RawRequest } from "./mod";
+import { InternalHandlerResponse } from "../internal/appinit/mod";
+import { IterableSocket, IterableStream, Sink } from "./stream";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -141,21 +146,21 @@ export interface StreamOut<Response> {
 
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamInOut<Request, Response>) => Promise<void>
-  : (
-    data: HandshakeData,
-    stream: StreamInOut<Request, Response>
-  ) => Promise<void>;
+    ? (stream: StreamInOut<Request, Response>) => Promise<void>
+    : (
+        data: HandshakeData,
+        stream: StreamInOut<Request, Response>
+      ) => Promise<void>;
 
 export type StreamOutHandlerFn<HandshakeData, Response> =
   HandshakeData extends void
-  ? (stream: StreamOut<Response>) => Promise<void>
-  : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+    ? (stream: StreamOut<Response>) => Promise<void>
+    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
 
 export type StreamInHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamIn<Request>) => Promise<Response>
-  : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
+    ? (stream: StreamIn<Request>) => Promise<Response>
+    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
@@ -261,5 +266,180 @@ api.static = function staticAssets(options: StaticOptions) {
   return new StaticAssets(options);
 };
 
+export interface MiddlewareOptions {
+  /**
+   * Configuration for what endpoints that should be targeted by the middleware
+   */
+  target?: {
+    /**
+     * If set, only run middleware on endpoints that are either exposed or not
+     * exposed.
+     */
+    expose?: boolean;
+
+    /**
+     * If set, only run middleware on endpoints that either require or not
+     * requires auth.
+     */
+    auth?: boolean;
+
+    /**
+     * If set, only run middleware on endpoints that are raw endpoints.
+     */
+    isRaw?: boolean;
+
+    /**
+     * If set, only run middleware on endpoints that are stream endpoints.
+     */
+    isStream?: boolean;
+  };
+}
+
+export class MiddlewareRequest {
+  private _reqMeta?: RequestMeta;
+  private _stream?: IterableStream | IterableSocket | Sink;
+  private _rawReq?: RawRequest;
+  private _rawResp?: RawResponse;
+
+  constructor(
+    stream?: IterableStream | IterableSocket | Sink,
+    rawReq?: RawRequest,
+    rawResp?: RawResponse
+  ) {
+    this._stream = stream;
+    this._rawReq = rawReq;
+    this._rawResp = rawResp;
+  }
+
+  /**
+   * requestMeta is set when the handler is a typed handler or a stream handler.
+   * for raw handlers, see rawRequest and rawResponse.
+   */
+  public get requestMeta(): RequestMeta | undefined {
+    return this._reqMeta || (this._reqMeta = currentRequest());
+  }
+
+  /**
+   * stream is set when the handler is a stream handler.
+   */
+  public get stream(): IterableStream | IterableSocket | Sink | undefined {
+    return this._stream;
+  }
+
+  /**
+   * rawRequest is set when the handler is a raw request handler.
+   */
+  public get rawRequest(): RawRequest | undefined {
+    return this._rawReq;
+  }
+
+  /**
+   * rawResponse is set when the handler is a raw request handler.
+   */
+  public get rawResponse(): RawResponse | undefined {
+    return this._rawResp;
+  }
+}
+
+export class ResponseHeader {
+  headers: Record<string, string | string[]>;
+
+  constructor() {
+    this.headers = {};
+  }
+
+  /**
+   * set will set a header value for a key, if a previous middleware has
+   * already set a value, it will be overridden.
+   */
+  public set(key: string, value: string | string[]) {
+    this.headers[key] = value;
+  }
+
+  /**
+   * add adds a header value to a key, if a previous middleware has
+   * already set a value, they will be appended.
+   */
+  public add(key: string, value: string | string[]) {
+    const prev = this.headers[key];
+
+    if (prev === undefined) {
+      this.headers[key] = value;
+    } else {
+      this.headers[key] = [prev, value].flat();
+    }
+  }
+}
+
+export class HandlerResponse {
+  /**
+   * The payload returned by the handler when the handler is either
+   * a typed handler or stream handler.
+   */
+  payload: any;
+
+  private _headers?: ResponseHeader;
+
+  constructor(payload: any) {
+    this.payload = payload;
+  }
+
+  /**
+   * header can be used by middlewares to set headers to the
+   * response. This only works for typed handler. For raw handlers
+   * see MiddlewareRequest.rawResponse.
+   */
+  public get header(): ResponseHeader {
+    if (this._headers === undefined) {
+      this._headers = new ResponseHeader();
+    }
+
+    return this._headers;
+  }
+
+  /**
+   * __internalToResponse converts a response to the internal representation
+   */
+  __internalToResponse(): InternalHandlerResponse {
+    return {
+      payload: this.payload,
+      extraHeaders: this._headers?.headers
+    };
+  }
+}
+
+export type Next = (req: MiddlewareRequest) => Promise<HandlerResponse>;
+
+export type MiddlewareFn = (
+  req: MiddlewareRequest,
+  next: Next
+) => Promise<HandlerResponse>;
+
+export interface Middleware extends MiddlewareFn {
+  options?: MiddlewareOptions;
+}
+
+export function middleware(m: MiddlewareFn): Middleware;
+export function middleware(
+  options: MiddlewareOptions,
+  fn: MiddlewareFn
+): Middleware;
+
+export function middleware(
+  a: MiddlewareFn | MiddlewareOptions,
+  b?: MiddlewareFn
+): Middleware {
+  if (b === undefined) {
+    return a as Middleware;
+  } else {
+    const opts = a as MiddlewareOptions;
+    const mw = b as Middleware;
+    mw.options = opts;
+
+    return mw;
+  }
+}
+
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
+export { IterableSocket, IterableStream, Sink } from "./stream";

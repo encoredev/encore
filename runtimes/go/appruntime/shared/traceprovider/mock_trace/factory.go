@@ -16,3 +16,7 @@ type mockFactory struct {
 func (f *mockFactory) NewLogger() trace2.Logger {
 	return f.log
 }
+
+func (f *mockFactory) SampleTrace() bool {
+	return true
+}

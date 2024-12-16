@@ -515,9 +515,67 @@ Now that the backend is working, let's open [http://localhost:4000/](http://loca
 
 <img className="w-full h-auto" src="/assets/tutorials/uptime/frontend.png" title="Frontend" />
 
-## 5. Deploy to Encore's development cloud
+## 5. Deploy
 
-To try out your uptime monitor for real, let's deploy it to Encore's free development cloud.
+To try out your uptime monitor for real, let's deploy it to the cloud.
+
+<Accordion>
+
+### Self-hosting
+
+Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
+
+If your app is using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to supply a [runtime configuration](/docs/ts/self-host/configure-infra) your Docker image.
+
+🥐 Create a new file `infra-config.json` in the root of your project with the following contents:
+
+```json
+{
+   "$schema": "https://encore.dev/schemas/infra.schema.json",
+   "sql_servers": [
+      {
+         "host": "my-db-host:5432",
+         "databases": {
+            "monitor": {
+               "username": "my-db-owner",
+                "password": {"$env": "DB_PASSWORD"}
+            },
+            "site": {
+               "username": "my-db-owner",
+                "password": {"$env": "DB_PASSWORD"}
+            }
+         }
+      }
+   ]
+}
+```
+
+The values in this configuration are just examples, you will need to replace them with the correct values for your database.
+Take a look at our guide for [deploying an Encore app with a PostgreSQL database to Digital Ocean](/docs/ts/self-host/deploy-digitalocean) for more information.
+
+🥐 Build a Docker image by running `encore build docker uptime:v1.0`.
+
+This will compile your application using the host machine and then produce a Docker image containing the compiled application.
+
+🥐 Upload the Docker image to the cloud provider of your choice and run it.
+
+</Accordion>
+
+<Accordion>
+
+### Encore Cloud (free)
+
+Encore Cloud provides automated infrastructure and DevOps. Deploy to a free development environment or to your own cloud account on AWS or GCP.
+
+### Create account
+
+Before deploying with Encore Cloud, you need to have a free Encore Cloud account and link your app to the platform. If you already have an account, you can move on to the next step.
+
+If you don’t have an account, the simplest way to get set up is by running `encore app create` and selecting **Y** when prompted to create a new account. Once your account is set up, continue creating a new app, selecting the `empty app` template.
+
+After creating the app, copy your project files into the new app directory, ensuring that you do not replace the `encore.app` file (this file holds a unique id which links your app to the platform).
+
+### Commit changes
 
 Encore comes with built-in CI/CD, and the deployment process is as simple as a `git push`. (You can also integrate with GitHub, learn more in the [CI/CD docs](/docs/platform/deploy/deploying).)
 
@@ -543,6 +601,7 @@ From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces
 
 *You now have an app running in the cloud, well done!*
 
+</Accordion>
 
 ## 6. Publish Pub/Sub events when a site goes down
 
@@ -714,6 +773,24 @@ const _ = new Subscription(TransitionTopic, "slack-notification", {
 
 Now you're ready to deploy your finished Uptime Monitor, complete with a Slack integration.
 
+<Accordion>
+
+### Self-hosting
+
+Because we have added more infrastructure to our app, we need to [update the configuration](/docs/ts/self-host/configure-infra) in our `infra-config.json` to include the new Pub/Sub topic and subscription as well as how we should set the  `SlackWebhookURL` secret. 
+
+🥐 Update your `ìnfra-config.json` to reflect the new infrastructure.
+
+🥐 Build a Docker image by running `encore build docker uptime:v2.0`.
+
+🥐 Upload the Docker image to the cloud provider and run it.
+
+</Accordion>
+
+<Accordion>
+
+### Encore Cloud (free)
+
 🥐 As before, deploying your app to the cloud is as simple as running:
 
 ```shell
@@ -733,6 +810,8 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 🥐 Type `fireworks` in the Command Menu and press enter. Sit back and enjoy the show!
 
 ![Fireworks](/assets/docs/fireworks.jpg)
+
+</Accordion>
 
 ## Conclusion
 

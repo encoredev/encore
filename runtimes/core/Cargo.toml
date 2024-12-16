@@ -94,6 +94,8 @@ aws-sdk-s3 = "1.58.0"
 aws-smithy-types = { version = "1.2.8", features = ["byte-stream-poll-next", "rt-tokio"] }
 percent-encoding = "2.3.1"
 aws-credential-types = "1.2.1"
+regex = "1.11.1"
+email_address = "0.2.9"
 
 [build-dependencies]
 prost-build = "0.12.3"

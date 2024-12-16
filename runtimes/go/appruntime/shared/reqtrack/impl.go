@@ -36,7 +36,7 @@ type encoreOp struct {
 	start int64 // start time of trace from nanotime()
 
 	// trace is the trace log; it is nil if the op is not traced.
-	trace *lazyTraceInit
+	trace atomic.Pointer[lazyTraceInit]
 
 	// refs is the op refcount. It is 1 + number of requests
 	// that reference this op (see doc comment above).
@@ -46,6 +46,10 @@ type encoreOp struct {
 	// goidCtr is a per-operation goroutine counter, for telling
 	// apart goroutines participating in the operation.
 	goidCtr uint32
+}
+
+func (op *encoreOp) beginTracing() {
+	op.trace.CompareAndSwap(nil, newLazyTrace(op.t))
 }
 
 // encoreReq represents an Encore API request.
@@ -75,7 +79,7 @@ func (t *RequestTracker) newOp(trace bool) *encoreOp {
 		refs:  1,
 	}
 	if trace && t.trace != nil {
-		op.trace = newLazyTrace(t)
+		op.beginTracing()
 	}
 	return op
 }
@@ -119,11 +123,13 @@ func (op *encoreOp) incRef() int32 {
 // If it reaches zero and the op is traced, it sends off the trace.
 func (op *encoreOp) decRef(blockOnTraceSend bool) int32 {
 	n := atomic.AddInt32(&op.refs, -1)
-	if n == 0 && op.trace != nil {
-		op.trace.MarkDone()
+	if n == 0 {
+		if trace := op.trace.Load(); trace != nil {
+			trace.MarkDone()
 
-		if blockOnTraceSend {
-			op.trace.WaitForStreamSent()
+			if blockOnTraceSend {
+				trace.WaitForStreamSent()
+			}
 		}
 	}
 	return n
@@ -147,6 +153,11 @@ func (t *RequestTracker) beginReq(data *model2.Request, trace bool) {
 		}
 		e.op.incRef()
 		e.req = req
+
+		// Begin tracing if we haven't, already.
+		if trace && e.op.trace.Load() == nil {
+			e.op.beginTracing()
+		}
 	}
 }
 
@@ -167,8 +178,10 @@ func (t *RequestTracker) finishReq(blockOnTraceSend bool) {
 func (t *RequestTracker) currentReq() (req *model2.Request, tr trace2.Logger, goctr uint32, svcNum uint16) {
 	if g := t.impl.get(); g != nil {
 		var tr trace2.Logger
-		if g.op != nil && g.op.trace != nil {
-			tr = g.op.trace.Logger()
+		if g.op != nil {
+			if trace := g.op.trace.Load(); trace != nil {
+				tr = trace.Logger()
+			}
 		}
 		if g.req != nil {
 			req = g.req.data

@@ -8,10 +8,10 @@ lang: platform
 [Neon](https://neon.tech/) is a serverless database provider that offers a fully managed and autoscalable
 Postgres database.
 
-You can configure Encore to provision a Neon Postgres database instead of the default offering for all supported cloud providers.
+You can configure Encore Cloud to provision a Neon Postgres database instead of the default offering for all supported cloud providers.
 
 ## Connect your Neon account
-To start using Neon with Encore, you need to add your Neon API key to your Encore application. You can sign up for
+To start using Neon with Encore Cloud, you need to add your Neon API key to your Encore Cloud application. You can sign up for
 a Neon account at [neon.tech](https://neon.tech/). Once you have an account, you can find your API key in the
 [Neon Console](https://neon.tech/docs/manage/api-keys)
 
@@ -26,25 +26,25 @@ Click the "Connect Account" button, give it a name, and enter your API key.
 Neon organizes databases in projects. A project consist of a main branch and any number of feature branches.
 [Branches](https://neon.tech/docs/introduction/branching) in Neon are similar to branches in git, letting you to create a new branch for each feature or bug fix, to test your changes in isolation.
 
-When configuring your Encore environment to use Neon, you can choose which project and branch to use. To get started,
+When configuring your Encore Cloud environment to use Neon, you can choose which project and branch to use. To get started,
 head to the [Encore Cloud dashboard](https://app.encore.cloud) > (Select your app) > Environments > Create Environment. In the Database section, select
 `Neon database`.
 
 <img src="/assets/docs/create-neon.png" title="Create Neon Environment" className="mx-auto"/>
 
 ### Create a new Neon project and branch
-If you're starting off a blank slate, you can let Encore create a new Neon project and branch for you.
+If you're starting off a blank slate, you can let Encore Cloud create a new Neon project and branch for you.
 Select `New Neon project` and choose a Neon account and region. We recommend picking a region close to your compute and
 that you use the suggested project and branch names, but you're free to choose any configuration you like.
 
-### Branch from an existing Encore environment
-If you already have an Encore environment with Neon, you can branch your database from that environment.
+### Branch from an existing Encore Cloud environment
+If you already have an Encore Cloud environment with Neon, you can branch your database from that environment.
 Simply select `Branch from Encore environment` and choose the environment you want to branch from. This option will
 be disabled if you don't have any environments using Neon.
 
 ### Branch from an existing Neon branch
 You can also choose to manually select a Neon branch to branch from. This is useful if you have an existing Neon project,
-but it's not currently being used by any Encore environments. Select `Branch from Neon project`,
+but it's not currently being used by any Encore Cloud environments. Select `Branch from Neon project`,
 then choose the account, project and branch you want to use.
 
 ### Import an existing Neon branch
@@ -72,8 +72,8 @@ You can edit the endpoint to set the CPU limits and the suspend timeout. The sus
 before suspending the compute when it's not in use. The default is 5 minutes, but you can increase this to up to a week
 (depending on your Neon plan).
 
-## Use Neon for Preview Environments environments
-Neon is a great choice for [Preview Environments environments](/docs/platform/deploy/preview-environments) as it allows you to branch off a populated
+## Use Neon for Preview Environments
+Neon is a great choice for [Preview Environments](/docs/platform/deploy/preview-environments) as it allows you to branch off a populated
 database and test your changes in isolation.
 
 To configure which branch to use for Preview Environments, head to the
@@ -86,7 +86,7 @@ Keep in mind that you can only branch from environments that use Neon as the dat
 
 ## Roles
 
-Encore automatically implements a structured role hierarchy that ensures a secure, scalable, and efficient management of databases.
+Encore Cloud automatically implements a structured role hierarchy that ensures a secure, scalable, and efficient management of databases.
 Below is an explanation of how roles are created, utilized, and managed.
 
 ### Role hierarchy
@@ -139,7 +139,7 @@ To view database credentials, open your app in the [Encore Cloud dashboard](http
 
 ### Best Practices
 
-Encore automatically manages roles according to these security best practices:
+Encore Cloud automatically manages roles according to these security best practices:
 
 - **Role Ownership:** Ensures critical operations, such as migrations, are executed by roles with appropriate permissions (e.g., `db_<db_name>_admin`).
 - **Access Control:** Assigns the least privilege necessary for each task. Uses specific database roles (e.g., `db_<db_name>_reader`) to restrict access.
@@ -147,5 +147,5 @@ Encore automatically manages roles according to these security best practices:
 
 ### Integrating with existing Neon databases
 
-If you are integrating with an existing Neon database, you may need to manually adjust the roles to work with Encore's role structure.
+If you are integrating with an existing Neon database, you may need to manually adjust the roles to work with Encore Cloud's role structure.
 Commonly, the adjustment needed is changing the database owner to the `db_<db_name>_admin` role to enable execution of migrations.
