@@ -140,14 +140,17 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 	}()
 
 	{
-		input, _ := json.Marshal(prepareInput{
-			AppRoot:         paths.FS(p.App.Root()),
-			JSRuntimeRoot:   jsRuntimePath,
-			RuntimeVersion:  version.Version,
-			UseLocalRuntime: p.Build.UseLocalJSRuntime,
-		})
+		input := prepareInput{
+			AppRoot:        paths.FS(p.App.Root()),
+			JSRuntimeRoot:  jsRuntimePath,
+			RuntimeVersion: version.Version,
+		}
+		if p.Build.UseLocalJSRuntime {
+			input.LocalRuntimeOverride = jsRuntimePath.ToIO()
+		}
+		inputData, _ := json.Marshal(input)
 		_, _ = stdin.Write([]byte("prepare\n"))
-		if _, err := stdin.Write(input); err != nil {
+		if _, err := stdin.Write(inputData); err != nil {
 			return nil, fmt.Errorf("unable to write to stdin: %s", err)
 		}
 
@@ -192,7 +195,6 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 }
 
 type compileInput struct {
-	RuntimeVersion  string            `json:"runtime_version"`
 	UseLocalRuntime bool              `json:"use_local_runtime"`
 	Debug           builder.DebugMode `json:"debug"`
 }
@@ -201,7 +203,6 @@ func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*bu
 	data := p.Parse.Data.(*data)
 
 	input, _ := json.Marshal(compileInput{
-		RuntimeVersion:  version.Version,
 		UseLocalRuntime: p.Build.UseLocalJSRuntime,
 		Debug:           p.Build.DebugMode,
 	})
@@ -343,10 +344,10 @@ type genUserFacingInput struct {
 }
 
 type prepareInput struct {
-	JSRuntimeRoot   paths.FS `json:"js_runtime_root"`
-	AppRoot         paths.FS `json:"app_root"`
-	RuntimeVersion  string   `json:"runtime_version"`
-	UseLocalRuntime bool     `json:"use_local_runtime"`
+	JSRuntimeRoot        paths.FS `json:"js_runtime_root"`
+	AppRoot              paths.FS `json:"app_root"`
+	RuntimeVersion       string   `json:"runtime_version"`
+	LocalRuntimeOverride string   `json:"local_runtime_override,omitempty"`
 }
 
 func readResp(reader io.Reader) (isSuccess bool, data []byte, err error) {
