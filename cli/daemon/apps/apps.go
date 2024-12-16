@@ -383,6 +383,10 @@ func (i *Instance) Lang() appfile.Lang {
 	return appFile.Lang
 }
 
+func (i *Instance) AppFile() (*appfile.File, error) {
+	return appfile.ParseFile(filepath.Join(i.root, appfile.Name))
+}
+
 func (i *Instance) BuildSettings() (appfile.Build, error) {
 	appFile, err := appfile.ParseFile(filepath.Join(i.root, appfile.Name))
 	if err != nil {

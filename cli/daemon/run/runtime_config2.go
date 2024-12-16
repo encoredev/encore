@@ -49,6 +49,7 @@ type RuntimeConfigGenerator struct {
 		PlatformID() string
 		PlatformOrLocalID() string
 		GlobalCORS() (appfile.CORS, error)
+		AppFile() (*appfile.File, error)
 		BuildSettings() (appfile.Build, error)
 	}
 
@@ -140,13 +141,17 @@ func (g *RuntimeConfigGenerator) initialize() error {
 			})
 		}
 
-		buildSettings, err := g.app.BuildSettings()
+		appFile, err := g.app.AppFile()
 		if err != nil {
 			return errors.Wrap(err, "failed to get app's build settings")
 		}
 		for _, svc := range g.md.Svcs {
-			cfg := &runtimev1.HostedService{Name: svc.Name}
-			if buildSettings.WorkerPooling {
+			cfg := &runtimev1.HostedService{
+				Name:      svc.Name,
+				LogConfig: ptrOrNil(appFile.LogLevel),
+			}
+
+			if appFile.Build.WorkerPooling {
 				n := int32(0)
 				cfg.WorkerThreads = &n
 			}

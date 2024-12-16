@@ -136,13 +136,18 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		}
 
 		// Use the most verbose logging requested.
-		currLevel := zerolog.TraceLevel
+		currLevel := zerolog.PanicLevel
+		foundLevel := false
 		for _, svc := range deployment.HostedServices {
 			if svc.LogConfig != nil {
 				if level, err := zerolog.ParseLevel(*svc.LogConfig); err == nil && level < currLevel {
 					currLevel = level
+					foundLevel = true
 				}
 			}
+		}
+		if !foundLevel {
+			currLevel = zerolog.TraceLevel
 		}
 		cfg.LogConfig = currLevel.String()
 	}
