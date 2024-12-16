@@ -124,10 +124,30 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 			isSymlink, _ = xos.IsWindowsJunctionPoint(pathStr)
 		}
 
+		fi, err := d.Info()
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
 		if isSymlink {
 			target, err := os.Readlink(string(path))
 			if err != nil {
 				return errors.WithStack(err)
+			}
+
+			if strings.HasSuffix(target, "encore.dev") {
+				fi, err = os.Stat(target)
+				if err != nil {
+					return errors.WithStack(err)
+				}
+
+				err = tc.CopyDir(&dirCopyDesc{
+					Spec:            desc.Spec,
+					SrcPath:         HostPath(target),
+					DstPath:         dstPath,
+					ExcludeSrcPaths: map[HostPath]bool{},
+				})
+				return errors.Wrap(err, "add encore.dev")
 			}
 
 			link, err = tc.rewriteSymlink(desc, path, HostPath(target))
@@ -137,12 +157,9 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 				// Drop the symlink
 				return nil
 			}
+
 		}
 
-		fi, err := d.Info()
-		if err != nil {
-			return errors.WithStack(err)
-		}
 		err = tc.CopyFile(dstPath, path, fi, link)
 		return errors.Wrap(err, "add file")
 	})
