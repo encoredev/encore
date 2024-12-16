@@ -36,23 +36,16 @@ fn main() {
     GLOBALS.set(&globals, || {
         HANDLER.set(&errs, || {
             let builder = Builder::new().expect("unable to construct builder");
-            let _parse: Option<(builder::App, app::AppDesc)> = None;
 
             {
                 let pp = builder::PrepareParams {
-                    js_runtime_root: &js_runtime_path,
-                    app_root: &app_root,
+                    app_root: app_root.clone(),
+                    encore_dev_version: builder::PackageVersion::Published("0.0.0".to_string()),
                 };
                 builder.prepare(&pp).unwrap();
             }
 
-            let pc = ParseContext::new(
-                app_root.clone(),
-                js_runtime_path.clone(),
-                cm.clone(),
-                errs.clone(),
-            )
-            .unwrap();
+            let pc = ParseContext::new(app_root.clone(), None, cm.clone(), errs.clone()).unwrap();
 
             let app = builder::App {
                 root: app_root.clone(),

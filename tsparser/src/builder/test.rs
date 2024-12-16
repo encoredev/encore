@@ -15,13 +15,10 @@ use super::{App, Builder};
 
 #[derive(Debug)]
 pub struct TestParams<'a> {
-    pub js_runtime_root: &'a Path,
-    pub runtime_version: &'a String,
     pub app: &'a App,
     pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
     pub parse: &'a AppDesc,
-    pub use_local_runtime: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -50,7 +47,6 @@ impl Builder<'_> {
         }
 
         self.generate_code(&CodegenParams {
-            js_runtime_root: params.js_runtime_root,
             app: params.app,
             pc: params.pc,
             working_dir: params.working_dir,

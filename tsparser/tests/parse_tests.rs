@@ -46,14 +46,7 @@ fn parse_txtar(app_root: &Path) -> Result<app::AppDesc> {
     GLOBALS.set(&globals, || -> Result<app::AppDesc> {
         HANDLER.set(&errs, || -> Result<app::AppDesc> {
             let builder = Builder::new()?;
-            let js_runtime_path = js_runtime_path();
-
-            let pc = ParseContext::new(
-                app_root.to_path_buf(),
-                js_runtime_path.clone(),
-                cm,
-                errs.clone(),
-            )?;
+            let pc = ParseContext::new(app_root.to_path_buf(), None, cm, errs.clone())?;
 
             let app = builder::App {
                 root: app_root.to_path_buf(),

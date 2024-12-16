@@ -23,10 +23,6 @@ fn main() -> Result<()> {
         .init();
     let cwd = std::env::current_dir()?;
 
-    let js_runtime_path = std::env::var("ENCORE_JS_RUNTIME_PATH")
-        .map(PathBuf::from)
-        .expect("ENCORE_JS_RUNTIME_PATH not set");
-
     let globals = Globals::new();
 
     let cm: Rc<SourceMap> = Default::default();
@@ -43,16 +39,26 @@ fn main() -> Result<()> {
             let builder = Builder::new()?;
             let mut parse: Option<(builder::App, app::AppDesc)> = None;
 
-            let prepare = match parse_cmd()? {
+            let mut prepare = match parse_cmd()? {
                 Some(Command::Prepare(prepare)) => prepare,
                 Some(_) => anyhow::bail!("expected prepare command"),
                 None => return Ok(()),
             };
 
+            prepare.local_runtime_override = None;
+            prepare.runtime_version = "v1.45.1".to_string();
+
             {
                 let pp = builder::PrepareParams {
-                    js_runtime_root: &js_runtime_path,
-                    app_root: &prepare.app_root,
+                    app_root: prepare.app_root.clone(),
+
+                    encore_dev_version: match prepare.local_runtime_override {
+                        Some(buf) => builder::PackageVersion::Local(buf.join("encore.dev")),
+                        None => builder::PackageVersion::Published(
+                            // Remove the leading "v" from the runtime version, as JS version numbers don't use it.
+                            prepare.runtime_version.trim_start_matches("v").to_string(),
+                        ),
+                    },
                 };
 
                 match builder.prepare(&pp) {
@@ -67,12 +73,7 @@ fn main() -> Result<()> {
                 }
             }
 
-            let pc = match ParseContext::new(
-                prepare.app_root,
-                js_runtime_path.clone(),
-                cm.clone(),
-                errs.clone(),
-            ) {
+            let pc = match ParseContext::new(prepare.app_root, None, cm.clone(), errs.clone()) {
                 Ok(pc) => pc,
                 Err(err) => {
                     log::error!("failed to construct parse context: {:?}", err);
@@ -136,13 +137,10 @@ fn main() -> Result<()> {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
                             let cp = builder::CompileParams {
-                                js_runtime_root: &js_runtime_path,
-                                runtime_version: &input.runtime_version,
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
                                 desc: parse,
-                                use_local_runtime: input.use_local_runtime,
                                 debug: input.debug,
                             };
 
@@ -161,17 +159,14 @@ fn main() -> Result<()> {
                         }
                     },
 
-                    Command::Test(input) => match &parse {
+                    Command::Test(_input) => match &parse {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
                             let p = builder::TestParams {
-                                js_runtime_root: &js_runtime_path,
-                                runtime_version: &input.runtime_version,
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
                                 parse,
-                                use_local_runtime: input.use_local_runtime,
                             };
 
                             match builder.test(&p) {
@@ -191,7 +186,6 @@ fn main() -> Result<()> {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
                             let cp = builder::CodegenParams {
-                                js_runtime_root: &js_runtime_path,
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
@@ -300,20 +294,18 @@ struct ParseInput {
 #[derive(Deserialize, Debug)]
 struct PrepareInput {
     app_root: PathBuf,
+    runtime_version: String,
+    #[serde(default)]
+    local_runtime_override: Option<PathBuf>,
 }
 
 #[derive(Deserialize, Debug)]
 struct CompileInput {
-    runtime_version: String,
-    use_local_runtime: bool,
     debug: DebugMode,
 }
 
 #[derive(Deserialize, Debug)]
-struct TestInput {
-    runtime_version: String,
-    use_local_runtime: bool,
-}
+struct TestInput {}
 
 #[derive(Deserialize, Debug)]
 struct GenUserFacingInput {}

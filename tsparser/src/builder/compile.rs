@@ -15,13 +15,10 @@ use super::{App, Builder, DebugMode};
 
 #[derive(Debug)]
 pub struct CompileParams<'a> {
-    pub js_runtime_root: &'a Path,
-    pub runtime_version: &'a String,
     pub app: &'a App,
     pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
     pub desc: &'a AppDesc,
-    pub use_local_runtime: bool,
     pub debug: DebugMode,
 }
 
@@ -36,7 +33,6 @@ pub struct JSBuildOutput {
     pub package_json: PathBuf,
     pub artifact_dir: PathBuf,
     pub entrypoints: Vec<Entrypoint>,
-    pub uses_local_runtime: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -59,7 +55,6 @@ pub struct CmdSpec {
 impl Builder<'_> {
     pub fn compile(&self, params: &CompileParams) -> Result<CompileResult> {
         self.generate_code(&CodegenParams {
-            js_runtime_root: params.js_runtime_root,
             app: params.app,
             pc: params.pc,
             working_dir: params.working_dir,
@@ -147,7 +142,6 @@ impl Builder<'_> {
 
         let result = transpiler.transpile(TranspileParams {
             artifact_dir: build_dir.as_path(),
-            runtime_version: params.runtime_version,
             cwd: params.app.root.as_path(),
             debug: params.debug,
             inputs,
@@ -159,7 +153,6 @@ impl Builder<'_> {
                 package_json: params.app.root.join("package.json"),
                 artifact_dir: build_dir,
                 entrypoints: result.entrypoints,
-                uses_local_runtime: params.use_local_runtime,
             }],
         })
     }
