@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/errors"
+	"github.com/rs/zerolog"
 
 	"go.encore.dev/platform-sdk/pkg/auth"
 
@@ -53,7 +54,6 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		PubsubTopics:       make(map[string]*config.PubsubTopic),
 		Buckets:            make(map[string]*config.Bucket),
 		CORS:               &config.CORS{},
-		LogLevel:           "trace",
 	}
 
 	// Deployment handling.
@@ -135,24 +135,16 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 			}
 		}
 
-		if compute := deployment.Compute; compute != nil {
-			if compute.LogLevel != nil {
-				switch *compute.LogLevel {
-				case runtimev1.Compute_LOG_LEVEL_DISABLED:
-					cfg.LogLevel = "disabled"
-				case runtimev1.Compute_LOG_LEVEL_ERROR:
-					cfg.LogLevel = "error"
-				case runtimev1.Compute_LOG_LEVEL_WARN:
-					cfg.LogLevel = "warn"
-				case runtimev1.Compute_LOG_LEVEL_INFO:
-					cfg.LogLevel = "info"
-				case runtimev1.Compute_LOG_LEVEL_DEBUG:
-					cfg.LogLevel = "debug"
-				case runtimev1.Compute_LOG_LEVEL_TRACE:
-					cfg.LogLevel = "trace"
+		// Use the most verbose logging requested.
+		currLevel := zerolog.TraceLevel
+		for _, svc := range deployment.HostedServices {
+			if svc.LogConfig != nil {
+				if level, err := zerolog.ParseLevel(*svc.LogConfig); err == nil && level < currLevel {
+					currLevel = level
 				}
 			}
 		}
+		cfg.LogConfig = currLevel.String()
 	}
 
 	// Infrastructure handling.

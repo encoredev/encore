@@ -26,18 +26,7 @@ pub struct InfraConfig {
     pub cors: Option<CORS>,
     pub object_storage: Option<Vec<ObjectStorage>>,
     pub worker_threads: Option<i32>,
-    pub log_level: Option<LogLevel>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum LogLevel {
-    Disabled,
-    Error,
-    Warn,
-    Info,
-    Debug,
-    Trace,
+    pub log_config: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -583,18 +572,6 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         })
         .unwrap_or_default();
 
-    let compute = Some(pbruntime::Compute {
-        worker_threads: infra.worker_threads,
-        log_level: infra.log_level.map(|l| match l {
-            LogLevel::Disabled => pbruntime::compute::LogLevel::Disabled,
-            LogLevel::Error => pbruntime::compute::LogLevel::Error,
-            LogLevel::Warn => pbruntime::compute::LogLevel::Warn,
-            LogLevel::Info => pbruntime::compute::LogLevel::Info,
-            LogLevel::Debug => pbruntime::compute::LogLevel::Debug,
-            LogLevel::Trace => pbruntime::compute::LogLevel::Trace,
-        } as i32),
-    });
-
     // Map Deployment
     let deployment = Some(Deployment {
         deploy_id: String::new(),
@@ -608,6 +585,8 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     .iter()
                     .map(|service| pbruntime::HostedService {
                         name: service.clone(),
+                        worker_threads: infra.worker_threads,
+                        log_config: infra.log_config.clone(),
                     })
                     .collect()
             })
@@ -616,7 +595,6 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         observability,
         service_discovery,
         graceful_shutdown,
-        compute,
     });
 
     let mut credentials = Credentials {

@@ -89,9 +89,9 @@ type Runtime struct {
 	// and added to the static config.
 	DynamicExperiments []string `json:"dynamic_experiments,omitempty"`
 
-	// LogLevel to set for the application.
+	// Log configuration to set for the application.
 	// If empty it defaults to "trace".
-	LogLevel string `json:"log_level"`
+	LogConfig string `json:"log_config"`
 }
 
 // GracefulShutdownTimings defines the timings for the graceful shutdown process.

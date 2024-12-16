@@ -83,7 +83,6 @@ type RuntimeConfigGenerator struct {
 	SvcConfigs map[string]string
 
 	conf     *rtconfgen.Builder
-	compute  *runtimev1.Compute
 	authKeys []*runtimev1.EncoreAuthKey
 }
 
@@ -145,11 +144,13 @@ func (g *RuntimeConfigGenerator) initialize() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to get app's build settings")
 		}
-		g.compute = &runtimev1.Compute{}
-		if buildSettings.WorkerPooling {
-			// Auto-detect the number of worker threads.
-			n := int32(0)
-			g.compute.WorkerThreads = &n
+		for _, svc := range g.md.Svcs {
+			cfg := &runtimev1.HostedService{Name: svc.Name}
+			if buildSettings.WorkerPooling {
+				n := int32(0)
+				cfg.WorkerThreads = &n
+			}
+			g.conf.ServiceConfig(cfg)
 		}
 
 		g.conf.AuthMethods([]*runtimev1.ServiceAuth{
@@ -449,7 +450,6 @@ func (g *RuntimeConfigGenerator) ProcPerService(proxy *svcproxy.SvcProxy) (servi
 	// Set up the service processes.
 	for _, svc := range g.md.Svcs {
 		conf, err := g.conf.Deployment(newRid()).
-			Compute(g.compute).
 			ServiceDiscovery(sd).
 			HostsServices(svc.Name).
 			ReduceWithMeta(g.md).
@@ -473,7 +473,7 @@ func (g *RuntimeConfigGenerator) ProcPerService(proxy *svcproxy.SvcProxy) (servi
 
 	// Set up the gateways.
 	for _, gw := range g.md.Gateways {
-		conf, err := g.conf.Deployment(newRid()).Compute(g.compute).ServiceDiscovery(sd).HostsGateways(gw.EncoreName).ReduceWithMeta(g.md).BuildRuntimeConfig()
+		conf, err := g.conf.Deployment(newRid()).ServiceDiscovery(sd).HostsGateways(gw.EncoreName).ReduceWithMeta(g.md).BuildRuntimeConfig()
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to generate runtime config")
 		}
@@ -500,7 +500,7 @@ func (g *RuntimeConfigGenerator) AllInOneProc() (*ProcConfig, error) {
 
 	sd := &runtimev1.ServiceDiscovery{Services: make(map[string]*runtimev1.ServiceDiscovery_Location)}
 
-	d := g.conf.Deployment(newRid()).Compute(g.compute).ServiceDiscovery(sd)
+	d := g.conf.Deployment(newRid()).ServiceDiscovery(sd)
 	for _, gw := range g.md.Gateways {
 		d.HostsGateways(gw.EncoreName)
 	}
@@ -570,7 +570,6 @@ func (g *RuntimeConfigGenerator) ProcPerServiceWithNewRuntimeConfig(proxy *svcpr
 
 	for _, svc := range g.md.Svcs {
 		conf, err = g.conf.Deployment(newRid()).
-			Compute(g.compute).
 			ServiceDiscovery(sd).
 			HostsServices(svc.Name).
 			ReduceWithMeta(g.md).
@@ -594,7 +593,6 @@ func (g *RuntimeConfigGenerator) ProcPerServiceWithNewRuntimeConfig(proxy *svcpr
 		}
 
 		conf, err = g.conf.Deployment(newRid()).
-			Compute(g.compute).
 			ServiceDiscovery(sd).
 			HostsGateways(gw.EncoreName).
 			//ReduceWithMeta(g.md).
@@ -620,7 +618,7 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (envs []string, e
 
 	sd := &runtimev1.ServiceDiscovery{Services: make(map[string]*runtimev1.ServiceDiscovery_Location)}
 
-	d := g.conf.Deployment(newRid()).Compute(g.compute).ServiceDiscovery(sd)
+	d := g.conf.Deployment(newRid()).ServiceDiscovery(sd)
 	for _, gw := range g.md.Gateways {
 		d.HostsGateways(gw.EncoreName)
 	}

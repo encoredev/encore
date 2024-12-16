@@ -25,8 +25,8 @@ func configure(static *config.Static, runtime *config.Runtime) zerolog.Logger {
 	}
 
 	level := zerolog.TraceLevel
-	if runtime.LogLevel != "" {
-		if l, err := zerolog.ParseLevel(runtime.LogLevel); err == nil {
+	if runtime.LogConfig != "" {
+		if l, err := zerolog.ParseLevel(runtime.LogConfig); err == nil {
 			level = l
 		}
 	}
