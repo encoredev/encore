@@ -33,7 +33,7 @@ type RequestTracker struct {
 }
 
 func (t *RequestTracker) BeginOperation() {
-	t.beginOp(true /* always trace by default */)
+	t.beginOp(false)
 }
 
 func (t *RequestTracker) FinishOperation() {
@@ -79,12 +79,10 @@ func copyReqInfoFromParent(next, prev *model.Request) {
 	if next.ExtCorrelationID == "" {
 		next.ExtCorrelationID = prev.ExtCorrelationID
 	}
-	if !next.Traced {
-		next.Traced = prev.Traced
-	}
 	if next.Test == nil {
 		next.Test = prev.Test
 	}
+	next.Traced = prev.Traced
 }
 
 func (t *RequestTracker) FinishRequest(blockOnTraceSend bool) {
@@ -112,4 +110,8 @@ func (t *RequestTracker) Logger() *zerolog.Logger {
 
 func (t *RequestTracker) TracingEnabled() bool {
 	return t.trace != nil
+}
+
+func (t *RequestTracker) SampleTrace() bool {
+	return t.trace != nil && t.trace.SampleTrace()
 }

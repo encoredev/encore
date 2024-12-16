@@ -26,6 +26,11 @@ Encore provides built-in support for middleware by adding functions to the
 Each middleware can be configured with a `target` option to specify what
 API endpoints it applies to.
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/middleware" 
+    desc="Example app with two middleware; a rate limiter and one for user authorization." 
+/>
+
 ## Middleware functions
 
 The simplest way to create a middleware is to use the `middleware` helper in `encore.dev/api`,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"slices"
 	strconv "strconv"
 
@@ -174,7 +175,18 @@ func (h HostPath) JoinHost(p HostPath) HostPath {
 	return h.Join(string(p))
 }
 func (h HostPath) ToImage() ImagePath {
-	return ImagePath(filepath.ToSlash(string(h)))
+	return ImagePath(string(h.ToUnix()))
+}
+func (h HostPath) ToUnix() HostPath {
+	if runtime.GOOS == "windows" {
+		// convert windows path with volume to a unix path, i.e c:\some\path -> /c/some/path
+		volume := filepath.VolumeName(string(h))
+		if len(volume) == 2 && volume[1] == ':' {
+			return HostPath("/" + string(volume[0]) + filepath.ToSlash(string(h[2:])))
+		}
+	}
+
+	return HostPath(filepath.ToSlash(string(h)))
 }
 func (h HostPath) String() string { return string(h) }
 func (h HostPath) Rel(target HostPath) (HostPath, error) {

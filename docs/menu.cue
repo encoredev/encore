@@ -774,11 +774,6 @@
 				}]
 			}, {
 				kind: "basic"
-				text: "CORS"
-				path: "/ts/develop/cors"
-				file: "develop/cors"
-			}, {
-				kind: "basic"
 				text: "Metadata"
 				path: "/ts/develop/metadata"
 				file: "ts/develop/metadata"
@@ -822,6 +817,36 @@
 				text: "Telemetry"
 				path: "/ts/cli/telemetry"
 				file: "ts/cli/telemetry"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Frontend"
+			items: [{
+				kind: "basic"
+				text: "Hosting"
+				path: "/ts/frontend/hosting"
+				file: "ts/frontend/hosting"
+			}, {
+				kind: "basic"
+				text: "CORS"
+				path: "/ts/frontend/cors"
+				file: "ts/frontend/cors"
+			}, {
+				kind: "basic"
+				text: "Request Client"
+				path: "/ts/frontend/request-client"
+				file: "ts/frontend/request-client"
+			}, {
+				kind: "basic"
+				text: "Template Engine"
+				path: "/ts/frontend/template-engine"
+				file: "ts/frontend/template-engine"
+			}, {
+				kind: "basic"
+				text: "Mono vs Multi Repo"
+				path: "/ts/frontend/mono-vs-multi-repo"
+				file: "ts/frontend/mono-vs-multi-repo"
 			}]
 		},
 		{
@@ -885,19 +910,9 @@
 				file: "ts/how-to/file-uploads"
 			}, {
 				kind: "basic"
-				text: "Use Vercel for frontend hosting"
-				path: "/ts/how-to/vercel"
-				file: "ts/how-to/vercel"
-			}, {
-				kind: "basic"
 				text: "Use NestJS with Encore"
 				path: "/ts/how-to/nestjs"
 				file: "ts/how-to/nestjs"
-			}, {
-				kind: "basic"
-				text: "Use a template engine"
-				path: "/ts/how-to/template-engine"
-				file: "ts/how-to/template-engine"
 			}]
 		}, {
 			kind: "section"

@@ -29,7 +29,7 @@ By default, Encore Cloud provisions infrastructure using contextually appropriat
 | **Environment types:** | Development        | Preview, Development       | Development, Production            |
 | **Objectives:**        | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
 
-\*Encore Cloud Hostirng is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/platform/management/usage)
+\*Encore Cloud Hosting is free to use, subject to Fair Use guidelines and usage limits. [Learn more](/docs/platform/management/usage)
 
 ## Development Infrastructure
 
