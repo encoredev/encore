@@ -23,6 +23,11 @@ Additionally, when you use Encore's Object Storage API you also automatically ge
 * Built-in local development support, storing objects on the local filesystem
 * Support for integration testing, using a local, in-memory storage backend
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/file-upload" 
+    desc="Handling file uploads and storing file data in a bucket and in a database" 
+/>
+
 ## Creating a Bucket
 
 The core of Object Storage is the **Bucket**, which represents a collection of files.
