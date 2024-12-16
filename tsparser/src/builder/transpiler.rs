@@ -35,10 +35,6 @@ pub struct TranspileParams<'a> {
     /// for generating useful error messages.
     pub cwd: &'a Path,
 
-    /// The Encore CLI runtime version
-    #[allow(dead_code)]
-    pub runtime_version: &'a String,
-
     /// The services and gateways to transpile.
     pub inputs: Vec<Input>,
 

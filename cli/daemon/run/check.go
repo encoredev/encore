@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -56,6 +57,9 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		KeepOutput:         p.CodegenDebug,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+
+		// Use the local JS runtime if this is a development build.
+		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
 	bld := builderimpl.Resolve(p.App.Lang(), expSet)
