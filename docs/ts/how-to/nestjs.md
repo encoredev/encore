@@ -193,5 +193,5 @@ Open [http://localhost:9400](http://localhost:9400) in your browser to access it
 The Local Development Dashboard is a powerful tool to help you move faster when you're developing new features.
 
 It comes with an API explorer, a Service Catalog with automatically generated documentation, and powerful
-oberservability features
+observability features
 like [distributed tracing](/docs/ts/observability/tracing).
