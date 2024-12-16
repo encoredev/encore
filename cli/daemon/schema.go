@@ -27,6 +27,7 @@ type schemaRenderer struct {
 	*jsoniter.Stream
 	meta      *meta.Data
 	seenDecls map[uint32]*schema.Decl
+	typeArgs  []*schema.Type
 }
 
 func (r *schemaRenderer) Render(d *schema.Type) []byte {
@@ -64,6 +65,12 @@ func (r *schemaRenderer) renderType(typ *schema.Type) {
 			r.WriteNil()
 		default:
 			panic(fmt.Sprintf("unknown literal type %T", v))
+		}
+	case *schema.Type_TypeParameter:
+		if idx := typ.TypeParameter.ParamIdx; len(r.typeArgs) > int(idx) {
+			r.renderType(r.typeArgs[idx])
+		} else {
+			r.WriteNil()
 		}
 	case *schema.Type_Config:
 		// Config is invisible here
@@ -146,6 +153,14 @@ func (r *schemaRenderer) renderNamed(n *schema.Named) {
 		r.WriteNil()
 		return
 	}
+
+	// Store type arguments in scope. Restore the previous
+	// type arguments when we're done.
+	prevTypeArgs := r.typeArgs
+	defer func() {
+		r.typeArgs = prevTypeArgs
+	}()
+	r.typeArgs = n.TypeArguments
 
 	// Avoid infinite recursion
 	decl := r.meta.Decls[n.Id]
