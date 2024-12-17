@@ -384,8 +384,8 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	// If we have any JS outputs that need the local runtime, copy it into the image.
 	{
 		for _, out := range cfg.Compile.Outputs {
-			// TODO this code ...
 			if _, ok := out.(*builder.JSBuildOutput); ok {
+				// TODO copy runtime to /encore or something instead
 				// Add the encore-runtime.node file, and set the environment variable to point to it.
 				nativeRuntimeHost := cfg.NodeRuntime.GetOrElse(cfg.Runtimes.Join("js", "encore-runtime.node"))
 				nativeRuntimeImg := nativeRuntimeHost.ToImage().Dir().Join("encore-runtime.node")

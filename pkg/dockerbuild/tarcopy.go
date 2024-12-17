@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/internal/env"
 	"encr.dev/pkg/xos"
 	"encr.dev/v2/compiler/build"
 	"github.com/cockroachdb/errors"
@@ -124,30 +125,22 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 			isSymlink, _ = xos.IsWindowsJunctionPoint(pathStr)
 		}
 
-		fi, err := d.Info()
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
 		if isSymlink {
 			target, err := os.Readlink(string(path))
 			if err != nil {
 				return errors.WithStack(err)
 			}
 
-			if strings.HasSuffix(target, "encore.dev") {
-				fi, err = os.Stat(target)
-				if err != nil {
-					return errors.WithStack(err)
-				}
-
+			// if the target is encore.dev in the runtime path, copy the files instead
+			// of linking
+			if target == filepath.Join(env.EncoreRuntimesPath(), "js", "encore.dev") {
 				err = tc.CopyDir(&dirCopyDesc{
 					Spec:            desc.Spec,
 					SrcPath:         HostPath(target),
 					DstPath:         dstPath,
 					ExcludeSrcPaths: map[HostPath]bool{},
 				})
-				return errors.Wrap(err, "add encore.dev")
+				return errors.Wrap(err, "add encore.dev package")
 			}
 
 			link, err = tc.rewriteSymlink(desc, path, HostPath(target))
@@ -160,6 +153,10 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 
 		}
 
+		fi, err := d.Info()
+		if err != nil {
+			return errors.WithStack(err)
+		}
 		err = tc.CopyFile(dstPath, path, fi, link)
 		return errors.Wrap(err, "add file")
 	})
