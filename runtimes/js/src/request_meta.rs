@@ -5,7 +5,30 @@ use encore_runtime_core::model;
 
 use crate::pvalue::PVals;
 
-pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("failed serializing json")]
+    SerializeJson(#[from] serde_json::Error),
+    #[error("mutex poisoned")]
+    MutexPoison,
+}
+
+impl<T> From<std::sync::PoisonError<T>> for Error {
+    fn from(_value: std::sync::PoisonError<T>) -> Self {
+        Self::MutexPoison
+    }
+}
+
+impl From<Error> for napi::Error {
+    fn from(err: Error) -> Self {
+        match err {
+            Error::SerializeJson(error) => napi::Error::from(error),
+            Error::MutexPoison => napi::Error::from(err),
+        }
+    }
+}
+
+pub fn meta(req: &model::Request) -> Result<RequestMeta, Error> {
     let dt: DateTime<Utc> = req.start_time.into();
     let started_at = dt.to_rfc3339_opts(SecondsFormat::Secs, true);
 
@@ -32,6 +55,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: serialize_headers(&rpc.req_headers),
+                middleware_data: req.middleware_data.lock()?.clone().map(PVals),
             };
             (Some(api), None)
         }
@@ -58,6 +82,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: Default::default(),
+                middleware_data: req.middleware_data.lock()?.clone().map(PVals),
             };
             (Some(api), None)
         }
@@ -109,6 +134,7 @@ pub struct APICallData {
     pub path_params: Option<serde_json::Value>,
     pub parsed_payload: Option<serde_json::Value>,
     pub headers: serde_json::Map<String, serde_json::Value>,
+    pub middleware_data: Option<PVals>,
 }
 
 #[napi(object)]

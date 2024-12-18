@@ -1541,6 +1541,7 @@ dependencies = [
  "prost",
  "prost-types",
  "serde_json",
+ "thiserror",
  "tokio",
  "tokio-tungstenite",
  "tokio-util",
