@@ -1,7 +1,9 @@
 package rtconfgen
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -41,6 +43,7 @@ type Builder struct {
 	defaultDeployedAt time.Time
 
 	deployments map[string]*Deployment
+	services    map[string]*runtimev1.HostedService
 }
 
 func NewBuilder() *Builder {
@@ -50,6 +53,7 @@ func NewBuilder() *Builder {
 		rs:          rs,
 		obs:         &runtimev1.Observability{},
 		deployments: make(map[string]*Deployment),
+		services:    make(map[string]*runtimev1.HostedService),
 	}
 
 	return b
@@ -109,6 +113,10 @@ func (b *Builder) LogsProviderFn(rid string, fn func() *runtimev1.LogsProvider) 
 	addResFunc(&b.obs.Logs, b.rs, rid, fn)
 }
 
+func (b *Builder) ServiceConfig(svc *runtimev1.HostedService) {
+	b.services[svc.Name] = svc
+}
+
 func (b *Builder) Deployment(rid string) *Deployment {
 	if d, ok := b.deployments[rid]; ok {
 		return d
@@ -138,8 +146,8 @@ type Deployment struct {
 	// The base URL for reaching this deployment from another service.
 	svc2svcBaseURL string
 
-	hostedGateways []string
-	hostedServices []string
+	hostedGateways     []string
+	hostedServiceNames []string
 }
 
 // DeployID sets the deploy id.
@@ -162,7 +170,7 @@ func (d *Deployment) DynamicExperiments(experiments []string) *Deployment {
 // HostsServices adds the given service names as being hosted by this deployment.
 // It appends and doesn't overwrite any existing hosted services.
 func (d *Deployment) HostsServices(names ...string) *Deployment {
-	d.hostedServices = append(d.hostedServices, names...)
+	d.hostedServiceNames = append(d.hostedServiceNames, names...)
 	return d
 }
 
@@ -198,17 +206,27 @@ func (d *Deployment) BuildRuntimeConfig() (*runtimev1.RuntimeConfig, error) {
 		return nil, err
 	}
 	if reduced, ok := d.reduceWith.Get(); ok {
-		infra = reduceForServices(infra, reduced, d.hostedServices)
+		infra = reduceForServices(infra, reduced, d.hostedServiceNames)
 	}
 
 	graceful := d.gracefulShutdown.GetOrElse(d.b.defaultGracefulShutdown)
 
 	var hostedServices []*runtimev1.HostedService
-	for _, svcName := range d.hostedServices {
-		hostedServices = append(hostedServices, &runtimev1.HostedService{
-			Name: svcName,
-		})
+	{
+		for _, svcName := range d.hostedServiceNames {
+			// If we have a service config defined for this service, use it.
+			cfg := b.services[svcName]
+			if cfg == nil {
+				cfg = &runtimev1.HostedService{
+					Name: svcName,
+				}
+			}
+			hostedServices = append(hostedServices, cfg)
+		}
 	}
+	slices.SortFunc(hostedServices, func(a, b *runtimev1.HostedService) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
 	gatewaysByName := make(map[string]*runtimev1.Gateway)
 	for _, gw := range infra.Resources.Gateways {

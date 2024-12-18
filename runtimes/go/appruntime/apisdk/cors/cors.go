@@ -9,15 +9,15 @@ import (
 	"strings"
 
 	"github.com/rs/cors"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
 )
 
-func Wrap(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []string, handler http.Handler) http.Handler {
+func Wrap(cfg *config.CORS, staticAllowedHeaders, staticExposedHeaders []string, handler http.Handler, logger zerolog.Logger) http.Handler {
 	c := cors.New(Options(cfg, staticAllowedHeaders, staticExposedHeaders))
 	if cfg.Debug {
-		logger := log.With().Str("subsystem", "cors").Logger()
+		logger := logger.With().Str("subsystem", "cors").Logger()
 		logger.Debug().Msg("CORS system running in debug mode. All requests will be logged.")
 		c.Log = &logger
 	}

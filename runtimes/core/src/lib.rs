@@ -195,7 +195,7 @@ impl RuntimeBuilder {
         if let Some(proc_config) = self.proc_cfg {
             proc_config.apply(&mut cfg)?;
         }
-        Runtime::new(cfg, md, self.test_mode, self.is_worker)
+        Runtime::new(cfg, md, self.test_mode)
     }
 }
 
@@ -207,6 +207,7 @@ pub struct Runtime {
     objects: objects::Manager,
     api: api::Manager,
     app_meta: meta::AppMeta,
+    compute: ComputeConfig,
     runtime: tokio::runtime::Runtime,
 }
 
@@ -219,7 +220,6 @@ impl Runtime {
         mut cfg: runtimepb::RuntimeConfig,
         md: metapb::Data,
         testing: bool,
-        is_worker: bool,
     ) -> anyhow::Result<Self> {
         // Initialize OpenSSL system root certificates, so that libraries can find them.
         openssl_probe::init_ssl_cert_env_vars();
@@ -343,6 +343,33 @@ impl Runtime {
         .build()
         .context("unable to initialize sqldb proxy")?;
 
+        // Determine the compute configuration.
+        let compute = {
+            let mut cfg = ComputeConfig::default();
+            for svc in deployment.hosted_services.iter() {
+                if let Some(log_config) = &svc.log_config {
+                    cfg.log_level = Some(log_config.clone());
+                }
+                if let Some(worker_threads) = svc.worker_threads {
+                    // If we have worker threads already configured on the compute config,
+                    // determine the new value.
+                    cfg.worker_threads = Some(match (cfg.worker_threads, worker_threads) {
+                        // If either explicitly wants 1 worker threads (disabling it), set it to 1.
+                        (Some(1), _) | (_, 1) => 1,
+
+                        // If we have worker threads enabled on both, set it to the minimum.
+                        (Some(a), b) if a > 1 && b > 1 => a.min(b),
+
+                        // Otherwise use the existing value, if any.
+                        (Some(a), _) => a,
+                        // If we don't have an existing value, use the new value.
+                        (None, b) => b,
+                    });
+                }
+            }
+            cfg
+        };
+
         let api = api::ManagerConfig {
             meta: &md,
             environment: &environment,
@@ -359,7 +386,6 @@ impl Runtime {
             platform_validator,
             pubsub_push_registry: pubsub.push_registry(),
             runtime: tokio_rt.handle().clone(),
-            is_worker,
             testing,
             proxied_push_subs,
         }
@@ -383,6 +409,7 @@ impl Runtime {
             objects,
             api,
             app_meta,
+            compute,
             runtime: tokio_rt,
         })
     }
@@ -437,6 +464,17 @@ impl Runtime {
     pub fn app_meta(&self) -> &meta::AppMeta {
         &self.app_meta
     }
+
+    #[inline]
+    pub fn compute(&self) -> &ComputeConfig {
+        &self.compute
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ComputeConfig {
+    pub log_level: Option<String>,
+    pub worker_threads: Option<i32>,
 }
 
 #[derive(Debug)]

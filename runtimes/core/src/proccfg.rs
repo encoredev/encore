@@ -16,10 +16,26 @@ impl ProcessConfig {
     pub fn apply(&self, cfg: &mut runtimepb::RuntimeConfig) -> Result<()> {
         let deployment = cfg.deployment.get_or_insert_with(Default::default);
 
+        // Construct a map of existing hosted services, keyed by name.
+        let hosted_services = deployment
+            .hosted_services
+            .iter()
+            .map(|s| (s.name.clone(), s.clone()))
+            .collect::<HashMap<_, _>>();
+
         deployment.hosted_services = self
             .hosted_services
             .iter()
-            .map(|s| runtimepb::HostedService { name: s.clone() })
+            .map(|s| {
+                hosted_services
+                    .get(s)
+                    .cloned()
+                    .unwrap_or_else(|| runtimepb::HostedService {
+                        name: s.clone(),
+                        log_config: None,
+                        worker_threads: None,
+                    })
+            })
             .collect();
         deployment.hosted_gateways = self
             .hosted_gateways

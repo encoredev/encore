@@ -60,6 +60,10 @@ type File struct {
 	//
 	// Deprecated: Use build.docker.base_image instead.
 	DockerBaseImage string `json:"docker_base_image,omitempty"`
+
+	// LogLevel is the minimum log level for the app.
+	// If empty it defaults to "trace".
+	LogLevel string `json:"log_level,omitempty"`
 }
 
 type Build struct {
@@ -69,6 +73,9 @@ type Build struct {
 	// Docker configures the docker images built
 	// by Encore's CI/CD system.
 	Docker Docker `json:"docker,omitempty"`
+
+	// WorkerPooling enables worker pooling for Encore.ts.
+	WorkerPooling bool `json:"worker_pooling,omitempty"`
 }
 
 type Docker struct {

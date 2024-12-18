@@ -25,6 +25,8 @@ pub struct InfraConfig {
     pub hosted_gateways: Option<Vec<String>>,
     pub cors: Option<CORS>,
     pub object_storage: Option<Vec<ObjectStorage>>,
+    pub worker_threads: Option<i32>,
+    pub log_config: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -583,6 +585,8 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     .iter()
                     .map(|service| pbruntime::HostedService {
                         name: service.clone(),
+                        worker_threads: infra.worker_threads,
+                        log_config: infra.log_config.clone(),
                     })
                     .collect()
             })

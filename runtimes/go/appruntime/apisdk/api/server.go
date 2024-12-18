@@ -203,6 +203,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 			static.CORSAllowHeaders,
 			static.CORSExposeHeaders,
 			baseHandler,
+			rootLogger,
 		)
 	}
 

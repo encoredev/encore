@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, OnceLock, RwLock};
 
 use anyhow::Context;
 use chrono::Utc;
+use futures::future::Shared;
+use futures::FutureExt;
 
 use crate::api::jsonschema::{self, JSONSchema};
-use crate::api::PValues;
+use crate::api::{APIResult, PValues};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::log::LogFromRust;
@@ -105,31 +108,49 @@ pub struct SubscriptionObj {
     topic: EncoreName,
     subscription: EncoreName,
     schema: JSONSchema,
+
+    handler: OnceLock<Arc<SubHandler>>,
+    subscribe_fut: OnceLock<Shared<SubscribeFut>>,
 }
+
+type SubscribeFut = Pin<Box<dyn Future<Output = APIResult<()>> + Send>>;
 
 impl SubscriptionObj {
     pub async fn subscribe(
         self: &Arc<Self>,
         handler: Arc<dyn SubscriptionHandler>,
-    ) -> anyhow::Result<()> {
-        let handler = Arc::new(SubHandler {
-            obj: self.clone(),
-            inner: handler,
+    ) -> APIResult<()> {
+        let h = self.handler.get_or_init(|| {
+            Arc::new(SubHandler {
+                obj: self.clone(),
+                handlers: RwLock::new(Vec::new()),
+                counter: AtomicUsize::new(0),
+            })
         });
-        self.inner.subscribe(handler).await
+        h.add_handler(handler);
+
+        self.subscribe_fut
+            .get_or_init(|| self.inner.subscribe(h.clone()).shared())
+            .clone()
+            .await
     }
 }
 
 #[derive(Debug)]
 pub struct SubHandler {
     obj: Arc<SubscriptionObj>,
-    inner: Arc<dyn SubscriptionHandler>,
+    handlers: RwLock<Vec<Arc<dyn SubscriptionHandler>>>,
+    counter: AtomicUsize,
 }
 
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
 const ATTR_EXT_CORRELATION_ID: &str = "encore_ext_correlation_id";
 
 impl SubHandler {
+    fn add_handler(&self, h: Arc<dyn SubscriptionHandler>) {
+        self.handlers.write().unwrap().push(h);
+    }
+
     pub(super) fn handle_message(
         &self,
         msg: Message,
@@ -196,7 +217,8 @@ impl SubHandler {
                 if let Some(parse_error) = parse_error {
                     Err(parse_error)
                 } else {
-                    self.inner.handle_message(req.clone()).await
+                    let handler = self.next_handler();
+                    handler.handle_message(req.clone()).await
                 }
             };
 
@@ -210,6 +232,21 @@ impl SubHandler {
             self.obj.tracer.request_span_end(&resp);
             result
         })
+    }
+
+    fn next_handler(&self) -> Arc<dyn SubscriptionHandler> {
+        let handlers = self.handlers.read().unwrap();
+        let n = handlers.len();
+        // If we have a single handler, skip the increment and modulo steps.
+        if n == 1 {
+            return handlers[0].clone();
+        }
+
+        // Atomically increment the counter, and then get the next handler.
+        let idx = self
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        handlers[idx % n].clone()
     }
 }
 
@@ -278,6 +315,8 @@ impl Manager {
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
                     schema: schema.clone(),
+                    handler: OnceLock::new(),
+                    subscribe_fut: Default::default(),
                 })
             } else {
                 let inner = Arc::new(noop::NoopSubscription);
@@ -295,6 +334,9 @@ impl Manager {
                     // We don't have a schema since it's an unknown subscription.
                     // Use a null schema.
                     schema: JSONSchema::null(),
+
+                    handler: OnceLock::new(),
+                    subscribe_fut: Default::default(),
                 })
             }
         };

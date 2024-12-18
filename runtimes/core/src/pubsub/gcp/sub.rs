@@ -2,11 +2,12 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use google_cloud_pubsub as gcp;
 use google_cloud_pubsub::apiv1::default_retry_setting;
 use tokio_util::sync::CancellationToken;
 
+use crate::api::{self, APIResult};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub::gcp::LazyGCPClient;
@@ -15,6 +16,48 @@ use crate::pubsub::{self, MessageId};
 
 #[derive(Debug)]
 pub struct Subscription {
+    inner: Arc<InnerSubscription>,
+}
+
+impl Subscription {
+    pub(super) fn new(
+        client: Arc<LazyGCPClient>,
+        cfg: &pb::PubSubSubscription,
+        meta: &meta::pub_sub_topic::Subscription,
+    ) -> Self {
+        let inner = InnerSubscription::new(client, cfg, meta);
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+}
+
+impl pubsub::Subscription for Subscription {
+    fn subscribe(
+        &self,
+        handler: Arc<SubHandler>,
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
+        let inner = self.inner.clone();
+        Box::pin(async move {
+            let sub = inner.get_sub().await.map_err(api::Error::internal)?;
+            let cancel = CancellationToken::new();
+            sub.receive(
+                move |message, cancel| {
+                    let handler = handler.clone();
+                    handle_message(handler, message, cancel)
+                },
+                cancel,
+                Some(inner.receive_cfg.clone()),
+            )
+            .await
+            .map_err(api::Error::internal)?;
+            Ok(())
+        })
+    }
+}
+
+#[derive(Debug)]
+struct InnerSubscription {
     client: Arc<LazyGCPClient>,
     project_id: String,
     sub_name: String,
@@ -22,7 +65,7 @@ pub struct Subscription {
     cell: tokio::sync::OnceCell<Result<gcp::subscription::Subscription>>,
 }
 
-impl Subscription {
+impl InnerSubscription {
     pub(super) fn new(
         client: Arc<LazyGCPClient>,
         cfg: &pb::PubSubSubscription,
@@ -82,29 +125,6 @@ impl Subscription {
             Ok(sub) => Ok(sub),
             Err(e) => anyhow::bail!("failed to get topic: {}", e),
         }
-    }
-}
-
-impl pubsub::Subscription for Subscription {
-    fn subscribe(
-        &self,
-        handler: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
-        Box::pin(async move {
-            let sub = self.get_sub().await?;
-            let cancel = CancellationToken::new();
-            sub.receive(
-                move |message, cancel| {
-                    let handler = handler.clone();
-                    handle_message(handler, message, cancel)
-                },
-                cancel,
-                Some(self.receive_cfg.clone()),
-            )
-            .await
-            .context("receive subscription")?;
-            Ok(())
-        })
     }
 }
 
