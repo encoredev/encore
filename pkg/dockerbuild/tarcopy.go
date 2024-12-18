@@ -131,8 +131,7 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 				return errors.WithStack(err)
 			}
 
-			// if the target is encore.dev in the runtime path, copy the files instead
-			// of linking
+			// copy the files instead of linking if its the encore.dev package
 			if target == filepath.Join(env.EncoreRuntimesPath(), "js", "encore.dev") {
 				err = tc.CopyDir(&dirCopyDesc{
 					Spec:            desc.Spec,
@@ -150,7 +149,6 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 				// Drop the symlink
 				return nil
 			}
-
 		}
 
 		fi, err := d.Info()
