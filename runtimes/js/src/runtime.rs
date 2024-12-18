@@ -13,8 +13,11 @@ use napi::{bindgen_prelude::*, JsObject};
 use napi::{Error, JsUnknown, Status};
 use napi_derive::napi;
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::thread;
+
+// TODO: remove storing of result after `get_or_try_init` is stabilized
+static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
 #[napi]
 pub struct Runtime {
@@ -25,7 +28,23 @@ pub struct Runtime {
 #[derive(Default)]
 pub struct RuntimeOptions {
     pub test_mode: Option<bool>,
-    pub is_worker: Option<bool>,
+}
+
+fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
+    // Initialize logging.
+    encore_runtime_core::log::init();
+
+    encore_runtime_core::Runtime::builder()
+        .with_test_mode(test_mode)
+        .with_meta_autodetect()
+        .with_runtime_config_from_env()
+        .build()
+        .map_err(|e| {
+            Error::new(
+                Status::GenericFailure,
+                format!("failed to initialize runtime: {:?}", e),
+            )
+        })
 }
 
 #[napi]
@@ -33,35 +52,31 @@ impl Runtime {
     #[napi(constructor)]
     pub fn new(options: Option<RuntimeOptions>) -> napi::Result<Self> {
         let options = options.unwrap_or_default();
-        // Initialize logging.
-        encore_runtime_core::log::init();
-
         let test_mode = options
             .test_mode
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
-        let is_worker = options.is_worker.unwrap_or(false);
-        let runtime = encore_runtime_core::Runtime::builder()
-            .with_test_mode(test_mode)
-            .with_meta_autodetect()
-            .with_runtime_config_from_env()
-            .with_worker(is_worker)
-            .build()
-            .map_err(|e| {
-                Error::new(
-                    Status::GenericFailure,
-                    format!("failed to initialize runtime: {:?}", e),
-                )
-            })?;
-        let runtime = Arc::new(runtime);
 
-        // If we're running tests, there's no specific entrypoint so
-        // start the runtime in the background immediately.
         if test_mode {
-            let runtime = runtime.clone();
-            thread::spawn(move || {
-                runtime.run_blocking();
-            });
+            // Don't reuse the runtime in tests, as vitest and other test frameworks
+            // use multiple workers to isolate tests from each other. We don't want tests
+            // to be making API calls to other tests' workers.
+            let runtime = Arc::new(init_runtime(true)?);
+
+            // If we're running tests, there's no specific entrypoint so
+            // start the runtime in the background immediately.
+            {
+                let rt = runtime.clone();
+                thread::spawn(move || {
+                    rt.run_blocking();
+                });
+            }
+
+            return Ok(Self { runtime });
         }
+
+        let runtime = RUNTIME
+            .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
+            .clone()?;
 
         Ok(Self { runtime })
     }
@@ -288,6 +303,22 @@ impl Runtime {
     pub fn app_meta(&self) -> meta::AppMeta {
         let md = self.runtime.app_meta();
         md.clone().into()
+    }
+
+    /// Reports the total number of worker threads,
+    /// including the main thread.
+    #[napi]
+    pub fn num_worker_threads(&self) -> u32 {
+        match self.runtime.compute().worker_threads {
+            Some(n) => {
+                if n > 0 {
+                    n as u32
+                } else {
+                    num_cpus::get() as u32
+                }
+            }
+            None => 1u32,
+        }
     }
 }
 

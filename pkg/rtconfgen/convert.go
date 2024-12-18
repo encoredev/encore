@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/errors"
+	"github.com/rs/zerolog"
 
 	"go.encore.dev/platform-sdk/pkg/auth"
 
@@ -55,14 +56,14 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		CORS:               &config.CORS{},
 	}
 
-	// Compute handling.
+	// Deployment handling.
 	{
-		compute := c.in.Deployment
-		cfg.HostedServices = fns.Map(compute.HostedServices, func(s *runtimev1.HostedService) string {
+		deployment := c.in.Deployment
+		cfg.HostedServices = fns.Map(deployment.HostedServices, func(s *runtimev1.HostedService) string {
 			return s.Name
 		})
 
-		cfg.ServiceAuth = fns.Map(compute.AuthMethods, func(sa *runtimev1.ServiceAuth) config.ServiceAuth {
+		cfg.ServiceAuth = fns.Map(deployment.AuthMethods, func(sa *runtimev1.ServiceAuth) config.ServiceAuth {
 			switch sa.AuthMethod.(type) {
 			case *runtimev1.ServiceAuth_EncoreAuth_:
 				return config.ServiceAuth{Method: "encore-auth"}
@@ -71,7 +72,7 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 		})
 
 		cfg.ServiceDiscovery = make(map[string]config.Service)
-		for key, value := range compute.ServiceDiscovery.Services {
+		for key, value := range deployment.ServiceDiscovery.Services {
 			method := config.ServiceAuth{Method: "noop"}
 			if len(value.AuthMethods) > 0 {
 				if _, ok := value.AuthMethods[0].AuthMethod.(*runtimev1.ServiceAuth_EncoreAuth_); ok {
@@ -86,22 +87,22 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 			}
 		}
 
-		if compute.GracefulShutdown != nil {
+		if deployment.GracefulShutdown != nil {
 			cfg.GracefulShutdown = &config.GracefulShutdownTimings{
-				Total:         ptr(compute.GracefulShutdown.Total.AsDuration()),
-				ShutdownHooks: ptr(compute.GracefulShutdown.ShutdownHooks.AsDuration()),
-				Handlers:      ptr(compute.GracefulShutdown.Handlers.AsDuration()),
+				Total:         ptr(deployment.GracefulShutdown.Total.AsDuration()),
+				ShutdownHooks: ptr(deployment.GracefulShutdown.ShutdownHooks.AsDuration()),
+				Handlers:      ptr(deployment.GracefulShutdown.Handlers.AsDuration()),
 			}
-			cfg.ShutdownTimeout = compute.GracefulShutdown.Total.AsDuration()
+			cfg.ShutdownTimeout = deployment.GracefulShutdown.Total.AsDuration()
 		}
-		cfg.DynamicExperiments = compute.DynamicExperiments
+		cfg.DynamicExperiments = deployment.DynamicExperiments
 
 		// Set the API Base URL if we have a gateway.
 		if len(c.in.Infra.Resources.Gateways) > 0 {
 			cfg.APIBaseURL = c.in.Infra.Resources.Gateways[0].BaseUrl
 		}
 
-		for _, gwRID := range compute.HostedGateways {
+		for _, gwRID := range deployment.HostedGateways {
 			idx := slices.IndexFunc(c.in.Infra.Resources.Gateways, func(gw *runtimev1.Gateway) bool {
 				return gw.Rid == gwRID
 			})
@@ -133,6 +134,22 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 				})
 			}
 		}
+
+		// Use the most verbose logging requested.
+		currLevel := zerolog.PanicLevel
+		foundLevel := false
+		for _, svc := range deployment.HostedServices {
+			if svc.LogConfig != nil {
+				if level, err := zerolog.ParseLevel(*svc.LogConfig); err == nil && level < currLevel {
+					currLevel = level
+					foundLevel = true
+				}
+			}
+		}
+		if !foundLevel {
+			currLevel = zerolog.TraceLevel
+		}
+		cfg.LogConfig = currLevel.String()
 	}
 
 	// Infrastructure handling.

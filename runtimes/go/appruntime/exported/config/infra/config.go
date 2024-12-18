@@ -21,6 +21,15 @@ type InfraConfig struct {
 	Secrets          Secrets                      `json:"secrets,omitempty"`
 	ObjectStorage    []*ObjectStorage             `json:"object_storage,omitempty"`
 
+	// Log configuration for the application.
+	// If empty it defaults to "trace".
+	LogConfig string `json:"log_config,omitemty"`
+
+	// Number of worker threads to use for the application.
+	// If unset it defaults to a single worker thread.
+	// If set to 0 it defaults to the number of CPUs.
+	WorkerThreads *int `json:"worker_threads,omitempty"`
+
 	// These fields are not defined in the json schema and should not be
 	// set by the user. They're computed during the build/eject process.
 	HostedServices []string `json:"hosted_services,omitempty"`

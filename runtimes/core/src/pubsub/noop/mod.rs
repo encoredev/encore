@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
+use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub;
@@ -46,7 +47,7 @@ impl pubsub::Subscription for NoopSubscription {
     fn subscribe(
         &self,
         _: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         Box::pin(futures::future::pending())
     }
 }

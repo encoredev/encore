@@ -10,6 +10,7 @@ use serde::Deserialize;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Retry};
 
+use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::CloudName;
@@ -70,7 +71,7 @@ impl pubsub::Subscription for Subscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let client = self.client.clone();
         let cloud_name = self.cloud_name.clone();
         let ack_deadline = self.ack_deadline;
