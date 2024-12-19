@@ -2,6 +2,7 @@ use encore_runtime_core::objects as core;
 use napi::bindgen_prelude::Buffer;
 use napi::{Env, JsBuffer, JsObject};
 use napi_derive::napi;
+use std::time::Duration;
 
 use crate::api::Request;
 
@@ -104,6 +105,20 @@ impl BucketObject {
                 Err(err) => Ok(napi::Either::B(TypedObjectError::from(err))),
             }
         })
+    }
+
+    #[napi]
+    pub async fn signed_upload_url(
+        &self,
+        options: Option<UploadUrlOptions>,
+        source: Option<&Request>,
+    ) -> napi::Either<SignedUploadUrl, TypedObjectError> {
+        let options = options.unwrap_or_default().into();
+        let source = source.map(|s| s.inner.clone());
+        match self.obj.signed_upload_url(options, source).await {
+            Ok(url) => napi::Either::A(SignedUploadUrl { url }),
+            Err(err) => napi::Either::B(err.into()),
+        }
     }
 
     #[napi]
@@ -218,6 +233,7 @@ impl From<UploadPreconditions> for core::UploadPreconditions {
 pub enum ObjectErrorKind {
     NotFound,
     PreconditionFailed,
+    InvalidArgument,
     Other,
     Internal,
 }
@@ -233,6 +249,7 @@ impl From<core::Error> for TypedObjectError {
         let kind = match &value {
             core::Error::NotFound => ObjectErrorKind::NotFound,
             core::Error::PreconditionFailed => ObjectErrorKind::PreconditionFailed,
+            core::Error::InvalidArgument => ObjectErrorKind::InvalidArgument,
             core::Error::Internal(_) => ObjectErrorKind::Internal,
             core::Error::Other(_) => ObjectErrorKind::Other,
         };
@@ -295,6 +312,18 @@ pub struct AttrsOptions {
 
 #[napi(object)]
 #[derive(Debug, Default)]
+pub struct UploadUrlOptions {
+    pub ttl: Option<i64>,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+pub struct SignedUploadUrl {
+    pub url: String,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
 pub struct DeleteOptions {
     pub version: Option<String>,
 }
@@ -340,6 +369,14 @@ impl From<AttrsOptions> for core::AttrsOptions {
     fn from(value: AttrsOptions) -> Self {
         Self {
             version: value.version,
+        }
+    }
+}
+
+impl From<UploadUrlOptions> for core::UploadUrlOptions {
+    fn from(value: UploadUrlOptions) -> Self {
+        Self {
+            ttl: Duration::from_secs(value.ttl.map(|v| v as u64).unwrap_or(3600)),
         }
     }
 }

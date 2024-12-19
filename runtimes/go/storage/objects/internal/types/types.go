@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"iter"
+	"time"
 )
 
 type BucketImpl interface {
@@ -13,6 +14,7 @@ type BucketImpl interface {
 	List(data ListData) iter.Seq2[*ListEntry, error]
 	Remove(data RemoveData) error
 	Attrs(data AttrsData) (*ObjectAttrs, error)
+	SignedUploadURL(data UploadURLData) (string, error)
 }
 
 // CloudObject is the cloud name for an object.
@@ -90,10 +92,19 @@ type AttrsData struct {
 	Version string // non-zero means specific version
 }
 
+type UploadURLData struct {
+	Ctx    context.Context
+	Object CloudObject
+
+	TTL time.Duration
+}
+
 //publicapigen:keep
 var (
 	//publicapigen:keep
 	ErrObjectNotExist = errors.New("objects: object doesn't exist")
 	//publicapigen:keep
 	ErrPreconditionFailed = errors.New("objects: precondition failed")
+	//publicapigen:keep
+	ErrInvalidArgument = errors.New("objects: invalid argument")
 )

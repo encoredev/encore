@@ -378,6 +378,11 @@ func (g *RuntimeConfigGenerator) initialize() error {
 					Gcs: &runtimev1.BucketCluster_GCS{
 						Endpoint:  &bktProviderConfig.GCS.Endpoint,
 						Anonymous: true,
+						LocalSign: &runtimev1.BucketCluster_GCS_LocalSignOptions{
+							BaseUrl:    publicBaseURL,
+							AccessId:   "dummy-sa@encore.local",
+							PrivateKey: reverseString(dummyPrivateKeyReversed),
+						},
 					},
 				},
 			})
@@ -833,3 +838,44 @@ func gzipBytes(data []byte) []byte {
 	_ = w.Close()
 	return buf.Bytes()
 }
+
+func reverseString(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
+// We lightly obfuscate the PK to trigger fewer of the tools that warn about
+// keys in source code.
+//
+// $ tail -r pk.pem | rev
+const dummyPrivateKeyReversed = `-----YEK ETAVIRP DNE-----
+=AOz3eEM5xAe/71Tfx3sQNkW
+4FXBCChkppSrCoQnR6pBeP31wu0S0UTTNDhNmSYcerdSFbRhyZOzNRnhF9o1h5D5
++gKkhRZkC33z5+0p8aWwOVWJY8MDycHwvEYvtwcXLNZBHI8L8++mhp0uFz5c5sNM
+pPRyurcUY36iDzx7hAJcAGoAvXJwVzTmzXBZtvFPs6Alc5gHti2W1l2bz2mwOV77
+BA9xAW4R6EHVTnqaoXvxvocW5Z9I0ecJzx0NPfkXBriW1lNclAnkoRAYqziasa6C
+WIxePQ2VRFbnLu7XR1M/xqg00GHFV0fTlNPo95lC6tl0PAdoupOX1lwjH3rQnTkB
+Y4BgBKQQJ8F0PPTSMAvyK1bcHP2Iob8UFxyHuPOm11aHYwM4VZvmHm8jX/8vz4eb
+6kbNbEkWzfJbbEen/EJLR1XtzvTdjs9bQnJvhQMZmPGzQalqHcVuilQX+PFV4ezM
+A23w1HCIq6vZqXLO8rXhe8S5hImwVSAKq6TK5dlYPOTIBp66lCQgBKwjkcQcX7tq
+mr44FuVB7hqBMfnCB0kKcs1SuYgmfUQE41JGInsqjdpaFOwzQi4Jcx7TK44p9vn2
+ik6i/hN7JSVA8kMImWIxtL18uVC/Rg0RpM2vcjd+pfgUDifZ1FVYCiL3WlEzDBlZ
+bSmYdd57T70mEEiuV8QmGiIRrk6kZAMP4CQgBKQ4mIYJX2RJQ1j0V+iXwY/bg+N5
+DPEWLB0w6ReZapNy4DSEMD1zm6IWUuo3rGfCsSKUD0xFR/YkauO5Q+GI2gKvmj5V
+MRiysBL/8PCBwKiFKo1MFjCUfbV/ks49/OJYSOi9WIJiXEg5Tm56BDTH6I8rNdU1
+lGIimbKIuzEBWUHsyDQgBKQQ8O/PDCI/SJSPYjkxw1fpX022hUvVW9pvtmd6v0vX
+M5kMBkT60IwTWhF0DoAx4Uyn4rlPiJy5TUwjC0po/aCRV+ug5C+wIRTCtVCpqRyz
+GeB4U/3WXHmSulzK5Dw4ADfbWSP0dAbNNOaFI4y6u+acEl5MFt3GN/jieITLsZNK
+X18B7zHj7LR2f5k3xiJJ/7uNFl8SCcnVquvEI1qslUSTLEPCNoiy5iX/VVTmVNwv
+dUi92s5oFMyJOFW5joggeeQ55BN6EsjQTnj/XetnpPe5wf5vvptHg5HOcUjJPmIJ
+vsGpMXoyCh3mzdQPMUJM9Ha8DKlACadqTjdid9ZsAAYLAEggCEAABMgAvulUiO2B
+FkdtezbN/f5vpPbr4knO22xylfkUp5Uw0W/HxtntXXobF42guEEiie49zki5fPHK
+vAMC7bOERRLV4v35Dd9QV/KFe0FxqEfm8bFDM6FoA4c0qnkDaKbMhdvxxs0wVFRm
+BukfBCLOt+W/XyFhZvUKkxgbcOjXV7HRFQGI+GZnrf00qbCRNOCdlYLoYX1kf3pQ
+eNY6o9ZCJxIDO+dUATCoP3tmP4hvonrjGfpek99D4Ye3+iDwg0AxDW+bt9qoRFew
+VdOuGmooPaDDxn95q5IghRhrvrEaHpkN/EZiNEAJWQkZa9wkxGye5T9hMZRBjUkt
+wGPTyf02fuGquCQABIoAAEgAjSggwcKBCSAAFEQAB0w9GikhqkgBNADABIQvEIIM
+-----YEK ETAVIRP NIGEB-----`

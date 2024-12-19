@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"iter"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/googleapi"
@@ -29,10 +32,17 @@ func NewManager(ctx context.Context, runtime *config.Runtime) *Manager {
 	return &Manager{ctx: ctx, runtime: runtime, clients: make(map[*config.BucketProvider]*storage.Client)}
 }
 
+type localSignOptions struct {
+	baseURL    string
+	accessID   string
+	privateKey string
+}
+
 type bucket struct {
-	client *storage.Client
-	cfg    *config.Bucket
-	handle *storage.BucketHandle
+	client    *storage.Client
+	cfg       *config.Bucket
+	handle    *storage.BucketHandle
+	localSign *localSignOptions
 }
 
 func (mgr *Manager) ProviderName() string { return "gcs" }
@@ -43,8 +53,10 @@ func (mgr *Manager) Matches(cfg *config.BucketProvider) bool {
 
 func (mgr *Manager) NewBucket(provider *config.BucketProvider, runtimeCfg *config.Bucket) types.BucketImpl {
 	client := mgr.clientForProvider(provider)
+
+	localSign := localSignOptionsForProvider(provider)
 	handle := client.Bucket(runtimeCfg.CloudName)
-	return &bucket{client, runtimeCfg, handle}
+	return &bucket{client, runtimeCfg, handle, localSign}
 }
 
 func (b *bucket) Download(data types.DownloadData) (types.Downloader, error) {
@@ -178,6 +190,50 @@ func (b *bucket) Attrs(data types.AttrsData) (*types.ObjectAttrs, error) {
 	return mapAttrs(resp), mapErr(err)
 }
 
+func (b *bucket) SignedUploadURL(data types.UploadURLData) (string, error) {
+	opts := &storage.SignedURLOptions{
+		Scheme:  storage.SigningSchemeV4,
+		Method:  "PUT",
+		Expires: time.Now().Add(data.TTL),
+	}
+
+	// We use a fake GCS service for local development. Ideally, the runtime
+	// code would be oblivious to this once the GCS client is set up. But that
+	// turns out to be difficult for URL signing, so we add a special case
+	// here.
+	if b.localSign != nil {
+		opts.GoogleAccessID = b.localSign.accessID
+		opts.PrivateKey = []byte(b.localSign.privateKey)
+	}
+
+	url, err := b.handle.SignedURL(data.Object.String(), opts)
+	if err != nil {
+		return "", mapErr(err)
+	}
+
+	// More special handling for the local dev case.
+	if b.localSign != nil {
+		url = replaceURLPrefix(url, b.localSign.baseURL)
+	}
+
+	return url, nil
+}
+
+func replaceURLPrefix(origUrl string, base string) string {
+	u, err := url.Parse(origUrl)
+	if err != nil {
+		return origUrl // If the input URL is not valid, just return it as-is
+	}
+	out := base
+	if u.Path != "" {
+		out = strings.TrimRight(out, "/") + "/" + strings.TrimLeft(u.Path, "/")
+	}
+	if u.RawQuery != "" {
+		out += "?" + u.RawQuery
+	}
+	return out
+}
+
 func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *storage.Client {
 	if client, ok := mgr.clients[prov]; ok {
 		return client
@@ -198,6 +254,18 @@ func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *storage.Clie
 
 	mgr.clients[prov] = client
 	return client
+}
+
+func localSignOptionsForProvider(prov *config.BucketProvider) *localSignOptions {
+	if opts := prov.GCS.LocalSign; opts == nil {
+		return nil
+	} else {
+		return &localSignOptions{
+			baseURL:    opts.BaseURL,
+			accessID:   opts.AccessID,
+			privateKey: opts.PrivateKey,
+		}
+	}
 }
 
 func mapErr(err error) error {
