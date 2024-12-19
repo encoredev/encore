@@ -1,6 +1,10 @@
 package objects
 
-import "encore.dev/storage/objects/internal/types"
+import (
+	"time"
+
+	"encore.dev/storage/objects/internal/types"
+)
 
 // DownloadOption describes available options for the Download operation.
 type DownloadOption interface {
@@ -33,10 +37,26 @@ func (o withVersionOption) attrsOption() {}
 //publicapigen:keep
 func (o withVersionOption) existsOption() {}
 
+//publicapigen:keep
+func (o withTTLOption) uploadURLOption() {}
+
 func (o withVersionOption) applyDownload(opts *downloadOptions) { opts.version = o.version }
 func (o withVersionOption) applyRemove(opts *removeOptions)     { opts.version = o.version }
 func (o withVersionOption) applyAttrs(opts *attrsOptions)       { opts.version = o.version }
 func (o withVersionOption) applyExists(opts *existsOptions)     { opts.version = o.version }
+func (o withTTLOption) applyUploadURL(opts *uploadURLOptions)   { opts.ttl = o.ttl }
+
+// WithTTL is used for signed URLs, to specify the lifetime of the generated
+// URL. The max value is seven days. The default lifetime, if this
+// option is missing, is one hour.
+func WithTTL(ttl time.Duration) withTTLOption {
+	return withTTLOption{ttl: ttl}
+}
+
+//publicapigen:keep
+type withTTLOption struct {
+	ttl time.Duration
+}
 
 //publicapigen:keep
 type downloadOptions struct {
@@ -137,6 +157,18 @@ type AttrsOption interface {
 
 type attrsOptions struct {
 	version string
+}
+
+// UploadURLOption describes available options for the SignedUploadURL operation.
+type UploadURLOption interface {
+	//publicapigen:keep
+	uploadURLOption()
+
+	applyUploadURL(*uploadURLOptions)
+}
+
+type uploadURLOptions struct {
+	ttl time.Duration
 }
 
 // ExistsOption describes available options for the Exists operation.

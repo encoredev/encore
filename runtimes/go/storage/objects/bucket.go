@@ -6,6 +6,7 @@ import (
 	"iter"
 	"net/url"
 	"strings"
+	"time"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/stack"
@@ -400,6 +401,11 @@ func (b *Bucket) mapListEntry(entry *types.ListEntry) *ListEntry {
 	}
 }
 
+type SignedUploadURL struct {
+	// The signed URL
+	URL string
+}
+
 // List lists objects in the bucket.
 func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) iter.Seq2[*ListEntry, error] {
 	return func(yield func(*ListEntry, error) bool) {
@@ -570,6 +576,29 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 	}
 
 	return b.mapAttrs(attrs), nil
+}
+
+// Generates an external URL to allow uploading an object to the bucket.
+//
+// Anyone with possession of the URL can write to the given object name
+// without any additional auth.
+func (b *Bucket) SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (*SignedUploadURL, error) {
+	var opt uploadURLOptions
+	for _, o := range options {
+		o.applyUploadURL(&opt)
+	}
+	if opt.ttl == 0 {
+		opt.ttl = time.Hour
+	}
+	url, urlErr := b.impl.SignedUploadURL(types.UploadURLData{
+		Ctx:    ctx,
+		Object: b.toCloudObject(object),
+		Ttl:    opt.ttl,
+	})
+	if urlErr != nil {
+		return nil, urlErr
+	}
+	return &SignedUploadURL{URL: url}, nil
 }
 
 // Exists reports whether an object exists in the bucket.
