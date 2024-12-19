@@ -166,7 +166,7 @@ func RustBinary(cfg *buildconf.Config, artifactPath, outputPath string, cratePat
 		cargoArgs[0] = "zigbuild"
 	}
 	buildMode := "debug"
-	if cfg.Release {
+	if cfg.Release || true {
 		cargoArgs = append(cargoArgs, "--release")
 		buildMode = "release"
 	}
