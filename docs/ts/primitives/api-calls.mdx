@@ -9,7 +9,7 @@ lang: ts
 Calling API endpoints between services, i.e. service-to-service calls, looks like regular function calls with Encore.ts. This gives you a simple monolith-like developer experience, even when you use multiple services.
 The only thing you need to do is import the service you want to call from `~encore/clients` and then call its API endpoints like functions.
 
-This works because when compiling your application, Encore uses [static analysis](/docs/ts/concepts/application-model) to parse all APIs and make them available through the `~encore/clients` module for internal calls.
+This works because, when compiling your application, Encore uses [static analysis](/docs/ts/concepts/application-model) to parse all APIs and make them available through the `~encore/clients` module for internal calls.
 You get all the benefits of function calls, like compile-time checking of all the parameters and auto-completion in your editor, while still allowing the division of code into logical components, services, and systems.
 
 ### Example
