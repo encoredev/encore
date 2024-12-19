@@ -32,3 +32,7 @@ func (b *BucketImpl) Remove(data types.RemoveData) error {
 func (b *BucketImpl) Attrs(data types.AttrsData) (*types.ObjectAttrs, error) {
 	return nil, fmt.Errorf("cannot get attributes from noop bucket")
 }
+
+func (b *BucketImpl) GetUploadUrl(data types.UploadUrlData) (string, error) {
+	return "", fmt.Errorf("cannot get upload url from noop bucket")
+}

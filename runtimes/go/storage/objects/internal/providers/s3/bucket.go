@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"iter"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -33,8 +34,9 @@ func NewManager(ctx context.Context, runtime *config.Runtime) *Manager {
 }
 
 type bucket struct {
-	client *s3.Client
-	cfg    *config.Bucket
+	client         *s3.Client
+	presign_client *s3.PresignClient
+	cfg            *config.Bucket
 }
 
 func (mgr *Manager) ProviderName() string { return "s3" }
@@ -46,8 +48,9 @@ func (mgr *Manager) Matches(cfg *config.BucketProvider) bool {
 func (mgr *Manager) NewBucket(provider *config.BucketProvider, runtimeCfg *config.Bucket) types.BucketImpl {
 	client := mgr.clientForProvider(provider)
 	return &bucket{
-		client: client,
-		cfg:    runtimeCfg,
+		client:         client,
+		presign_client: s3.NewPresignClient(client),
+		cfg:            runtimeCfg,
 	}
 }
 
@@ -149,6 +152,26 @@ func (b *bucket) Attrs(data types.AttrsData) (*types.ObjectAttrs, error) {
 		Size:        valOrZero(resp.ContentLength),
 		ETag:        valOrZero(resp.ETag),
 	}, nil
+}
+
+func (b *bucket) GetUploadUrl(data types.UploadUrlData) (string, error) {
+	object := string(data.Object)
+	params := s3.PutObjectInput{
+		Bucket: &b.cfg.CloudName,
+		Key:    &object,
+	}
+	sign_opts := func(opts *s3.PresignOptions) {
+		opts.Expires = time.Duration(data.Ttl) * time.Second
+	}
+	req, err := b.presign_client.PresignPutObject(data.Ctx, &params, sign_opts)
+
+	url := ""
+	if req != nil {
+		url = req.URL
+		// TODO: add check/warn against unexpected method and headers
+		// (we expect PUT and host:<> but nothing else.)
+	}
+	return url, mapErr(err)
 }
 
 func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {

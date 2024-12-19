@@ -87,6 +87,19 @@ export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser
   }
 
   /**
+   * Generate an external URL to allow uploading an object to the bucket.
+   * 
+   * Anyone with possession of the URL can write to the given object name
+   * without any additional auth.
+   */
+  async getUploadUrl(name: string, options?: UploadUrlOptions): Promise<string> {
+    const source = getCurrentRequest();
+    const impl = this.impl.object(name);
+    const res = await impl.getUploadUrl(options, source);
+    return unwrapErr(res);
+  }
+
+  /**
    * Downloads an object from the bucket and returns its contents.
    */
   async download(name: string, options?: DownloadOptions): Promise<Buffer> {
@@ -193,5 +206,11 @@ export interface UploadOptions {
   contentType?: string;
   preconditions?: {
     notExists?: boolean;
-  },
+  }
+}
+
+export interface UploadUrlOptions {
+  /** The expiration time of the url, in seconds from signing. The maximum
+   * value is seven days */
+  ttl: number;
 }

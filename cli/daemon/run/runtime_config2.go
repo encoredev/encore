@@ -378,6 +378,11 @@ func (g *RuntimeConfigGenerator) initialize() error {
 					Gcs: &runtimev1.BucketCluster_GCS{
 						Endpoint:  &bktProviderConfig.GCS.Endpoint,
 						Anonymous: true,
+						LocalSign: &runtimev1.BucketCluster_GCS_LocalSignOptions{
+							BaseUrl:    publicBaseURL,
+							AccessId:   "dummy-sa@encore.local",
+							PrivateKey: dummyPrivateKey,
+						},
 					},
 				},
 			})
@@ -833,3 +838,32 @@ func gzipBytes(data []byte) []byte {
 	_ = w.Close()
 	return buf.Bytes()
 }
+
+const dummyPrivateKey = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCuqGuf20fyTPGw
+tkUjBRZMh9T5eyGxkw9aZkQWJAENiZE/NkpHaErvrhRhgI5q59nxDDaPoomGuOdV
+weFRoq9tb+WDxA0gwDi+3eY4D99kepfGjrnovh4Pmt3PoCTAUd+ODIxJCZ9o6YNe
+Qp3fk1XYoLYldCONRCbq00frnZG+IGQFRH7VXjOcbgxkKUvZhFyX/W+tOLCBfkuB
+mRFVw0sxxvdhMbKaDknq0c4AoF6MDFb8mfEqxF0eFK/VQ9dD53v4VLRREOb7CMAv
+KHPf5ikz94eiiEEug24FboXXtntxH/W0wU5pUkflyx22Onk4rbPpv5f/NbzetdkF
+B2OiUluvAgMBAAECggEALYAAsZ9didjTqdaCAlKD8aH9MJUMPQdzm3hCyoXMpGsv
+JImPJjUcOH5gHtpvv5fw5ePpnteX/jnTQjsE6NB55Qeeggoj5WFOJyMFo5s29iUd
+vwNVmTVV/Xi5yioNCPELTSUlsq1IEvuqVncCS8lFNu7/JJix3k5f2RL7jHz7B81X
+KNZsLTIeij/NG3tFM5lEca+u6y4IFaONNbAd0PSWbfDA4wD5KzluSmHXW3/U4BeG
+zyRqpCVtCTRIw+C5gu+VRCa/op0CjwUT5yJiPlr4nyU4xAoD0FhWTwI06TkBMk5M
+Xv0v6dmtvp9WVvUh220Xpf1wxkjYPSJS/ICDP/O8QQKBgQDysHUWBEzuIKbmiIGl
+1UdNr8I6HTDB65mT5gEXiJIW9iOSYJO/94sk/VbfUCjFM1oKFiKwBCP8/LBsyiRM
+V5jmvKg2IG+Q5OuakY/RFx0DUKSsCfGr3ouUWI6mz1DMESD4yNpaZeR6w0BLWEPD
+5N+gb/YwXi+V0j1QJR2XJYIm4QKBgQC4PMAZk6krRIiGmQ8VuiEEm07T75ddYmSb
+ZlBDzElW3LiCYVF1ZfiDUgfp+djcv2MpR0gR/CVu81LtxIWmIMk8AVSJ7Nh/i6ki
+2nv9p44KT7xcJ4iQzwOFapdjqsnIGJ14EQUfmgYuS1scKk0BCnfMBqh7BVuF44rm
+qt7XcQckjwKBgQCl66pBITOPYld5KT6qKASVwmIh5S8ehXr8OLXqZv6qICH1w32A
+Mze4VFP+XQliuVcHqlaQzGPmZMQhvJnQb9sjdTvztX1RLJE/neEbbJfzWkEbNbk6
+be4zv8/Xj8mHmvZV4MwYHa11mOPuHyxFU8boI2PHcb1KyvAMSTPP0F8JQQKBgB4Y
+BkTnQr3Hjwl1XOpuodAP0lt6Cl59oPNlTf0VFHG00gqx/M1RX7uLnbFRV2QPexIW
+C6asaizqYARoknAlcNl1WirBXkfPN0xzJce0I9Z5WcovxvXoaqnTVHE6R4WAx9AB
+77VOwm2zb2l1W2itHg5clA6sPFvtZBXzmTzVwJXvAoGAcJAh7xzDi63YUcruyRPp
+MNs5c5zFu0phm++8L8IHBZNLXcwtvYEvwHcyDM8YJWVOwWa8p0+5z33CkZRhkKg+
+5D5h1o9FhnRNzOZyhRbFSdrecYSmNhDNTTU0S0uw13PeBp6RnQoCrSppkhCCBXF4
+WkNQs3xfT17/eAx5MEe3zOA=
+-----END PRIVATE KEY-----`

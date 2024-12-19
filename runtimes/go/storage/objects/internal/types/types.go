@@ -13,6 +13,7 @@ type BucketImpl interface {
 	List(data ListData) iter.Seq2[*ListEntry, error]
 	Remove(data RemoveData) error
 	Attrs(data AttrsData) (*ObjectAttrs, error)
+	GetUploadUrl(data UploadUrlData) (string, error)
 }
 
 // CloudObject is the cloud name for an object.
@@ -88,6 +89,13 @@ type AttrsData struct {
 	Object CloudObject
 
 	Version string // non-zero means specific version
+}
+
+type UploadUrlData struct {
+	Ctx    context.Context
+	Object CloudObject
+
+	Ttl uint64
 }
 
 //publicapigen:keep
