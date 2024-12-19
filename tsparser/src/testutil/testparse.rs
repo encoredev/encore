@@ -3,7 +3,6 @@ use swc_common::sync::Lrc;
 
 use crate::parser::module_loader::Module;
 use crate::parser::parser::ParseContext;
-use crate::testutil::JS_RUNTIME_PATH;
 use assert_fs::TempDir;
 use swc_common::errors::Handler;
 use swc_common::SourceMap;

@@ -784,7 +784,7 @@ mod tests {
                 let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
                 let pc = ParseContext::with_resolver(
                     tmp_dir.to_path_buf(),
-                    JS_RUNTIME_PATH.clone(),
+                    Some(JS_RUNTIME_PATH.clone()),
                     resolver,
                     cm,
                     errs.clone(),

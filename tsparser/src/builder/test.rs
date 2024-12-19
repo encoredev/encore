@@ -3,7 +3,6 @@ use std::fs;
 use std::path::Path;
 
 use crate::app::AppDesc;
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::builder::codegen::CodegenParams;
@@ -11,7 +10,7 @@ use crate::builder::compile::CmdSpec;
 use crate::builder::package_mgmt::resolve_package_manager;
 use crate::parser::parser::ParseContext;
 
-use super::{App, Builder};
+use super::{prepare::PrepareError, App, Builder};
 
 #[derive(Debug)]
 pub struct TestParams<'a> {
@@ -27,7 +26,7 @@ pub struct TestResult {
 }
 
 impl Builder<'_> {
-    pub fn test(&self, params: &TestParams) -> Result<TestResult> {
+    pub fn test(&self, params: &TestParams) -> Result<TestResult, PrepareError> {
         // Is there a "test" script defined in package.json?
         {
             #[derive(Deserialize)]
@@ -36,10 +35,15 @@ impl Builder<'_> {
                 scripts: HashMap<String, String>,
             }
             let package_json_path = params.app.root.join("package.json");
-            let package_json = fs::read_to_string(&package_json_path)
-                .with_context(|| format!("failed to read {}", package_json_path.display()))?;
-            let package_json: PackageJson = serde_json::from_str(&package_json)
-                .with_context(|| format!("failed to parse {}", package_json_path.display()))?;
+            let package_json =
+                fs::read_to_string(&package_json_path).map_err(PrepareError::ReadPackageJson)?;
+            let package_json: PackageJson =
+                serde_json::from_str(&package_json).map_err(|source| {
+                    PrepareError::InvalidPackageJson {
+                        source,
+                        path: package_json_path.to_path_buf(),
+                    }
+                })?;
             if !package_json.scripts.contains_key("test") {
                 log::info!("no test script defined in package.json, skipping tests");
                 return Ok(TestResult { cmd: None });
@@ -51,15 +55,10 @@ impl Builder<'_> {
             pc: params.pc,
             working_dir: params.working_dir,
             desc: params.parse,
-        })
-        .context("generate code")?;
+        })?;
 
-        // Find the node_modules dir and the relative path back to the app root.
-        let pkg_mgr =
-            resolve_package_manager(&params.app.root).context("resolve package manager")?;
-
-        let cmd = pkg_mgr.run_tests().context("test packages")?;
-
+        let pkg_mgr = resolve_package_manager(&params.app.root)?;
+        let cmd = pkg_mgr.run_tests();
         Ok(TestResult { cmd: Some(cmd) })
     }
 }
