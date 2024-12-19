@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/internal/env"
 	"encr.dev/pkg/xos"
 	"encr.dev/v2/compiler/build"
 	"github.com/cockroachdb/errors"
@@ -128,6 +129,17 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 			target, err := os.Readlink(string(path))
 			if err != nil {
 				return errors.WithStack(err)
+			}
+
+			// copy the files instead of linking if its the encore.dev package
+			if target == filepath.Join(env.EncoreRuntimesPath(), "js", "encore.dev") {
+				err = tc.CopyDir(&dirCopyDesc{
+					Spec:            desc.Spec,
+					SrcPath:         HostPath(target),
+					DstPath:         dstPath,
+					ExcludeSrcPaths: map[HostPath]bool{},
+				})
+				return errors.Wrap(err, "add encore.dev package")
 			}
 
 			link, err = tc.rewriteSymlink(desc, path, HostPath(target))
