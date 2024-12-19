@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use convert_case::{Case, Casing};
 use handlebars::*;
+use prepare::PrepareError;
 use serde::{Deserialize, Serialize};
 
 pub use codegen::{CodegenParams, CodegenResult};
@@ -35,47 +35,58 @@ pub struct Builder<'a> {
 }
 
 impl Builder<'_> {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, PrepareError> {
         let mut reg = Handlebars::new();
         reg.register_helper("toJSON", Box::new(to_json));
         reg.register_helper("stripExt", Box::new(strip_ext));
         reg.register_helper("toPascalCase", Box::new(to_pascal_case));
         reg.register_helper("encoreNameToIdent", Box::new(encore_name_to_ident));
         let entrypoint_service_main =
-            Template::new(&mut reg, "service_main", ENTRYPOINT_SERVICE_MAIN)?;
+            Template::new(&mut reg, "service_main", ENTRYPOINT_SERVICE_MAIN)
+                .map_err(|e| PrepareError::Internal(e.into()))?;
         let entrypoint_gateway_main =
-            Template::new(&mut reg, "gateway_main", ENTRYPOINT_GATEWAY_MAIN)?;
+            Template::new(&mut reg, "gateway_main", ENTRYPOINT_GATEWAY_MAIN)
+                .map_err(|e| PrepareError::Internal(e.into()))?;
         let entrypoint_combined_main =
-            Template::new(&mut reg, "combined_main", ENTRYPOINT_COMBINED_MAIN)?;
+            Template::new(&mut reg, "combined_main", ENTRYPOINT_COMBINED_MAIN)
+                .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_clients_index_js = Template::new(
             &mut reg,
             "catalog_clients_index_js",
             CATALOG_CLIENTS_INDEX_JS,
-        )?;
+        )
+        .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_clients_index_d_ts = Template::new(
             &mut reg,
             "catalog_clients_index_d_ts",
             CATALOG_CLIENTS_INDEX_D_TS,
-        )?;
+        )
+        .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_clients_service_js = Template::new(
             &mut reg,
             "catalog_clients_service_js",
             CATALOG_CLIENTS_SERVICE_JS,
-        )?;
+        )
+        .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_clients_service_testing_js = Template::new(
             &mut reg,
             "catalog_clients_service_test_js",
             CATALOG_CLIENTS_SERVICE_TESTING_JS,
-        )?;
+        )
+        .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_clients_service_d_ts = Template::new(
             &mut reg,
             "catalog_clients_service_d_ts",
             CATALOG_CLIENTS_SERVICE_D_TS,
-        )?;
+        )
+        .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_auth_index_ts =
-            Template::new(&mut reg, "catalog_auth_index_ts", CATALOG_AUTH_INDEX_TS)?;
+            Template::new(&mut reg, "catalog_auth_index_ts", CATALOG_AUTH_INDEX_TS)
+                .map_err(|e| PrepareError::Internal(e.into()))?;
         let catalog_auth_auth_ts =
-            Template::new(&mut reg, "catalog_auth_auth_ts", CATALOG_AUTH_AUTH_TS)?;
+            Template::new(&mut reg, "catalog_auth_auth_ts", CATALOG_AUTH_AUTH_TS)
+                .map_err(|e| PrepareError::Internal(e.into()))?;
+
         Ok(Self {
             reg,
             entrypoint_service_main,
@@ -102,17 +113,25 @@ pub struct App {
 impl App {
     /// Compute the relative path from the app root.
     /// It reports an error if the path is not under the app root.
-    fn rel_path<'b>(&self, path: &'b Path) -> Result<&'b Path> {
-        let suffix = path.strip_prefix(&self.root)?;
+    fn rel_path<'b>(&self, path: &'b Path) -> Result<&'b Path, PrepareError> {
+        let suffix = path.strip_prefix(&self.root).map_err(|err| {
+            PrepareError::Internal(anyhow::anyhow!(
+                "unable to compute relative path to app root from {path:?}: {err}"
+            ))
+        })?;
+
         Ok(suffix)
     }
 
     /// Compute the relative path from the app root as a String.
-    fn rel_path_string(&self, path: &Path) -> Result<String> {
+    fn rel_path_string(&self, path: &Path) -> Result<String, PrepareError> {
         let suffix = self.rel_path(path)?;
         let s = suffix
             .to_str()
-            .ok_or(anyhow::anyhow!("invalid path: {:?}", path))?;
+            .ok_or(PrepareError::Internal(anyhow::anyhow!(
+                "invalid path: {:?}",
+                path
+            )))?;
         Ok(s.to_string())
     }
 }
@@ -122,14 +141,16 @@ struct Template<'a> {
 }
 
 impl<'a> Template<'a> {
-    fn new(reg: &mut Handlebars, name: &'a str, template_str: &str) -> Result<Self> {
-        reg.register_template_string(name, template_str)?;
+    fn new(reg: &mut Handlebars, name: &'a str, template_str: &str) -> Result<Self, PrepareError> {
+        reg.register_template_string(name, template_str)
+            .map_err(|e| PrepareError::Internal(e.into()))?;
+
         Ok(Self { name })
     }
 
-    fn render(&self, reg: &Handlebars, data: &impl Serialize) -> Result<String> {
+    fn render(&self, reg: &Handlebars, data: &impl Serialize) -> Result<String, PrepareError> {
         reg.render(self.name, data)
-            .map_err(|e| anyhow::anyhow!("{}", e))
+            .map_err(|e| PrepareError::Internal(e.into()))
     }
 }
 

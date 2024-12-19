@@ -7,17 +7,12 @@ use std::sync::{Arc, Mutex};
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 
+use encore_tsparser::builder;
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
-use encore_tsparser::{app, builder};
 
 fn main() {
     env_logger::init();
-
-    let js_runtime_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("runtimes")
-        .join("js");
 
     // Read the app root from the first arg.
     let app_root = PathBuf::from(std::env::args().nth(1).expect("missing app root"));

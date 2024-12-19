@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 
-use anyhow::{Context, Result};
+use thiserror::Error;
 
 use super::Builder;
 
@@ -16,45 +16,46 @@ pub enum PackageVersion {
     Published(String),
 }
 
-impl PackageVersion {
-    pub fn is_installed(&self, ver: &str) -> bool {
-        match self {
-            Self::Local(want) => {
-                if let Some(path) = ver.strip_prefix("file:") {
-                    let got = PathBuf::from(path);
-                    // Check for exact match or cleaned match.
-                    got == *want || clean_path::clean(got) == clean_path::clean(want)
-                } else {
-                    false
-                }
-            }
+#[derive(Debug, Error)]
+pub enum PrepareError {
+    #[error("package.json file not found (expected at {0})")]
+    PackageJsonNotFound(PathBuf),
+    #[error("failed to read package.json: {0}")]
+    ReadPackageJson(#[source] io::Error),
+    #[error("invalid package.json: {source}")]
+    InvalidPackageJson {
+        source: serde_json::Error,
+        path: PathBuf,
+    },
+    #[error("package manager '{0}' not supported")]
+    UnsupportedPackageManagerError(String),
 
-            Self::Published(want) => {
-                let ver = ver.trim_start_matches(['^', '=', '~']);
+    #[error(
+        "installed 'encore.dev' package version ({0}) newer than 'encore' release, run 'encore version update' first"
+    )]
+    EncoreDevTooNew(String),
 
-                // Check if the version is an exact match.
-                if ver == want {
-                    return true;
-                }
+    #[error("installing node_modules failed: {0}, run 'npm install' manually to see the error")]
+    InstallNodeModules(#[source] io::Error),
 
-                // Parse the version and check if it's equal or greater, semver-wise.
-                let a = semver::Version::parse(&ver[1..]).ok();
-                let b = semver::Version::parse(want).ok();
-                if let (Some(a), Some(b)) = (a, b) {
-                    a >= b
-                } else {
-                    false
-                }
-            }
-        }
-    }
+    #[error("failed to install 'encore.dev' package: {0}")]
+    InstallEncoreDev(#[source] io::Error),
+
+    #[error("failed to configure yarn nodeLinker to node-modules: {0}")]
+    SetupYarnNodeLinker(#[source] io::Error),
+
+    #[error("node_modules directory not found")]
+    NodeModulesNotFound,
+
+    #[error("unable to generate code")]
+    GenerateCode(#[source] io::Error),
+
+    #[error("internal error: {0}")]
+    Internal(#[source] anyhow::Error),
 }
 
 impl Builder<'_> {
-    pub fn prepare(&self, params: &PrepareParams) -> Result<()> {
+    pub fn prepare(&self, params: &PrepareParams) -> Result<(), PrepareError> {
         self.setup_deps(&params.app_root, &params.encore_dev_version)
-            .context("setup deps")?;
-
-        Ok(())
     }
 }
