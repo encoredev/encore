@@ -572,6 +572,22 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 	return b.mapAttrs(attrs), nil
 }
 
+func (b *Bucket) GetUploadUrl(ctx context.Context, object string, options ...UploadUrlOption) (string, error) {
+	var opt uploadUrlOptions
+	for _, o := range options {
+		o.applyUploadUrl(&opt)
+	}
+	url, urlErr := b.impl.GetUploadUrl(types.UploadUrlData{
+		Ctx:    ctx,
+		Object: b.toCloudObject(object),
+		Ttl:    opt.ttl,
+	})
+	if urlErr != nil {
+		return "", urlErr
+	}
+	return url, nil
+}
+
 // Exists reports whether an object exists in the bucket.
 func (b *Bucket) Exists(ctx context.Context, object string, options ...ExistsOption) (bool, error) {
 	var opt existsOptions

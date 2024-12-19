@@ -120,6 +120,7 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Opt
                 "list" => Operation::ListObjects,
                 "exists" | "attrs" => Operation::GetObjectMetadata,
                 "upload" => Operation::WriteObject,
+                "getUploadUrl" => Operation::WriteObject,
                 "download" => Operation::ReadObjectContents,
                 "remove" => Operation::DeleteObject,
 

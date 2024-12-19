@@ -420,6 +420,16 @@ type S3BucketProvider struct {
 type GCSBucketProvider struct {
 	Endpoint  string `json:"endpoint"`
 	Anonymous bool   `json:"anonymous"`
+
+	// Additional options for signed URLs when running in local dev mode.
+	// Only use with anonymous mode.
+	LocalSign *GCSLocalSignOptions `json:"local_sign"`
+}
+
+type GCSLocalSignOptions struct {
+	BaseUrl    string `json:"base_url"`
+	AccessId   string `json:"access_id"`
+	PrivateKey string `json:"private_key"`
 }
 
 type Bucket struct {

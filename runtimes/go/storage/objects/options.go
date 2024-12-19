@@ -33,10 +33,25 @@ func (o withVersionOption) attrsOption() {}
 //publicapigen:keep
 func (o withVersionOption) existsOption() {}
 
+//publicapigen:keep
+func (o withTtlOption) uploadUrlOption() {}
+
 func (o withVersionOption) applyDownload(opts *downloadOptions) { opts.version = o.version }
 func (o withVersionOption) applyRemove(opts *removeOptions)     { opts.version = o.version }
 func (o withVersionOption) applyAttrs(opts *attrsOptions)       { opts.version = o.version }
 func (o withVersionOption) applyExists(opts *existsOptions)     { opts.version = o.version }
+func (o withTtlOption) applyUploadUrl(opts *uploadUrlOptions)   { opts.ttl = o.ttl }
+
+// WithTtl is used for signed URLs, to specify the lifetime of the generated
+// URL, in seconds. The max value is seven days.
+func WithTtl(ttl uint64) withTtlOption {
+	return withTtlOption{ttl: ttl}
+}
+
+//publicapigen:keep
+type withTtlOption struct {
+	ttl uint64
+}
 
 //publicapigen:keep
 type downloadOptions struct {
@@ -137,6 +152,18 @@ type AttrsOption interface {
 
 type attrsOptions struct {
 	version string
+}
+
+// UploadUrlOption describes available options for the GetUploadUrl operation.
+type UploadUrlOption interface {
+	//publicapigen:keep
+	uploadUrlOption()
+
+	applyUploadUrl(*uploadUrlOptions)
+}
+
+type uploadUrlOptions struct {
+	ttl uint64
 }
 
 // ExistsOption describes available options for the Exists operation.

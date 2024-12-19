@@ -336,6 +336,21 @@ message BucketCluster {
 
     // Whether to connect anonymously or if a service account should be resolved.
     bool anonymous = 2;
+
+    // Additional options for signed URLs when running in local dev mode.
+    // Only use with anonymous mode.
+    optional LocalSignOptions local_sign = 3;
+
+    message LocalSignOptions {
+      // Base prefix to use for presigned URLs.
+	    string base_url = 1;
+
+      // Use these credentials to sign local URLs. Only pass dummy credentials
+      // here, no actual secrets.
+      string access_id = 2;
+      string private_key = 3;
+
+    }
   }
 }
 
