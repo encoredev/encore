@@ -1,4 +1,5 @@
-use std::fmt::{self};
+use std::convert::Infallible;
+use std::fmt::{self, Display};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -39,7 +40,7 @@ fn main() -> Result<()> {
             let builder = Builder::new()?;
             let mut parse: Option<(builder::App, app::AppDesc)> = None;
 
-            let mut prepare = match parse_cmd()? {
+            let prepare = match parse_cmd()? {
                 Some(Command::Prepare(prepare)) => prepare,
                 Some(_) => anyhow::bail!("expected prepare command"),
                 None => return Ok(()),
@@ -61,7 +62,7 @@ fn main() -> Result<()> {
                 match builder.prepare(&pp) {
                     Ok(result) => {
                         let json = serde_json::to_string(&result)?;
-                        write_result(Ok(json.as_bytes()))?;
+                        write_result(<Result<_, Infallible>>::Ok(json.as_bytes()))?;
                     }
                     Err(err) => {
                         log::error!("failed to prepare: {:?}", err);
@@ -111,7 +112,9 @@ fn main() -> Result<()> {
                         match builder.parse(&pp) {
                             Some(result) => {
                                 log::info!("parse successful");
-                                write_result(Ok(result.meta.encode_to_vec().as_slice()))?;
+                                write_result(<Result<_, Infallible>>::Ok(
+                                    result.meta.encode_to_vec().as_slice(),
+                                ))?;
                                 parse = Some((app, result));
                             }
                             None => {
@@ -146,7 +149,7 @@ fn main() -> Result<()> {
                                 Ok(compile) => {
                                     log::info!("compile successful");
                                     let json = serde_json::to_string(&compile)?;
-                                    write_result(Ok(json.as_bytes()))?;
+                                    write_result(<Result<_, Infallible>>::Ok(json.as_bytes()))?;
                                 }
                                 Err(err) => {
                                     log::error!("failed to compile: {:?}", err);
@@ -169,12 +172,9 @@ fn main() -> Result<()> {
                             match builder.test(&p) {
                                 Ok(compile) => {
                                     let json = serde_json::to_string(&compile)?;
-                                    write_result(Ok(json.as_bytes()))?;
+                                    write_result(<Result<_, Infallible>>::Ok(json.as_bytes()))?;
                                 }
-                                Err(err) => {
-                                    log::error!("failed to run tests: {:?}", err);
-                                    write_result(Err(err))?
-                                }
+                                Err(err) => write_result(Err(err))?,
                             };
                         }
                     },
@@ -191,7 +191,7 @@ fn main() -> Result<()> {
 
                             log::info!("starting generate user facing code");
                             match builder.generate_code(&cp) {
-                                Ok(_) => write_result(Ok(&[]))?,
+                                Ok(_) => write_result(<Result<_, Infallible>>::Ok(&[]))?,
                                 Err(err) => {
                                     log::error!("failed to generate code: {:?}", err);
                                     write_result(Err(err))?
@@ -215,17 +215,15 @@ fn write_data(is_ok: bool, data: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-fn write_result(res: Result<&[u8]>) -> io::Result<()> {
+fn write_result<E>(res: Result<&[u8], E>) -> io::Result<()>
+where
+    E: Display,
+{
     match res {
         Ok(bytes) => write_data(true, bytes),
         Err(err) => {
-            // If this is a parse error, don't include a full stack trace.
-            let s = match err.downcast_ref::<PlainError>() {
-                Some(err) => err.0.as_str(),
-                None => &format!("{:?}", err),
-            };
-            let bytes = s.as_bytes();
-            write_data(false, bytes)
+            let s = err.to_string();
+            write_data(false, s.as_bytes())
         }
     }
 }

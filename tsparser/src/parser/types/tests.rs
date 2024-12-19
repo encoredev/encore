@@ -43,7 +43,7 @@ fn resolve_types() {
 
                 let pc = ParseContext::with_resolver(
                     tmp_dir.path().to_path_buf(),
-                    JS_RUNTIME_PATH.clone(),
+                    Some(JS_RUNTIME_PATH.clone()),
                     resolver,
                     cm,
                     errs.clone(),
