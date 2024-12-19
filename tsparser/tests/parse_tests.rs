@@ -3,6 +3,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::Result;
+use common::js_runtime_path;
 use insta::glob;
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
@@ -11,8 +12,6 @@ use tempdir::TempDir;
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
 use encore_tsparser::{app, builder};
-
-use crate::common::js_runtime_path;
 
 mod common;
 
@@ -46,7 +45,12 @@ fn parse_txtar(app_root: &Path) -> Result<app::AppDesc> {
     GLOBALS.set(&globals, || -> Result<app::AppDesc> {
         HANDLER.set(&errs, || -> Result<app::AppDesc> {
             let builder = Builder::new()?;
-            let pc = ParseContext::new(app_root.to_path_buf(), None, cm, errs.clone())?;
+            let pc = ParseContext::new(
+                app_root.to_path_buf(),
+                Some(js_runtime_path()),
+                cm,
+                errs.clone(),
+            )?;
 
             let app = builder::App {
                 root: app_root.to_path_buf(),
