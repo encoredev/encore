@@ -11,6 +11,12 @@ import (
 // watch watches the given app for changes, and reports
 // them on c.
 func (mgr *Manager) watch(run *Run) error {
+
+	// Initialize embedded files tracker
+	if err := initializeEmbeddedFilesTracker(run.App.Root()); err != nil {
+		return err
+	}
+
 	sub, err := run.App.Watch(func(i *apps.Instance, event []watcher.Event) {
 		if IgnoreEvents(event) {
 			return
@@ -44,10 +50,22 @@ func (mgr *Manager) watch(run *Run) error {
 }
 
 // IgnoreEvents will return true if _all_ events are on files that should be ignored
-// as the do not impact the running app, or are the result of Encore itself generating code.
+// as they do not impact the running app, or are the result of Encore itself generating code.
 func IgnoreEvents(events []watcher.Event) bool {
 	for _, event := range events {
-		if !ignoreEvent(event) {
+		filename := filepath.Base(event.Path)
+		if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") ||
+			strings.HasSuffix(filename, "~") {
+			// Ignore generated code and temporary files
+			return true
+		}
+
+		ignore, err := ignoreEventEmbedded(event)
+		if err != nil {
+			return false
+		}
+
+		if !ignoreEvent(event) || !ignore {
 			return false
 		}
 	}
@@ -55,12 +73,6 @@ func IgnoreEvents(events []watcher.Event) bool {
 }
 
 func ignoreEvent(ev watcher.Event) bool {
-	filename := filepath.Base(ev.Path)
-	if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") {
-		// Ignore generated code
-		return true
-	}
-
 	// Ignore files which wouldn't impact the running app
 	ext := filepath.Ext(ev.Path)
 	switch ext {
