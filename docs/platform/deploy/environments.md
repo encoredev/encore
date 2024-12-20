@@ -49,7 +49,7 @@ To configure which branch name is used to trigger deploys, open your app in the 
 
 ### Configuring infrastructure approval
 
-For environments you may want to enforce infrastructure approval before deploying. You can configure this in the **Settings** > **Infrastructure Approval** section for your environment.
+For some environments you may want to enforce infrastructure approval before deploying. You can configure this in the **Settings** > **Infrastructure Approval** section for your environment.
 
 When infrastructure approval is enabled, an application **Admin** will need to manually approve the infrastructure changes before the deployment can proceed.
 
