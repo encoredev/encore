@@ -191,7 +191,7 @@ Regular reviews on different levels (individual, team, company) foster alignment
 
 Encore takes data privacy very seriously and complies with the rules of the European Union's GDPR (General Data Protection Regulation). GDPR grants a wide range of rights to Encore's users, such as the right to be informed, the right to access, the right to rectification, the right to erasure, and others.
 
-One fundamental rule of the GDPR is the principle of "data minimization", which ensures that we are not processing more personal data than necessary. As a result, the Encore platform uses only minimal personal data for user authentication and essential communication (which is a name, contact email, and a password hash).
+One fundamental rule of the GDPR is the principle of "data minimization", which ensures that we are not processing more personal data than necessary. As a result, Encore Cloud uses only minimal personal data for user authentication and essential communication (which is a name, contact email, and a password hash).
 
 ### Privacy policy
 
