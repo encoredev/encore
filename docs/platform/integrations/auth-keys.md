@@ -53,4 +53,4 @@ $ encore auth login --auth-key=ena_nEQIkfeM43t7oxpleMsIULbhbtLAbYnnLf1D
 
 ## Revoking a key
 
-You can revoke a key simply by pressing the **Delete** button next to it. This will prevent any machines currently using it to authenticate to the Encore platform (regardless of the key type).
+You can revoke a key simply by pressing the **Delete** button next to it. This will prevent any machines currently using it to authenticate to Encore Cloud (regardless of the key type).

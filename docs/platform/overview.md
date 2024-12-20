@@ -1,13 +1,13 @@
 ---
-seotitle: Encore Cloud Platform Docs
+seotitle: Encore Cloud Docs
 seodesc: How Encore Cloud Platform helps you reduce DevOps work by 90% by automating infra in your cloud on AWS/GCP.
-title: Encore Cloud Platform
+title: Encore Cloud
 subtitle: The easiest way to develop and deploy your application to AWS/GCP
 toc: false
 lang: platform
 ---
 
-Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â€” trusted by thousands of developers to **3x** their development speed and reduce DevOps work by **90%**.
+Encore Cloud fully automates DevOps and infrastructure on AWS and GCP â€” trusted by fast-moving teams to **3x** their development speed and reduce DevOps work by **90%**.
 
 **If you're new, learn all about how Encore works in the [introduction](/docs/platform/introduction).**
 
@@ -15,7 +15,7 @@ Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â
     <div className="w-[75%] lg:w-[85%]">
         <h2 className="text-white lead-medium">Get Started</h2>
         <div className="body-small text-white mt-2">
-            Sign up and take a tour of the Cloud Dashboard.
+            Sign up and take a tour of the Encore Cloud dashboard.
         </div>
         <a href="/signup">
             <Button className="mt-4" kind="primary" section="black">Sign up</Button>
@@ -33,7 +33,7 @@ Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â
                 <img className="-mt-2 h-16 w-16 p-3 noshadow" src="/assets/icons/features/higher.png" />
             </div>
             <div className="mt-2">
-                Learn about the problems Encore solves and the philosophy behind it.
+                Learn about the problems Encore Cloud solves and the philosophy behind it.
             </div>
         </div>
     </a>
@@ -46,7 +46,7 @@ Encore Cloud Platform fully automates DevOps and infrastructure on AWS and GCP â
                 <img className="-mt-2 h-16 w-16 noshadow" src="/assets/icons/features/meet.png" />
             </div>
             <div className="mt-2">
-                Speak to one of our experts to figure out if Encore will work for your project.
+                Speak to one of our experts to figure out if Encore Cloud will work for your project.
             </div>
         </div>
     </a>

@@ -1,6 +1,6 @@
 ---
-seotitle: Subscribe to Encore webhooks and events
-seodesc: The Encore platform lets you define webhooks to react to events in your application, enabling you to build powerful integrations.
+seotitle: Subscribe to Encore Cloud webhooks and events
+seodesc: Encore Cloud lets you define webhooks to react to events in your application, enabling you to build powerful integrations.
 title: Webhooks & Events
 subtitle: Set up webhooks to react to Encore events
 infobox: {

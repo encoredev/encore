@@ -82,7 +82,7 @@ To initialize Prisma, run the following command from within your service folder:
 npx prisma init --url <shadow db connection url>
 ```
 
-To be able to deploy your app via the Encore platform, you also need to configure a postinstall hook in your `package.json` that runs `npx prisma generate`, e.g:
+To be able to deploy your app via Encore Cloud, you also need to configure a postinstall hook in your `package.json` that runs `npx prisma generate`, e.g:
 
 ```
 {
