@@ -2,7 +2,7 @@
 seotitle: Deploying your Encore application is as simple as git push
 seodesc: Learn how to deploy your backend application built with Encore with a single command, while Encore manages your entire CI/CD process.
 title: Deploying Applications with Encore Cloud
-subtitle: Encore Cloud comes with built-in CI/CD and integrates with GitHub
+subtitle: Encore Cloud automates the deployment and infrastructure provisioning process
 lang: platform
 ---
 
