@@ -1,12 +1,13 @@
 use std::collections::HashMap;
+use std::io;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
 use duct::cmd;
 use serde::Deserialize;
-use std::io;
 
 use crate::builder::compile::CmdSpec;
+
+use super::prepare::{PackageVersion, PrepareError};
 
 #[derive(Deserialize)]
 struct PackageJson {
@@ -17,15 +18,84 @@ struct PackageJson {
     dependencies: HashMap<String, String>,
 }
 
-fn parse_package_json(package_json_path: &Path) -> Result<PackageJson> {
-    let package_json = std::fs::read_to_string(package_json_path)
-        .with_context(|| format!("failed to read {}", package_json_path.display()))?;
+fn parse_package_json(package_json_path: &Path) -> Result<PackageJson, PrepareError> {
+    let package_json =
+        std::fs::read_to_string(package_json_path).map_err(PrepareError::ReadPackageJson)?;
 
-    serde_json::from_str(&package_json)
-        .with_context(|| format!("failed to parse {}", package_json_path.display()))
+    serde_json::from_str(&package_json).map_err(|source| PrepareError::InvalidPackageJson {
+        source,
+        path: package_json_path.to_path_buf(),
+    })
 }
 
-fn find_workspace_package_manager(mut dir: PathBuf) -> Result<Option<String>> {
+#[derive(Debug, Clone)]
+pub enum InstalledVersion {
+    /// The package is not installed.
+    NotInstalled,
+    /// The package is installed but older than the required version.
+    Older(String),
+    /// The package is installed but different than the required version,
+    /// in a way that cannot be compared (i.e. not semver but "local development" version).
+    Different(String),
+    /// The package is equal to the required version.
+    Current,
+    /// The package is newer than the required version.
+    Newer(String),
+}
+
+impl PackageVersion {
+    /// Reports whether the package is installed and if it is, whether it's the correct version.
+    /// The `package_path` is needed to resolve local paths when running in development mode,
+    /// since `npm install /path/to/package.json` rewrites it to a path relative from the package.json directory.
+    pub fn is_installed(&self, ver: &str, package_path: &Path) -> InstalledVersion {
+        use InstalledVersion::*;
+        match self {
+            Self::Local(want) => {
+                if let Some(path) = ver.strip_prefix("file:") {
+                    let got = PathBuf::from(path);
+
+                    // Check for exact match or cleaned match.
+                    if got == *want || clean_path::clean(&got) == clean_path::clean(want) {
+                        return Current;
+                    } else if got.is_relative() {
+                        // Check if the paths are equal after resolving relative to the package.json directory.
+                        let abs = package_path.join(&got);
+                        if abs == *want || clean_path::clean(abs) == clean_path::clean(want) {
+                            return Current;
+                        }
+                    }
+                }
+
+                Different(ver.to_string())
+            }
+
+            Self::Published(want) => {
+                let got = ver.trim_start_matches(['^', '=', '~']);
+
+                // Check if the version is an exact match.
+                if got == want {
+                    return Current;
+                }
+
+                // Parse the version and check if it's equal or greater, semver-wise.
+                let installed = semver::Version::parse(got).ok();
+                let want = semver::Version::parse(want).ok();
+                if let (Some(installed), Some(want)) = (installed, want) {
+                    use std::cmp::Ordering;
+                    match installed.cmp(&want) {
+                        Ordering::Less => Older(got.to_string()),
+                        Ordering::Equal => Current,
+                        Ordering::Greater => Newer(got.to_string()),
+                    }
+                } else {
+                    Different(got.to_string())
+                }
+            }
+        }
+    }
+}
+
+fn find_workspace_package_manager(mut dir: PathBuf) -> Result<Option<String>, PrepareError> {
     while dir.pop() {
         let package_json_path = dir.join("package.json");
         if package_json_path.exists() {
@@ -41,7 +111,9 @@ fn find_workspace_package_manager(mut dir: PathBuf) -> Result<Option<String>> {
     Ok(None)
 }
 
-pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn PackageManager>> {
+pub(super) fn resolve_package_manager(
+    package_dir: &Path,
+) -> Result<Box<dyn PackageManager>, PrepareError> {
     let package_json_path = package_dir.join("package.json");
     let package_json = parse_package_json(&package_json_path)?;
 
@@ -69,17 +141,16 @@ pub(super) fn resolve_package_manager(package_dir: &Path) -> Result<Box<dyn Pack
             pkg_json: package_json,
             dir: package_dir.to_path_buf(),
         })),
-        _ => Err(anyhow::anyhow!(
-            "unsupported package manager: {}",
-            package_manager
+        _ => Err(PrepareError::UnsupportedPackageManagerError(
+            package_manager.to_string(),
         )),
     }
 }
 
 pub(super) trait PackageManager {
-    fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()>;
+    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError>;
 
-    fn run_tests(&self) -> Result<CmdSpec>;
+    fn run_tests(&self) -> CmdSpec;
 
     #[allow(dead_code)]
     fn mgr_name(&self) -> &'static str;
@@ -91,36 +162,46 @@ struct NpmPackageManager {
 }
 
 impl PackageManager for NpmPackageManager {
-    fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()> {
+    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
         // If we don't have a node_modules folder, install everything.
         if !self.dir.join("node_modules").exists() {
             cmd!("npm", "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .context("npm install failed")?;
+                .map_err(PrepareError::InstallNodeModules)?;
         }
 
-        // If we don't have an `encore.dev` dependency, install it.
-        if !self.pkg_json.dependencies.contains_key("encore.dev") {
-            cmd!("npm", "install", "encore.dev@latest")
-                .dir(&self.dir)
-                .stdout_to_stderr()
-                .run()
-                .context("npm install failed")?;
-        }
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
 
-        // If we have a local encore.dev path, symlink it.
-        if let Some(encore_dev_path) = encore_dev_path {
-            symlink_encore_dev(&self.dir, encore_dev_path)
-                .context("unable to symlink local encore.dev")?;
-        }
+        log::info!("want encore dev version {encore_dev_version:#?}, installed {installed:#?}, result {v:#?}");
 
-        Ok(())
+        match v {
+            InstalledVersion::Current => Ok(()),
+            InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
+            InstalledVersion::Older(_)
+            | InstalledVersion::Different(_)
+            | InstalledVersion::NotInstalled => {
+                let pkg = match encore_dev_version {
+                    PackageVersion::Local(buf) => buf.display().to_string(),
+                    PackageVersion::Published(ver) => format!("encore.dev@{ver}"),
+                };
+                cmd!("npm", "install", pkg)
+                    .dir(&self.dir)
+                    .stdout_to_stderr()
+                    .run()
+                    .map_err(PrepareError::InstallEncoreDev)?;
+                Ok(())
+            }
+        }
     }
 
-    fn run_tests(&self) -> Result<CmdSpec> {
-        Ok(CmdSpec {
+    fn run_tests(&self) -> CmdSpec {
+        CmdSpec {
             command: vec![
                 "npm".to_string(),
                 "run".to_string(),
@@ -131,7 +212,7 @@ impl PackageManager for NpmPackageManager {
             ],
             env: vec![],
             prioritized_files: vec![],
-        })
+        }
     }
 
     fn mgr_name(&self) -> &'static str {
@@ -145,9 +226,8 @@ struct YarnPackageManager {
 }
 
 impl PackageManager for YarnPackageManager {
-    fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()> {
-        self.ensure_nodelinker()
-            .context("unable to update .yarnrc.yml to set nodeLinker")?;
+    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
+        self.ensure_nodelinker()?;
 
         // If we don't have a node_modules folder, install everything.
         if !self.dir.join("node_modules").exists() {
@@ -155,33 +235,42 @@ impl PackageManager for YarnPackageManager {
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .context("yarn install failed")?;
+                .map_err(PrepareError::InstallNodeModules)?;
         }
 
-        // If we don't have an `encore.dev` dependency, install it.
-        if !self.pkg_json.dependencies.contains_key("encore.dev") {
-            cmd!("yarn", "add", "encore.dev@latest")
-                .dir(&self.dir)
-                .stdout_to_stderr()
-                .run()
-                .context("yarn add failed")?;
-        }
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
 
-        // If we have a local encore.dev path, symlink it.
-        if let Some(encore_dev_path) = encore_dev_path {
-            symlink_encore_dev(&self.dir, encore_dev_path)
-                .context("unable to symlink local encore.dev")?;
+        log::info!("want encore dev version {encore_dev_version:#?}, installed {installed:#?}, result {v:#?}");
+        match v {
+            InstalledVersion::Current => Ok(()),
+            InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
+            InstalledVersion::Older(_)
+            | InstalledVersion::Different(_)
+            | InstalledVersion::NotInstalled => {
+                let pkg = match encore_dev_version {
+                    PackageVersion::Local(buf) => buf.display().to_string(),
+                    PackageVersion::Published(ver) => format!("encore.dev@{ver}"),
+                };
+                cmd!("yarn", "add", pkg)
+                    .dir(&self.dir)
+                    .stdout_to_stderr()
+                    .run()
+                    .map_err(PrepareError::InstallEncoreDev)?;
+                Ok(())
+            }
         }
-
-        Ok(())
     }
 
-    fn run_tests(&self) -> Result<CmdSpec> {
-        Ok(CmdSpec {
+    fn run_tests(&self) -> CmdSpec {
+        CmdSpec {
             command: vec!["yarn".to_string(), "run".to_string(), "test".to_string()],
             env: vec![],
             prioritized_files: vec![],
-        })
+        }
     }
 
     fn mgr_name(&self) -> &'static str {
@@ -191,31 +280,31 @@ impl PackageManager for YarnPackageManager {
 
 impl YarnPackageManager {
     /// Ensures the .yarnrc.yml file exists in the app root and has the nodeLinker set to "node-modules".
-    fn ensure_nodelinker(&self) -> Result<()> {
+    fn ensure_nodelinker(&self) -> Result<(), PrepareError> {
         let file_path = self.dir.join(".yarnrc.yml");
         if !file_path.exists() {
             // Create the file with our desired contents.
             let content = "nodeLinker: node-modules\n";
-            std::fs::write(&file_path, content)
-                .with_context(|| format!("failed to write {}", file_path.display()))?;
+            std::fs::write(&file_path, content).map_err(PrepareError::SetupYarnNodeLinker)?;
             return Ok(());
         }
 
         // Read the file as yaml.
-        let contents = std::fs::read_to_string(&file_path)
-            .with_context(|| format!("failed to read {}", file_path.display()))?;
-        let mut map = serde_yaml::from_str::<serde_yaml::Mapping>(&contents)
-            .with_context(|| format!("failed to parse {}", file_path.display()))?;
+        let contents =
+            std::fs::read_to_string(&file_path).map_err(PrepareError::SetupYarnNodeLinker)?;
+        let mut map = serde_yaml::from_str::<serde_yaml::Mapping>(&contents).map_err(|err| {
+            PrepareError::SetupYarnNodeLinker(io::Error::new(io::ErrorKind::InvalidData, err))
+        })?;
 
         // Modify the map and write it back out.
         map.insert(
             serde_yaml::Value::String("nodeLinker".into()),
             serde_yaml::Value::String("node-modules".into()),
         );
-        let contents = serde_yaml::to_string(&map)
-            .with_context(|| format!("failed to serialize {}", file_path.display()))?;
-        std::fs::write(&file_path, contents)
-            .with_context(|| format!("failed to write {}", file_path.display()))?;
+        let contents = serde_yaml::to_string(&map).map_err(|err| {
+            PrepareError::SetupYarnNodeLinker(io::Error::new(io::ErrorKind::InvalidData, err))
+        })?;
+        std::fs::write(&file_path, contents).map_err(PrepareError::SetupYarnNodeLinker)?;
 
         Ok(())
     }
@@ -227,36 +316,44 @@ struct PnpmPackageManager {
 }
 
 impl PackageManager for PnpmPackageManager {
-    fn setup_deps(&self, encore_dev_path: Option<&Path>) -> Result<()> {
+    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
         // If we don't have a node_modules folder, install everything.
         if !self.dir.join("node_modules").exists() {
             cmd!("pnpm", "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .context("pnpm install failed")?;
+                .map_err(PrepareError::InstallNodeModules)?;
         }
 
-        // If we don't have an `encore.dev` dependency, install it.
-        if !self.pkg_json.dependencies.contains_key("encore.dev") {
-            cmd!("pnpm", "install", "encore.dev@latest")
-                .dir(&self.dir)
-                .stdout_to_stderr()
-                .run()
-                .context("pnpm install failed")?;
-        }
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
 
-        // If we have a local encore.dev path, symlink it.
-        if let Some(encore_dev_path) = encore_dev_path {
-            symlink_encore_dev(&self.dir, encore_dev_path)
-                .context("unable to symlink local encore.dev")?;
+        match v {
+            InstalledVersion::Current => Ok(()),
+            InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
+            InstalledVersion::Older(_)
+            | InstalledVersion::Different(_)
+            | InstalledVersion::NotInstalled => {
+                let pkg = match encore_dev_version {
+                    PackageVersion::Local(buf) => buf.display().to_string(),
+                    PackageVersion::Published(ver) => format!("encore.dev@{ver}"),
+                };
+                cmd!("pnpm", "install", pkg)
+                    .dir(&self.dir)
+                    .stdout_to_stderr()
+                    .run()
+                    .map_err(PrepareError::InstallEncoreDev)?;
+                Ok(())
+            }
         }
-
-        Ok(())
     }
 
-    fn run_tests(&self) -> Result<CmdSpec> {
-        Ok(CmdSpec {
+    fn run_tests(&self) -> CmdSpec {
+        CmdSpec {
             command: vec![
                 "pnpm".to_string(),
                 "run".to_string(),
@@ -267,92 +364,10 @@ impl PackageManager for PnpmPackageManager {
             ],
             env: vec![],
             prioritized_files: vec![],
-        })
+        }
     }
 
     fn mgr_name(&self) -> &'static str {
         "pnpm"
     }
-}
-
-fn symlink_encore_dev(app_root: &Path, encore_dev_path: &Path) -> Result<()> {
-    let node_modules = app_root.join("node_modules");
-    let node_mod_dst = node_modules.join("encore.dev");
-
-    // If the node_modules directory exists, symlink the encore.dev package.
-    if let Ok(Some(target)) = read_symlink(&node_mod_dst) {
-        if target == encore_dev_path {
-            log::info!("encore.dev symlink already points to the local runtime, skipping.");
-            return Ok(());
-        }
-
-        // It's a symlink pointing elsewhere. Remove it.
-        delete_symlink(&node_mod_dst)
-            .with_context(|| format!("remove existing encore.dev symlink at {:?}", node_mod_dst))?;
-    } else {
-        // It's not a symlink. Check if it exists as a directory.
-        if node_mod_dst.exists() {
-            // Remove the directory so we can add a symlink.
-            std::fs::remove_dir_all(&node_mod_dst).with_context(|| {
-                format!("remove existing encore.dev directory at {:?}", node_mod_dst)
-            })?;
-        }
-    }
-
-    // Create the symlink if the node_modules directory exists.
-    if node_modules.exists() {
-        create_symlink(encore_dev_path, &node_mod_dst)
-            .with_context(|| format!("symlink encore.dev directory at {:?}", node_mod_dst))?;
-    }
-    Ok(())
-}
-
-#[cfg(not(windows))]
-fn create_symlink(src: &Path, dst: &Path) -> io::Result<()> {
-    symlink::symlink_dir(src, dst)
-}
-
-#[cfg(windows)]
-fn create_symlink(src: &Path, dst: &Path) -> io::Result<()> {
-    symlink::symlink_dir(src, dst).or_else(|_| junction::create(src, &dst))
-}
-
-#[cfg(not(windows))]
-fn read_symlink(src: &Path) -> io::Result<Option<PathBuf>> {
-    if let Ok(meta) = src.symlink_metadata() {
-        if meta.is_symlink() {
-            return std::fs::read_link(src).map(Some);
-        }
-    }
-    Ok(None)
-}
-
-#[cfg(windows)]
-fn read_symlink(src: &Path) -> io::Result<Option<PathBuf>> {
-    if let Ok(meta) = src.symlink_metadata() {
-        // Is this a symlink?
-        if meta.is_symlink() {
-            return std::fs::read_link(src).map(Some);
-        }
-    }
-
-    // Check if it's a junction.
-    if junction::exists(src)? {
-        return junction::get_target(src).map(Some);
-    }
-
-    Ok(None)
-}
-
-#[cfg(not(windows))]
-fn delete_symlink(src: &Path) -> io::Result<()> {
-    symlink::remove_symlink_auto(src)
-}
-
-#[cfg(windows)]
-fn delete_symlink(src: &Path) -> io::Result<()> {
-    if let Ok(_) = symlink::remove_symlink_auto(src) {
-        return Ok(());
-    }
-    junction::delete(src)
 }

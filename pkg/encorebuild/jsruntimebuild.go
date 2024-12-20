@@ -68,7 +68,7 @@ func (b *JSRuntimeBuilder) buildRustModule() {
 	}()
 
 	features := []string{}
-	if !b.cfg.Release {
+	if !b.cfg.Release && false {
 		// Enable runtime tracing in debug builds.
 		features = append(features, "encore-runtime-core/rttrace")
 	}

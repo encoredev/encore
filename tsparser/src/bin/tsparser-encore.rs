@@ -1,4 +1,5 @@
-use std::fmt::{self};
+use std::convert::Infallible;
+use std::fmt::{self, Display};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -22,10 +23,6 @@ fn main() -> Result<()> {
         .with_writer(io::stderr)
         .init();
     let cwd = std::env::current_dir()?;
-
-    let js_runtime_path = std::env::var("ENCORE_JS_RUNTIME_PATH")
-        .map(PathBuf::from)
-        .expect("ENCORE_JS_RUNTIME_PATH not set");
 
     let globals = Globals::new();
 
@@ -51,14 +48,21 @@ fn main() -> Result<()> {
 
             {
                 let pp = builder::PrepareParams {
-                    js_runtime_root: &js_runtime_path,
-                    app_root: &prepare.app_root,
+                    app_root: prepare.app_root.clone(),
+
+                    encore_dev_version: match prepare.local_runtime_override {
+                        Some(buf) => builder::PackageVersion::Local(buf.join("encore.dev")),
+                        None => builder::PackageVersion::Published(
+                            // Remove the leading "v" from the runtime version, as JS version numbers don't use it.
+                            prepare.runtime_version.trim_start_matches("v").to_string(),
+                        ),
+                    },
                 };
 
                 match builder.prepare(&pp) {
                     Ok(result) => {
                         let json = serde_json::to_string(&result)?;
-                        write_result(Ok(json.as_bytes()))?;
+                        write_result(<Result<_, Infallible>>::Ok(json.as_bytes()))?;
                     }
                     Err(err) => {
                         log::error!("failed to prepare: {:?}", err);
@@ -67,12 +71,7 @@ fn main() -> Result<()> {
                 }
             }
 
-            let pc = match ParseContext::new(
-                prepare.app_root,
-                js_runtime_path.clone(),
-                cm.clone(),
-                errs.clone(),
-            ) {
+            let pc = match ParseContext::new(prepare.app_root, None, cm.clone(), errs.clone()) {
                 Ok(pc) => pc,
                 Err(err) => {
                     log::error!("failed to construct parse context: {:?}", err);
@@ -113,7 +112,9 @@ fn main() -> Result<()> {
                         match builder.parse(&pp) {
                             Some(result) => {
                                 log::info!("parse successful");
-                                write_result(Ok(result.meta.encode_to_vec().as_slice()))?;
+                                write_result(<Result<_, Infallible>>::Ok(
+                                    result.meta.encode_to_vec().as_slice(),
+                                ))?;
                                 parse = Some((app, result));
                             }
                             None => {
@@ -136,13 +137,10 @@ fn main() -> Result<()> {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
                             let cp = builder::CompileParams {
-                                js_runtime_root: &js_runtime_path,
-                                runtime_version: &input.runtime_version,
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
                                 desc: parse,
-                                use_local_runtime: input.use_local_runtime,
                                 debug: input.debug,
                             };
 
@@ -151,7 +149,7 @@ fn main() -> Result<()> {
                                 Ok(compile) => {
                                     log::info!("compile successful");
                                     let json = serde_json::to_string(&compile)?;
-                                    write_result(Ok(json.as_bytes()))?;
+                                    write_result(<Result<_, Infallible>>::Ok(json.as_bytes()))?;
                                 }
                                 Err(err) => {
                                     log::error!("failed to compile: {:?}", err);
@@ -161,28 +159,22 @@ fn main() -> Result<()> {
                         }
                     },
 
-                    Command::Test(input) => match &parse {
+                    Command::Test(_input) => match &parse {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
                             let p = builder::TestParams {
-                                js_runtime_root: &js_runtime_path,
-                                runtime_version: &input.runtime_version,
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
                                 parse,
-                                use_local_runtime: input.use_local_runtime,
                             };
 
                             match builder.test(&p) {
                                 Ok(compile) => {
                                     let json = serde_json::to_string(&compile)?;
-                                    write_result(Ok(json.as_bytes()))?;
+                                    write_result(<Result<_, Infallible>>::Ok(json.as_bytes()))?;
                                 }
-                                Err(err) => {
-                                    log::error!("failed to run tests: {:?}", err);
-                                    write_result(Err(err))?
-                                }
+                                Err(err) => write_result(Err(err))?,
                             };
                         }
                     },
@@ -191,7 +183,6 @@ fn main() -> Result<()> {
                         None => anyhow::bail!("no parse!"),
                         Some((app, parse)) => {
                             let cp = builder::CodegenParams {
-                                js_runtime_root: &js_runtime_path,
                                 app,
                                 pc: &pc,
                                 working_dir: &cwd,
@@ -200,7 +191,7 @@ fn main() -> Result<()> {
 
                             log::info!("starting generate user facing code");
                             match builder.generate_code(&cp) {
-                                Ok(_) => write_result(Ok(&[]))?,
+                                Ok(_) => write_result(<Result<_, Infallible>>::Ok(&[]))?,
                                 Err(err) => {
                                     log::error!("failed to generate code: {:?}", err);
                                     write_result(Err(err))?
@@ -224,17 +215,15 @@ fn write_data(is_ok: bool, data: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-fn write_result(res: Result<&[u8]>) -> io::Result<()> {
+fn write_result<E>(res: Result<&[u8], E>) -> io::Result<()>
+where
+    E: Display,
+{
     match res {
         Ok(bytes) => write_data(true, bytes),
         Err(err) => {
-            // If this is a parse error, don't include a full stack trace.
-            let s = match err.downcast_ref::<PlainError>() {
-                Some(err) => err.0.as_str(),
-                None => &format!("{:?}", err),
-            };
-            let bytes = s.as_bytes();
-            write_data(false, bytes)
+            let s = err.to_string();
+            write_data(false, s.as_bytes())
         }
     }
 }
@@ -300,20 +289,18 @@ struct ParseInput {
 #[derive(Deserialize, Debug)]
 struct PrepareInput {
     app_root: PathBuf,
+    runtime_version: String,
+    #[serde(default)]
+    local_runtime_override: Option<PathBuf>,
 }
 
 #[derive(Deserialize, Debug)]
 struct CompileInput {
-    runtime_version: String,
-    use_local_runtime: bool,
     debug: DebugMode,
 }
 
 #[derive(Deserialize, Debug)]
-struct TestInput {
-    runtime_version: String,
-    use_local_runtime: bool,
-}
+struct TestInput {}
 
 #[derive(Deserialize, Debug)]
 struct GenUserFacingInput {}

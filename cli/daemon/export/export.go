@@ -17,6 +17,7 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/env"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -52,6 +53,9 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+
+		// Use the local JS runtime if this is a development build.
+		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 	appLang := app.Lang()
 	bld := builderimpl.Resolve(appLang, expSet)

@@ -32,7 +32,7 @@ struct PackageJson {
 #[derive(Debug)]
 pub struct EncoreRuntimeResolver<R> {
     inner: R,
-    js_runtime_path: PathBuf,
+    js_runtime_path: Option<PathBuf>,
     extra_export_conditions: Vec<String>,
     tsconfig_resolver: Option<Lrc<TsConfigPathResolver>>,
 }
@@ -40,7 +40,11 @@ pub struct EncoreRuntimeResolver<R> {
 static DEFAULT_CONDITIONS: &[&str] = &["node-addons", "node", "import", "require", "default"];
 
 impl<R> EncoreRuntimeResolver<R> {
-    pub fn new(inner: R, js_runtime_path: PathBuf, extra_export_conditions: Vec<String>) -> Self {
+    pub fn new(
+        inner: R,
+        js_runtime_path: Option<PathBuf>,
+        extra_export_conditions: Vec<String>,
+    ) -> Self {
         Self {
             inner,
             js_runtime_path,
@@ -111,13 +115,17 @@ impl<R> EncoreRuntimeResolver<R> {
     }
 
     fn resolve_encore_module(&self, target: &str) -> Result<Option<PathBuf>, Error> {
+        let Some(js_runtime_path) = &self.js_runtime_path else {
+            return Ok(None);
+        };
+
         let target_path = Path::new(target);
         let mut components = target_path.components();
 
         if let Some(Component::Normal(_)) = components.next() {
             // It's a normal import, not an absolute or relative path.
             let (pkg_name, pkg_path) = self.pkg_name_from_target(target);
-            let pkg_dir = self.js_runtime_path.join(pkg_name);
+            let pkg_dir = js_runtime_path.join(pkg_name);
 
             if pkg_dir.exists() {
                 return self.resolve_export(&pkg_dir, pkg_path);
