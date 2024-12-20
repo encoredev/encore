@@ -64,4 +64,4 @@ Encore.ts provides integrations for common infrastructure primitives, but also a
 
 For example, you can always use any cloud infrastructure, even if it's not built into the Encore.ts framework. You can use any database, message broker, or other service that your application needs, just set up the infrastructure and then reference it in your code as you would do traditionally.
 
-If you use Encore's [Cloud Platform](https://encore.dev/use-cases/devops-automation), it [automates infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
+If you use [Encore Cloud](https://encore.dev/use-cases/devops-automation), it will [automate infrastructure](/docs/platform/infrastructure/infra) using your own cloud account, so you always have full access to your services from the cloud provider's console.
