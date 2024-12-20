@@ -10,7 +10,7 @@ Encore Cloud simplifies deploying your application, making it as simple as pushi
 
 ## Deploying your application
 
-### Step 1: Pre-requisites
+### Step 1: Prerequisites
 
 Before deploying, ensure that you have an **Encore Cloud account** and have created an **Encore application**.
 
@@ -40,7 +40,7 @@ Once connected to GitHub, pushing code will trigger deployments automatically. E
 
 ### Step 3: Connect your AWS / GCP account (Optional)
 
-Deploy to your own cloud on AWS or GCP by connection your cloud account to Encore Cloud.
+Deploy to your own cloud on AWS or GCP by connecting your cloud account to Encore Cloud.
 
 If you're just trying out Encore Cloud, skip this step to deploy to a free development environment using Encore Cloud's hosting, subject to [fair use limits](/docs/platform/management/usage).
 
