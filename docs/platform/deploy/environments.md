@@ -1,32 +1,16 @@
 ---
 seotitle: Environments – Creating local, preview, and prod environments
 seodesc: Learn how to create all the environments you need for your backend application, local, preview, testing and production. Here's how you keep them in sync!
-title: Environments
-subtitle: The environments you want, with none of the work
+title: Creating & configuring environments
+subtitle: Get the environments you need, without the work
 lang: platform
 ---
 
-Encore makes it simple to create the environments you need to build your application with confidence: local, preview, testing, and production.
-Each environment is an isolated fully working instance of your backend, automatically provisioned by Encore.
-
-Environments always stay in sync, as they are created based on the needs of your application, using the [Encore Application Model](/docs/ts/concepts/application-model). Environments are provisioned using contextually appropriate [infrastructure](/docs/platform/infrastructure/infra) depending on the type of environment.
-
-## Creating environments
-
-To create an environment for your app, open your app in the [Encore Cloud dashboard](https://app.ewcloudev) and go to the **Environments** page,
-then click on `Create env` in the top right.
-
-There you can pick a name, and decide if you want a **production**
-or **development environment** (see [Environment Types](#environment-types) below).
-
-You can also choose how you would like to **trigger deploys** for the environment (either by pushing
-to a Git branch or manually), and if you want to **manually approve infrastructure changes**.
-
-Finally, select which **cloud provider** you want to deploy to (see the [Cloud Providers](/docs/platform/infrastructure/own-cloud) documentation to learn more) and decide which type of **process allocation** you want: should all services be deployed to one process or separately?
-
-Click `Create` and you're done!
-
-![Creating an environment](/assets/docs/createenv.png "Creating an environment")
+Encore automatically sets up and manages different environments for your application (local, preview, testing, and production). Each environment is:
+- Fully isolated
+- Automatically provisioned
+- Always in sync with your codebase
+- Configured with appropriate infrastructure for its purpose
 
 ## Environment Types
 
@@ -37,53 +21,57 @@ Encore has four types of environments:
 - `local`
 
 Some environment types differ in how infrastructure is provisioned:
-- `preview` environments are provisioned in Encore Cloud and are optimized to be cost-efficient and fast to provision.
-- `local` is provisioned by Encore's CLI using local versions of infrastructure.
+- `local` is provisioned by Encore's Open Source CLI using local versions of infrastructure.
+- `preview` environments are provisioned in Encore Cloud hosting and are optimized to be cost-efficient and fast to provision.
+- `production` and `development` environments are provisioned by Encore Cloud, either in your [cloud account](/docs/platform/deploy/own-cloud) or using Encore Cloud's free development hosting. Both environment types offer the same infrastructure options when deployed using your own cloud account.
+  
+Environment type is also used for [Secrets management](/docs/ts/primitives/secrets), allowing you to configure different secrets for different environment types. Therefore, you can easily configure different secrets for your `production` and `development` environments.
 
-Aside from determining infrastructure, environment type is also used for [Secrets management](/docs/ts/primitives/secrets).
+## Creating environments
 
-### Local environment
+1. Open your app in the [Encore Cloud dashboard](https://app.encore.cloud)
+2. Go to **Environments** > **Create env**
+3. Configure your environment:
+   - Name your environment
+   - Choose type: **Production** or **Development** (see [Environment Types](#environment-types) below)
+   - Set deploy trigger: Git branch or manual
+   - Configure infrastructure approval: automatic or manual
+   - Select cloud provider
+   - Choose process allocation: single or separate processes
 
-When you've installed the [Encore CLI](/docs/ts/install), you start your local environment by simply running `encore run`.
-This builds and tests your application, and provisions all the necessary infrastructure to run your application locally (see the [infra docs](/docs/platform/infrastructure/infra#local-development) to learn exactly how local infrastructure is provisioned).
+![Creating an environment](/assets/docs/createenv.png "Creating an environment")
 
-By default, the local environment runs on `http://localhost:4000`.
+### Configuring deploy trigger
 
-### Preview environments
+When using GitHub, you can configure Encore Cloud to automatically trigger deploys when you push to a specific branch name.
 
-When you [connect your application to GitHub](/docs/platform/integrations/github), Encore will automatically provision ephemeral Preview Environments for each Pull Request. See the [Preview Environments documentation](/docs/platform/deploy/preview-environments) to learn more.
+To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
-#### Frontend Collaboration
+### Configuring infrastructure approval
 
-Preview Environments make it really easy to collaborate and test changes with your frontend.
-Just update your frontend API client to point to the `pr:#` environment.
-This is a one-line change since your API client always specifies the environment name, e.g. `https://<env>-<my-app>.encr.app/`.
+For environments you may want to enforce infrastructure approval before deploying. You can configure this in the **Settings** > **Infrastructure Approval** section for your environment.
 
-If your pull request makes changes to the API, you can [generate a new API client](/docs/ts/cli/client-generation)
-for the new backend API using `encore gen client --env=pr:72 --lang=typescript my-app`
+When infrastructure approval is enabled, an application **Admin** will need to manually approve the infrastructure changes before the deployment can proceed.
 
-### Cloud environments
+### Configuring process allocation
 
-Encore makes it simple to create multiple cloud environments in different cloud providers by [connecting your cloud account(s)](/docs/platform/infrastructure/own-cloud). Cloud environments can be created as `Development`, or `Production`, depending on your use case (see the [infra docs](/docs/platform/infrastructure/infra#production-infrastructure) to learn exactly what infrastructure is provisioned in each cloud).
+Encore Cloud offers flexible process allocation options:
+- **Single process**: All services run in one process (simpler, lower cost)
+- **Separate processes**: Each service runs independently (better isolation, independent scaling)
 
-#### Process Allocation
-
-Just because you want to deploy each service separately in some environments, doesn't mean you want to do it in all environments.
-
-Handily, Encore lets you decide how you want to deploy your services for cloud environments. You don't need to change a single line of code.
-
-When you create an environment, you decide which process allocation you want for that environment.
+Choose your preferred deployment model when creating each environment. You can use different models for production and development environments without changing any code.
 
 <img src="/assets/docs/microservices-process-allocation.png" title="Microservices - Process Allocation" />
 
-<Callout type="info">
+## Setting a Primary environment
 
-Deploying services as separate processes is not yet supported when using AWS Fargate. For multi-process deployments, select AWS EKS or GCP CloudRun / GKE.
+Every Encore app has a configurable Primary environment that serves as the default for:
+- App insights in the Encore Cloud dashboard
+- API documentation
+- CLI functionality (like API client generation)
 
-</Callout>
-
-## Primary environment
-
-Encore application's have a **primary environment** that is used as the default environment for functionality like viewing API documentation or app insights in the [Encore Cloud dashboard](https://app.encore.cloud), and as the default for CLI functionality like API client generation. It should generally reflect what you consider to be the main 'production' environment.
-
-To configure which environment should be used as the primary environment, open your app in the [Encore Cloud dashboard](https://app.encore.cloud), go to **Settings** > **General** > **Primary Environment**, then select the environment you want from the dropdown and click **Update**.
+**Configuring your Primary environment:**
+1. Open your app in the [Encore Cloud dashboard](https://app.encore.cloud)
+2. Navigate to **Settings** > **General** > **Primary Environment**
+3. Select your desired environment from the dropdown
+4. Click **Update**
