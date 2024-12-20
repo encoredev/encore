@@ -62,9 +62,9 @@ Encore Cloud adds to this tool-set with:
 
 Encore Cloud removes the need to build your own developer platform, automating over 90% of typical DevOps tasks. Here's how:
 
-### Core Infrastructure Management
-- **Zero-config deployment:** Connect your cloud account and deploy - Encore Cloudhandles the rest
-- **Battle-tested cloud services:** Automatic provisioning on AWS/GCP (Cloud Run, Fargate, Kubernetes, CloudSQL, etc.)
+### Infrastructure Management
+- **Zero-config deployment:** Connect your repo and cloud account, then deploy and Encore Cloud handles the rest
+- **Automatic infrastructure:** Use battle-tested AWS/GCP services (Cloud Run/Fargate, GKE/EKS, CloudSQL/RDS, Pub/Sub / SQS/SNS, etc.) without any manual setup or configuration
 - **No IaC required:** Say goodbye to Terraform and YAML - your code is the single source of truth
 
 ### Security & Governance
