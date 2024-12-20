@@ -87,7 +87,7 @@ When you store a secret Encore stores it encrypted using Google Cloud Platform's
 ### Overriding local secrets
 
 When setting secrets via the `encore secret set` command, they are automatically synced to all developers
-working on the same application, courtesy of the Encore Platform.
+working on the same application, courtesy of Encore Cloud.
 
 In some cases, however, you want to override a secret only for your local machine.
 This can be done by creating a file named `.secrets.local.cue` in the root of your Encore application,

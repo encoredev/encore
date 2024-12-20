@@ -1,7 +1,7 @@
 ---
-seotitle: Introduction to Encore Cloud Platform
+seotitle: Introduction to Encore Cloud
 seodesc: Learn how Encore works and how it helps backend developers build cloud-based backend applications without manually dealing with infrastructure.
-title: Encore Cloud Platform
+title: Encore Cloud
 subtitle: End-to-end development platform for building robust distributed systems
 lang: platform
 ---
