@@ -8,9 +8,9 @@ lang: platform
 
 When you deploy your application to your own cloud, Encore Cloud can provision infrastructure for it in many different ways – including setting up a Kubernetes cluster.
 
-However, if you already have a Kubernetes cluster, you may want to deploy your Encore application into this pre-existing cluster. This is often useful if you want to integrate your Encore application with other parts of your system that are not built using Encore.
+If you already have a Kubernetes cluster, Encore Cloud can deploy your Encore application into this pre-existing cluster. This is often useful if you want to integrate your Encore application with other parts of your system that are not built using Encore.
 
-To support this use case, Encore Cloud enables you to import existing Kubernetes clusters on Google Cloud Platform (AWS coming soon).
+Kubernetes imports are supported on GCP, AWS support is coming soon.
 
 ## Importing a cluster
 

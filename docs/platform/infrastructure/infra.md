@@ -6,7 +6,7 @@ subtitle: How Encore Cloud provisions infrastructure for your application
 lang: platform
 ---
 
-Encore Cloud automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring application code changes. You simply [connect your cloud account](/docs/platform/infrastructure/own-cloud) and create an environment.
+Encore Cloud automatically provisions all necessary infrastructure, in all environments and across all major cloud providers, without requiring application code changes. You simply [connect your cloud account](/docs/platform/deploy/own-cloud) and create an environment.
 
 <img src="/assets/docs/encore_overview.png" title="Infrastructure Overview" className="noshadow"/>
 
@@ -24,7 +24,7 @@ Having an end-to-end integration between application code and infrastructure als
 
 By default, Encore Cloud provisions infrastructure using contextually appropriate objectives for each environment type. You retain control over the infrastructure in your cloud account, and can configure it directly both via the Encore Cloud dashboard and your cloud provider's console. Encore Cloud takes care of syncing your changes.
 
-|                        | Local              | Encore Cloud Hosting              | GCP / AWS                          |
+|                        | Local              | Encore Cloud Hosting       | GCP / AWS                          |
 | ---------------------- | ------------------ | -------------------------- | ---------------------------------- |
 | **Environment types:** | Development        | Preview, Development       | Development, Production            |
 | **Objectives:**        | Provisioning speed | Provisioning speed, Cost\* | Reliability, Security, Scalability |
@@ -35,11 +35,11 @@ By default, Encore Cloud provisions infrastructure using contextually appropriat
 
 Encore Cloud provisions infrastructure resources differently for each type of development environment.
 
-|                     | Local                             | Preview / Development (Encore Cloud Hosting)                   | GCP / AWS                                                      |
-| ------------------- | --------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
+|                     | Local                             | Preview / Development (Encore Cloud Hosting)                 | GCP / AWS                                                      |
+| ------------------- | --------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------- |
 | **SQL Databases:**  | Docker                            | Encore Cloud Managed (Kubernetes), [Neon](/docs/deploy/neon) | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Pub/Sub:**        | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub                                            | [See production](/docs/deploy/infra#production-infrastructure) |
-| **Caches:**         | In-memory (Redis)                 | In-memory (Redis)                                      | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Pub/Sub:**        | In-memory ([NSQ](https://nsq.io)) | GCP Pub/Sub                                                  | [See production](/docs/deploy/infra#production-infrastructure) |
+| **Caches:**         | In-memory (Redis)                 | In-memory (Redis)                                            | [See production](/docs/deploy/infra#production-infrastructure) |
 | **Cron Jobs:**      | Disabled                          | [Encore Cloud Managed](/docs/primitives/cron-jobs)           | [See production](/docs/deploy/infra#production-infrastructure) |
 | **Object Storage:** | Local Disk                        | Encore Cloud Managed                                         | [See production](/docs/deploy/infra#production-infrastructure) |
 
@@ -83,16 +83,16 @@ are provisioned with small-scale use in mind.
 
 Encore Cloud provisions production infrastructure resources using best-practice guidelines and services for each respective cloud provider.
 
-|                     | GCP                                                                         | AWS                                                                        |
-| ------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **Networking:**     | [VPC](/docs/platform/infrastructure/gcp#networking-architecture)                                           | [VPC](/docs/platform/infrastructure/aws#networking-architecture)                                            |
-| **Compute:**        | [Cloud Run](/docs/platform/infrastructure/gcp#google-cloud-run), [GKE](/docs/platform/infrastructure/gcp#google-kubernetes-engine)  | [Fargate ECS](/docs/platform/infrastructure/aws#aws-fargate), [EKS](/docs/platform/infrastructure/aws#aws-eks)   |
-| **SQL Databases:**  | [GCP Cloud SQL](/docs/platform/infrastructure/gcp#databases), [Neon](/docs/platform/infrastructure/neon) | [Amazon RDS](/docs/platform/infrastructure/aws#databases), [Neon](/docs/platform/infrastructure/neon) |
-| **Pub/Sub:**        | [GCP Pub/Sub](/docs/platform/infrastructure/gcp#pubsub)                                                      | [Amazon SQS & Amazon SNS](/docs/platform/infrastructure/aws#pubsub)                            |
-| **Object Storage:** | [GCS/Cloud CDN](/docs/platform/infrastructure/gcp#object-storage)                                                      | [Amazon S3/CloudFront](/docs/platform/infrastructure/aws#object-storage)                                             |
-| **Caches:**         | [GCP Memorystore (Redis)](/docs/platform/infrastructure/gcp#caching)                                         | [Amazon ElastiCache (Redis)](/docs/platform/infrastructure/aws#caching)                                   |
-| **Cron Jobs:**      | Encore Cloud Managed                                                              | Encore Cloud Managed                                                             | Encore Cloud Managed |
-| **Secrets:**        | [Secret Manager](/docs/platform/infrastructure/gcp#secrets-management)                                               | [AWS Secrets Manager](/docs/platform/infrastructure/aws#se)                                         |
+|                     | GCP                                                                                                                                | AWS                                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Networking:**     | [VPC](/docs/platform/infrastructure/gcp#networking-architecture)                                                                   | [VPC](/docs/platform/infrastructure/aws#networking-architecture)                                               |
+| **Compute:**        | [Cloud Run](/docs/platform/infrastructure/gcp#google-cloud-run), [GKE](/docs/platform/infrastructure/gcp#google-kubernetes-engine) | [Fargate ECS](/docs/platform/infrastructure/aws#aws-fargate), [EKS](/docs/platform/infrastructure/aws#aws-eks) |
+| **SQL Databases:**  | [GCP Cloud SQL](/docs/platform/infrastructure/gcp#databases), [Neon](/docs/platform/infrastructure/neon)                           | [Amazon RDS](/docs/platform/infrastructure/aws#databases), [Neon](/docs/platform/infrastructure/neon)          |
+| **Pub/Sub:**        | [GCP Pub/Sub](/docs/platform/infrastructure/gcp#pubsub)                                                                            | [Amazon SQS & Amazon SNS](/docs/platform/infrastructure/aws#pubsub)                                            |
+| **Object Storage:** | [GCS/Cloud CDN](/docs/platform/infrastructure/gcp#object-storage)                                                                  | [Amazon S3/CloudFront](/docs/platform/infrastructure/aws#object-storage)                                       |
+| **Caches:**         | [GCP Memorystore (Redis)](/docs/platform/infrastructure/gcp#caching)                                                               | [Amazon ElastiCache (Redis)](/docs/platform/infrastructure/aws#caching)                                        |
+| **Cron Jobs:**      | Encore Cloud Managed                                                                                                               | Encore Cloud Managed                                                                                           | Encore Cloud Managed |
+| **Secrets:**        | [Secret Manager](/docs/platform/infrastructure/gcp#secrets-management)                                                             | [AWS Secrets Manager](/docs/platform/infrastructure/aws#se)                                                    |
 
 ### Configurability
 

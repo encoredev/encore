@@ -998,6 +998,11 @@
 				file: "platform/deploy/deploying"
 			}, {
 				kind: "basic"
+				text: "Connect your cloud account"
+				path: "/platform/deploy/own-cloud"
+				file: "platform/deploy/own-cloud"
+			}, {
+				kind: "basic"
 				text: "Environments"
 				path: "/platform/deploy/environments"
 				file: "platform/deploy/environments"
@@ -1017,11 +1022,6 @@
 			kind: "section"
 			text: "Infrastructure"
 			items: [{
-				kind: "basic"
-				text: "Connect your cloud account"
-				path: "/platform/infrastructure/own-cloud"
-				file: "platform/infrastructure/own-cloud"
-			}, {
 				kind: "basic"
 				text: "Infrastructure overview"
 				path: "/platform/infrastructure/infra"

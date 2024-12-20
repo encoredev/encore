@@ -6,51 +6,55 @@ subtitle: Encore Cloud automates the deployment and infrastructure provisioning 
 lang: platform
 ---
 
-Encore Cloud simplifies the deployment and infrastructure provisioning process, making it as straightforward as pushing to a git repository, removing the need for manual steps.
+Encore Cloud simplifies deploying your application, making it as simple as pushing to a git repository, removing the need for manual steps.
 
 ## Deploying your application
 
 ### Step 1: Pre-requisites
 
-Before deploying, ensure that you have created an **Encore application** and an **Encore Cloud account**.
+Before deploying, ensure that you have an **Encore Cloud account** and have created an **Encore application**.
 
-If you haven't created one yet, you can do so by running the following command:
+You can create both an account and an application by running the following command:
 
 ```shell
 $ encore app create
 ```
 
-You will be asked to create a free Encore Cloud account first and can then create a new Encore application.
+You will be asked to create a free Encore Cloud account first, and you will then proceed to create a new Encore application.
 
 ### Step 2: Integrate with GitHub (Optional)
 
-When you create an Encore application while logged into your Encore Cloud account in the CLI, Encore will automatically create a new Encore managed git repository.
+When creating an Encore application, Encore will automatically create a new Encore managed git repository.
 If you are just trying out Encore Cloud, you can use this and skip the rest of this step.
 
-For production applications, we recommend integrating with GitHub instead of the built-in Encore managed git:
+For production applications we recommend integrating with GitHub instead of the built-in Encore managed git:
 
-**Integrating with GitHub:** Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > GitHub**.
-Click the **Connect Account to GitHub** button, which will open GitHub where you can grant access either to all repositories or only the specific one(s) you want to link with Encore Cloud.
+#### **Connecting your GitHub account**
 
-For more information and details on how to configure different repository structures, [see the full docs on integrating with GitHub](/docs/platform/integrations/github).
+Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > GitHub**.
+Click the **Connect Account to GitHub** button, which will open GitHub where you can grant access either to the relevant repositorie(s).
 
-Once you have integrated with GitHub, you can push code to GitHub to trigger Encore Cloud's deployment process. If you use Encore Cloud Pro, you will also get automatic [Preview Environments](/docs/platform/deploy/preview-environments) for each pull request.
+[See the full docs](/docs/platform/integrations/github) on integrating with GitHub to learn how to configure different repository structures.
+
+Once connected to GitHub, pushing code will trigger deployments automatically. Encore Cloud Pro users get [Preview Environments](/docs/platform/deploy/preview-environments) for each pull request.
 
 ### Step 3: Connect your AWS / GCP account (Optional)
 
-If you want to deploy to your own cloud on AWS or GCP, you first need to connect your cloud account to Encore Cloud.
+Deploy to your own cloud on AWS or GCP by connection your cloud account to Encore Cloud.
 
-If you are just trying out Encore Cloud, you can skip this step and Encore Cloud will automatically deploy to an environment using Encore Cloud's free development hosting, subject to the [fair use limits](/docs/platform/management/usage).
+If you're just trying out Encore Cloud, skip this step to deploy to a free development environment using Encore Cloud's hosting, subject to [fair use limits](/docs/platform/management/usage).
 
-**Connect your cloud account:** Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+#### **Connecting your cloud account**
 
-Learn more in the [connecting your AWS or GCP account docs](/docs/platform/infrastructure/own-cloud).
+Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
-### Step 4: Deploying Your Application
+Learn more in the [connecting your cloud docs](/docs/platform/deploy/own-cloud).
 
-To deploy your application, simply push your code to the connected Git repository.
+### Step 4: Push to deploy
 
-- **If you are using Encore Cloud's managed git**: Run the following command to deploy your application:
+Deploy your application by pushing your code to the connected Git repository.
+
+- **Using Encore Cloud's managed git**:
 
 ```shell
 $ git add -A .
@@ -58,7 +62,7 @@ $ git commit -m 'Commit message'
 $ git push encore
 ```
 
-- **If you are using GitHub:** Just a standard `git push` to your repository will work:
+- **If you have connected your GitHub account:**
 
 ```shell
 $ git add -A .
@@ -66,26 +70,22 @@ $ git commit -m 'Commit message'
 $ git push origin
 ```
 
-In both scenarios, this will trigger Encore Cloud's deployment process, consisting of the following phases:
+This will trigger Encore Cloud's deployment process, consisting of the following phases:
 * A build & test phase
 * An infrastructure provisioning phase
 * A deployment phase
 
-These phases are combined into a unified entity called a *Rollout*.
-A rollout represents the coordinated process of rolling out a specific version of an Encore application.
-(We use the term *rollout* to disambiguate from the *deployment phase*.)
-
 Once you've pushed your code, you can monitor the progress in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > Deployments**.
-
-### Integrating using Encore Cloud's API
-
-You can also trigger a deployment using Encore Cloud's API, learn more in the [API reference](/docs/platform/integrations/api-reference).
 
 ## Configuring deploy trigger
 
 When using GitHub, you can configure Encore Cloud to automatically trigger deploys when you push to a specific branch name.
 
 To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
+
+### Integrating using Encore Cloud's API
+
+You can trigger deployments using Encore Cloud's API, learn more in the [API reference](/docs/platform/integrations/api-reference).
 
 ## Configuring custom build settings
 
