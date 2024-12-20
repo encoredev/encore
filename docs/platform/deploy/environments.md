@@ -23,7 +23,7 @@ Encore has four types of environments:
 Some environment types differ in how infrastructure is provisioned:
 - `local` is provisioned by Encore's Open Source CLI using local versions of infrastructure.
 - `preview` environments are provisioned in Encore Cloud hosting and are optimized to be cost-efficient and fast to provision.
-- `production` and `development` environments are provisioned by Encore Cloud, either in your [cloud account](/docs/platform/infrastructure/own-cloud) or using Encore Cloud's free development hosting. Both environment types offer the same infrastructure options when deployed using your own cloud account.
+- `production` and `development` environments are provisioned by Encore Cloud, either in your [cloud account](/docs/platform/deploy/own-cloud) or using Encore Cloud's free development hosting. Both environment types offer the same infrastructure options when deployed using your own cloud account.
   
 Environment type is also used for [Secrets management](/docs/ts/primitives/secrets), allowing you to configure different secrets for different environment types. Therefore, you can easily configure different secrets for your `production` and `development` environments.
 

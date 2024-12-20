@@ -48,7 +48,7 @@ If you're just trying out Encore Cloud, skip this step to deploy to a free devel
 
 Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
 
-Learn more in the [connecting your cloud docs](/docs/platform/infrastructure/own-cloud).
+Learn more in the [connecting your cloud docs](/docs/platform/deploy/own-cloud).
 
 ### Step 4: Push to deploy
 

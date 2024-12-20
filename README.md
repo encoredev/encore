@@ -185,7 +185,7 @@ Encore comes with several built-in tools to help with testing:
 
 Encore Cloud is Encore's managed service offering for teams wanting to focus their engineering effort on their product development, avoiding investing time in platformization and DevOps.
 
-Encore Cloud provides **automatic infrastructure provisioning in your cloud on AWS & GCP**. So instead of writing Terraform, YAML, or clicking in cloud consoles, you [connect your cloud account](https://encore.dev/docs/platform/infrastructure/own-cloud) and simply deploy your application. Since using Encore's open source backend frameworks means your application code is cloud agnostic and not tied to any specific infrastructure services, Encore Cloud enables you to change your infrastructure depending on your evolving needs, without needing to make code changes or manually update infrastructure config files.
+Encore Cloud provides **automatic infrastructure provisioning in your cloud on AWS & GCP**. So instead of writing Terraform, YAML, or clicking in cloud consoles, you [connect your cloud account](https://encore.dev/docs/platform/deploy/own-cloud) and simply deploy your application. Since using Encore's open source backend frameworks means your application code is cloud agnostic and not tied to any specific infrastructure services, Encore Cloud enables you to change your infrastructure depending on your evolving needs, without needing to make code changes or manually update infrastructure config files.
 
 When you deploy, Encore Cloud automatically provisions [infrastructure](https://encore.dev/docs/platform/infrastructure/infra) using battle-tested cloud services on AWS and GCP, such as:
 - **Compute:** GCP Cloud Run, AWS Fargate, Kubernetes (GKE and EKS)

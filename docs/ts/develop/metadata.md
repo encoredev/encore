@@ -126,7 +126,7 @@ initialization, `currentRequest()` returns `undefined`.
 
 ### Using Cloud Specific Services
 
-All the [clouds](/docs/platform/infrastructure/own-cloud) contain a large number of services, not all of which Encore natively supports.
+All the [clouds](/docs/platform/deploy/own-cloud) contain a large number of services, not all of which Encore natively supports.
 
 By using information about the [environment](/docs/platform/deploy/environments), you can define the implementation of these and use different services for each environment's provider.
 

@@ -17,7 +17,7 @@ All infrastructure provisioning is automated, and configuration is managed throu
 
 ## Deploying to a new Kubernetes cluster
 
-**1. Connect your cloud account:** Ensure your cloud account (Google Cloud Platform or AWS) is connected to Encore Cloud. ([See docs](/docs/platform/infrastructure/own-cloud))
+**1. Connect your cloud account:** Ensure your cloud account (Google Cloud Platform or AWS) is connected to Encore Cloud. ([See docs](/docs/platform/deploy/own-cloud))
 
 **2. Create environment:** Open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to **Environments**, then click on **Create Environment**.
 
