@@ -38,7 +38,7 @@ func (s *Server) watchApps() {
 }
 
 func (s *Server) onWatchEvent(i *apps.Instance, events []watcher.Event) {
-	if run.IgnoreEvents(events) {
+	if run.IgnoreEvents(i.Root(), events) {
 		return
 	}
 
