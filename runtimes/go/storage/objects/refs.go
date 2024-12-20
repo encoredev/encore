@@ -38,6 +38,10 @@ type Uploader interface {
 	// Upload begins uploading an object to the bucket.
 	Upload(ctx context.Context, object string, options ...UploadOption) *Writer
 
+	// SignedUploadURL returns a signed URL that can be used to upload directly to
+	// storage, without any other authentication.
+	SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (string, error)
+
 	perms()
 }
 

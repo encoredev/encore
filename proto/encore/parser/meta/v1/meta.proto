@@ -92,6 +92,10 @@ message BucketUsage {
 
     // Get an bucket/object's public url.
     GET_PUBLIC_URL = 7;
+
+    // Generating a signed URL to allow an external recipient to create or
+    // update an object.
+    SIGNED_UPLOAD_URL = 8;
   }
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"iter"
+	"time"
 )
 
 type BucketImpl interface {
@@ -13,6 +14,7 @@ type BucketImpl interface {
 	List(data ListData) iter.Seq2[*ListEntry, error]
 	Remove(data RemoveData) error
 	Attrs(data AttrsData) (*ObjectAttrs, error)
+	SignedUploadURL(data UploadURLData) (string, error)
 }
 
 // CloudObject is the cloud name for an object.
@@ -88,6 +90,13 @@ type AttrsData struct {
 	Object CloudObject
 
 	Version string // non-zero means specific version
+}
+
+type UploadURLData struct {
+	Ctx    context.Context
+	Object CloudObject
+
+	Ttl time.Duration
 }
 
 //publicapigen:keep

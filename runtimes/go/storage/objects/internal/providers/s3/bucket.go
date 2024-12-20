@@ -22,19 +22,25 @@ import (
 type Manager struct {
 	ctx     context.Context
 	runtime *config.Runtime
-	clients map[*config.BucketProvider]*s3.Client
+	clients map[*config.BucketProvider]*clientSet
 
 	cfgOnce          sync.Once
 	awsDefaultConfig aws.Config
 }
 
 func NewManager(ctx context.Context, runtime *config.Runtime) *Manager {
-	return &Manager{ctx: ctx, runtime: runtime, clients: make(map[*config.BucketProvider]*s3.Client)}
+	return &Manager{ctx: ctx, runtime: runtime, clients: make(map[*config.BucketProvider]*clientSet)}
 }
 
 type bucket struct {
-	client *s3.Client
-	cfg    *config.Bucket
+	client        *s3.Client
+	presignClient *s3.PresignClient
+	cfg           *config.Bucket
+}
+
+type clientSet struct {
+	client        *s3.Client
+	presignClient *s3.PresignClient
 }
 
 func (mgr *Manager) ProviderName() string { return "s3" }
@@ -44,10 +50,11 @@ func (mgr *Manager) Matches(cfg *config.BucketProvider) bool {
 }
 
 func (mgr *Manager) NewBucket(provider *config.BucketProvider, runtimeCfg *config.Bucket) types.BucketImpl {
-	client := mgr.clientForProvider(provider)
+	clients := mgr.clientForProvider(provider)
 	return &bucket{
-		client: client,
-		cfg:    runtimeCfg,
+		client:        clients.client,
+		presignClient: clients.presignClient,
+		cfg:           runtimeCfg,
 	}
 }
 
@@ -151,9 +158,29 @@ func (b *bucket) Attrs(data types.AttrsData) (*types.ObjectAttrs, error) {
 	}, nil
 }
 
-func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {
-	if client, ok := mgr.clients[prov]; ok {
-		return client
+func (b *bucket) SignedUploadURL(data types.UploadURLData) (string, error) {
+	object := string(data.Object)
+	params := s3.PutObjectInput{
+		Bucket: &b.cfg.CloudName,
+		Key:    &object,
+	}
+	sign_opts := func(opts *s3.PresignOptions) {
+		opts.Expires = data.Ttl
+	}
+	req, err := b.presignClient.PresignPutObject(data.Ctx, &params, sign_opts)
+
+	url := ""
+	if req != nil {
+		url = req.URL
+		// TODO: add check/warn against unexpected method and headers
+		// (we expect PUT and host:<> but nothing else.)
+	}
+	return url, mapErr(err)
+}
+
+func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *clientSet {
+	if cs, ok := mgr.clients[prov]; ok {
+		return cs
 	}
 
 	// If we have a custom access key and secret, use them instead of the default config.
@@ -176,8 +203,13 @@ func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *s3.Client {
 		Credentials:  cfg.Credentials,
 	})
 
-	mgr.clients[prov] = client
-	return client
+	clients := clientSet{
+		client:        client,
+		presignClient: s3.NewPresignClient(client),
+	}
+
+	mgr.clients[prov] = &clients
+	return &clients
 }
 
 // defaultConfig loads the required AWS config to connect to AWS

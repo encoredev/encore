@@ -411,6 +411,13 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 						Endpoint:  prov.Gcs.GetEndpoint(),
 						Anonymous: prov.Gcs.Anonymous,
 					}
+					if opt := prov.Gcs.LocalSign; opt != nil {
+						p.GCS.LocalSign = &config.GCSLocalSignOptions{
+							BaseUrl:    opt.BaseUrl,
+							AccessId:   opt.AccessId,
+							PrivateKey: opt.PrivateKey,
+						}
+					}
 				default:
 					c.setErrf("unknown object storage provider type %T", prov)
 					continue
