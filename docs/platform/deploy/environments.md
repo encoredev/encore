@@ -33,7 +33,7 @@ Environment type is also used for [Secrets management](/docs/ts/primitives/secre
 2. Go to **Environments** > **Create env**
 3. Configure your environment:
    - Name your environment
-   - Choose type: **Production** or **Development** (see [Environment Types](#environment-types) below)
+   - Choose type: **Production** or **Development** (see [Environment Types](#environment-types))
    - Set deploy trigger: Git branch or manual
    - Configure infrastructure approval: automatic or manual
    - Select cloud provider
