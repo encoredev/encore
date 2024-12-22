@@ -2,7 +2,7 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use swc_common::comments::{Comments, NoopComments, SingleThreadedComments};
 use swc_common::errors::Handler;
@@ -31,6 +31,7 @@ pub struct ModuleLoader {
     errs: Lrc<Handler>,
     file_set: Lrc<FileSet>,
     resolver: Box<dyn Resolve>,
+    encore_gen_root: PathBuf,
     by_path: RefCell<HashMap<FilePath, Lrc<Module>>>,
 
     // The universe module, if it's been loaded.
@@ -83,11 +84,18 @@ impl Error {
 }
 
 impl ModuleLoader {
-    pub fn new(errs: Lrc<Handler>, file_set: Lrc<FileSet>, resolver: Box<dyn Resolve>) -> Self {
+    pub fn new(
+        errs: Lrc<Handler>,
+        file_set: Lrc<FileSet>,
+        resolver: Box<dyn Resolve>,
+        app_root: PathBuf,
+    ) -> Self {
+        let encore_gen_root = app_root.join("encore.gen");
         Self {
             errs,
             file_set,
             resolver,
+            encore_gen_root,
             by_path: RefCell::new(HashMap::new()),
             universe: OnceCell::new(),
             encore_app_clients: OnceCell::new(),
@@ -140,6 +148,19 @@ impl ModuleLoader {
                             return Ok(None);
                         }
                     }
+
+                    // Check for the generated clients again, using the resolved path,
+                    // in case the "~encore/*" alias is not set up.
+                    if let Ok(suffix) = buf.strip_prefix(&self.encore_gen_root) {
+                        // Need to check for trailing slash since the resolved path
+                        // will be something like "clients/index.js".
+                        if suffix.starts_with("clients/") {
+                            return Ok(Some(self.encore_app_clients()));
+                        } else if suffix.starts_with("auth/") {
+                            return Ok(Some(self.encore_auth()));
+                        }
+                    }
+
                     FilePath::Real(buf.clone())
                 }
                 FileName::Custom(ref str) => FilePath::Custom(str.clone()),
