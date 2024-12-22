@@ -576,12 +576,12 @@ pub(super) fn loc_from_range(
                 let pkg_name = rel_path
                     .parent()
                     .and_then(|p| p.file_name())
+                    .or_else(|| app_root.file_name())
                     .map(|s| s.to_string_lossy().to_string())
                     .ok_or(range.parse_err("missing package name"))?;
                 let pkg_path = rel_path
                     .parent()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(range.parse_err("missing package path"))?;
+                    .map_or(".".to_string(), |s| s.to_string_lossy().to_string());
                 (pkg_path, pkg_name, file_name)
             }
             Err(_) => {
