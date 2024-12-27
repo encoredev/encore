@@ -288,42 +288,60 @@ impl BuilderCtx<'_, '_> {
             let (mut typ, wire) = if let Some(spec) = resolve_wire_spec(tt) {
                 (
                     self.typ(&spec.underlying)?,
-                    Some(schema::WireSpec {
-                        location: Some(match &spec.location {
-                            WireLocation::Header => {
-                                tags.push(schema::Tag {
-                                    key: "header".into(),
-                                    name: spec.name_override.clone().unwrap_or(field_name.clone()),
-                                    options: if f.optional {
-                                        vec!["optional".into()]
-                                    } else {
-                                        vec![]
-                                    },
-                                });
+                    match &spec.location {
+                        WireLocation::Header => {
+                            let name = spec.name_override.clone().unwrap_or(field_name.clone());
+                            tags.push(schema::Tag {
+                                key: "header".into(),
+                                name,
+                                options: if f.optional {
+                                    vec!["optional".into()]
+                                } else {
+                                    vec![]
+                                },
+                            });
 
-                                schema::wire_spec::Location::Header(schema::wire_spec::Header {
-                                    name: spec.name_override.clone(),
-                                })
-                            }
-                            WireLocation::Query => {
-                                query_string_name =
-                                    spec.name_override.clone().unwrap_or(field_name.clone());
-                                tags.push(schema::Tag {
-                                    key: "query".into(),
-                                    name: query_string_name.clone(),
-                                    options: if f.optional {
-                                        vec!["optional".into()]
-                                    } else {
-                                        vec![]
+                            Some(schema::WireSpec {
+                                location: Some(schema::wire_spec::Location::Header(
+                                    schema::wire_spec::Header {
+                                        name: spec.name_override.clone(),
                                     },
-                                });
+                                )),
+                            })
+                        }
+                        WireLocation::Query => {
+                            query_string_name =
+                                spec.name_override.clone().unwrap_or(field_name.clone());
+                            tags.push(schema::Tag {
+                                key: "query".into(),
+                                name: query_string_name.clone(),
+                                options: if f.optional {
+                                    vec!["optional".into()]
+                                } else {
+                                    vec![]
+                                },
+                            });
 
-                                schema::wire_spec::Location::Query(schema::wire_spec::Query {
-                                    name: spec.name_override.clone(),
-                                })
-                            }
-                        }),
-                    }),
+                            Some(schema::WireSpec {
+                                location: Some(schema::wire_spec::Location::Query(
+                                    schema::wire_spec::Query {
+                                        name: spec.name_override.clone(),
+                                    },
+                                )),
+                            })
+                        }
+
+                        WireLocation::PubSubAttr => {
+                            let name = spec.name_override.clone().unwrap_or(field_name.clone());
+                            tags.push(schema::Tag {
+                                key: "pubsub-attr".into(),
+                                name,
+                                options: vec![],
+                            });
+
+                            None
+                        }
+                    },
                 )
             } else {
                 (self.typ(tt)?, None)
