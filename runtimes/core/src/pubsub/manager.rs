@@ -12,6 +12,7 @@ use futures::FutureExt;
 use crate::api::jsonschema::{self, JSONSchema};
 use crate::api::{APIResult, PValues};
 use crate::encore::parser::meta::v1 as meta;
+use crate::encore::parser::schema::v1 as schema;
 use crate::encore::runtime::v1 as pb;
 use crate::log::LogFromRust;
 use crate::model::{PubSubRequestData, RequestData, ResponseData, SpanId, SpanKey, TraceId};
@@ -28,27 +29,25 @@ use super::push_registry::PushHandlerRegistry;
 
 pub struct Manager {
     tracer: Tracer,
-    topic_cfg: HashMap<EncoreName, (Arc<dyn Cluster>, pb::PubSubTopic, JSONSchema)>,
-    sub_cfg: HashMap<
-        SubName,
-        (
-            Arc<dyn Cluster>,
-            pb::PubSubSubscription,
-            meta::pub_sub_topic::Subscription,
-            JSONSchema,
-        ),
-    >,
+    topic_cfg: HashMap<EncoreName, TopicConfig>,
+    sub_cfg: HashMap<SubName, SubConfig>,
 
-    topics: Arc<RwLock<HashMap<EncoreName, Arc<dyn Topic>>>>,
+    topics: Arc<RwLock<HashMap<EncoreName, Arc<TopicInner>>>>,
     subs: Arc<RwLock<HashMap<SubName, Arc<SubscriptionObj>>>>,
     push_registry: PushHandlerRegistry,
 }
 
 #[derive(Debug)]
 pub struct TopicObj {
+    inner: Arc<TopicInner>,
+}
+
+#[derive(Debug)]
+struct TopicInner {
     name: EncoreName,
     tracer: Tracer,
-    inner: Arc<dyn Topic>,
+    imp: Arc<dyn Topic>,
+    attr_fields: Arc<Vec<String>>,
 }
 
 impl TopicObj {
@@ -57,17 +56,34 @@ impl TopicObj {
         payload: PValues,
         source: Option<Arc<model::Request>>,
     ) -> impl Future<Output = anyhow::Result<MessageId>> + 'static {
+        self.inner.publish(payload, source)
+    }
+}
+
+impl TopicInner {
+    pub fn publish(
+        &self,
+        payload: PValues,
+        source: Option<Arc<model::Request>>,
+    ) -> impl Future<Output = anyhow::Result<MessageId>> + 'static {
         let tracer = self.tracer.clone();
-        let inner = self.inner.clone();
+        let inner = self.imp.clone();
         let name = self.name.clone();
+        let attr_fields = self.attr_fields.clone();
 
         async move {
-            let payload = serde_json::to_vec_pretty(&payload)
+            let raw_body = serde_json::to_vec_pretty(&payload)
                 .context("unable to serialize message payload")?;
             let mut msg = MessageData {
                 attrs: HashMap::new(),
-                raw_body: payload,
+                raw_body,
             };
+
+            for name in attr_fields.iter() {
+                if let Some(val) = payload.get(name) {
+                    msg.attrs.insert(name.clone(), val.to_string());
+                }
+            }
 
             if let Some(source) = source.as_deref() {
                 msg.attrs.insert(
@@ -269,26 +285,33 @@ impl Manager {
     }
 
     pub fn topic(&self, name: EncoreName) -> Option<TopicObj> {
-        let inner = self.topic_impl(name.clone())?;
-        Some(TopicObj {
-            name,
-            inner,
-            tracer: self.tracer.clone(),
-        })
+        let inner = self.topic_impl(name)?;
+        Some(TopicObj { inner })
     }
 
-    fn topic_impl(&self, name: EncoreName) -> Option<Arc<dyn Topic>> {
+    fn topic_impl(&self, name: EncoreName) -> Option<Arc<TopicInner>> {
         if let Some(topic) = self.topics.read().unwrap().get(&name) {
             return Some(topic.clone());
         }
 
-        let topic = {
-            if let Some((cluster, topic_cfg, _schema)) = self.topic_cfg.get(&name) {
-                cluster.topic(topic_cfg)
+        let topic = Arc::new({
+            if let Some(cfg) = self.topic_cfg.get(&name) {
+                let imp = cfg.cluster.topic(&cfg.cfg);
+                TopicInner {
+                    name: name.clone(),
+                    imp,
+                    tracer: self.tracer.clone(),
+                    attr_fields: cfg.attr_fields.clone(),
+                }
             } else {
-                Arc::new(noop::NoopTopic)
+                TopicInner {
+                    name: name.clone(),
+                    imp: Arc::new(noop::NoopTopic),
+                    tracer: self.tracer.clone(),
+                    attr_fields: Arc::new(vec![]),
+                }
             }
-        };
+        });
 
         self.topics.write().unwrap().insert(name, topic.clone());
         Some(topic)
@@ -300,8 +323,8 @@ impl Manager {
         }
 
         let sub = {
-            if let Some((cluster, sub_cfg, meta_sub, schema)) = self.sub_cfg.get(&name) {
-                let inner = cluster.subscription(sub_cfg, meta_sub);
+            if let Some(cfg) = self.sub_cfg.get(&name) {
+                let inner = cfg.cluster.subscription(&cfg.cfg, &cfg.meta);
 
                 // If we have a push handler, register it.
                 if let Some((sub_id, push_handler)) = inner.push_handler() {
@@ -311,10 +334,10 @@ impl Manager {
                 Arc::new(SubscriptionObj {
                     inner,
                     tracer: self.tracer.clone(),
-                    service: meta_sub.service_name.clone().into(),
+                    service: cfg.meta.service_name.clone().into(),
                     topic: name.topic.clone(),
                     subscription: name.subscription.clone(),
-                    schema: schema.clone(),
+                    schema: cfg.schema.clone(),
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
                 })
@@ -351,21 +374,30 @@ impl Manager {
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[derive(Debug)]
+struct TopicConfig {
+    cluster: Arc<dyn Cluster>,
+    cfg: pb::PubSubTopic,
+
+    /// Names of fields in the payload that should be copied into
+    /// the PubSub message attributes.
+    attr_fields: Arc<Vec<String>>,
+}
+
+#[derive(Debug)]
+struct SubConfig {
+    cluster: Arc<dyn Cluster>,
+    cfg: pb::PubSubSubscription,
+    meta: meta::pub_sub_topic::Subscription,
+    schema: JSONSchema,
+}
+
 fn make_cfg_maps(
     clusters: Vec<pb::PubSubCluster>,
     md: &meta::Data,
 ) -> anyhow::Result<(
-    HashMap<EncoreName, (Arc<dyn Cluster>, pb::PubSubTopic, JSONSchema)>,
-    HashMap<
-        SubName,
-        (
-            Arc<dyn Cluster>,
-            pb::PubSubSubscription,
-            meta::pub_sub_topic::Subscription,
-            JSONSchema,
-        ),
-    >,
+    HashMap<EncoreName, TopicConfig>,
+    HashMap<SubName, SubConfig>,
 )> {
     let mut topic_map = HashMap::new();
     let mut sub_map = HashMap::new();
@@ -380,11 +412,12 @@ fn make_cfg_maps(
                 anyhow::bail!("topic {} has no message type", topic.name);
             };
 
+            let attr_fields = message_attr_fields(&md.decls, schema_type, 0)?;
             let schema_idx = schema_builder
                 .register_type(schema_type)
                 .with_context(|| format!("invalid schema for topic {}", topic.name))?;
 
-            topic_map.insert(topic.name.clone(), (topic, schema_idx));
+            topic_map.insert(topic.name.clone(), Arc::new(attr_fields));
             for sub in &topic.subscriptions {
                 let name = SubName {
                     topic: topic.name.clone().into(),
@@ -401,14 +434,16 @@ fn make_cfg_maps(
         let cluster = new_cluster(&cluster_cfg);
 
         for topic_cfg in cluster_cfg.topics {
-            let Some(&(_topic, idx)) = meta_topics.get(&topic_cfg.encore_name) else {
+            let Some(attr_fields) = meta_topics.get(&topic_cfg.encore_name) else {
                 anyhow::bail!("topic {} not found in metadata", topic_cfg.encore_name);
             };
-
-            let schema = schemas.schema(idx);
             topic_map.insert(
                 topic_cfg.encore_name.clone().into(),
-                (cluster.clone(), topic_cfg, schema),
+                TopicConfig {
+                    cluster: cluster.clone(),
+                    cfg: topic_cfg,
+                    attr_fields: attr_fields.clone(),
+                },
             );
         }
 
@@ -426,7 +461,12 @@ fn make_cfg_maps(
             let schema = schemas.schema(idx);
             sub_map.insert(
                 name,
-                (cluster.clone(), sub_cfg, meta_sub.to_owned(), schema),
+                SubConfig {
+                    cluster: cluster.clone(),
+                    cfg: sub_cfg,
+                    meta: meta_sub.to_owned(),
+                    schema,
+                },
             );
         }
     }
@@ -455,4 +495,55 @@ fn new_cluster(cluster: &pb::PubSubCluster) -> Arc<dyn Cluster> {
     }
 
     Arc::new(NoopCluster)
+}
+
+fn message_attr_fields(
+    decls: &[schema::Decl],
+    typ: &schema::Type,
+    depth: u16,
+) -> anyhow::Result<Vec<String>> {
+    if depth > 100 {
+        anyhow::bail!("pubsub message attribute computation: recursion depth exceeded");
+    }
+    let Some(typ) = &typ.typ else {
+        return Ok(vec![]);
+    };
+
+    use schema::r#type::Typ;
+    match typ {
+        Typ::Named(named) => {
+            let Some(decl) = decls.get(named.id as usize) else {
+                anyhow::bail!("missing decl for named type");
+            };
+            let Some(decl_typ) = decl.r#type.as_ref() else {
+                anyhow::bail!("missing type for named decl");
+            };
+            message_attr_fields(decls, decl_typ, depth + 1)
+        }
+        Typ::Struct(st) => {
+            let names: Vec<String> = st
+                .fields
+                .iter()
+                .filter_map(|f| {
+                    f.tags.iter().find_map(|tag| {
+                        if tag.key == "pubsub-attr" {
+                            Some(tag.name.clone())
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .collect();
+            Ok(names)
+        }
+
+        Typ::Map(_)
+        | Typ::List(_)
+        | Typ::Builtin(_)
+        | Typ::Pointer(_)
+        | Typ::Union(_)
+        | Typ::Literal(_)
+        | Typ::TypeParameter(_)
+        | Typ::Config(_) => Ok(vec![]),
+    }
 }

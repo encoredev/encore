@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use duct::cmd;
 use serde::Deserialize;
@@ -8,25 +9,6 @@ use serde::Deserialize;
 use crate::builder::compile::CmdSpec;
 
 use super::prepare::{PackageVersion, PrepareError};
-
-#[derive(Deserialize)]
-struct PackageJson {
-    #[serde(default, rename = "packageManager")]
-    package_manager: Option<String>,
-
-    #[serde(default)]
-    dependencies: HashMap<String, String>,
-}
-
-fn parse_package_json(package_json_path: &Path) -> Result<PackageJson, PrepareError> {
-    let package_json =
-        std::fs::read_to_string(package_json_path).map_err(PrepareError::ReadPackageJson)?;
-
-    serde_json::from_str(&package_json).map_err(|source| PrepareError::InvalidPackageJson {
-        source,
-        path: package_json_path.to_path_buf(),
-    })
-}
 
 #[derive(Debug, Clone)]
 pub enum InstalledVersion {
@@ -99,7 +81,7 @@ fn find_workspace_package_manager(mut dir: PathBuf) -> Result<Option<String>, Pr
     while dir.pop() {
         let package_json_path = dir.join("package.json");
         if package_json_path.exists() {
-            let package_json = parse_package_json(&package_json_path)?;
+            let package_json = PackageJson::parse_file(&package_json_path)?;
             if let Some(pm) = package_json.package_manager.as_deref() {
                 if !pm.is_empty() {
                     return Ok(package_json.package_manager);
@@ -115,7 +97,7 @@ pub(super) fn resolve_package_manager(
     package_dir: &Path,
 ) -> Result<Box<dyn PackageManager>, PrepareError> {
     let package_json_path = package_dir.join("package.json");
-    let package_json = parse_package_json(&package_json_path)?;
+    let package_json = PackageJson::parse_file(&package_json_path)?;
 
     let package_manager = match package_json.package_manager {
         Some(ref pm) if !pm.is_empty() => Some(pm.clone()),
@@ -163,8 +145,17 @@ struct NpmPackageManager {
 
 impl PackageManager for NpmPackageManager {
     fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
-        // If we don't have a node_modules folder, install everything.
-        if !self.dir.join("node_modules").exists() {
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
+
+        // First ensure the package.json file is up to date.
+        let modified = update_package_json(&self.dir, v, encore_dev_version)?;
+
+        // If we modified anything or don't have a node_modules directory, run 'npm install'.
+        if modified || !self.dir.join("node_modules").exists() {
             cmd!("npm", "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
@@ -172,30 +163,7 @@ impl PackageManager for NpmPackageManager {
                 .map_err(PrepareError::InstallNodeModules)?;
         }
 
-        // Install `encore.dev` if necessary
-        let installed = self.pkg_json.dependencies.get("encore.dev");
-        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
-            encore_dev_version.is_installed(v, &self.dir)
-        });
-
-        match v {
-            InstalledVersion::Current => Ok(()),
-            InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
-            InstalledVersion::Older(_)
-            | InstalledVersion::Different(_)
-            | InstalledVersion::NotInstalled => {
-                let pkg = match encore_dev_version {
-                    PackageVersion::Local(buf) => buf.display().to_string(),
-                    PackageVersion::Published(ver) => format!("encore.dev@{ver}"),
-                };
-                cmd!("npm", "install", pkg)
-                    .dir(&self.dir)
-                    .stdout_to_stderr()
-                    .run()
-                    .map_err(PrepareError::InstallEncoreDev)?;
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
     fn run_tests(&self) -> CmdSpec {
@@ -227,8 +195,17 @@ impl PackageManager for YarnPackageManager {
     fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
         self.ensure_nodelinker()?;
 
-        // If we don't have a node_modules folder, install everything.
-        if !self.dir.join("node_modules").exists() {
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
+
+        // First ensure the package.json file is up to date.
+        let modified = update_package_json(&self.dir, v, encore_dev_version)?;
+
+        // If we modified anything or don't have a node_modules directory, run 'npm install'.
+        if modified || !self.dir.join("node_modules").exists() {
             cmd!("yarn", "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
@@ -236,30 +213,7 @@ impl PackageManager for YarnPackageManager {
                 .map_err(PrepareError::InstallNodeModules)?;
         }
 
-        // Install `encore.dev` if necessary
-        let installed = self.pkg_json.dependencies.get("encore.dev");
-        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
-            encore_dev_version.is_installed(v, &self.dir)
-        });
-
-        match v {
-            InstalledVersion::Current => Ok(()),
-            InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
-            InstalledVersion::Older(_)
-            | InstalledVersion::Different(_)
-            | InstalledVersion::NotInstalled => {
-                let pkg = match encore_dev_version {
-                    PackageVersion::Local(buf) => buf.display().to_string(),
-                    PackageVersion::Published(ver) => format!("encore.dev@{ver}"),
-                };
-                cmd!("yarn", "add", pkg)
-                    .dir(&self.dir)
-                    .stdout_to_stderr()
-                    .run()
-                    .map_err(PrepareError::InstallEncoreDev)?;
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
     fn run_tests(&self) -> CmdSpec {
@@ -314,8 +268,17 @@ struct PnpmPackageManager {
 
 impl PackageManager for PnpmPackageManager {
     fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
-        // If we don't have a node_modules folder, install everything.
-        if !self.dir.join("node_modules").exists() {
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
+
+        // First ensure the package.json file is up to date.
+        let modified = update_package_json(&self.dir, v, encore_dev_version)?;
+
+        // If we modified anything or don't have a node_modules directory, run 'npm install'.
+        if modified || !self.dir.join("node_modules").exists() {
             cmd!("pnpm", "install")
                 .dir(&self.dir)
                 .stdout_to_stderr()
@@ -323,30 +286,7 @@ impl PackageManager for PnpmPackageManager {
                 .map_err(PrepareError::InstallNodeModules)?;
         }
 
-        // Install `encore.dev` if necessary
-        let installed = self.pkg_json.dependencies.get("encore.dev");
-        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
-            encore_dev_version.is_installed(v, &self.dir)
-        });
-
-        match v {
-            InstalledVersion::Current => Ok(()),
-            InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
-            InstalledVersion::Older(_)
-            | InstalledVersion::Different(_)
-            | InstalledVersion::NotInstalled => {
-                let pkg = match encore_dev_version {
-                    PackageVersion::Local(buf) => buf.display().to_string(),
-                    PackageVersion::Published(ver) => format!("encore.dev@{ver}"),
-                };
-                cmd!("pnpm", "install", pkg)
-                    .dir(&self.dir)
-                    .stdout_to_stderr()
-                    .run()
-                    .map_err(PrepareError::InstallEncoreDev)?;
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
     fn run_tests(&self) -> CmdSpec {
@@ -366,5 +306,95 @@ impl PackageManager for PnpmPackageManager {
 
     fn mgr_name(&self) -> &'static str {
         "pnpm"
+    }
+}
+
+/// Updates the package.json file in the given directory to include the specified version of encore.dev.
+/// Returns whether the package.json file was modified.
+fn update_package_json(
+    dir: &Path,
+    v: InstalledVersion,
+    encore_dev_version: &PackageVersion,
+) -> Result<bool, PrepareError> {
+    let path = dir.join("package.json");
+    match v {
+        InstalledVersion::Newer(v) => Err(PrepareError::EncoreDevTooNew(v)),
+
+        InstalledVersion::Current => Ok(false),
+
+        InstalledVersion::Older(_)
+        | InstalledVersion::Different(_)
+        | InstalledVersion::NotInstalled => {
+            let ver = match encore_dev_version {
+                PackageVersion::Local(buf) => format!("file:{}", buf.to_string_lossy()),
+                PackageVersion::Published(ver) => format!("^{ver}"),
+            };
+
+            // Update package.json.
+            {
+                let data = std::fs::read_to_string(&path).map_err(PrepareError::ReadPackageJson)?;
+                let mut data: serde_json::Map<String, serde_json::Value> =
+                    serde_json::from_str(&data).map_err(|source| {
+                        PrepareError::InvalidPackageJson {
+                            source,
+                            path: path.clone(),
+                        }
+                    })?;
+
+                // Update the "encore.dev" key in the "dependencies" map.
+                {
+                    let Some(deps) = data
+                        .entry("dependencies")
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
+                        .as_object_mut()
+                    else {
+                        return Err(PrepareError::ReadPackageJson(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "dependencies field is not an object",
+                        )));
+                    };
+                    deps.insert("encore.dev".to_string(), ver.into());
+                }
+
+                // Write it back out.
+                let data = serde_json::to_string_pretty(&data).map_err(|source| {
+                    PrepareError::InvalidPackageJson {
+                        source,
+                        path: path.clone(),
+                    }
+                })?;
+                std::fs::write(&path, &data).map_err(PrepareError::WritePackageJson)?;
+            }
+
+            Ok(true)
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct PackageJson {
+    #[serde(default, rename = "packageManager")]
+    package_manager: Option<String>,
+
+    #[serde(default)]
+    dependencies: HashMap<String, String>,
+}
+
+impl FromStr for PackageJson {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+impl PackageJson {
+    pub fn parse_file(path: &Path) -> Result<Self, PrepareError> {
+        let data = std::fs::read_to_string(path).map_err(PrepareError::ReadPackageJson)?;
+        data.parse()
+            .map_err(|source| PrepareError::InvalidPackageJson {
+                source,
+                path: path.to_path_buf(),
+            })
     }
 }
