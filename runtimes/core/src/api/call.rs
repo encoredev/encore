@@ -171,7 +171,12 @@ impl ServiceRegistry {
                 Ok((req, resp_schema)) => {
                     let fut = http_client.execute(req);
                     match fut.await {
-                        Ok(resp) => resp_schema.extract(resp).await,
+                        Ok(resp) => {
+                            if !resp.status().is_success() {
+                                return Err(extract_error(resp).await);
+                            }
+                            resp_schema.extract(resp).await
+                        }
                         Err(e) => Err(api::Error::internal(e)),
                     }
                 }
@@ -524,5 +529,14 @@ where
         )?;
 
         Ok(())
+    }
+}
+
+async fn extract_error(resp: reqwest::Response) -> api::Error {
+    match resp.bytes().await {
+        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_else(|err| {
+            api::Error::invalid_argument("unable to parse error response", err)
+        }),
+        Err(err) => api::Error::invalid_argument("unable to read response body", err),
     }
 }
