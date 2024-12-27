@@ -505,6 +505,7 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseRes
                 match spec.location {
                     WireLocation::Header => ParamLocation::Header,
                     WireLocation::Query => ParamLocation::Query,
+                    WireLocation::PubSubAttr => ParamLocation::Body,
                 },
                 spec.name_override.clone(),
             ),
