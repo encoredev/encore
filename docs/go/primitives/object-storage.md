@@ -278,3 +278,32 @@ For convenience Encore provides an `objects.ReadWriter` interface that gives com
 with all the permissions above.
 
 See the [package documentation](https://pkg.go.dev/encore.dev/storage/objects#BucketRef) for more details.
+
+## Signed Upload URLs
+
+You can use `SignedUploadUrl` to create signed URLs to allow clients to upload content directly
+into the bucket over the internet. The URL is always restricted to one filename, and has a set
+expiration date. Anyone in possession of the URL can upload data under this filename without any
+additional authentication.
+
+```go
+url, err := ProfilePictures.SignedUploadURL(ctx, "my-user-id", objects.WithTTL(time.Duration(7200)*time.Second))
+// Pass url to client
+```
+
+The client can now `PUT` to this URL with the content as a binary payload.
+
+```bash
+curl -X PUT --data-binary @/home/me/dog-wizard.jpeg "https://storage.googleapis.com/profile-pictures/my-user-id/?x-goog-signature=b7a1<...>"
+```
+
+### Why signed URLs?
+
+Signed URLs are an alternative to accepting the content payload directly in your API. Content
+upload requests are sometimes inconvenient to handle well: they can be long running and very large.
+With signed URLs, the content flows directly into the storage bucket, and only object IDs and
+metadata go through your API service.
+
+The trade-off is that the upload flow becomes more complex from a client point of view.
+
+

@@ -203,3 +203,30 @@ that allows calling both `download` and `upload`.
 
 For convenience Encore also provides a `ReadWriter` permission that gives complete read-write access
 to the bucket, granting all the permissions above. It is equivalent to `Downloader & Uploader & Lister & Attrser & Remover`.
+
+## Signed Upload URLs
+
+You can use `SignedUploadUrl` to create signed URLs to allow clients to upload content directly
+into the bucket over the internet. The URL is always restricted to one filename, and has a set
+expiration date. Anyone in possession of the URL can upload data under this filename without any
+additional authentication.
+
+```typescript
+const uploadUrl = await profilePictures.signedUploadUrl("my-user-id", {ttl: 7200})
+// Pass url to client
+```
+
+The client can now `PUT` to this URL with the content as a binary payload.
+
+```bash
+curl -X PUT --data-binary @/home/me/dog-wizard.jpeg "https://storage.googleapis.com/profile-pictures/my-user-id/?x-goog-signature=b7a1<...>"
+```
+
+### Why signed URLs?
+
+Signed URLs are an alternative to accepting the content payload directly in your API. Content
+upload requests are sometimes inconvenient to handle well: they can be long running and very
+large. With signed URLs, the content flows directly into the storage bucket, and only object IDs
+and metadata go through your API service.
+
+The trade-off is that the upload flow becomes more complex from a client point of view.
