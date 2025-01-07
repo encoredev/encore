@@ -443,6 +443,12 @@
 			items: [
 				{
 					kind: "basic"
+					text: "CI/CD"
+					path: "/go/self-host/ci-cd"
+					file: "go/self-host/ci-cd"
+				},
+				{
+					kind: "basic"
 					text: "Build Docker Images"
 					path: "/go/self-host/docker-build"
 					file: "go/self-host/self-host"
@@ -888,6 +894,12 @@
 			kind: "section"
 			text: "Self Hosting"
 			items: [
+				{
+					kind: "basic"
+					text: "CI/CD"
+					path: "/ts/self-host/ci-cd"
+					file: "ts/self-host/ci-cd"
+				},
 				{
 					kind: "basic"
 					text: "Build Docker Images"
