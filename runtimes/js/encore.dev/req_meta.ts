@@ -179,7 +179,7 @@ export function currentRequest(): RequestMeta | undefined {
       pathParams: meta.apiCall.pathParams ?? {},
       parsedPayload: meta.apiCall.parsedPayload,
       headers: meta.apiCall.headers,
-      middlewareData: meta.apiCall.middlewareData
+      middlewareData: (req as any).middlewareData
     };
     return { ...base, ...api };
   } else if (meta.pubsubMessage) {

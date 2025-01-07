@@ -39,7 +39,7 @@ export async function run(entrypoint: string) {
   }
 
   // This is a worker thread. The runtime is already initialized, so block forever.
-  await new Promise(() => { });
+  await new Promise(() => {});
 }
 
 interface EndpointOptions {
@@ -72,7 +72,7 @@ async function invokeMiddlewareChain(
     if (currentMiddleware === undefined) {
       const mwData = req.data;
       if (mwData !== undefined) {
-        curReq.setMiddlewareData(mwData);
+        (curReq as any).middlewareData = mwData;
       }
       return new HandlerResponse(await handler());
     }

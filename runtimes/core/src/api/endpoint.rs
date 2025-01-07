@@ -516,7 +516,6 @@ impl EndpointHandler {
             is_platform_request: platform_seal_of_approval.is_some(),
             internal_caller,
             data,
-            middleware_data: None.into(),
         });
 
         Ok(request)

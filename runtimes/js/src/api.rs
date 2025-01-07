@@ -1,9 +1,7 @@
 use crate::error::coerce_to_api_error;
 use crate::headers::parse_header_map;
 use crate::napi_util::{await_promise, PromiseHandler};
-use crate::pvalue::{
-    encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null, PVals,
-};
+use crate::pvalue::{encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null};
 use crate::request_meta::RequestMeta;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -11,7 +9,6 @@ use crate::threadsafe_function::{
 use crate::{raw_api, request_meta, websocket_api};
 use encore_runtime_core::api::{self, HandlerResponse, HandlerResponseInner};
 use encore_runtime_core::model::RequestData;
-use napi::bindgen_prelude::FromNapiValue;
 use napi::{Env, JsFunction, JsObject, JsUnknown, NapiRaw};
 use napi_derive::napi;
 use std::future::Future;
@@ -84,17 +81,6 @@ impl Request {
             Stream(data) => pvalues_or_null(env, data.auth_data.as_ref()),
             Auth(_) | PubSub(_) => env.get_null().map(|val| val.into_unknown()),
         }
-    }
-
-    #[napi]
-    pub fn set_middleware_data(&self, vals: JsUnknown) -> napi::Result<()> {
-        self.inner
-            .middleware_data
-            .lock()
-            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{}", e)))?
-            .replace(PVals::from_unknown(vals)?.0);
-
-        Ok(())
     }
 }
 

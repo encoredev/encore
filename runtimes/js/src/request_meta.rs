@@ -55,7 +55,6 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: serialize_headers(&rpc.req_headers),
-                middleware_data: req.middleware_data.lock()?.clone().map(PVals),
             };
             (Some(api), None)
         }
@@ -82,7 +81,6 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, Error> {
                     .map(serde_json::to_value)
                     .transpose()?,
                 headers: Default::default(),
-                middleware_data: req.middleware_data.lock()?.clone().map(PVals),
             };
             (Some(api), None)
         }
@@ -134,7 +132,6 @@ pub struct APICallData {
     pub path_params: Option<serde_json::Value>,
     pub parsed_payload: Option<serde_json::Value>,
     pub headers: serde_json::Map<String, serde_json::Value>,
-    pub middleware_data: Option<PVals>,
 }
 
 #[napi(object)]
