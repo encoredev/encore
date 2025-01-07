@@ -186,13 +186,59 @@ interface Schema {
 }
 ```
 
-<Callout type="info">
+## Value based validation rules
 
-  For other types of validation, like checking the format of an email address or the length of a string, you need
-  to implement those yourself inside the endpoint handler. More types of built-in validation will be added in the future.
+Use Encore.ts's composable value based validation for use cases like checking the format of an email address or the length of a string.
+It uses TypeScript's type system and allows you to define validation rules directly in your type definitions.
 
-</Callout>
+### Built-in validation Rules
+- `Min<N>` / `Max<N>`: Validate minimum/maximum values for numbers
+- `MinLen<N>` / `MaxLen<N>`: Validate minimum/maximum lengths for strings and arrays
+- `IsURL` / `IsEmail`: Validate that a string is a URL or email address
+- `StartsWith` / `EndsWith` / `MatchesRegexp`: Validate that a string matches a specific pattern
 
+
+### Examples
+
+Import validation rules from the `encore.dev/validate` package:
+
+```ts
+import { Min, Max, MinLen, MaxLen, IsEmail, IsURL } from "encore.dev/validate";
+
+interface Schema {
+  // Number between 3 and 1000 (inclusive)
+  count: number & (Min<3> & Max<1000>);
+
+  // String between 5 and 20 characters
+  username: string & (MinLen<5> & MaxLen<20>);
+
+  // Must be either a valid URL or email address
+  contact: string & (IsURL | IsEmail);
+
+  // Array of up to 10 email addresses
+  recipients: Array<string & IsEmail> & MaxLen<10>;
+}
+```
+
+### Combining Rules
+
+You can combine multiple validation rules using:
+- `&` (and) to require all rules to pass
+- `|` (or) to require at least one rule to pass
+
+```ts
+interface Schema {
+  // Must be both >= 3 and <= 1000
+  count: number & (Min<3> & Max<1000>);
+
+  // Must be either a URL or an email
+  contact: string & (IsURL | IsEmail);
+}
+```
+
+### Performance
+
+These validation rules are executed directly in Rust at runtime, before the request reaches your JavaScript code. This provides excellent performance while maintaining type safety at both compile-time and runtime.
 
 ## Body
 
