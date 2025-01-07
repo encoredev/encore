@@ -96,7 +96,7 @@ To further narrow down the services to generate, use the '--services' flag.
 				// Validate the user input for the language
 				l, err := clientgen.GetLang(lang)
 				if err != nil {
-					fatal(fmt.Sprintf("%s: supported langauges are `typescript`, `javascript`, and `go`", err))
+					fatal(fmt.Sprintf("%s: supported languages are `typescript`, `javascript`, `go` and `openapi`", err))
 				}
 				lang = string(l)
 			}
