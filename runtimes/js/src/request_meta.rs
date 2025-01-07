@@ -5,30 +5,7 @@ use encore_runtime_core::model;
 
 use crate::pvalue::PVals;
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("failed serializing json")]
-    SerializeJson(#[from] serde_json::Error),
-    #[error("mutex poisoned")]
-    MutexPoison,
-}
-
-impl<T> From<std::sync::PoisonError<T>> for Error {
-    fn from(_value: std::sync::PoisonError<T>) -> Self {
-        Self::MutexPoison
-    }
-}
-
-impl From<Error> for napi::Error {
-    fn from(err: Error) -> Self {
-        match err {
-            Error::SerializeJson(error) => napi::Error::from(error),
-            Error::MutexPoison => napi::Error::from(err),
-        }
-    }
-}
-
-pub fn meta(req: &model::Request) -> Result<RequestMeta, Error> {
+pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
     let dt: DateTime<Utc> = req.start_time.into();
     let started_at = dt.to_rfc3339_opts(SecondsFormat::Secs, true);
 
