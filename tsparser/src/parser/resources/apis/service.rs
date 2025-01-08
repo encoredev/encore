@@ -1,7 +1,7 @@
 use litparser::{report_and_continue, ParseResult};
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
-use swc_ecma_ast::{self as ast, ExportDefaultExpr, NewExpr};
+use swc_ecma_ast::{self as ast};
 
 use litparser::LitParser;
 use litparser_derive::LitParser;
@@ -138,11 +138,11 @@ impl ReferenceParser for ServiceLiteral {
 }
 
 // checks if `new_expr` is the default export in `path`
-fn is_default_export(path: &swc_ecma_visit::AstNodePath, new_expr: &NewExpr) -> bool {
+fn is_default_export(path: &swc_ecma_visit::AstNodePath, new_expr: &swc_ecma_ast::NewExpr) -> bool {
     for node in path.iter().rev() {
         match node {
             swc_ecma_visit::AstParentNodeRef::ExportDefaultExpr(
-                ExportDefaultExpr { expr, .. },
+                swc_ecma_ast::ExportDefaultExpr { expr, .. },
                 swc_ecma_visit::fields::ExportDefaultExprField::Expr,
             ) => {
                 return if let swc_ecma_ast::Expr::New(ref expr) = **expr {
