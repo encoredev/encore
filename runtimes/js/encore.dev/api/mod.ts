@@ -300,6 +300,7 @@ export class MiddlewareRequest {
   private _stream?: IterableStream | IterableSocket | Sink;
   private _rawReq?: RawRequest;
   private _rawResp?: RawResponse;
+  private _data?: Record<string, any>;
 
   constructor(
     stream?: IterableStream | IterableSocket | Sink,
@@ -338,6 +339,17 @@ export class MiddlewareRequest {
    */
   public get rawResponse(): RawResponse | undefined {
     return this._rawResp;
+  }
+
+  /**
+   * data can be used to pass data from middlewares to the handler.
+   * The data will be available via `currentRequest()`
+   */
+  public get data(): Record<string, any> {
+    if (this._data === undefined) {
+      this._data = {};
+    }
+    return this._data;
   }
 }
 
@@ -379,6 +391,7 @@ export class HandlerResponse {
   payload: any;
 
   private _headers?: ResponseHeader;
+  private _status?: number;
 
   constructor(payload: any) {
     this.payload = payload;
@@ -398,12 +411,20 @@ export class HandlerResponse {
   }
 
   /**
+   * Override the http status code for successful requests for typed endpoints.
+   */
+  public set status(s: number) {
+    this._status = s;
+  }
+
+  /**
    * __internalToResponse converts a response to the internal representation
    */
   __internalToResponse(): InternalHandlerResponse {
     return {
       payload: this.payload,
-      extraHeaders: this._headers?.headers
+      extraHeaders: this._headers?.headers,
+      status: this._status
     };
   }
 }
