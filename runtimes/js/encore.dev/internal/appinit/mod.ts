@@ -39,7 +39,7 @@ export async function run(entrypoint: string) {
   }
 
   // This is a worker thread. The runtime is already initialized, so block forever.
-  await new Promise(() => { });
+  await new Promise(() => {});
 }
 
 interface EndpointOptions {
@@ -52,10 +52,12 @@ interface EndpointOptions {
 export interface InternalHandlerResponse {
   payload: any;
   extraHeaders?: Record<string, string | string[]>;
+  status?: number;
 }
 
 // recursively calls all middlewares
 async function invokeMiddlewareChain(
+  curReq: runtime.Request,
   req: MiddlewareRequest,
   chain: Middleware[],
   handler: () => Promise<any>
@@ -68,6 +70,10 @@ async function invokeMiddlewareChain(
 
     // no more middlewares, execute the handler
     if (currentMiddleware === undefined) {
+      const mwData = req.data;
+      if (mwData !== undefined) {
+        (curReq as any).middlewareData = mwData;
+      }
       return new HandlerResponse(await handler());
     }
 
@@ -172,7 +178,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           undefined,
           undefined
         );
-        return invokeMiddlewareChain(mwRequest, middlewares, handler);
+        return invokeMiddlewareChain(req, mwRequest, middlewares, handler);
       }
     };
   }
@@ -199,7 +205,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         };
 
         const mwRequest = new MiddlewareRequest(undefined, rawReq, rawResp);
-        return invokeMiddlewareChain(mwRequest, middlewares, handler);
+        return invokeMiddlewareChain(req, mwRequest, middlewares, handler);
       }
     };
   }
@@ -224,7 +230,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       };
 
       const mwRequest = new MiddlewareRequest(undefined, undefined, undefined);
-      return invokeMiddlewareChain(mwRequest, middlewares, handler);
+      return invokeMiddlewareChain(req, mwRequest, middlewares, handler);
     }
   };
 }
