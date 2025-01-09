@@ -22,6 +22,8 @@ pub enum PrepareError {
     PackageJsonNotFound(PathBuf),
     #[error("failed to read package.json: {0}")]
     ReadPackageJson(#[source] io::Error),
+    #[error("failed to update package.json: {0}")]
+    WritePackageJson(#[source] io::Error),
     #[error("invalid package.json: {source}")]
     InvalidPackageJson {
         source: serde_json::Error,

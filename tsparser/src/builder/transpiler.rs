@@ -104,11 +104,7 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     )
                 };
 
-                let mut command = vec![
-                    "node".to_string(),
-                    "--enable-source-maps".into(),
-                    "--preserve-symlinks".into(),
-                ];
+                let mut command = vec!["node".to_string(), "--enable-source-maps".into()];
 
                 match p.debug {
                     DebugMode::Disabled => {}
