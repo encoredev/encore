@@ -915,6 +915,11 @@
 					text: "Deploy to DigitalOcean"
 					path: "/ts/self-host/deploy-digitalocean"
 					file: "ts/self-host/deploy-to-digital-ocean"
+				}, {
+					kind: "basic"
+					text: "Deploy to Railway"
+					path: "/ts/self-host/deploy-railway"
+					file: "ts/self-host/deploy-to-railway"
 				}]
 		},
 		{
