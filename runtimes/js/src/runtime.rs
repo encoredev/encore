@@ -334,7 +334,7 @@ impl From<api::Error> for APICallError {
         Self {
             code: value.code.to_string(),
             message: value.message,
-            details: value.details,
+            details: value.details.map(|d| *d),
         }
     }
 }
