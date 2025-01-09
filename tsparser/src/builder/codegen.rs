@@ -47,7 +47,6 @@ impl Builder<'_> {
         app_root: &Path,
         encore_dev_version: &PackageVersion,
     ) -> Result<(), PrepareError> {
-        // Find the node_modules dir and the relative path back to the app root.
         let pkg_mgr = resolve_package_manager(app_root)?;
         pkg_mgr.setup_deps(encore_dev_version)
     }
