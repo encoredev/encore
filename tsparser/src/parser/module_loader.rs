@@ -425,7 +425,7 @@ impl ModuleLoader {
     ) -> anyhow::Result<HashMap<FilePath, Lrc<Module>>> {
         let mut result = HashMap::new();
         for file in &ar.files {
-            if !file.name.extension().map_or(false, |ext| ext == "ts") {
+            if !file.name.extension().is_some_and(|ext| ext == "ts") {
                 continue;
             }
 
