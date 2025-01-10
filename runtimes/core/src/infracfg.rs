@@ -183,10 +183,13 @@ pub struct TLSConfig {
     pub client_cert: Option<ClientCert>,
     #[serde(default)]
     pub disable_tls_hostname_verification: bool,
+    #[serde(default)]
+    pub disable_ca_validation: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SQLDatabase {
+    pub name: Option<String>,
     pub max_connections: Option<i32>,
     pub min_connections: Option<i32>,
     pub username: String,
@@ -651,7 +654,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         SqlDatabase {
                             rid: get_next_rid(),
                             encore_name: name.clone(),
-                            cloud_name: name,
+                            cloud_name: db.name.unwrap_or(name),
                             conn_pools: vec![SqlConnectionPool {
                                 is_readonly: false,
                                 role_rid,
@@ -676,6 +679,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                     server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
+                                    disable_ca_validation: tls.disable_ca_validation,
                                 }),
                             },
                         ),
@@ -754,6 +758,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                     server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
+                                    disable_ca_validation: tls.disable_ca_validation,
                                 }),
                             },
                         ),
