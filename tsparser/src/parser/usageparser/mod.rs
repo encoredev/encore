@@ -319,7 +319,7 @@ impl<'a> UsageVisitor<'a> {
 
     /// Report whether the given id represents the bind definition itself.
     fn is_bind_def(&self, bind: &Bind, id: &ast::Ident) -> bool {
-        bind.range.map_or(false, |r| r.contains(&id.span.into()))
+        bind.range.is_some_and(|r| r.contains(&id.span.into()))
     }
 
     /// Report whether the given path represents an import declaration.
