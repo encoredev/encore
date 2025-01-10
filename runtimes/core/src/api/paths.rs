@@ -68,7 +68,7 @@ where
         let is_fallback = path
             .segments
             .last()
-            .map_or(false, |seg| seg.r#type == SegmentType::Fallback as i32);
+            .is_some_and(|seg| seg.r#type == SegmentType::Fallback as i32);
 
         let key = ep.key();
         let routes = (ep.value(), entries);
