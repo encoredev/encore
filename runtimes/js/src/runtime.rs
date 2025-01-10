@@ -326,7 +326,7 @@ impl Runtime {
 pub struct APICallError {
     pub code: String,
     pub message: String,
-    pub details: Option<serde_json::Map<String, serde_json::Value>>,
+    pub details: Option<PVals>,
 }
 
 impl From<api::Error> for APICallError {
@@ -334,7 +334,7 @@ impl From<api::Error> for APICallError {
         Self {
             code: value.code.to_string(),
             message: value.message,
-            details: value.details.map(|d| *d),
+            details: value.details.map(|d| PVals(*d)),
         }
     }
 }
