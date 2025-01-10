@@ -120,6 +120,7 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Opt
                 "list" => Operation::ListObjects,
                 "exists" | "attrs" => Operation::GetObjectMetadata,
                 "upload" => Operation::WriteObject,
+                "signedUploadUrl" => Operation::SignedUploadUrl,
                 "download" => Operation::ReadObjectContents,
                 "remove" => Operation::DeleteObject,
 
@@ -291,4 +292,8 @@ pub enum Operation {
 
     /// Getting the public URL for the bucket/an object.
     GetPublicUrl,
+
+    /// Generating a signed URL to allow an external recipient to create or
+    /// update an object.
+    SignedUploadUrl,
 }

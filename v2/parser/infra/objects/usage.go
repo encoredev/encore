@@ -43,6 +43,7 @@ const (
 	GetObjectMetadata    Perm = "get-object-metadata"
 	DeleteObject         Perm = "delete-object"
 	GetPublicURL         Perm = "get-public-url"
+	SignedUploadURL      Perm = "signed-upload-url"
 )
 
 func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
@@ -61,6 +62,8 @@ func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
 		return meta.BucketUsage_DELETE_OBJECT, true
 	case GetPublicURL:
 		return meta.BucketUsage_GET_PUBLIC_URL, true
+	case SignedUploadURL:
+		return meta.BucketUsage_SIGNED_UPLOAD_URL, true
 	default:
 		return meta.BucketUsage_UNKNOWN, false
 	}
@@ -84,6 +87,8 @@ func ResolveBucketUsage(data usage.ResolveData, bkt *Bucket) usage.Usage {
 			if !bkt.Public {
 
 			}
+		case "SignedUploadURL":
+			perm = SignedUploadURL
 		default:
 			return nil
 		}
@@ -124,7 +129,7 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 		for _, typ := range types {
 			switch {
 			case isNamed(typ, "Uploader"):
-				perms = append(perms, WriteObject)
+				perms = append(perms, WriteObject, SignedUploadURL)
 			case isNamed(typ, "Downloader"):
 				perms = append(perms, ReadObjectContents)
 			case isNamed(typ, "Lister"):
@@ -136,7 +141,7 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 			case isNamed(typ, "PublicURLer"):
 				perms = append(perms, GetPublicURL)
 			case isNamed(typ, "ReadWriter"):
-				perms = append(perms, WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, UpdateObjectMetadata)
+				perms = append(perms, WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, SignedUploadURL, UpdateObjectMetadata)
 			default:
 				return nil, false
 			}

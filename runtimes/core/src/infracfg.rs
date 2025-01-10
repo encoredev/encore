@@ -445,6 +445,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         pbruntime::bucket_cluster::Gcs {
                             endpoint: gcs.endpoint,
                             anonymous: false,
+                            local_sign: None,
                         },
                     )),
                     buckets: gcs

@@ -51,6 +51,11 @@ trait ObjectImpl: Debug + Send + Sync {
         options: UploadOptions,
     ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>>;
 
+    fn signed_upload_url(
+        self: Arc<Self>,
+        options: UploadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>>;
+
     fn download(
         self: Arc<Self>,
         options: DownloadOptions,
@@ -221,6 +226,14 @@ impl Object {
                 imp.upload(data, options).await
             }
         }
+    }
+
+    pub async fn signed_upload_url(
+        &self,
+        options: UploadUrlOptions,
+        _source: Option<Arc<model::Request>>,
+    ) -> Result<String, Error> {
+        self.imp.clone().signed_upload_url(options).await
     }
 
     pub fn download_stream(
@@ -417,6 +430,11 @@ pub struct DownloadOptions {
 #[derive(Debug, Default)]
 pub struct AttrsOptions {
     pub version: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct UploadUrlOptions {
+    pub ttl: u64,
 }
 
 #[derive(Debug, Default)]
