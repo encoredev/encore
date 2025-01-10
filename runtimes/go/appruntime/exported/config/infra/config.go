@@ -289,7 +289,7 @@ type Auth struct {
 }
 
 func (a *Auth) Validate(v *validator) {
-	v.ValidateField("type", OneOf(a.Type, "auth"))
+	v.ValidateField("type", OneOf(a.Type, "key"))
 	v.ValidateEnvString("key", a.Key, "Service Authorization Key", NotZero[string])
 }
 
