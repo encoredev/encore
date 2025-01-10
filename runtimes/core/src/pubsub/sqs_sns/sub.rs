@@ -123,7 +123,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
             let result = client
                 .receive_message()
                 .queue_url(queue_url)
-                .attribute_names("ApproximateReceiveCount".into())
+                .message_system_attribute_names(MessageSystemAttributeName::ApproximateReceiveCount)
                 .visibility_timeout(ack_deadline.as_secs() as i32)
                 .wait_time_seconds(20) // maximum allowed time
                 .max_number_of_messages(max_items as i32)

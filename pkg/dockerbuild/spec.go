@@ -385,16 +385,28 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	{
 		for _, out := range cfg.Compile.Outputs {
 			if _, ok := out.(*builder.JSBuildOutput); ok {
-				// Include the encore.dev package, at the same location.
-				runtimeSrc := cfg.Runtimes.Join("js", "encore.dev")
-				b.spec.CopyData[runtimeSrc.ToImage()] = runtimeSrc
+				if nativeRuntimeHost, ok := cfg.NodeRuntime.Get(); ok {
+					// Add the encore-runtime.node file, and set the environment variable to point to it.
+					nativeRuntimeImg := ImagePath("/encore/runtimes/js/encore-runtime.node")
+					b.spec.CopyData[nativeRuntimeImg] = nativeRuntimeHost
+					b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
+					b.addPrio(nativeRuntimeImg)
 
-				// Add the encore-runtime.node file, and set the environment variable to point to it.
-				nativeRuntimeHost := cfg.NodeRuntime.GetOrElse(cfg.Runtimes.Join("js", "encore-runtime.node"))
-				nativeRuntimeImg := nativeRuntimeHost.ToImage().Dir().Join("encore-runtime.node")
-				b.spec.CopyData[nativeRuntimeImg] = nativeRuntimeHost
-				b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
-				b.addPrio(nativeRuntimeImg)
+					// Copy the encore.dev package.
+					nativePackageHost := cfg.Runtimes.Join("js", "encore.dev")
+					nativePackageImg := ImagePath("/encore/runtimes/js/encore.dev")
+					b.spec.CopyData[nativePackageImg] = nativePackageHost
+				} else {
+					// Copy the whole js runtime.
+					runtimeHost := cfg.Runtimes.Join("js")
+					runtimeImg := ImagePath("/encore/runtimes/js")
+					b.spec.CopyData[runtimeImg] = runtimeHost
+
+					nativeRuntimeImg := runtimeImg.Join("encore-runtime.node")
+					b.spec.Env = append(b.spec.Env, fmt.Sprintf("ENCORE_RUNTIME_LIB=%s", nativeRuntimeImg))
+					b.addPrio(nativeRuntimeImg)
+				}
+
 				break
 			}
 		}

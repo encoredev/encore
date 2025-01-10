@@ -15,6 +15,7 @@ import (
 	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
@@ -81,6 +82,9 @@ func DefaultBuildInfo() BuildInfo {
 		KeepOutput:         false,
 		Revision:           "",
 		UncommittedChanges: false,
+
+		// Use the local JS runtime if this is a development build.
+		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 }
 

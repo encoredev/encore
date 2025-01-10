@@ -684,6 +684,17 @@ impl Ctx<'_> {
             }
         }
 
+        // Is this a reference to the "Attribute" pub/sub wire spec override?
+        if obj.name.as_ref().is_some_and(|s| s == "Attribute")
+            && self
+                .state
+                .is_module_path(obj.module_id, "encore.dev/pubsub")
+        {
+            if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
+                return Type::Custom(Custom::WireSpec(wire_spec));
+            }
+        }
+
         match &obj.kind {
             ObjectKind::TypeName(_) => {
                 let named = Named::new(obj, type_arguments);
@@ -2093,6 +2104,7 @@ impl Ctx<'_> {
         let location = match &obj.name.as_deref() {
             Some("Header") => WireLocation::Header,
             Some("Query") => WireLocation::Query,
+            Some("Attribute") => WireLocation::PubSubAttr,
             _ => return None,
         };
 
