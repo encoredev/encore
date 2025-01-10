@@ -53,6 +53,10 @@ message TLSConfig {
   // If invalid hostnames are trusted, *any* valid certificate for *any* site will be trusted for use.
   // This introduces significant vulnerabilities, and should only be used as a last resort.
   bool disable_tls_hostname_verification = 2;
+
+  // If true, skips CA cert validation when connecting.
+  // This introduces significant vulnerabilities, and should only be used as a last resort.
+  bool disable_ca_validation = 3;
 }
 
 message SQLServer {

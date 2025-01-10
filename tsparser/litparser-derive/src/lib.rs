@@ -254,7 +254,7 @@ fn is_optional(ty: &syn::Type) -> bool {
             path: syn::Path { segments, .. },
         }) => {
             // Return true if the last path segment is "Option".
-            segments.last().map_or(false, |seg| seg.ident == "Option")
+            segments.last().is_some_and(|seg| seg.ident == "Option")
         }
         _ => false,
     }

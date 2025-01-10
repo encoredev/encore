@@ -320,6 +320,9 @@ fn databases_from_cfg(
                 if tls_config.disable_tls_hostname_verification {
                     tls_builder.danger_accept_invalid_hostnames(true);
                 }
+                if tls_config.disable_ca_validation {
+                    tls_builder.danger_accept_invalid_certs(true);
+                }
             } else {
                 config.ssl_mode(tokio_postgres::config::SslMode::Disable);
             }
