@@ -1,5 +1,5 @@
 import { getCurrentRequest } from "../internal/reqtrack/mod";
-import { AttributesOf } from "./attributes";
+import type { AttributesOf } from "./mod";
 import * as runtime from "../internal/runtime/mod";
 
 /**

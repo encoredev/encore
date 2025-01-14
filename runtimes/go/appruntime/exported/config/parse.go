@@ -227,7 +227,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 		for dbName, db := range sqlServer.Databases {
 			cfg.SQLDatabases = append(cfg.SQLDatabases, &SQLDatabase{
 				ServerID:       i,
-				EncoreName:     dbName,
+				EncoreName:     orDefault(db.Name, dbName),
 				DatabaseName:   dbName,
 				User:           db.Username.Value(),
 				Password:       db.Password.Value(),

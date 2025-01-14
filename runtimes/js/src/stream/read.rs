@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures::{Stream, StreamExt};
 use napi::{noop_finalize, Env, JsFunction, JsUnknown, NapiRaw, Status};
 
@@ -193,9 +193,12 @@ struct PushRequest {
 fn execute_push(ctx: ThreadSafeCallContext<PushRequest>) -> napi::Result<()> {
     let data: JsUnknown = match ctx.value.data {
         Some(data) => {
+            // We need to convert this to a BytesMut since
+            // JavaScript may modify the buffer.
+            let mut data = BytesMut::from(data);
             let buf = unsafe {
                 ctx.env.create_buffer_with_borrowed_data(
-                    data.as_ptr(),
+                    data.as_mut_ptr(),
                     data.len(),
                     data,
                     noop_finalize,

@@ -106,6 +106,7 @@ pub struct WireSpec {
 pub enum WireLocation {
     Query,
     Header,
+    PubSubAttr,
 }
 
 impl WireSpec {

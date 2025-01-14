@@ -289,7 +289,7 @@ type Auth struct {
 }
 
 func (a *Auth) Validate(v *validator) {
-	v.ValidateField("type", OneOf(a.Type, "auth"))
+	v.ValidateField("type", OneOf(a.Type, "key"))
 	v.ValidateEnvString("key", a.Key, "Service Authorization Key", NotZero[string])
 }
 
@@ -472,6 +472,7 @@ type TLSConfig struct {
 	CA                             string      `json:"ca,omitempty"`
 	ClientCert                     *ClientCert `json:"client_cert,omitempty"`
 	DisableTLSHostnameVerification bool        `json:"disable_tls_hostname_verification,omitempty"`
+	DisableCAValidation            bool        `json:"disable_ca_validation,omitempty"`
 }
 
 func (t *TLSConfig) Validate(v *validator) {
@@ -479,6 +480,7 @@ func (t *TLSConfig) Validate(v *validator) {
 }
 
 type SQLDatabase struct {
+	Name           string      `json:"name,omitempty"`
 	MaxConnections int         `json:"max_connections,omitempty"`
 	MinConnections int         `json:"min_connections,omitempty"`
 	Username       EnvString   `json:"username,omitempty"`

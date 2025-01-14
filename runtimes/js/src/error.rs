@@ -12,7 +12,7 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
     })?;
 
     // Get the details field.
-    let details: Option<serde_json::Map<String, serde_json::Value>> = obj
+    let details: Option<Box<serde_json::Map<String, serde_json::Value>>> = obj
         .get_named_property::<napi::JsUnknown>("details")
         .and_then(|val| match val.get_type()? {
             napi::ValueType::Object => val.coerce_to_object(),
@@ -22,7 +22,7 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
             )),
         })
         .and_then(|val| env.from_js_value(val))
-        .map(Some)
+        .map(|v| Some(Box::new(v)))
         .unwrap_or(None);
 
     // Get the message field.

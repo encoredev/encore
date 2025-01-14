@@ -5,7 +5,7 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 use crate::app::AppDesc;
-use anyhow::{Context, Result};
+use anyhow::Context;
 use clean_path::Clean;
 use itertools::Itertools;
 use serde::Serialize;
@@ -18,11 +18,11 @@ use crate::parser::resources::apis::api::Methods;
 use crate::parser::resources::Resource;
 use crate::parser::{FilePath, Range};
 
+use super::prepare::{PackageVersion, PrepareError};
 use super::{App, Builder};
 
 #[derive(Debug)]
 pub struct CodegenParams<'a> {
-    pub js_runtime_root: &'a Path,
     pub app: &'a App,
     pub pc: &'a ParseContext,
     pub working_dir: &'a Path,
@@ -42,44 +42,29 @@ pub struct LinkResult {
 }
 
 impl Builder<'_> {
-    pub fn setup_deps(&self, app_root: &Path, encore_dev_path: Option<&Path>) -> Result<()> {
-        // Find the node_modules dir and the relative path back to the app root.
-        let pkg_mgr = resolve_package_manager(app_root).context("resolve package manager")?;
-        pkg_mgr
-            .setup_deps(encore_dev_path)
-            .context("setup dependencies")?;
-        Ok(())
+    pub fn setup_deps(
+        &self,
+        app_root: &Path,
+        encore_dev_version: &PackageVersion,
+    ) -> Result<(), PrepareError> {
+        let pkg_mgr = resolve_package_manager(app_root)?;
+        pkg_mgr.setup_deps(encore_dev_version)
     }
 
-    pub fn generate_code(&self, params: &CodegenParams) -> Result<CodegenResult> {
+    pub fn generate_code(&self, params: &CodegenParams) -> Result<CodegenResult, PrepareError> {
         // Find the node_modules dir and the relative path back to the app root.
         let (node_modules, _rel_return_path) = self
             .find_node_modules_dir(&params.app.root)
-            .ok_or_else(|| anyhow::anyhow!("could not find node_modules directory"))?;
-
-        // self.symlink_packages(params.js_runtime_root, &node_modules)
-        //     .context("link packages")?;
+            .ok_or(PrepareError::NodeModulesNotFound)?;
 
         let files = self.codegen_data(params)?;
 
-        // write_gen_encore_app_package(&node_modules, &files)
-        //     .context("write gen_encore.app package")?;
-        write_gen_encore_dir(&params.app.root, &files).context("write encore.gen directory")?;
+        write_gen_encore_dir(&params.app.root, &files)?;
 
         Ok(CodegenResult { node_modules })
     }
 
-    fn codegen_data(&self, params: &CodegenParams) -> Result<Vec<CodegenFile>> {
-        // let mut files = vec![
-        //     CodegenFile {
-        //         path: PathBuf::from("package.json"),
-        //         contents: PACKAGE_JSON.to_string(),
-        //     },
-        //     CodegenFile {
-        //         path: PathBuf::from("tsconfig.json"),
-        //         contents: TSCONFIG_JSON.to_string(),
-        //     },
-        // ];
+    fn codegen_data(&self, params: &CodegenParams) -> Result<Vec<CodegenFile>, PrepareError> {
         let mut files = vec![];
 
         let mut auth_ctx = Vec::new();
@@ -127,7 +112,8 @@ impl Builder<'_> {
                         let bind_name = b
                             .name
                             .as_deref()
-                            .context("gateway objects must be assigned to a variable")?;
+                            .context("gateway objects must be assigned to a variable")
+                            .map_err(PrepareError::Internal)?;
                         gateways.push((gw, bind_name));
                     }
                     Resource::PubSubSubscription(sub) => {
@@ -400,7 +386,8 @@ impl Builder<'_> {
                             let bind_name = b
                                 .name
                                 .as_deref()
-                                .context("gateway objects must be assigned to a variable")?;
+                                .context("gateway objects must be assigned to a variable")
+                                .map_err(PrepareError::Internal)?;
                             gateways.push((gw, bind_name));
                         }
                         Resource::PubSubSubscription(sub) => {
@@ -521,112 +508,13 @@ impl Builder<'_> {
 
         let mut duplicates = files.iter().duplicates_by(|f| f.path.clone());
         if let Some(dup) = duplicates.next() {
-            anyhow::bail!("duplicate file path: {:?}", dup.path);
+            return Err(PrepareError::Internal(anyhow::anyhow!(
+                "duplicate file path: {:?}",
+                dup.path
+            )));
         }
+
         Ok(files)
-    }
-
-    fn _symlink_packages(&self, runtime_root: &Path, node_modules_dir: &Path) -> Result<()> {
-        // Figure out the dirs to symlink.
-        let dirs_to_symlink: Vec<(Option<&str>, String)> = {
-            let dir_names = &["encore.dev"];
-            let mut dirs_to_symlink = Vec::new();
-            for &name in dir_names {
-                // Does it start with '@'? If so, it's a directory of packages,
-                // so we should symlink each package within it instead of symlinking the directory itself.
-                if !name.starts_with('@') {
-                    dirs_to_symlink.push((None, name.to_string()));
-                    continue;
-                }
-
-                let dir = runtime_root.join(name);
-                let entries = fs::read_dir(&dir)?;
-                for entry in entries {
-                    let entry = entry?;
-                    if entry.file_type()?.is_dir() {
-                        let dir_name = entry.file_name().into_string().map_err(|_| {
-                            anyhow::anyhow!("invalid package name: {:?}", entry.file_name())
-                        })?;
-                        dirs_to_symlink.push((Some(name), dir_name));
-                    }
-                }
-            }
-
-            dirs_to_symlink
-        };
-
-        for (pkg_group, pkg_name) in dirs_to_symlink {
-            let pkg_name = pkg_name.as_str();
-            let source_dir = match pkg_group {
-                Some(pkg_group) => runtime_root.join(pkg_group).join(pkg_name),
-                None => runtime_root.join(pkg_name),
-            };
-
-            self.symlink_package(&source_dir, node_modules_dir, pkg_group, pkg_name)
-                .with_context(|| format!("symlink package {:?}/{:?}", pkg_group, pkg_name))?;
-        }
-
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    fn symlink_package(
-        &self,
-        source_dir: &Path,
-        node_modules_dir: &Path,
-        pkg_group: Option<&str>,
-        pkg_name: &str,
-    ) -> Result<()> {
-        // Sanity check to avoid operating on unexpected directories.
-        if !node_modules_dir.ends_with("node_modules") {
-            anyhow::bail!(
-                "node_modules_dir {:?} does not end with 'node_modules'",
-                node_modules_dir
-            );
-        }
-
-        // If we have a package group, ensure that directory exists.
-        if let Some(pkg_group) = pkg_group {
-            let dst = node_modules_dir.join(pkg_group);
-            if dst.is_symlink() {
-                // If it's a symlink, remove it first.
-                fs::remove_file(&dst).context("remove existing package group symlink")?;
-            }
-            if !dst.exists() {
-                fs::create_dir_all(&dst)
-                    .with_context(|| "create package group directory".to_string())?;
-            }
-        }
-
-        let symlink_path = match pkg_group {
-            Some(pkg_group) => node_modules_dir.join(pkg_group).join(pkg_name),
-            None => node_modules_dir.join(pkg_name),
-        };
-
-        // Stat the symlink path; if it's a symlink remove it. If it's not, drop the directory.
-        if let Ok(metadata) = symlink_path.symlink_metadata() {
-            if metadata.file_type().is_symlink() {
-                log::info!("removing symlink {}", symlink_path.display());
-                fs::remove_file(&symlink_path).context("remove existing package symlink")?;
-            } else {
-                log::info!("removing directory {}", symlink_path.display());
-                fs::remove_dir_all(&symlink_path).context("remove existing package directory")?;
-            }
-        }
-
-        // Create the symlink.
-        log::info!(
-            "creating symlink {} -> {}",
-            symlink_path.display(),
-            source_dir.display()
-        );
-
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_dir(source_dir, symlink_path).context("create symlink")?;
-        #[cfg(not(windows))]
-        std::os::unix::fs::symlink(source_dir, symlink_path).context("create symlink")?;
-
-        Ok(())
     }
 
     /// Find the node_modules_dir in parent directories of base,
@@ -661,47 +549,30 @@ pub struct CodegenFile {
     pub contents: String,
 }
 
-#[allow(dead_code)]
-fn write_gen_encore_app_package(node_modules_dir: &Path, files: &[CodegenFile]) -> Result<()> {
-    let base_dir = node_modules_dir.join("gen_encore.app");
-    for f in files {
-        if f.path.is_absolute() {
-            anyhow::bail!(
-                "path {:?} is not relative to the gen_encore.app folder",
-                f.path
-            );
-        }
-
-        let file_path = base_dir.join(&f.path);
-        // Create the parent of the file, if needed
-        if let Some(parent) = file_path.parent() {
-            DirBuilder::new().recursive(true).create(parent)?;
-        }
-        let file = fs::File::create(file_path)?;
-        let mut buf = std::io::BufWriter::new(file);
-        buf.write_all(f.contents.as_bytes())?;
-        buf.flush()?;
-    }
-
-    Ok(())
-}
-
-fn write_gen_encore_dir(app_root: &Path, files: &[CodegenFile]) -> Result<()> {
+fn write_gen_encore_dir(app_root: &Path, files: &[CodegenFile]) -> Result<(), PrepareError> {
     let base_dir = app_root.join("encore.gen");
     for f in files {
         if f.path.is_absolute() {
-            anyhow::bail!("path {:?} is not relative to the encore.gen folder", f.path);
+            return Err(PrepareError::Internal(anyhow::anyhow!(
+                "path {:?} is not relative to the encore.gen folder",
+                f.path
+            )));
         }
 
         let file_path = base_dir.join(&f.path);
         // Create the parent of the file, if needed
         if let Some(parent) = file_path.parent() {
-            DirBuilder::new().recursive(true).create(parent)?;
+            DirBuilder::new()
+                .recursive(true)
+                .create(parent)
+                .map_err(PrepareError::GenerateCode)?;
         }
-        let file = fs::File::create(file_path)?;
+
+        let file = fs::File::create(file_path).map_err(PrepareError::GenerateCode)?;
         let mut buf = std::io::BufWriter::new(file);
-        buf.write_all(f.contents.as_bytes())?;
-        buf.flush()?;
+        buf.write_all(f.contents.as_bytes())
+            .map_err(PrepareError::GenerateCode)?;
+        buf.flush().map_err(PrepareError::GenerateCode)?;
     }
 
     Ok(())

@@ -56,7 +56,7 @@ impl std::fmt::Debug for ParseContext {
 impl ParseContext {
     pub fn new(
         app_root: PathBuf,
-        js_runtime_path: PathBuf,
+        js_runtime_path: Option<PathBuf>,
         cm: Lrc<SourceMap>,
         errs: Lrc<Handler>,
     ) -> Result<Self> {
@@ -71,7 +71,7 @@ impl ParseContext {
 
     pub fn with_resolver<R>(
         app_root: PathBuf,
-        js_runtime_path: PathBuf,
+        js_runtime_path: Option<PathBuf>,
         resolver: R,
         cm: Lrc<SourceMap>,
         errs: Lrc<Handler>,
@@ -96,6 +96,7 @@ impl ParseContext {
             errs.clone(),
             file_set.clone(),
             Box::new(resolver),
+            app_root.clone(),
         ));
         let type_checker = Lrc::new(TypeChecker::new(loader.clone()));
 

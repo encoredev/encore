@@ -93,7 +93,7 @@ pub enum FilePath {
 impl FilePath {
     pub fn is_tsx(&self) -> bool {
         match self {
-            FilePath::Real(p) => p.extension().map_or(false, |ext| ext == "tsx"),
+            FilePath::Real(p) => p.extension().is_some_and(|ext| ext == "tsx"),
             FilePath::Custom(p) => p.ends_with(".tsx"),
         }
     }

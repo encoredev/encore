@@ -319,7 +319,7 @@ impl<'a> UsageVisitor<'a> {
 
     /// Report whether the given id represents the bind definition itself.
     fn is_bind_def(&self, bind: &Bind, id: &ast::Ident) -> bool {
-        bind.range.map_or(false, |r| r.contains(&id.span.into()))
+        bind.range.is_some_and(|r| r.contains(&id.span.into()))
     }
 
     /// Report whether the given path represents an import declaration.
@@ -516,9 +516,14 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc =
-                ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs)
-                    .unwrap();
+            let pc = ParseContext::with_resolver(
+                app_root,
+                Some(JS_RUNTIME_PATH.clone()),
+                resolver,
+                cm,
+                errs,
+            )
+            .unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -613,7 +618,7 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
+            let pc = ParseContext::with_resolver(app_root, Some(JS_RUNTIME_PATH.clone()), resolver, cm, errs).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
