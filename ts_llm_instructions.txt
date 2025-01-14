@@ -326,156 +326,207 @@ throw APIError.notFound("sprocket not found");
 </api_errors>
 
 <sql_databases>
-<overview>
-  <core_concept>Encore treats SQL databases as logical resources and natively supports PostgreSQL databases</core_concept>
-</overview>
+    <overview>
+        <core_concept>Encore treats SQL databases as logical resources and natively supports PostgreSQL databases</core_concept>
+        <import_statement>import { SQLDatabase } from "encore.dev/storage/sqldb"</import_statement>
+    </overview>
 
-<database_creation>
-  <steps>
-    <step>Import SQLDatabase from encore.dev/storage/sqldb</step>
-    <step>Call new SQLDatabase with name and config</step>
-    <step>Define schema in migrations directory</step>
-  </steps>
+    <database_creation>
+        <steps>
+            <step>Import SQLDatabase from encore.dev/storage/sqldb</step>
+            <step>Call new SQLDatabase with name and config</step>
+            <step>Define schema in migrations directory</step>
+        </steps>
 
-  <code_example>
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
+        <methods>
+            <new_database>
+                <description>Create a new database instance</description>
+                <example><![CDATA[
 const db = new SQLDatabase("todo", {
-  migrations: "./migrations",
-});
+    migrations: {
+        path: "./migrations",
+        source: "prisma" // or "drizzle"
+    }
+})
+                ]]></example>
+            </new_database>
 
--- todo/migrations/1_create_table.up.sql --
+            <existing_database>
+                <description>Reference an existing database</description>
+                <example><![CDATA[
+const db = SQLDatabase.named("todo")
+                ]]></example>
+            </existing_database>
+        </methods>
+    </database_creation>
+
+    <migrations>
+        <conventions>
+            <naming>
+                <rule>Start with number followed by underscore</rule>
+                <rule>Must increase sequentially</rule>
+                <rule>End with .up.sql</rule>
+                <examples>
+                    <example>1_first_migration.up.sql</example>
+                    <example>2_second_migration.up.sql</example>
+                    <example>0001_migration.up.sql</example>
+                </examples>
+            </naming>
+            
+            <structure>
+                <directory>migrations within service directory</directory>
+                <pattern>number_name.up.sql</pattern>
+            </structure>
+        </conventions>
+
+        <error_handling>
+            <process>Encore rolls back failed migrations</process>
+            <tracking>
+                <table>schema_migrations</table>
+                <columns>
+                    <column name="version" type="bigint">Tracks last applied migration</column>
+                    <column name="dirty" type="boolean">Not used by default</column>
+                </columns>
+            </tracking>
+        </error_handling>
+
+        <example><![CDATA[
+-- migrations/1_create_table.up.sql
 CREATE TABLE todo_item (
-  id BIGSERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  done BOOLEAN NOT NULL DEFAULT false
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    done BOOLEAN NOT NULL DEFAULT false
 );
-  </code_example>
-</database_creation>
+        ]]></example>
+    </migrations>
 
-<migrations>
-  <conventions>
-    <naming>
-      <rule>Start with number followed by underscore</rule>
-      <rule>Must increase sequentially</rule>
-      <rule>End with .up.sql</rule>
-      <examples>
-        <example>1_first_migration.up.sql</example>
-        <example>2_second_migration.up.sql</example>
-        <example>0001_migration.up.sql</example>
-      </examples>
-    </naming>
-    
-    <structure>
-      <directory>migrations within service directory</directory>
-      <pattern>number_name.up.sql</pattern>
-    </structure>
-  </conventions>
-</migrations>
-
-<database_operations>
-  <querying>
-    <methods>
-      <method name="query">
-        <description>Returns async iterator for multiple rows</description>
-        <examples>
-          <example>
-const allTodos = await db.query`SELECT * FROM todo_item`;
+    <querying>
+        <methods>
+            <method name="query">
+                <description>Stream multiple rows using async iterator</description>
+                <example><![CDATA[
+// Basic query
+const allTodos = db.query`SELECT * FROM todo_item`;
 for await (const todo of allTodos) {
-  // Process each todo
+    console.log(todo.title);
 }
-          </example>
-          <example note="Specify the type of the row to be returned for type safety">
-const rows = await db.query<{ email: string; source_url: string; scraped_at: Date }>`
+
+// With type safety
+interface EmailRow {
+    email: string
+    source_url: string
+    scraped_at: Date
+}
+
+const rows = db.query<EmailRow>`
     SELECT email, source_url, created_at as scraped_at
     FROM scraped_emails
     ORDER BY created_at DESC
 `;
+                ]]></example>
+            </method>
 
-// Fetch all rows and return them as an array
-const emails = [];
-for await (const row of rows) {
-    emails.push(row);
+            <method name="queryRow">
+                <description>Get single row or null</description>
+                <example><![CDATA[
+async function getTodoTitle(id: number): Promise<string | undefined> {
+    const row = await db.queryRow`
+        SELECT title 
+        FROM todo_item 
+        WHERE id = ${id}
+    `;
+    return row?.title;
 }
+                ]]></example>
+            </method>
 
-return { emails };
-          </example>
-        </examples>
-      </method>
-      
-      <method name="queryRow">
-        <description>Returns single row or null</description>
-        <example>
-async function getTodoTitle(id: number): string | undefined {
-  const row = await db.queryRow`SELECT title FROM todo_item WHERE id = ${id}`;
-  return row?.title;
-}
-        </example>
-      </method>
-    </methods>
-  </querying>
-
-  <inserting>
-    <method name="exec">
-      <description>For inserts and queries not returning rows</description>
-      <example>
+            <method name="exec">
+                <description>Execute commands without returning rows</description>
+                <example><![CDATA[
 await db.exec`
-  INSERT INTO todo_item (title, done)
-  VALUES (${title}, false)
+    INSERT INTO todo_item (title, done)
+    VALUES (${title}, false)
 `;
-      </example>
-    </method>
-  </inserting>
-</database_operations>
+                ]]></example>
+            </method>
+        </methods>
+    </querying>
 
-<database_access>
-  <cli_commands>
-    <command name="db shell">Opens psql shell to named database</command>
-    <command name="db conn-uri">Outputs connection string</command>
-    <command name="db proxy">Sets up local connection proxy</command>
-  </cli_commands>
-</database_access>
+    <connections>
+        <dedicated_connections>
+            <description>Use for transactions and connection management</description>
+            <example><![CDATA[
+const conn = await db.acquire()
+try {
+    await conn.exec`BEGIN`
+    await conn.exec`
+        INSERT INTO users (name, email) 
+        VALUES (${name}, ${email})
+    `
+    await conn.exec`COMMIT`
+} catch (err) {
+    await conn.exec`ROLLBACK`
+    throw err
+} finally {
+    await conn.close()
+}
+            ]]></example>
+        </dedicated_connections>
 
-<error_handling>
-  <migrations>
-    <process>Encore rolls back failed migrations</process>
-    <tracking>
-      <table>schema_migrations</table>
-      <columns>
-        <column name="version" type="bigint">Tracks last applied migration</column>
-        <column name="dirty" type="boolean">Not used by default</column>
-      </columns>
-    </tracking>
-  </migrations>
-</error_handling>
+        <cli_access>
+            <commands>
+                <command name="db shell">Opens psql shell to named database</command>
+                <command name="db conn-uri">Outputs connection string</command>
+                <command name="db proxy">Sets up local connection proxy</command>
+            </commands>
+        </cli_access>
+    </connections>
 
-<advanced_topics>
-  <sharing_databases>
-    <method name="shared_module">Export SQLDatabase object from shared module</method>
-    <method name="named_reference">Use SQLDatabase.named("name") to reference existing database</method>
-  </sharing_databases>
+    <advanced_topics>
+        <sharing_databases>
+            <method name="shared_module">Export SQLDatabase object from shared module</method>
+            <method name="named_reference">Use SQLDatabase.named("name") to reference existing database</method>
+        </sharing_databases>
 
-  <extensions>
-    <available>
-      <extension>pgvector</extension>
-      <extension>PostGIS</extension>
-    </available>
-    <source>Uses encoredotdev/postgres Docker image</source>
-  </extensions>
+        <extensions>
+            <available>
+                <extension>pgvector</extension>
+                <extension>PostGIS</extension>
+            </available>
+            <source>Uses encoredotdev/postgres Docker image</source>
+        </extensions>
 
-  <orm_support>
-    <compatibility>
-      <requirement>ORM must support standard SQL driver connection</requirement>
-      <requirement>Migration framework must generate standard SQL files</requirement>
-    </compatibility>
-    <supported_orms>
-      <orm>Prisma</orm>
-      <orm>Drizzle</orm>
-    </supported_orms>
-  </orm_support>
-</advanced_topics>
+        <orm_support>
+            <compatibility>
+                <requirement>ORM must support standard SQL driver connection</requirement>
+                <requirement>Migration framework must generate standard SQL files</requirement>
+            </compatibility>
+            <supported_orms>
+                <orm>Prisma</orm>
+                <orm>Drizzle</orm>
+            </supported_orms>
+        </orm_support>
+    </advanced_topics>
 
+    <supported_types>
+        <type name="string" />
+        <type name="number" />
+        <type name="boolean" />
+        <type name="Buffer" />
+        <type name="Date" />
+        <type name="null" />
+    </supported_types>
+
+    <best_practices>
+        <practice>Always use template literals for queries to prevent SQL injection</practice>
+        <practice>Close acquired connections in finally blocks</practice>
+        <practice>Define TypeScript interfaces for row types</practice>
+        <practice>Use appropriate query method for each use case</practice>
+        <practice>Handle transaction rollbacks in catch blocks</practice>
+        <practice>Consider using migrations for schema management</practice>
+    </best_practices>
 </sql_databases>
+
 
 <cron_jobs>
 
