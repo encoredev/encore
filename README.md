@@ -18,6 +18,10 @@
 - **TypeScript:** `encore app create --example=ts/hello-world`
 - **Go:** `encore app create --example=hello-world`
 
+**🤖 Add LLM instructions to Encore your app:**
+- **TypeScript:** Clone the file [ts_llm_instructions.txt](./ts_llm_instructions.txt) and add it to the root of your app.
+- **Go:** Coming soon
+
 **🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
 **🚀 See products being build with Encore:** [Showcase](https://encore.cloud/showcase)
