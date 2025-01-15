@@ -402,6 +402,11 @@
 				file: "go/cli/infra-namespaces"
 			}, {
 				kind: "basic"
+				text: "CLI Configuration"
+				path: "/go/cli/config-reference"
+				file: "go/cli/config-reference"
+			}, {
+				kind: "basic"
 				text: "Telemetry"
 				path: "/go/cli/telemetry"
 				file: "go/cli/telemetry"
@@ -823,6 +828,11 @@
 				text: "Infra Namespaces"
 				path: "/ts/cli/infra-namespaces"
 				file: "ts/cli/infra-namespaces"
+			}, {
+				kind: "basic"
+				text: "CLI Configuration"
+				path: "/ts/cli/config-reference"
+				file: "ts/cli/config-reference"
 			}, {
 				kind: "basic"
 				text: "Telemetry"
