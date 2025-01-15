@@ -26,7 +26,6 @@
   - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
   - For other tools, place the file in your app root.
 
-
 **🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
 **🚀 See products being build with Encore:** [Showcase](https://encore.cloud/showcase)
