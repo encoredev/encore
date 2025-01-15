@@ -32,6 +32,17 @@ This is needed when you want Encore to manage functionality like secrets and han
 
 This will create an example application, with a simple REST API, in a new folder using the app name you picked.
 
+### Optional: Add Encore LLM instructions
+
+To help LLM powered tools like Cursor and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+
+🥐 Download the [go_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/go_llm_instructions.txt) file.
+  
+  **How to use:**
+  - Cursor: Rename the file to `.cursorrules`.
+  - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
+  - For other tools, place the file in your app root.
+
 ### Let's take a look at the code
 
 Part of what makes Encore different is the simple developer experience when building distributed systems.
