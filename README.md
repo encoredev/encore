@@ -22,9 +22,9 @@
 - **Encore.ts:** [ts_llm_instructions.txt](./ts_llm_instructions.txt)
 - **Encore.go:** [go_llm_instructions.txt](./go_llm_instructions.txt)
 - **How to use:**
-  - Download the appropriate file above and place in your app root.
-  - When using Cursor, put in your app root and rename to `.cursorrules`.
-  - When using GitHub Copilot, paste content in `.github/copilot-instructions.md`.
+  - Cursor: Rename the file to `.cursorrules`.
+  - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
+  - For other tools, place the file in your app root.
 
 
 **🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
