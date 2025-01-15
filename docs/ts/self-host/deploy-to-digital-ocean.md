@@ -7,6 +7,9 @@ lang: ts
 
 If you prefer manual deployment over the automation offered by Encore's Platform, Encore simplifies the process of deploying your app to the cloud provider of your choice. This guide will walk you through deploying an Encore app to DigitalOcean's App Platform using Docker.
 
+### Video tutorial
+<iframe width="560" height="315" src="https://www.youtube.com/embed/D3SjuCK_5qE?si=zLxEzG7dgTBlPkwU" title="Deploying a TypeScript backend to DigitalOcean using Docker & GitHub Actions" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ### Prerequisites
 1. **DigitalOcean Account**: Make sure you have a DigitalOcean account. If not, you can [sign up here](https://www.digitalocean.com/).
 2. **Docker Installed**: Ensure Docker is installed on your local machine. You can download it from the [Docker website](https://www.docker.com/get-started).
@@ -156,6 +159,7 @@ DigitalOcean’s App Platform provides managed databases, allowing you to add a 
          },
          "databases": {
             "mydb": {
+               "name": "mydb",
                "username": "doadmin",
                "password": {"$env": "DB_PASSWORD"}
              }

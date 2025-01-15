@@ -174,5 +174,86 @@ console.log(data)
 
 Whenever you push a new Docker Image to the container registry, the GitHub action will trigger a new deployment on Railway.
 
+### Step 5: Add a Database to Your App
+
+Railway provides managed databases, allowing you to add a database to your app easily. Here’s how to set up a database for your app:
+
+1. **Create a database for your app on Railway**:
+   - Navigate to your Railway app.
+   - Click on **"Create"** → **"Database""** → **"Add PostgreSQL""**
+
+2. **Copy the connection details**:
+   - Click on the database you just created.
+   - Click the **"Data"** → **"Connect"** → **"Public Network"**.
+   - Copy the raw `psql` command connection details. 
+   
+3. **Create a database table**:
+   - Connect to the database using the `psql` command:
+   ```bash
+   PGPASSWORD=<password> psql -h <hostname>.rlwy.net -U postgres -p 39684 -d railway
+   ```
+   - Create a table
+   ```sql
+     CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        name TEXT
+     );
+     INSERT INTO users (name) VALUES ('Alice');
+   ```
+   
+4. **Declare a Database in your Encore app**:
+   - Open your Encore app’s codebase.
+   - Add `mydb` database to your app ([Encore Database Documentation](https://encore.dev/docs/ts/primitives/databases))
+   ```typescript
+      const mydb = new SQLDatabase("mydb", {
+         migrations: "./migrations",
+      });
+
+      export const getUser = api(
+        { expose: true, method: "GET", path: "/names/:id" },
+        async ({id}: {id:number}): Promise<{ id: number; name: string }> => {
+          return await mydb.queryRow`SELECT * FROM users WHERE id = ${id}` as { id: number; name: string };
+        }
+      );
+   ```
+
+5. **Create an Encore Infrastructure config**
+   - Create a file named `infra.config.json` in the root of your Encore app.
+   - Add the connection details to the file:
+   ```json
+   {
+      "$schema": "https://encore.dev/schemas/infra.schema.json",
+      "sql_servers": [
+      {
+         "host": "<hostname>.rlwy.net:39684",
+         "tls_config": {
+            "disable_ca_validation": true
+         },
+         "databases": {
+            "mydb": {
+               "name": "railway",
+               "username": "postgres",
+               "password": {"$env": "DB_PASSWORD"}
+             }
+         }
+      }]   
+   }
+   ```
+   Railway does not allow for downloading the CA certificate for the database, so we disable the CA validation.
+
+7. **Set Up Environment Variables (Optional)**:
+   - Click on the deployed image in your app view on Railway.
+   - Click **"Variables""**.
+   - Add the database password as an environment variable called `DB_PASSWORD`.
+
+8. **Make a new deployment**:
+   - Add commit and push the changes to your GitHub repository, this will trigger a new deploy on Railway.
+
+9. **Test the Database Connection**:
+   - Test the database connection by calling the API
+   ```bash
+    curl https://myapp.railway.app/names/1
+   ```
+
 ### Conclusion
 That’s it! You’ve successfully deployed an Encore app to Railway using Docker. You can now scale your app, monitor its performance, and manage it easily through the Railway dashboard. If you encounter any issues, refer to the Railway documentation or the Encore community for help. Happy coding!
