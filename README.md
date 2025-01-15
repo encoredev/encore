@@ -18,9 +18,14 @@
 - **TypeScript:** `encore app create --example=ts/hello-world`
 - **Go:** `encore app create --example=hello-world`
 
-**🤖 Add LLM instructions to Encore your app:**
-- **TypeScript:** Clone the file [ts_llm_instructions.txt](./ts_llm_instructions.txt) and add it to the root of your app.
-- **Go:** Coming soon
+**🤖 Add Encore LLM instructions to your app:**
+- **Encore.ts:** [ts_llm_instructions.txt](./ts_llm_instructions.txt)
+- **Encore.go:** [go_llm_instructions.txt](./go_llm_instructions.txt)
+- **How to use:**
+  - Download the appropriate file above and place in your app root.
+  - When using Cursor, put in your app root and rename to `.cursorrules`.
+  - When using GitHub Copilot, paste content in `.github/copilot-instructions.md`.
+
 
 **🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
