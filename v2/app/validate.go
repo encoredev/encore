@@ -7,6 +7,7 @@ import (
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/authhandler"
 	"encr.dev/v2/parser/apis/middleware"
+	"encr.dev/v2/parser/infra/caches"
 	"encr.dev/v2/parser/infra/objects"
 	"encr.dev/v2/parser/infra/pubsub"
 	"encr.dev/v2/parser/infra/secrets"
@@ -54,6 +55,9 @@ func (d *Desc) validate(pc *parsectx.Context, result *parser.Result) {
 			continue
 		case *sqldb.Database:
 			// Databases are allowed anywhere
+			continue
+		case *caches.Cluster:
+			// Cache clusters are allowed anywhere
 			continue
 
 		default:
