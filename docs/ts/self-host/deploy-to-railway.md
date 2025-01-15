@@ -243,7 +243,7 @@ Railway provides managed databases, allowing you to add a database to your app e
 
 7. **Set Up Environment Variables (Optional)**:
    - Click on the deployed image in your app view on Railway.
-   - Click **"Variables""**.
+   - Click **"Variables"**.
    - Add the database password as an environment variable called `DB_PASSWORD`.
 
 8. **Make a new deployment**:
