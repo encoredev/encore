@@ -34,6 +34,7 @@ import (
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/userconfig"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -107,6 +108,17 @@ const (
 	BrowserModeNever                     // never open
 	BrowserModeAlways                    // always open
 )
+
+func BrowserModeFromConfig(cfg *userconfig.Config) BrowserMode {
+	switch cfg.RunBrowser {
+	case "never":
+		return BrowserModeNever
+	case "always":
+		return BrowserModeAlways
+	default:
+		return BrowserModeAuto
+	}
+}
 
 func BrowserModeFromProto(b daemonpb.RunRequest_BrowserMode) BrowserMode {
 	switch b {

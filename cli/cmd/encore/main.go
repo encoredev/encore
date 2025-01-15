@@ -10,8 +10,10 @@ import (
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
+
 	// Register commands
 	_ "encr.dev/cli/cmd/encore/app"
+	_ "encr.dev/cli/cmd/encore/config"
 	_ "encr.dev/cli/cmd/encore/k8s"
 	_ "encr.dev/cli/cmd/encore/namespace"
 	_ "encr.dev/cli/cmd/encore/secrets"
