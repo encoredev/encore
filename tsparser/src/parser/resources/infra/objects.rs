@@ -183,7 +183,7 @@ fn parse_bucket_ref(
                 let ops = match named.obj.name.as_deref() {
                     Some("Lister") => vec![Operation::ListObjects],
                     Some("Attrser") => vec![Operation::GetObjectMetadata],
-                    Some("Uploader") => vec![Operation::WriteObject],
+                    Some("Uploader") => vec![Operation::WriteObject, Operation::SignedUploadUrl],
                     Some("Downloader") => vec![Operation::ReadObjectContents],
                     Some("Remover") => vec![Operation::DeleteObject],
                     Some("PublicUrler") => vec![Operation::GetPublicUrl],
@@ -205,6 +205,7 @@ fn parse_bucket_ref(
                             "list" => Operation::ListObjects,
                             "exists" | "attrs" => Operation::GetObjectMetadata,
                             "upload" => Operation::WriteObject,
+                            "signedUploadUrl" => Operation::SignedUploadUrl,
                             "download" => Operation::ReadObjectContents,
                             "remove" => Operation::DeleteObject,
                             "publicUrl" => Operation::GetPublicUrl,
