@@ -9,8 +9,8 @@ use crate::objects;
 use crate::{encore::runtime::v1 as pb, EncoreName};
 
 use super::{
-    AttrsOptions, DeleteOptions, DownloadOptions, ExistsOptions, ListOptions, PublicUrlError,
-    UploadUrlOptions,
+    AttrsOptions, DeleteOptions, DownloadOptions, DownloadUrlOptions, ExistsOptions, ListOptions,
+    PublicUrlError, UploadUrlOptions,
 };
 
 #[derive(Debug)]
@@ -90,6 +90,15 @@ impl objects::ObjectImpl for Object {
     ) -> Pin<Box<dyn Future<Output = Result<String, objects::Error>> + Send>> {
         Box::pin(future::ready(Err(objects::Error::Internal(
             anyhow::anyhow!("noop bucket does not support getting upload URL"),
+        ))))
+    }
+
+    fn signed_download_url(
+        self: Arc<Self>,
+        _options: DownloadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, objects::Error>> + Send>> {
+        Box::pin(future::ready(Err(objects::Error::Internal(
+            anyhow::anyhow!("noop bucket does not support getting download URL"),
         ))))
     }
 

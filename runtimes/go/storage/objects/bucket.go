@@ -406,6 +406,11 @@ type SignedUploadURL struct {
 	URL string
 }
 
+type SignedDownloadURL struct {
+	// The signed URL
+	URL string
+}
+
 // List lists objects in the bucket.
 func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) iter.Seq2[*ListEntry, error] {
 	return func(yield func(*ListEntry, error) bool) {
@@ -606,6 +611,32 @@ func (b *Bucket) SignedUploadURL(ctx context.Context, object string, options ...
 		return nil, err
 	}
 	return &SignedUploadURL{URL: url}, nil
+}
+
+// Generates an external URL to allow uploading an object to the bucket.
+//
+// Anyone with possession of the URL can write to the given object name
+// without any additional auth.
+func (b *Bucket) SignedDownloadURL(ctx context.Context, object string, options ...DownloadURLOption) (*SignedDownloadURL, error) {
+	var opt downloadURLOptions
+	for _, o := range options {
+		o.applyDownloadURL(&opt)
+	}
+	if opt.TTL == 0 {
+		opt.TTL = time.Hour
+	}
+	if opt.TTL > 7*24*time.Hour {
+		return nil, types.ErrInvalidArgument
+	}
+	url, err := b.impl.SignedDownloadURL(types.DownloadURLData{
+		Ctx:    ctx,
+		Object: b.toCloudObject(object),
+		TTL:    opt.TTL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &SignedDownloadURL{URL: url}, nil
 }
 
 // Exists reports whether an object exists in the bucket.

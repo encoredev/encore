@@ -196,7 +196,19 @@ func (b *bucket) SignedUploadURL(data types.UploadURLData) (string, error) {
 		Method:  "PUT",
 		Expires: time.Now().Add(data.TTL),
 	}
+	return b.signedURL(data.Object.String(), opts)
+}
 
+func (b *bucket) SignedDownloadURL(data types.DownloadURLData) (string, error) {
+	opts := &storage.SignedURLOptions{
+		Scheme:  storage.SigningSchemeV4,
+		Method:  "GET",
+		Expires: time.Now().Add(data.TTL),
+	}
+	return b.signedURL(data.Object.String(), opts)
+}
+
+func (b *bucket) signedURL(object string, opts *storage.SignedURLOptions) (string, error) {
 	// We use a fake GCS service for local development. Ideally, the runtime
 	// code would be oblivious to this once the GCS client is set up. But that
 	// turns out to be difficult for URL signing, so we add a special case
@@ -206,7 +218,7 @@ func (b *bucket) SignedUploadURL(data types.UploadURLData) (string, error) {
 		opts.PrivateKey = []byte(b.localSign.privateKey)
 	}
 
-	url, err := b.handle.SignedURL(data.Object.String(), opts)
+	url, err := b.handle.SignedURL(object, opts)
 	if err != nil {
 		return "", mapErr(err)
 	}
