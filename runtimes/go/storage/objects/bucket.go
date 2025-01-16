@@ -6,6 +6,7 @@ import (
 	"iter"
 	"net/url"
 	"strings"
+	"time"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/stack"
@@ -400,6 +401,11 @@ func (b *Bucket) mapListEntry(entry *types.ListEntry) *ListEntry {
 	}
 }
 
+type SignedUploadURL struct {
+	// The signed URL
+	URL string
+}
+
 // List lists objects in the bucket.
 func (b *Bucket) List(ctx context.Context, query *Query, options ...ListOption) iter.Seq2[*ListEntry, error] {
 	return func(yield func(*ListEntry, error) bool) {
@@ -508,6 +514,10 @@ var (
 	// ErrPreconditionFailed is returned when a precondition for an operation is not met,
 	// such as when an object already exists and Preconditions.NotExists is true.
 	ErrPreconditionFailed = types.ErrPreconditionFailed
+
+	// ErrInvalidArgument is returned when an argument for an operation is invalid or out
+	// of bounds. Such as when a too long time-to-live is passed to a sign URL operation.
+	ErrInvalidArgument = types.ErrInvalidArgument
 )
 
 // Attrs returns the attributes of an object in the bucket.
@@ -570,6 +580,32 @@ func (b *Bucket) Attrs(ctx context.Context, object string, options ...AttrsOptio
 	}
 
 	return b.mapAttrs(attrs), nil
+}
+
+// Generates an external URL to allow uploading an object to the bucket.
+//
+// Anyone with possession of the URL can write to the given object name
+// without any additional auth.
+func (b *Bucket) SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (*SignedUploadURL, error) {
+	var opt uploadURLOptions
+	for _, o := range options {
+		o.applyUploadURL(&opt)
+	}
+	if opt.TTL == 0 {
+		opt.TTL = time.Hour
+	}
+	if opt.TTL > 7*24*time.Hour {
+		return nil, types.ErrInvalidArgument
+	}
+	url, err := b.impl.SignedUploadURL(types.UploadURLData{
+		Ctx:    ctx,
+		Object: b.toCloudObject(object),
+		TTL:    opt.TTL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &SignedUploadURL{URL: url}, nil
 }
 
 // Exists reports whether an object exists in the bucket.

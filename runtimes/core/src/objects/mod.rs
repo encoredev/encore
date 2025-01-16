@@ -3,6 +3,7 @@ use futures::{Stream, StreamExt};
 use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
+use std::time::Duration;
 use std::{fmt::Debug, pin::Pin};
 use thiserror::Error;
 use tokio::io::AsyncRead;
@@ -50,6 +51,11 @@ trait ObjectImpl: Debug + Send + Sync {
         data: Box<dyn AsyncRead + Unpin + Send + Sync + 'static>,
         options: UploadOptions,
     ) -> Pin<Box<dyn Future<Output = Result<ObjectAttrs, Error>> + Send>>;
+
+    fn signed_upload_url(
+        self: Arc<Self>,
+        options: UploadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>>;
 
     fn download(
         self: Arc<Self>,
@@ -223,6 +229,18 @@ impl Object {
         }
     }
 
+    pub async fn signed_upload_url(
+        &self,
+        options: UploadUrlOptions,
+        _source: Option<Arc<model::Request>>,
+    ) -> Result<String, Error> {
+        const SEVEN_DAYS: Duration = Duration::new(7 * 86400, 0);
+        if options.ttl > SEVEN_DAYS {
+            return Err(Error::InvalidArgument);
+        }
+        self.imp.clone().signed_upload_url(options).await
+    }
+
     pub fn download_stream(
         &self,
         options: DownloadOptions,
@@ -370,6 +388,9 @@ pub enum Error {
     #[error("precondition failed")]
     PreconditionFailed,
 
+    #[error("invalid argument")]
+    InvalidArgument,
+
     #[error("internal error: {0:?}")]
     Internal(anyhow::Error),
 
@@ -417,6 +438,11 @@ pub struct DownloadOptions {
 #[derive(Debug, Default)]
 pub struct AttrsOptions {
     pub version: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct UploadUrlOptions {
+    pub ttl: Duration,
 }
 
 #[derive(Debug, Default)]

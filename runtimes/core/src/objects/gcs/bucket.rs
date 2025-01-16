@@ -3,16 +3,19 @@ use futures::TryStreamExt;
 use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
+use google_cloud_storage::sign::SignBy;
+use google_cloud_storage::sign::SignedURLOptions;
 use std::borrow::Cow;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::SystemTime;
 use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
     AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, Error, ExistsOptions, ListEntry,
-    ListOptions, ObjectAttrs, PublicUrlError, UploadOptions,
+    ListOptions, ObjectAttrs, PublicUrlError, UploadOptions, UploadUrlOptions,
 };
 use crate::{objects, CloudName, EncoreName};
 use google_cloud_storage as gcs;
@@ -26,16 +29,34 @@ pub struct Bucket {
     cloud_name: CloudName,
     public_base_url: Option<String>,
     key_prefix: Option<String>,
+    local_sign: Option<LocalSignOptions>,
+}
+
+#[derive(Debug)]
+pub struct LocalSignOptions {
+    base_url: String,
+    access_id: String,
+    private_key: String,
+}
+
+fn local_sign_config_from_client(client: &LazyGCSClient) -> Option<LocalSignOptions> {
+    client.cfg.local_sign.as_ref().map(|cfg| LocalSignOptions {
+        base_url: cfg.base_url.clone(),
+        access_id: cfg.access_id.clone(),
+        private_key: cfg.private_key.clone(),
+    })
 }
 
 impl Bucket {
     pub(super) fn new(client: Arc<LazyGCSClient>, cfg: &pb::Bucket) -> Self {
+        let local_sign = local_sign_config_from_client(&client);
         Self {
             client,
             encore_name: cfg.encore_name.clone().into(),
             cloud_name: cfg.cloud_name.clone().into(),
             public_base_url: cfg.public_base_url.clone(),
             key_prefix: cfg.key_prefix.clone(),
+            local_sign,
         }
     }
 
@@ -207,6 +228,56 @@ impl objects::ObjectImpl for Object {
         })
     }
 
+    fn signed_upload_url(
+        self: Arc<Self>,
+        options: UploadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
+        Box::pin(async move {
+            match self.bkt.client.get().await {
+                Ok(client) => {
+                    let gcs_opts = SignedURLOptions {
+                        method: gcs::sign::SignedURLMethod::PUT,
+                        expires: options.ttl,
+                        start_time: Some(SystemTime::now()),
+                        ..Default::default()
+                    };
+
+                    // We use a fake GCS service for local development. Ideally, the runtime
+                    // code would be oblivious to this once the GCS client is set up. But that
+                    // turns out to be difficult for URL signing, so we add a special case
+                    // here.
+                    let local_sign = &self.bkt.local_sign;
+                    let (access_id, sign_by) = match local_sign {
+                        Some(opt) => (
+                            Some(opt.access_id.clone()),
+                            Some(SignBy::PrivateKey(opt.private_key.as_bytes().to_vec())),
+                        ),
+                        None => (None, None),
+                    };
+
+                    let name = self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned();
+                    let mut url = client
+                        .signed_url(&self.bkt.cloud_name, &name, access_id, sign_by, gcs_opts)
+                        .await
+                        .map_err(|e| Error::Internal(e.into()))?;
+
+                    // More special handling for the local dev case.
+                    if let Some(cfg) = local_sign {
+                        url = replace_url_prefix(&url, &cfg.base_url)
+                            .into_owned()
+                            .to_string();
+                    }
+
+                    Ok(url)
+                }
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
+                    "unable to resolve client: {}",
+                    err
+                ))),
+            }
+        })
+    }
+
     fn exists(
         self: Arc<Self>,
         options: ExistsOptions,
@@ -365,6 +436,32 @@ impl objects::ObjectImpl for Object {
 
         let url = objects::public_url(base_url, &self.key);
         Ok(url)
+    }
+}
+
+fn replace_url_prefix<'a>(orig_url: &'a str, base: &str) -> Cow<'a, str> {
+    match url::Url::parse(orig_url) {
+        Ok(url) => {
+            let mut out = match url.path().is_empty() {
+                true => base.to_string(),
+                false => {
+                    format!(
+                        "{}/{}",
+                        base.trim_end_matches('/'),
+                        url.path().trim_start_matches("/")
+                    )
+                }
+            };
+            if let Some(query) = url.query() {
+                out.push('?');
+                out.push_str(query);
+            }
+            Cow::Owned(out)
+        }
+        Err(_) => {
+            // If the input URL fails parsing, just don't do the replace
+            Cow::Borrowed(orig_url)
+        }
     }
 }
 
