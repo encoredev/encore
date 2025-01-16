@@ -1002,9 +1002,7 @@ class BaseClient {
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
+        this.headers = {}
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
@@ -1182,6 +1180,17 @@ class BaseClient {
         return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
+    // helper to check if fetch will automatically extract a content-type for the body type
+    // see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+    bodyTypeHasDefaultContentType(body?: BodyInit): boolean {
+        if (typeof body === "string") {return true;}
+        if (body instanceof URLSearchParams) { return true}
+        if (body instanceof FormData) { return true}
+        if (body instanceof Blob) { return body.type !== ""}
+
+        return false;
+    }
+
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
@@ -1195,6 +1204,11 @@ class BaseClient {
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
 
+        // if there is no content-type set and the body type doesnt have a default body type,
+        // set the type to application/json for backwards compability.
+        if (!this.bodyTypeHasDefaultContentType(body) && init.headers["Content-Type"] === undefined) {
+            init.headers["Content-Type"] = "application/json";
+        }
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
