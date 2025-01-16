@@ -108,7 +108,8 @@ func (k *StringKeyspace[K]) With(opts ...WriteOption) *StringKeyspace[K] {
 func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newLen int64, err error) {
 	const op = "append"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -135,7 +136,8 @@ func (s *StringKeyspace[K]) Append(ctx context.Context, key K, val string) (newL
 func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64) (val string, err error) {
 	const op = "get range"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, false, k)(err)
+	endTrace := s.doTrace(op, false, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return "", err
 	}
@@ -158,7 +160,8 @@ func (s *StringKeyspace[K]) GetRange(ctx context.Context, key K, from, to int64)
 func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, val string) (newLen int64, err error) {
 	const op = "set range"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -178,7 +181,8 @@ func (s *StringKeyspace[K]) SetRange(ctx context.Context, key K, offset int64, v
 func (s *StringKeyspace[K]) Len(ctx context.Context, key K) (length int64, err error) {
 	const op = "len"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, false, k)(err)
+	endTrace := s.doTrace(op, false, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -289,7 +293,8 @@ func (s *IntKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, er
 func (s *IntKeyspace[K]) Increment(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "increment"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -314,7 +319,8 @@ func (s *IntKeyspace[K]) Increment(ctx context.Context, key K, delta int64) (new
 func (s *IntKeyspace[K]) Decrement(ctx context.Context, key K, delta int64) (newVal int64, err error) {
 	const op = "decrement"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -428,7 +434,8 @@ func (s *FloatKeyspace[K]) Delete(ctx context.Context, keys ...K) (deleted int, 
 func (s *FloatKeyspace[K]) Increment(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "increment"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -453,7 +460,8 @@ func (s *FloatKeyspace[K]) Increment(ctx context.Context, key K, delta float64) 
 func (s *FloatKeyspace[K]) Decrement(ctx context.Context, key K, delta float64) (newVal float64, err error) {
 	const op = "decrement"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -476,7 +484,8 @@ func (s *basicKeyspace[K, V]) with(opts []WriteOption) *basicKeyspace[K, V] {
 func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error) {
 	const op = "get"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, false, k)(err)
+	endTrace := s.doTrace(op, false, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return val, err
 	}
@@ -518,7 +527,8 @@ func (s *basicKeyspace[K, V]) GetAndSet(ctx context.Context, key K, val V) (prev
 func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val V, err error) {
 	const op = "get and delete"
 	k, err := s.key(key, op)
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return val, err
 	}
@@ -535,7 +545,8 @@ func (s *basicKeyspace[K, V]) GetAndDelete(ctx context.Context, key K) (val V, e
 func (s *client[K, V]) Delete(ctx context.Context, keys ...K) (deleted int, err error) {
 	const op = "delete"
 	ks, err := s.keys(keys, op)
-	defer s.doTrace(op, true, ks...)(err)
+	endTrace := s.doTrace(op, true, ks...)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -565,7 +576,8 @@ func (s *basicKeyspace[K, V]) set(ctx context.Context, key K, val V, flag setFla
 		return "", "", err
 	}
 
-	defer s.doTrace(op, true, k)(err)
+	endTrace := s.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 
 	get := (flag & setGet) == setGet
 	nx := (flag & setNX) == setNX

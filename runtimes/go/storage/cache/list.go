@@ -73,7 +73,8 @@ func (s *ListKeyspace[K, V]) Delete(ctx context.Context, keys ...K) (deleted int
 func (l *ListKeyspace[K, V]) PushLeft(ctx context.Context, key K, values ...V) (newLen int64, err error) {
 	const op = "push left"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -102,7 +103,8 @@ func (l *ListKeyspace[K, V]) PushLeft(ctx context.Context, key K, values ...V) (
 func (l *ListKeyspace[K, V]) PushRight(ctx context.Context, key K, values ...V) (newLen int64, err error) {
 	const op = "push right"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -123,7 +125,8 @@ func (l *ListKeyspace[K, V]) PushRight(ctx context.Context, key K, values ...V) 
 func (l *ListKeyspace[K, V]) PopLeft(ctx context.Context, key K) (val V, err error) {
 	const op = "pop left"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return val, err
 	}
@@ -146,7 +149,8 @@ func (l *ListKeyspace[K, V]) PopLeft(ctx context.Context, key K) (val V, err err
 func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err error) {
 	const op = "pop right"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return val, err
 	}
@@ -169,7 +173,8 @@ func (l *ListKeyspace[K, V]) PopRight(ctx context.Context, key K) (val V, err er
 func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (length int64, err error) {
 	const op = "list len"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, false, k)(err)
+	endTrace := l.doTrace(op, false, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -192,7 +197,8 @@ func (l *ListKeyspace[K, V]) Len(ctx context.Context, key K) (length int64, err 
 func (l *ListKeyspace[K, V]) Trim(ctx context.Context, key K, start, stop int64) error {
 	const op = "list trim"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return err
 	}
@@ -213,7 +219,8 @@ func (l *ListKeyspace[K, V]) Trim(ctx context.Context, key K, start, stop int64)
 func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) (err error) {
 	const op = "list set"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return err
 	}
@@ -235,7 +242,8 @@ func (l *ListKeyspace[K, V]) Set(ctx context.Context, key K, idx int64, val V) (
 func (l *ListKeyspace[K, V]) Get(ctx context.Context, key K, idx int64) (val V, err error) {
 	const op = "list get"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, false, k)(err)
+	endTrace := l.doTrace(op, false, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return val, err
 	}
@@ -271,7 +279,8 @@ func (l *ListKeyspace[K, V]) GetRange(ctx context.Context, key K, start, stop in
 
 func (l *ListKeyspace[K, V]) getRange(ctx context.Context, key K, from, to int64, op string) (vals []V, err error) {
 	k, err := l.key(key, op)
-	defer l.doTrace(op, false, k)(err)
+	endTrace := l.doTrace(op, false, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +311,8 @@ func (l *ListKeyspace[K, V]) getRange(ctx context.Context, key K, from, to int64
 func (l *ListKeyspace[K, V]) InsertBefore(ctx context.Context, key K, needle, newVal V) (newLen int64, err error) {
 	const op = "insert before"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -328,7 +338,8 @@ func (l *ListKeyspace[K, V]) InsertBefore(ctx context.Context, key K, needle, ne
 func (l *ListKeyspace[K, V]) InsertAfter(ctx context.Context, key K, needle, newVal V) (newLen int64, err error) {
 	const op = "insert after"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -353,7 +364,8 @@ func (l *ListKeyspace[K, V]) InsertAfter(ctx context.Context, key K, needle, new
 func (l *ListKeyspace[K, V]) RemoveAll(ctx context.Context, key K, needle V) (removed int64, err error) {
 	const op = "remove all"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -375,7 +387,8 @@ func (l *ListKeyspace[K, V]) RemoveAll(ctx context.Context, key K, needle V) (re
 func (l *ListKeyspace[K, V]) RemoveFirst(ctx context.Context, key K, count int64, needle V) (removed int64, err error) {
 	const op = "remove first"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -404,7 +417,8 @@ func (l *ListKeyspace[K, V]) RemoveFirst(ctx context.Context, key K, count int64
 func (l *ListKeyspace[K, V]) RemoveLast(ctx context.Context, key K, count int64, needle V) (removed int64, err error) {
 	const op = "remove last"
 	k, err := l.key(key, op)
-	defer l.doTrace(op, true, k)(err)
+	endTrace := l.doTrace(op, true, k)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return 0, err
 	}
@@ -442,7 +456,8 @@ const (
 func (l *ListKeyspace[K, V]) Move(ctx context.Context, src, dst K, fromPos, toPos ListPos) (moved V, err error) {
 	const op = "list move"
 	ks, err := l.keys([]K{src, dst}, op)
-	defer l.doTrace(op, true, ks...)(err)
+	endTrace := l.doTrace(op, true, ks...)
+	defer func() { endTrace(err) }()
 	if err != nil {
 		return moved, err
 	}
