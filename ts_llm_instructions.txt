@@ -24,6 +24,11 @@
   - Always use Node.js `import`, never use `require`.
 </nodejs_style_guide>
 
+<typescript_style_guide>
+  <rule>Use interface or type definitions for complex objects</rule>
+  <rule>Prefer TypeScript's built-in utility types (e.g., Record, Partial, Pick) over any</rule>
+</typescript_style_guide>
+
 <encore_ts_domain_knowledge>
 
 <api_definition>
@@ -1633,3 +1638,179 @@ https://github.com/encoredev/examples/tree/main/ts/uptime
 </encore_ts_example_apps>
 
 </encore_ts_domain_knowledge>
+
+<encore_cli_reference>
+<execution_commands>
+<run>
+<command>encore run [--debug] [--watch=true] [flags]</command>
+<purpose>Runs your application</purpose>
+</run>
+</execution_commands>
+
+<app_management>
+<clone>
+<command>encore app clone [app-id] [directory]</command>
+<purpose>Clone an Encore app to your computer</purpose>
+</clone>
+
+<create>
+<command>encore app create [name]</command>
+<purpose>Create a new Encore app</purpose>
+</create>
+
+<init>
+<command>encore app init [name]</command>
+<purpose>Create new app from existing repository</purpose>
+</init>
+
+<link>
+<command>encore app link [app-id]</command>
+<purpose>Link app with server</purpose>
+</link>
+</app_management>
+
+<authentication>
+<login>
+<command>encore auth login</command>
+<purpose>Log in to Encore</purpose>
+</login>
+
+<logout>
+<command>encore auth logout</command>
+<purpose>Logs out current user</purpose>
+</logout>
+
+<signup>
+<command>encore auth signup</command>
+<purpose>Create new account</purpose>
+</signup>
+
+<whoami>
+<command>encore auth whoami</command>
+<purpose>Show current user</purpose>
+</whoami>
+</authentication>
+
+<daemon_management>
+<restart>
+<command>encore daemon</command>
+<purpose>Restart daemon for unexpected behavior</purpose>
+</restart>
+
+<env>
+<command>encore daemon env</command>
+<purpose>Output environment information</purpose>
+</env>
+</daemon_management>
+
+<database_commands>
+<shell>
+<command>encore db shell database-name [--env=name]</command>
+<purpose>Connect via psql shell</purpose>
+<permissions>--write, --admin, --superuser flags available</permissions>
+</shell>
+
+<connection>
+<command>encore db conn-uri database-name [--env=name]</command>
+<purpose>Output connection string</purpose>
+</connection>
+
+<proxy>
+<command>encore db proxy [--env=name]</command>
+<purpose>Set up local database connection proxy</purpose>
+</proxy>
+
+<reset>
+<command>encore db reset [service-names...]</command>
+<purpose>Reset specified service databases</purpose>
+</reset>
+</database_commands>
+
+<code_generation>
+<client>
+<command>encore gen client [app-id] [--env=name] [--lang=lang]</command>
+<purpose>Generate API client</purpose>
+<languages>
+- go: Go client with net/http
+- typescript: TypeScript with Fetch API
+- javascript: JavaScript with Fetch API
+- openapi: OpenAPI spec
+</languages>
+</client>
+</code_generation>
+
+<logging>
+<command>encore logs [--env=prod] [--json]</command>
+<purpose>Stream application logs</purpose>
+</logging>
+
+<kubernetes>
+<configure>
+<command>encore k8s configure --env=ENV_NAME</command>
+<purpose>Update kubectl config for environment</purpose>
+</configure>
+</kubernetes>
+
+<secrets>
+<set>
+<command>encore secret set --type types secret-name</command>
+<purpose>Set secret value</purpose>
+<types>production, development, preview, local</types>
+</set>
+
+<list>
+<command>encore secret list [keys...]</command>
+<purpose>List secrets</purpose>
+</list>
+
+<archive>
+<command>encore secret archive id</command>
+<purpose>Archive secret value</purpose>
+</archive>
+
+<unarchive>
+<command>encore secret unarchive id</command>
+<purpose>Unarchive secret value</purpose>
+</unarchive>
+</secrets>
+
+<version_management>
+<check>
+<command>encore version</command>
+<purpose>Report current version</purpose>
+</check>
+
+<update>
+<command>encore version update</command>
+<purpose>Check and apply updates</purpose>
+</update>
+</version_management>
+
+<vpn>
+<start>
+<command>encore vpn start</command>
+<purpose>Set up secure connection to private environments</purpose>
+</start>
+
+<status>
+<command>encore vpn status</command>
+<purpose>Check VPN connection status</purpose>
+</status>
+
+<stop>
+<command>encore vpn stop</command>
+<purpose>Stop VPN connection</purpose>
+</stop>
+</vpn>
+
+<build>
+<docker>
+<command>encore build docker</command>
+<purpose>Build portable Docker image</purpose>
+<flags>
+- --base string: Define base image
+- --push: Push to remote repository
+</flags>
+</docker>
+</build>
+</encore_cli_reference>
