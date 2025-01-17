@@ -48,7 +48,7 @@ class AuthenticationServiceClient {
     }
 
     async Docs(params) {
-        await this.baseClient.callAPI("POST", `/authentication.Docs`, JSON.stringify(params))
+        await this.baseClient.callTypedAPI("POST", `/authentication.Docs`, JSON.stringify(params))
     }
 }
 
@@ -74,13 +74,13 @@ class ProductsServiceClient {
         }
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/products.Create`, JSON.stringify(body), {headers})
+        const resp = await this.baseClient.callTypedAPI("POST", `/products.Create`, JSON.stringify(body), {headers})
         return await resp.json()
     }
 
     async List() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/products.List`)
+        const resp = await this.baseClient.callTypedAPI("GET", `/products.List`)
         return await resp.json()
     }
 }
@@ -116,11 +116,11 @@ class SvcServiceClient {
             boo: params.boo,
         }
 
-        await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
+        await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
     }
 
     async FallbackPath(a, b) {
-        await this.baseClient.callAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+        await this.baseClient.callTypedAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
     }
 
     async Get(params) {
@@ -129,7 +129,7 @@ class SvcServiceClient {
             boo: String(params.Baz),
         })
 
-        await this.baseClient.callAPI("GET", `/svc.Get`, undefined, {query})
+        await this.baseClient.callTypedAPI("GET", `/svc.Get`, undefined, {query})
     }
 
     async GetRequestWithAllInputTypes(params) {
@@ -145,7 +145,7 @@ class SvcServiceClient {
         })
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
+        const resp = await this.baseClient.callTypedAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
@@ -175,22 +175,22 @@ class SvcServiceClient {
             "x-uuid":    String(params.UUID),
         })
 
-        await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
+        await this.baseClient.callTypedAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
     }
 
     async Nested(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.Nested`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/svc.Nested`, JSON.stringify(params))
         return await resp.json()
     }
 
     async RESTPath(a, b) {
-        await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
+        await this.baseClient.callTypedAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
     }
 
     async Rec(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.Rec`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/svc.Rec`, JSON.stringify(params))
         return await resp.json()
     }
 
@@ -211,7 +211,7 @@ class SvcServiceClient {
         }
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, JSON.stringify(body), {headers, query})
+        const resp = await this.baseClient.callTypedAPI("POST", `/svc.RequestWithAllInputTypes`, JSON.stringify(body), {headers, query})
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
@@ -225,7 +225,7 @@ class SvcServiceClient {
      */
     async TupleInputOutput(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/svc.TupleInputOutput`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/svc.TupleInputOutput`, JSON.stringify(params))
         return await resp.json()
     }
 
@@ -234,7 +234,7 @@ class SvcServiceClient {
     }
 
     async Webhook2(a, b) {
-        await this.baseClient.callAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+        await this.baseClient.callTypedAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
     }
 }
 
@@ -447,9 +447,7 @@ const boundFetch = fetch.bind(this)
 class BaseClient {
     constructor(baseURL, options) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
+        this.headers = {}
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
@@ -565,6 +563,15 @@ class BaseClient {
 
         const queryString = query ? '?' + encodeQuery(query) : ''
         return new StreamOut(this.baseURL + path + queryString, headers);
+    }
+
+
+    // callTypedAPI makes an API call, defaulting content type to "application/json"
+    async callTypedAPI(method, path, body, params) {
+        return this.callAPI(method, path, body, {
+            ...params,
+            headers: { "Content-Type": "application/json", ...params?.headers }
+        });
     }
 
     // callAPI is used by each generated API method to actually make the request

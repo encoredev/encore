@@ -54,28 +54,28 @@ class CacheServiceClient {
 
     async GetList(key) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/cache/list/${encodeURIComponent(key)}`)
+        const resp = await this.baseClient.callTypedAPI("GET", `/cache/list/${encodeURIComponent(key)}`)
         return await resp.json()
     }
 
     async GetStruct(key) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/cache/struct/${encodeURIComponent(key)}`)
+        const resp = await this.baseClient.callTypedAPI("GET", `/cache/struct/${encodeURIComponent(key)}`)
         return await resp.json()
     }
 
     async Incr(key) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/cache/incr/${encodeURIComponent(key)}`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/cache/incr/${encodeURIComponent(key)}`)
         return await resp.json()
     }
 
     async PostList(key, val) {
-        await this.baseClient.callAPI("POST", `/cache/list/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
+        await this.baseClient.callTypedAPI("POST", `/cache/list/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
     }
 
     async PostStruct(key, val) {
-        await this.baseClient.callAPI("POST", `/cache/struct/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
+        await this.baseClient.callTypedAPI("POST", `/cache/struct/${encodeURIComponent(key)}/${encodeURIComponent(val)}`)
     }
 }
 
@@ -89,7 +89,7 @@ class DiServiceClient {
     }
 
     async One() {
-        await this.baseClient.callAPI("POST", `/di/one`)
+        await this.baseClient.callTypedAPI("POST", `/di/one`)
     }
 
     async Three(method, body, options) {
@@ -98,7 +98,7 @@ class DiServiceClient {
 
     async Two() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/di/two`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/di/two`)
         return await resp.json()
     }
 }
@@ -117,7 +117,7 @@ class EchoServiceClient {
      */
     async AppMeta() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.AppMeta`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.AppMeta`)
         return await resp.json()
     }
 
@@ -126,13 +126,13 @@ class EchoServiceClient {
      */
     async BasicEcho(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.BasicEcho`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.BasicEcho`, JSON.stringify(params))
         return await resp.json()
     }
 
     async ConfigValues() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.ConfigValues`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.ConfigValues`)
         return await resp.json()
     }
 
@@ -141,7 +141,7 @@ class EchoServiceClient {
      */
     async Echo(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.Echo`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.Echo`, JSON.stringify(params))
         return await resp.json()
     }
 
@@ -150,7 +150,7 @@ class EchoServiceClient {
      */
     async EmptyEcho(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.EmptyEcho`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.EmptyEcho`, JSON.stringify(params))
         return await resp.json()
     }
 
@@ -159,7 +159,7 @@ class EchoServiceClient {
      */
     async Env() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.Env`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.Env`)
         return await resp.json()
     }
 
@@ -174,7 +174,7 @@ class EchoServiceClient {
         })
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.HeadersEcho`, undefined, {headers})
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
@@ -193,7 +193,7 @@ class EchoServiceClient {
             value: params.Value,
         })
 
-        await this.baseClient.callAPI("GET", `/echo.MuteEcho`, undefined, {query})
+        await this.baseClient.callTypedAPI("GET", `/echo.MuteEcho`, undefined, {query})
     }
 
     /**
@@ -201,7 +201,7 @@ class EchoServiceClient {
      */
     async NilResponse() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/echo.NilResponse`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.NilResponse`)
         return await resp.json()
     }
 
@@ -240,7 +240,7 @@ class EchoServiceClient {
         }
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, JSON.stringify(body), {headers, query})
+        const resp = await this.baseClient.callTypedAPI("POST", `/NonBasicEcho/${encodeURIComponent(pathString)}/${encodeURIComponent(pathInt)}/${pathWild.map(encodeURIComponent).join("/")}`, JSON.stringify(body), {headers, query})
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
@@ -253,7 +253,7 @@ class EchoServiceClient {
      * Noop does nothing
      */
     async Noop() {
-        await this.baseClient.callAPI("GET", `/echo.Noop`)
+        await this.baseClient.callTypedAPI("GET", `/echo.Noop`)
     }
 
     /**
@@ -261,7 +261,7 @@ class EchoServiceClient {
      */
     async Pong() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/echo.Pong`)
+        const resp = await this.baseClient.callTypedAPI("GET", `/echo.Pong`)
         return await resp.json()
     }
 
@@ -269,7 +269,7 @@ class EchoServiceClient {
      * Publish publishes a request on a topic
      */
     async Publish() {
-        await this.baseClient.callAPI("POST", `/echo.Publish`)
+        await this.baseClient.callTypedAPI("POST", `/echo.Publish`)
     }
 }
 
@@ -283,7 +283,7 @@ class EmptycfgServiceClient {
     }
 
     async AnAPI() {
-        await this.baseClient.callAPI("POST", `/emptycfg.AnAPI`)
+        await this.baseClient.callTypedAPI("POST", `/emptycfg.AnAPI`)
     }
 }
 
@@ -297,7 +297,7 @@ class EndtoendServiceClient {
     }
 
     async GeneratedWrappersEndToEndTest() {
-        await this.baseClient.callAPI("GET", `/generated-wrappers-end-to-end-test`)
+        await this.baseClient.callTypedAPI("GET", `/generated-wrappers-end-to-end-test`)
     }
 }
 
@@ -311,18 +311,18 @@ class MiddlewareServiceClient {
     }
 
     async Error() {
-        await this.baseClient.callAPI("POST", `/middleware.Error`)
+        await this.baseClient.callTypedAPI("POST", `/middleware.Error`)
     }
 
     async ResponseGen(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseGen`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/middleware.ResponseGen`, JSON.stringify(params))
         return await resp.json()
     }
 
     async ResponseRewrite(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/middleware.ResponseRewrite`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/middleware.ResponseRewrite`, JSON.stringify(params))
         return await resp.json()
     }
 }
@@ -342,7 +342,7 @@ class TestServiceClient {
      */
     async GetMessage(clientID) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("GET", `/last_message/${encodeURIComponent(clientID)}`)
+        const resp = await this.baseClient.callTypedAPI("GET", `/last_message/${encodeURIComponent(clientID)}`)
         return await resp.json()
     }
 
@@ -392,7 +392,7 @@ class TestServiceClient {
         }
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/test.MarshallerTestHandler`, JSON.stringify(body), {headers, query})
+        const resp = await this.baseClient.callTypedAPI("POST", `/test.MarshallerTestHandler`, JSON.stringify(body), {headers, query})
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
@@ -412,14 +412,14 @@ class TestServiceClient {
      * Noop allows us to test if a simple HTTP request can be made
      */
     async Noop() {
-        await this.baseClient.callAPI("POST", `/test.Noop`)
+        await this.baseClient.callTypedAPI("POST", `/test.Noop`)
     }
 
     /**
      * NoopWithError allows us to test if the structured errors are returned
      */
     async NoopWithError() {
-        await this.baseClient.callAPI("POST", `/test.NoopWithError`)
+        await this.baseClient.callTypedAPI("POST", `/test.NoopWithError`)
     }
 
     /**
@@ -427,7 +427,7 @@ class TestServiceClient {
      */
     async PathMultiSegments(bool, _int, string, uuid, wildcard) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(_int)}/${encodeURIComponent(string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/multi/${encodeURIComponent(bool)}/${encodeURIComponent(_int)}/${encodeURIComponent(string)}/${encodeURIComponent(uuid)}/${wildcard.map(encodeURIComponent).join("/")}`)
         return await resp.json()
     }
 
@@ -460,7 +460,7 @@ class TestServiceClient {
         }
 
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, JSON.stringify(body), {headers, query})
+        const resp = await this.baseClient.callTypedAPI("PUT", `/rest/object/${encodeURIComponent(objType)}/${encodeURIComponent(name)}`, JSON.stringify(body), {headers, query})
 
         //Populate the return object from the JSON body and received headers
         const rtn = await resp.json()
@@ -474,7 +474,7 @@ class TestServiceClient {
      */
     async SimpleBodyEcho(params) {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/test.SimpleBodyEcho`, JSON.stringify(params))
+        const resp = await this.baseClient.callTypedAPI("POST", `/test.SimpleBodyEcho`, JSON.stringify(params))
         return await resp.json()
     }
 
@@ -483,7 +483,7 @@ class TestServiceClient {
      */
     async TestAuthHandler() {
         // Now make the actual call to the API
-        const resp = await this.baseClient.callAPI("POST", `/test.TestAuthHandler`)
+        const resp = await this.baseClient.callTypedAPI("POST", `/test.TestAuthHandler`)
         return await resp.json()
     }
 
@@ -492,7 +492,7 @@ class TestServiceClient {
      * but doesn't return anything
      */
     async UpdateMessage(clientID, params) {
-        await this.baseClient.callAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, JSON.stringify(params))
+        await this.baseClient.callTypedAPI("PUT", `/last_message/${encodeURIComponent(clientID)}`, JSON.stringify(params))
     }
 }
 
@@ -506,7 +506,7 @@ class ValidationServiceClient {
     }
 
     async TestOne(params) {
-        await this.baseClient.callAPI("POST", `/validation.TestOne`, JSON.stringify(params))
+        await this.baseClient.callTypedAPI("POST", `/validation.TestOne`, JSON.stringify(params))
     }
 }
 
@@ -719,9 +719,7 @@ const boundFetch = fetch.bind(this)
 class BaseClient {
     constructor(baseURL, options) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
+        this.headers = {}
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
@@ -843,6 +841,15 @@ class BaseClient {
 
         const queryString = query ? '?' + encodeQuery(query) : ''
         return new StreamOut(this.baseURL + path + queryString, headers);
+    }
+
+
+    // callTypedAPI makes an API call, defaulting content type to "application/json"
+    async callTypedAPI(method, path, body, params) {
+        return this.callAPI(method, path, body, {
+            ...params,
+            headers: { "Content-Type": "application/json", ...params?.headers }
+        });
     }
 
     // callAPI is used by each generated API method to actually make the request
