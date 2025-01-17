@@ -411,7 +411,7 @@ export namespace svc {
             return await resp.json() as Tuple<boolean, Foo>
         }
 
-        public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
+        public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
         }
 

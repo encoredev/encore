@@ -145,7 +145,7 @@ export namespace di {
             await this.baseClient.callAPI("POST", `/di/one`)
         }
 
-        public async Three(method: string, body?: BodyInit, options?: CallParameters): Promise<Response> {
+        public async Three(method: string, body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/di/raw`, body, options)
         }
 
@@ -648,7 +648,7 @@ export namespace test {
          * RawEndpoint allows us to test the clients' ability to send raw requests
          * under auth
          */
-        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
+        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string[], body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/raw/blah/${id.map(encodeURIComponent).join("/")}`, body, options)
         }
 
