@@ -2,7 +2,7 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 import { unwrapErr } from "./error";
-import { BucketPerms, Uploader, Downloader, Attrser, Lister, Remover, PublicUrler } from "./refs";
+import { BucketPerms, Uploader, SignedUploader, Downloader, Attrser, Lister, Remover, PublicUrler } from "./refs";
 
 export interface BucketConfig {
   /**
@@ -21,7 +21,7 @@ export interface BucketConfig {
 /**
  * Defines a new Object Storage bucket infrastructure resource.
  */
-export class Bucket extends BucketPerms implements Uploader, Downloader, Attrser, Lister, Remover, PublicUrler {
+export class Bucket extends BucketPerms implements Uploader, SignedUploader, Downloader, Attrser, Lister, Remover, PublicUrler {
   impl: runtime.Bucket;
 
   /**
