@@ -481,6 +481,9 @@ impl MetaBuilder<'_> {
                         }
                         Operation::GetPublicUrl => v1::bucket_usage::Operation::GetPublicUrl,
                         Operation::SignedUploadUrl => v1::bucket_usage::Operation::SignedUploadUrl,
+                        Operation::SignedDownloadUrl => {
+                            v1::bucket_usage::Operation::SignedDownloadUrl
+                        }
                     } as i32);
 
                     let idx = svc_index.get(&svc.name).unwrap();

@@ -121,6 +121,7 @@ pub fn resolve_bucket_usage(data: &ResolveUsageData, bucket: Lrc<Bucket>) -> Opt
                 "exists" | "attrs" => Operation::GetObjectMetadata,
                 "upload" => Operation::WriteObject,
                 "signedUploadUrl" => Operation::SignedUploadUrl,
+                "signedDownloadUrl" => Operation::SignedDownloadUrl,
                 "download" => Operation::ReadObjectContents,
                 "remove" => Operation::DeleteObject,
 
@@ -184,10 +185,9 @@ fn parse_bucket_ref(
                     Some("Lister") => vec![Operation::ListObjects],
                     Some("Attrser") => vec![Operation::GetObjectMetadata],
                     Some("Uploader") => vec![Operation::WriteObject],
-                    Some("SignedUploader") => {
-                        vec![Operation::WriteObject, Operation::SignedUploadUrl]
-                    }
+                    Some("SignedUploader") => vec![Operation::SignedUploadUrl],
                     Some("Downloader") => vec![Operation::ReadObjectContents],
+                    Some("SignedDownloader") => vec![Operation::SignedDownloadUrl],
                     Some("Remover") => vec![Operation::DeleteObject],
                     Some("PublicUrler") => vec![Operation::GetPublicUrl],
                     _ => {
@@ -210,6 +210,7 @@ fn parse_bucket_ref(
                             "upload" => Operation::WriteObject,
                             "signedUploadUrl" => Operation::SignedUploadUrl,
                             "download" => Operation::ReadObjectContents,
+                            "signedDownloadUrl" => Operation::SignedDownloadUrl,
                             "remove" => Operation::DeleteObject,
                             "publicUrl" => Operation::GetPublicUrl,
                             _ => {
@@ -300,4 +301,7 @@ pub enum Operation {
     /// Generating a signed URL to allow an external recipient to create or
     /// update an object.
     SignedUploadUrl,
+
+    /// Generating a signed URL to allow an external recipient to read an object.
+    SignedDownloadUrl,
 }
