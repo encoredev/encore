@@ -36,3 +36,7 @@ func (b *BucketImpl) Attrs(data types.AttrsData) (*types.ObjectAttrs, error) {
 func (b *BucketImpl) SignedUploadURL(data types.UploadURLData) (string, error) {
 	return "", fmt.Errorf("cannot get upload url from noop bucket")
 }
+
+func (b *BucketImpl) SignedDownloadURL(data types.DownloadURLData) (string, error) {
+	return "", fmt.Errorf("cannot get download url from noop bucket")
+}

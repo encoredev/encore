@@ -96,6 +96,9 @@ message BucketUsage {
     // Generating a signed URL to allow an external recipient to create or
     // update an object.
     SIGNED_UPLOAD_URL = 8;
+
+    // Generating a signed URL to allow an external recipient to download an object.
+    SIGNED_DOWNLOAD_URL = 9;
   }
 }
 

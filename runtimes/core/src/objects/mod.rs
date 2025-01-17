@@ -57,6 +57,11 @@ trait ObjectImpl: Debug + Send + Sync {
         options: UploadUrlOptions,
     ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>>;
 
+    fn signed_download_url(
+        self: Arc<Self>,
+        options: DownloadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>>;
+
     fn download(
         self: Arc<Self>,
         options: DownloadOptions,
@@ -239,6 +244,18 @@ impl Object {
             return Err(Error::InvalidArgument);
         }
         self.imp.clone().signed_upload_url(options).await
+    }
+
+    pub async fn signed_download_url(
+        &self,
+        options: DownloadUrlOptions,
+        _source: Option<Arc<model::Request>>,
+    ) -> Result<String, Error> {
+        const SEVEN_DAYS: Duration = Duration::new(7 * 86400, 0);
+        if options.ttl > SEVEN_DAYS {
+            return Err(Error::InvalidArgument);
+        }
+        self.imp.clone().signed_download_url(options).await
     }
 
     pub fn download_stream(
@@ -442,6 +459,11 @@ pub struct AttrsOptions {
 
 #[derive(Debug, Default)]
 pub struct UploadUrlOptions {
+    pub ttl: Duration,
+}
+
+#[derive(Debug, Default)]
+pub struct DownloadUrlOptions {
     pub ttl: Duration,
 }
 
