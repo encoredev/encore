@@ -122,6 +122,20 @@ impl BucketObject {
     }
 
     #[napi]
+    pub async fn signed_download_url(
+        &self,
+        options: Option<DownloadUrlOptions>,
+        source: Option<&Request>,
+    ) -> napi::Either<SignedDownloadUrl, TypedObjectError> {
+        let options = options.unwrap_or_default().into();
+        let source = source.map(|s| s.inner.clone());
+        match self.obj.signed_download_url(options, source).await {
+            Ok(url) => napi::Either::A(SignedDownloadUrl { url }),
+            Err(err) => napi::Either::B(err.into()),
+        }
+    }
+
+    #[napi]
     pub async fn download_all(
         &self,
         options: Option<DownloadOptions>,
@@ -324,6 +338,18 @@ pub struct SignedUploadUrl {
 
 #[napi(object)]
 #[derive(Debug, Default)]
+pub struct DownloadUrlOptions {
+    pub ttl: Option<i64>,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
+pub struct SignedDownloadUrl {
+    pub url: String,
+}
+
+#[napi(object)]
+#[derive(Debug, Default)]
 pub struct DeleteOptions {
     pub version: Option<String>,
 }
@@ -375,6 +401,14 @@ impl From<AttrsOptions> for core::AttrsOptions {
 
 impl From<UploadUrlOptions> for core::UploadUrlOptions {
     fn from(value: UploadUrlOptions) -> Self {
+        Self {
+            ttl: Duration::from_secs(value.ttl.map(|v| v as u64).unwrap_or(3600)),
+        }
+    }
+}
+
+impl From<DownloadUrlOptions> for core::DownloadUrlOptions {
+    fn from(value: DownloadUrlOptions) -> Self {
         Self {
             ttl: Duration::from_secs(value.ttl.map(|v| v as u64).unwrap_or(3600)),
         }

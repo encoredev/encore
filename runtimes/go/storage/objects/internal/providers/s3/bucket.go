@@ -176,6 +176,24 @@ func (b *bucket) SignedUploadURL(data types.UploadURLData) (string, error) {
 	return req.URL, nil
 }
 
+func (b *bucket) SignedDownloadURL(data types.DownloadURLData) (string, error) {
+	object := string(data.Object)
+	params := s3.GetObjectInput{
+		Bucket: &b.cfg.CloudName,
+		Key:    &object,
+	}
+	sign_opts := func(opts *s3.PresignOptions) {
+		opts.Expires = data.TTL
+	}
+	req, err := b.presignClient.PresignGetObject(data.Ctx, &params, sign_opts)
+	if err != nil {
+		return "", mapErr(err)
+	}
+	// TODO: add check/warn against unexpected method and headers
+	// (we expect PUT and host:<> but nothing else.)
+	return req.URL, nil
+}
+
 func (mgr *Manager) clientForProvider(prov *config.BucketProvider) *clientSet {
 	if cs, ok := mgr.clients[prov]; ok {
 		return cs

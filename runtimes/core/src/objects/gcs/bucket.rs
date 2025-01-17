@@ -14,8 +14,9 @@ use tokio::io::AsyncRead;
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
-    AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, Error, ExistsOptions, ListEntry,
-    ListOptions, ObjectAttrs, PublicUrlError, UploadOptions, UploadUrlOptions,
+    AttrsOptions, DeleteOptions, DownloadOptions, DownloadStream, DownloadUrlOptions, Error,
+    ExistsOptions, ListEntry, ListOptions, ObjectAttrs, PublicUrlError, UploadOptions,
+    UploadUrlOptions,
 };
 use crate::{objects, CloudName, EncoreName};
 use google_cloud_storage as gcs;
@@ -232,50 +233,26 @@ impl objects::ObjectImpl for Object {
         self: Arc<Self>,
         options: UploadUrlOptions,
     ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
-        Box::pin(async move {
-            match self.bkt.client.get().await {
-                Ok(client) => {
-                    let gcs_opts = SignedURLOptions {
-                        method: gcs::sign::SignedURLMethod::PUT,
-                        expires: options.ttl,
-                        start_time: Some(SystemTime::now()),
-                        ..Default::default()
-                    };
+        let gcs_opts = SignedURLOptions {
+            method: gcs::sign::SignedURLMethod::PUT,
+            expires: options.ttl,
+            start_time: Some(SystemTime::now()),
+            ..Default::default()
+        };
+        self.signed_url(gcs_opts)
+    }
 
-                    // We use a fake GCS service for local development. Ideally, the runtime
-                    // code would be oblivious to this once the GCS client is set up. But that
-                    // turns out to be difficult for URL signing, so we add a special case
-                    // here.
-                    let local_sign = &self.bkt.local_sign;
-                    let (access_id, sign_by) = match local_sign {
-                        Some(opt) => (
-                            Some(opt.access_id.clone()),
-                            Some(SignBy::PrivateKey(opt.private_key.as_bytes().to_vec())),
-                        ),
-                        None => (None, None),
-                    };
-
-                    let name = self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned();
-                    let mut url = client
-                        .signed_url(&self.bkt.cloud_name, &name, access_id, sign_by, gcs_opts)
-                        .await
-                        .map_err(|e| Error::Internal(e.into()))?;
-
-                    // More special handling for the local dev case.
-                    if let Some(cfg) = local_sign {
-                        url = replace_url_prefix(&url, &cfg.base_url)
-                            .into_owned()
-                            .to_string();
-                    }
-
-                    Ok(url)
-                }
-                Err(err) => Err(Error::Internal(anyhow::anyhow!(
-                    "unable to resolve client: {}",
-                    err
-                ))),
-            }
-        })
+    fn signed_download_url(
+        self: Arc<Self>,
+        options: DownloadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
+        let gcs_opts = SignedURLOptions {
+            method: gcs::sign::SignedURLMethod::GET,
+            expires: options.ttl,
+            start_time: Some(SystemTime::now()),
+            ..Default::default()
+        };
+        self.signed_url(gcs_opts)
     }
 
     fn exists(
@@ -436,6 +413,51 @@ impl objects::ObjectImpl for Object {
 
         let url = objects::public_url(base_url, &self.key);
         Ok(url)
+    }
+}
+
+impl Object {
+    fn signed_url(
+        self: Arc<Self>,
+        gcs_opts: SignedURLOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
+        Box::pin(async move {
+            match self.bkt.client.get().await {
+                Ok(client) => {
+                    // We use a fake GCS service for local development. Ideally, the runtime
+                    // code would be oblivious to this once the GCS client is set up. But that
+                    // turns out to be difficult for URL signing, so we add a special case
+                    // here.
+                    let local_sign = &self.bkt.local_sign;
+                    let (access_id, sign_by) = match local_sign {
+                        Some(opt) => (
+                            Some(opt.access_id.clone()),
+                            Some(SignBy::PrivateKey(opt.private_key.as_bytes().to_vec())),
+                        ),
+                        None => (None, None),
+                    };
+
+                    let name = self.bkt.obj_name(Cow::Borrowed(&self.key)).into_owned();
+                    let mut url = client
+                        .signed_url(&self.bkt.cloud_name, &name, access_id, sign_by, gcs_opts)
+                        .await
+                        .map_err(|e| Error::Internal(e.into()))?;
+
+                    // More special handling for the local dev case.
+                    if let Some(cfg) = local_sign {
+                        url = replace_url_prefix(&url, &cfg.base_url)
+                            .into_owned()
+                            .to_string();
+                    }
+
+                    Ok(url)
+                }
+                Err(err) => Err(Error::Internal(anyhow::anyhow!(
+                    "unable to resolve client: {}",
+                    err
+                ))),
+            }
+        })
     }
 }
 

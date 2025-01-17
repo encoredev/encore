@@ -15,6 +15,7 @@ type BucketImpl interface {
 	Remove(data RemoveData) error
 	Attrs(data AttrsData) (*ObjectAttrs, error)
 	SignedUploadURL(data UploadURLData) (string, error)
+	SignedDownloadURL(data DownloadURLData) (string, error)
 }
 
 // CloudObject is the cloud name for an object.
@@ -93,6 +94,13 @@ type AttrsData struct {
 }
 
 type UploadURLData struct {
+	Ctx    context.Context
+	Object CloudObject
+
+	TTL time.Duration
+}
+
+type DownloadURLData struct {
 	Ctx    context.Context
 	Object CloudObject
 

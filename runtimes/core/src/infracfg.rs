@@ -252,8 +252,8 @@ pub struct GCPPubsub {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GCPTopic {
     pub name: String,
-
     pub project_id: Option<String>,
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub subscriptions: HashMap<String, GCPSub>,
 }
 
@@ -281,6 +281,7 @@ pub struct AWSSnsSqs {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AWSTopic {
     pub arn: String,
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub subscriptions: HashMap<String, AWSSub>,
 }
 
@@ -298,7 +299,7 @@ pub struct NSQPubsub {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NSQTopic {
     pub name: String,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub subscriptions: HashMap<String, NSQSub>,
 }
 

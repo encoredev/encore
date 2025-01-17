@@ -280,10 +280,13 @@ There must be exactly one database configuration for each declared database. You
       "host": "db.myencoreapp.com:5432",
       "tls_config": {
         "disabled": false,
-        "ca": "---BEGIN CERTIFICATE---\n..."
+        "ca": "---BEGIN CERTIFICATE---\n...",
+        "disable_tls_hostname_verification": false,
+        "disable_ca_verification": false
       },
       "databases": {
         "my-database": {
+          "name": "my-postgres-db-name",
           "max_connections": 100,
           "min_connections": 10,
           "username": "db_user",
@@ -298,6 +301,7 @@ There must be exactly one database configuration for each declared database. You
 ```
 
 - `my-database`: This is the name of the database as it is declared in your Encore app.
+- `name`: The name of the database on the database server. Defaults to the declared Encore name.
 - `host`: SQL server host, optionally including the port.
 - `tls_config`: TLS configuration for secure connections. If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise, they can be left empty.
 - `databases`: List of databases, each with connection settings.
