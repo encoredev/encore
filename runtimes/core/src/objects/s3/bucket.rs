@@ -15,8 +15,8 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
-    self, AttrsOptions, DeleteOptions, DownloadOptions, Error, ExistsOptions, ListEntry,
-    ListOptions, ObjectAttrs, PublicUrlError, UploadUrlOptions,
+    self, AttrsOptions, DeleteOptions, DownloadOptions, DownloadUrlOptions, Error, ExistsOptions,
+    ListEntry, ListOptions, ObjectAttrs, PublicUrlError, UploadUrlOptions,
 };
 use crate::{CloudName, EncoreName};
 
@@ -189,6 +189,30 @@ impl objects::ObjectImpl for Object {
 
             let res = client
                 .put_object()
+                .bucket(&self.bkt.cloud_name)
+                .key(obj_name)
+                .presigned(
+                    PresigningConfig::expires_in(options.ttl)
+                        .map_err(|e| Error::Other(e.into()))?,
+                )
+                .await;
+            match res {
+                Ok(req) => Ok(String::from(req.uri())),
+                Err(err) => Err(Error::Other(err.into())),
+            }
+        })
+    }
+
+    fn signed_download_url(
+        self: Arc<Self>,
+        options: DownloadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
+        Box::pin(async move {
+            let client = self.bkt.client.get().await.clone();
+            let obj_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
+
+            let res = client
+                .get_object()
                 .bucket(&self.bkt.cloud_name)
                 .key(obj_name)
                 .presigned(

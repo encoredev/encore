@@ -40,11 +40,15 @@ func (o withVersionOption) existsOption() {}
 //publicapigen:keep
 func (o withTTLOption) uploadURLOption() {}
 
-func (o withVersionOption) applyDownload(opts *downloadOptions) { opts.version = o.version }
-func (o withVersionOption) applyRemove(opts *removeOptions)     { opts.version = o.version }
-func (o withVersionOption) applyAttrs(opts *attrsOptions)       { opts.version = o.version }
-func (o withVersionOption) applyExists(opts *existsOptions)     { opts.version = o.version }
-func (o withTTLOption) applyUploadURL(opts *uploadURLOptions)   { opts.TTL = o.TTL }
+//publicapigen:keep
+func (o withTTLOption) downloadURLOption() {}
+
+func (o withVersionOption) applyDownload(opts *downloadOptions)   { opts.version = o.version }
+func (o withVersionOption) applyRemove(opts *removeOptions)       { opts.version = o.version }
+func (o withVersionOption) applyAttrs(opts *attrsOptions)         { opts.version = o.version }
+func (o withVersionOption) applyExists(opts *existsOptions)       { opts.version = o.version }
+func (o withTTLOption) applyUploadURL(opts *uploadURLOptions)     { opts.TTL = o.TTL }
+func (o withTTLOption) applyDownloadURL(opts *downloadURLOptions) { opts.TTL = o.TTL }
 
 // WithTTL is used for signed URLs, to specify the lifetime of the generated
 // URL. The max value is seven days. The default lifetime, if this
@@ -168,6 +172,18 @@ type UploadURLOption interface {
 }
 
 type uploadURLOptions struct {
+	TTL time.Duration
+}
+
+// DownloadURLOption describes available options for the SignedDownloadURL operation.
+type DownloadURLOption interface {
+	//publicapigen:keep
+	downloadURLOption()
+
+	applyDownloadURL(*downloadURLOptions)
+}
+
+type downloadURLOptions struct {
 	TTL time.Duration
 }
 

@@ -2,7 +2,7 @@ import { getCurrentRequest } from "../../internal/reqtrack/mod";
 import * as runtime from "../../internal/runtime/mod";
 import { StringLiteral } from "../../internal/utils/constraints";
 import { unwrapErr } from "./error";
-import { BucketPerms, Uploader, SignedUploader, Downloader, Attrser, Lister, Remover, PublicUrler } from "./refs";
+import { BucketPerms, Uploader, SignedUploader, Downloader, SignedDownloader, Attrser, Lister, Remover, PublicUrler } from "./refs";
 
 export interface BucketConfig {
   /**
@@ -21,7 +21,7 @@ export interface BucketConfig {
 /**
  * Defines a new Object Storage bucket infrastructure resource.
  */
-export class Bucket extends BucketPerms implements Uploader, SignedUploader, Downloader, Attrser, Lister, Remover, PublicUrler {
+export class Bucket extends BucketPerms implements Uploader, SignedUploader, Downloader, SignedDownloader, Attrser, Lister, Remover, PublicUrler {
   impl: runtime.Bucket;
 
   /**
@@ -96,6 +96,19 @@ export class Bucket extends BucketPerms implements Uploader, SignedUploader, Dow
     const source = getCurrentRequest();
     const impl = this.impl.object(name);
     const res = await impl.signedUploadUrl(options, source);
+    return unwrapErr(res);
+  }
+
+  /**
+   * Generate an external URL to allow downloading an object from the bucket.
+   *
+   * Anyone with possession of the URL can download the given object without
+   * any additional auth.
+   */
+  async signedDownloadUrl(name: string, options?: DownloadUrlOptions): Promise<SignedDownloadUrl> {
+    const source = getCurrentRequest();
+    const impl = this.impl.object(name);
+    const res = await impl.signedDownloadUrl(options, source);
     return unwrapErr(res);
   }
 
@@ -217,5 +230,16 @@ export interface UploadUrlOptions {
 }
 
 export interface SignedUploadUrl {
+  url: string;
+}
+
+export interface DownloadUrlOptions {
+  /** The expiration time of the url, in seconds from signing. The maximum
+   * value is seven days. If no value is given, a default of one hour is
+   * used. */
+  ttl?: number;
+}
+
+export interface SignedDownloadUrl {
   url: string;
 }

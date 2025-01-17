@@ -85,6 +85,14 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 	}
 	switch req.Method {
 	case "GET":
+		_, isSigned := (queryLowerCase(req))["x-goog-signature"]
+		if isSigned {
+			err := validateGcsSignedRequest(req, time.Now())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
 		obj, contents, err := store.Get("", bucketName, objName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -103,9 +111,7 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
 		w.Write(contents)
 	case "PUT":
-		// Only signed URLs are supported for PUT, and only GCS is supported
-		// for local development
-		err := validateGcsSignedUpload(req, time.Now())
+		err := validateGcsSignedRequest(req, time.Now())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -136,14 +142,12 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func validateGcsSignedUpload(req *http.Request, now time.Time) error {
+// Only GCS is supported for local development
+func validateGcsSignedRequest(req *http.Request, now time.Time) error {
 	const dateLayout = "20060102T150405Z"
 	const gracePeriod = time.Duration(30) * time.Second
 
-	query := map[string]string{}
-	for k, vs := range req.URL.Query() {
-		query[strings.ToLower(k)] = vs[0]
-	}
+	query := queryLowerCase(req)
 
 	// We don't try to actually verify the signature, we only check that it's non-empty.
 
@@ -176,6 +180,14 @@ func validateGcsSignedUpload(req *http.Request, now time.Time) error {
 	}
 
 	return nil
+}
+
+func queryLowerCase(req *http.Request) map[string]string {
+	query := map[string]string{}
+	for k, vs := range req.URL.Query() {
+		query[strings.ToLower(k)] = vs[0]
+	}
+	return query
 }
 
 func parseObjectMeta(req *http.Request) storage.Object {

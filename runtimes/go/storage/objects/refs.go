@@ -17,6 +17,7 @@ type BucketPerms interface {
 type ReadWriter interface {
 	Uploader
 	Downloader
+	SignedDownloader
 	Remover
 	Lister
 	Attrser
@@ -76,6 +77,27 @@ type SignedUploader interface {
 type Downloader interface {
 	// Download downloads an object from the bucket.
 	Download(ctx context.Context, object string, options ...DownloadOption) *Reader
+
+	perms()
+}
+
+// SignedDownloader is the interface for creating external URLs to download objects
+// from a bucket.
+// It can be used in conjunction with [BucketRef] to declare
+// a reference that can generate download URLs for the bucket.
+//
+// For example:
+//
+//	var MyBucket = objects.NewBucket(...)
+//	var ref = objects.BucketRef[objects.SignedDownloader](MyBucket)
+//
+// The ref object can then be used to generate download URLs and can be
+// passed around freely within the service, without being subject
+// to Encore's static analysis restrictions that apply to MyBucket.
+type SignedDownloader interface {
+	// SignedDownloadURL returns a signed URL that can be used to download directly
+	// from storage, without any other authentication.
+	SignedDownloadURL(ctx context.Context, object string, options ...DownloadURLOption) (string, error)
 
 	perms()
 }
