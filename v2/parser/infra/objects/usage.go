@@ -129,6 +129,8 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 		for _, typ := range types {
 			switch {
 			case isNamed(typ, "Uploader"):
+				perms = append(perms, WriteObject)
+			case isNamed(typ, "SignedUploader"):
 				perms = append(perms, WriteObject, SignedUploadURL)
 			case isNamed(typ, "Downloader"):
 				perms = append(perms, ReadObjectContents)
@@ -141,7 +143,9 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 			case isNamed(typ, "PublicURLer"):
 				perms = append(perms, GetPublicURL)
 			case isNamed(typ, "ReadWriter"):
-				perms = append(perms, WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, SignedUploadURL, UpdateObjectMetadata)
+				perms = append(perms,
+					WriteObject, ReadObjectContents, ListObjects, DeleteObject,
+					GetObjectMetadata, SignedUploadURL, UpdateObjectMetadata)
 			default:
 				return nil, false
 			}
@@ -149,7 +153,7 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 
 		// Sort and de-dup the perms.
 		slices.Sort(perms)
-		slices.Compact(perms)
+		perms = slices.Compact(perms)
 
 		return &RefUsage{
 			Base: usage.Base{

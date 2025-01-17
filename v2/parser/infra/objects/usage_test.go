@@ -46,7 +46,7 @@ var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
 var ref = objects.BucketRef[objects.Uploader](bkt)
 `,
 			Want: []usage.Usage{&objects.RefUsage{
-				Perms: []objects.Perm{objects.SignedUploadURL, objects.WriteObject},
+				Perms: []objects.Perm{objects.WriteObject},
 			}},
 		},
 		{
@@ -78,7 +78,7 @@ type MyRef = objects.Uploader
 var ref = objects.BucketRef[MyRef](bkt)
 `,
 			Want: []usage.Usage{&objects.RefUsage{
-				Perms: []objects.Perm{objects.SignedUploadURL, objects.WriteObject},
+				Perms: []objects.Perm{objects.WriteObject},
 			}},
 		},
 		{
@@ -91,7 +91,7 @@ type MyRef interface { objects.Uploader }
 var ref = objects.BucketRef[MyRef](bkt)
 `,
 			Want: []usage.Usage{&objects.RefUsage{
-				Perms: []objects.Perm{objects.SignedUploadURL, objects.WriteObject},
+				Perms: []objects.Perm{objects.WriteObject},
 			}},
 		},
 		{
@@ -99,7 +99,7 @@ var ref = objects.BucketRef[MyRef](bkt)
 			Code: `
 var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
 
-type MyRef interface { objects.Uploader; objects.Downloader }
+type MyRef interface { objects.Uploader; objects.Downloader; objects.SignedUploader }
 
 var ref = objects.BucketRef[MyRef](bkt)
 `,

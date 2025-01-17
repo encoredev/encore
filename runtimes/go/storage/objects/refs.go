@@ -38,6 +38,22 @@ type Uploader interface {
 	// Upload begins uploading an object to the bucket.
 	Upload(ctx context.Context, object string, options ...UploadOption) *Writer
 
+	perms()
+}
+
+// SignedUploader is the interface for creating external URLs to upload objects
+// to a bucket. It can be used in conjunction with [BucketRef] to declare
+// a reference that can generate upload URLs to the bucket.
+//
+// For example:
+//
+//	var MyBucket = objects.NewBucket(...)
+//	var ref = objects.BucketRef[objects.SignedUploader](MyBucket)
+//
+// The ref object can then be used to generate upload URLs and can be
+// passed around freely within the service, without being subject
+// to Encore's static analysis restrictions that apply to MyBucket.
+type SignedUploader interface {
 	// SignedUploadURL returns a signed URL that can be used to upload directly to
 	// storage, without any other authentication.
 	SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (string, error)
