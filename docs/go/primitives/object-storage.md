@@ -262,6 +262,8 @@ Encore provides permission interfaces for each operation that can be performed o
 * `objects.Lister` for listing objects
 * `objects.Attrser` for getting object attributes
 * `objects.Remover` for removing objects
+* `objects.SignedDownloader` for generating signed download URLs for objects
+* `objects.SignedUploader` for generating signed upload URLs for objects
 
 If you need multiple permissions they can be combined by creating an interface
 that embeds the permissions you need.
@@ -278,3 +280,52 @@ For convenience Encore provides an `objects.ReadWriter` interface that gives com
 with all the permissions above.
 
 See the [package documentation](https://pkg.go.dev/encore.dev/storage/objects#BucketRef) for more details.
+
+## Signed Upload URLs
+
+You can use `SignedUploadURL` to create signed URLs to allow clients to upload content directly
+into the bucket over the internet. The URL is always restricted to one filename, and has a set
+expiration date. Anyone in possession of the URL can upload data under this filename without any
+additional authentication.
+
+```go
+url, err := ProfilePictures.SignedUploadURL(ctx, "my-user-id", objects.WithTTL(time.Duration(7200)*time.Second))
+// Pass url to client
+```
+
+The client can now `PUT` to this URL with the content as a binary payload.
+
+```bash
+curl -X PUT --data-binary @/home/me/dog-wizard.jpeg "https://storage.googleapis.com/profile-pictures/my-user-id/?x-goog-signature=b7a1<...>"
+```
+
+### Why signed upload URLs?
+
+Signed URLs are an alternative to accepting the content payload directly in your API. Content
+upload requests are sometimes inconvenient to handle well: they can be long running and very large.
+With signed URLs, the content flows directly into the storage bucket, and only object IDs and
+metadata go through your API service.
+
+The trade-off is that the upload flow becomes more complex from a client point of view.
+
+## Signed Download URLs
+
+You can use `SignedDownloadURL` to create signed URLs to allow clients to download content directly
+from the bucket, even if it's private. The URL is always restricted to one filename, and has a set
+expiration date. Anyone in possession of the URL can download the file without any additional
+authentication.
+
+```go
+url, err := Documents.SignedDownloadURL(ctx, "letter-1234", objects.WithTTL(time.Duration(7200)*time.Second))
+// Pass url to client
+```
+
+### Why signed download URLs?
+
+Similar to the upload case, signed download URLs is a way to avoid handing large files or bulk
+traffic through your API. With signed URLs, the content flows directly from the storage bucket,
+and only object IDs and metadata go through your API service.
+
+Note: unless the content is private, prefer serving urls with `PublicURL()` over signed URLs.
+Public URLs go over CDN, which is typically significantly more performant and cost effective.
+
