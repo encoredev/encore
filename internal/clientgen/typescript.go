@@ -304,7 +304,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		} else if rpc.ResponseSchema != nil {
 			ts.writeTyp(ns, rpc.ResponseSchema, 0)
 		} else if rpc.Proto == meta.RPC_RAW {
-			ts.WriteString("Response")
+			ts.WriteString("globalThis.Response")
 		} else {
 			ts.WriteString("void")
 		}
