@@ -122,7 +122,7 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	} else {
 		envName := params.EnvName
 		if envName == "" {
-			envName = "@primary"
+			envName = "local"
 		}
 		meta, err := platform.GetEnvMeta(ctx, params.AppId, envName)
 		if err != nil {
