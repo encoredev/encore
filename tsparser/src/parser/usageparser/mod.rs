@@ -556,6 +556,7 @@ export const Bar = 5;
                 streaming_request: false,
                 streaming_response: false,
                 static_assets: None,
+                tags: None,
             }));
 
             let bar_binds = vec![Lrc::new(Bind {
@@ -653,6 +654,7 @@ export const Bar = 5;
                 streaming_request: false,
                 streaming_response: false,
                 static_assets: None,
+                tags: None,
             }));
             let bar_binds = vec![Lrc::new(Bind {
                 kind: BindKind::Create,
