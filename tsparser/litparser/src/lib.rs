@@ -182,6 +182,29 @@ impl LitParser for std::time::Duration {
     }
 }
 
+impl<T> LitParser for Vec<T>
+where
+    T: LitParser,
+{
+    fn parse_lit(input: &swc_ecma_ast::Expr) -> ParseResult<Self> {
+        match input {
+            ast::Expr::Array(array) => {
+                let mut vec = Vec::new();
+                for elem in &array.elems {
+                    if let Some(expr) = elem {
+                        let parsed_elem = T::parse_lit(&expr.expr)?;
+                        vec.push(parsed_elem);
+                    } else {
+                        return Err(array.span.parse_err("expected array element"));
+                    }
+                }
+                Ok(vec)
+            }
+            _ => Err(input.parse_err("expected array literal")),
+        }
+    }
+}
+
 /// Represents a local, relative path (without ".." or a root).
 #[derive(Debug, Clone)]
 pub struct LocalRelPath {

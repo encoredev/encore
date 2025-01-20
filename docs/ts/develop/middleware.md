@@ -92,7 +92,15 @@ export default new Service("myService", {
 
 ## Targeting APIs
 
-The target option specifies which endpoints within the service the middleware should run on. If not set, the middleware will run for all endpoints by default.
+The `target` option specifies which endpoints within the service the middleware should run on. If not set, the middleware will run for all endpoints by default.
 
-For better performance, use the `target` option instead of filtering within the middleware function.
-This enables calculating applicable middleware per endpoint during startup, reducing runtime overhead.
+For better performance, use the `target` option instead of filtering within the middleware function. This allows the applicable middleware to be determined per endpoint during startup, reducing runtime overhead.
+
+The following options are available for targeting endpoints:
+
+- `tags`: A list of tags evaluated with `OR`, meaning the middleware applies to an endpoint if the endpoint has at least one of these tags.
+- `expose`: A boolean indicating whether the middleware should be applied to endpoints that are exposed or not exposed.
+- `auth`: A boolean indicating whether the middleware should be applied to endpoints that require authentication or not.
+- `isRaw`: A boolean indicating whether the middleware should be applied to raw endpoints.
+- `isStream`: A boolean indicating whether the middleware should be applied to stream endpoints.
+

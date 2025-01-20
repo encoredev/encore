@@ -36,6 +36,7 @@ pub struct Endpoint {
     pub expose: bool,
     pub raw: bool,
     pub require_auth: bool,
+    pub tags: Option<Vec<String>>,
 
     /// Body limit in bytes.
     /// None means no limit.
@@ -374,6 +375,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 static_assets,
                 body_limit,
                 encoding,
+                tags: cfg.tags,
             }));
 
             pass.add_resource(resource.clone());
@@ -468,6 +470,7 @@ struct EndpointConfig {
     expose: Option<bool>,
     auth: Option<bool>,
     bodyLimit: Option<Nullable<u64>>,
+    tags: Option<Vec<String>>,
 
     // For static assets.
     dir: Option<Sp<LocalRelPath>>,

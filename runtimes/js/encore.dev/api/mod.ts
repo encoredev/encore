@@ -71,6 +71,11 @@ export interface APIOptions {
    * If set to `null`, the body size is unlimited.
    **/
   bodyLimit?: number | null;
+
+  /**
+   * Tags to filter endpoints when generating clients and in middlewares.
+   */
+  tags?: string[];
 }
 
 export interface StreamOptions {
@@ -292,6 +297,13 @@ export interface MiddlewareOptions {
      * If set, only run middleware on endpoints that are stream endpoints.
      */
     isStream?: boolean;
+
+    /**
+     * If set, only run middleware on endpoints that have specific tags.
+     * These tags are evaluated with OR, meaning the middleware applies to an
+     * API if the API has at least one of those tags.
+     */
+    tags?: string[];
   };
 }
 

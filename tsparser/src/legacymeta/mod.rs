@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use swc_common::errors::HANDLER;
 
-use crate::encore::parser::meta::v1;
+use crate::encore::parser::meta::v1::{self, selector, Selector};
 use crate::legacymeta::schema::{loc_from_range, SchemaBuilder};
 use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
@@ -164,6 +164,17 @@ impl MetaBuilder<'_> {
                         })
                         .transpose()?;
 
+                    let tags = ep
+                        .tags
+                        .as_ref()
+                        .unwrap_or(&vec![])
+                        .iter()
+                        .map(|tag| Selector {
+                            r#type: selector::Type::Tag.into(),
+                            value: tag.clone(),
+                        })
+                        .collect();
+
                     let rpc = v1::Rpc {
                         name: ep.name.clone(),
                         doc: ep.doc.clone(),
@@ -179,7 +190,7 @@ impl MetaBuilder<'_> {
                         } as i32,
                         path: Some(ep.encoding.path.to_meta()),
                         http_methods: ep.encoding.methods.to_vec(),
-                        tags: vec![],
+                        tags,
                         sensitive: false,
                         loc: Some(loc_from_range(self.app_root, &self.pc.file_set, ep.range)?),
                         allow_unauthenticated: !ep.require_auth,
