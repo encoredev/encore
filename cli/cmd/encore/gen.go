@@ -175,7 +175,7 @@ which may require the user-facing wrapper code to be manually generated.`,
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
 	_ = genClientCmd.MarkFlagFilename("output", "go", "ts", "tsx", "js", "jsx")
 
-	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the local environment)")
+	genClientCmd.Flags().StringVarP(&envName, "env", "e", "local", "The environment to fetch the API for (defaults to the local environment)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("env", cmdutil.AutoCompleteEnvSlug)
 
 	genClientCmd.Flags().StringSliceVarP(&genServiceNames, "services", "s", nil, "The names of the services to include in the output")
