@@ -47,6 +47,7 @@ interface EndpointOptions {
   auth: boolean;
   isRaw: boolean;
   isStream: boolean;
+  tags: string[];
 }
 
 export interface InternalHandlerResponse {
@@ -91,42 +92,19 @@ function calculateMiddlewareChain(
   endpointOptions: EndpointOptions,
   ms: Middleware[]
 ): Middleware[] {
-  let middlewares = [];
-
-  for (const m of ms) {
-    if (m.options === undefined || m.options.target === undefined) {
-      middlewares.push(m);
-    } else {
-      const target = m.options.target;
-      // check if options are set and if they match the endpoint options
-      if (target.auth !== undefined && target.auth !== endpointOptions.auth) {
-        continue;
-      }
-
-      if (
-        target.expose !== undefined &&
-        target.expose !== endpointOptions.expose
-      ) {
-        continue;
-      }
-
-      if (
-        target.isRaw !== undefined &&
-        target.isRaw !== endpointOptions.isRaw
-      ) {
-        continue;
-      }
-
-      if (
-        target.isStream !== undefined &&
-        target.isStream !== endpointOptions.isStream
-      ) {
-        continue;
-      }
-
-      middlewares.push(m);
-    }
-  }
+  const middlewares = ms.filter((m) => {
+    const target = m.options?.target;
+    if (!target) return true;
+    const { auth, expose, isRaw, isStream, tags } = target;
+    return (
+      (auth === undefined || auth === endpointOptions.auth) &&
+      (expose === undefined || expose === endpointOptions.expose) &&
+      (isRaw === undefined || isRaw === endpointOptions.isRaw) &&
+      (isStream === undefined || isStream === endpointOptions.isStream) &&
+      (tags === undefined ||
+        tags.some((tag) => endpointOptions.tags.includes(tag)))
+    );
+  });
 
   return middlewares;
 }

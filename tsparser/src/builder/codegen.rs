@@ -181,6 +181,7 @@ impl Builder<'_> {
                             "auth": rpc.require_auth,
                             "isRaw": rpc.raw,
                             "isStream": rpc.streaming_request || rpc.streaming_response,
+                            "tags": rpc.tags,
                         }),
                     }));
                 }
@@ -280,6 +281,7 @@ impl Builder<'_> {
                             "auth": rpc.require_auth,
                             "isRaw": rpc.raw,
                             "isStream": rpc.streaming_request || rpc.streaming_response,
+                            "tags": rpc.tags,
                         }),
                     }));
                 }
@@ -430,6 +432,7 @@ impl Builder<'_> {
                             "auth": rpc.require_auth,
                             "isRaw": rpc.raw,
                             "isStream": rpc.streaming_request || rpc.streaming_response,
+                            "tags": rpc.tags,
                         }),
                     }));
                 }
