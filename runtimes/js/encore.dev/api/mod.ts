@@ -71,6 +71,11 @@ export interface APIOptions {
    * If set to `null`, the body size is unlimited.
    **/
   bodyLimit?: number | null;
+
+  /**
+   * Tags to filter endpoints when generating clients and in middlewares.
+   */
+  tags?: string[];
 }
 
 export interface StreamOptions {
