@@ -297,6 +297,13 @@ export interface MiddlewareOptions {
      * If set, only run middleware on endpoints that are stream endpoints.
      */
     isStream?: boolean;
+
+    /**
+     * If set, only run middleware on endpoints that have specific tags.
+     * These tags are evaluated with OR, meaning the middleware applies to an
+     * API if the API has at least one of those tags.
+     */
+    tags?: string[];
   };
 }
 
