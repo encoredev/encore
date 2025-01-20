@@ -16,6 +16,7 @@ type BucketPerms interface {
 // all the read-write permissions.
 type ReadWriter interface {
 	Uploader
+	SignedUploader
 	Downloader
 	SignedDownloader
 	Remover
@@ -57,7 +58,7 @@ type Uploader interface {
 type SignedUploader interface {
 	// SignedUploadURL returns a signed URL that can be used to upload directly to
 	// storage, without any other authentication.
-	SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (string, error)
+	SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (*SignedUploadURL, error)
 
 	perms()
 }
@@ -97,7 +98,7 @@ type Downloader interface {
 type SignedDownloader interface {
 	// SignedDownloadURL returns a signed URL that can be used to download directly
 	// from storage, without any other authentication.
-	SignedDownloadURL(ctx context.Context, object string, options ...DownloadURLOption) (string, error)
+	SignedDownloadURL(ctx context.Context, object string, options ...DownloadURLOption) (*SignedDownloadURL, error)
 
 	perms()
 }
