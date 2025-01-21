@@ -166,8 +166,6 @@ impl MetaBuilder<'_> {
 
                     let tags = ep
                         .tags
-                        .as_ref()
-                        .unwrap_or(&vec![])
                         .iter()
                         .map(|tag| Selector {
                             r#type: selector::Type::Tag.into(),
