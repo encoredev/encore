@@ -36,7 +36,7 @@ pub struct Endpoint {
     pub expose: bool,
     pub raw: bool,
     pub require_auth: bool,
-    pub tags: Option<Vec<String>>,
+    pub tags: Vec<String>,
 
     /// Body limit in bytes.
     /// None means no limit.
@@ -375,7 +375,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 static_assets,
                 body_limit,
                 encoding,
-                tags: cfg.tags,
+                tags: cfg.tags.unwrap_or_default(),
             }));
 
             pass.add_resource(resource.clone());
