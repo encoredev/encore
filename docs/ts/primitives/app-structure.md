@@ -115,8 +115,7 @@ Systems are not a special construct in Encore, they only help you divide your ap
 systems and extract the services of your application. As applications grow, systems help you decompose your application
 without requiring any complex refactoring.
 
-To create systems, create a sub-directory for each system and put the relevant service packages within it.
-This is all you need to do, since with Encore each service consists of a Go package.
+To create systems, simply create a sub-directory for each system and put the relevant service packages within it.
 
 As an example, a company building a Trello app might divide their application into three systems: the **Trello** system
 (for the end-user facing app with boards and cards), the **User** system (for user and organization management), and
@@ -160,3 +159,20 @@ On disk it might look like this:
 The only refactoring needed to divide an existing Encore application into systems is to move services into their respective
 subfolders. This is a simple way to separate the specific concerns of each system. What matters for Encore are the packages containing services, and the division in systems or subsystems will not change the endpoints or
 architecture of your application.
+
+## Package Management
+
+For Encore.ts projects, using a single root-level `package.json` file (monorepo approach) is the recommended practice.
+It has several benefits:
+
+- Ensures consistent dependency versions across your services
+- Simplifies TypeScript configuration management
+- Makes it easier to share common types and utilities
+- Reduces npm install overhead
+- Works seamlessly with TypeScript's project references
+
+Encore.ts also supports separate `package.json` files in sub-packages, with the following limitations:
+- The Encore.ts application must use one package with a single `package.json` file
+- Other separate packages must be pre-transpiled to JavaScript
+
+Further package management options are planned for the future, particularly for supporting automatically transpiling and bundling workspace packages.
