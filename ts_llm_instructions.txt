@@ -29,26 +29,6 @@
   <rule>Prefer TypeScript's built-in utility types (e.g., Record, Partial, Pick) over any</rule>
 </typescript_style_guide>
 
-<sql_style_guide>
-    <rules>
-        <rule>
-            <description>Use ?? null for optional parameters in SQL COALESCE</description>
-            <pattern>COALESCE\(\$\{[^}]+\},</pattern>
-            <message>Optional parameters in COALESCE should use the nullish coalescing operator with null, e.g., ${param ?? null}</message>
-        </rule>
-        <rule>
-            <description>Check for undefined SQL parameters</description>
-            <pattern>\$\{[^}]+\}(?!\s*\?\?)</pattern>
-            <message>SQL parameters that might be undefined should use ?? null</message>
-        </rule>
-        <rule>
-            <description>Validate SQL template literal usage</description>
-            <pattern>db\.query(?!`)</pattern>
-            <message>db.query must be used with template literals (`)</message>
-        </rule>
-    </rules>
-</sql_style_guide>
-
 <encore_ts_domain_knowledge>
 
 <api_definition>
@@ -1660,7 +1640,7 @@ https://github.com/encoredev/examples/tree/main/ts/uptime
 </encore_ts_example_apps>
 
 <package_management>
-        <default_approach>Use a single root-level package.json file (monorepo approach) for Encore.ts projects including frontend dependencies</default_approach>
+    <default_approach>Use a single root-level package.json file (monorepo approach) for Encore.ts projects including frontend dependencies</default_approach>
     <alternative_approach>
         <support>Separate package.json files in sub-packages</support>
         <limitations>
