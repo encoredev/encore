@@ -365,9 +365,8 @@ CREATE TABLE todo_item (
       <rule>Must increase sequentially</rule>
       <rule>End with .up.sql</rule>
       <examples>
-        <example>1_first_migration.up.sql</example>
-        <example>2_second_migration.up.sql</example>
-        <example>0001_migration.up.sql</example>
+        <example>001_first_migration.up.sql</example>
+        <example>002_second_migration.up.sql</example>
       </examples>
     </naming>
     
@@ -381,6 +380,9 @@ CREATE TABLE todo_item (
 <database_operations>
   <querying>
     <methods>
+      <overview>
+      These are the supported methods when using the SQLDatabase module with Encore.ts. Do not use any methods not listed here.
+      </overview>
       <method name="query">
         <description>Returns async iterator for multiple rows</description>
         <examples>
@@ -1631,11 +1633,22 @@ https://github.com/encoredev/examples/tree/main/ts/hello-world
 https://github.com/encoredev/examples/tree/main/ts/url-shortener
 </url_shortener_example_repo>
 
-<uptime_minitor_example_repo>
+<uptime_monitor_example_repo>
 https://github.com/encoredev/examples/tree/main/ts/uptime
-</uptime_minitor_example_repo>
+</uptime_monitor_example_repo>
 
 </encore_ts_example_apps>
+
+<package_management>
+    <default_approach>Use a single root-level package.json file (monorepo approach) for Encore.ts projects including frontend dependencies</default_approach>
+    <alternative_approach>
+        <support>Separate package.json files in sub-packages</support>
+        <limitations>
+            <limitation>Encore.ts application must use one package with a single package.json file</limitation>
+            <limitation>Other separate packages must be pre-transpiled to JavaScript</limitation>
+        </limitations>
+    </alternative_approach>
+</package_management>
 
 </encore_ts_domain_knowledge>
 
