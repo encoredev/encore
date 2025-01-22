@@ -405,15 +405,11 @@ pub fn handshake_encoding(
     let rpc_path = rpc.path.as_ref().unwrap_or(&default_path);
 
     let Some(handshake_schema) = &rpc.handshake_schema else {
-        let parse_data = rpc
-            .path
-            .as_ref()
-            .map(|path| {
-                path.segments
-                    .iter()
-                    .any(|segment| segment.r#type() != SegmentType::Literal)
-            })
-            .unwrap_or(false);
+        let parse_data = rpc.path.as_ref().is_some_and(|path| {
+            path.segments
+                .iter()
+                .any(|segment| segment.r#type() != SegmentType::Literal)
+        });
 
         return Ok(Some(HandshakeSchemaUnderConstruction {
             parse_data,
