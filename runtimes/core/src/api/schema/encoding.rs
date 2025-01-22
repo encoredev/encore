@@ -405,8 +405,14 @@ pub fn handshake_encoding(
     let rpc_path = rpc.path.as_ref().unwrap_or(&default_path);
 
     let Some(handshake_schema) = &rpc.handshake_schema else {
+        let parse_data = rpc.path.as_ref().is_some_and(|path| {
+            path.segments
+                .iter()
+                .any(|segment| segment.r#type() != SegmentType::Literal)
+        });
+
         return Ok(Some(HandshakeSchemaUnderConstruction {
-            parse_data: false,
+            parse_data,
             schema: SchemaUnderConstruction {
                 combined: None,
                 body: None,
