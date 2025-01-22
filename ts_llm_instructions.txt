@@ -380,9 +380,9 @@ CREATE TABLE todo_item (
 <database_operations>
   <querying>
     <methods>
-<overview>
-These are the supported methods when using the SQLDatabase module with Encore.ts. Do not use any methods not listed here.
-</overview>
+      <overview>
+      These are the supported methods when using the SQLDatabase module with Encore.ts. Do not use any methods not listed here.
+      </overview>
       <method name="query">
         <description>Returns async iterator for multiple rows</description>
         <examples>
