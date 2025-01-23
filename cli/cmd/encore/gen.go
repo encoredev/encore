@@ -39,8 +39,8 @@ func init() {
 		Short: "Generates an API client for your app",
 		Long: `Generates an API client for your app.
 
-By default generates the API based on your primary production environment.
-Use '--env=local' to generate it based on your local development version of the app.
+By default generates the API based on your local environment.
+Use '--env=<name>' to generate it based on your cloud environments.
 
 Supported language codes are:
   typescript: A TypeScript client using the Fetch API
@@ -175,7 +175,7 @@ which may require the user-facing wrapper code to be manually generated.`,
 	genClientCmd.Flags().StringVarP(&output, "output", "o", "", "The filename to write the generated client code to")
 	_ = genClientCmd.MarkFlagFilename("output", "go", "ts", "tsx", "js", "jsx")
 
-	genClientCmd.Flags().StringVarP(&envName, "env", "e", "", "The environment to fetch the API for (defaults to the primary environment)")
+	genClientCmd.Flags().StringVarP(&envName, "env", "e", "local", "The environment to fetch the API for (defaults to the local environment)")
 	_ = genClientCmd.RegisterFlagCompletionFunc("env", cmdutil.AutoCompleteEnvSlug)
 
 	genClientCmd.Flags().StringSliceVarP(&genServiceNames, "services", "s", nil, "The names of the services to include in the output")
