@@ -3,6 +3,7 @@ use std::future::{Future, IntoFuture};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
+use futures::future::select_all;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
@@ -365,42 +366,43 @@ impl Manager {
         let server = HttpServer::new(encore_routes, api, fallback);
 
         let api_listener = self.api_listener.lock().unwrap().take();
-        let gateway_listener = self.gateway_listen_addr.clone();
 
-        // TODO handle multiple gateways
-        let gateway = self.gateways.values().next().cloned();
         let testing = self.testing;
+        let gateways = self.gateways.clone();
+        let api_gateway_listener = self.gateway_listen_addr.clone();
+
+        let mut listners = HashMap::<EncoreName, String>::from([(
+            "api-gateway".into(),
+            api_gateway_listener.clone().unwrap(),
+        )]);
+
+        for name in gateways.keys() {
+            listners.entry(name.clone()).or_insert("0.0.0.0:0".into());
+        }
 
         self.runtime.spawn(async move {
-            let gateway_parts = (gateway, gateway_listener);
-            let gateway_fut = match gateway_parts {
-                (Some(gw), Some(ref ln)) => {
-                    if !testing {
-                        log::debug!(addr=ln; "gateway listening for incoming requests");
-                        Some(gw.serve(ln))
-                    } else {
-                        // No need running the gateway in tests
-                        None
-                    }
-                },
-                (Some(_), None) => {
-                    ::log::error!("internal encore error: misconfigured api gateway (missing listener), skipping");
-                    None
-                }
-                (None, Some(_)) => {
-                    ::log::error!("internal encore error: misconfigured api gateway (missing gateway config), skipping");
-                    None
-                }
-                (None, None) => None,
-            };
+            let mut gateway_futs = vec![];
+
+            for (name, gateway) in gateways {
+                let ln = listners.get(&name).unwrap();
+
+                if testing {
+                    continue;
+                } else {
+                    log::debug!(addr=ln; "gateway listening for incoming requests");
+                    gateway_futs.push(Box::pin(gateway.serve(ln)));
+                };
+            }
 
             let api_fut = match api_listener {
                 Some(ln) => {
-                    let addr = ln.local_addr().map(|addr| addr.to_string()).unwrap_or_default();
+                    let addr = ln
+                        .local_addr()
+                        .map(|addr| addr.to_string())
+                        .unwrap_or_default();
                     log::debug!(addr = addr; "api server listening for incoming requests");
 
-                    ln
-                        .set_nonblocking(true)
+                    ln.set_nonblocking(true)
                         .context("unable to set nonblocking")?;
                     let axum_listener = tokio::net::TcpListener::from_std(ln)
                         .context("unable to convert listener to tokio")?;
@@ -411,9 +413,10 @@ impl Manager {
             };
 
             tokio::select! {
-                res = async { gateway_fut.unwrap().await }, if gateway_fut.is_some() => {
-                    res.context("serve gateway").inspect_err(|err| log::error!("api gateway failed: {:?}", err))?;
+                (res, _, _) = async { select_all(gateway_futs).await }, if !gateway_futs.is_empty()  => {
+                    res.context("gateway").inspect_err(|err| log::error!("gateway failed: {:?}", err))?;
                 },
+
                 res = async { api_fut.unwrap().await }, if api_fut.is_some() => {
                     res.context("serve api").inspect_err(|err| log::error!("api server failed: {:?}", err))?;
                 },
@@ -422,7 +425,8 @@ impl Manager {
                     ::log::debug!("no api server or gateway to serve");
                 }
             };
-            Ok(())
+
+            anyhow::Ok(())
         })
     }
 }
