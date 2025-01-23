@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -24,11 +24,12 @@ use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
-use crate::trace;
 use crate::{model, Hosted};
+use crate::{trace, EncoreName};
 
 use super::pvalue::{PValue, PValues};
 use super::reqauth::caller::Caller;
+use super::reqauth::platform::ValidationData;
 
 #[derive(Debug)]
 pub struct SuccessResponse {
@@ -162,8 +163,8 @@ pub struct Endpoint {
     /// Whether this is a raw endpoint.
     pub raw: bool,
 
-    /// Whether the service is exposed publicly.
-    pub exposed: bool,
+    /// Which gateways this endpoint is exposed through.
+    pub exposed: HashSet<EncoreName>,
 
     /// Whether the service requires authentication data.
     pub requires_auth: bool,
@@ -331,8 +332,8 @@ pub fn endpoints_from_meta(
         }
         let resp_schema = ep.response_schema.build(&registry)?;
 
-        // We only support a single gateway right now.
-        let exposed = ep.ep.expose.contains_key("api-gateway");
+        let exposed = ep.ep.expose.keys().map(|gw_name| gw_name.into()).collect();
+
         let raw =
             rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
@@ -444,11 +445,7 @@ impl EndpointHandler {
             .into_parts();
 
         // Authenticate the request from the platform, if applicable.
-        #[allow(clippy::manual_unwrap_or_default)]
-        let platform_seal_of_approval = match self.authenticate_platform(&parts) {
-            Ok(seal) => seal,
-            Err(_err) => None,
-        };
+        let platform_seal_of_approval = self.authenticate_platform(&parts).ok();
 
         let meta = CallMeta::parse_with_caller(
             &self.shared.inbound_svc_auth,
@@ -546,8 +543,13 @@ impl EndpointHandler {
 
             let internal_caller = request.internal_caller.clone();
 
+            // check if this endpoint is exposed by the calling gateway
+            let exposed = internal_caller.as_ref().map_or(false, |caller| {
+                matches!(caller, Caller::Gateway { gateway } if self.endpoint.exposed.contains(gateway))
+            });
+
             // If the endpoint isn't exposed, return a 404.
-            if !self.endpoint.exposed && !request.allows_private_endpoint_call() {
+            if !exposed && !request.allows_private_endpoint_call() {
                 return Error {
                     code: ErrCode::NotFound,
                     message: "endpoint not found".into(),
@@ -662,32 +664,9 @@ impl EndpointHandler {
     fn authenticate_platform(
         &self,
         req: &axum::http::request::Parts,
-    ) -> Result<Option<platform::SealOfApproval>, platform::ValidationError> {
-        let Some(x_encore_auth_header) = req.headers.get("x-encore-auth") else {
-            return Ok(None);
-        };
-        let x_encore_auth_header = x_encore_auth_header
-            .to_str()
-            .map_err(|_| platform::ValidationError::InvalidMac)?;
-
-        let Some(date_header) = req.headers.get("Date") else {
-            return Err(platform::ValidationError::InvalidDateHeader);
-        };
-        let date_header = date_header
-            .to_str()
-            .map_err(|_| platform::ValidationError::InvalidDateHeader)?;
-
-        let request_path = req.uri.path();
-        let req = platform::ValidationData {
-            request_path,
-            date_header,
-            x_encore_auth_header,
-        };
-
-        self.shared
-            .platform_auth
-            .validate_platform_request(&req)
-            .map(Some)
+    ) -> Result<platform::SealOfApproval, platform::ValidationError> {
+        let data = ValidationData::from_req(req)?;
+        self.shared.platform_auth.validate_platform_request(&data)
     }
 }
 

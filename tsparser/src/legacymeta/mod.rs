@@ -12,8 +12,7 @@ use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
-use crate::parser::types::validation;
-use crate::parser::types::{Object, ObjectId};
+use crate::parser::types::{validation, Object, ObjectId};
 use crate::parser::usageparser::Usage;
 use crate::parser::{respath, FilePath, Range};
 use litparser::{ParseResult as PResult, ToParseErr};
@@ -573,7 +572,7 @@ impl MetaBuilder<'_> {
         // If there is no gateway, add a default one.
         if self.data.gateways.is_empty() {
             self.data.gateways.push(v1::Gateway {
-                encore_name: "api-gateway".to_string(),
+                encore_name: DEFAULT_API_GATEWAY_NAME.to_string(),
                 explicit: None,
             });
         }
