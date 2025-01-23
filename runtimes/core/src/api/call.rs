@@ -96,6 +96,10 @@ impl ServiceRegistry {
         })
     }
 
+    pub fn service_names(&self) -> Vec<&EncoreName> {
+        self.base_urls.keys().collect()
+    }
+
     pub fn service_base_url<Q>(&self, service_name: &Q) -> Option<&String>
     where
         EncoreName: Borrow<Q>,

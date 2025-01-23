@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::Deref;
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct EncoreName(String);
 
 impl Deref for EncoreName {

@@ -18,13 +18,78 @@ impl Router {
         Router { main, fallback }
     }
 
-    pub fn add_routes(
-        &mut self,
-        routes: &PathSet<EncoreName, Arc<api::Endpoint>>,
-    ) -> anyhow::Result<()> {
+    pub fn new_internal(services: Vec<&EncoreName>) -> anyhow::Result<Self> {
+        let mut router = Router::new();
+
+        for service in services {
+            let target = Some(Target {
+                service_name: service.clone(),
+                requires_auth: false,
+            });
+
+            router.main.insert(
+                format!("/{service}/*path"),
+                MethodRoute {
+                    get: target.clone(),
+                    head: target.clone(),
+                    post: target.clone(),
+                    put: target.clone(),
+                    delete: target.clone(),
+                    option: target.clone(),
+                    trace: target.clone(),
+                    patch: target.clone(),
+                },
+            )?;
+        }
+
+        Ok(router)
+    }
+
+    pub fn route_to_service(
+        &self,
+        method: api::schema::Method,
+        path: &str,
+    ) -> Result<&Target, api::Error> {
+        let mut found_path_match = false;
+        for router in [&self.main, &self.fallback] {
+            if let Ok(service) = router.at(path) {
+                found_path_match = true;
+                let service = service.value.for_method(method);
+                if let Some(service) = service {
+                    return Ok(service);
+                }
+            }
+        }
+
+        // We couldn't find a matching route.
+        Err(if found_path_match {
+            api::Error {
+                code: api::ErrCode::NotFound,
+                message: "no route for method".to_string(),
+                internal_message: Some(format!("no route for method {:?}: {}", method, path)),
+                stack: None,
+                details: None,
+            }
+        } else {
+            api::Error {
+                code: api::ErrCode::NotFound,
+                message: "endpoint not found".to_string(),
+                internal_message: Some(format!("no such endpoint exists: {}", path)),
+                stack: None,
+                details: None,
+            }
+        })
+    }
+}
+
+impl TryFrom<PathSet<EncoreName, Arc<api::Endpoint>>> for Router {
+    type Error = anyhow::Error;
+
+    fn try_from(routes: PathSet<EncoreName, Arc<api::Endpoint>>) -> Result<Self, Self::Error> {
+        let mut result = Router::new();
         for (router, routes) in [
-            (&mut self.main, &routes.main),
-            (&mut self.fallback, &routes.fallback),
+            (&mut result.main, &routes.main),
+            (&mut result.fallback, &routes.fallback),
         ] {
             fn register_methods(
                 mr: &mut MethodRoute,
@@ -75,43 +140,7 @@ impl Router {
             }
         }
 
-        Ok(())
-    }
-
-    pub fn route_to_service(
-        &self,
-        method: api::schema::Method,
-        path: &str,
-    ) -> Result<&Target, api::Error> {
-        let mut found_path_match = false;
-        for router in [&self.main, &self.fallback] {
-            if let Ok(service) = router.at(path) {
-                found_path_match = true;
-                let service = service.value.for_method(method);
-                if let Some(service) = service {
-                    return Ok(service);
-                }
-            }
-        }
-
-        // We couldn't find a matching route.
-        Err(if found_path_match {
-            api::Error {
-                code: api::ErrCode::NotFound,
-                message: "no route for method".to_string(),
-                internal_message: Some(format!("no route for method {:?}: {}", method, path)),
-                stack: None,
-                details: None,
-            }
-        } else {
-            api::Error {
-                code: api::ErrCode::NotFound,
-                message: "endpoint not found".to_string(),
-                internal_message: Some(format!("no such endpoint exists: {}", path)),
-                stack: None,
-                details: None,
-            }
-        })
+        Ok(result)
     }
 }
 
