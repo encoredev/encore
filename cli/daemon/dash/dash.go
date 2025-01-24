@@ -23,6 +23,7 @@ import (
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/dash/ai"
 	"encr.dev/cli/daemon/engine/trace2"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/browser"
@@ -41,6 +42,7 @@ type handler struct {
 	rpc  jsonrpc2.Conn
 	apps *apps.Manager
 	run  *run.Manager
+	ns   *namespace.Manager
 	ai   *ai.Manager
 	tr   trace2.Store
 }
@@ -63,6 +65,23 @@ func (h *handler) GetMeta(appID string) (*meta.Data, error) {
 		}
 	}
 	return md, nil
+}
+
+func (h *handler) GetNamespace(ctx context.Context, appID string) (*namespace.Namespace, error) {
+	runInstance := h.run.FindRunByAppID(appID)
+	if runInstance != nil && runInstance.ProcGroup() != nil {
+		return runInstance.NS, nil
+	} else {
+		app, err := h.apps.FindLatestByPlatformOrLocalID(appID)
+		if err != nil {
+			return nil, err
+		}
+		ns, err := h.ns.GetActive(ctx, app)
+		if err != nil {
+			return nil, err
+		}
+		return ns, nil
+	}
 }
 
 func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
@@ -279,13 +298,23 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 			return reply(ctx, nil, err)
 		}
 
-		// Now find the running instance(s)
-		runInstance := h.run.FindRunByAppID(params.AppID)
-		status, err := buildDbMigrationStatus(ctx, app, runInstance)
+		appMeta, err := h.GetMeta(params.AppID)
 		if err != nil {
-			log.Error().Err(err).Msg("dash: could not build db migration status")
 			return reply(ctx, nil, err)
 		}
+
+		namespace, err := h.GetNamespace(ctx, params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		clusterType := sqldb.Run
+		cluster, ok := h.run.ClusterMgr.Get(sqldb.GetClusterID(app, clusterType, namespace))
+		if !ok {
+			return reply(ctx, nil, fmt.Errorf("failed to get database cluster of type %s", clusterType))
+		}
+
+		status := buildDbMigrationStatus(ctx, appMeta, cluster)
 
 		return reply(ctx, status, nil)
 	case "api-call":
@@ -1100,36 +1129,22 @@ func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err 
 	return resp, nil
 }
 
-func buildDbMigrationStatus(ctx context.Context, app *apps.Instance, run *run.Run) ([]dbMigrationHistory, error) {
-	if run == nil {
-		return nil, fmt.Errorf("app not running")
-	}
-	proc := run.ProcGroup()
-	if proc == nil {
-		return nil, fmt.Errorf("app not running")
-	}
-	md := proc.Meta
-	if md == nil {
-		return nil, fmt.Errorf("no metadata available")
-	}
-	clusterType := sqldb.Run
-	cluster, ok := run.Mgr.ClusterMgr.Get(sqldb.GetClusterID(app, clusterType, run.NS))
-	if !ok {
-		return nil, fmt.Errorf("failed to get database cluster of type %s", clusterType)
-	}
+func buildDbMigrationStatus(ctx context.Context, appMeta *meta.Data, cluster *sqldb.Cluster) []dbMigrationHistory {
 	var statuses []dbMigrationHistory
-	for _, dbMeta := range md.SqlDatabases {
+	for _, dbMeta := range appMeta.SqlDatabases {
 		db, ok := cluster.GetDB(dbMeta.Name)
 		if !ok {
-			return nil, fmt.Errorf("failed to get database %s", dbMeta.Name)
+			log.Error().Msgf("failed to get database %s", dbMeta.Name)
+			continue
 		}
 		appliedVersions, err := db.ListAppliedMigrations(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list applied migrations for database %s: %v", dbMeta.Name, err)
+			log.Error().Msgf("failed to list applied migrations for database %s: %v", dbMeta.Name, err)
+			continue
 		}
 		statuses = append(statuses, buildMigrationHistory(dbMeta, appliedVersions))
 	}
-	return statuses, nil
+	return statuses
 }
 
 func buildMigrationHistory(dbMeta *meta.SQLDatabase, appliedVersions map[uint64]bool) dbMigrationHistory {
