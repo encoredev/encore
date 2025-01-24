@@ -613,9 +613,9 @@ func (b *Bucket) SignedUploadURL(ctx context.Context, object string, options ...
 	return &SignedUploadURL{URL: url}, nil
 }
 
-// Generates an external URL to allow uploading an object to the bucket.
+// Generates an external URL to allow downloading an object from the bucket.
 //
-// Anyone with possession of the URL can write to the given object name
+// Anyone with possession of the URL can read the given object
 // without any additional auth.
 func (b *Bucket) SignedDownloadURL(ctx context.Context, object string, options ...DownloadURLOption) (*SignedDownloadURL, error) {
 	var opt downloadURLOptions
