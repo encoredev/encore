@@ -16,6 +16,7 @@ import (
 	"encr.dev/cli/daemon/dash/apiproxy"
 	"encr.dev/cli/daemon/dash/dashproxy"
 	"encr.dev/cli/daemon/engine/trace2"
+	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/internal/conf"
@@ -27,7 +28,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer starts a new server and returns it.
-func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dashPort int) *Server {
+func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, nsMgr *namespace.Manager, tr trace2.Store, dashPort int) *Server {
 	proxy, err := dashproxy.New(conf.DevDashURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not create dash proxy")
@@ -45,6 +46,7 @@ func NewServer(appsMgr *apps.Manager, runMgr *run.Manager, tr trace2.Store, dash
 		apiProxy: apiProxy,
 		apps:     appsMgr,
 		run:      runMgr,
+		ns:       nsMgr,
 		tr:       tr,
 		dashPort: dashPort,
 		traceCh:  make(chan trace2.NewSpanEvent, 10),
@@ -64,6 +66,7 @@ type Server struct {
 	apiProxy *httputil.ReverseProxy
 	apps     *apps.Manager
 	run      *run.Manager
+	ns       *namespace.Manager
 	tr       trace2.Store
 	dashPort int
 	traceCh  chan trace2.NewSpanEvent
@@ -96,7 +99,7 @@ func (s *Server) WebSocket(w http.ResponseWriter, req *http.Request) {
 
 	stream := &wsStream{c: c}
 	conn := jsonrpc2.NewConn(stream)
-	handler := &handler{rpc: conn, apps: s.apps, run: s.run, tr: s.tr, ai: s.ai}
+	handler := &handler{rpc: conn, apps: s.apps, run: s.run, ns: s.ns, tr: s.tr, ai: s.ai}
 	conn.Go(req.Context(), handler.Handle)
 
 	ch := make(chan *notification, 20)
