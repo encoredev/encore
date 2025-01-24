@@ -309,6 +309,15 @@ func (db *DB) doMigrate(ctx context.Context, cloudName, appRoot string, dbMeta *
 	return nil
 }
 
+func (db *DB) ListAppliedMigrations(ctx context.Context) (map[uint64]bool, error) {
+	conn, err := db.connectToDB(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer fns.CloseIgnore(conn)
+	return LoadAppliedVersions(ctx, conn, "public", "schema_migrations")
+}
+
 func RunMigration(ctx context.Context, dbName string, allowNonSeq bool, conn *sql.Conn, mdSrc *MetadataSource) (err error) {
 	var (
 		dbDriver  database.Driver
@@ -476,4 +485,26 @@ func (db *DB) connectSuperuser(ctx context.Context) (*pgx.Conn, error) {
 	}
 	db.log.Debug().Err(err).Msgf("failed to connect to admin db")
 	return nil, fmt.Errorf("failed to connect to superuser database: %v", err)
+}
+
+// Connects as a superuser or admin to the database. Fails fast if the cluster
+// is not running yet.
+// On success the returned conn must be closed by the caller.
+func (db *DB) connectToDB(ctx context.Context) (*sql.Conn, error) {
+	info, err := db.Cluster.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+	uri := info.ConnURI(db.EncoreName, info.Config.Superuser)
+	pool, err := sql.Open("pgx", uri)
+	if err != nil {
+		return nil, err
+	}
+	defer fns.CloseIgnore(pool)
+
+	conn, err := pool.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
