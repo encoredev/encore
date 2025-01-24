@@ -376,8 +376,11 @@ impl Manager {
             api_gateway_listener.clone().unwrap(),
         )]);
 
+        // TODO: add api-gateway if not present? or do that somewhere
         for name in gateways.keys() {
-            listners.entry(name.clone()).or_insert("0.0.0.0:0".into());
+            listners
+                .entry(name.clone())
+                .or_insert("127.0.0.1:9999".into());
         }
 
         self.runtime.spawn(async move {

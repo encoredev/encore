@@ -13,7 +13,7 @@ use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
 use crate::parser::types::validation;
-use crate::parser::types::{Object, ObjectId};
+use crate::parser::types::ObjectId;
 use crate::parser::usageparser::Usage;
 use crate::parser::{respath, FilePath, Range};
 use litparser::{ParseResult as PResult, ToParseErr};
@@ -194,12 +194,20 @@ impl MetaBuilder<'_> {
                         allow_unauthenticated: !ep.require_auth,
                         body_limit: ep.body_limit,
                         expose: {
+                            // TODO: how do we specify what endpoints should be added to what
+                            // gateways?
+                            //
+                            // on the service? on the endpont? on both? or on the gateway config?
+                            //
+                            let gw_name = if dbg!(dbg!(&ep.service_name).contains("other")) {
+                                "other".to_string()
+                            } else {
+                                DEFAULT_API_GATEWAY_NAME.to_string()
+                            };
+
                             let mut map = HashMap::new();
                             if ep.expose {
-                                map.insert(
-                                    DEFAULT_API_GATEWAY_NAME.to_string(),
-                                    v1::rpc::ExposeOptions {},
-                                );
+                                map.insert(gw_name, v1::rpc::ExposeOptions {});
                             }
                             map
                         },
@@ -282,11 +290,6 @@ impl MetaBuilder<'_> {
                 }
             }
         }
-
-        // Keep track of things we've seen so we can report errors pointing at
-        // the previous definition when we see a duplicate.
-        let mut first_gateway: Option<&gateway::Gateway> = None;
-        let mut first_auth_handler: Option<&Object> = None;
 
         // Make a second pass for resources that depend on other resources.
         for r in &dependent {
@@ -374,49 +377,9 @@ impl MetaBuilder<'_> {
                         .name
                         .clone();
 
-                    if let Some(first) = first_gateway {
-                        HANDLER.with(|h| {
-                            h.struct_span_err(
-                                gw.range.to_span(),
-                                "multiple gateways not yet supported",
-                            )
-                            .span_help(first.range.to_span(), "previous gateway defined here")
-                            .emit();
-                        });
-                        continue;
-                    } else {
-                        first_gateway = Some(gw);
-                    }
-
-                    if let Some(ah) = &gw.auth_handler {
-                        if let Some(first) = first_auth_handler {
-                            HANDLER.with(|h| {
-                                h.struct_span_err(
-                                    ah.range.to_span(),
-                                    "multiple auth handlers not yet supported",
-                                )
-                                .span_help(
-                                    first.range.to_span(),
-                                    "previous auth handler defined here",
-                                )
-                                .emit();
-                            });
-                            continue;
-                        } else {
-                            first_auth_handler = Some(ah);
-                        }
-                    }
-
                     self.data.auth_handler.clone_from(&auth_handler);
-
-                    if gw.name != "api-gateway" {
-                        gw.range.err("only the 'api-gateway' gateway is supported");
-                        continue;
-                    }
-                    let encore_name = DEFAULT_API_GATEWAY_NAME.to_string();
-
                     self.data.gateways.push(v1::Gateway {
-                        encore_name,
+                        encore_name: gw.name.clone(),
                         explicit: Some(v1::gateway::Explicit {
                             service_name,
                             auth_handler,

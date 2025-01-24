@@ -24,8 +24,8 @@ use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
-use crate::trace;
 use crate::{model, Hosted};
+use crate::{trace, EncoreName};
 
 use super::pvalue::{PValue, PValues};
 use super::reqauth::caller::Caller;
@@ -162,8 +162,8 @@ pub struct Endpoint {
     /// Whether this is a raw endpoint.
     pub raw: bool,
 
-    /// Whether the service is exposed publicly.
-    pub exposed: bool,
+    /// A list of gateway names where this endpoint is exposed to the public.
+    pub exposed: Vec<EncoreName>,
 
     /// Whether the service requires authentication data.
     pub requires_auth: bool,
@@ -331,8 +331,6 @@ pub fn endpoints_from_meta(
         }
         let resp_schema = ep.response_schema.build(&registry)?;
 
-        // We only support a single gateway right now.
-        let exposed = ep.ep.expose.contains_key("api-gateway");
         let raw =
             rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
@@ -363,7 +361,7 @@ pub fn endpoints_from_meta(
                 stream: ep.ep.streaming_response,
             }),
             raw,
-            exposed,
+            exposed: ep.ep.expose.keys().map(EncoreName::from).collect(),
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
             static_assets: ep.ep.static_assets.clone(),
@@ -545,9 +543,14 @@ impl EndpointHandler {
             };
 
             let internal_caller = request.internal_caller.clone();
+            let exposed = if let Some(Caller::Gateway { ref gateway }) = internal_caller {
+                self.endpoint.exposed.contains(gateway)
+            } else {
+                false
+            };
 
             // If the endpoint isn't exposed, return a 404.
-            if !self.endpoint.exposed && !request.allows_private_endpoint_call() {
+            if !exposed && !request.allows_private_endpoint_call() {
                 return Error {
                     code: ErrCode::NotFound,
                     message: "endpoint not found".into(),

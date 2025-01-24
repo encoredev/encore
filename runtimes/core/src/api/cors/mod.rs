@@ -202,7 +202,8 @@ impl MetaHeaders {
         let mut expose_headers = HashSet::new();
 
         for ep in endpoints.values() {
-            if !ep.exposed {
+            // TODO what should happen here?
+            if ep.exposed.is_empty() {
                 continue;
             }
             for h in ep.request.iter().flat_map(|req| req.header.iter()) {

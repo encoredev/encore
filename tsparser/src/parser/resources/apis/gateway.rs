@@ -25,6 +25,7 @@ pub struct Gateway {
 #[derive(Debug, LitParser)]
 struct DecodedGatewayConfig {
     authHandler: Option<ast::Expr>,
+    name: Option<String>,
 }
 
 pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
@@ -56,9 +57,11 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
                 None
             };
 
+            let name = r.config.name.unwrap_or("api-gateway".into());
+
             let resource = Resource::Gateway(Lrc::new(Gateway {
                 range: r.range,
-                name: "api-gateway".into(),
+                name,
                 doc: r.doc_comment,
                 auth_handler,
             }));

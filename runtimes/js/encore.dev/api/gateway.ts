@@ -8,7 +8,7 @@ export class Gateway {
   private impl: runtime.Gateway;
 
   constructor(cfg: GatewayConfig) {
-    this.name = "api-gateway";
+    this.name = cfg.name ?? "api-gateway";
     this.cfg = cfg;
 
     let auth: any = cfg.authHandler;
@@ -20,12 +20,13 @@ export class Gateway {
       };
     }
 
-    this.impl = runtime.RT.gateway("api-gateway", {
-      auth,
+    this.impl = runtime.RT.gateway(this.name, {
+      auth
     });
   }
 }
 
 export interface GatewayConfig {
   authHandler?: AuthHandlerBrand;
+  name?: string;
 }
