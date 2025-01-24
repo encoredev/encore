@@ -262,20 +262,18 @@ func (p *nonSequentialDbDriver) SetVersion(version int, dirty bool) error {
 	return nil
 }
 
-func (p *nonSequentialDbDriver) loadAppliedVersions() error {
-	if p.appliedVersions != nil {
-		return nil
-	}
-	p.appliedVersions = map[uint64]bool{}
-	query := `SELECT version, dirty FROM ` + pq.QuoteIdentifier(p.schemaName) + `.` + pq.QuoteIdentifier(p.migrationsTable) + ` ORDER BY version`
-	rows, err := p.conn.QueryContext(context.Background(), query)
+func LoadAppliedVersions(ctx context.Context, conn *sql.Conn, schemaName, migrationsTable string) (map[uint64]bool, error) {
+	appliedVersions := map[uint64]bool{}
+
+	query := `SELECT version, dirty FROM ` + pq.QuoteIdentifier(schemaName) + `.` + pq.QuoteIdentifier(migrationsTable) + ` ORDER BY version`
+	rows, err := conn.QueryContext(context.Background(), query)
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok {
 			if e.Code.Name() == "undefined_table" {
-				return nil
+				return appliedVersions, nil
 			}
 		}
-		return &database.Error{OrigErr: err, Query: []byte(query)}
+		return nil, &database.Error{OrigErr: err, Query: []byte(query)}
 	}
 	defer rows.Close()
 	var version uint64
@@ -283,10 +281,22 @@ func (p *nonSequentialDbDriver) loadAppliedVersions() error {
 	for rows.Next() {
 		err := rows.Scan(&version, &dirty)
 		if err != nil {
-			return &database.Error{OrigErr: err, Query: []byte(query)}
+			return nil, &database.Error{OrigErr: err, Query: []byte(query)}
 		}
-		p.appliedVersions[version] = dirty
+		appliedVersions[version] = dirty
 	}
+	return appliedVersions, nil
+}
+
+func (p *nonSequentialDbDriver) loadAppliedVersions() error {
+	if p.appliedVersions != nil {
+		return nil
+	}
+	applied, err := LoadAppliedVersions(context.Background(), p.conn, p.schemaName, p.migrationsTable)
+	if err != nil {
+		return err
+	}
+	p.appliedVersions = applied
 	return nil
 }
 

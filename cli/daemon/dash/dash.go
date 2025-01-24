@@ -24,6 +24,7 @@ import (
 	"encr.dev/cli/daemon/dash/ai"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/run"
+	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/browser"
 	"encr.dev/cli/internal/jsonrpc2"
 	"encr.dev/cli/internal/onboarding"
@@ -264,7 +265,29 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 
 		return reply(ctx, status, nil)
+	case "db-migration-status":
+		var params struct {
+			AppID string
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
 
+		// Find the latest app by platform ID or local ID.
+		app, err := h.apps.FindLatestByPlatformOrLocalID(params.AppID)
+		if err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		// Now find the running instance(s)
+		runInstance := h.run.FindRunByAppID(params.AppID)
+		status, err := buildDbMigrationStatus(ctx, app, runInstance)
+		if err != nil {
+			log.Error().Err(err).Msg("dash: could not build db migration status")
+			return reply(ctx, nil, err)
+		}
+
+		return reply(ctx, status, nil)
 	case "api-call":
 		telemetry.Send("api.call")
 		var params apiCallParams
@@ -1015,6 +1038,18 @@ type appStatus struct {
 	CompileError string                `json:"compileError,omitempty"`
 }
 
+type dbMigrationHistory struct {
+	DatabaseName string        `json:"databaseName"`
+	Migrations   []dbMigration `json:"migrations"`
+}
+
+type dbMigration struct {
+	Filename    string `json:"filename"`
+	Number      uint64 `json:"number"`
+	Description string `json:"description"`
+	Applied     bool   `json:"applied"`
+}
+
 func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err error) {
 	// Now try and grab latest metadata for the app
 	var md *meta.Data
@@ -1063,4 +1098,69 @@ func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err 
 	}
 
 	return resp, nil
+}
+
+func buildDbMigrationStatus(ctx context.Context, app *apps.Instance, run *run.Run) ([]dbMigrationHistory, error) {
+	if run == nil {
+		return nil, fmt.Errorf("app not running")
+	}
+	proc := run.ProcGroup()
+	if proc == nil {
+		return nil, fmt.Errorf("app not running")
+	}
+	md := proc.Meta
+	if md == nil {
+		return nil, fmt.Errorf("no metadata available")
+	}
+	clusterType := sqldb.Run
+	cluster, ok := run.Mgr.ClusterMgr.Get(sqldb.GetClusterID(app, clusterType, run.NS))
+	if !ok {
+		return nil, fmt.Errorf("failed to get database cluster of type %s", clusterType)
+	}
+	var statuses []dbMigrationHistory
+	for _, dbMeta := range md.SqlDatabases {
+		db, ok := cluster.GetDB(dbMeta.Name)
+		if !ok {
+			return nil, fmt.Errorf("failed to get database %s", dbMeta.Name)
+		}
+		appliedVersions, err := db.ListAppliedMigrations(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list applied migrations for database %s: %v", dbMeta.Name, err)
+		}
+		statuses = append(statuses, buildMigrationHistory(dbMeta, appliedVersions))
+	}
+	return statuses, nil
+}
+
+func buildMigrationHistory(dbMeta *meta.SQLDatabase, appliedVersions map[uint64]bool) dbMigrationHistory {
+	history := dbMigrationHistory{
+		DatabaseName: dbMeta.Name,
+		Migrations:   []dbMigration{},
+	}
+	// Go over migrations from latest to earliest
+	sortedMigrations := make([]*meta.DBMigration, len(dbMeta.Migrations))
+	copy(sortedMigrations, dbMeta.Migrations)
+	slices.SortStableFunc(sortedMigrations, func(a, b *meta.DBMigration) int {
+		return int(b.Number - a.Number)
+	})
+	implicitlyApplied := false
+	for _, migration := range sortedMigrations {
+		dirty, attempted := appliedVersions[migration.Number]
+		applied := attempted && !dirty
+		// If the database doesn't allow non-sequential migrations,
+		// then any migrations before the last applied will also have
+		// been applied even if we don't see them in the database.
+		if !dbMeta.AllowNonSequentialMigrations && applied {
+			implicitlyApplied = true
+		}
+
+		status := dbMigration{
+			Filename:    migration.Filename,
+			Number:      migration.Number,
+			Description: migration.Description,
+			Applied:     applied || implicitlyApplied,
+		}
+		history.Migrations = append(history.Migrations, status)
+	}
+	return history
 }
