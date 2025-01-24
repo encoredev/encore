@@ -502,8 +502,8 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 	{
 		text := textinput.New()
 		text.Focus()
-		text.CharLimit = 20
-		text.Width = 30
+		text.CharLimit = 50
+		text.Width = 60
 		text.Validate = incrementalValidateNameInput
 
 		nameModel = appNameModel{predefined: inputName, text: text}
