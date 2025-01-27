@@ -32,12 +32,13 @@ use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
 
 #[derive(Clone)]
-pub struct Gateway {
-    inner: Arc<Inner>,
+pub struct Gateways {
+    gateways: HashMap<EncoreName, Arc<Gateway>>,
 }
 
-struct Inner {
-    shared: Arc<SharedGatewayData>,
+pub struct Gateway {
+    name: EncoreName,
+    auth_handler: Option<auth::Authenticator>,
     service_registry: Arc<ServiceRegistry>,
     router: router::Router,
     cors_config: CorsHeadersConfig,
@@ -46,11 +47,18 @@ struct Inner {
     proxied_push_subs: HashMap<String, EncoreName>,
 }
 
+impl Gateway {
+    pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
+        self.auth_handler.as_ref()
+    }
+}
+
 pub struct GatewayCtx {
     upstream_service_name: EncoreName,
     upstream_base_path: String,
     upstream_host: Option<String>,
     upstream_require_auth: bool,
+    gateway: Arc<Gateway>,
 }
 
 impl GatewayCtx {
@@ -74,9 +82,24 @@ impl GatewayCtx {
     }
 }
 
-impl Gateway {
+impl Gateways {
+    pub fn new() -> Self {
+        Gateways {
+            gateways: HashMap::new(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.gateways.is_empty()
+    }
+
+    pub fn get(&self, name: &EncoreName) -> Option<&Arc<Gateway>> {
+        self.gateways.get(name)
+    }
+
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub fn insert(
+        &mut self,
         name: EncoreName,
         service_registry: Arc<ServiceRegistry>,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
@@ -85,18 +108,16 @@ impl Gateway {
         healthz: healthz::Handler,
         own_api_address: Option<SocketAddr>,
         proxied_push_subs: HashMap<String, EncoreName>,
-    ) -> anyhow::Result<Self> {
-        let shared = Arc::new(SharedGatewayData {
-            name,
-            auth: auth_handler,
-        });
-
+    ) -> anyhow::Result<()> {
         let mut router = router::Router::new();
         router.add_routes(&service_routes)?;
 
-        Ok(Gateway {
-            inner: Arc::new(Inner {
-                shared,
+        // TODO: error on duplicate inserts?
+        self.gateways.insert(
+            name.clone(),
+            Arc::new(Gateway {
+                name,
+                auth_handler,
                 service_registry,
                 router,
                 cors_config,
@@ -104,11 +125,9 @@ impl Gateway {
                 own_api_address,
                 proxied_push_subs,
             }),
-        })
-    }
+        );
 
-    pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
-        self.inner.shared.auth.as_ref()
+        Ok(())
     }
 
     pub async fn serve(self, listen_addr: &str) -> anyhow::Result<()> {
@@ -139,8 +158,14 @@ impl Gateway {
     }
 }
 
+impl Default for Gateways {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
-impl ProxyHttp for Gateway {
+impl ProxyHttp for Gateways {
     type CTX = Option<GatewayCtx>;
 
     fn new_ctx(&self) -> Self::CTX {
@@ -159,7 +184,10 @@ impl ProxyHttp for Gateway {
         Self::CTX: Send + Sync,
     {
         if session.req_header().uri.path() == "/__encore/healthz" {
-            let healthz_resp = self.inner.healthz.clone().health_check();
+            // TODO: handle this
+            let target_gateway = self.gateways.get("api-gateway").unwrap();
+
+            let healthz_resp = target_gateway.healthz.clone().health_check();
             let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp)
                 .or_err(ErrorType::HTTPStatus(500), "could not encode response")?;
 
@@ -178,8 +206,11 @@ impl ProxyHttp for Gateway {
 
         // preflight request, return early with cors headers
         if axum::http::Method::OPTIONS == session.req_header().method {
+            // TODO: handle this
+            let target_gateway = self.gateways.get("api-gateway").unwrap();
+
             let mut resp = ResponseHeader::build(200, None)?;
-            self.inner
+            target_gateway
                 .cors_config
                 .apply(session.req_header(), &mut resp)?;
             resp.insert_header(header::CONTENT_LENGTH, 0)?;
@@ -196,22 +227,26 @@ impl ProxyHttp for Gateway {
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
+        // TODO figure out what gateway should be used
+        let target_gateway = self.gateways.get("api-gateway").unwrap();
+
         let path = session.req_header().uri.path();
 
         // Check if this is a pubsub push request and if we need to proxy it to another service
         let push_proxy_svc = path
             .strip_prefix("/__encore/pubsub/push/")
-            .and_then(|sub_id| self.inner.proxied_push_subs.get(sub_id))
+            .and_then(|sub_id| target_gateway.proxied_push_subs.get(sub_id))
             .map(|svc| Target {
                 service_name: svc.clone(),
                 requires_auth: false,
             });
 
-        if let Some(own_api_addr) = &self.inner.own_api_address {
+        if let Some(own_api_addr) = &target_gateway.own_api_address {
             if push_proxy_svc.is_none() && path.starts_with("/__encore/") {
                 return Ok(Box::new(HttpPeer::new(own_api_addr, false, "".to_string())));
             }
         }
+
         let target = push_proxy_svc.map_or_else(
             || {
                 // Find which service handles the path route
@@ -227,14 +262,13 @@ impl ProxyHttp for Gateway {
                         stack: None,
                         details: None,
                     })
-                    .and_then(|method| self.inner.router.route_to_service(method, path))
+                    .and_then(|method| target_gateway.router.route_to_service(method, path))
                     .cloned()
             },
             Ok,
         )?;
 
-        let upstream = self
-            .inner
+        let upstream = target_gateway
             .service_registry
             .service_base_url(&target.service_name)
             .or_err(ErrorType::InternalError, "couldn't find upstream")?;
@@ -268,6 +302,7 @@ impl ProxyHttp for Gateway {
             upstream_host: host,
             upstream_service_name: target.service_name.clone(),
             upstream_require_auth: target.requires_auth,
+            gateway: target_gateway.clone(),
         });
 
         Ok(Box::new(peer))
@@ -282,8 +317,8 @@ impl ProxyHttp for Gateway {
     where
         Self::CTX: Send + Sync,
     {
-        if ctx.is_some() {
-            self.inner
+        if let Some(GatewayCtx { gateway, .. }) = ctx {
+            gateway
                 .cors_config
                 .apply(session.req_header(), upstream_response)?;
         }
@@ -324,8 +359,8 @@ impl ProxyHttp for Gateway {
                 )?;
             }
 
-            let svc_auth_method = self
-                .inner
+            let svc_auth_method = gateway_ctx
+                .gateway
                 .service_registry
                 .service_auth_method(&gateway_ctx.upstream_service_name)
                 .unwrap_or_else(|| Arc::new(svcauth::Noop));
@@ -341,7 +376,7 @@ impl ProxyHttp for Gateway {
             }
 
             let caller = Caller::Gateway {
-                gateway: self.inner.shared.name.clone(),
+                gateway: gateway_ctx.gateway.name.clone(),
             };
             let mut desc = CallDesc {
                 caller: &caller,
@@ -358,7 +393,7 @@ impl ProxyHttp for Gateway {
                 svc_auth_method: svc_auth_method.as_ref(),
             };
 
-            if let Some(auth_handler) = &self.inner.shared.auth {
+            if let Some(auth_handler) = &gateway_ctx.gateway.auth_handler {
                 let auth_response = auth_handler
                     .authenticate(upstream_request, call_meta.clone())
                     .await
@@ -387,7 +422,7 @@ impl ProxyHttp for Gateway {
         Ok(())
     }
 
-    async fn fail_to_proxy(&self, session: &mut Session, e: &Error, _ctx: &mut Self::CTX) -> u16
+    async fn fail_to_proxy(&self, session: &mut Session, e: &Error, ctx: &mut Self::CTX) -> u16
     where
         Self::CTX: Send + Sync,
     {
@@ -430,13 +465,14 @@ impl ProxyHttp for Gateway {
             )
         };
 
-        if let Err(e) = self
-            .inner
-            .cors_config
-            .apply(session.req_header(), &mut resp)
-        {
-            log::error!("failed setting cors header in error response: {e}");
+        // TODO global cors config? or should the cors config not be associated with a gateway?
+        // Apply cors headers based on the gateways cors config
+        if let Some(GatewayCtx { gateway, .. }) = ctx {
+            if let Err(e) = gateway.cors_config.apply(session.req_header(), &mut resp) {
+                log::error!("failed setting cors header in error response: {e}");
+            }
         }
+
         session.set_keepalive(None);
         session
             .write_response_header(Box::new(resp), false)
@@ -485,9 +521,4 @@ impl crate::api::auth::InboundRequest for RequestHeader {
     fn query(&self) -> Option<&str> {
         self.uri.query()
     }
-}
-
-struct SharedGatewayData {
-    name: EncoreName,
-    auth: Option<auth::Authenticator>,
 }

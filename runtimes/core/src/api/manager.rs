@@ -3,11 +3,10 @@ use std::future::{Future, IntoFuture};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
-use futures::future::select_all;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
-use crate::api::gateway::Gateway;
+use crate::api::gateway::Gateways;
 use crate::api::http_server::HttpServer;
 use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
@@ -23,6 +22,7 @@ use crate::trace::Tracer;
 use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
 use super::encore_routes::healthz;
+use super::gateway::Gateway;
 use super::websocket_client::WebSocketClient;
 use super::ResponsePayload;
 
@@ -56,7 +56,7 @@ pub struct Manager {
     api_server: Option<server::Server>,
     runtime: tokio::runtime::Handle,
 
-    gateways: HashMap<EncoreName, Gateway>,
+    gateways: Gateways,
     testing: bool,
 }
 
@@ -147,7 +147,7 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
-        let mut gateways = HashMap::new();
+        let mut gateways = Gateways::new();
         let routes = paths::compute(
             endpoints
                 .iter()
@@ -181,9 +181,8 @@ impl ManagerConfig<'_> {
                 auth_handler.as_ref().map(|ah| ah.auth_data().clone()),
             );
 
-            gateways.insert(
-                gw.encore_name.clone().into(),
-                Gateway::new(
+            gateways
+                .insert(
                     gw.encore_name.clone().into(),
                     service_registry.clone(),
                     routes.clone(),
@@ -193,8 +192,7 @@ impl ManagerConfig<'_> {
                     own_api_address,
                     self.proxied_push_subs.clone(),
                 )
-                .context("couldn't create gateway")?,
-            );
+                .context("couldn't create gateway")?;
         }
 
         let api_server = if !hosted_services.is_empty() {
@@ -312,7 +310,7 @@ fn build_auth_handler(
 }
 
 impl Manager {
-    pub fn gateway(&self, name: &EncoreName) -> Option<&Gateway> {
+    pub fn gateway(&self, name: &EncoreName) -> Option<&Arc<Gateway>> {
         self.gateways.get(name)
     }
 
@@ -369,33 +367,18 @@ impl Manager {
 
         let testing = self.testing;
         let gateways = self.gateways.clone();
-        let api_gateway_listener = self.gateway_listen_addr.clone();
-
-        let mut listners = HashMap::<EncoreName, String>::from([(
-            "api-gateway".into(),
-            api_gateway_listener.clone().unwrap(),
-        )]);
-
-        // TODO: add api-gateway if not present? or do that somewhere
-        for name in gateways.keys() {
-            listners
-                .entry(name.clone())
-                .or_insert("127.0.0.1:9999".into());
-        }
+        let gateway_listener = self.gateway_listen_addr.clone();
 
         self.runtime.spawn(async move {
-            let mut gateway_futs = vec![];
-
-            for (name, gateway) in gateways {
-                let ln = listners.get(&name).unwrap();
-
-                if testing {
-                    continue;
+            let gateway_fut = if let Some(ref ln) = gateway_listener {
+                if !gateways.is_empty() && !testing {
+                    Some(gateways.serve(ln))
                 } else {
-                    log::debug!(addr=ln; "gateway listening for incoming requests");
-                    gateway_futs.push(Box::pin(gateway.serve(ln)));
-                };
-            }
+                    None
+                }
+            } else {
+                None
+            };
 
             let api_fut = match api_listener {
                 Some(ln) => {
@@ -416,10 +399,9 @@ impl Manager {
             };
 
             tokio::select! {
-                (res, _, _) = async { select_all(gateway_futs).await }, if !gateway_futs.is_empty()  => {
+                res = async { gateway_fut.unwrap().await }, if gateway_fut.is_some()  => {
                     res.context("gateway").inspect_err(|err| log::error!("gateway failed: {:?}", err))?;
                 },
-
                 res = async { api_fut.unwrap().await }, if api_fut.is_some() => {
                     res.context("serve api").inspect_err(|err| log::error!("api server failed: {:?}", err))?;
                 },
