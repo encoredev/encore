@@ -28,6 +28,7 @@ use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::{api, model, EncoreName};
 
+use super::auth::InboundRequest;
 use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
 
@@ -156,6 +157,27 @@ impl Gateways {
 
         Ok(())
     }
+
+    fn target(&self, req: &RequestHeader) -> Option<&Arc<Gateway>> {
+        // TODO figure out what gateway should be used
+        let uri = &req.uri;
+
+        if let Some(host) = uri.host() {
+            eprintln!("the host is {:?}", host);
+        }
+
+        if let Some(port) = uri.port() {
+            eprintln!("the port is {:?}", port);
+        }
+
+        if let Some(name) = req.headers().get("x-encore-gateway-name") {
+            if let Ok(name) = name.to_str() {
+                return self.get(&name.to_owned().into());
+            }
+        }
+
+        self.get(&"api-gateway".to_owned().into())
+    }
 }
 
 impl Default for Gateways {
@@ -185,7 +207,7 @@ impl ProxyHttp for Gateways {
     {
         if session.req_header().uri.path() == "/__encore/healthz" {
             // TODO: handle this
-            let target_gateway = self.gateways.get("api-gateway").unwrap();
+            let target_gateway = self.target(session.req_header()).unwrap();
 
             let healthz_resp = target_gateway.healthz.clone().health_check();
             let healthz_bytes: Vec<u8> = serde_json::to_vec(&healthz_resp)
@@ -207,7 +229,7 @@ impl ProxyHttp for Gateways {
         // preflight request, return early with cors headers
         if axum::http::Method::OPTIONS == session.req_header().method {
             // TODO: handle this
-            let target_gateway = self.gateways.get("api-gateway").unwrap();
+            let target_gateway = self.target(session.req_header()).unwrap();
 
             let mut resp = ResponseHeader::build(200, None)?;
             target_gateway
@@ -227,8 +249,7 @@ impl ProxyHttp for Gateways {
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> pingora::Result<Box<HttpPeer>> {
-        // TODO figure out what gateway should be used
-        let target_gateway = self.gateways.get("api-gateway").unwrap();
+        let target_gateway = self.target(session.req_header()).unwrap();
 
         let path = session.req_header().uri.path();
 
