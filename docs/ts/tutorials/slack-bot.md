@@ -177,9 +177,9 @@ Let's define a secret using Encore's secrets management functionality.
 🥐 Add this to your `slack.ts` file:
 
 ```ts
--- slack/slack.ts --
 HL slack/slack.ts 0:0
 HL slack/slack.ts 2:2
+-- slack/slack.ts --
 import { secret } from "encore.dev/config";
 
 const slackSigningSecret = secret("SlackSigningSecret");
@@ -265,8 +265,8 @@ We're now ready to verify the signature.
 🥐 Update the `cowsay` function to look like this:
 
 ```ts
--- slack/slack.ts --
 HL slack/slack.ts 5:12
+-- slack/slack.ts --
 export const cowsay = api.raw(
   { expose: true, path: "/cowsay", method: "*" },
   async (req, resp) => {
