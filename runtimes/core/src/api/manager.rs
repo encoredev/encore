@@ -147,14 +147,10 @@ impl ManagerConfig<'_> {
                     .get(rid)
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
-        let mut gateways = Gateways::new();
-        let routes = paths::compute(
-            endpoints
-                .iter()
-                .map(|(_, ep)| RoutePerService(ep.to_owned())),
-        );
 
         let mut auth_data_schemas = HashMap::new();
+        let mut gateways = Gateways::new();
+
         for gw in &self.meta.gateways {
             let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
                 continue;
@@ -162,6 +158,15 @@ impl ManagerConfig<'_> {
             let Some(cors_cfg) = &gw_cfg.cors else {
                 anyhow::bail!("missing CORS configuration for gateway {}", gw.encore_name);
             };
+
+            let routes = paths::compute(
+                endpoints
+                    .iter()
+                    .filter(|(_, ep)| {
+                        ep.exposed.is_empty() || ep.exposed.contains(&gw.encore_name.clone().into())
+                    })
+                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
+            );
 
             let auth_handler = build_auth_handler(
                 self.meta,

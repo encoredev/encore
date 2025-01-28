@@ -536,7 +536,7 @@ impl MetaBuilder<'_> {
         // If there is no gateway, add a default one.
         if self.data.gateways.is_empty() {
             self.data.gateways.push(v1::Gateway {
-                encore_name: "api-gateway".to_string(),
+                encore_name: DEFAULT_API_GATEWAY_NAME.to_string(),
                 explicit: None,
             });
         }
