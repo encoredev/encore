@@ -17,6 +17,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     endpoint: rpc.endpoint.name.endpoint().to_string(),
                     raw: rpc.endpoint.raw,
                     requires_auth: rpc.endpoint.requires_auth,
+                    tags: rpc.endpoint.tags.clone(),
                 },
                 method: rpc.method.as_str().to_string(),
                 path: rpc.path.clone(),
@@ -43,6 +44,7 @@ pub fn meta(req: &model::Request) -> Result<RequestMeta, serde_json::Error> {
                     endpoint: data.endpoint.name.endpoint().to_string(),
                     raw: data.endpoint.raw,
                     requires_auth: data.endpoint.requires_auth,
+                    tags: data.endpoint.tags.clone(),
                 },
                 method: Default::default(),
                 path: data.path.clone(),
@@ -117,6 +119,7 @@ pub struct APIDesc {
     pub endpoint: String,
     pub raw: bool,
     pub requires_auth: bool,
+    pub tags: Vec<String>,
 }
 
 #[napi(object)]
