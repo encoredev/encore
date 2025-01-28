@@ -152,8 +152,8 @@ CREATE TABLE url (
 🥐 Next, go back to the `url/url.ts` file and import the `SQLDatabase` class from `encore.dev/storage/sqldb` module by modifying the imports to look like this:
 
 ```ts
--- url/url.ts --
 HL url/url.ts 1:1
+-- url/url.ts --
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { randomBytes } from "node:crypto";
@@ -162,8 +162,8 @@ import { randomBytes } from "node:crypto";
 🥐 Now, to define the database, create an instance of the `SQLDatabase` class in the `url` service:
 
 ```ts
--- url/url.ts --
 HL url/url.ts 4:5
+-- url/url.ts --
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { randomBytes } from "node:crypto";
@@ -193,8 +193,8 @@ export const shorten = api(
 🥐 Lastly, update the `shorten` function to insert data into the database:
 
 ```ts
--- url/url.ts --
 HL url/url.ts 21:24
+-- url/url.ts --
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { randomBytes } from "node:crypto";
@@ -267,9 +267,9 @@ To complete our URL shortener API, let’s add the endpoint to retrieve a URL gi
 🥐 Add this endpoint to `url/url.ts`:
 
 ```ts
--- url/url.ts --
 HL url/url.ts 0:0
 HL url/url.ts 29:39
+-- url/url.ts --
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { randomBytes } from "node:crypto";
@@ -352,8 +352,8 @@ $ npm i --save-dev vitest
 🥐 Next we need to add a test script to our `package.json`:
 
 ```json
--- package.json --
 HL package.json 1:1
+-- package.json --
 "scripts": {
   "test": "vitest"
 },
