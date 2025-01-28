@@ -95,6 +95,7 @@ This is how you create define services with Encore. Encore will now consider fil
 🥐 Create a file `slack/slack.ts` with the following contents:
 
 ```ts
+-- slack/slack.ts --
 import { api } from "encore.dev/api";
 import type { IncomingMessage } from "node:http";
 
@@ -176,6 +177,9 @@ Let's define a secret using Encore's secrets management functionality.
 🥐 Add this to your `slack.ts` file:
 
 ```ts
+-- slack/slack.ts --
+HL slack/slack.ts 0:0
+HL slack/slack.ts 2:2
 import { secret } from "encore.dev/config";
 
 const slackSigningSecret = secret("SlackSigningSecret");
@@ -194,6 +198,7 @@ TypeScript makes computing HMAC very straightforward, but it's still a fair amou
 
 🥐 Add a few more imports to your file, so that it reads:
 ```ts
+-- slack/slack.ts --
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingHttpHeaders } from "http";
 ```
@@ -201,6 +206,7 @@ import type { IncomingHttpHeaders } from "http";
 🥐 Next, we'll add the `verifySignature` function:
 
 ```ts
+-- slack/slack.ts --
 // Verifies the signature of an incoming request from Slack.
 const verifySignature = async function (
   body: string,
@@ -259,6 +265,8 @@ We're now ready to verify the signature.
 🥐 Update the `cowsay` function to look like this:
 
 ```ts
+-- slack/slack.ts --
+HL slack/slack.ts 5:12
 export const cowsay = api.raw(
   { expose: true, path: "/cowsay", method: "*" },
   async (req, resp) => {
@@ -285,9 +293,10 @@ export const cowsay = api.raw(
 
 Finally we're ready to put it all together.
 
-🥐 Update the `cowart` like so:
+🥐 Add the `cowart` in `slack.ts` like so:
 
 ```ts
+-- slack/slack.ts --
 const cowart = (msg: string) => `
 \`\`\`
 +-${"-".repeat(msg.length)}-+
