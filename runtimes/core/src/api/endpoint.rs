@@ -19,8 +19,8 @@ use crate::api::schema::encoding::{
 };
 use crate::api::schema::{JSONPayload, Method};
 use crate::api::{jsonschema, schema, ErrCode, Error};
-use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::rpc;
+use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
@@ -175,6 +175,9 @@ pub struct Endpoint {
     /// The static assets to serve from this endpoint.
     /// Set only for static asset endpoints.
     pub static_assets: Option<meta::rpc::StaticAssets>,
+
+    /// The tags for this endpoint.
+    pub tags: Vec<String>,
 }
 
 impl Endpoint {
@@ -333,6 +336,14 @@ pub fn endpoints_from_meta(
         let raw =
             rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
+        let tags = ep
+            .ep
+            .tags
+            .iter()
+            .filter(|item| item.r#type() == selector::Type::Tag)
+            .map(|item| item.value.clone())
+            .collect();
+
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
             path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
@@ -356,6 +367,7 @@ pub fn endpoints_from_meta(
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
             static_assets: ep.ep.static_assets.clone(),
+            tags,
         };
 
         endpoint_map.insert(
