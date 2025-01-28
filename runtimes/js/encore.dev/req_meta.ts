@@ -14,7 +14,7 @@ export interface APIDesc {
   /** Whether the endpoint requires auth. */
   auth: boolean;
 
-  /** Tags specifified on the API endpoint. */
+  /** Tags specified on the endpoint. */
   tags: string[];
 }
 
