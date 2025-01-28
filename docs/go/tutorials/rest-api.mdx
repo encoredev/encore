@@ -37,6 +37,7 @@ Now let's create a new `url` service.
 🥐 In your application's root folder, create a new folder `url` and create a new file `url.go` that looks like this:
 
 ```go
+-- url/url.go --
 // Service url takes URLs, generates random short IDs, and stores the URLs in a database.
 package url
 
@@ -121,6 +122,7 @@ Fortunately, Encore makes it really easy to set up a PostgreSQL database to stor
 🥐 Add the following contents to the file:
 
 ```sql
+-- url/migrations/1_create_tables.up.sql --
 CREATE TABLE url (
 	id TEXT PRIMARY KEY,
 	original_url TEXT NOT NULL
@@ -130,6 +132,8 @@ CREATE TABLE url (
 🥐 Next, go back to the `url/url.go` file and import the `encore.dev/storage/sqldb` package by modifying the import statement to become:
 
 ```go
+-- url/url.go --
+HL url/url.go 5:5
 import (
 	"context"
 	"crypto/rand"
@@ -142,6 +146,7 @@ import (
 🥐 Then let's define our database object by adding the following to `url/url.go`:
 
 ```go
+-- url/url.go --
 // Define a database named 'url', using the database
 // migrations in the "./migrations" folder.
 
@@ -153,6 +158,7 @@ var db = sqldb.NewDatabase("url", sqldb.DatabaseConfig{
 🥐 Now, to insert data into our database, let’s create a helper function `insert`:
 
 ```go
+-- url/url.go --
 // insert inserts a URL into the database.
 func insert(ctx context.Context, id, url string) error {
 	_, err := db.Exec(ctx, `
@@ -166,6 +172,7 @@ func insert(ctx context.Context, id, url string) error {
 🥐 Lastly, we can update our `Shorten` function to insert into the database:
 
 ```go
+-- url/url.go --
 func Shorten(ctx context.Context, p *ShortenParams) (*URL, error) {
 	id, err := generateID()
 	if err != nil {
@@ -187,11 +194,9 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 (In case your application won't run, check the [databases troubleshooting guide](/docs/develop/databases#troubleshooting).)
 
-You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
+You can verify that the database was created by opening the **Infra** tab in the local development dashboard at [localhost:9400](http://localhost:9400), which should something like this:
 
-<video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/rest_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
-</video>
+<img src="/assets/docs/infra_tab.png" alt="Infra tab in local development dashboard" className="w-full h-full" />
 
 🥐 Now let's call the API again from the local development dashboard, or from the terminal:
 
@@ -221,6 +226,7 @@ To complete our URL shortener API, let’s add the endpoint to retrieve a URL gi
 🥐 Add this endpoint to `url/url.go`:
 
 ```go
+-- url/url.go --
 // Get retrieves the original URL for the id.
 //encore:api public method=GET path=/url/:id
 func Get(ctx context.Context, id string) (*URL, error) {
@@ -265,9 +271,12 @@ the service works properly. Such tests including database access
 are easy to write.
 
 We've prepared a test to check that the whole cycle of shortening
-the URL, storing and then retrieving the original URL works. It looks like this:
+the URL, storing and then retrieving the original URL works.
+
+🥐 Save this in a separate file `url/url_test.go`.
 
 ```go
+-- url/url_test.go --
 package url
 
 import (
@@ -298,8 +307,6 @@ func TestShortenAndRetrieve(t *testing.T) {
 	}
 }
 ```
-
-🥐 Save this in a separate file `url/url_test.go`.
 
 🥐 Now run `encore test ./...` to verify that it's working.
 
