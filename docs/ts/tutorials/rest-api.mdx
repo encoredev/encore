@@ -53,7 +53,13 @@ export default new Service("url");
 This is how you define a service with Encore. Encore will now consider files in the `url` directory and all its subdirectories as part of the `url` service.
 
 
-🥐 Create a new file `url.ts` in the `url` directory that looks like this:
+🥐 Create a new file `url.ts` in the `url` directory:
+
+```shell
+$ touch url/url.ts
+```
+
+🥐 Add the following code to `url/url.ts`:
 
 ```ts
 -- url/url.ts --
@@ -81,7 +87,11 @@ export const shorten = api(
 
 This sets up the `POST /url` endpoint.
 
-🥐 Let’s see if it works! Start your app by running `encore run`.
+🥐 Let’s see if it works! Start your app by running the following command from your app's root directory:
+
+```shell
+$ encore run
+```
 
 You should see this:
 
@@ -122,11 +132,17 @@ Right now, we’re not actually storing the URL anywhere. That means we can gene
 ## 2. Save URLs in a database
 Fortunately, Encore makes it really easy to set up a PostgreSQL database to store our data. To do so, we first define a **database schema**, in the form of a migration file.
 
-🥐 Create a new folder named `migrations` inside the `url` folder. Then, inside the `migrations` folder, create an initial database migration file named `1_create_tables.up.sql`. The file name format is important (it must start with `1_` and end in `.up.sql`).
+🥐 Create a new folder named `migrations` inside the `url` folder. Then, inside the `migrations` folder, create an initial database migration file named `001_create_tables.up.sql`. The file name format is important (it must start with `001_` and end in `.up.sql`).
+
+```shell
+$ mkdir url/migrations
+$ touch url/migrations/001_create_tables.up.sql
+```
 
 🥐 Add the following contents to the file:
 
 ```sql
+-- url/migrations/001_create_tables.up.sql --
 CREATE TABLE url (
 	id TEXT PRIMARY KEY,
 	original_url TEXT NOT NULL
@@ -136,31 +152,77 @@ CREATE TABLE url (
 🥐 Next, go back to the `url/url.ts` file and import the `SQLDatabase` class from `encore.dev/storage/sqldb` module by modifying the imports to look like this:
 
 ```ts
+-- url/url.ts --
+HL url/url.ts 1:1
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { randomBytes } from "node:crypto";
 ```
 
-🥐 Now, to insert data into our database, let’s create an instance of the `SQLDatabase` class:
+🥐 Now, to define the database, create an instance of the `SQLDatabase` class in the `url` service:
 
 ```ts
+-- url/url.ts --
+HL url/url.ts 4:5
+import { api } from "encore.dev/api";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { randomBytes } from "node:crypto";
+
+// 'url' database is used to store the URLs that are being shortened.
 const db = new SQLDatabase("url", { migrations: "./migrations" });
+
+interface URL {
+    id: string; // short-form URL id
+    url: string; // complete URL, in long form
+}
+
+interface ShortenParams {
+    url: string; // the URL to shorten
+}
+
+// Shortens a URL.
+export const shorten = api(
+    { method: "POST", path: "/url", expose: true },
+    async ({ url }: ShortenParams): Promise<URL> => {
+        const id = randomBytes(6).toString("base64url");
+        return { id, url };
+    },
+);
 ```
 
-🥐 Lastly, we can update our `shorten` function to insert into the database:
+🥐 Lastly, update the `shorten` function to insert data into the database:
 
 ```ts
+-- url/url.ts --
+HL url/url.ts 21:24
+import { api } from "encore.dev/api";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { randomBytes } from "node:crypto";
+
+// 'url' database is used to store the URLs that are being shortened.
+const db = new SQLDatabase("url", { migrations: "./migrations" });
+
+interface URL {
+    id: string; // short-form URL id
+    url: string; // complete URL, in long form
+}
+
+interface ShortenParams {
+    url: string; // the URL to shorten
+}
+
+// Shortens a URL.
 export const shorten = api(
-  { method: "POST", path: "/url", expose: true },
-  async ({ url }: ShortenParams): Promise<URL> => {
-    const id = randomBytes(6).toString("base64url");
-    await db.exec`
-      INSERT INTO url (id, original_url)
-      VALUES (${id}, ${url})
-    `;
-    return { id, url };
-  },
-);
+    { method: "POST", path: "/url", expose: true },
+    async ({ url }: ShortenParams): Promise<URL> => {
+      const id = randomBytes(6).toString("base64url");
+      await db.exec`
+        INSERT INTO url (id, original_url)
+        VALUES (${id}, ${url})
+      `;
+      return { id, url };
+    },
+  );
 ```
 
 <Callout type="info">
@@ -173,11 +235,9 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 (In case your application won't run, check the [databases troubleshooting guide](/docs/ts/primitives/databases#troubleshooting).)
 
-You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
+You can verify that the database was created by looking at the **Infra** tab in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
 
-<video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/rest_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
-</video>
+<img src="/assets/docs/infra_tab.png" alt="Infra tab in local development dashboard" className="w-full h-full" />
 
 🥐 Now let's call the API again from the local development dashboard, or from the terminal:
 
@@ -207,18 +267,49 @@ To complete our URL shortener API, let’s add the endpoint to retrieve a URL gi
 🥐 Add this endpoint to `url/url.ts`:
 
 ```ts
-import { APIError } from "encore.dev/api";
+-- url/url.ts --
+HL url/url.ts 0:0
+HL url/url.ts 29:39
+import { api, APIError } from "encore.dev/api";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { randomBytes } from "node:crypto";
 
+// 'url' database is used to store the URLs that are being shortened.
+const db = new SQLDatabase("url", { migrations: "./migrations" });
+
+interface URL {
+    id: string; // short-form URL id
+    url: string; // complete URL, in long form
+}
+
+interface ShortenParams {
+    url: string; // the URL to shorten
+}
+
+// Shortens a URL.
+export const shorten = api(
+    { method: "POST", path: "/url", expose: true },
+    async ({ url }: ShortenParams): Promise<URL> => {
+      const id = randomBytes(6).toString("base64url");
+      await db.exec`
+        INSERT INTO url (id, original_url)
+        VALUES (${id}, ${url})
+      `;
+      return { id, url };
+    },
+  );
+
+  // Get retrieves the original URL for the id.
 export const get = api(
-  { method: "GET", path: "/url/:id", expose: true },
-  async ({ id }: { id: string }): Promise<URL> => {
-    const row = await db.queryRow`
-      SELECT original_url FROM url WHERE id = ${id}
-    `;
-    if (!row) throw APIError.notFound("url not found");
-    return { id, url: row.original_url };
-  },
-);
+    { expose: true, auth: false, method: "GET", path: "/url/:id" },
+    async ({ id }: { id: string }): Promise<URL> => {
+      const row = await db.queryRow`
+          SELECT original_url FROM url WHERE id = ${id}
+      `;
+      if (!row) throw APIError.notFound("url not found");
+      return { id, url: row.original_url };
+    }
+  );
 ```
 
 Encore uses the `/url/:id` syntax to represent a path with a parameter. The `id` name corresponds to the parameter name in the function signature. In this case it is of type `string`, but you can also use other built-in types like `number` or `boolean` if you want to restrict the values.
@@ -232,14 +323,14 @@ Encore uses the `/url/:id` syntax to represent a path with a parameter. The `id`
 You can also call it directly from the terminal:
 
 ```shell
-$ curl http://localhost:4000/url/zr6RmZc4
+$ curl http://localhost:4000/url/your-id-from-the-previous-step
 ```
 
 You should now see this:
 
 ```json
 {
-  "id": "zr6RmZc4",
+  "id": "your-id-from-the-previous-step",
   "url": "https://encore.dev"
 }
 ```
@@ -261,16 +352,19 @@ $ npm i --save-dev vitest
 🥐 Next we need to add a test script to our `package.json`:
 
 ```json
-...
+-- package.json --
+HL package.json 1:1
 "scripts": {
   "test": "vitest"
 },
-...
 ```
 
-We've prepared a test to check that the whole cycle of shortening the URL, storing and then retrieving the original URL works. It looks like this:
+We've prepared a test to check that the whole cycle of shortening the URL, storing and then retrieving the original URL works.
+
+🥐 Save this in a separate file `url/url.test.ts`.
 
 ```ts
+-- url/url.test.ts --
 import { describe, expect, test } from "vitest";
 import { get, shorten } from "./url";
 
@@ -282,8 +376,6 @@ describe("shorten", () => {
   });
 });
 ```
-
-🥐 Save this in a separate file `url/url.test.ts`.
 
 🥐 Now run `encore test` to verify that it's working.
 
