@@ -372,6 +372,7 @@ impl Manager {
         self.runtime.spawn(async move {
             let gateway_fut = if let Some(ref ln) = gateway_listener {
                 if !gateways.is_empty() && !testing {
+                    log::debug!(ln = ln; "gateway listening for incoming requests");
                     Some(gateways.serve(ln))
                 } else {
                     None

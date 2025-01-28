@@ -9,6 +9,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
+use http::header::HOST;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -32,7 +33,7 @@ use super::auth::InboundRequest;
 use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Gateways {
     gateways: HashMap<EncoreName, Arc<Gateway>>,
 }
@@ -46,6 +47,18 @@ pub struct Gateway {
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
     proxied_push_subs: HashMap<String, EncoreName>,
+}
+
+impl std::fmt::Debug for Gateway {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Gateway")
+            .field("name", &self.name)
+            .field("cors_config", &self.cors_config)
+            .field("healthz", &self.healthz)
+            .field("own_api_address", &self.own_api_address)
+            .field("proxied_push_subs", &self.proxied_push_subs)
+            .finish()
+    }
 }
 
 impl Gateway {
@@ -160,19 +173,19 @@ impl Gateways {
 
     fn target(&self, req: &RequestHeader) -> Option<&Arc<Gateway>> {
         // TODO figure out what gateway should be used
-        let uri = &req.uri;
-
-        if let Some(host) = uri.host() {
-            eprintln!("the host is {:?}", host);
-        }
-
-        if let Some(port) = uri.port() {
-            eprintln!("the port is {:?}", port);
-        }
 
         if let Some(name) = req.headers().get("x-encore-gateway-name") {
             if let Ok(name) = name.to_str() {
                 return self.get(&name.to_owned().into());
+            }
+        }
+
+        if let Some(host) = req.headers().get(HOST) {
+            if let Ok(host) = host.to_str() {
+                // TODO map host => gateway somewhere
+                if host == "localhost:4000" {
+                    return self.get(&"api-gateway".to_owned().into());
+                }
             }
         }
 
