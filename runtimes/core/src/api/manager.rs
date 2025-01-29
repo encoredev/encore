@@ -6,7 +6,7 @@ use anyhow::Context;
 
 use crate::api::auth::{LocalAuthHandler, RemoteAuthHandler};
 use crate::api::call::ServiceRegistry;
-use crate::api::gateway::Gateways;
+use crate::api::gateway::GatewayServer;
 use crate::api::http_server::HttpServer;
 use crate::api::paths::Pather;
 use crate::api::reqauth::platform;
@@ -56,7 +56,7 @@ pub struct Manager {
     api_server: Option<server::Server>,
     runtime: tokio::runtime::Handle,
 
-    gateways: Gateways,
+    gateways: GatewayServer,
     testing: bool,
 }
 
@@ -149,7 +149,12 @@ impl ManagerConfig<'_> {
             }));
 
         let mut auth_data_schemas = HashMap::new();
-        let mut gateways = Gateways::new();
+        let mut gateways = GatewayServer::new(
+            service_registry.clone(),
+            healthz_handler.clone(),
+            own_api_address,
+            self.proxied_push_subs.clone(),
+        );
 
         for gw in &self.meta.gateways {
             let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
@@ -187,15 +192,11 @@ impl ManagerConfig<'_> {
             );
 
             gateways
-                .insert(
+                .add(
                     gw.encore_name.clone().into(),
-                    service_registry.clone(),
                     routes.clone(),
                     auth_handler,
                     cors_config,
-                    healthz_handler.clone(),
-                    own_api_address,
-                    self.proxied_push_subs.clone(),
                 )
                 .context("couldn't create gateway")?;
         }
