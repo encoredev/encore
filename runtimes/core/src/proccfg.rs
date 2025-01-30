@@ -37,7 +37,7 @@ impl ProcessConfig {
                     })
             })
             .collect();
-        deployment.hosted_gateways = self
+        deployment.hosted_gateway_rids = self
             .hosted_gateways
             .iter()
             .map(|s| {

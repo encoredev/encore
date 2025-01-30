@@ -50,8 +50,8 @@ message Deployment {
   // A list of experiments to enable at runtime.
   repeated string dynamic_experiments = 3;
 
-  // The gateways hosted by this deployment, by rid.
-  repeated string hosted_gateways = 4;
+  // The gateways hosted by this deployment, by rid. Deprecated, use 10.
+  repeated string hosted_gateway_rids = 4;
 
   // The services hosted by this deployment.
   repeated HostedService hosted_services = 5;
@@ -70,6 +70,8 @@ message Deployment {
 
   // Graceful shutdown behavior.
   GracefulShutdown graceful_shutdown = 9;
+
+  repeated HostedGateway hosted_gateways = 10;
 }
 
 message Observability {
@@ -92,6 +94,38 @@ message HostedService {
   // The log configuration to use for this service.
   // If unset it defaults to "trace".
   optional string log_config = 3;
+}
+
+message HostedGateway {
+  // The name of the gateway
+  string name = 1;
+
+  // Rules for how to match a request to the gateway.
+  repeated MatchingRule matching_rule = 2;
+
+  // Rules for how the request is routed to the service.
+  repeated RoutingRule routing_rule = 3;
+
+  message MatchingRule {
+    oneof rule {
+      Header header = 1;
+      string path_prefix = 2;
+      string host = 3;
+    }
+
+    message Header {
+      string name = 1;
+      string value = 2;
+    }
+  }
+
+  message RoutingRule {
+    string incoming_path = 1;
+    bool auth_required = 2;
+
+    string destination_service = 3;
+    string destination_path = 4;
+  }
 }
 
 message ServiceAuth {

@@ -33,19 +33,6 @@ use super::auth::InboundRequest;
 use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
 
-pub struct Gateway {
-    name: EncoreName,
-    auth_handler: Option<auth::Authenticator>,
-    router: router::Router,
-    cors_config: CorsHeadersConfig,
-}
-
-impl Gateway {
-    pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
-        self.auth_handler.as_ref()
-    }
-}
-
 pub struct GatewayCtx {
     upstream_service_name: EncoreName,
     upstream_base_path: String,
@@ -72,6 +59,19 @@ impl GatewayCtx {
         ));
 
         builder.build().context("failed to build uri")
+    }
+}
+
+pub struct Gateway {
+    name: EncoreName,
+    auth_handler: Option<auth::Authenticator>,
+    router: router::Router,
+    cors_config: CorsHeadersConfig,
+}
+
+impl Gateway {
+    pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
+        self.auth_handler.as_ref()
     }
 }
 

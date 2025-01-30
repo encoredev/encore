@@ -582,7 +582,15 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         deploy_id: String::new(),
         deployed_at: None,
         dynamic_experiments: Vec::new(),
-        hosted_gateways: gateways.iter().map(|g| g.rid.clone()).collect(),
+        hosted_gateway_rids: gateways.iter().map(|g| g.rid.clone()).collect(),
+        hosted_gateways: gateways
+            .iter()
+            .map(|g| pbruntime::HostedGateway {
+                name: g.encore_name.clone(),
+                matching_rule: vec![],
+                routing_rule: vec![],
+            })
+            .collect(),
         hosted_services: infra
             .hosted_services
             .map(|services| {
