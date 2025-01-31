@@ -304,7 +304,7 @@ impl ProxyHttp for GatewayServer {
                     .and_then(|method| {
                         let target = target_gateway.router.route_to_service(method, path);
                         if target.is_err() && self.internal_gateway.is_some() {
-                            log::debug!("no route found, trying internal gateway");
+                            log::trace!("no route found, trying internal gateway");
                             if let Ok(data) =
                                 platform::ValidationData::from_req(session.req_header())
                             {
@@ -313,7 +313,7 @@ impl ProxyHttp for GatewayServer {
                                     .validate_platform_request(&data)
                                     .is_ok()
                                 {
-                                    log::debug!("internal gateway allowed request");
+                                    log::trace!("internal gateway allowed request");
                                     if let Ok(internal_target) = self
                                         .internal_gateway
                                         .as_ref()
@@ -321,7 +321,7 @@ impl ProxyHttp for GatewayServer {
                                         .router
                                         .route_to_service(method, path)
                                     {
-                                        log::debug!("internal gateway found route");
+                                        log::trace!("internal gateway found route");
                                         return Ok(internal_target);
                                     }
                                 }
