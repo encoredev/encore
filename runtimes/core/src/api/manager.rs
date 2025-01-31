@@ -154,7 +154,11 @@ impl ManagerConfig<'_> {
             healthz_handler.clone(),
             own_api_address,
             self.proxied_push_subs.clone(),
+            self.platform_validator.clone(),
         );
+
+        let legacy_mode =
+            self.meta.gateways.len() == 1 && self.meta.gateways[0].encore_name == "api-gateway";
 
         for gw in &self.meta.gateways {
             let Some(gw_cfg) = hosted_gateways.get(gw.encore_name.as_str()) else {
@@ -167,9 +171,7 @@ impl ManagerConfig<'_> {
             let routes = paths::compute(
                 endpoints
                     .iter()
-                    .filter(|(_, ep)| {
-                        ep.exposed.is_empty() || ep.exposed.contains(&gw.encore_name.clone().into())
-                    })
+                    .filter(|(_, ep)| ep.exposed.contains(&gw.encore_name.clone().into()))
                     .map(|(_, ep)| RoutePerService(ep.to_owned())),
             );
 
@@ -190,6 +192,30 @@ impl ManagerConfig<'_> {
                 gw.encore_name.clone(),
                 auth_handler.as_ref().map(|ah| ah.auth_data().clone()),
             );
+
+            // add an internal gateway with all paths to preserve legacy behaviour
+            if legacy_mode {
+                let routes = paths::compute(
+                    endpoints
+                        .iter()
+                        .map(|(_, ep)| RoutePerService(ep.to_owned())),
+                );
+                let auth_handler = build_auth_handler(
+                    self.meta,
+                    gw,
+                    &service_registry,
+                    self.http_client.clone(),
+                    self.tracer.clone(),
+                )
+                .context("unable to build authenticator")?;
+
+                gateways.set_internal_gateway(Gateway::new(
+                    "internal".into(),
+                    routes.clone(),
+                    auth_handler,
+                    cors_config.clone(),
+                )?);
+            }
 
             gateways
                 .add(

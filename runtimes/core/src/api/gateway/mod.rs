@@ -26,6 +26,7 @@ use crate::api::auth;
 use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
+use crate::api::reqauth::platform;
 use crate::api::reqauth::{svcauth, CallMeta};
 use crate::{api, model, EncoreName};
 
@@ -70,6 +71,23 @@ pub struct Gateway {
 }
 
 impl Gateway {
+    pub fn new(
+        name: EncoreName,
+        service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
+        auth_handler: Option<auth::Authenticator>,
+        cors_config: CorsHeadersConfig,
+    ) -> anyhow::Result<Self> {
+        let mut router = router::Router::new();
+        router.add_routes(&service_routes)?;
+
+        Ok(Gateway {
+            name,
+            auth_handler,
+            router,
+            cors_config,
+        })
+    }
+
     pub fn auth_handler(&self) -> Option<&auth::Authenticator> {
         self.auth_handler.as_ref()
     }
@@ -82,6 +100,8 @@ pub struct GatewayServer {
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
     proxied_push_subs: HashMap<String, EncoreName>,
+    platform_validator: Arc<platform::RequestValidator>,
+    internal_gateway: Option<Arc<Gateway>>,
 }
 
 impl GatewayServer {
@@ -90,6 +110,7 @@ impl GatewayServer {
         healthz: healthz::Handler,
         own_api_address: Option<SocketAddr>,
         proxied_push_subs: HashMap<String, EncoreName>,
+        platform_validator: Arc<platform::RequestValidator>,
     ) -> Self {
         GatewayServer {
             gateways: HashMap::new(),
@@ -97,6 +118,8 @@ impl GatewayServer {
             healthz,
             own_api_address,
             proxied_push_subs,
+            internal_gateway: None,
+            platform_validator,
         }
     }
 
@@ -115,19 +138,16 @@ impl GatewayServer {
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
     ) -> anyhow::Result<()> {
-        let mut router = router::Router::new();
-        router.add_routes(&service_routes)?;
-
         if self
             .gateways
             .insert(
                 name.clone(),
-                Arc::new(Gateway {
-                    name: name.clone(),
+                Arc::new(Gateway::new(
+                    name.clone(),
+                    service_routes,
                     auth_handler,
-                    router,
                     cors_config,
-                }),
+                )?),
             )
             .is_some()
         {
@@ -135,6 +155,10 @@ impl GatewayServer {
         }
 
         Ok(())
+    }
+
+    pub fn set_internal_gateway(&mut self, gateway: Gateway) {
+        self.internal_gateway = Some(Arc::new(gateway));
     }
 
     pub async fn serve(self, listen_addr: &str) -> anyhow::Result<()> {
@@ -277,7 +301,34 @@ impl ProxyHttp for GatewayServer {
                         stack: None,
                         details: None,
                     })
-                    .and_then(|method| target_gateway.router.route_to_service(method, path))
+                    .and_then(|method| {
+                        let target = target_gateway.router.route_to_service(method, path);
+                        if target.is_err() && self.internal_gateway.is_some() {
+                            log::debug!("no route found, trying internal gateway");
+                            if let Ok(data) =
+                                platform::ValidationData::from_req(session.req_header())
+                            {
+                                if self
+                                    .platform_validator
+                                    .validate_platform_request(&data)
+                                    .is_ok()
+                                {
+                                    log::debug!("internal gateway allowed request");
+                                    if let Ok(internal_target) = self
+                                        .internal_gateway
+                                        .as_ref()
+                                        .unwrap()
+                                        .router
+                                        .route_to_service(method, path)
+                                    {
+                                        log::debug!("internal gateway found route");
+                                        return Ok(internal_target);
+                                    }
+                                }
+                            }
+                        }
+                        target
+                    })
                     .cloned()
             },
             Ok,

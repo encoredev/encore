@@ -29,6 +29,7 @@ use crate::{trace, EncoreName};
 
 use super::pvalue::{PValue, PValues};
 use super::reqauth::caller::Caller;
+use super::reqauth::platform::ValidationData;
 
 #[derive(Debug)]
 pub struct SuccessResponse {
@@ -442,11 +443,7 @@ impl EndpointHandler {
             .into_parts();
 
         // Authenticate the request from the platform, if applicable.
-        #[allow(clippy::manual_unwrap_or_default)]
-        let platform_seal_of_approval = match self.authenticate_platform(&parts) {
-            Ok(seal) => seal,
-            Err(_err) => None,
-        };
+        let platform_seal_of_approval = self.authenticate_platform(&parts).ok();
 
         let meta = CallMeta::parse_with_caller(
             &self.shared.inbound_svc_auth,
@@ -665,32 +662,9 @@ impl EndpointHandler {
     fn authenticate_platform(
         &self,
         req: &axum::http::request::Parts,
-    ) -> Result<Option<platform::SealOfApproval>, platform::ValidationError> {
-        let Some(x_encore_auth_header) = req.headers.get("x-encore-auth") else {
-            return Ok(None);
-        };
-        let x_encore_auth_header = x_encore_auth_header
-            .to_str()
-            .map_err(|_| platform::ValidationError::InvalidMac)?;
-
-        let Some(date_header) = req.headers.get("Date") else {
-            return Err(platform::ValidationError::InvalidDateHeader);
-        };
-        let date_header = date_header
-            .to_str()
-            .map_err(|_| platform::ValidationError::InvalidDateHeader)?;
-
-        let request_path = req.uri.path();
-        let req = platform::ValidationData {
-            request_path,
-            date_header,
-            x_encore_auth_header,
-        };
-
-        self.shared
-            .platform_auth
-            .validate_platform_request(&req)
-            .map(Some)
+    ) -> Result<platform::SealOfApproval, platform::ValidationError> {
+        let data = ValidationData::from_req(req)?;
+        self.shared.platform_auth.validate_platform_request(&data)
     }
 }
 
