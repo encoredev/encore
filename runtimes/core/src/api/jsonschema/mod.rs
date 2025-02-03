@@ -102,6 +102,15 @@ impl JSONSchema {
             root: 0,
         }
     }
+
+    pub fn any() -> Self {
+        JSONSchema {
+            registry: Arc::new(Registry {
+                values: vec![Value::Basic(Basic::Any)],
+            }),
+            root: 0,
+        }
+    }
 }
 
 impl fmt::Debug for JSONSchema {

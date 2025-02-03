@@ -8,6 +8,7 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
+use super::jsonschema::JSONSchema;
 use super::PValues;
 
 /// Represents an API Error.
@@ -31,19 +32,10 @@ fn deserialize_details_as_any<'de, D>(deserializer: D) -> Result<ErrDetails, D::
 where
     D: Deserializer<'de>,
 {
-    let any_schema = {
-        use crate::encore::parser::meta::v1 as meta;
-        let md = meta::Data::default();
-        let mut builder = jsonschema::Builder::new(&md);
-        let idx = builder.register_value(jsonschema::Value::Basic(jsonschema::Basic::Any));
-        let registry = builder.build();
-        registry.schema(idx)
-    };
-
-    any_schema
+    Ok(JSONSchema::any()
         .deserialize(deserializer, jsonschema::DecodeConfig::default())
         .map(|pvalues| Some(Box::new(pvalues)))
-        .map_err(|err| err.into_inner())
+        .unwrap_or(None))
 }
 
 /// ErrorExternal hides internal information on `Error` when it serializes
