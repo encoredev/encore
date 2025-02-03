@@ -32,7 +32,7 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
         .map_err(|e| api::Error {
             code: api::ErrCode::Internal,
             message: api::ErrCode::Internal.default_public_message().into(),
-            internal_message: Some(format!("couldn't parse error message: {}", e)),
+            internal_message: Some(format!("unable to parse error message: {}", e)),
             details: None,
             stack: None,
         })?;
