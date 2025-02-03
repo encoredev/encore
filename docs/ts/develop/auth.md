@@ -155,3 +155,25 @@ This behavior preserves the guarantee that endpoints that
 require authentication always have valid authentication data present.
 
 </Callout>
+
+## Mocking auth
+
+You can mock `getAuthData` with vitest. Example:
+
+```ts
+import { describe, expect, test, vi } from "vitest";
+import * as auth from "~encore/auth"; 
+import { get } from "./hello";
+
+
+describe("get", () => {
+  test("should combine string with parameter value", async () => {
+    const spy = vi.spyOn(auth, 'getAuthData');
+    spy.mockImplementation(() => ({ userEmail: "user@email.com" }))
+
+    const resp = await get({ name: "world" });
+    expect(resp.message).toBe("Hello world! You are authenticated with user@email.com");
+  });
+});
+```
+
