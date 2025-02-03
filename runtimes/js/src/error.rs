@@ -16,10 +16,10 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
         .get_named_property::<napi::JsUnknown>("details")
         .and_then(parse_pvalues)
         .map(|val| val.map(Box::new))
-        .map_err(|_| api::Error {
+        .map_err(|e| api::Error {
             code: api::ErrCode::Internal,
             message: api::ErrCode::Internal.default_public_message().into(),
-            internal_message: Some("an unknown exception was thrown".into()),
+            internal_message: Some(format!("couldn't parse error details: {}", e)),
             details: None,
             stack: None,
         })?;
@@ -29,10 +29,10 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
         .get_named_property::<JsUnknown>("message")
         .and_then(|val| val.coerce_to_string())
         .and_then(|val| env.from_js_value(val))
-        .map_err(|_| api::Error {
+        .map_err(|e| api::Error {
             code: api::ErrCode::Internal,
             message: api::ErrCode::Internal.default_public_message().into(),
-            internal_message: Some("an unknown exception was thrown".into()),
+            internal_message: Some(format!("couldn't parse error message: {}", e)),
             details: None,
             stack: None,
         })?;
