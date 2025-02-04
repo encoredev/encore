@@ -544,7 +544,7 @@ impl EndpointHandler {
             let internal_caller = request.internal_caller.clone();
 
             // check if this endpoint is exposed by the calling gateway
-            let exposed = internal_caller.as_ref().map_or(false, |caller| {
+            let exposed = internal_caller.as_ref().is_some_and(|caller| {
                 matches!(caller, Caller::Gateway { gateway } if self.endpoint.exposed.contains(gateway))
             });
 
@@ -682,3 +682,5 @@ impl axum::handler::Handler<(), ()> for EndpointHandler {
 pub fn path_supports_tsr(path: &str) -> bool {
     path != "/" && !path.ends_with('/') && !path.contains("/*")
 }
+
+
