@@ -682,5 +682,3 @@ impl axum::handler::Handler<(), ()> for EndpointHandler {
 pub fn path_supports_tsr(path: &str) -> bool {
     path != "/" && !path.ends_with('/') && !path.contains("/*")
 }
-
-
