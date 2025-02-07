@@ -11,6 +11,7 @@ use anyhow::bail;
 use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
+use http::header::HOST;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -66,6 +67,7 @@ impl GatewayCtx {
 
 pub struct Gateway {
     name: EncoreName,
+    hostnames: Vec<String>,
     auth_handler: Option<auth::Authenticator>,
     router: router::Router,
     cors_config: CorsHeadersConfig,
@@ -77,6 +79,7 @@ impl Gateway {
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
+        hostnames: Vec<String>,
     ) -> anyhow::Result<Self> {
         let mut router = router::Router::new();
         router.add_routes(&service_routes)?;
@@ -86,6 +89,7 @@ impl Gateway {
             auth_handler,
             router,
             cors_config,
+            hostnames,
         })
     }
 
@@ -96,7 +100,8 @@ impl Gateway {
 
 #[derive(Clone)]
 pub struct GatewayServer {
-    gateways: BTreeMap<EncoreName, Arc<Gateway>>,
+    gateways_by_name: BTreeMap<EncoreName, Arc<Gateway>>,
+    gateways_by_host: BTreeMap<String, Arc<Gateway>>,
     service_registry: Arc<ServiceRegistry>,
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
@@ -114,7 +119,8 @@ impl GatewayServer {
         platform_validator: Arc<platform::RequestValidator>,
     ) -> Self {
         GatewayServer {
-            gateways: BTreeMap::new(),
+            gateways_by_name: BTreeMap::new(),
+            gateways_by_host: BTreeMap::new(),
             service_registry,
             healthz,
             own_api_address,
@@ -125,21 +131,37 @@ impl GatewayServer {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.gateways.is_empty()
+        self.gateways_by_name.is_empty()
     }
 
-    pub fn get_gateway(&self, name: &str) -> Option<&Arc<Gateway>> {
-        self.gateways.get(name)
+    pub fn gateway_by_name(&self, name: &str) -> Option<&Arc<Gateway>> {
+        self.gateways_by_name.get(name)
+    }
+
+    pub fn gateway_by_host(&self, host: &str) -> Option<&Arc<Gateway>> {
+        self.gateways_by_host.get(host)
     }
 
     pub fn add_gateway(&mut self, gateway: Gateway) -> anyhow::Result<()> {
+        let gateway = Arc::new(gateway);
+
         let name = gateway.name.clone();
         if self
-            .gateways
-            .insert(name.clone(), Arc::new(gateway))
+            .gateways_by_name
+            .insert(name.clone(), gateway.clone())
             .is_some()
         {
-            bail!("gateway {} already registered", &name)
+            bail!("gateway '{}' already registered", &name)
+        }
+
+        for hostname in &gateway.hostnames {
+            if self
+                .gateways_by_host
+                .insert(hostname.clone(), gateway.clone())
+                .is_some()
+            {
+                bail!("multiple gateways registerd under hostname '{}'", &hostname)
+            }
         }
 
         Ok(())
@@ -177,16 +199,27 @@ impl GatewayServer {
     }
 
     fn target(&self, req: &RequestHeader) -> Option<&Arc<Gateway>> {
-        // TODO lookup the correct gateway via configured rules
         // for testing purposes, look at `x-encore-gateway-name` header
         if let Some(name) = req.headers().get("x-encore-gateway-name") {
             if let Ok(name) = name.to_str() {
-                return self.get_gateway(name);
+                return self.gateway_by_name(name);
             }
         }
 
+        let by_host = req
+            .headers()
+            .get(HOST)
+            .and_then(|v| v.to_str().ok())
+            .inspect(|host| log::info!("hostname is {}", host))
+            .and_then(|host| self.gateway_by_host(host));
+
+        if let Some(gw) = by_host {
+            log::info!("found gateway by hostname");
+            return Some(gw);
+        }
+
         // fallback to legacy behaviour
-        self.get_gateway("api-gateway")
+        self.gateway_by_name("api-gateway")
     }
 }
 

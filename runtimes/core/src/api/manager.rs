@@ -306,6 +306,7 @@ fn build_gateway(
         routes,
         auth_handler,
         cors_config,
+        gw_cfg.hostnames.clone(),
     )
 }
 
@@ -380,7 +381,7 @@ impl Manager {
     pub fn gateway(&self, name: &EncoreName) -> Option<&Arc<Gateway>> {
         self.gateway_server
             .as_ref()
-            .and_then(|gws| gws.get_gateway(name))
+            .and_then(|gws| gws.gateway_by_name(name))
     }
 
     pub fn server(&self) -> Option<&server::Server> {
