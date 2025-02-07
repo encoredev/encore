@@ -20,7 +20,7 @@ type StackFrame struct {
 
 var projectSourcePath = getProjectSrcPath()
 
-// getRepoPath returns the path to this repo on the local system
+// getProjectSrcPath returns the path to this repo on the local system
 func getProjectSrcPath() string {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

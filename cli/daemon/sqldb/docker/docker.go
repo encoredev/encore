@@ -328,7 +328,7 @@ func (d *Driver) Meta() sqldb.DriverMeta {
 	return sqldb.DriverMeta{ClusterIsolation: true}
 }
 
-// containerName computes the container name candidates for a given clusterID.
+// containerNames computes the container name candidates for a given clusterID.
 func containerNames(id sqldb.ClusterID) []string {
 	// candidates returns possible candidate names for a given app id.
 	candidates := func(appID string) (names []string) {
@@ -389,7 +389,7 @@ func isDockerRunning(ctx context.Context) bool {
 	return err == nil
 }
 
-// clusterVolumeName reports the candidate names for the docker volume.
+// clusterVolumeNames reports the candidate names for the docker volume.
 func clusterVolumeNames(ns *namespace.Namespace) (candidates []string) {
 	nsName := idents.Convert(string(ns.Name), idents.KebabCase)
 	suffix := fmt.Sprintf("%s-%s", ns.ID, nsName)
