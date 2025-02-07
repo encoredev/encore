@@ -9,6 +9,7 @@ use crate::encore::runtime::v1::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use url::Url;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InfraConfig {
@@ -566,12 +567,23 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         .map(|gateways| {
             gateways
                 .into_iter()
-                .map(|gateway| pbruntime::Gateway {
-                    rid: get_next_rid(),
-                    encore_name: gateway,
-                    base_url: metadata.base_url.clone().unwrap_or_default(),
-                    hostnames: vec![],
-                    cors: cors.clone(),
+                .map(|gateway| {
+                    let base_url = metadata.base_url.clone().unwrap_or_default();
+                    let hostnames = Url::parse(&base_url)
+                        .ok()
+                        .and_then(|url| url.host_str().map(|host| host.to_string()))
+                        .map(|host| vec![host])
+                        .unwrap_or_default();
+
+                    pbruntime::Gateway {
+                        rid: get_next_rid(),
+                        encore_name: gateway,
+                        hostnames,
+                        base_url,
+                        cors: cors.clone(),
+                        internal: false,       // TODO(fredr)
+                        routing_rules: vec![], // TODO(fredr)
+                    }
                 })
                 .collect::<Vec<_>>()
         })
@@ -582,7 +594,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         deploy_id: String::new(),
         deployed_at: None,
         dynamic_experiments: Vec::new(),
-        hosted_gateways_legacy: gateways.iter().map(|g| g.rid.clone()).collect(),
+        hosted_gateways: gateways.iter().map(|g| g.rid.clone()).collect(),
         hosted_services: infra
             .hosted_services
             .map(|services| {
@@ -600,10 +612,6 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         observability,
         service_discovery,
         graceful_shutdown,
-
-        // TODO(fredr)
-        hosted_gateways: vec![],
-        internal_gateway: None,
     });
 
     let mut credentials = Credentials {

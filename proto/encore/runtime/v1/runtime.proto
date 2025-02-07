@@ -51,7 +51,7 @@ message Deployment {
   repeated string dynamic_experiments = 3;
 
   // The gateways hosted by this deployment, by rid.
-  repeated string hosted_gateways_legacy = 4;
+  repeated string hosted_gateways = 4;
 
   // The services hosted by this deployment.
   repeated HostedService hosted_services = 5;
@@ -70,12 +70,6 @@ message Deployment {
 
   // Graceful shutdown behavior.
   GracefulShutdown graceful_shutdown = 9;
-
-  // The gateways hosted by this deployment.
-  repeated HostedGateway hosted_gateways = 10;
-
-  // The internal gateway configuration.
-  InternalGateway internal_gateway = 11;
 }
 
 message Observability {
@@ -98,50 +92,6 @@ message HostedService {
   // The log configuration to use for this service.
   // If unset it defaults to "trace".
   optional string log_config = 3;
-}
-
-message HostedGateway {
-  // The name of the gateway.
-  string name = 1;
-
-  repeated MatchingRule matching_rules = 2;
-  repeated RoutingRule routing_rules = 3;
-
-  message MatchingRule {
-    oneof rule {
-      // Match based on the host.
-      string host = 1;
-      // Match based on the path prefix.
-      string path_prefix = 2;
-      // Match based on a header.
-      Header header = 3;
-    }
-  }
-
-  message Header {
-    // The name of the header to match.
-    string name = 1;
-    // The value of the header to match.
-    string value = 2;
-  }
-}
-
-message InternalGateway {
-  // The name of the internal gateway.
-  string name = 1;
-
-  // Routing rules for the internal gateway.
-  repeated RoutingRule routing_rules = 2;
-}
-
-
-message RoutingRule {
-  string incoming_path = 1;
-  bool auth_required = 2;
-
-  // The service and path to route to.
-  string destination_service = 3;
-  string destination_path = 4;
 }
 
 

@@ -380,7 +380,7 @@ impl Runtime {
                 .cloned(),
             gateways: resources.gateways,
             hosted_services: deployment.hosted_services,
-            hosted_gateway_rids: deployment.hosted_gateways_legacy,
+            hosted_gateway_rids: deployment.hosted_gateways,
             svc_auth_methods: deployment.auth_methods,
             deploy_id: deployment.deploy_id,
             platform: &encore_platform,

@@ -445,4 +445,16 @@ message Gateway {
     // use CORS.unsafe_allow_unsafe_all_origins_with_credentials for that.
     repeated string allowed_origins = 1;
   }
+
+  message RoutingRule {
+    string incoming_path = 1;
+    bool auth_required = 2;
+
+    // The service and path to route to.
+    string destination_service = 3;
+    string destination_path = 4;
+  }
+
+  repeated RoutingRule routing_rules = 6;
+  bool internal = 7;
 }
