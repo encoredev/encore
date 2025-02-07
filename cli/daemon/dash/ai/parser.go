@@ -286,7 +286,7 @@ func parseCode(ctx context.Context, app *apps.Instance, services []Service) (rtn
 	}, nil
 }
 
-// parserTypeField is a helper function to parse a schema field into a TypeField.
+// parseTypeField is a helper function to parse a schema field into a TypeField.
 func parseTypeField(f schema.StructField) (*TypeField, bool) {
 	name, ok := f.Name.Get()
 	if !ok {
