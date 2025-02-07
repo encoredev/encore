@@ -582,7 +582,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         deploy_id: String::new(),
         deployed_at: None,
         dynamic_experiments: Vec::new(),
-        hosted_gateways: gateways.iter().map(|g| g.rid.clone()).collect(),
+        hosted_gateways_legacy: gateways.iter().map(|g| g.rid.clone()).collect(),
         hosted_services: infra
             .hosted_services
             .map(|services| {
@@ -600,6 +600,10 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         observability,
         service_discovery,
         graceful_shutdown,
+
+        // TODO(fredr)
+        hosted_gateways: vec![],
+        internal_gateway: None,
     });
 
     let mut credentials = Credentials {
