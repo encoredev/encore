@@ -3730,6 +3730,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79c9fc7098dc3e7d09d2d1647921005be9301cf68536826195dc5369e05124bd"
 dependencies = [
+ "pingora-cache",
  "pingora-core",
  "pingora-http",
  "pingora-load-balancing",
@@ -3801,6 +3802,7 @@ dependencies = [
  "percent-encoding",
  "pingora-error",
  "pingora-http",
+ "pingora-openssl",
  "pingora-pool",
  "pingora-runtime",
  "pingora-timeout",
@@ -3895,6 +3897,20 @@ dependencies = [
  "hashbrown 0.15.2",
  "parking_lot",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "pingora-openssl"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f18158b901a02289f2a2a954a531c96e4d0703c94f7c9291981c9e53fddc6c1"
+dependencies = [
+ "foreign-types",
+ "libc",
+ "openssl",
+ "openssl-src",
+ "openssl-sys",
+ "tokio-openssl",
 ]
 
 [[package]]
@@ -5959,6 +5975,17 @@ dependencies = [
  "tokio",
  "tokio-io-timeout",
  "tokio-rustls 0.22.0",
+]
+
+[[package]]
+name = "tokio-openssl"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59df6849caa43bb7567f9a36f863c447d95a11d5903c9cc334ba32576a27eadd"
+dependencies = [
+ "openssl",
+ "openssl-sys",
+ "tokio",
 ]
 
 [[package]]
