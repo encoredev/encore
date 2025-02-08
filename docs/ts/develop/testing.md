@@ -30,7 +30,7 @@ We recommend [Vitest](https://vitest.dev) as your test runner because it offers:
 
 ### Setting up Vitest
 
-1. Create `vite.config.json` in your application's root directory:
+1. Create `vite.config.js` in your application's root directory:
 
 ```ts
 /// <reference types="vitest" />
