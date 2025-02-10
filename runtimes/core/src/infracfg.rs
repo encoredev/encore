@@ -568,21 +568,37 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
             gateways
                 .into_iter()
                 .map(|gateway| {
+                    // TODO(fredr): hosts and path prefix needs to be configurd somewhere per
+                    // gateway. This here will cause all hosted gateways to respond on the same
+                    // host / path.
                     let base_url = metadata.base_url.clone().unwrap_or_default();
-                    let hostnames = Url::parse(&base_url)
-                        .ok()
-                        .and_then(|url| url.host_str().map(|host| host.to_string()))
-                        .map(|host| vec![host])
-                        .unwrap_or_default();
+
+                    let match_rules = Url::parse(&base_url).map_or_else(
+                        |_| Vec::new(),
+                        |url| {
+                            let path = url.path().to_string();
+                            let hostname = url.host_str().map(|host| {
+                                url.port().map_or_else(
+                                    || host.to_string(),
+                                    |port| format!("{}:{}", host, port),
+                                )
+                            });
+                            vec![pbruntime::gateway::MatchRule {
+                                hostname,
+                                path_prefix: Some(path),
+                            }]
+                        },
+                    );
 
                     pbruntime::Gateway {
                         rid: get_next_rid(),
                         encore_name: gateway,
-                        hostnames,
+                        hostnames: vec![],
                         base_url,
                         cors: cors.clone(),
                         internal: false,       // TODO(fredr)
                         routing_rules: vec![], // TODO(fredr)
+                        match_rules,
                     }
                 })
                 .collect::<Vec<_>>()
