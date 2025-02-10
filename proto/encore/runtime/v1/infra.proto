@@ -434,6 +434,7 @@ message Gateway {
     // on private networks from websites.
     // See: https://wicg.github.io/private-network-access/
     bool allow_private_network_access = 8;
+
   }
 
   message CORSAllowedOrigins {
@@ -446,6 +447,17 @@ message Gateway {
     repeated string allowed_origins = 1;
   }
 
+  // Rules for matching a request with this gateway.
+  repeated MatchRule match_rules = 6;
+
+  message MatchRule {
+    // If set, the incoming request must match this hostname.
+    optional string hostname = 1;
+    // If set, the incoming request must match this path.
+    optional string path_prefix = 2;
+  }
+
+
   message RoutingRule {
     string incoming_path = 1;
     bool auth_required = 2;
@@ -455,6 +467,6 @@ message Gateway {
     string destination_path = 4;
   }
 
-  repeated RoutingRule routing_rules = 6;
-  bool internal = 7;
+  repeated RoutingRule routing_rules = 7;
+  bool internal = 8;
 }
