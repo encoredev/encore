@@ -2,12 +2,10 @@ mod router;
 mod websocket;
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use anyhow::bail;
 use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
@@ -65,12 +63,37 @@ impl GatewayCtx {
     }
 }
 
+pub struct GatewayMatchRule {
+    hostname: Option<String>,
+    path_prefix: Option<String>,
+}
+
+impl GatewayMatchRule {
+    fn matches(&self, host: &str, path: &str) -> bool {
+        // if host is specified in the match rule, check that it matches
+        if let Some(hostname) = &self.hostname {
+            if hostname != host {
+                return false;
+            }
+        }
+
+        // if path prefix is specified in the match rule, check if it matches
+        if let Some(path_prefix) = &self.path_prefix {
+            if !path.starts_with(path_prefix) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
 pub struct Gateway {
     name: EncoreName,
-    hostnames: Vec<String>,
     auth_handler: Option<auth::Authenticator>,
     router: router::Router,
     cors_config: CorsHeadersConfig,
+    match_rules: Vec<GatewayMatchRule>,
 }
 
 impl Gateway {
@@ -84,12 +107,21 @@ impl Gateway {
         let mut router = router::Router::new();
         router.add_routes(&service_routes)?;
 
+        // TODO(fredr): path prefix
+        let match_rules = hostnames
+            .into_iter()
+            .map(|host| GatewayMatchRule {
+                hostname: Some(host),
+                path_prefix: None,
+            })
+            .collect();
+
         Ok(Gateway {
             name,
             auth_handler,
             router,
             cors_config,
-            hostnames,
+            match_rules,
         })
     }
 
@@ -100,8 +132,7 @@ impl Gateway {
 
 #[derive(Clone)]
 pub struct GatewayServer {
-    gateways_by_name: BTreeMap<EncoreName, Arc<Gateway>>,
-    gateways_by_host: BTreeMap<String, Arc<Gateway>>,
+    gateways: Vec<Arc<Gateway>>,
     service_registry: Arc<ServiceRegistry>,
     healthz: healthz::Handler,
     own_api_address: Option<SocketAddr>,
@@ -119,50 +150,29 @@ impl GatewayServer {
         platform_validator: Arc<platform::RequestValidator>,
     ) -> Self {
         GatewayServer {
-            gateways_by_name: BTreeMap::new(),
-            gateways_by_host: BTreeMap::new(),
             service_registry,
             healthz,
             own_api_address,
             proxied_push_subs,
             internal_gateway: None,
             platform_validator,
+            gateways: Vec::new(),
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.gateways_by_name.is_empty()
+        self.gateways.is_empty()
     }
 
     pub fn gateway_by_name(&self, name: &str) -> Option<&Arc<Gateway>> {
-        self.gateways_by_name.get(name)
-    }
-
-    pub fn gateway_by_host(&self, host: &str) -> Option<&Arc<Gateway>> {
-        self.gateways_by_host.get(host)
+        self.gateways.iter().find(|gw| gw.name.as_ref() == name)
     }
 
     pub fn add_gateway(&mut self, gateway: Gateway) -> anyhow::Result<()> {
         let gateway = Arc::new(gateway);
+        self.gateways.push(gateway);
 
-        let name = gateway.name.clone();
-        if self
-            .gateways_by_name
-            .insert(name.clone(), gateway.clone())
-            .is_some()
-        {
-            bail!("gateway '{}' already registered", &name)
-        }
-
-        for hostname in &gateway.hostnames {
-            if self
-                .gateways_by_host
-                .insert(hostname.clone(), gateway.clone())
-                .is_some()
-            {
-                bail!("multiple gateways registerd under hostname '{}'", &hostname)
-            }
-        }
+        // TODO(fredr) validate conflicting routing rules etc?
 
         Ok(())
     }
@@ -206,16 +216,21 @@ impl GatewayServer {
             }
         }
 
-        let by_host = req
-            .headers()
+        let req_headers = req.headers();
+        let req_host = req_headers
             .get(HOST)
-            .and_then(|v| v.to_str().ok())
-            .inspect(|host| log::info!("hostname is {}", host))
-            .and_then(|host| self.gateway_by_host(host));
+            .and_then(|hv| hv.to_str().ok())
+            .unwrap_or_default();
+        let req_path = req.uri.path();
 
-        if let Some(gw) = by_host {
-            log::info!("found gateway by hostname");
-            return Some(gw);
+        for gateway in &self.gateways {
+            if gateway
+                .match_rules
+                .iter()
+                .any(|rule| rule.matches(req_host, req_path))
+            {
+                return Some(gateway);
+            }
         }
 
         // fallback to legacy behaviour
