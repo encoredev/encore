@@ -434,7 +434,6 @@ message Gateway {
     // on private networks from websites.
     // See: https://wicg.github.io/private-network-access/
     bool allow_private_network_access = 8;
-
   }
 
   message CORSAllowedOrigins {
