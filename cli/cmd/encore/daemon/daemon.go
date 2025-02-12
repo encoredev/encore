@@ -312,7 +312,7 @@ func (d *Daemon) openDB() *sql.DB {
 		}
 	}
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_journal=wal", dbPath))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?cache=shared&_journal=wal&_txlock=immediate", dbPath))
 	if err != nil {
 		fatal(err)
 	}
