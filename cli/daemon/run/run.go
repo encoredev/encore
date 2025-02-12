@@ -534,15 +534,9 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		gateways[gw.EncoreName] = GatewayConfig{
 			BaseURL:    gatewayBaseURL,
 			Hostnames:  []string{"localhost"},
-			Internal:   false,
+			Internal:   gw.EncoreName == "_encore_internal",
 			MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 		}
-	}
-	gateways["_encore_internal"] = GatewayConfig{
-		BaseURL:    gatewayBaseURL,
-		Hostnames:  []string{"localhost"},
-		Internal:   true,
-		MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 	}
 
 	authKey := genAuthKey()

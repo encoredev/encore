@@ -168,15 +168,9 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		gateways[gw.EncoreName] = GatewayConfig{
 			BaseURL:    apiBaseURL,
 			Hostnames:  []string{"localhost"},
-			Internal:   false,
+			Internal:   gw.EncoreName == "_encore_internal",
 			MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 		}
-	}
-	gateways["_encore_internal"] = GatewayConfig{
-		BaseURL:    apiBaseURL,
-		Hostnames:  []string{"localhost"},
-		Internal:   true,
-		MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 	}
 
 	outputs := build.Outputs

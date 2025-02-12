@@ -224,10 +224,7 @@ impl GatewayServer {
         }
 
         // if platform auth is provided, considure this an internal request
-        let internal = dbg!(dbg!(&req)
-            .headers()
-            .get(platform::ENCORE_AUTH_HEADER)
-            .is_some());
+        let internal = req.headers().get(platform::ENCORE_AUTH_HEADER).is_some();
 
         let req_headers = req.headers();
         let req_host = req_headers
@@ -236,7 +233,7 @@ impl GatewayServer {
             .unwrap_or_default();
         let req_path = req.uri.path();
 
-        for gateway in dbg!(&self.gateways) {
+        for gateway in &self.gateways {
             if gateway.internal != internal {
                 continue;
             }

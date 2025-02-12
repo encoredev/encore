@@ -537,10 +537,21 @@ func (b *builder) Build() *meta.Data {
 				AuthHandler: md.AuthHandler,
 			},
 		})
+		md.Gateways = append(md.Gateways, &meta.Gateway{
+			EncoreName: "_encore_internal",
+			Explicit: &meta.Gateway_Explicit{
+				ServiceName: md.AuthHandler.ServiceName,
+				AuthHandler: md.AuthHandler,
+			},
+		})
 	} else if len(md.Gateways) == 0 {
 		// Otherwise, add a default gateway.
 		md.Gateways = append(md.Gateways, &meta.Gateway{
 			EncoreName: "api-gateway",
+			Explicit:   nil,
+		})
+		md.Gateways = append(md.Gateways, &meta.Gateway{
+			EncoreName: "_encore_internal",
 			Explicit:   nil,
 		})
 	}

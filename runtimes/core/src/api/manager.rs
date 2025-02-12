@@ -162,7 +162,7 @@ impl ManagerConfig<'_> {
             let routes = paths::compute(
                 endpoints
                     .iter()
-                    .filter(|(_, ep)| ep.exposed.contains(name))
+                    .filter(|(_, ep)| gw_cfg.internal || ep.exposed.contains(name))
                     .map(|(_, ep)| RoutePerService(ep.to_owned())),
             );
 

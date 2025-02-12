@@ -412,10 +412,16 @@ impl MetaBuilder<'_> {
                         gw.range.err("only the 'api-gateway' gateway is supported");
                         continue;
                     }
-                    let encore_name = DEFAULT_API_GATEWAY_NAME.to_string();
 
                     self.data.gateways.push(v1::Gateway {
-                        encore_name,
+                        encore_name: DEFAULT_API_GATEWAY_NAME.to_string(),
+                        explicit: Some(v1::gateway::Explicit {
+                            service_name: service_name.clone(),
+                            auth_handler: auth_handler.clone(),
+                        }),
+                    });
+                    self.data.gateways.push(v1::Gateway {
+                        encore_name: "_encore_internal".to_string(),
                         explicit: Some(v1::gateway::Explicit {
                             service_name,
                             auth_handler,
@@ -573,6 +579,10 @@ impl MetaBuilder<'_> {
         if self.data.gateways.is_empty() {
             self.data.gateways.push(v1::Gateway {
                 encore_name: DEFAULT_API_GATEWAY_NAME.to_string(),
+                explicit: None,
+            });
+            self.data.gateways.push(v1::Gateway {
+                encore_name: "_encore_internal".to_string(),
                 explicit: None,
             });
         }
