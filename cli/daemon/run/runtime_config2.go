@@ -88,8 +88,10 @@ type RuntimeConfigGenerator struct {
 }
 
 type GatewayConfig struct {
-	BaseURL   string
-	Hostnames []string
+	BaseURL    string
+	Hostnames  []string
+	Internal   bool
+	MatchRules []*runtimev1.Gateway_MatchRule
 }
 
 func (g *RuntimeConfigGenerator) initialize() error {
@@ -174,17 +176,45 @@ func (g *RuntimeConfigGenerator) initialize() error {
 			Handlers:      durationpb.New(2 * time.Second),
 		})
 
+		cors, err := g.app.GlobalCORS()
+		if err != nil {
+			return errors.Wrap(err, "failed to generate global CORS config")
+		}
 		for _, gw := range g.md.Gateways {
-			cors, err := g.app.GlobalCORS()
-			if err != nil {
-				return errors.Wrap(err, "failed to generate global CORS config")
-			}
-
 			g.conf.Infra.Gateway(&runtimev1.Gateway{
 				Rid:        newRid(),
 				EncoreName: gw.EncoreName,
 				BaseUrl:    g.Gateways[gw.EncoreName].BaseURL,
 				Hostnames:  g.Gateways[gw.EncoreName].Hostnames,
+				MatchRules: g.Gateways[gw.EncoreName].MatchRules,
+				Internal:   g.Gateways[gw.EncoreName].Internal,
+				Cors: &runtimev1.Gateway_CORS{
+					Debug:               cors.Debug,
+					DisableCredentials:  false,
+					ExtraAllowedHeaders: cors.AllowHeaders,
+					ExtraExposedHeaders: cors.ExposeHeaders,
+
+					AllowedOriginsWithCredentials: &runtimev1.Gateway_CORS_UnsafeAllowAllOriginsWithCredentials{
+						UnsafeAllowAllOriginsWithCredentials: true,
+					},
+
+					AllowedOriginsWithoutCredentials: &runtimev1.Gateway_CORSAllowedOrigins{
+						AllowedOrigins: []string{"*"},
+					},
+
+					AllowPrivateNetworkAccess: true,
+				},
+			})
+		}
+
+		if gwCfg, ok := g.Gateways["_encore_internal"]; ok {
+			g.conf.Infra.Gateway(&runtimev1.Gateway{
+				Rid:        newRid(),
+				EncoreName: "_encore_internal",
+				BaseUrl:    gwCfg.BaseURL,
+				Hostnames:  gwCfg.Hostnames,
+				MatchRules: gwCfg.MatchRules,
+				Internal:   gwCfg.Internal,
 				Cors: &runtimev1.Gateway_CORS{
 					Debug:               cors.Debug,
 					DisableCredentials:  false,

@@ -28,6 +28,7 @@ import (
 	"encr.dev/pkg/paths"
 	"encr.dev/pkg/promise"
 	"encr.dev/pkg/vcs"
+	runtimev1 "encr.dev/proto/encore/runtime/v1"
 )
 
 // ExecScriptParams groups the parameters for the ExecScript method.
@@ -165,9 +166,17 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 	gateways := make(map[string]GatewayConfig)
 	for _, gw := range parse.Meta.Gateways {
 		gateways[gw.EncoreName] = GatewayConfig{
-			BaseURL:   apiBaseURL,
-			Hostnames: []string{"localhost"},
+			BaseURL:    apiBaseURL,
+			Hostnames:  []string{"localhost"},
+			Internal:   false,
+			MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 		}
+	}
+	gateways["_encore_internal"] = GatewayConfig{
+		BaseURL:    apiBaseURL,
+		Hostnames:  []string{"localhost"},
+		Internal:   true,
+		MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 	}
 
 	outputs := build.Outputs

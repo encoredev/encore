@@ -45,6 +45,7 @@ import (
 	"encr.dev/pkg/vcs"
 	daemonpb "encr.dev/proto/encore/daemon"
 	meta "encr.dev/proto/encore/parser/meta/v1"
+	runtimev1 "encr.dev/proto/encore/runtime/v1"
 )
 
 // Run represents a running Encore application.
@@ -531,9 +532,17 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	gateways := make(map[string]GatewayConfig)
 	for _, gw := range params.Meta.Gateways {
 		gateways[gw.EncoreName] = GatewayConfig{
-			BaseURL:   gatewayBaseURL,
-			Hostnames: []string{"localhost"},
+			BaseURL:    gatewayBaseURL,
+			Hostnames:  []string{"localhost"},
+			Internal:   false,
+			MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 		}
+	}
+	gateways["_encore_internal"] = GatewayConfig{
+		BaseURL:    gatewayBaseURL,
+		Hostnames:  []string{"localhost"},
+		Internal:   true,
+		MatchRules: []*runtimev1.Gateway_MatchRule{{}},
 	}
 
 	authKey := genAuthKey()

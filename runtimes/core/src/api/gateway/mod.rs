@@ -63,6 +63,7 @@ impl GatewayCtx {
     }
 }
 
+#[derive(Debug)]
 pub struct GatewayMatchRule {
     pub hostname: Option<String>,
     pub path_prefix: Option<String>,
@@ -95,6 +96,18 @@ pub struct Gateway {
     cors_config: CorsHeadersConfig,
     match_rules: Vec<GatewayMatchRule>,
     internal: bool,
+}
+
+impl std::fmt::Debug for Gateway {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Gateway")
+            .field("name", &self.name)
+            .field("auth_handler", &self.auth_handler.is_some())
+            .field("cors_config", &self.cors_config)
+            .field("match_rules", &self.match_rules)
+            .field("internal", &self.internal)
+            .finish()
+    }
 }
 
 impl Gateway {
@@ -211,7 +224,10 @@ impl GatewayServer {
         }
 
         // if platform auth is provided, considure this an internal request
-        let internal = req.headers().get(platform::ENCORE_AUTH_HEADER).is_some();
+        let internal = dbg!(dbg!(&req)
+            .headers()
+            .get(platform::ENCORE_AUTH_HEADER)
+            .is_some());
 
         let req_headers = req.headers();
         let req_host = req_headers
@@ -220,7 +236,7 @@ impl GatewayServer {
             .unwrap_or_default();
         let req_path = req.uri.path();
 
-        for gateway in &self.gateways {
+        for gateway in dbg!(&self.gateways) {
             if gateway.internal != internal {
                 continue;
             }
