@@ -456,17 +456,4 @@ message Gateway {
     // If set, the incoming request must match this path.
     optional string path_prefix = 2;
   }
-
-
-  message RoutingRule {
-    string incoming_path = 1;
-    bool auth_required = 2;
-
-    // The service and path to route to.
-    string destination_service = 3;
-    string destination_path = 4;
-  }
-
-  repeated RoutingRule routing_rules = 7;
-  bool internal = 8;
 }

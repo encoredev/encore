@@ -28,6 +28,13 @@ pub struct InfraConfig {
     pub object_storage: Option<Vec<ObjectStorage>>,
     pub worker_threads: Option<i32>,
     pub log_config: Option<String>,
+    pub gateways: Option<Vec<GatewayConfig>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GatewayConfig {
+    pub encore_name: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -568,10 +575,17 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
             gateways
                 .into_iter()
                 .map(|gateway| {
-                    // TODO(fredr): hosts and path prefix needs to be configurd somewhere per
-                    // gateway. This here will cause all hosted gateways to respond on the same
-                    // host / path.
-                    let base_url = metadata.base_url.clone().unwrap_or_default();
+                    let gw_config = infra.gateways.as_ref().and_then(|gateways| {
+                        gateways
+                            .iter()
+                            .find(|GatewayConfig { encore_name, .. }| encore_name == &gateway)
+                    });
+
+                    // If there is no gateway config, fallback to legacy behaviour and use the
+                    // metadata.base_url instead.
+                    let base_url = gw_config
+                        .map(|cfg| cfg.base_url.clone())
+                        .unwrap_or_else(|| metadata.base_url.clone().unwrap_or_default());
 
                     let match_rules = Url::parse(&base_url).map_or_else(
                         |_| Vec::new(),
@@ -596,8 +610,6 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         hostnames: vec![],
                         base_url,
                         cors: cors.clone(),
-                        internal: false,       // TODO(fredr)
-                        routing_rules: vec![], // TODO(fredr)
                         match_rules,
                     }
                 })
