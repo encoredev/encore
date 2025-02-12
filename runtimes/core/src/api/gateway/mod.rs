@@ -64,8 +64,8 @@ impl GatewayCtx {
 }
 
 pub struct GatewayMatchRule {
-    hostname: Option<String>,
-    path_prefix: Option<String>,
+    pub hostname: Option<String>,
+    pub path_prefix: Option<String>,
 }
 
 impl GatewayMatchRule {
@@ -94,6 +94,7 @@ pub struct Gateway {
     router: router::Router,
     cors_config: CorsHeadersConfig,
     match_rules: Vec<GatewayMatchRule>,
+    internal: bool,
 }
 
 impl Gateway {
@@ -102,19 +103,11 @@ impl Gateway {
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
-        hostnames: Vec<String>,
+        match_rules: Vec<GatewayMatchRule>,
+        internal: bool,
     ) -> anyhow::Result<Self> {
         let mut router = router::Router::new();
         router.add_routes(&service_routes)?;
-
-        // TODO(fredr): path prefix
-        let match_rules = hostnames
-            .into_iter()
-            .map(|host| GatewayMatchRule {
-                hostname: Some(host),
-                path_prefix: None,
-            })
-            .collect();
 
         Ok(Gateway {
             name,
@@ -122,6 +115,7 @@ impl Gateway {
             router,
             cors_config,
             match_rules,
+            internal,
         })
     }
 
@@ -216,6 +210,9 @@ impl GatewayServer {
             }
         }
 
+        // if platform auth is provided, considure this an internal request
+        let internal = req.headers().get(platform::ENCORE_AUTH_HEADER).is_some();
+
         let req_headers = req.headers();
         let req_host = req_headers
             .get(HOST)
@@ -224,6 +221,9 @@ impl GatewayServer {
         let req_path = req.uri.path();
 
         for gateway in &self.gateways {
+            if gateway.internal != internal {
+                continue;
+            }
             if gateway
                 .match_rules
                 .iter()
@@ -299,6 +299,16 @@ impl ProxyHttp for GatewayServer {
             .target(session.req_header())
             .ok_or_else(|| api::Error::not_found("gateway not found"))?;
 
+        // if this is an internal gateway, validate the request
+        if target_gateway.internal {
+            log::trace!("validating internal credentials");
+            if let Ok(data) = platform::ValidationData::from_req(session.req_header()) {
+                self.platform_validator
+                    .validate_platform_request(&data)
+                    .or_err(ErrorType::HTTPStatus(401), "Unauthorized internal request")?;
+            }
+        }
+
         let path = session.req_header().uri.path();
 
         // Check if this is a pubsub push request and if we need to proxy it to another service
@@ -331,37 +341,7 @@ impl ProxyHttp for GatewayServer {
                         stack: None,
                         details: None,
                     })
-                    .and_then(|method| {
-                        let target = target_gateway.router.route_to_service(method, path);
-
-                        // If no route found, try the internal gateway
-                        if target.is_err() && self.internal_gateway.is_some() {
-                            log::trace!("no route found, trying internal gateway");
-                            if let Ok(data) =
-                                platform::ValidationData::from_req(session.req_header())
-                            {
-                                if self
-                                    .platform_validator
-                                    .validate_platform_request(&data)
-                                    .is_ok()
-                                {
-                                    log::trace!(
-                                        "platform request validated, routing to internal gateway"
-                                    );
-                                    if let Ok(internal_target) = self
-                                        .internal_gateway
-                                        .as_ref()
-                                        .unwrap()
-                                        .router
-                                        .route_to_service(method, path)
-                                    {
-                                        return Ok(internal_target);
-                                    }
-                                }
-                            }
-                        }
-                        target
-                    })
+                    .and_then(|method| target_gateway.router.route_to_service(method, path))
                     .cloned()
             },
             Ok,

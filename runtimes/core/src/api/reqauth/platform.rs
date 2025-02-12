@@ -7,6 +7,8 @@ use hmac::Mac;
 use std::fmt::Display;
 use std::time::SystemTime;
 
+pub const ENCORE_AUTH_HEADER: &str = "x-encore-auth";
+
 pub struct RequestValidator {
     keys: Box<[SigningKey]>,
 }
@@ -25,7 +27,7 @@ pub struct ValidationData<'a> {
 
 impl<'a> ValidationData<'a> {
     pub fn from_req(req: &'a axum::http::request::Parts) -> Result<Self, ValidationError> {
-        let Some(x_encore_auth_header) = req.headers.get("x-encore-auth") else {
+        let Some(x_encore_auth_header) = req.headers.get(ENCORE_AUTH_HEADER) else {
             return Err(ValidationError::MissingAuthHeader);
         };
         let x_encore_auth_header = x_encore_auth_header
