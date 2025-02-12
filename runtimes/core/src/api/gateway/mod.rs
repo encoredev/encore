@@ -233,8 +233,7 @@ impl GatewayServer {
             }
         }
 
-        // fallback to legacy behaviour
-        self.gateway_by_name("api-gateway")
+        None
     }
 }
 
