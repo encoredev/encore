@@ -35,6 +35,14 @@ This means Encore was not able to create the database. Often this is due to a pr
 - Set the correct permissions with `sudo usermod -aG docker $USER` (Learn more in the [Docker documentation](https://docs.docker.com/engine/install/linux-postinstall/))
 - Then log out and log back in so that your group membership is refreshed.
 
+** Error: unable to save docker image **
+
+This error is often caused by a problem with Docker.
+
+- Make sure that you have [Docker](https://docker.com) installed and running.
+- In Docker, open **Settings > Advanced** and make sure that the setting `Allow the default Docker socket to be used` is checked.
+- If it still fails, restart the Encore daemon by running `encore daemon`, then try `encore run` again.
+
 ** Error: unable to add CA to cert pool **
 
 This error is commonly caused by the presence of the file `$HOME/.postgresql/root.crt` on the filesystem.
