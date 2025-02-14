@@ -99,6 +99,8 @@ export default defineConfig({
 });
 ```
 
+To improve the performance in CI, you can re-enable the parallel execution by overwriting the config in cli `encore test --fileParallelism=true`.
+
 ## Integration Testing Best Practices
 
 Encore applications typically focus on integration tests rather than unit tests because:
@@ -118,5 +120,3 @@ When running tests, Encore automatically:
 
 These optimizations make integration tests nearly as fast as unit tests.
 
-
-To improve the performance in CI, you can re-enable the parallel execution by overwriting the config in cli `encore test --fileParallelism=true`.
