@@ -537,6 +537,11 @@
 				text: "Use Firebase Authentication"
 				path: "/go/how-to/firebase-auth"
 				file: "go/how-to/firebase-auth"
+			}, {
+				kind: "basic"
+				text: "Use Logto Authentication"
+				path: "/go/how-to/logto-auth"
+				file: "go/how-to/logto-auth"
 			}]
 		},
 		{
