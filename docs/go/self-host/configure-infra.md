@@ -4,7 +4,6 @@ seotitle: Configure Infrastructure
 seodesc: Learn how to configure infrastructure resources for your Encore app.
 lang: go
 ---
-
 If you are using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration.
 The `build` command lets you provide this by specifying a path to a config file using the `--config` flag.
 
@@ -20,7 +19,7 @@ This supports configuring things like:
 - How to call other services over the network ("service discovery"),
   most notably their base URLs.
 - Observability configuration (where to export metrics, etc.)
-- Metadata about the environment the application is running in, to power Encore's [metadata APIs](/docs/go/develop/metadata).
+- Metadata about the environment the application is running in, to power Encore's metadata APIs
 - The values for any application-defined secrets.
 
 This configuration is necessary for the application to behave correctly.
@@ -56,7 +55,7 @@ Here's an example configuration file you can use.
     }
   },
   "redis": {
-    "encoreredis": {
+    "my-redis": {
       "database_index": 0,
       "auth": {
         "type": "acl",
@@ -88,7 +87,7 @@ Here's an example configuration file you can use.
       "type": "gcp_pubsub",
       "project_id": "my-project",
       "topics": {
-        "encore-topic": {
+        "my-topic": {
           "name": "gcp-topic-name",
           "subscriptions": {
             "encore-subscription": {
@@ -181,14 +180,14 @@ configured when the services are started.
 ```json
 {
   "service_discovery": {
-    "user-service": {
-      "base_url": "https://user.myencoreapp.com",
+    "myservice": {
+      "base_url": "https://myservice.myencoreapp.com",
       "auth": [
         {
           "type": "key",
           "id": 1,
           "key": {
-            "$env": "USER_SERVICE_API_KEY"
+            "$env": "MY_SERVICE_API_KEY"
           }
         }
       ]
@@ -196,8 +195,7 @@ configured when the services are started.
   }
 }
 ```
-
-- `user-service`: Configuration for a service named `user-service`.
+- `myservice`: This is the name of the service as it is declared in your Encore app.
 - `base_url`: The base URL for the service.
 - `auth`: Authentication methods used for accessing the service. If no authentication methods are specified, the service will use the auth methods defined in the `auth` section.
 
@@ -282,10 +280,13 @@ There must be exactly one database configuration for each declared database. You
       "host": "db.myencoreapp.com:5432",
       "tls_config": {
         "disabled": false,
-        "ca": "---BEGIN CERTIFICATE---\n..."
+        "ca": "---BEGIN CERTIFICATE---\n...",
+        "disable_tls_hostname_verification": false,
+        "disable_ca_verification": false
       },
       "databases": {
-        "main_db": {
+        "my-database": {
+          "name": "my-postgres-db-name",
           "max_connections": 100,
           "min_connections": 10,
           "username": "db_user",
@@ -299,6 +300,8 @@ There must be exactly one database configuration for each declared database. You
 }
 ```
 
+- `my-database`: This is the name of the database as it is declared in your Encore app.
+- `name`: The name of the database on the database server. Defaults to the declared Encore name.
 - `host`: SQL server host, optionally including the port.
 - `tls_config`: TLS configuration for secure connections. If the server uses TLS with a non-system CA root, or requires a client certificate, specify the appropriate fields as PEM-encoded strings. Otherwise, they can be left empty.
 - `databases`: List of databases, each with connection settings.
@@ -319,6 +322,8 @@ You can set the secret value directly in the configuration file, or use an envir
 }
 ```
 
+- `API_TOKEN`: This is the name of a secret as it is declared in your Encore app.
+
 #### 7.2. Using Environment Reference
 As an alternative, you can use an environment variable reference to set the secret value. The env variable should be set in the environment where the application is running. The content
 of the environment variable should be a JSON string where each key is the secret name and the value is the secret value.
@@ -336,7 +341,7 @@ of the environment variable should be a JSON string where each key is the secret
 ```json
 {
   "redis": {
-    "cache": {
+    "my-redis": {
       "host": "redis.myencoreapp.com:6379",
       "database_index": 0,
       "auth": {
@@ -352,6 +357,7 @@ of the environment variable should be a JSON string where each key is the secret
 }
 ```
 
+- `my-redis`: This is the name of the redis resource as it is declared in your Encore app.
 - `host`: Redis server host, optionally including the port.
 - `auth`: Authentication configuration for the Redis server.
 - `key_prefix`: Prefix applied to all keys.
@@ -373,14 +379,14 @@ The configuration for each provider is different. Below are examples for each pr
       "type": "gcp_pubsub",
       "project_id": "my-gcp-project",
       "topics": {
-        "user-events": {
-          "name": "user-events-topic",
+        "my-topic": {
+          "name": "my-topic",
           "project_id": "my-gcp-project",
           "subscriptions": {
-            "user-notification": {
-              "name": "user-notification-subscription",
+            "my-subscription": {
+              "name": "my-subscription",
               "push_config": {
-                "id": "user-push",
+                "id": "my-push",
                 "service_account": "service-account@my-gcp-project.iam.gserviceaccount.com"
               }
             }
@@ -392,6 +398,13 @@ The configuration for each provider is different. Below are examples for each pr
 }
 ```
 
+- `my-topic`: This is the name of the topic as it is declared in your Encore app.
+- `my-subscription`: This is the name of the subscription as it is declared in your Encore app.
+- `project_id`: The default GCP project ID. This can be overridden by setting the `project_id` field in the topic or subscription.
+- `name`: The name of the topic or subscription.
+- `push_config/id`: The id will be appended to `/__encore/pubsub/push/` to form the full push path of your service, e.g. `/__encore/pubsub/push/<id>`. This is the path your service expects to receive push messages on.
+- `push_config/service_account`: The service account configured for the push subscription.
+
 #### 9.2. AWS SNS/SQS
 
 ```json
@@ -400,11 +413,11 @@ The configuration for each provider is different. Below are examples for each pr
     {
       "type": "aws_sns_sqs",
       "topics": {
-        "user-notifications": {
-          "arn": "arn:aws:sns:us-east-1:123456789012:user-notifications",
+        "my-topic": {
+          "arn": "arn:aws:sns:us-east-1:123456789012:my-topic",
           "subscriptions": {
-            "user-queue": {
-              "arn": "arn:aws:sqs:us-east-1:123456789012:user-queue"
+            "my-queue": {
+              "arn": "arn:aws:sqs:us-east-1:123456789012:my-queue"
             }
           }
         }
@@ -413,6 +426,10 @@ The configuration for each provider is different. Below are examples for each pr
   ]
 }
 ```
+
+- `my-topic`: This is the name of the topic as it is declared in your Encore app.
+- `my-queue`: This is the name of the queue as it is declared in your Encore app.
+- `arn`: The ARN of the SNS topic or SQS queue.
 
 #### 9.3. NSQ Configuration
 
@@ -423,11 +440,11 @@ The configuration for each provider is different. Below are examples for each pr
       "type": "nsq",
       "hosts": "nsq.myencoreapp.com:4150",
       "topics": {
-        "order-events": {
-          "name": "order-events-topic",
+        "my-topic": {
+          "name": "my-topic",
           "subscriptions": {
-            "order-processor": {
-              "name": "order-processor-subscription"
+            "my-subscription": {
+                "name": "my-subscription"
             }
           }
         }
@@ -437,10 +454,13 @@ The configuration for each provider is different. Below are examples for each pr
 }
 ```
 
+- `my-topic`: This is the name of the topic as it is declared in your Encore app.
+- `my-subscription`: This is the name of the subscription as it is declared in your Encore app.
+
 ### 10. Object Storage Configuration
 Encore currently supports the following object storage providers:
 - `gcs` for [Google Cloud Storage](https://cloud.google.com/storage)
-- `s3` for [AWS S3](https://aws.amazon.com/s3/)
+- `s3` for [AWS S3](https://aws.amazon.com/s3/) or a custom S3-compatible provider
 
 #### 10.1. GCS Configuration
 
@@ -451,7 +471,9 @@ Encore currently supports the following object storage providers:
       "type": "gcs",
       "buckets": {
         "my-gcs-bucket": {
-          "name": "my-gcs-bucket"
+          "name": "my-gcs-bucket",
+          "key_prefix": "my-optional-prefix/",
+          "public_base_url": "https://my-gcs-bucket-cdn.example.com/my-optional-prefix"
         }
       }
     }
@@ -459,7 +481,10 @@ Encore currently supports the following object storage providers:
 }
 ```
 
+- `my-gcs-bucket`: This is the name of the bucket as it is declared in your Encore app.
 - `name`: The full name of the GCS bucket.
+- `key_prefix`: An optional prefix to apply to all keys in the bucket.
+- `public_base_url`: A URL to use for public access to the bucket. This field is required if you configure your bucket to be public. Encore will append the object key to this URL when generating public URLs. The optional prefix will not be appended.
 
 #### 10.2. S3 Configuration
 
@@ -471,7 +496,9 @@ Encore currently supports the following object storage providers:
       "region": "us-east-1",
       "buckets": {
         "my-s3-bucket": {
-          "name": "my-s3-bucket"
+          "name": "my-s3-bucket",
+          "key_prefix": "my-optional-prefix/",
+          "public_base_url": "https://my-gcs-bucket-cdn.example.com/my-optional-prefix"
         }
       }
     }
@@ -479,7 +506,41 @@ Encore currently supports the following object storage providers:
 }
 ```
 
+- `my-s3-bucket`: This is the name of the bucket as it is declared in your Encore app.
 - `region`: The AWS region where the bucket is located.
 - `name`: The full name of the S3 bucket.
+- `key_prefix`: An optional prefix to apply to all keys in the bucket.
+- `public_base_url`: A URL to use for public access to the bucket. This field is required if you configure your bucket to be public. Encore will append the object key to this URL when generating public URLs. The optional prefix will not be appended.
+
+#### 10.3. Custom S3 Provider Configuration
+You can also configure a custom S3 provider by specifying the endpoint, access key id, and secret access key. Custom S3 providers are useful if you are using a S3-compatible storage provider such as [Cloudflare R2](https://developers.cloudflare.com/r2/).
+```json
+{
+  "object_storage": [
+    {
+      "type": "s3",
+      "region": "auto",
+      "endpoint": "https://...",
+      "access_key_id": "...",
+      "secret_access_key": {
+          "$env": "BUCKET_SECRET_ACCESS_KEY"
+      },
+      "buckets": {
+        "my-custom-bucket": {
+          "name": "my-custom-bucket",
+          "key_prefix": "my-optional-prefix/",
+          "public_base_url": "https://my-gcs-bucket-cdn.example.com/my-optional-prefix"          
+        }
+      }
+    }
+  ]
+}
+```
+
+- `my-custom-bucket`: This is the name of the bucket as it is declared in your Encore app.
+- `region`: The region where the bucket is located.
+- `name`: The full name of the bucket
+- `key_prefix`: An optional prefix to apply to all keys in the bucket.
+- `public_base_url`: A URL to use for public access to the bucket. This field is required if you configure your bucket to be public. Encore will append the object key to this URL when generating public URLs. The optional prefix will not be appended.
 
 This guide covers typical infrastructure configurations. Adjust according to your specific requirements to optimize your Encore app's infrastructure setup.

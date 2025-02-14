@@ -65,7 +65,7 @@ func promptAccountCreation() {
 	if _, err := conf.CurrentUser(); errors.Is(err, fs.ErrNotExist) && createAppOnPlatform {
 	PromptLoop:
 		for {
-			_, _ = cyan.Fprint(os.Stderr, "Create a free Encore account to enable Cloud Deployments, Secrets Management, and more? (Y/n): ")
+			_, _ = cyan.Fprint(os.Stderr, "Log in / Sign up for a free Encore Cloud account to enable automated cloud deployments? (Y/n): ")
 			var input string
 			_, _ = fmt.Scanln(&input)
 			input = strings.TrimSpace(input)
@@ -285,7 +285,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		cyanf := cyan.SprintfFunc()
 		fmt.Println()
 		fmt.Printf("App ID:   %s\n", cyanf(app.Slug))
-		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.dev/"+app.Slug), cmdutil.Newline)
+		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
 		fmt.Printf("App Root: %s\n", cyanf(appRoot))
 		fmt.Println()
 	}
@@ -391,17 +391,19 @@ func gogetEncore(dir string) error {
 }
 
 func npmInstallEncore(dir string) error {
-	verToInstall := version.Version
+	args := []string{"install"}
 	if version.Channel == version.DevBuild {
-		verToInstall = "latest"
+		args = append(args, filepath.Join(env.EncoreRuntimesPath(), "js", "encore.dev"))
+	} else {
+		args = append(args, fmt.Sprintf("encore.dev@%s", strings.TrimPrefix(version.Version, "v")))
 	}
 
 	// First install the 'encore.dev' package.
-	cmd := exec.Command("npm", "install", fmt.Sprintf("encore.dev@%s", verToInstall))
+	cmd := exec.Command("npm", args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("'npm install encore.dev@%s' failed: %v: %s", verToInstall, err, out)
+		err = fmt.Errorf("installing encore.dev package failed: %v: %s", err, out)
 	}
 
 	// Then run 'npm install'.

@@ -1,22 +1,24 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Context};
-use litparser::Sp;
+use litparser::{ParseResult, Sp, ToParseErr};
+use swc_common::Span;
 use thiserror::Error;
 
 use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
-use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, unwrap_promise, Basic, FieldName, Interface, InterfaceField, ResolveState,
-    Type, TypeChecker,
+    drop_empty_or_void, unwrap_promise, unwrap_validated, validation, Basic, Custom, FieldName,
+    Interface, InterfaceField, ResolveState, Type, TypeChecker, WireLocation, WireSpec,
 };
 use crate::parser::Range;
-use crate::span_err::{ErrReporter, ErrorWithSpanExt, SpErr};
+use crate::span_err::{ErrorWithSpanExt, SpErr};
 
 /// Describes how an API endpoint can be encoded on the wire.
 #[derive(Debug, Clone)]
 pub struct EndpointEncoding {
+    /// The endpoint's definition span
+    pub span: Span,
+
     /// The endpoint's API path.
     pub path: Path,
 
@@ -33,9 +35,9 @@ pub struct EndpointEncoding {
     pub handshake: Option<RequestEncoding>,
 
     /// The raw request and schemas, from the source code.
-    pub raw_handshake_schema: Option<Type>,
-    pub raw_req_schema: Option<Type>,
-    pub raw_resp_schema: Option<Type>,
+    pub raw_handshake_schema: Option<Sp<Type>>,
+    pub raw_req_schema: Option<Sp<Type>>,
+    pub raw_resp_schema: Option<Sp<Type>>,
 }
 
 impl EndpointEncoding {
@@ -173,13 +175,14 @@ impl ResponseEncoding {
 }
 
 pub fn describe_stream_endpoint(
+    def_span: Span,
     tc: &TypeChecker,
     methods: Methods,
     path: Path,
     req: Option<Sp<Type>>,
     resp: Option<Sp<Type>>,
     handshake: Option<Sp<Type>>,
-) -> anyhow::Result<EndpointEncoding> {
+) -> ParseResult<EndpointEncoding> {
     let resp = if let Some(resp) = resp {
         let (span, resp) = resp.split();
         drop_empty_or_void(unwrap_promise(tc.state(), &resp).clone()).map(|t| Sp::new(span, t))
@@ -190,6 +193,7 @@ pub fn describe_stream_endpoint(
     let default_method = default_method(&methods);
 
     let (handshake_enc, _req_schema) = describe_req(
+        def_span,
         tc,
         &Methods::Some(vec![Method::Get]),
         Some(&path),
@@ -200,47 +204,46 @@ pub fn describe_stream_endpoint(
     let handshake_enc = match handshake_enc.as_slice() {
         [] => None,
         [ref enc] => Some(enc.clone()),
-        _ => bail!("unexpected handshake encoding"),
+        _ => return Err(def_span.parse_err("unexpected handshake encoding")),
     };
 
     let (req_enc, _req_schema) = if handshake_enc.is_some() {
-        describe_req(tc, &methods, None, &req, false)?
+        describe_req(def_span, tc, &methods, None, &req, false)?
     } else {
-        describe_req(tc, &methods, Some(&path), &req, false)?
+        describe_req(def_span, tc, &methods, Some(&path), &req, false)?
     };
 
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
     let path = if let Some(ref enc) = handshake_enc {
-        rewrite_path_types(enc, path, false).context("parse path param types")?
+        rewrite_path_types(enc, path, false)?
     } else {
         path
     };
 
-    let raw_handshake_schema = handshake.map(|sp| sp.take());
-    let raw_req_schema = req.map(|sp| sp.take());
-    let raw_resp_schema = resp.map(|sp| sp.take());
-
     Ok(EndpointEncoding {
+        span: def_span,
         path,
         methods,
         default_method,
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,
-        raw_handshake_schema,
-        raw_req_schema,
-        raw_resp_schema,
+        raw_handshake_schema: handshake,
+        raw_req_schema: req,
+        raw_resp_schema: resp,
     })
 }
+
 pub fn describe_endpoint(
+    def_span: Span,
     tc: &TypeChecker,
     methods: Methods,
     path: Path,
     req: Option<Sp<Type>>,
     resp: Option<Sp<Type>>,
     raw: bool,
-) -> anyhow::Result<EndpointEncoding> {
+) -> ParseResult<EndpointEncoding> {
     let resp = if let Some(resp) = resp {
         let (span, resp) = resp.split();
         drop_empty_or_void(unwrap_promise(tc.state(), &resp).clone()).map(|t| Sp::new(span, t))
@@ -250,15 +253,13 @@ pub fn describe_endpoint(
 
     let default_method = default_method(&methods);
 
-    let (req_enc, _req_schema) = describe_req(tc, &methods, Some(&path), &req, raw)?;
+    let (req_enc, _req_schema) = describe_req(def_span, tc, &methods, Some(&path), &req, raw)?;
     let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
 
-    let path = rewrite_path_types(&req_enc[0], path, raw).context("parse path param types")?;
-
-    let raw_req_schema = req.map(|sp| sp.take());
-    let raw_resp_schema = resp.map(|sp| sp.take());
+    let path = rewrite_path_types(&req_enc[0], path, raw)?;
 
     Ok(EndpointEncoding {
+        span: def_span,
         path,
         methods,
         default_method,
@@ -266,13 +267,14 @@ pub fn describe_endpoint(
         resp: resp_enc,
         handshake: None,
         raw_handshake_schema: None,
-        raw_req_schema,
-        raw_resp_schema,
+        raw_req_schema: req,
+        raw_resp_schema: resp,
     })
 }
 
-pub fn describe_static_assets(methods: Methods, path: Path) -> EndpointEncoding {
+pub fn describe_static_assets(def_span: Span, methods: Methods, path: Path) -> EndpointEncoding {
     EndpointEncoding {
+        span: def_span,
         path,
         methods: methods.clone(),
         default_method: Method::Get,
@@ -289,12 +291,13 @@ pub fn describe_static_assets(methods: Methods, path: Path) -> EndpointEncoding 
 }
 
 fn describe_req(
+    def_span: Span,
     tc: &TypeChecker,
     methods: &Methods,
     path: Option<&Path>,
     req_schema: &Option<Sp<Type>>,
     raw: bool,
-) -> anyhow::Result<(Vec<RequestEncoding>, Option<FieldMap>)> {
+) -> ParseResult<(Vec<RequestEncoding>, Option<FieldMap>)> {
     let Some(req_schema) = req_schema else {
         // We don't have any request schema. This is valid if and only if
         // we have no path parameters or it's a raw endpoint.
@@ -307,11 +310,14 @@ fn describe_req(
                 None,
             ));
         } else {
-            anyhow::bail!("request schema must be defined when having path parameters");
+            return Err(
+                def_span.parse_err("request schema must be defined when having path parameters")
+            );
         }
     };
 
-    let mut fields = iface_fields(tc, req_schema)?;
+    let mut fields =
+        iface_fields(tc, req_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
     let path_params = if let Some(path) = path {
         extract_path_params(path, &mut fields)?
     } else {
@@ -334,7 +340,7 @@ fn describe_req(
 
     for (loc, methods) in split_by_loc(methods) {
         let mut params = path_params.clone();
-        params.extend(extract_loc_params(&fields, loc));
+        params.extend(extract_loc_params(&fields, loc)?);
         encodings.push(RequestEncoding {
             methods: Methods::Some(methods),
             params,
@@ -348,13 +354,14 @@ fn describe_resp(
     tc: &TypeChecker,
     _methods: &Methods,
     resp_schema: &Option<Sp<Type>>,
-) -> anyhow::Result<(ResponseEncoding, Option<FieldMap>)> {
+) -> ParseResult<(ResponseEncoding, Option<FieldMap>)> {
     let Some(resp_schema) = resp_schema else {
         return Ok((ResponseEncoding { params: vec![] }, None));
     };
 
-    let fields = iface_fields(tc, resp_schema)?;
-    let params = extract_loc_params(&fields, ParamLocation::Body);
+    let fields =
+        iface_fields(tc, resp_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
+    let params = extract_loc_params(&fields, ParamLocation::Body)?;
 
     let fields = if fields.is_empty() {
         None
@@ -419,7 +426,7 @@ pub struct Field {
     name: String,
     typ: Type,
     optional: bool,
-    custom: Option<CustomType>,
+    custom: Option<WireSpec>,
     range: Range,
 }
 
@@ -445,19 +452,11 @@ pub(crate) fn iface_fields<'a>(
     tc: &'a TypeChecker,
     typ: &'a Sp<Type>,
 ) -> Result<FieldMap, SpErr<Error>> {
-    fn to_fields<'a>(
-        state: &'a ResolveState,
-        iface: &'a Interface,
-    ) -> Result<FieldMap, SpErr<Error>> {
+    fn to_fields(iface: &Interface) -> Result<FieldMap, SpErr<Error>> {
         let mut map = HashMap::new();
         for f in &iface.fields {
             if let FieldName::String(name) = &f.name {
-                map.insert(
-                    name.clone(),
-                    rewrite_custom_type_field(state, f, name)
-                        .map_err(Error::InvalidCustomType)
-                        .map_err(|e| e.with_span(f.range.into()))?,
-                );
+                map.insert(name.clone(), rewrite_custom_type_field(f, name));
             }
         }
         Ok(map)
@@ -467,7 +466,7 @@ pub(crate) fn iface_fields<'a>(
     let typ = unwrap_promise(tc.state(), typ);
     match typ {
         Type::Basic(Basic::Void) => Ok(HashMap::new()),
-        Type::Interface(iface) => to_fields(tc.state(), iface),
+        Type::Interface(iface) => to_fields(iface),
         Type::Named(named) => {
             let underlying = Sp::new(span, tc.underlying(named.obj.module_id, typ));
             iface_fields(tc, &underlying)
@@ -476,12 +475,12 @@ pub(crate) fn iface_fields<'a>(
     }
 }
 
-fn extract_path_params(path: &Path, fields: &mut FieldMap) -> anyhow::Result<Vec<Param>> {
+fn extract_path_params(path: &Path, fields: &mut FieldMap) -> ParseResult<Vec<Param>> {
     let mut params = Vec::new();
     for (index, seg) in path.dynamic_segments().enumerate() {
         let name = seg.lit_or_name();
         let Some(f) = fields.remove(name) else {
-            anyhow::bail!("path parameter {:?} not found in request schema", name);
+            return Err(seg.parse_err("path parameter not found in request schema"));
         };
         params.push(Param {
             name: name.to_string(),
@@ -495,15 +494,21 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> anyhow::Result<Vec
     Ok(params)
 }
 
-fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> Vec<Param> {
+fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseResult<Vec<Param>> {
     let mut params = Vec::new();
     for f in fields.values() {
         let name = f.name.clone();
 
         // Determine the location.
         let (loc, loc_name) = match &f.custom {
-            Some(CustomType::Header { name, .. }) => (ParamLocation::Header, name.clone()),
-            Some(CustomType::Query { name, .. }) => (ParamLocation::Query, name.clone()),
+            Some(spec) => (
+                match spec.location {
+                    WireLocation::Header => ParamLocation::Header,
+                    WireLocation::Query => ParamLocation::Query,
+                    WireLocation::PubSubAttr => ParamLocation::Body,
+                },
+                spec.name_override.clone(),
+            ),
             None => (default_loc, None),
         };
 
@@ -517,7 +522,12 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> Vec<Para
                 header: loc_name.unwrap_or_else(|| f.name.clone()),
             },
 
-            ParamLocation::Path => panic!("path params are not supported as a default loc"),
+            ParamLocation::Path => {
+                return Err(f
+                    .range
+                    .to_span()
+                    .parse_err("path params are not supported as a default loc"))
+            }
         };
 
         params.push(Param {
@@ -528,90 +538,103 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> Vec<Para
             range: f.range,
         });
     }
-    params
+    Ok(params)
 }
 
-fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> anyhow::Result<Path> {
+fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> ParseResult<Path> {
     use crate::parser::respath::{Segment, ValueType};
     // Get the path params into a map, keyed by name.
     let path_params = req
         .path()
-        .map(|param| (&param.name, param))
+        .map(|param| (param.name.as_str(), param))
         .collect::<HashMap<_, _>>();
 
-    let typ_to_value_type = |param: &Param| match &param.typ {
-        Type::Basic(Basic::String) => ValueType::String,
-        Type::Basic(Basic::Boolean) => ValueType::Bool,
-        Type::Basic(Basic::Number | Basic::BigInt) => ValueType::Int,
-        typ => {
-            param
+    fn typ_to_value_type(param: &Param) -> ParseResult<(ValueType, Option<validation::Expr>)> {
+        // Unwrap any validation expression before we check the type.
+        let (typ, expr) = unwrap_validated(&param.typ);
+        if let Some(expr) = &expr {
+            if let Err(err) = expr.supports_type(typ) {
+                return Err(param.range.parse_err(err.to_string()));
+            }
+        }
+
+        match typ {
+            Type::Basic(Basic::String) => Ok((ValueType::String, expr.cloned())),
+            Type::Basic(Basic::Boolean) => Ok((ValueType::Bool, expr.cloned())),
+            Type::Basic(Basic::Number | Basic::BigInt) => Ok((ValueType::Int, expr.cloned())),
+            typ => Err(param
                 .range
                 .to_span()
-                .err(&format!("unsupported path parameter type: {:?}", typ));
-            ValueType::String
+                .parse_err(format!("unsupported path parameter type: {:?}", typ))),
+        }
+    }
+
+    let resolve_value_type = |span: Span, name: &str| {
+        match path_params.get(name) {
+            Some(param) => typ_to_value_type(param),
+            None => {
+                // Raw endpoints assume path params are strings.
+                if raw {
+                    Ok((ValueType::String, None))
+                } else {
+                    Err(span.parse_err("path parameter not found in request schema"))
+                }
+            }
         }
     };
 
     let mut segments = Vec::with_capacity(path.segments.len());
     for seg in path.segments.into_iter() {
+        let (seg_span, seg) = seg.split();
         let seg = match seg {
+            Segment::Literal(_) => seg,
             Segment::Param { name, .. } => {
-                // Get the value type of the path parameter.
-                let value_type = match path_params.get(&name) {
-                    Some(param) => typ_to_value_type(param),
-                    None => {
-                        // Raw endpoints assume path params are strings.
-                        if raw {
-                            ValueType::String
-                        } else {
-                            anyhow::bail!("path param {:?} not found in request schema", name);
-                        }
-                    }
-                };
-
-                Segment::Param { name, value_type }
+                let (value_type, validation) = resolve_value_type(seg_span, &name)?;
+                Segment::Param {
+                    name,
+                    value_type,
+                    validation,
+                }
             }
-            Segment::Literal(_) | Segment::Wildcard { .. } | Segment::Fallback { .. } => seg,
+            Segment::Wildcard { name, .. } => {
+                let (_, validation) = resolve_value_type(seg_span, &name)?;
+                Segment::Wildcard { name, validation }
+            }
+            Segment::Fallback { name, .. } => {
+                let (_, validation) = resolve_value_type(seg_span, &name)?;
+                Segment::Fallback { name, validation }
+            }
         };
-        segments.push(seg);
+        segments.push(Sp::new(seg_span, seg));
     }
 
-    Ok(Path { segments })
+    Ok(Path {
+        span: path.span,
+        segments,
+    })
 }
 
-fn rewrite_custom_type_field(
-    ctx: &ResolveState,
-    field: &InterfaceField,
-    field_name: &str,
-) -> anyhow::Result<Field> {
-    let standard_field = Field {
+pub fn resolve_wire_spec(typ: &Type) -> Option<&WireSpec> {
+    match typ {
+        Type::Custom(Custom::WireSpec(spec)) => Some(spec),
+        Type::Validated(v) => resolve_wire_spec(&v.typ),
+        Type::Optional(opt) => resolve_wire_spec(&opt.0),
+        _ => None,
+    }
+}
+
+fn rewrite_custom_type_field(field: &InterfaceField, field_name: &str) -> Field {
+    let mut standard_field = Field {
         name: field_name.to_string(),
         typ: field.typ.clone(),
         optional: field.optional,
         custom: None,
         range: field.range,
     };
-    let Type::Named(named) = &field.typ else {
-        return Ok(standard_field);
+
+    if let Some(spec) = resolve_wire_spec(&field.typ) {
+        standard_field.custom = Some(spec.clone());
     };
 
-    Ok(match resolve_custom_type_named(ctx, named)? {
-        None => standard_field,
-        Some(CustomType::Header { typ, name }) => Field {
-            custom: Some(CustomType::Query {
-                typ: typ.clone(),
-                name,
-            }),
-            typ,
-            ..standard_field
-        },
-        Some(CustomType::Query { typ, name }) => Field {
-            custom: Some(CustomType::Query {
-                typ: typ.clone(),
-                name,
-            }),
-            typ,
-            ..standard_field
-        },
-    })
+    standard_field
 }

@@ -29,6 +29,26 @@ func Foo() { bkt.Upload(context.Background(), "key") }
 			Want: []usage.Usage{&objects.MethodUsage{Method: "Upload", Perm: objects.WriteObject}},
 		},
 		{
+			Name: "sign_upload_url",
+			Code: `
+var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
+
+func Foo() { bkt.SignedUploadURL(context.Background(), "key") }
+
+`,
+			Want: []usage.Usage{&objects.MethodUsage{Method: "SignedUploadURL", Perm: objects.SignedUploadURL}},
+		},
+		{
+			Name: "sign_download_url",
+			Code: `
+var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
+
+func Foo() { bkt.SignedDownloadURL(context.Background(), "key") }
+
+`,
+			Want: []usage.Usage{&objects.MethodUsage{Method: "SignedDownloadURL", Perm: objects.SignedDownloadURL}},
+		},
+		{
 			Name: "ref",
 			Code: `
 var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
@@ -52,6 +72,8 @@ var ref = objects.BucketRef[objects.ReadWriter](bkt)
 					objects.GetObjectMetadata,
 					objects.ListObjects,
 					objects.ReadObjectContents,
+					objects.SignedDownloadURL,
+					objects.SignedUploadURL,
 					objects.UpdateObjectMetadata,
 					objects.WriteObject,
 				},
@@ -88,12 +110,15 @@ var ref = objects.BucketRef[MyRef](bkt)
 			Code: `
 var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
 
-type MyRef interface { objects.Uploader; objects.Downloader }
+type MyRef interface { objects.Uploader; objects.Downloader; objects.SignedUploader }
 
 var ref = objects.BucketRef[MyRef](bkt)
 `,
 			Want: []usage.Usage{&objects.RefUsage{
-				Perms: []objects.Perm{objects.ReadObjectContents, objects.WriteObject},
+				Perms: []objects.Perm{
+					objects.ReadObjectContents,
+					objects.SignedUploadURL,
+					objects.WriteObject},
 			}},
 		},
 		{

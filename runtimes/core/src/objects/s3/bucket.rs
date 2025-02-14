@@ -1,6 +1,7 @@
 use async_stream::{stream, try_stream};
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::error::SdkError;
+use aws_sdk_s3::presigning::PresigningConfig;
 use aws_smithy_types::byte_stream::ByteStream;
 use base64::Engine;
 use bytes::{Bytes, BytesMut};
@@ -14,8 +15,8 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::encore::runtime::v1 as pb;
 use crate::objects::{
-    self, AttrsOptions, DeleteOptions, DownloadOptions, Error, ExistsOptions, ListEntry,
-    ListOptions, ObjectAttrs, PublicUrlError,
+    self, AttrsOptions, DeleteOptions, DownloadOptions, DownloadUrlOptions, Error, ExistsOptions,
+    ListEntry, ListOptions, ObjectAttrs, PublicUrlError, UploadUrlOptions,
 };
 use crate::{CloudName, EncoreName};
 
@@ -173,6 +174,54 @@ impl objects::ObjectImpl for Object {
                 Err(SdkError::ServiceError(err)) if err.err().is_not_found() => {
                     Err(Error::NotFound)
                 }
+                Err(err) => Err(Error::Other(err.into())),
+            }
+        })
+    }
+
+    fn signed_upload_url(
+        self: Arc<Self>,
+        options: UploadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
+        Box::pin(async move {
+            let client = self.bkt.client.get().await.clone();
+            let obj_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
+
+            let res = client
+                .put_object()
+                .bucket(&self.bkt.cloud_name)
+                .key(obj_name)
+                .presigned(
+                    PresigningConfig::expires_in(options.ttl)
+                        .map_err(|e| Error::Other(e.into()))?,
+                )
+                .await;
+            match res {
+                Ok(req) => Ok(String::from(req.uri())),
+                Err(err) => Err(Error::Other(err.into())),
+            }
+        })
+    }
+
+    fn signed_download_url(
+        self: Arc<Self>,
+        options: DownloadUrlOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<String, Error>> + Send>> {
+        Box::pin(async move {
+            let client = self.bkt.client.get().await.clone();
+            let obj_name = self.bkt.obj_name(Cow::Borrowed(&self.name));
+
+            let res = client
+                .get_object()
+                .bucket(&self.bkt.cloud_name)
+                .key(obj_name)
+                .presigned(
+                    PresigningConfig::expires_in(options.ttl)
+                        .map_err(|e| Error::Other(e.into()))?,
+                )
+                .await;
+            match res {
+                Ok(req) => Ok(String::from(req.uri())),
                 Err(err) => Err(Error::Other(err.into())),
             }
         })

@@ -21,6 +21,15 @@ type InfraConfig struct {
 	Secrets          Secrets                      `json:"secrets,omitempty"`
 	ObjectStorage    []*ObjectStorage             `json:"object_storage,omitempty"`
 
+	// Log configuration for the application.
+	// If empty it defaults to "trace".
+	LogConfig string `json:"log_config,omitemty"`
+
+	// Number of worker threads to use for the application.
+	// If unset it defaults to a single worker thread.
+	// If set to 0 it defaults to the number of CPUs.
+	WorkerThreads *int `json:"worker_threads,omitempty"`
+
 	// These fields are not defined in the json schema and should not be
 	// set by the user. They're computed during the build/eject process.
 	HostedServices []string `json:"hosted_services,omitempty"`
@@ -161,7 +170,7 @@ func (a *GCS) Validate(v *validator) {
 type Bucket struct {
 	Name          string `json:"name,omitempty"`
 	KeyPrefix     string `json:"key_prefix,omitempty"`
-	PublicBaseURL string `json:"public_base_url,omitempty`
+	PublicBaseURL string `json:"public_base_url,omitempty"`
 }
 
 func (a *Bucket) Validate(v *validator) {
@@ -280,7 +289,7 @@ type Auth struct {
 }
 
 func (a *Auth) Validate(v *validator) {
-	v.ValidateField("type", OneOf(a.Type, "auth"))
+	v.ValidateField("type", OneOf(a.Type, "key"))
 	v.ValidateEnvString("key", a.Key, "Service Authorization Key", NotZero[string])
 }
 
@@ -463,6 +472,7 @@ type TLSConfig struct {
 	CA                             string      `json:"ca,omitempty"`
 	ClientCert                     *ClientCert `json:"client_cert,omitempty"`
 	DisableTLSHostnameVerification bool        `json:"disable_tls_hostname_verification,omitempty"`
+	DisableCAValidation            bool        `json:"disable_ca_validation,omitempty"`
 }
 
 func (t *TLSConfig) Validate(v *validator) {
@@ -470,6 +480,7 @@ func (t *TLSConfig) Validate(v *validator) {
 }
 
 type SQLDatabase struct {
+	Name           string      `json:"name,omitempty"`
 	MaxConnections int         `json:"max_connections,omitempty"`
 	MinConnections int         `json:"min_connections,omitempty"`
 	Username       EnvString   `json:"username,omitempty"`

@@ -129,7 +129,7 @@ func parseGCloudTraceContext(logger zerolog.Logger, r *http.Request) *TraceConte
 	return &traceContext
 }
 
-// parseAWSXrayTraceContext returns the Trace ID
+// parseAWSXRayTraceContext returns the Trace ID
 func parseAWSXRayTraceContext(logger zerolog.Logger, r *http.Request) *TraceContext {
 	traceHeader := r.Header.Get("X-Amzn-Trace-Id")
 	parts := strings.Split(traceHeader, ";")
@@ -175,7 +175,7 @@ func parseAWSXRayTraceContext(logger zerolog.Logger, r *http.Request) *TraceCont
 	return nil
 }
 
-// parseTraceparent returns the standardised trace parent header, which doesn't give us an ID for this span
+// parseTraceParent returns the standardised trace parent header, which doesn't give us an ID for this span
 // but does given us a trace ID
 func parseTraceParent(logger zerolog.Logger, r *http.Request) *TraceContext {
 	traceHeader := r.Header.Get("traceparent")

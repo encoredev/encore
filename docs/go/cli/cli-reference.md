@@ -242,7 +242,7 @@ Note that this strips trailing newlines from the secret value.
 
 Lists secrets, optionally for a specific key
 
-```shell 
+```shell
 $ encore secret list [keys...]
 ```
 

@@ -85,7 +85,13 @@ func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *
 // GenClient generates a client based on the app's API.
 func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientRequest) (*daemonpb.GenClientResponse, error) {
 	var md *meta.Data
-	if params.EnvName == "local" {
+
+	envName := params.EnvName
+	if envName == "" {
+		envName = "local"
+	}
+
+	if envName == "local" {
 		// Determine the app root
 		app, err := s.apps.FindLatestByPlatformOrLocalID(params.AppId)
 		if errors.Is(err, apps.ErrNotFound) {
@@ -120,10 +126,6 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 			return nil, status.Errorf(codes.Internal, "failed to cache app metadata: %v", err)
 		}
 	} else {
-		envName := params.EnvName
-		if envName == "" {
-			envName = "@primary"
-		}
 		meta, err := platform.GetEnvMeta(ctx, params.AppId, envName)
 		if err != nil {
 			if strings.Contains(err.Error(), "env_not_found") || strings.Contains(err.Error(), "env_not_deployed") {

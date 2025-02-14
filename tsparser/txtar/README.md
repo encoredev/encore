@@ -54,7 +54,7 @@ The format spec as written in the `txtar` Go package source code:
 > The comment or file content ends at the next file marker line.
 > The file marker line must begin with the three-byte sequence "-- "
 > and end with the three-byte sequence " --", but the enclosed
-> file name can be surrounding by additional white space,
+> file name can be surrounded by additional white space,
 > all of which is stripped.
 >
 > If the txtar file is missing a trailing newline on the final line,

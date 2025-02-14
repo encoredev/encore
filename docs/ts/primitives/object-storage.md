@@ -23,6 +23,11 @@ Additionally, when you use Encore's Object Storage API you also automatically ge
 * Built-in local development support, storing objects on the local filesystem
 * Support for integration testing, using a local, in-memory storage backend
 
+<GitHubLink 
+    href="https://github.com/encoredev/examples/tree/main/ts/file-upload" 
+    desc="Handling file uploads and storing file data in a bucket and in a database" 
+/>
+
 ## Creating a Bucket
 
 The core of Object Storage is the **Bucket**, which represents a collection of files.
@@ -113,6 +118,35 @@ For convenience there is also `exists` which returns a boolean indicating whethe
 const exists = await profilePictures.exists("my-image.jpeg");
 ```
 
+## Configuring Public Buckets
+
+To configure a bucket to be publicly accessible, set the `public` property to `true` when creating the bucket. This allows objects in the bucket to be accessed via a public URL.
+
+For example, to create a public bucket for storing profile pictures:
+
+```ts
+export const publicProfilePictures = new Bucket("public-profile-pictures", {
+  public: true,
+  versioned: false
+});
+```
+
+When self-hosting, see how to configure public buckets in the [infrastructure configuration docs](/docs/go/self-host/configure-infra).
+
+When deploying with Encore Cloud it will automatically configure the bucket to be publicly accessible and [configure CDN](/docs/platform/infrastructure/infra#production-infrastructure) for optimal content delivery.
+
+### Accessing Public Objects
+
+Once a bucket is configured as public, you can access its objects using the `publicUrl` method. This method returns the public URL for the specified object.
+
+For example, to get the public URL of a profile picture:
+
+```ts
+const url = publicProfilePictures.publicUrl("my-image.jpeg");
+console.log(`Public URL: ${url}`);
+```
+
+
 ## Error handling
 
 The methods throw exceptions if something goes wrong, like if the object doesn't exist or the operation fails.
@@ -129,7 +163,7 @@ Other errors are returned as `ObjectsError` errors (which the above errors also 
 Encore uses static analysis to determine which services are accessing each bucket,
 and what operations each service is performing.
 
-That information is used for features such as rendering architecture diagrams, and can be used by Encore's Cloud Platform to provision infrastructure correctly and configure IAM permissions.
+That information is used for features such as rendering architecture diagrams, and is used by Encore Cloud to provision infrastructure correctly and configure IAM permissions.
 
 This means `Bucket` objects can't be passed around however you like,
 as it makes static analysis impossible in many cases. To simplify your workflow, given these restrictions,
@@ -162,6 +196,8 @@ Encore provides permission interfaces for each operation that can be performed o
 * `Lister` for listing objects
 * `Attrser` for getting object attributes
 * `Remover` for removing objects
+* `SignedDownloader` for generating signed download URLs for objects
+* `SignedUploader` for generating signed upload URLs for objects
 
 If you need multiple permissions you can combine them using `&`.
 For example, `profilePictures.ref<Downloader & Uploader>` gives you a reference
@@ -169,3 +205,51 @@ that allows calling both `download` and `upload`.
 
 For convenience Encore also provides a `ReadWriter` permission that gives complete read-write access
 to the bucket, granting all the permissions above. It is equivalent to `Downloader & Uploader & Lister & Attrser & Remover`.
+
+## Signed Upload URLs
+
+You can use `signedUploadUrl` to create signed URLs to allow clients to upload content directly
+into the bucket over the internet. The URL is always restricted to one filename, and has a set
+expiration date. Anyone in possession of the URL can upload data under this filename without any
+additional authentication.
+
+```typescript
+const uploadUrl = await profilePictures.signedUploadUrl("my-user-id", {ttl: 7200})
+// Pass url to client
+```
+
+The client can now `PUT` to this URL with the content as a binary payload.
+
+```bash
+curl -X PUT --data-binary @/home/me/dog-wizard.jpeg "https://storage.googleapis.com/profile-pictures/my-user-id/?x-goog-signature=b7a1<...>"
+```
+
+### Why signed upload URLs?
+
+Signed URLs are an alternative to accepting the content payload directly in your API. Content
+upload requests are sometimes inconvenient to handle well: they can be long running and very
+large. With signed URLs, the content flows directly into the storage bucket, and only object IDs
+and metadata go through your API service.
+
+The trade-off is that the upload flow becomes more complex from a client point of view.
+
+## Signed Download URLs
+
+You can use `signedDownloadUrl` to create signed URLs to allow clients to download content directly
+from the bucket, even if it's private. The URL is always restricted to one filename, and has a set
+expiration date. Anyone in possession of the URL can download the file without any additional
+authentication.
+
+```typescript
+const url = await documents.signedDownloadUrl("letter-1234", {ttl: 7200})
+// Pass url to client
+```
+
+### Why signed download URLs?
+
+Similar to the upload case, signed download URLs is a way to avoid handing large files or bulk
+traffic through your API. With signed URLs, the content flows directly from the storage bucket,
+and only object IDs and metadata go through your API service.
+
+Note: unless the content is private, prefer serving urls with `publicUrl()` over signed URLs.
+Public URLs go over CDN, which is typically significantly more performant and cost effective.

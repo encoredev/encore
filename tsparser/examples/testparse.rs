@@ -4,21 +4,15 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use anyhow::Result;
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 
+use encore_tsparser::builder;
 use encore_tsparser::builder::Builder;
 use encore_tsparser::parser::parser::ParseContext;
-use encore_tsparser::{app, builder};
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
-
-    let js_runtime_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("runtimes")
-        .join("js");
 
     // Read the app root from the first arg.
     let app_root = PathBuf::from(std::env::args().nth(1).expect("missing app root"));
@@ -34,26 +28,19 @@ fn main() -> Result<()> {
 
     let errs = Rc::new(Handler::with_emitter(true, false, Box::new(emitter)));
 
-    GLOBALS.set(&globals, || -> Result<()> {
-        HANDLER.set(&errs, || -> Result<()> {
-            let builder = Builder::new()?;
-            let _parse: Option<(builder::App, app::AppDesc)> = None;
+    GLOBALS.set(&globals, || {
+        HANDLER.set(&errs, || {
+            let builder = Builder::new().expect("unable to construct builder");
 
             {
                 let pp = builder::PrepareParams {
-                    js_runtime_root: &js_runtime_path,
-                    app_root: &app_root,
+                    app_root: app_root.clone(),
+                    encore_dev_version: builder::PackageVersion::Published("0.0.0".to_string()),
                 };
                 builder.prepare(&pp).unwrap();
             }
 
-            let pc = ParseContext::new(
-                app_root.clone(),
-                js_runtime_path.clone(),
-                cm.clone(),
-                errs.clone(),
-            )
-            .unwrap();
+            let pc = ParseContext::new(app_root.clone(), None, cm.clone(), errs.clone()).unwrap();
 
             let app = builder::App {
                 root: app_root.clone(),
@@ -68,12 +55,10 @@ fn main() -> Result<()> {
             };
 
             match builder.parse(&pp) {
-                Ok(_) => {
+                Some(_desc) => {
                     println!("successfully parsed {}", app_root.display());
-                    Ok(())
                 }
-                Err(err) => {
-                    log::error!("failed to parse: {:?}", err);
+                None => {
                     // Get any errors from the emitter.
                     let errs = errors.lock().unwrap();
                     let mut err_msg = String::new();
@@ -81,9 +66,8 @@ fn main() -> Result<()> {
                         err_msg.push_str(err);
                         err_msg.push('\n');
                     }
-                    err_msg.push_str(&format!("{:?}", err));
                     eprintln!("{}", err_msg);
-                    anyhow::bail!("parse failure")
+                    panic!("parse failure")
                 }
             }
         })

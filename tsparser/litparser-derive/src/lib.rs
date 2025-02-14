@@ -23,7 +23,7 @@ pub fn derive_lit_parser(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         // The generated impl.
         #[allow(non_snake_case)]
         impl #impl_generics litparser::LitParser for #name #ty_generics #where_clause {
-            fn parse_lit(#input_ident: &swc_ecma_ast::Expr) -> anyhow::Result<Self> {
+            fn parse_lit(#input_ident: &swc_ecma_ast::Expr) -> litparser::ParseResult<Self> {
                 #impl_stream
             }
         }
@@ -49,7 +49,7 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
 fn generate_impl(data: &Data, input_ident: &syn::Ident) -> proc_macro2::TokenStream {
     let init_stream = fields_init(data);
     let match_stream = match_expr(data, input_ident);
-    let return_stream = gen_return(data);
+    let return_stream = gen_return(data, input_ident);
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(_) => {
@@ -100,7 +100,7 @@ fn match_expr(data: &Data, input_ident: &syn::Ident) -> proc_macro2::TokenStream
     let lit_ident = format_ident!("lit");
     let prop_ident = format_ident!("prop");
     let kv_ident = format_ident!("kv");
-    let field_case_stream = gen_field_match_cases(data, &kv_ident);
+    let field_case_stream = gen_field_match_cases(data, &prop_ident, &kv_ident);
     let match_prop_stream = match_prop(&prop_ident, &kv_ident, field_case_stream);
     quote! {
         match #input_ident {
@@ -109,7 +109,10 @@ fn match_expr(data: &Data, input_ident: &syn::Ident) -> proc_macro2::TokenStream
                     #match_prop_stream
                 }
             }
-            _ => anyhow::bail!("expected object literal"),
+            _ => return Err(litparser::ParseError {
+                span: <swc_ecma_ast::Expr as swc_common::Spanned>::span(#input_ident),
+                message: "expected object literal".to_string(),
+            }),
         }
     }
 }
@@ -122,14 +125,22 @@ fn match_prop(
 ) -> proc_macro2::TokenStream {
     quote! {
         match #prop_ident {
-            swc_ecma_ast::PropOrSpread::Spread(_) => anyhow::bail!("spread operator not supported"),
+            swc_ecma_ast::PropOrSpread::Spread(_) => {
+                return Err(litparser::ParseError {
+                    span: <swc_ecma_ast::PropOrSpread as swc_common::Spanned>::span(#prop_ident),
+                    message: "spread operator unsupported".to_string(),
+                });
+            }
             swc_ecma_ast::PropOrSpread::Prop(prop) => match prop.as_ref() {
                 swc_ecma_ast::Prop::Shorthand(_)
                 | swc_ecma_ast::Prop::Assign(_)
                 | swc_ecma_ast::Prop::Getter(_)
                 | swc_ecma_ast::Prop::Setter(_)
                 | swc_ecma_ast::Prop::Method(_) => {
-                    anyhow::bail!("prop type {:?} not supported", prop)
+                    return Err(litparser::ParseError {
+                        span: <swc_ecma_ast::Prop as swc_common::Spanned>::span(prop),
+                        message: format!("prop type {:?} not supported", prop),
+                    });
                 }
 
                 swc_ecma_ast::Prop::KeyValue(#kv_ident) => match &#kv_ident.key {
@@ -142,7 +153,10 @@ fn match_prop(
                     swc_ecma_ast::PropName::Num(_)
                     | swc_ecma_ast::PropName::BigInt(_)
                     | swc_ecma_ast::PropName::Computed(_) => {
-                        anyhow::bail!("prop name kind {:?} not supported", kv.key)
+                        return Err(litparser::ParseError {
+                            span: <swc_ecma_ast::KeyValueProp as swc_common::Spanned>::span(#kv_ident),
+                            message: format!("prop name kind {:?} not supported", kv.key),
+                        });
                     }
                 },
             }
@@ -151,17 +165,24 @@ fn match_prop(
 }
 
 // Generates an expression for the match cases for the fields.
-fn gen_field_match_cases(data: &Data, kv_ident: &syn::Ident) -> proc_macro2::TokenStream {
+fn gen_field_match_cases(
+    data: &Data,
+    prop_ident: &syn::Ident,
+    kv_ident: &syn::Ident,
+) -> proc_macro2::TokenStream {
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
                 let match_cases = fields.named.iter().map(|f| {
-                    let name = &f.ident;
-                    let match_literal = format!("{}", name.as_ref().unwrap());
+                    let name = f.ident.as_ref().unwrap();
+                    let match_literal = format!("{}", name);
                     quote_spanned! {f.span() =>
                         #match_literal => {
                             if #name.is_some() {
-                                anyhow::bail!("field {} set twice", #match_literal);
+                                return Err(litparser::ParseError {
+                                    span: <swc_ecma_ast::Prop as swc_common::Spanned>::span(#prop_ident),
+                                    message: format!("field {} set twice", #match_literal),
+                                });
                             }
                             let val = LitParser::parse_lit(&*#kv_ident.value)?;
                             #name = Some(val);
@@ -170,7 +191,12 @@ fn gen_field_match_cases(data: &Data, kv_ident: &syn::Ident) -> proc_macro2::Tok
                 });
                 quote! {
                     #(#match_cases)*
-                    x @ _ => anyhow::bail!("unrecognized prop name {}", x),
+                    x @ _ => {
+                        return Err(litparser::ParseError {
+                            span: <swc_ecma_ast::Prop as swc_common::Spanned>::span(#prop_ident),
+                            message: "unexpected field".to_string(),
+                        });
+                    }
                 }
             }
             Fields::Unnamed(_) => {
@@ -184,7 +210,7 @@ fn gen_field_match_cases(data: &Data, kv_ident: &syn::Ident) -> proc_macro2::Tok
     }
 }
 
-fn gen_return(data: &Data) -> proc_macro2::TokenStream {
+fn gen_return(data: &Data, input_ident: &syn::Ident) -> proc_macro2::TokenStream {
     match *data {
         Data::Struct(ref data) => match data.fields {
             Fields::Named(ref fields) => {
@@ -197,7 +223,10 @@ fn gen_return(data: &Data) -> proc_macro2::TokenStream {
                         }
                     } else {
                         quote_spanned! {f.span() =>
-                            #name: #name.ok_or_else(|| anyhow::anyhow!(concat!(stringify!(#name), " not set")))?
+                            #name: #name.ok_or_else(|| litparser::ParseError {
+                                span: <swc_ecma_ast::Expr as swc_common::Spanned>::span(#input_ident),
+                                message: format!("field {} is required but is missing", stringify!(#name)),
+                            })?
                         }
                     }
                 });
@@ -225,7 +254,7 @@ fn is_optional(ty: &syn::Type) -> bool {
             path: syn::Path { segments, .. },
         }) => {
             // Return true if the last path segment is "Option".
-            segments.last().map_or(false, |seg| seg.ident == "Option")
+            segments.last().is_some_and(|seg| seg.ident == "Option")
         }
         _ => false,
     }

@@ -31,7 +31,7 @@ Pre-authentication keys (“auth keys” for short) let you authenticate the Enc
 
 ### Step 1: Generate an auth key
 
-As an Encore user, visit the auth key page by going to **[Your apps](https://app.encore.dev/) > (Select your app) > App Settings > Auth Keys**.
+As an Encore user, visit the auth key page by going to **[Your apps](https://app.encore.cloud/) > (Select your app) > App Settings > Auth Keys**.
 
 A key can be both **reusable** and **ephemeral** at the same time (you can decide the combination based on your particular use case).
 
@@ -53,4 +53,4 @@ $ encore auth login --auth-key=ena_nEQIkfeM43t7oxpleMsIULbhbtLAbYnnLf1D
 
 ## Revoking a key
 
-You can revoke a key simply by pressing the **Delete** button next to it. This will prevent any machines currently using it to authenticate to the Encore platform (regardless of the key type).
+You can revoke a key simply by pressing the **Delete** button next to it. This will prevent any machines currently using it to authenticate to Encore Cloud (regardless of the key type).

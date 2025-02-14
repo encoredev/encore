@@ -304,7 +304,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		} else if rpc.ResponseSchema != nil {
 			ts.writeTyp(ns, rpc.ResponseSchema, 0)
 		} else if rpc.Proto == meta.RPC_RAW {
-			ts.WriteString("Response")
+			ts.WriteString("globalThis.Response")
 		} else {
 			ts.WriteString("void")
 		}
@@ -516,9 +516,9 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		}
 	}
 
-	// Build the call to callAPI
+	// Build the call to callTypedAPI
 	callAPI := fmt.Sprintf(
-		"this.baseClient.callAPI(\"%s\", `%s`",
+		"this.baseClient.callTypedAPI(\"%s\", `%s`",
 		rpcEncoding.DefaultMethod,
 		rpcPath,
 	)
@@ -1002,9 +1002,7 @@ class BaseClient {
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
+        this.headers = {}
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
@@ -1182,6 +1180,14 @@ class BaseClient {
         return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
+    // callTypedAPI makes an API call, defaulting content type to "application/json"
+    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+        return this.callAPI(method, path, body, {
+            ...params,
+            headers: { "Content-Type": "application/json", ...params?.headers }
+        });
+    }
+
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
@@ -1194,7 +1200,6 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
-
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();

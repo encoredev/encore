@@ -10,6 +10,7 @@ use serde::Deserialize;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::{Action, Retry};
 
+use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::CloudName;
@@ -70,7 +71,7 @@ impl pubsub::Subscription for Subscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         let client = self.client.clone();
         let cloud_name = self.cloud_name.clone();
         let ack_deadline = self.ack_deadline;
@@ -122,7 +123,7 @@ impl fetcher::Fetcher for Arc<SqsFetcher> {
             let result = client
                 .receive_message()
                 .queue_url(queue_url)
-                .attribute_names("ApproximateReceiveCount".into())
+                .message_system_attribute_names(MessageSystemAttributeName::ApproximateReceiveCount)
                 .visibility_timeout(ack_deadline.as_secs() as i32)
                 .wait_time_seconds(20) // maximum allowed time
                 .max_number_of_messages(max_items as i32)

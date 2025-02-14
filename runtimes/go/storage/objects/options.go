@@ -1,6 +1,10 @@
 package objects
 
-import "encore.dev/storage/objects/internal/types"
+import (
+	"time"
+
+	"encore.dev/storage/objects/internal/types"
+)
 
 // DownloadOption describes available options for the Download operation.
 type DownloadOption interface {
@@ -33,10 +37,30 @@ func (o withVersionOption) attrsOption() {}
 //publicapigen:keep
 func (o withVersionOption) existsOption() {}
 
-func (o withVersionOption) applyDownload(opts *downloadOptions) { opts.version = o.version }
-func (o withVersionOption) applyRemove(opts *removeOptions)     { opts.version = o.version }
-func (o withVersionOption) applyAttrs(opts *attrsOptions)       { opts.version = o.version }
-func (o withVersionOption) applyExists(opts *existsOptions)     { opts.version = o.version }
+//publicapigen:keep
+func (o withTTLOption) uploadURLOption() {}
+
+//publicapigen:keep
+func (o withTTLOption) downloadURLOption() {}
+
+func (o withVersionOption) applyDownload(opts *downloadOptions)   { opts.version = o.version }
+func (o withVersionOption) applyRemove(opts *removeOptions)       { opts.version = o.version }
+func (o withVersionOption) applyAttrs(opts *attrsOptions)         { opts.version = o.version }
+func (o withVersionOption) applyExists(opts *existsOptions)       { opts.version = o.version }
+func (o withTTLOption) applyUploadURL(opts *uploadURLOptions)     { opts.TTL = o.TTL }
+func (o withTTLOption) applyDownloadURL(opts *downloadURLOptions) { opts.TTL = o.TTL }
+
+// WithTTL is used for signed URLs, to specify the lifetime of the generated
+// URL. The max value is seven days. The default lifetime, if this
+// option is missing, is one hour.
+func WithTTL(TTL time.Duration) withTTLOption {
+	return withTTLOption{TTL: TTL}
+}
+
+//publicapigen:keep
+type withTTLOption struct {
+	TTL time.Duration
+}
 
 //publicapigen:keep
 type downloadOptions struct {
@@ -137,6 +161,30 @@ type AttrsOption interface {
 
 type attrsOptions struct {
 	version string
+}
+
+// UploadURLOption describes available options for the SignedUploadURL operation.
+type UploadURLOption interface {
+	//publicapigen:keep
+	uploadURLOption()
+
+	applyUploadURL(*uploadURLOptions)
+}
+
+type uploadURLOptions struct {
+	TTL time.Duration
+}
+
+// DownloadURLOption describes available options for the SignedDownloadURL operation.
+type DownloadURLOption interface {
+	//publicapigen:keep
+	downloadURLOption()
+
+	applyDownloadURL(*downloadURLOptions)
+}
+
+type downloadURLOptions struct {
+	TTL time.Duration
 }
 
 // ExistsOption describes available options for the Exists operation.

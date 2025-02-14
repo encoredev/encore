@@ -239,17 +239,18 @@ impl<'a> TypeArgResolver<'a> {
             Typ::Struct(strukt) => {
                 let mut cows = Vec::with_capacity(strukt.fields.len());
                 for field in &strukt.fields {
-                    let typ = field.typ.as_ref().context("field without type")?;
-                    let typ = typ.typ.as_ref().context("type without type")?;
+                    let t = field.typ.as_ref().context("field without type")?;
+                    let typ = t.typ.as_ref().context("type without type")?;
                     let resolved = self.resolve(typ)?;
-                    cows.push(resolved);
+                    cows.push((resolved, t.validation.as_ref()));
                 }
 
                 let mut fields = Vec::with_capacity(strukt.fields.len());
-                for (field, typ) in strukt.fields.iter().zip(cows) {
+                for (field, (typ, v)) in strukt.fields.iter().zip(cows) {
                     fields.push(schema::Field {
                         typ: Some(schema::Type {
                             typ: Some(typ.into_owned()),
+                            validation: v.cloned(),
                         }),
                         ..field.clone()
                     });
@@ -259,21 +260,23 @@ impl<'a> TypeArgResolver<'a> {
 
             Typ::Map(map) => {
                 let key = map.key.as_ref().context("map without key")?;
-                let key = key.typ.as_ref().context("key without type")?;
+                let key_typ = key.typ.as_ref().context("key without type")?;
                 let value = map.value.as_ref().context("map without value")?;
-                let value = value.typ.as_ref().context("value without type")?;
-                let key = self.resolve(key)?;
-                let value = self.resolve(value)?;
+                let val_typ = value.typ.as_ref().context("value without type")?;
+                let key_typ = self.resolve(key_typ)?;
+                let val_typ = self.resolve(val_typ)?;
 
-                if matches!((&key, &value), (Cow::Borrowed(_), Cow::Borrowed(_))) {
+                if matches!((&key_typ, &val_typ), (Cow::Borrowed(_), Cow::Borrowed(_))) {
                     Ok(Cow::Borrowed(typ))
                 } else {
                     Ok(Cow::Owned(Typ::Map(Box::new(schema::Map {
                         key: Some(Box::new(schema::Type {
-                            typ: Some(key.into_owned()),
+                            typ: Some(key_typ.into_owned()),
+                            validation: key.validation.clone(),
                         })),
                         value: Some(Box::new(schema::Type {
-                            typ: Some(value.into_owned()),
+                            typ: Some(val_typ.into_owned()),
+                            validation: value.validation.clone(),
                         })),
                     }))))
                 }
@@ -281,14 +284,15 @@ impl<'a> TypeArgResolver<'a> {
 
             Typ::List(list) => {
                 let elem = list.elem.as_ref().context("list without elem")?;
-                let elem = elem.typ.as_ref().context("elem without type")?;
-                let elem = self.resolve(elem)?;
-                if matches!(elem, Cow::Borrowed(_)) {
+                let elem_typ = elem.typ.as_ref().context("elem without type")?;
+                let elem_typ = self.resolve(elem_typ)?;
+                if matches!(elem_typ, Cow::Borrowed(_)) {
                     Ok(Cow::Borrowed(typ))
                 } else {
                     Ok(Cow::Owned(Typ::List(Box::new(schema::List {
                         elem: Some(Box::new(schema::Type {
-                            typ: Some(elem.into_owned()),
+                            typ: Some(elem_typ.into_owned()),
+                            validation: elem.validation.clone(),
                         })),
                     }))))
                 }
@@ -298,8 +302,10 @@ impl<'a> TypeArgResolver<'a> {
                 let types = self.resolve_types(&union.types)?;
                 let types = types
                     .into_iter()
-                    .map(|t| schema::Type {
-                        typ: Some(t.into_owned()),
+                    .zip(&union.types)
+                    .map(|(typ, t)| schema::Type {
+                        typ: Some(typ.into_owned()),
+                        validation: t.validation.clone(),
                     })
                     .collect::<Vec<_>>();
 
@@ -392,14 +398,21 @@ pub fn handshake_encoding(
             value: format!("{}.{}", rpc.service_name, rpc.name),
             r#type: SegmentType::Literal as i32,
             value_type: meta::path_segment::ParamType::String as i32,
+            validation: None,
         }],
         r#type: meta::path::Type::Url as i32,
     };
     let rpc_path = rpc.path.as_ref().unwrap_or(&default_path);
 
     let Some(handshake_schema) = &rpc.handshake_schema else {
+        let parse_data = rpc.path.as_ref().is_some_and(|path| {
+            path.segments
+                .iter()
+                .any(|segment| segment.r#type() != SegmentType::Literal)
+        });
+
         return Ok(Some(HandshakeSchemaUnderConstruction {
-            parse_data: false,
+            parse_data,
             schema: SchemaUnderConstruction {
                 combined: None,
                 body: None,
@@ -483,6 +496,7 @@ pub fn request_encoding(
             value: format!("{}.{}", rpc.service_name, rpc.name),
             r#type: SegmentType::Literal as i32,
             value_type: meta::path_segment::ParamType::String as i32,
+            validation: None,
         }],
         r#type: meta::path::Type::Url as i32,
     };

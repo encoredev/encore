@@ -75,7 +75,7 @@ var deployAppCmd = &cobra.Command{
 		if err != nil {
 			cmdutil.Fatalf("failed to deploy: %v", err)
 		}
-		url := fmt.Sprintf("https://app.encore.dev/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
+		url := fmt.Sprintf("https://app.encore.cloud/%s/deploys/%s/%s", appSlug, rollout.EnvName, strings.TrimPrefix(rollout.ID, "roll_"))
 		switch format.Value {
 		case "text":
 			fmt.Println(aurora.Sprintf("\n%s %s\n", aurora.Bold("Started Deploy:"), url))

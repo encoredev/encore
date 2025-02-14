@@ -26,7 +26,7 @@ var ErrNotLoggedIn = errors.New("not logged in: run 'encore auth login' first")
 // These can be overwritten using
 // `go build -ldflags "-X encr.dev/cli/internal/conf.defaultPlatformURL=https://api.encore.dev"`.
 var (
-	defaultPlatformURL     = "https://api.encore.dev"
+	defaultPlatformURL     = "https://api.encore.cloud"
 	defaultDevDashURL      = "https://devdash.encore.dev"
 	defaultConfigDirectory = "encore"
 )

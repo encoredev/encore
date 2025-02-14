@@ -2,10 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
-use anyhow::{Context, Result};
 use swc_common::errors::HANDLER;
 
-use crate::encore::parser::meta::v1;
+use crate::encore::parser::meta::v1::{self, selector, Selector};
 use crate::legacymeta::schema::{loc_from_range, SchemaBuilder};
 use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
@@ -13,16 +12,18 @@ use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
-use crate::parser::types::ObjectId;
+use crate::parser::types::validation;
+use crate::parser::types::{Object, ObjectId};
 use crate::parser::usageparser::Usage;
 use crate::parser::{respath, FilePath, Range};
+use litparser::{ParseResult as PResult, ToParseErr};
 
 mod api_schema;
 mod schema;
 
 const DEFAULT_API_GATEWAY_NAME: &str = "api-gateway";
 
-pub fn compute_meta(pc: &ParseContext, parse: &ParseResult) -> Result<v1::Data> {
+pub fn compute_meta(pc: &ParseContext, parse: &ParseResult) -> PResult<v1::Data> {
     let app_root = pc.app_root.as_path();
 
     let schema = SchemaBuilder::new(pc, app_root);
@@ -46,23 +47,32 @@ struct MetaBuilder<'a> {
 }
 
 impl MetaBuilder<'_> {
-    pub fn build(mut self) -> Result<v1::Data> {
+    pub fn build(mut self) -> PResult<v1::Data> {
         // self.data.app_revision = parse_app_revision(&self.app_root)?;
         self.data.app_revision = std::env::var("ENCORE_APP_REVISION").unwrap_or_default();
 
         let mut svc_index = HashMap::new();
         let mut svc_to_pkg_index = HashMap::new();
         for svc in &self.parse.services {
-            let rel_path = self.rel_path_string(svc.root.as_path())?;
+            let Some(rel_path) = self.rel_path_string(svc.root.as_path()) else {
+                HANDLER.with(|h| {
+                    h.err(&format!(
+                        "unable to compute relative path to service: {}",
+                        svc.name
+                    ))
+                });
+                continue;
+            };
+
             svc_to_pkg_index.insert(svc.name.clone(), self.data.pkgs.len());
             self.data.pkgs.push(v1::Package {
                 rel_path: rel_path.clone(),
                 name: svc.name.clone(),
                 service_name: svc.name.clone(),
-                rpc_calls: vec![], // added below
-                secrets: vec![],   // added below
+                doc: svc.doc.clone().unwrap_or_default(),
 
-                doc: "".into(),      // TODO
+                rpc_calls: vec![],   // added below
+                secrets: vec![],     // added below
                 trace_nodes: vec![], // TODO?
             });
 
@@ -115,7 +125,15 @@ impl MetaBuilder<'_> {
                     let request_schema = self.schema.transform_request(ep)?;
                     let response_schema = self
                         .schema
-                        .transform_response(ep.encoding.raw_resp_schema.clone())?;
+                        .transform_response(ep.encoding.raw_resp_schema.clone().map(|s| s.take()))
+                        .map_err(|err| {
+                            let sp = ep
+                                .encoding
+                                .raw_resp_schema
+                                .as_ref()
+                                .map_or(ep.range.to_span(), |s| s.span());
+                            sp.parse_err(err.to_string())
+                        })?;
 
                     let access_type: i32 = match (ep.expose, ep.require_auth) {
                         (false, _) => v1::rpc::AccessType::Private as i32,
@@ -126,12 +144,18 @@ impl MetaBuilder<'_> {
                     let static_assets = ep
                         .static_assets
                         .as_ref()
-                        .map(|sa| -> Result<v1::rpc::StaticAssets> {
-                            let dir_rel_path = self.rel_path_string(&sa.dir)?;
+                        .map(|sa| -> PResult<v1::rpc::StaticAssets> {
+                            let dir_rel_path = self.rel_path_string(&sa.dir).ok_or(
+                                sa.dir.parse_err("could not resolve static asset directory"),
+                            )?;
                             let not_found_rel_path = sa
                                 .not_found
                                 .as_ref()
-                                .map(|p| self.rel_path_string(p))
+                                .map(|p| {
+                                    self.rel_path_string(p).ok_or(
+                                        p.parse_err("could not resolve static notFound path"),
+                                    )
+                                })
                                 .transpose()?;
                             Ok(v1::rpc::StaticAssets {
                                 dir_rel_path,
@@ -139,6 +163,15 @@ impl MetaBuilder<'_> {
                             })
                         })
                         .transpose()?;
+
+                    let tags = ep
+                        .tags
+                        .iter()
+                        .map(|tag| Selector {
+                            r#type: selector::Type::Tag.into(),
+                            value: tag.clone(),
+                        })
+                        .collect();
 
                     let rpc = v1::Rpc {
                         name: ep.name.clone(),
@@ -155,7 +188,7 @@ impl MetaBuilder<'_> {
                         } as i32,
                         path: Some(ep.encoding.path.to_meta()),
                         http_methods: ep.encoding.methods.to_vec(),
-                        tags: vec![],
+                        tags,
                         sensitive: false,
                         loc: Some(loc_from_range(self.app_root, &self.pc.file_set, ep.range)?),
                         allow_unauthenticated: !ep.require_auth,
@@ -175,10 +208,14 @@ impl MetaBuilder<'_> {
                         static_assets,
                     };
 
-                    let service_idx = svc_index
-                        .get(&ep.service_name)
-                        .ok_or(anyhow::anyhow!("missing service: {}", ep.service_name))?
-                        .to_owned();
+                    let Some(service_idx) =
+                        svc_index.get(&ep.service_name).map(|idx| idx.to_owned())
+                    else {
+                        return Err(ep
+                            .range
+                            .to_span()
+                            .parse_err(format!("missing service {}", ep.service_name)));
+                    };
                     let service = &mut self.data.svcs[service_idx];
 
                     if let Some(obj) = &b.object {
@@ -214,14 +251,19 @@ impl MetaBuilder<'_> {
                 }
 
                 Resource::Secret(secret) => {
-                    let service = self
-                        .service_for_range(&secret.range)
-                        .ok_or(anyhow::anyhow!(
-                            "secrets must be loaded from within services"
-                        ))?;
+                    let service = self.service_for_range(&secret.range).ok_or(
+                        secret
+                            .range
+                            .parse_err("secrets must be loaded from within services"),
+                    )?;
+
                     let pkg_idx = svc_to_pkg_index
                         .get(&service.name)
-                        .ok_or(anyhow::anyhow!("missing service: {}", &service.name))?
+                        .ok_or(
+                            secret
+                                .range
+                                .parse_err(format!("missing service: {}", &service.name)),
+                        )?
                         .to_owned();
                     let pkg = &mut self.data.pkgs[pkg_idx];
                     pkg.secrets.push(secret.name.clone());
@@ -241,13 +283,18 @@ impl MetaBuilder<'_> {
             }
         }
 
+        // Keep track of things we've seen so we can report errors pointing at
+        // the previous definition when we see a duplicate.
+        let mut first_gateway: Option<&gateway::Gateway> = None;
+        let mut first_auth_handler: Option<&Object> = None;
+
         // Make a second pass for resources that depend on other resources.
         for r in &dependent {
             match r {
                 Dependent::PubSubSubscription((b, sub)) => {
                     let topic_idx = topic_idx
                         .get(&sub.topic.id)
-                        .ok_or(anyhow::anyhow!("missing topic"))?
+                        .ok_or_else(|| sub.topic.parse_err("topic not found"))?
                         .to_owned();
                     let result = self.pubsub_subscription(b, sub)?;
                     let topic = &mut self.data.pubsub_topics[topic_idx];
@@ -257,7 +304,7 @@ impl MetaBuilder<'_> {
                 Dependent::CronJob((_b, cj)) => {
                     let (svc_idx, ep_idx) = endpoint_idx
                         .get(&cj.endpoint.id)
-                        .ok_or(anyhow::anyhow!("missing endpoint"))?
+                        .ok_or(cj.endpoint.parse_err("endpoint not found"))?
                         .to_owned();
                     let svc = &self.data.svcs[svc_idx];
                     let ep = &svc.rpcs[ep_idx];
@@ -288,21 +335,30 @@ impl MetaBuilder<'_> {
 
                         let service_name = self
                             .service_for_range(&ah.range)
-                            .ok_or(anyhow::anyhow!(
-                                "unable to determine service for auth handler"
-                            ))?
+                            .ok_or(
+                                ah.range
+                                    .parse_err("unable to determine service for auth handler"),
+                            )?
                             .name
                             .clone();
 
                         let loc = loc_from_range(self.app_root, &self.pc.file_set, ah.range)?;
+                        let params = self
+                            .schema
+                            .typ(&ah.encoding.auth_param)
+                            .map_err(|err| ah.encoding.auth_param.parse_err(err.to_string()))?;
+                        let auth_data = self
+                            .schema
+                            .typ(&ah.encoding.auth_data)
+                            .map_err(|err| ah.encoding.auth_data.parse_err(err.to_string()))?;
                         Some(v1::AuthHandler {
                             name: ah.name.clone(),
                             doc: ah.doc.clone().unwrap_or_default(),
                             pkg_path: loc.pkg_path.clone(),
                             pkg_name: loc.pkg_name.clone(),
                             loc: Some(loc),
-                            params: Some(self.schema.typ(&ah.encoding.auth_param)?),
-                            auth_data: Some(self.schema.typ(&ah.encoding.auth_data)?),
+                            params: Some(params),
+                            auth_data: Some(auth_data),
                             service_name,
                         })
                     } else {
@@ -311,19 +367,51 @@ impl MetaBuilder<'_> {
 
                     let service_name = self
                         .service_for_range(&gw.range)
-                        .ok_or(anyhow::anyhow!("unable to determine service for gateway"))?
+                        .ok_or(
+                            gw.range
+                                .parse_err("unable to determine service for gateway"),
+                        )?
                         .name
                         .clone();
 
-                    if self.data.auth_handler.is_some() {
-                        anyhow::bail!("multiple auth handlers not yet supported");
-                    } else if !self.data.gateways.is_empty() {
-                        anyhow::bail!("multiple gateways not yet supported");
+                    if let Some(first) = first_gateway {
+                        HANDLER.with(|h| {
+                            h.struct_span_err(
+                                gw.range.to_span(),
+                                "multiple gateways not yet supported",
+                            )
+                            .span_help(first.range.to_span(), "previous gateway defined here")
+                            .emit();
+                        });
+                        continue;
+                    } else {
+                        first_gateway = Some(gw);
                     }
+
+                    if let Some(ah) = &gw.auth_handler {
+                        if let Some(first) = first_auth_handler {
+                            HANDLER.with(|h| {
+                                h.struct_span_err(
+                                    ah.range.to_span(),
+                                    "multiple auth handlers not yet supported",
+                                )
+                                .span_help(
+                                    first.range.to_span(),
+                                    "previous auth handler defined here",
+                                )
+                                .emit();
+                            });
+                            continue;
+                        } else {
+                            first_auth_handler = Some(ah);
+                        }
+                    }
+
                     self.data.auth_handler.clone_from(&auth_handler);
 
                     if gw.name != "api-gateway" {
-                        anyhow::bail!("only the 'api-gateway' gateway is supported");
+                        gw.range.err("only the 'api-gateway' gateway is supported");
+                        continue;
                     }
                     let encore_name = DEFAULT_API_GATEWAY_NAME.to_string();
 
@@ -345,9 +433,11 @@ impl MetaBuilder<'_> {
         for u in &self.parse.usages {
             match u {
                 Usage::PublishTopic(publish) => {
-                    let svc = self
-                        .service_for_range(&publish.range)
-                        .ok_or(anyhow::anyhow!("unable to determine service for publish"))?;
+                    let svc =
+                        self.service_for_range(&publish.range)
+                            .ok_or(publish.range.parse_err(
+                                "unable to determine which service this 'publish' call is within",
+                            ))?;
 
                     // Add the publisher if it hasn't already been seen.
                     let key = (svc.name.clone(), publish.topic.name.clone());
@@ -356,7 +446,7 @@ impl MetaBuilder<'_> {
 
                         let idx = topic_by_name
                             .get(&publish.topic.name)
-                            .ok_or(anyhow::anyhow!("missing topic: {}", publish.topic.name))?
+                            .ok_or(publish.range.parse_err("could not resolve topic"))?
                             .to_owned();
                         let topic = &mut self.data.pubsub_topics[idx];
                         topic
@@ -366,12 +456,9 @@ impl MetaBuilder<'_> {
                 }
                 Usage::AccessDatabase(access) => {
                     let Some(svc) = self.service_for_range(&access.range) else {
-                        HANDLER.with(|h| {
-                            h.span_err(
-                                access.range.to_span(),
-                                "unable to determine which service is accessing this database",
-                            )
-                        });
+                        access
+                            .range
+                            .parse_err("cannot determine which service is accessing this database");
                         continue;
                     };
 
@@ -402,6 +489,10 @@ impl MetaBuilder<'_> {
                             v1::bucket_usage::Operation::GetObjectMetadata
                         }
                         Operation::GetPublicUrl => v1::bucket_usage::Operation::GetPublicUrl,
+                        Operation::SignedUploadUrl => v1::bucket_usage::Operation::SignedUploadUrl,
+                        Operation::SignedDownloadUrl => {
+                            v1::bucket_usage::Operation::SignedDownloadUrl
+                        }
                     } as i32);
 
                     let idx = svc_index.get(&svc.name).unwrap();
@@ -414,7 +505,7 @@ impl MetaBuilder<'_> {
                 Usage::CallEndpoint(call) => {
                     let src_service = self
                         .service_for_range(&call.range)
-                        .ok_or(anyhow::anyhow!("unable to determine service for call"))?
+                        .ok_or(call.range.parse_err("unable to determine service for call"))?
                         .name
                         .clone();
                     let dst_service = call.endpoint.0.clone();
@@ -422,14 +513,17 @@ impl MetaBuilder<'_> {
 
                     let dst_idx = svc_to_pkg_index
                         .get(&dst_service)
-                        .ok_or(anyhow::anyhow!("missing service: {}", &dst_service))?
+                        .ok_or(
+                            call.range
+                                .parse_err("could not resolve destination service"),
+                        )?
                         .to_owned();
 
                     let dst_pkg_rel_path = self.data.pkgs[dst_idx].rel_path.clone();
 
                     let src_idx = svc_to_pkg_index
                         .get(&src_service)
-                        .ok_or(anyhow::anyhow!("missing service: {}", src_service))?
+                        .ok_or(call.range.parse_err("could not resolve calling service"))?
                         .to_owned();
                     let src_pkg = &mut self.data.pkgs[src_idx];
 
@@ -488,10 +582,14 @@ impl MetaBuilder<'_> {
         Ok(self.data)
     }
 
-    fn pubsub_topic(&mut self, topic: &pubsub_topic::Topic) -> Result<v1::PubSubTopic> {
+    fn pubsub_topic(&mut self, topic: &pubsub_topic::Topic) -> PResult<v1::PubSubTopic> {
         use pubsub_topic::DeliveryGuarantee;
-        let message_type = self.schema.typ(&topic.message_type)?;
-        let mut topic = v1::PubSubTopic {
+        let message_type = self.schema.typ(&topic.message_type).map_err(|e| {
+            topic
+                .message_type
+                .parse_err(format!("could not resolve message type: {}", e))
+        })?;
+        Ok(v1::PubSubTopic {
             name: topic.name.clone(),
             doc: topic.doc.clone(),
             message_type: Some(message_type),
@@ -502,36 +600,20 @@ impl MetaBuilder<'_> {
             ordering_key: topic.ordering_attribute.clone().unwrap_or_default(),
             publishers: vec![],    // filled in below
             subscriptions: vec![], // filled in below
-        };
-
-        let mut seen_publishers = HashSet::new();
-        let _add_publisher = |svc_name: &str| {
-            if !seen_publishers.contains(svc_name) {
-                topic.publishers.push(v1::pub_sub_topic::Publisher {
-                    service_name: svc_name.to_string(),
-                });
-                seen_publishers.insert(svc_name.to_string());
-            }
-        };
-
-        // Sort the publishers for deterministic output.
-        topic
-            .publishers
-            .sort_by(|a, b| a.service_name.cmp(&b.service_name));
-
-        Ok(topic)
+        })
     }
 
     fn pubsub_subscription(
         &self,
         bind: &Bind,
         sub: &pubsub_subscription::Subscription,
-    ) -> Result<v1::pub_sub_topic::Subscription> {
+    ) -> PResult<v1::pub_sub_topic::Subscription> {
         let service_name = self
-            .service_for_range(&bind.range.unwrap())
-            .ok_or(anyhow::anyhow!(
-                "unable to determine service for subscription"
-            ))?
+            .service_for_range(&bind.range.unwrap_or(sub.range))
+            .ok_or(
+                sub.range
+                    .parse_err("unable to determine which service the subscription belongs to"),
+            )?
             .name
             .clone();
 
@@ -549,12 +631,15 @@ impl MetaBuilder<'_> {
         })
     }
 
-    fn sql_database(&self, db: &sqldb::SQLDatabase) -> Result<v1::SqlDatabase> {
+    fn sql_database(&self, db: &sqldb::SQLDatabase) -> PResult<v1::SqlDatabase> {
         // Transform the migrations into the metadata format.
         let (migration_rel_path, migrations, allow_non_sequential_migrations) = match &db.migrations
         {
             Some(spec) => {
-                let rel_path = self.rel_path_string(&spec.dir)?;
+                let rel_path = self
+                    .rel_path_string(&spec.dir)
+                    .ok_or(spec.parse_err("unable to resolve migration directory"))?;
+
                 let migrations = spec
                     .migrations
                     .iter()
@@ -589,18 +674,14 @@ impl MetaBuilder<'_> {
 
     /// Compute the relative path from the app root.
     /// It reports an error if the path is not under the app root.
-    fn rel_path<'b>(&self, path: &'b Path) -> Result<&'b Path> {
-        let suffix = path.strip_prefix(self.app_root)?;
-        Ok(suffix)
+    fn rel_path<'b>(&self, path: &'b Path) -> Option<&'b Path> {
+        path.strip_prefix(self.app_root).ok()
     }
 
     /// Compute the relative path from the app root as a String.
-    fn rel_path_string(&self, path: &Path) -> Result<String> {
+    fn rel_path_string(&self, path: &Path) -> Option<String> {
         let suffix = self.rel_path(path)?;
-        let s = suffix
-            .to_str()
-            .ok_or(anyhow::anyhow!("invalid path: {:?}", path))?;
-        Ok(s.to_string())
+        suffix.to_str().map(|s| s.to_string())
     }
 
     fn service_for_range(&self, range: &Range) -> Option<&Service> {
@@ -624,13 +705,18 @@ impl respath::Path {
             segments: self
                 .segments
                 .iter()
-                .map(|seg| match seg {
+                .map(|seg| match seg.get() {
                     Segment::Literal(lit) => v1::PathSegment {
                         r#type: SegmentType::Literal as i32,
                         value_type: ParamType::String as i32,
                         value: lit.clone(),
+                        validation: None,
                     },
-                    Segment::Param { name, value_type } => v1::PathSegment {
+                    Segment::Param {
+                        name,
+                        value_type,
+                        validation,
+                    } => v1::PathSegment {
                         r#type: SegmentType::Param as i32,
                         value_type: match value_type {
                             ValueType::String => ParamType::String as i32,
@@ -638,16 +724,19 @@ impl respath::Path {
                             ValueType::Bool => ParamType::Bool as i32,
                         },
                         value: name.clone(),
+                        validation: validation.as_ref().map(validation::Expr::to_pb),
                     },
-                    Segment::Wildcard { name } => v1::PathSegment {
+                    Segment::Wildcard { name, validation } => v1::PathSegment {
                         r#type: SegmentType::Wildcard as i32,
                         value_type: ParamType::String as i32,
                         value: name.clone(),
+                        validation: validation.as_ref().map(validation::Expr::to_pb),
                     },
-                    Segment::Fallback { name } => v1::PathSegment {
+                    Segment::Fallback { name, validation } => v1::PathSegment {
                         r#type: SegmentType::Fallback as i32,
                         value_type: ParamType::String as i32,
                         value: name.clone(),
+                        validation: validation.as_ref().map(validation::Expr::to_pb),
                     },
                 })
                 .collect(),
@@ -677,24 +766,6 @@ fn new_meta() -> v1::Data {
     }
 }
 
-fn _parse_app_revision(dir: &Path) -> anyhow::Result<String> {
-    duct::cmd!(
-        "git",
-        "-c",
-        "log.showsignature=false",
-        "show",
-        "-s",
-        "--format=%H:%ct"
-    )
-    .dir(dir)
-    .read()
-    .map_err(|e| anyhow::anyhow!("failed to run git: {}", e))
-    .and_then(|s| {
-        let (hash, _) = s.trim().split_once(':').context("invalid git output")?;
-        Ok(hash.to_string())
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use swc_common::errors::{Handler, HANDLER};
@@ -708,7 +779,7 @@ mod tests {
 
     use super::*;
 
-    fn parse(tmp_dir: &Path, src: &str) -> Result<v1::Data> {
+    fn parse(tmp_dir: &Path, src: &str) -> anyhow::Result<v1::Data> {
         let globals = Globals::new();
         let cm: Rc<SourceMap> = Default::default();
         let errs = Rc::new(Handler::with_tty_emitter(
@@ -718,15 +789,15 @@ mod tests {
             Some(cm.clone()),
         ));
 
-        GLOBALS.set(&globals, || {
-            HANDLER.set(&errs, || {
+        GLOBALS.set(&globals, || -> anyhow::Result<_> {
+            HANDLER.set(&errs, || -> anyhow::Result<_> {
                 let ar = txtar::from_str(src);
                 ar.materialize(tmp_dir)?;
 
                 let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
                 let pc = ParseContext::with_resolver(
                     tmp_dir.to_path_buf(),
-                    JS_RUNTIME_PATH.clone(),
+                    Some(JS_RUNTIME_PATH.clone()),
                     resolver,
                     cm,
                     errs.clone(),
@@ -740,14 +811,15 @@ mod tests {
                     Default::default(),
                 );
                 let parser = Parser::new(&pc, pass1);
-                let parse = parser.parse()?;
-                compute_meta(&pc, &parse)
+                let parse = parser.parse();
+                let md = compute_meta(&pc, &parse)?;
+                Ok(md)
             })
         })
     }
 
     #[test]
-    fn test_legacymeta() -> Result<()> {
+    fn test_legacymeta() -> anyhow::Result<()> {
         let src = r#"
 -- foo.ts --
 import { Bar } from './bar.ts';

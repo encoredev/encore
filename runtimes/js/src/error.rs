@@ -1,6 +1,6 @@
-use crate::log::parse_js_stack;
+use crate::{log::parse_js_stack, pvalue::parse_pvalues};
 use encore_runtime_core::api;
-use napi::{Env, JsUnknown, Status};
+use napi::{Env, JsUnknown};
 
 pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error, api::Error> {
     let obj = val.coerce_to_object().map_err(|_| api::Error {
@@ -12,28 +12,27 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
     })?;
 
     // Get the details field.
-    let details: Option<serde_json::Map<String, serde_json::Value>> = obj
+    let details = obj
         .get_named_property::<napi::JsUnknown>("details")
-        .and_then(|val| match val.get_type()? {
-            napi::ValueType::Object => val.coerce_to_object(),
-            _ => Err(napi::Error::new(
-                Status::InvalidArg,
-                "details can only be object",
-            )),
-        })
-        .and_then(|val| env.from_js_value(val))
-        .map(Some)
-        .unwrap_or(None);
+        .and_then(parse_pvalues)
+        .map(|val| val.map(Box::new))
+        .map_err(|e| api::Error {
+            code: api::ErrCode::Internal,
+            message: api::ErrCode::Internal.default_public_message().into(),
+            internal_message: Some(format!("unable to parse error details: {}", e)),
+            details: None,
+            stack: None,
+        })?;
 
     // Get the message field.
     let mut message: String = obj
         .get_named_property::<JsUnknown>("message")
         .and_then(|val| val.coerce_to_string())
         .and_then(|val| env.from_js_value(val))
-        .map_err(|_| api::Error {
+        .map_err(|e| api::Error {
             code: api::ErrCode::Internal,
             message: api::ErrCode::Internal.default_public_message().into(),
-            internal_message: Some("an unknown exception was thrown".into()),
+            internal_message: Some(format!("unable to parse error message: {}", e)),
             details: None,
             stack: None,
         })?;

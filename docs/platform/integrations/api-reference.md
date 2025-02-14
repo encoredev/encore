@@ -1,16 +1,16 @@
 ---
-seotitle: Encore Platform API Reference
-seodesc: Learn how to use the Encore Platform API.
-title: Platform API Reference
+seotitle: Encore Cloud API Reference
+seodesc: Learn how to use the Encore Cloud API.
+title: Encore Cloud API Reference
 lang: platform
 ---
 
-The Encore Platform provides an API for programmatic access to control certain parts of the platform.
+Encore Cloud provides an API for programmatic access to control certain parts of the platform.
 
 We're working on expanding the set of features available over the API.
 Please reach out to us [on Discord](https://encore.dev/discord) if you have use cases where additional API functionality would be useful.
 
-The Base URL for the Encore Platform API is `https://api.encore.dev`.
+The Base URL for the Encore Cloud API is `https://api.encore.cloud`.
 
 ## Authentication
 
@@ -18,7 +18,7 @@ All API calls require valid authentication, which is provided by sending an acce
 in the format `Authorization: Bearer ${ACCESS_TOKEN}`.
 
 You can retrieve an API access token from the OAuth Token endpoint, using an OAuth Client.
-An API access token expires after one hour. For continuous access, shortly before an API access token expires, request a new API access token from the Encore Platform's OAuth token endpoint.
+An API access token expires after one hour. For continuous access, shortly before an API access token expires, request a new API access token from Encore Cloud's OAuth token endpoint.
 
 OAuth client libraries in popular programming languages can handle the API access token generation and renewal.
 
@@ -59,7 +59,7 @@ type Token = {
 
 ## Rollouts
 
-The Encore Platform's deployment system consists of several phases:
+Encore Cloud's deployment system consists of several phases:
 
 * A build phase
 * An infrastructure provisioning phase

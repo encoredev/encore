@@ -1,11 +1,12 @@
 use crate::parser::types::type_resolve::Ctx;
-use crate::parser::types::{object, Object, ResolveState};
+use crate::parser::types::{object, validation, Object, ResolveState};
 use crate::parser::Range;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use swc_common::errors::HANDLER;
@@ -18,13 +19,13 @@ pub enum Type {
     /// strings, etc
     Basic(Basic),
     /// T[], Array<T>
-    Array(Box<Type>),
+    Array(Array),
     /// { foo: string }
     Interface(Interface),
     /// a | b | c
-    Union(Vec<Type>),
+    Union(Union),
     /// [string, number]
-    Tuple(Vec<Type>),
+    Tuple(Tuple),
     /// "foo"
     Literal(Literal),
     /// class Foo {}
@@ -36,12 +37,84 @@ pub enum Type {
     Named(Named),
 
     /// e.g. "string?" in tuples
-    Optional(Box<Type>),
+    Optional(Optional),
 
     /// "this", see https://www.typescriptlang.org/docs/handbook/advanced-types.html#polymorphic-this-types
-    This,
+    This(This),
 
     Generic(Generic),
+
+    /// A standalone validation expression.
+    Validation(validation::Expr),
+
+    /// A type with validation applied to it.
+    Validated(Validated),
+
+    // A custom type of some kind.
+    Custom(Custom),
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Array(pub Box<Type>);
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Optional(pub Box<Type>);
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Tuple {
+    pub types: Vec<Type>,
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Union {
+    pub types: Vec<Type>,
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Validated {
+    pub typ: Box<Type>,
+    pub expr: validation::Expr,
+}
+
+#[derive(Debug, Clone, Serialize, Hash)]
+pub enum Custom {
+    /// A specification of how the type should be encoded on the wire.
+    WireSpec(WireSpec),
+}
+
+impl Custom {
+    pub fn identical(&self, other: &Custom) -> bool {
+        match (self, other) {
+            (Custom::WireSpec(a), Custom::WireSpec(b)) => a.identical(b),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Hash)]
+pub struct WireSpec {
+    /// What location in the request should be used for this field.
+    pub location: WireLocation,
+
+    /// The underlying type this is.
+    pub underlying: Box<Type>,
+
+    /// Whether this specifies a name override.
+    pub name_override: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
+pub enum WireLocation {
+    Query,
+    Header,
+    PubSubAttr,
+}
+
+impl WireSpec {
+    pub fn identical(&self, other: &WireSpec) -> bool {
+        self.location == other.location
+            && self.name_override == other.name_override
+            && self.underlying.identical(&other.underlying)
+    }
 }
 
 impl Type {
@@ -54,23 +127,29 @@ impl Type {
     pub fn identical(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Basic(a), Type::Basic(b)) => a == b,
-            (Type::Array(a), Type::Array(b)) => a.identical(b),
+            (Type::Array(a), Type::Array(b)) => a.0.identical(&b.0),
             (Type::Interface(a), Type::Interface(b)) => a.identical(b),
-            (Type::Union(a), Type::Union(b)) => a.iter().zip(b).all(|(a, b)| a.identical(b)),
-            (Type::Tuple(a), Type::Tuple(b)) => a.iter().zip(b).all(|(a, b)| a.identical(b)),
+            (Type::Union(a), Type::Union(b)) => {
+                a.types.iter().zip(&b.types).all(|(a, b)| a.identical(b))
+            }
+            (Type::Tuple(a), Type::Tuple(b)) => {
+                a.types.iter().zip(&b.types).all(|(a, b)| a.identical(b))
+            }
             (Type::Literal(a), Type::Literal(b)) => a == b,
             (Type::Class(a), Type::Class(b)) => a.identical(b),
             (Type::Named(a), Type::Named(b)) => a.identical(b),
-            (Type::Optional(a), Type::Optional(b)) => a.identical(b),
-            (Type::This, Type::This) => true,
+            (Type::Optional(a), Type::Optional(b)) => a.0.identical(&b.0),
+            (Type::This(This), Type::This(This)) => true,
             (Type::Generic(a), Type::Generic(b)) => a.identical(b),
             (Type::Enum(a), Type::Enum(b)) => a.identical(b),
+            (Type::Custom(a), Type::Custom(b)) => a.identical(b),
             _ => false,
         }
     }
 
     /// Returns a union type that merges `self` and `other`, if possible.
     /// If the types cannot be merged, it returns None.
+    #[tracing::instrument(ret, level = "trace")]
     pub(super) fn union_merge(&self, other: &Type) -> Option<Type> {
         match (self, other) {
             // 'any' and any type unify to 'any'.
@@ -83,6 +162,18 @@ impl Type {
                 if *basic == lit.basic() =>
             {
                 Some(Type::Basic(*basic))
+            }
+
+            // Unify validation.
+            (Type::Validation(a), Type::Validation(b)) => {
+                Some(Type::Validation(a.clone().or(b.clone())))
+            }
+            (Type::Validated(validated), Type::Validation(expr))
+            | (Type::Validation(expr), Type::Validated(validated)) => {
+                Some(Type::Validated(Validated {
+                    typ: validated.typ.to_owned(),
+                    expr: validated.expr.clone().or(expr.clone()),
+                }))
             }
 
             // TODO more rules?
@@ -98,7 +189,9 @@ impl Type {
     pub(super) fn simplify_or_union(self, other: Type) -> Type {
         match self.union_merge(&other) {
             Some(typ) => typ,
-            None => Type::Union(vec![self, other]),
+            None => Type::Union(Union {
+                types: vec![self, other],
+            }),
         }
     }
 }
@@ -118,6 +211,27 @@ pub enum Basic {
     Void,
     Unknown,
     Never,
+}
+
+impl Display for Basic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: &'static str = match self {
+            Basic::Any => "any",
+            Basic::String => "string",
+            Basic::Boolean => "boolean",
+            Basic::Number => "number",
+            Basic::Object => "object",
+            Basic::BigInt => "bigint",
+            Basic::Date => "Date",
+            Basic::Symbol => "symbol",
+            Basic::Undefined => "undefined",
+            Basic::Null => "null",
+            Basic::Void => "void",
+            Basic::Unknown => "unknown",
+            Basic::Never => "never",
+        };
+        f.write_str(s)
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -372,22 +486,46 @@ pub enum Generic {
     TypeParam(TypeParam),
 
     /// An index lookup, like `T[U]`, where at least one of the types is a generic.
-    Index((Box<Type>, Box<Type>)),
+    Index(Index),
 
     /// A mapped type.
     Mapped(Mapped),
 
     /// A reference to the 'key' type when evaluating a mapped type.
-    MappedKeyType,
+    MappedKeyType(MappedKeyType),
 
-    Keyof(Box<Type>),
+    Keyof(Keyof),
     Conditional(Conditional),
     // A reference to the 'as' type when evaluating a mapped type.
     // MappedAsType,
 
     // An intersection type.
     Intersection(Intersection),
+
+    /// A reference to an inferred type parameter,
+    /// referencing its index in infer_type_params.
+    Inferred(Inferred),
 }
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Index {
+    pub source: Box<Type>,
+    pub index: Box<Type>,
+}
+
+/// A reference to an inferred type parameter,
+/// referencing its index in infer_type_params.
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Inferred(pub usize);
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Keyof(pub Box<Type>);
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct This;
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct MappedKeyType;
 
 #[derive(Debug, Clone, Hash, Serialize)]
 pub struct TypeParam {
@@ -467,22 +605,26 @@ impl Generic {
 impl Type {
     pub fn iter_unions<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Type> + 'a> {
         match self {
-            Type::Union(types) => Box::new(types.iter().flat_map(|t| t.iter_unions())),
+            Type::Union(union) => Box::new(union.types.iter().flat_map(|t| t.iter_unions())),
             Type::Optional(tt) => Box::new(
-                tt.iter_unions()
+                tt.0.iter_unions()
                     .chain(std::iter::once(&Type::Basic(Basic::Undefined))),
             ),
+            Type::Validated(v) => v.typ.iter_unions(),
             _ => Box::new(std::iter::once(self)),
         }
     }
 
     pub fn into_iter_unions(self) -> Box<dyn Iterator<Item = Type>> {
         match self {
-            Type::Union(types) => Box::new(types.into_iter().flat_map(|t| t.into_iter_unions())),
+            Type::Union(union) => {
+                Box::new(union.types.into_iter().flat_map(|t| t.into_iter_unions()))
+            }
             Type::Optional(tt) => Box::new(
-                tt.into_iter_unions()
+                tt.0.into_iter_unions()
                     .chain(std::iter::once(Type::Basic(Basic::Undefined))),
             ),
+            Type::Validated(v) => v.typ.into_iter_unions(),
             _ => Box::new(std::iter::once(self)),
         }
     }
@@ -517,22 +659,24 @@ impl Type {
                     | (Literal::BigInt(_), Basic::BigInt)
             )),
 
+            (Type::Validated(v), _) | (_, Type::Validated(v)) => v.typ.assignable(state, other),
+
             (this, Type::Optional(other)) => {
                 if matches!(this, Type::Basic(Basic::Undefined)) {
                     Some(true)
                 } else {
-                    this.assignable(state, other)
+                    this.assignable(state, &other.0)
                 }
             }
 
             (Type::Tuple(this), other) => match other {
                 Type::Tuple(other) => {
-                    if this.len() != other.len() {
+                    if this.types.len() != other.types.len() {
                         return Some(false);
                     }
 
                     let mut found_none = false;
-                    for (this, other) in this.iter().zip(other) {
+                    for (this, other) in this.types.iter().zip(&other.types) {
                         match this.assignable(state, other) {
                             Some(true) => {}
                             Some(false) => return Some(false),
@@ -548,8 +692,8 @@ impl Type {
 
                 Type::Array(other) => {
                     // Ensure every element in `this` is a subtype of `other`.
-                    for this in this {
-                        match this.assignable(state, other) {
+                    for this in &this.types {
+                        match this.assignable(state, &other.0) {
                             Some(true) => {}
                             Some(false) => return Some(false),
                             None => return None,
@@ -635,7 +779,7 @@ impl Type {
                 // Is every element in `this` assignable to `other`?
                 'ThisLoop: for t in this.iter_unions() {
                     let mut found_none = false;
-                    for o in other {
+                    for o in &other.types {
                         match t.assignable(state, o) {
                             // Found a match; check the next element in `this`.
                             Some(true) => continue 'ThisLoop,
@@ -655,6 +799,241 @@ impl Type {
             }
 
             (a, b) => Some(a.identical(b)),
+        }
+    }
+}
+
+pub enum Extends<'a> {
+    Yes(Vec<(usize, Cow<'a, Type>)>),
+    No,
+    Unknown,
+}
+
+impl Extends<'_> {
+    pub fn into_static(self) -> Extends<'static> {
+        match self {
+            Extends::Yes(v) => Extends::Yes(
+                v.into_iter()
+                    .map(|(idx, t)| (idx, Cow::Owned(t.into_owned())))
+                    .collect(),
+            ),
+            Extends::No => Extends::No,
+            Extends::Unknown => Extends::Unknown,
+        }
+    }
+}
+
+impl Type {
+    /// Reports whether `self` is assignable to `other`.
+    /// If the result is indeterminate due to an unresolved type, it reports None.
+    pub fn extends<'a>(&'a self, state: &'_ ResolveState, other: &'_ Type) -> Extends<'a> {
+        use Extends::*;
+
+        fn empty_yes_or_no(val: bool) -> Extends<'static> {
+            if val {
+                Yes(vec![])
+            } else {
+                No
+            }
+        }
+
+        match (self, other) {
+            (this, Type::Generic(Generic::Inferred(inferred))) => {
+                Yes(vec![(inferred.0, Cow::Borrowed(this))])
+            }
+
+            (_, Type::Basic(Basic::Any)) => Yes(vec![]),
+            (_, Type::Basic(Basic::Never)) => No,
+            (Type::Generic(_), _) | (_, Type::Generic(_)) => Unknown,
+
+            // Unwrap named types.
+            (Type::Named(a), b) => {
+                let a = a.underlying(state);
+                a.extends(state, b).into_static()
+            }
+            (a, Type::Named(b)) => {
+                let b = b.underlying(state);
+                a.extends(state, &b)
+            }
+
+            (Type::Basic(a), Type::Basic(b)) => empty_yes_or_no(a == b),
+            (Type::Literal(a), Type::Basic(b)) => empty_yes_or_no(matches!(
+                (a, b),
+                (_, Basic::Any)
+                    | (Literal::String(_), Basic::String)
+                    | (Literal::Boolean(_), Basic::Boolean)
+                    | (Literal::Number(_), Basic::Number)
+                    | (Literal::BigInt(_), Basic::BigInt)
+            )),
+
+            (Type::Validated(v), _) | (_, Type::Validated(v)) => {
+                v.typ.extends(state, other).into_static()
+            }
+
+            (this, Type::Optional(other)) => {
+                if matches!(this, Type::Basic(Basic::Undefined)) {
+                    Yes(vec![])
+                } else {
+                    this.extends(state, &other.0)
+                }
+            }
+
+            (Type::Tuple(this), other) => match other {
+                Type::Tuple(other) => {
+                    if this.types.len() != other.types.len() {
+                        return No;
+                    }
+
+                    let mut found_unknown = false;
+                    let mut inferred = vec![];
+                    for (this, other) in this.types.iter().zip(&other.types) {
+                        match this.extends(state, other) {
+                            Yes(inf) => {
+                                inferred.extend(inf);
+                            }
+                            No => return No,
+                            Unknown => found_unknown = true,
+                        }
+                    }
+                    if found_unknown {
+                        Unknown
+                    } else {
+                        Yes(inferred)
+                    }
+                }
+
+                Type::Array(other) => {
+                    // Ensure every element in `this` is a subtype of `other`.
+                    let mut inferred = vec![];
+                    for this in &this.types {
+                        match this.extends(state, &other.0) {
+                            Yes(infer) => inferred.extend(infer),
+                            No => return No,
+                            Unknown => return Unknown,
+                        }
+                    }
+
+                    // Since `this` is a tuple but `other` is a single array type,
+                    // it's possible we'll have multiple inferred types for the same index.
+                    // Group them by index and turn them into a union type if necessary.
+                    inferred.sort_by_key(|(idx, _)| *idx);
+
+                    let inferred = inferred
+                        .into_iter()
+                        .chunk_by(|(idx, _)| *idx)
+                        .into_iter()
+                        .map(|(idx, types)| {
+                            let types = types.map(|(_, t)| t.into_owned()).collect();
+                            let typ = simplify_union(types);
+                            (idx, Cow::Owned(typ))
+                        })
+                        .collect();
+
+                    Yes(inferred)
+                }
+                _ => No,
+            },
+
+            (Type::Enum(a), other) => {
+                let this_fields: HashMap<&str, &EnumValue> =
+                    HashMap::from_iter(a.members.iter().map(|m| (m.name.as_str(), &m.value)));
+                match other {
+                    Type::Enum(other) => {
+                        // Does every field in `other` exist in `this_fields`?
+                        for mem in &other.members {
+                            if let Some(this_field) = this_fields.get(mem.name.as_str()) {
+                                if **this_field == mem.value {
+                                    continue;
+                                }
+                            }
+                            return No;
+                        }
+                        Yes(vec![])
+                    }
+
+                    Type::Interface(other) => {
+                        // Does every field in `other` exist in `iface`?
+                        let mut found_none = false;
+                        for field in &other.fields {
+                            if let FieldName::String(name) = &field.name {
+                                if let Some(this_field) = this_fields.get(name.as_str()) {
+                                    let this_typ = (*this_field).clone().to_type();
+                                    match this_typ.assignable(state, &field.typ) {
+                                        Some(true) => continue,
+                                        Some(false) => return No,
+                                        None => found_none = true,
+                                    }
+                                }
+                            }
+                        }
+                        if found_none {
+                            Unknown
+                        } else {
+                            Yes(vec![])
+                        }
+                    }
+                    _ => No,
+                }
+            }
+
+            (Type::Interface(iface), other) => {
+                #[allow(clippy::mutable_key_type)]
+                let this_fields: HashMap<&FieldName, &InterfaceField> =
+                    HashMap::from_iter(iface.fields.iter().map(|f| (&f.name, f)));
+                match other {
+                    Type::Interface(other) => {
+                        // Does every field in `other` exist in `iface`?
+                        let mut found_unknown = false;
+                        let mut inferred = vec![];
+                        for field in &other.fields {
+                            if let Some(this_field) = this_fields.get(&field.name) {
+                                match this_field.typ.extends(state, &field.typ) {
+                                    Yes(inf) => inferred.extend(inf),
+                                    No => return No,
+                                    Unknown => found_unknown = true,
+                                }
+                            } else {
+                                return No;
+                            }
+                        }
+                        if found_unknown {
+                            Unknown
+                        } else {
+                            Yes(inferred)
+                        }
+                    }
+                    _ => No,
+                }
+            }
+
+            (this, Type::Union(other)) => {
+                // Is every element in `this` assignable to `other`?
+                let mut found_yes = false;
+                let mut found_unknown = false;
+                let mut inferred = Vec::new();
+                for t in this.iter_unions() {
+                    for o in &other.types {
+                        match t.extends(state, o) {
+                            Yes(inf) => {
+                                found_yes = true;
+                                inferred.extend(inf);
+                            }
+                            No => {}
+                            Unknown => found_unknown = true,
+                        }
+                    }
+                }
+
+                if found_yes {
+                    Yes(inferred)
+                } else if found_unknown {
+                    Unknown
+                } else {
+                    No
+                }
+            }
+
+            (a, b) => empty_yes_or_no(a.identical(b)),
         }
     }
 }
@@ -690,7 +1069,7 @@ pub fn simplify_union(types: Vec<Type>) -> Type {
     match results.len() {
         0 => Type::Basic(Basic::Never),
         1 => results.remove(0),
-        _ => Type::Union(results),
+        _ => Type::Union(Union { types: results }),
     }
 }
 
@@ -758,9 +1137,9 @@ pub fn intersect<'a: 'b, 'b>(
 
         // Intersection distributes into unions.
         (Type::Union(a), Type::Union(b)) => {
-            let mut types = Vec::with_capacity(a.len() * b.len());
-            for typ in a {
-                for other in b.iter() {
+            let mut types = Vec::with_capacity(a.types.len() * b.types.len());
+            for typ in &a.types {
+                for other in &b.types {
                     match intersect(ctx, Cow::Borrowed(typ), Cow::Borrowed(other)).into_owned() {
                         Type::Basic(Basic::Never) => {}
                         other => types.push(other),
@@ -788,36 +1167,64 @@ pub fn intersect<'a: 'b, 'b>(
             }
         }
 
-        (Type::Array(x), Type::Array(y)) => Cow::Owned(Type::Array(Box::new(
-            intersect(ctx, Cow::Borrowed(x.as_ref()), Cow::Borrowed(y.as_ref())).into_owned(),
-        ))),
+        (Type::Array(x), Type::Array(y)) => Cow::Owned(Type::Array(Array(Box::new(
+            intersect(
+                ctx,
+                Cow::Borrowed(x.0.as_ref()),
+                Cow::Borrowed(y.0.as_ref()),
+            )
+            .into_owned(),
+        )))),
         (Type::Array(x), Type::Tuple(y)) | (Type::Tuple(y), Type::Array(x)) => {
-            Cow::Owned(Type::Array(Box::new(if y.is_empty() {
+            Cow::Owned(Type::Array(Array(Box::new(if y.types.is_empty() {
                 Type::Basic(Basic::Never)
             } else {
                 // Inspect the first element of the tuple for intersection.
                 // It's not completely correct but close enough for now.
-                intersect(ctx, Cow::Borrowed(x.as_ref()), Cow::Borrowed(&y[0])).into_owned()
-            })))
+                intersect(ctx, Cow::Borrowed(x.0.as_ref()), Cow::Borrowed(&y.types[0])).into_owned()
+            }))))
         }
 
         (Type::Tuple(x), Type::Tuple(y)) => {
-            let mut types = Vec::with_capacity(x.len().min(y.len()));
-            for (a, b) in x.iter().zip(y.iter()) {
+            let mut types = Vec::with_capacity(x.types.len().min(y.types.len()));
+            for (a, b) in x.types.iter().zip(y.types.iter()) {
                 types.push(intersect(ctx, Cow::Borrowed(a), Cow::Borrowed(b)).into_owned());
             }
-            Cow::Owned(Type::Tuple(types))
+            Cow::Owned(Type::Tuple(Tuple { types }))
         }
 
-        (Type::Optional(x), Type::Optional(y)) => Cow::Owned(Type::Optional(Box::new(
-            intersect(ctx, Cow::Borrowed(x), Cow::Borrowed(y)).into_owned(),
-        ))),
+        (Type::Optional(x), Type::Optional(y)) => Cow::Owned(Type::Optional(Optional(Box::new(
+            intersect(ctx, Cow::Borrowed(&x.0), Cow::Borrowed(&y.0)).into_owned(),
+        )))),
         // Treat optional as "T | undefined".
         (Type::Optional(x), y) | (y, Type::Optional(x)) => {
-            union_with(Cow::Borrowed(x), Cow::Borrowed(y))
+            union_with(Cow::Borrowed(&x.0), Cow::Borrowed(y))
         }
 
-        (Type::This, Type::This) => Cow::Owned(Type::This),
+        (Type::This(This), Type::This(This)) => Cow::Owned(Type::This(This)),
+
+        // Combine validation expressions into a validated type.
+        (Type::Validated(a), Type::Validation(b)) => Cow::Owned(Type::Validated(Validated {
+            typ: a.typ.clone(),
+            expr: a.expr.clone().and(b.clone()),
+        })),
+        (Type::Validation(a), Type::Validated(b)) => Cow::Owned(Type::Validated(Validated {
+            typ: b.typ.clone(),
+            expr: a.clone().and(b.expr.clone()),
+        })),
+
+        // Merge validation expressions together.
+        (Type::Validation(a), Type::Validation(b)) => {
+            Cow::Owned(Type::Validation(a.clone().and(b.clone())))
+        }
+        (_, Type::Validation(expr)) => Cow::Owned(Type::Validated(Validated {
+            typ: Box::new(a.into_owned()),
+            expr: expr.clone(),
+        })),
+        (Type::Validation(expr), _) => Cow::Owned(Type::Validated(Validated {
+            typ: Box::new(b.into_owned()),
+            expr: expr.clone(),
+        })),
 
         (Type::Generic(_), _) | (_, Type::Generic(_)) => {
             Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
@@ -919,5 +1326,12 @@ pub fn intersect<'a: 'b, 'b>(
         }
 
         (_, _) => Cow::Owned(Type::Basic(Basic::Never)),
+    }
+}
+
+pub fn unwrap_validated(typ: &Type) -> (&Type, Option<&validation::Expr>) {
+    match typ {
+        Type::Validated(validated) => (&validated.typ, Some(&validated.expr)),
+        _ => (typ, None),
     }
 }

@@ -16,7 +16,9 @@ type BucketPerms interface {
 // all the read-write permissions.
 type ReadWriter interface {
 	Uploader
+	SignedUploader
 	Downloader
+	SignedDownloader
 	Remover
 	Lister
 	Attrser
@@ -41,6 +43,26 @@ type Uploader interface {
 	perms()
 }
 
+// SignedUploader is the interface for creating external URLs to upload objects
+// to a bucket. It can be used in conjunction with [BucketRef] to declare
+// a reference that can generate upload URLs to the bucket.
+//
+// For example:
+//
+//	var MyBucket = objects.NewBucket(...)
+//	var ref = objects.BucketRef[objects.SignedUploader](MyBucket)
+//
+// The ref object can then be used to generate upload URLs and can be
+// passed around freely within the service, without being subject
+// to Encore's static analysis restrictions that apply to MyBucket.
+type SignedUploader interface {
+	// SignedUploadURL returns a signed URL that can be used to upload directly to
+	// storage, without any other authentication.
+	SignedUploadURL(ctx context.Context, object string, options ...UploadURLOption) (*SignedUploadURL, error)
+
+	perms()
+}
+
 // Downloader is the interface for downloading objects from a bucket.
 // It can be used in conjunction with [BucketRef] to declare
 // a reference that can download objects from the bucket.
@@ -56,6 +78,27 @@ type Uploader interface {
 type Downloader interface {
 	// Download downloads an object from the bucket.
 	Download(ctx context.Context, object string, options ...DownloadOption) *Reader
+
+	perms()
+}
+
+// SignedDownloader is the interface for creating external URLs to download objects
+// from a bucket.
+// It can be used in conjunction with [BucketRef] to declare
+// a reference that can generate download URLs for the bucket.
+//
+// For example:
+//
+//	var MyBucket = objects.NewBucket(...)
+//	var ref = objects.BucketRef[objects.SignedDownloader](MyBucket)
+//
+// The ref object can then be used to generate download URLs and can be
+// passed around freely within the service, without being subject
+// to Encore's static analysis restrictions that apply to MyBucket.
+type SignedDownloader interface {
+	// SignedDownloadURL returns a signed URL that can be used to download directly
+	// from storage, without any other authentication.
+	SignedDownloadURL(ctx context.Context, object string, options ...DownloadURLOption) (*SignedDownloadURL, error)
 
 	perms()
 }

@@ -92,6 +92,13 @@ message BucketUsage {
 
     // Get an bucket/object's public url.
     GET_PUBLIC_URL = 7;
+
+    // Generating a signed URL to allow an external recipient to create or
+    // update an object.
+    SIGNED_UPLOAD_URL = 8;
+
+    // Generating a signed URL to allow an external recipient to download an object.
+    SIGNED_DOWNLOAD_URL = 9;
   }
 }
 
@@ -314,6 +321,8 @@ message PathSegment {
   SegmentType type = 1;
   string value = 2;
   ParamType value_type = 3;
+
+  optional schema.v1.ValidationExpr validation = 4;
 }
 
 message Gateway {

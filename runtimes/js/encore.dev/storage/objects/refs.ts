@@ -1,4 +1,5 @@
-import type { AttrsOptions, DeleteOptions, DownloadOptions, ExistsOptions, ListEntry, ListOptions, ObjectAttrs, UploadOptions } from "./bucket";
+import type { AttrsOptions, DeleteOptions, DownloadOptions, DownloadUrlOptions, ExistsOptions, ListEntry,
+  ListOptions, ObjectAttrs, SignedDownloadUrl, SignedUploadUrl, UploadOptions, UploadUrlOptions} from "./bucket";
 
 export abstract class BucketPerms {
   private bucketPerms(): void { };
@@ -8,8 +9,16 @@ export abstract class Uploader extends BucketPerms {
   abstract upload(name: string, data: Buffer, options?: UploadOptions): Promise<ObjectAttrs>;
 }
 
+export abstract class SignedUploader extends BucketPerms {
+  abstract signedUploadUrl(name: string, options?: UploadUrlOptions): Promise<SignedUploadUrl>;
+}
+
 export abstract class Downloader extends BucketPerms {
   abstract download(name: string, options?: DownloadOptions): Promise<Buffer>;
+}
+
+export abstract class SignedDownloader extends BucketPerms {
+  abstract signedDownloadUrl(name: string, options?: DownloadUrlOptions): Promise<SignedDownloadUrl>;
 }
 
 export abstract class Attrser extends BucketPerms {
@@ -31,7 +40,9 @@ export abstract class PublicUrler extends BucketPerms {
 
 export type ReadWriter =
   & Uploader
+  & SignedUploader
   & Downloader
+  & SignedDownloader
   & Attrser
   & Lister
   & Remover;

@@ -1,10 +1,20 @@
 import { apiCall, streamIn, streamOut, streamInOut } from "encore.dev/internal/codegen/api";
 import { registerTestHandler } from "encore.dev/internal/codegen/appinit";
 
+{{#with service}}
+{{#if import_path}}
+import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
+{{/if}}
+{{/with}}
+
 {{#each endpoints}}
 export async function {{name}}(params) {
     const handler = (await import({{toJSON (stripExt import_path)}})).{{name}};
-    registerTestHandler({ service: "{{../name}}", name: "{{name}}", raw: {{toJSON raw}}, handler, streamingRequest: {{ streaming_request }}, streamingResponse: {{ streaming_response }} });
+    registerTestHandler({
+        apiRoute: { service: "{{../name}}", name: "{{name}}", raw: {{toJSON raw}}, handler, streamingRequest: {{ streaming_request }}, streamingResponse: {{ streaming_response }} },
+        middlewares: {{#if ../service.import_path}}{{encoreNameToIdent ../service.name}}_service.default.cfg.middlewares || {{/if}}[],
+        endpointOptions: {{toJSON endpoint_options}},
+    });
 
     {{#if (or streaming_request streaming_response)}}
     {{#if (and streaming_request streaming_response)}}

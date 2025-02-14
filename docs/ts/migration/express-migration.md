@@ -15,7 +15,7 @@ for you. This guide can also serve as a comparison between the two frameworks.
 Express.js is a great choice for building simple APIs, but as your application grows you will likely run into limitations. There is a large community around Express.js, providing many plugins and middleware to work around these limitations. However relying heavily on plugins can make it hard to find the right tools for your use case. It also means that you will need to maintain a lot of dependencies.
 
 Encore.ts is a framework that aims to make it easier to build robust and type-safe backends with
-TypeScript. Encore.ts has 0 npm dependencies, is built with performance in mind, and has a lot of built-in features for building production ready backends. You can deploy an Encore.ts app to any hosting service that accepts Docker containers, or use [Encore Cloud Platform](/use-cases/devops-automation) to fully automate your DevOps and infrastructure.
+TypeScript. Encore.ts has 0 npm dependencies, is built with performance in mind, and has a lot of built-in features for building production ready backends. You can deploy an Encore.ts app to any hosting service that accepts Docker containers, or use [Encore Cloud](/use-cases/devops-automation) to fully automate your DevOps and infrastructure.
 
 ### Performance
 
@@ -27,12 +27,12 @@ high-performance runtime, with a multi-threaded, asynchronous event loop written
 
 When using Encore.ts you get a lot of built-in features without having to install any additional dependencies:
 
-| Built-in benefits                                      |                          <!-- -->                           |                                                       <!-- --> |
-|:-------------------------------------------------------|:-----------------------------------------------------------:|---------------------------------------------------------------:|
-| [Pub/Sub integrations](/docs/ts/primitives/pubsub)     |      [Type-safe API schemas](/docs/ts/primitives/apis)      |        [API Client generation](/docs/ts/cli/client-generation) |
-| [Secrets management](/docs/ts/primitives/secrets)      |           [CORS handling](/docs/ts/develop/cors)            | [Local Development Dashboard](/docs/ts/observability/dev-dash) |
+| Built-in benefits                                      |                       <!-- -->                       |                                                       <!-- --> |
+| :----------------------------------------------------- | :--------------------------------------------------: | -------------------------------------------------------------: |
+| [Pub/Sub integrations](/docs/ts/primitives/pubsub)     |  [Type-safe API schemas](/docs/ts/primitives/apis)   |        [API Client generation](/docs/ts/cli/client-generation) |
+| [Secrets management](/docs/ts/primitives/secrets)      |        [CORS handling](/docs/ts/develop/cors)        | [Local Development Dashboard](/docs/ts/observability/dev-dash) |
 | [Database integrations](/docs/ts/primitives/databases) | [Architecture Diagrams](/docs/ts/observability/flow) |      [Service Catalog](/docs/ts/observability/service-catalog) |
-| [Request validation](/blog/event-loops)                |         [Cron Jobs](/docs/ts/primitives/cron-jobs)          |                [Local tracing](/docs/ts/observability/tracing) |
+| [Request validation](/blog/event-loops)                |      [Cron Jobs](/docs/ts/primitives/cron-jobs)      |                [Local tracing](/docs/ts/observability/tracing) |
 
 ## Migration guide
 

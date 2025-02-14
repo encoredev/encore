@@ -10,6 +10,12 @@ export interface APIDesc {
 
   /** Whether the endpoint is a raw endpoint. */
   raw: boolean;
+
+  /** Whether the endpoint requires auth. */
+  auth: boolean;
+
+  /** Tags specified on the endpoint. */
+  tags: string[];
 }
 
 export type Method =
@@ -70,6 +76,11 @@ export interface APICallMeta {
    * request data.
    */
   parsedPayload?: Record<string, any>;
+
+  /**
+   * Contains values set in middlewares via `MiddlewareRequest.data`.
+   */
+  middlewareData?: Record<string, any>;
 }
 
 /** Describes a Pub/Sub message being processed. */
@@ -153,7 +164,7 @@ export function currentRequest(): RequestMeta | undefined {
   const meta = req.meta();
 
   const base: BaseRequestMeta = {
-    trace: meta.trace,
+    trace: meta.trace
   };
 
   if (meta.apiCall) {
@@ -163,6 +174,8 @@ export function currentRequest(): RequestMeta | undefined {
         service: meta.apiCall.api.service,
         endpoint: meta.apiCall.api.endpoint,
         raw: meta.apiCall.api.raw,
+        auth: meta.apiCall.api.requiresAuth,
+        tags: meta.apiCall.api.tags
       },
       method: meta.apiCall.method as Method,
       path: meta.apiCall.path,
@@ -170,6 +183,7 @@ export function currentRequest(): RequestMeta | undefined {
       pathParams: meta.apiCall.pathParams ?? {},
       parsedPayload: meta.apiCall.parsedPayload,
       headers: meta.apiCall.headers,
+      middlewareData: (req as any).middlewareData
     };
     return { ...base, ...api };
   } else if (meta.pubsubMessage) {
@@ -180,7 +194,7 @@ export function currentRequest(): RequestMeta | undefined {
       subscription: meta.pubsubMessage.subscription,
       messageId: meta.pubsubMessage.id,
       deliveryAttempt: meta.pubsubMessage.deliveryAttempt,
-      parsedPayload: meta.pubsubMessage.parsedPayload,
+      parsedPayload: meta.pubsubMessage.parsedPayload
     };
     return { ...base, ...msg };
   } else {

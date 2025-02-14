@@ -7,7 +7,7 @@ import (
 	"cloud.google.com/go/pubsub"
 )
 
-// getClient returns a singleton pubsub client for the given project or panics if it cannot be created.
+// getClientForProject returns a singleton pubsub client for the given project or panics if it cannot be created.
 func (mgr *Manager) getClientForProject(projectID string) *pubsub.Client {
 	mgr.clientsMu.Lock()
 	defer mgr.clientsMu.Unlock()

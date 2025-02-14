@@ -92,7 +92,7 @@ func linkApp(appID string, force bool) {
 
 	if appID == "" {
 		// The app is not linked. Prompt the user for an app ID.
-		fmt.Println("Make sure the app is created on app.encore.dev, and then enter its ID to link it.")
+		fmt.Println("Make sure the app is created on app.encore.cloud, and then enter its ID to link it.")
 		fmt.Print("App ID: ")
 		if _, err := fmt.Scanln(&appID); err != nil {
 			cmdutil.Fatal(err)

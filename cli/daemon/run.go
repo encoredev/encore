@@ -11,6 +11,7 @@ import (
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/userconfig"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -28,6 +29,13 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 				Code: code,
 			}},
 		})
+	}
+
+	userConfig, err := userconfig.ForApp(req.AppRoot).Get()
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, aurora.Sprintf(aurora.Red("failed to load config: %v"), err))
+		sendExit(1)
+		return nil
 	}
 
 	ctx, tracer, err := s.beginTracing(ctx, req.AppRoot, req.WorkingDir, req.TraceFile)
@@ -120,6 +128,11 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		displayListenAddr = "localhost" + req.ListenAddr
 	}
 
+	browser := run.BrowserModeFromProto(req.Browser)
+	if browser == run.BrowserModeAuto {
+		browser = run.BrowserModeFromConfig(userConfig)
+	}
+
 	runInstance, err := s.mgr.Start(ctx, run.StartParams{
 		App:        app,
 		NS:         ns,
@@ -129,7 +142,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		Watch:      req.Watch,
 		Environ:    req.Environ,
 		OpsTracker: ops,
-		Browser:    run.BrowserModeFromProto(req.Browser),
+		Browser:    browser,
 		Debug:      run.DebugModeFromProto(req.DebugMode),
 	})
 	if err != nil {

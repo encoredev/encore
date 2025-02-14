@@ -690,7 +690,7 @@ func loadTemplates() tea.Msg {
 	return loadedTemplates(append(tutorials, templates...))
 }
 
-// incrementalValidateName is like validateName but only
+// incrementalValidateNameInput is like validateName but only
 // checks for valid/invalid characters. It can't check for
 // whether the last character is a dash, since if we treat that
 // as an error the user won't be able to enter dashes at all.

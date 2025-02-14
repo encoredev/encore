@@ -32,7 +32,7 @@ You can activate your trial from the [pricing page](https://encore.dev/pricing).
 All plans come with free use of Encore Cloud, subject to [Fair Use limits](/docs/platform/management/usage).
 Encore Cloud is intended for development environments and limited scale professional use that does not require specific SLAs.
 
-For production use, you can [connect your own cloud account on AWS/GCP](/docs/platform/infrastructure/own-cloud) and use Encore to deploy there, including provisioning infrastructure and managing IAM. When you connect your own cloud account, you pay for usage directly to your cloud provider.
+For production use, you can [connect your own cloud account on AWS/GCP](/docs/platform/deploy/own-cloud) and use Encore to deploy there, including provisioning infrastructure and managing IAM. When you connect your own cloud account, you pay for usage directly to your cloud provider.
 
 If you prefer to manage deployment yourself, you can export your application as a standalone Docker image and deploy in any way you prefer. ([Learn more](/docs/ts/self-host/build))
 

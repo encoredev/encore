@@ -83,8 +83,15 @@ message HostedService {
   // The name of the service.
   string name = 1;
 
-  // The infrastructure resources this service has access to, as resource ids.
-  // repeated string infra_access_rids = 3;
+  // Number of worker threads to use.
+  // If unset it defaults to 1. If set to 0 the runtime
+  // automatically determines the number of threads to use
+  // based on the number of CPUs available.
+  optional int32 worker_threads = 2;
+
+  // The log configuration to use for this service.
+  // If unset it defaults to "trace".
+  optional string log_config = 3;
 }
 
 message ServiceAuth {
@@ -111,6 +118,9 @@ message TracingProvider {
 
   message EncoreTracingProvider {
     string trace_endpoint = 1;
+    // The sampling rate to use for traces, between [0, 1].
+    // If unset it defaults to 1 (meaning all requests are traced).
+    optional double sampling_rate = 2;
   }
 }
 

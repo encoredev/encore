@@ -32,6 +32,17 @@ This is needed when you want Encore to manage functionality like secrets and han
 
 This will create an example application, with a simple REST API, in a new folder using the app name you picked.
 
+### Optional: Add Encore LLM instructions
+
+To help LLM powered tools like Cursor and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+
+🥐 Download the [go_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/go_llm_instructions.txt) file.
+  
+  **How to use:**
+  - Cursor: Rename the file to `.cursorrules`.
+  - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
+  - For other tools, place the file in your app root.
+
 ### Let's take a look at the code
 
 Part of what makes Encore different is the simple developer experience when building distributed systems.
@@ -42,6 +53,7 @@ Let's look at the code to better understand how to build applications with Encor
 You should see this:
 
 ```go
+-- hello/hello.go --
 // Service hello implements a simple hello world REST API.
 package hello
 
@@ -184,8 +196,8 @@ $ encore build docker MY-IMAGE:TAG
 This will compile your application using the host machine and then produce a Docker image containing the compiled application.
 You can now deploy this anywhere you like. Learn more in the [self-host docs](/docs/go/self-host/docker-build).
 
-### Deploy using Encore Cloud Platform
-Optionally, you can use [Encore Cloud Platform](https://encore.dev/use-cases/devops-automation) to automatically deploy your application.
+### Deploy using Encore Cloud
+Optionally, you can use [Encore Cloud](https://encore.dev/use-cases/devops-automation) to automatically deploy your application.
 It comes with built-in free development hosting, and for production offers fully automated deployment to your own cloud on AWS or GCP.
 
 🥐 To deploy, simply push your changes to Encore:
@@ -196,14 +208,14 @@ $ git commit -m 'Initial commit'
 $ git push encore
 ```
 
-Encore's Cloud Platform will now build and test your app, provision the needed infrastructure, and deploy your application to a staging environment.
+Encore Cloud will now build and test your app, provision the needed infrastructure, and deploy your application to a staging environment.
 
-After triggering the deployment, you will see a URL where you can view its progress in Encore's Cloud Dashboard.
-It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+After triggering the deployment, you will see a URL where you can view its progress in the Encore Cloud dashboard.
+It will look something like: `https://app.encore.cloud/$APP_ID/deploys/...`
 
-🥐 Open the URL to access the Cloud Dashboard and check the progress of your deployment.
+🥐 Open the URL to access the Encore Cloud dashboard and check the progress of your deployment.
 
-You can now use the Cloud Dashboard to view production [traces](/docs/go/observability/tracing), [connect your cloud account](/docs/platform/infrastructure/own-cloud), [integrate with GitHub](/docs/platform/integrations/github), and much more.
+You can now use the Cloud Dashboard to view production [traces](/docs/go/observability/tracing), [connect your cloud account](/docs/platform/deploy/own-cloud), [integrate with GitHub](/docs/platform/integrations/github), and much more.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/webdashvideo.mp4" className="w-full h-full" type="video/mp4"/>

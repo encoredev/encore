@@ -1,7 +1,6 @@
 use crate::api::auth::{AuthHandler, AuthPayload, AuthRequest, AuthResponse};
 use crate::api::schema::encoding::Schema;
-use crate::api::schema::JSONPayload;
-use crate::api::{APIResult, PValues};
+use crate::api::{APIResult, HandlerResponse, HandlerResponseInner, PValues};
 use crate::log::LogFromRust;
 use crate::model::{AuthRequestData, RequestData};
 use crate::trace::Tracer;
@@ -81,7 +80,7 @@ impl AuthHandler for LocalAuthHandler {
             logger.info(Some(&req), "running auth handler", None);
 
             self.tracer.request_span_start(&req);
-            let auth_response: APIResult<JSONPayload> = handler.call(req.clone()).await;
+            let auth_response: HandlerResponse = handler.call(req.clone()).await;
             let duration = tokio::time::Instant::now().duration_since(req.start);
 
             if let Err(e) = &auth_response {
@@ -104,7 +103,10 @@ impl AuthHandler for LocalAuthHandler {
             });
 
             let result: APIResult<(PValues, String)> = match auth_response {
-                Ok(Some(payload)) => {
+                Ok(HandlerResponseInner {
+                    payload: Some(payload),
+                    ..
+                }) => {
                     let auth_uid = payload
                         .get("userID")
                         .and_then(|v| v.as_str())
@@ -122,7 +124,7 @@ impl AuthHandler for LocalAuthHandler {
                         }),
                     }
                 }
-                Ok(None) => Err(api::Error {
+                Ok(HandlerResponseInner { payload: None, .. }) => Err(api::Error {
                     code: api::ErrCode::Unauthenticated,
                     message: "unauthenticated".to_string(),
                     internal_message: Some("auth handler returned null".to_string()),

@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub use manager::{Manager, SubscriptionObj, TopicObj};
 pub use push_registry::PushHandlerRegistry;
 
+use crate::api::APIResult;
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::names::EncoreName;
@@ -55,7 +56,7 @@ trait Subscription: Debug + Send + Sync {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>>;
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>>;
 
     fn push_handler(&self) -> Option<(String, Arc<dyn PushRequestHandler>)> {
         None

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
@@ -20,6 +19,12 @@ pub struct UsageExpr {
     pub range: Range,
     pub bind: Lrc<Bind>,
     pub kind: UsageExprKind,
+}
+
+impl Spanned for UsageExpr {
+    fn span(&self) -> swc_common::Span {
+        self.range.to_span()
+    }
 }
 
 #[derive(Debug)]
@@ -233,7 +238,7 @@ pub struct ResolveUsageData<'a> {
 }
 
 impl UsageResolver<'_> {
-    pub fn resolve_usage(&self, module: &Lrc<Module>, exprs: &[UsageExpr]) -> Result<Vec<Usage>> {
+    pub fn resolve_usage(&self, module: &Lrc<Module>, exprs: &[UsageExpr]) -> Vec<Usage> {
         let mut usages = Vec::new();
         for expr in exprs {
             let data = ResolveUsageData {
@@ -250,24 +255,24 @@ impl UsageResolver<'_> {
                 }
                 Resource::ServiceClient(client) => {
                     if let Some(u) =
-                        apis::service_client::resolve_service_client_usage(&data, client.clone())?
+                        apis::service_client::resolve_service_client_usage(&data, client.clone())
                     {
                         usages.push(u)
                     }
                 }
                 Resource::PubSubTopic(topic) => {
-                    if let Some(u) = infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())?
+                    if let Some(u) = infra::pubsub_topic::resolve_topic_usage(&data, topic.clone())
                     {
                         usages.push(u)
                     }
                 }
                 Resource::SQLDatabase(db) => {
-                    if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone())? {
+                    if let Some(u) = infra::sqldb::resolve_database_usage(&data, db.clone()) {
                         usages.push(u)
                     }
                 }
                 Resource::Bucket(bkt) => {
-                    if let Some(u) = infra::objects::resolve_bucket_usage(&data, bkt.clone())? {
+                    if let Some(u) = infra::objects::resolve_bucket_usage(&data, bkt.clone()) {
                         usages.push(u)
                     }
                 }
@@ -275,7 +280,7 @@ impl UsageResolver<'_> {
             }
         }
 
-        Ok(usages)
+        usages
     }
 }
 
@@ -314,7 +319,7 @@ impl<'a> UsageVisitor<'a> {
 
     /// Report whether the given id represents the bind definition itself.
     fn is_bind_def(&self, bind: &Bind, id: &ast::Ident) -> bool {
-        bind.range.map_or(false, |r| r.contains(&id.span.into()))
+        bind.range.is_some_and(|r| r.contains(&id.span.into()))
     }
 
     /// Report whether the given path represents an import declaration.
@@ -472,7 +477,7 @@ mod tests {
 
     use assert_matches::assert_matches;
     use swc_common::errors::Handler;
-    use swc_common::{Globals, SourceMap, GLOBALS};
+    use swc_common::{Globals, SourceMap, DUMMY_SP, GLOBALS};
 
     use crate::parser::parser::ParseContext;
     use crate::parser::resourceparser::bind::BindKind;
@@ -511,9 +516,14 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc =
-                ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs)
-                    .unwrap();
+            let pc = ParseContext::with_resolver(
+                app_root,
+                Some(JS_RUNTIME_PATH.clone()),
+                resolver,
+                cm,
+                errs,
+            )
+            .unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -529,6 +539,7 @@ export const Bar = 5;
                 require_auth: false,
                 body_limit: None,
                 encoding: EndpointEncoding {
+                    span: DUMMY_SP,
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
                     handshake: None,
@@ -537,7 +548,7 @@ export const Bar = 5;
                         params: vec![],
                     }],
                     resp: ResponseEncoding { params: vec![] },
-                    path: Path::parse("/svc.Bar", Default::default()).unwrap(),
+                    path: Path::parse(DUMMY_SP, "/svc.Bar", Default::default()).unwrap(),
                     raw_handshake_schema: None,
                     raw_req_schema: None,
                     raw_resp_schema: None,
@@ -545,6 +556,7 @@ export const Bar = 5;
                 streaming_request: false,
                 streaming_response: false,
                 static_assets: None,
+                tags: vec![],
             }));
 
             let bar_binds = vec![Lrc::new(Bind {
@@ -607,7 +619,7 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
+            let pc = ParseContext::with_resolver(app_root, Some(JS_RUNTIME_PATH.clone()), resolver, cm, errs).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -623,6 +635,7 @@ export const Bar = 5;
                 require_auth: false,
                 body_limit: None,
                 encoding: EndpointEncoding {
+                    span: DUMMY_SP,
                     default_method: Method::Post,
                     methods: Methods::Some(vec![Method::Post]),
                     handshake: None,
@@ -633,7 +646,7 @@ export const Bar = 5;
                     resp: ResponseEncoding {
                         params: vec![],
                     },
-                    path: Path::parse("/svc.Bar", Default::default()).unwrap(),
+                    path: Path::parse(DUMMY_SP, "/svc.Bar", Default::default()).unwrap(),
                     raw_handshake_schema: None,
                     raw_req_schema: None,
                     raw_resp_schema: None,
@@ -641,6 +654,7 @@ export const Bar = 5;
                 streaming_request: false,
                 streaming_response: false,
                 static_assets: None,
+                tags: vec![],
             }));
             let bar_binds = vec![Lrc::new(Bind {
                 kind: BindKind::Create,

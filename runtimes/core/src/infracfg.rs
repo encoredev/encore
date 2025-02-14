@@ -25,6 +25,8 @@ pub struct InfraConfig {
     pub hosted_gateways: Option<Vec<String>>,
     pub cors: Option<CORS>,
     pub object_storage: Option<Vec<ObjectStorage>>,
+    pub worker_threads: Option<i32>,
+    pub log_config: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -181,10 +183,13 @@ pub struct TLSConfig {
     pub client_cert: Option<ClientCert>,
     #[serde(default)]
     pub disable_tls_hostname_verification: bool,
+    #[serde(default)]
+    pub disable_ca_validation: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SQLDatabase {
+    pub name: Option<String>,
     pub max_connections: Option<i32>,
     pub min_connections: Option<i32>,
     pub username: String,
@@ -247,8 +252,8 @@ pub struct GCPPubsub {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GCPTopic {
     pub name: String,
-
     pub project_id: Option<String>,
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub subscriptions: HashMap<String, GCPSub>,
 }
 
@@ -276,6 +281,7 @@ pub struct AWSSnsSqs {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AWSTopic {
     pub arn: String,
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub subscriptions: HashMap<String, AWSSub>,
 }
 
@@ -293,7 +299,7 @@ pub struct NSQPubsub {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NSQTopic {
     pub name: String,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub subscriptions: HashMap<String, NSQSub>,
 }
 
@@ -443,6 +449,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         pbruntime::bucket_cluster::Gcs {
                             endpoint: gcs.endpoint,
                             anonymous: false,
+                            local_sign: None,
                         },
                     )),
                     buckets: gcs
@@ -583,6 +590,8 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                     .iter()
                     .map(|service| pbruntime::HostedService {
                         name: service.clone(),
+                        worker_threads: infra.worker_threads,
+                        log_config: infra.log_config.clone(),
                     })
                     .collect()
             })
@@ -647,7 +656,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         SqlDatabase {
                             rid: get_next_rid(),
                             encore_name: name.clone(),
-                            cloud_name: name,
+                            cloud_name: db.name.unwrap_or(name),
                             conn_pools: vec![SqlConnectionPool {
                                 is_readonly: false,
                                 role_rid,
@@ -672,6 +681,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                     server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
+                                    disable_ca_validation: tls.disable_ca_validation,
                                 }),
                             },
                         ),
@@ -750,6 +760,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                     server_ca_cert: tls.ca,
                                     disable_tls_hostname_verification: tls
                                         .disable_tls_hostname_verification,
+                                    disable_ca_validation: tls.disable_ca_validation,
                                 }),
                             },
                         ),

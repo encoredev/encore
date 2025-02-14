@@ -68,7 +68,7 @@ where
         let is_fallback = path
             .segments
             .last()
-            .map_or(false, |seg| seg.r#type == SegmentType::Fallback as i32);
+            .is_some_and(|seg| seg.r#type == SegmentType::Fallback as i32);
 
         let key = ep.key();
         let routes = (ep.value(), entries);
@@ -176,6 +176,7 @@ mod tests {
             r#type: typ as i32,
             value: value.to_string(),
             value_type: meta::path_segment::ParamType::String as i32,
+            validation: None,
         }
     }
 

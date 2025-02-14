@@ -37,6 +37,7 @@ Now let's create a new `url` service.
 🥐 In your application's root folder, create a new folder `url` and create a new file `url.go` that looks like this:
 
 ```go
+-- url/url.go --
 // Service url takes URLs, generates random short IDs, and stores the URLs in a database.
 package url
 
@@ -121,6 +122,7 @@ Fortunately, Encore makes it really easy to set up a PostgreSQL database to stor
 🥐 Add the following contents to the file:
 
 ```sql
+-- url/migrations/1_create_tables.up.sql --
 CREATE TABLE url (
 	id TEXT PRIMARY KEY,
 	original_url TEXT NOT NULL
@@ -130,6 +132,8 @@ CREATE TABLE url (
 🥐 Next, go back to the `url/url.go` file and import the `encore.dev/storage/sqldb` package by modifying the import statement to become:
 
 ```go
+HL url/url.go 5:5
+-- url/url.go --
 import (
 	"context"
 	"crypto/rand"
@@ -142,6 +146,7 @@ import (
 🥐 Then let's define our database object by adding the following to `url/url.go`:
 
 ```go
+-- url/url.go --
 // Define a database named 'url', using the database
 // migrations in the "./migrations" folder.
 
@@ -153,6 +158,7 @@ var db = sqldb.NewDatabase("url", sqldb.DatabaseConfig{
 🥐 Now, to insert data into our database, let’s create a helper function `insert`:
 
 ```go
+-- url/url.go --
 // insert inserts a URL into the database.
 func insert(ctx context.Context, id, url string) error {
 	_, err := db.Exec(ctx, `
@@ -166,6 +172,7 @@ func insert(ctx context.Context, id, url string) error {
 🥐 Lastly, we can update our `Shorten` function to insert into the database:
 
 ```go
+-- url/url.go --
 func Shorten(ctx context.Context, p *ShortenParams) (*URL, error) {
 	id, err := generateID()
 	if err != nil {
@@ -187,11 +194,9 @@ Before running your application, make sure you have [Docker](https://www.docker.
 
 (In case your application won't run, check the [databases troubleshooting guide](/docs/develop/databases#troubleshooting).)
 
-You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), which should look like this:
+You can verify that the database was created by opening the **Infra** tab in the local development dashboard at [localhost:9400](http://localhost:9400), which should something like this:
 
-<video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/rest_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
-</video>
+<img src="/assets/docs/infra_tab.png" alt="Infra tab in local development dashboard" className="w-full h-full" />
 
 🥐 Now let's call the API again from the local development dashboard, or from the terminal:
 
@@ -221,6 +226,7 @@ To complete our URL shortener API, let’s add the endpoint to retrieve a URL gi
 🥐 Add this endpoint to `url/url.go`:
 
 ```go
+-- url/url.go --
 // Get retrieves the original URL for the id.
 //encore:api public method=GET path=/url/:id
 func Get(ctx context.Context, id string) (*URL, error) {
@@ -265,9 +271,12 @@ the service works properly. Such tests including database access
 are easy to write.
 
 We've prepared a test to check that the whole cycle of shortening
-the URL, storing and then retrieving the original URL works. It looks like this:
+the URL, storing and then retrieving the original URL works.
+
+🥐 Save this in a separate file `url/url_test.go`.
 
 ```go
+-- url/url_test.go --
 package url
 
 import (
@@ -299,13 +308,65 @@ func TestShortenAndRetrieve(t *testing.T) {
 }
 ```
 
-🥐 Save this in a separate file `url/url_test.go`.
-
 🥐 Now run `encore test ./...` to verify that it's working.
 
 If you use the local development dashboard ([localhost:9400](http://localhost:9400)), you can even see traces for tests.
 
-## 5. Deploy to the cloud
+## 5. Deploy
+
+<Accordion>
+
+### Self-hosting
+
+Encore supports building Docker images directly from the CLI, which can then be self-hosted on your own infrastructure of choice.
+
+If your app is using infrastructure resources, such as SQL databases, Pub/Sub, or metrics, you will need to configure your Docker image with the necessary configuration.
+Our URL shortener makes use of a PostgreSQL database, so we'll need to supply a [runtime configuration](/docs/go/self-host/configure-infra) so that our app knows how to connect to the database in the cloud.
+
+🥐 Create a new file `infra-config.json` in the root of your project with the following contents:
+
+```json
+{
+   "$schema": "https://encore.dev/schemas/infra.schema.json",
+   "sql_servers": [
+      {
+         "host": "my-db-host:5432",
+         "databases": {
+            "url": {
+               "username": "my-db-owner",
+                "password": {"$env": "DB_PASSWORD"}
+            }
+         }
+      }
+   ]
+}
+```
+
+The values in this configuration are just examples, you will need to replace them with the correct values for your database.
+
+🥐 Build a Docker image by running `encore build docker url-shortener:v1.0`.
+
+This will compile your application using the host machine and then produce a Docker image containing the compiled application.
+
+🥐 Upload the Docker image to the cloud provider of your choice and run it.
+
+</Accordion>
+
+<Accordion>
+
+### Encore Cloud (free)
+
+Encore Cloud provides automated infrastructure and DevOps. Deploy to a free development environment or to your own cloud account on AWS or GCP.
+
+### Create account
+
+Before deploying with Encore Cloud, you need to have a free Encore Cloud account and link your app to the platform. If you already have an account, you can move on to the next step.
+
+If you don’t have an account, the simplest way to get set up is by running `encore app create` and selecting **Y** when prompted to create a new account. Once your account is set up, continue creating a new app, selecting the `empty app` template.
+
+After creating the app, copy your project files into the new app directory, ensuring that you do not replace the `encore.app` file (this file holds a unique id which links your app to the platform).
+
+### Commit changes
 
 The final step before you deploy is to commit all changes to the project repo.
 
@@ -319,7 +380,7 @@ $ git push encore
 
 Encore will now build and test your app, provision the needed infrastructure, and deploy your application to the cloud.
 
-After triggering the deployment, you will see a URL where you can view its progress in Encore's [Cloud Dashboard](https://app.encore.dev). It will look something like: `https://app.encore.dev/$APP_ID/deploys/...`
+After triggering the deployment, you will see a URL where you can view its progress in the [Encore Cloud dashboard](https://app.encore.cloud). It will look something like: `https://app.encore.cloud/$APP_ID/deploys/...`
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
   <source src="/assets/docs/rest_tut_4.mp4" className="w-full h-full" type="video/mp4"/>
@@ -341,10 +402,12 @@ _From here you can easily access all Cloud Dashboard features and for example ju
 
 ![Fireworks](/assets/docs/fireworks.jpg)
 
+🥐 A great next step is to [integrate with GitHub](/docs/platform/integrations/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
+
+</Accordion>
+
 ## What's next
 
 Now that you know how to build a backend with a database, you're ready to let your creativity flow and begin building your next great idea!
-
-🥐 A great next step is to [integrate with GitHub](/docs/platform/integrations/github). Once you've linked with GitHub, Encore will automatically start building and running tests against your Pull Requests.
 
 We're excited to hear what you're going to build with Encore, join the pioneering developer community on [Discord](/discord) and share your story.

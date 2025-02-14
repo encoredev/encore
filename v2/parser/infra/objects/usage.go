@@ -43,6 +43,8 @@ const (
 	GetObjectMetadata    Perm = "get-object-metadata"
 	DeleteObject         Perm = "delete-object"
 	GetPublicURL         Perm = "get-public-url"
+	SignedUploadURL      Perm = "signed-upload-url"
+	SignedDownloadURL    Perm = "signed-download-url"
 )
 
 func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
@@ -61,6 +63,10 @@ func (p Perm) ToMeta() (meta.BucketUsage_Operation, bool) {
 		return meta.BucketUsage_DELETE_OBJECT, true
 	case GetPublicURL:
 		return meta.BucketUsage_GET_PUBLIC_URL, true
+	case SignedUploadURL:
+		return meta.BucketUsage_SIGNED_UPLOAD_URL, true
+	case SignedDownloadURL:
+		return meta.BucketUsage_SIGNED_DOWNLOAD_URL, true
 	default:
 		return meta.BucketUsage_UNKNOWN, false
 	}
@@ -84,6 +90,10 @@ func ResolveBucketUsage(data usage.ResolveData, bkt *Bucket) usage.Usage {
 			if !bkt.Public {
 
 			}
+		case "SignedUploadURL":
+			perm = SignedUploadURL
+		case "SignedDownloadURL":
+			perm = SignedDownloadURL
 		default:
 			return nil
 		}
@@ -125,8 +135,12 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 			switch {
 			case isNamed(typ, "Uploader"):
 				perms = append(perms, WriteObject)
+			case isNamed(typ, "SignedUploader"):
+				perms = append(perms, SignedUploadURL)
 			case isNamed(typ, "Downloader"):
 				perms = append(perms, ReadObjectContents)
+			case isNamed(typ, "SignedDownloader"):
+				perms = append(perms, SignedDownloadURL)
 			case isNamed(typ, "Lister"):
 				perms = append(perms, ListObjects)
 			case isNamed(typ, "Remover"):
@@ -136,7 +150,9 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 			case isNamed(typ, "PublicURLer"):
 				perms = append(perms, GetPublicURL)
 			case isNamed(typ, "ReadWriter"):
-				perms = append(perms, WriteObject, ReadObjectContents, ListObjects, DeleteObject, GetObjectMetadata, UpdateObjectMetadata)
+				perms = append(perms,
+					WriteObject, ReadObjectContents, ListObjects, DeleteObject,
+					GetObjectMetadata, SignedUploadURL, SignedDownloadURL, UpdateObjectMetadata)
 			default:
 				return nil, false
 			}
@@ -144,7 +160,7 @@ func parseBucketRef(errs *perr.List, expr *usage.FuncArg) usage.Usage {
 
 		// Sort and de-dup the perms.
 		slices.Sort(perms)
-		slices.Compact(perms)
+		perms = slices.Compact(perms)
 
 		return &RefUsage{
 			Base: usage.Base{

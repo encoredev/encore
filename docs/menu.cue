@@ -402,6 +402,11 @@
 				file: "go/cli/infra-namespaces"
 			}, {
 				kind: "basic"
+				text: "CLI Configuration"
+				path: "/go/cli/config-reference"
+				file: "go/cli/config-reference"
+			}, {
+				kind: "basic"
 				text: "Telemetry"
 				path: "/go/cli/telemetry"
 				file: "go/cli/telemetry"
@@ -441,6 +446,12 @@
 			kind: "section"
 			text: "Self Hosting"
 			items: [
+				{
+					kind: "basic"
+					text: "CI/CD"
+					path: "/go/self-host/ci-cd"
+					file: "go/self-host/ci-cd"
+				},
 				{
 					kind: "basic"
 					text: "Build Docker Images"
@@ -774,11 +785,6 @@
 				}]
 			}, {
 				kind: "basic"
-				text: "CORS"
-				path: "/ts/develop/cors"
-				file: "develop/cors"
-			}, {
-				kind: "basic"
 				text: "Metadata"
 				path: "/ts/develop/metadata"
 				file: "ts/develop/metadata"
@@ -792,6 +798,16 @@
 				text: "Debugging"
 				path: "/ts/develop/debug"
 				file: "ts/develop/debug"
+			}, {
+				kind: "basic"
+				text: "Middleware"
+				path: "/ts/develop/middleware"
+				file: "ts/develop/middleware"
+			}, {
+				kind: "basic"
+				text: "Multithreading"
+				path: "/ts/develop/multithreading"
+				file: "ts/develop/multithreading"
 			}]
 		},
 		{
@@ -814,9 +830,44 @@
 				file: "ts/cli/infra-namespaces"
 			}, {
 				kind: "basic"
+				text: "CLI Configuration"
+				path: "/ts/cli/config-reference"
+				file: "ts/cli/config-reference"
+			}, {
+				kind: "basic"
 				text: "Telemetry"
 				path: "/ts/cli/telemetry"
 				file: "ts/cli/telemetry"
+			}]
+		},
+		{
+			kind: "section"
+			text: "Frontend"
+			items: [{
+				kind: "basic"
+				text: "Hosting"
+				path: "/ts/frontend/hosting"
+				file: "ts/frontend/hosting"
+			}, {
+				kind: "basic"
+				text: "CORS"
+				path: "/ts/frontend/cors"
+				file: "ts/frontend/cors"
+			}, {
+				kind: "basic"
+				text: "Request Client"
+				path: "/ts/frontend/request-client"
+				file: "ts/frontend/request-client"
+			}, {
+				kind: "basic"
+				text: "Template Engine"
+				path: "/ts/frontend/template-engine"
+				file: "ts/frontend/template-engine"
+			}, {
+				kind: "basic"
+				text: "Mono vs Multi Repo"
+				path: "/ts/frontend/mono-vs-multi-repo"
+				file: "ts/frontend/mono-vs-multi-repo"
 			}]
 		},
 		{
@@ -855,6 +906,12 @@
 			items: [
 				{
 					kind: "basic"
+					text: "CI/CD"
+					path: "/ts/self-host/ci-cd"
+					file: "ts/self-host/ci-cd"
+				},
+				{
+					kind: "basic"
 					text: "Build Docker Images"
 					path: "/ts/self-host/build"
 					file: "ts/self-host/build"
@@ -868,6 +925,11 @@
 					text: "Deploy to DigitalOcean"
 					path: "/ts/self-host/deploy-digitalocean"
 					file: "ts/self-host/deploy-to-digital-ocean"
+				}, {
+					kind: "basic"
+					text: "Deploy to Railway"
+					path: "/ts/self-host/deploy-railway"
+					file: "ts/self-host/deploy-to-railway"
 				}]
 		},
 		{
@@ -880,19 +942,9 @@
 				file: "ts/how-to/file-uploads"
 			}, {
 				kind: "basic"
-				text: "Use Vercel for frontend hosting"
-				path: "/ts/how-to/vercel"
-				file: "ts/how-to/vercel"
-			}, {
-				kind: "basic"
 				text: "Use NestJS with Encore"
 				path: "/ts/how-to/nestjs"
 				file: "ts/how-to/nestjs"
-			}, {
-				kind: "basic"
-				text: "Use a template engine"
-				path: "/ts/how-to/template-engine"
-				file: "ts/how-to/template-engine"
 			}]
 		}, {
 			kind: "section"
@@ -973,6 +1025,11 @@
 				file: "platform/deploy/deploying"
 			}, {
 				kind: "basic"
+				text: "Connect your cloud account"
+				path: "/platform/deploy/own-cloud"
+				file: "platform/deploy/own-cloud"
+			}, {
+				kind: "basic"
 				text: "Environments"
 				path: "/platform/deploy/environments"
 				file: "platform/deploy/environments"
@@ -993,14 +1050,19 @@
 			text: "Infrastructure"
 			items: [{
 				kind: "basic"
-				text: "Connect your cloud account"
-				path: "/platform/infrastructure/own-cloud"
-				file: "platform/infrastructure/own-cloud"
-			}, {
-				kind: "basic"
-				text: "Infrastructure provisioning"
+				text: "Infrastructure overview"
 				path: "/platform/infrastructure/infra"
 				file: "platform/infrastructure/infra"
+			}, {
+				kind: "basic"
+				text: "GCP Infrastructure"
+				path: "/platform/infrastructure/gcp"
+				file: "platform/infrastructure/gcp"
+			}, {
+				kind: "basic"
+				text: "AWS Infrastructure"
+				path: "/platform/infrastructure/aws"
+				file: "platform/infrastructure/aws"
 			}, {
 				kind: "accordion"
 				text: "Kubernetes deployment"
@@ -1022,14 +1084,19 @@
 				}]
 			}, {
 				kind: "basic"
-				text: "Managing database users"
-				path: "/platform/infrastructure/manage-db-users"
-				file: "platform/infrastructure/manage-db-users"
-			}, {
-				kind: "basic"
 				text: "Neon Postgres"
 				path: "/platform/infrastructure/neon"
 				file: "platform/infrastructure/neon"
+			}, {
+				kind: "basic"
+				text: "Cloudflare R2"
+				path: "/platform/infrastructure/cloudflare"
+				file: "platform/infrastructure/cloudflare"
+			}, {
+				kind: "basic"
+				text: "Managing database users"
+				path: "/platform/infrastructure/manage-db-users"
+				file: "platform/infrastructure/manage-db-users"
 			}]
 		}, {
 			kind: "section"

@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::borrow::Cow::{Borrowed, Owned};
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -7,12 +8,12 @@ use std::rc::Rc;
 use litparser::Sp;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::{Span, Spanned};
+use swc_common::{BytePos, Span, Spanned};
 use swc_ecma_ast as ast;
 
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
-use crate::parser::types::Object;
+use crate::parser::types::{validation, Object};
 use crate::parser::{module_loader, Range};
 use crate::span_err::ErrReporter;
 
@@ -100,6 +101,13 @@ pub struct Ctx<'a> {
 
     /// The mapped key type to substitute when concretising, if any.
     mapped_key_type: Option<&'a Type>,
+
+    /// Encountered "infer Type" type parameters in the current scope.
+    /// Rc<RefCell<...>> so we can mutate it in nested contexts.
+    infer_type_params: Option<Rc<RefCell<Vec<ast::Id>>>>,
+
+    /// Type arguments to fill in for inferred type parameters.
+    infer_type_args: &'a [Cow<'a, Type>],
 }
 
 impl<'a> Ctx<'a> {
@@ -111,6 +119,8 @@ impl<'a> Ctx<'a> {
             type_args: &[],
             mapped_key_id: None,
             mapped_key_type: None,
+            infer_type_params: None,
+            infer_type_args: &[],
         }
     }
 
@@ -138,13 +148,27 @@ impl<'a> Ctx<'a> {
             ..self
         }
     }
+
+    fn with_infer_type_params(self, infer_type_params: Rc<RefCell<Vec<ast::Id>>>) -> Self {
+        Self {
+            infer_type_params: Some(infer_type_params),
+            ..self
+        }
+    }
+
+    fn with_infer_type_args(self, infer_type_args: &'a [Cow<'a, Type>]) -> Self {
+        Self {
+            infer_type_args,
+            ..self
+        }
+    }
 }
 
 impl Ctx<'_> {
     pub fn typ(&self, typ: &ast::TsType) -> Type {
         match typ {
             ast::TsType::TsKeywordType(tt) => self.keyword(tt),
-            ast::TsType::TsThisType(_) => Type::This,
+            ast::TsType::TsThisType(_) => Type::This(This),
             ast::TsType::TsArrayType(tt) => self.array(tt),
             ast::TsType::TsTupleType(tt) => self.tuple(tt),
             ast::TsType::TsUnionOrIntersectionType(ast::TsUnionOrIntersectionType::TsUnionType(tt)) => self.union(tt),
@@ -160,12 +184,13 @@ impl Ctx<'_> {
             ast::TsType::TsTypeOperator(tt) => self.type_op(tt),
             ast::TsType::TsMappedType(tt) => self.mapped(tt),
             ast::TsType::TsIndexedAccessType(tt) => self.indexed_access(tt),
+            ast::TsType::TsInferType(tt) => self.infer(tt),
 
             ast::TsType::TsFnOrConstructorType(_)
             | ast::TsType::TsRestType(_) // same?
             | ast::TsType::TsTypePredicate(_) // https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates, https://www.typescriptlang.org/docs/handbook/2/classes.html#this-based-type-guards
             | ast::TsType::TsImportType(_) // ??
-            | ast::TsType::TsInferType(_) => {
+            => {
                 HANDLER.with(|handler| handler.span_err(typ.span(), &format!("unsupported: {:#?}", typ)));
                 Type::Basic(Basic::Never)
             }, // typeof
@@ -247,9 +272,12 @@ impl Ctx<'_> {
     fn type_index(&self, span: Span, obj: &Type, idx: &Type) -> Type {
         match (obj, idx) {
             // If either obj or index is a generic type, we need to store it as a Generic::Index.
-            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => Type::Generic(
-                Generic::Index((Box::new(pair.0.clone()), Box::new(pair.1.clone()))),
-            ),
+            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => {
+                Type::Generic(Generic::Index(Index {
+                    source: Box::new(pair.0.clone()),
+                    index: Box::new(pair.1.clone()),
+                }))
+            }
 
             (Type::Named(named), idx) => {
                 let underlying = named.underlying(self.state);
@@ -274,7 +302,7 @@ impl Ctx<'_> {
                         let typ = f.typ.clone();
                         // If the field is optional, wrap the type in Optional.
                         if f.optional {
-                            Type::Optional(Box::new(typ))
+                            Type::Optional(Optional(Box::new(typ)))
                         } else {
                             typ
                         }
@@ -293,6 +321,14 @@ impl Ctx<'_> {
                 }
             },
 
+            (Type::Validated(v), idx) => {
+                let typ = self.type_index(span, &v.typ, idx);
+                Type::Validated(Validated {
+                    typ: Box::new(typ),
+                    expr: v.expr.clone(),
+                })
+            }
+
             (obj, idx) => {
                 HANDLER.with(|handler| {
                     handler.span_err(
@@ -308,21 +344,39 @@ impl Ctx<'_> {
         }
     }
 
+    fn infer(&self, tt: &ast::TsInferType) -> Type {
+        // Do we have an infer context?
+        if let Some(params) = self.infer_type_params.as_ref() {
+            let id = tt.type_param.name.to_id();
+            let mut params = params.borrow_mut();
+            let idx = params.len();
+            params.push(id);
+            Type::Generic(Generic::Inferred(Inferred(idx)))
+        } else {
+            tt.span.err("infer type outside of infer context");
+            Type::Basic(Basic::Never)
+        }
+
+        // TODO figure out what type to return here
+    }
+
     /// Given a type, produces a union type of the underlying keys,
     /// e.g. `keyof {foo: string; bar: number}` yields `"foo" | "bar"`.
     fn keyof(&self, typ: &Type) -> Type {
         match typ {
             Type::Basic(tt) => match tt {
-                Basic::Any => Type::Union(vec![
-                    Type::Basic(Basic::String),
-                    Type::Basic(Basic::Number),
-                    Type::Basic(Basic::Symbol),
-                ]),
+                Basic::Any => Type::Union(Union {
+                    types: vec![
+                        Type::Basic(Basic::String),
+                        Type::Basic(Basic::Number),
+                        Type::Basic(Basic::Symbol),
+                    ],
+                }),
 
                 // These should technically enumerate the built-in properties
                 // on these types, but we haven't implemented that yet.
                 Basic::String | Basic::Boolean | Basic::Number | Basic::BigInt | Basic::Symbol => {
-                    Type::Union(vec![])
+                    Type::Union(Union { types: vec![] })
                 }
 
                 // keyof these yields never.
@@ -335,16 +389,17 @@ impl Ctx<'_> {
                 | Basic::Never => Type::Basic(Basic::Never),
             },
 
-            Type::Enum(tt) => Type::Union(
-                tt.members
+            Type::Enum(tt) => Type::Union(Union {
+                types: tt
+                    .members
                     .iter()
                     .map(|m| Type::Literal(Literal::String(m.name.clone())))
                     .collect(),
-            ),
+            }),
 
             // These should technically enumerate the built-in properties
             // on these types, but we haven't implemented that yet.
-            Type::Array(_) | Type::Tuple(_) => Type::Union(vec![]),
+            Type::Array(_) | Type::Tuple(_) => Type::Union(Union { types: vec![] }),
 
             Type::Interface(interface) => {
                 let keys = interface
@@ -357,7 +412,7 @@ impl Ctx<'_> {
                         FieldName::Symbol(_) => None,
                     })
                     .collect();
-                Type::Union(keys)
+                Type::Union(Union { types: keys })
             }
 
             Type::Named(_) => {
@@ -370,20 +425,27 @@ impl Ctx<'_> {
                 Type::Basic(Basic::Never)
             }
 
-            Type::Optional(typ) => self.keyof(typ),
-            Type::Union(types) => {
-                let res: Vec<_> = types.iter().map(|t| self.keyof(t)).collect();
-                Type::Union(res)
+            Type::Optional(typ) => self.keyof(&typ.0),
+            Type::Union(union) => {
+                let res: Vec<_> = union.types.iter().map(|t| self.keyof(t)).collect();
+                Type::Union(Union { types: res })
             }
 
             // keyof "blah" is the same as keyof string, which should yield all properties.
-            Type::Literal(_) => Type::Union(vec![]),
+            Type::Literal(_) => Type::Union(Union { types: vec![] }),
 
-            Type::This => Type::Basic(Basic::Never),
+            Type::This(This) => Type::Basic(Basic::Never),
 
-            Type::Generic(generic) => {
-                Type::Generic(Generic::Keyof(Box::new(Type::Generic(generic.clone()))))
+            Type::Generic(generic) => Type::Generic(Generic::Keyof(Keyof(Box::new(
+                Type::Generic(generic.clone()),
+            )))),
+            Type::Validated(v) => self.keyof(&v.typ),
+            Type::Validation(_) => {
+                HANDLER.with(|handler| handler.err("keyof ValidationExpr unsupported"));
+                Type::Basic(Basic::Never)
             }
+
+            Type::Custom(Custom::WireSpec(spec)) => self.keyof(&spec.underlying),
         }
     }
 
@@ -529,12 +591,13 @@ impl Ctx<'_> {
     fn type_ref(&self, typ: &ast::TsTypeRef) -> Type {
         let obj = match &typ.type_name {
             ast::TsEntityName::Ident(ident) => {
+                let ident_id = ident.to_id();
                 // Is this a reference to a type parameter?
                 let type_param = self
                     .type_params
                     .iter()
                     .enumerate()
-                    .find(|tp| tp.1.name.to_id() == ident.to_id())
+                    .find(|tp| tp.1.name.to_id() == ident_id)
                     .map(|tp| (tp.0, *tp.1));
                 if let Some((idx, type_param)) = type_param {
                     return if let Some(type_arg) = self.type_args.get(idx) {
@@ -552,7 +615,24 @@ impl Ctx<'_> {
                         return if let Some(mapped_key_type) = self.mapped_key_type {
                             mapped_key_type.clone()
                         } else {
-                            Type::Generic(Generic::MappedKeyType)
+                            Type::Generic(Generic::MappedKeyType(MappedKeyType))
+                        };
+                    }
+                }
+
+                // Otherwise, is this a reference to an inferred type parameter?
+                if let Some(infer_type_params) = &self.infer_type_params {
+                    let inferred_type_param = infer_type_params
+                        .borrow()
+                        .iter()
+                        .enumerate()
+                        .find(|tp| *tp.1 == ident_id)
+                        .map(|tp| tp.0);
+                    if let Some(idx) = inferred_type_param {
+                        return if let Some(type_arg) = self.infer_type_args.get(idx) {
+                            type_arg.clone().into_owned()
+                        } else {
+                            Type::Generic(Generic::Inferred(Inferred(idx)))
                         };
                     }
                 }
@@ -585,9 +665,48 @@ impl Ctx<'_> {
             }
         }
 
+        // Is this a reference to the built-in 'Array' class?
+        if obj.name.as_ref().is_some_and(|s| s == "Array") && self.state.is_universe(obj.module_id)
+        {
+            let elem = type_arguments.pop().unwrap_or(Type::Basic(Basic::Never));
+            return Type::Array(Array(Box::new(elem)));
+        }
+
+        // Is this a reference to the "Header" or "Query" wire spec overrides?
+        if obj
+            .name
+            .as_ref()
+            .is_some_and(|s| s == "Header" || s == "Query")
+            && self.state.is_module_path(obj.module_id, "encore.dev/api")
+        {
+            if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
+                return Type::Custom(Custom::WireSpec(wire_spec));
+            }
+        }
+
+        // Is this a reference to the "Attribute" pub/sub wire spec override?
+        if obj.name.as_ref().is_some_and(|s| s == "Attribute")
+            && self
+                .state
+                .is_module_path(obj.module_id, "encore.dev/pubsub")
+        {
+            if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
+                return Type::Custom(Custom::WireSpec(wire_spec));
+            }
+        }
+
         match &obj.kind {
             ObjectKind::TypeName(_) => {
                 let named = Named::new(obj, type_arguments);
+
+                if self
+                    .state
+                    .is_module_path(named.obj.module_id, "encore.dev/validate")
+                {
+                    if let Some(expr) = self.parse_validation(typ.span, &named) {
+                        return Type::Validation(expr);
+                    }
+                }
 
                 // Don't reference named types in the universe,
                 // otherwise we try to find them on disk.
@@ -677,11 +796,11 @@ impl Ctx<'_> {
     }
 
     fn array(&self, tt: &ast::TsArrayType) -> Type {
-        Type::Array(Box::new(self.typ(&tt.elem_type)))
+        Type::Array(Array(Box::new(self.typ(&tt.elem_type))))
     }
 
     fn optional(&self, tt: &ast::TsOptionalType) -> Type {
-        Type::Optional(Box::new(self.typ(&tt.type_ann)))
+        Type::Optional(Optional(Box::new(self.typ(&tt.type_ann))))
     }
 
     fn tuple(&self, tuple: &ast::TsTupleType) -> Type {
@@ -695,24 +814,27 @@ impl Ctx<'_> {
                 Some(t.ty.as_ref())
             }));
 
-        Type::Tuple(types)
+        Type::Tuple(Tuple { types })
     }
 
     fn union(&self, union_type: &ast::TsUnionType) -> Type {
-        // TODO handle unifying e.g. "string | 'foo'" into "string"
         let types = self.types(union_type.types.iter().map(|t| t.as_ref()));
-        Type::Union(types)
+        simplify_union(types)
     }
 
     // https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
     fn conditional(&self, tt: &ast::TsConditionalType) -> Type {
         let check = self.typ(&tt.check_type);
-        let extends = self.typ(&tt.extends_type);
+        let infer_params: Rc<RefCell<Vec<ast::Id>>> = Default::default();
+        let extends = self
+            .clone()
+            .with_infer_type_params(infer_params.clone())
+            .typ(&tt.extends_type);
 
         // Do we have a union type in `check`, and the AST is a naked type parameter?
         // If so, we need to treat it as a distributive conditional type.
         // See: https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
-        if let Type::Union(types) = &check {
+        if let Type::Union(union) = &check {
             if let ast::TsType::TsTypeRef(ref check) = tt.check_type.as_ref() {
                 if check.type_params.is_none() {
                     if let Some(ident) = check.type_name.as_ident() {
@@ -722,7 +844,8 @@ impl Ctx<'_> {
                             .any(|tp| tp.name.to_id() == ident.to_id())
                         {
                             // Apply the conditional to each type in the union.
-                            let result = types
+                            let result = union
+                                .types
                                 .iter()
                                 .map(|t| match t.assignable(self.state, &extends) {
                                     Some(true) => self.typ(&tt.true_type),
@@ -742,13 +865,33 @@ impl Ctx<'_> {
             }
         }
 
-        match check.assignable(self.state, &extends) {
-            Some(true) => self.typ(&tt.true_type),
-            Some(false) => self.typ(&tt.false_type),
-            None => Type::Generic(Generic::Conditional(Conditional {
+        match check.extends(self.state, &extends) {
+            Extends::Yes(mut inferred) => {
+                // Convert the inferred types to a vector with the gaps
+                // filled in with the `unknown` type.
+                inferred.sort_by_key(|(i, _)| *i);
+                let mut inf = Vec::new();
+                for (idx, typ) in inferred {
+                    while inf.len() < idx {
+                        inf.push(Cow::Owned(Type::Basic(Basic::Unknown)));
+                    }
+                    inf.push(typ);
+                }
+
+                self.clone()
+                    .with_infer_type_params(infer_params)
+                    .with_infer_type_args(&inf[..])
+                    .typ(&tt.true_type)
+            }
+
+            Extends::No => self.typ(&tt.false_type),
+            Extends::Unknown => Type::Generic(Generic::Conditional(Conditional {
                 check_type: Box::new(check),
                 extends_type: Box::new(extends),
-                true_type: self.btyp(&tt.true_type),
+                true_type: self
+                    .clone()
+                    .with_infer_type_params(infer_params)
+                    .btyp(&tt.true_type),
                 false_type: self.btyp(&tt.false_type),
             })),
         }
@@ -837,7 +980,7 @@ impl Ctx<'_> {
 
     fn expr(&self, expr: &ast::Expr) -> Type {
         match expr {
-            ast::Expr::This(_) => Type::This,
+            ast::Expr::This(_) => Type::This(This),
             ast::Expr::Array(lit) => self.array_lit(lit),
             ast::Expr::Object(lit) => self.object_lit(lit),
             ast::Expr::Fn(_) => {
@@ -891,8 +1034,14 @@ impl Ctx<'_> {
             }
             ast::Expr::New(expr) => {
                 // The type of a class instance is the same as the class itself.
-                // TODO type args
-                self.expr(&expr.callee)
+                if let Some(type_args) = &expr.type_args {
+                    let type_args: Vec<_> = self.types(type_args.params.iter().map(|t| t.as_ref()));
+                    self.clone()
+                        .with_type_args(&type_args[..])
+                        .expr(&expr.callee)
+                } else {
+                    self.expr(&expr.callee)
+                }
             }
             ast::Expr::Seq(expr) => match expr.exprs.last() {
                 Some(expr) => self.expr(expr),
@@ -997,17 +1146,23 @@ impl Ctx<'_> {
             ast::Expr::TsSatisfies(expr) => self.expr(&expr.expr),
 
             ast::Expr::TsInstantiation(expr) => {
-                // TODO handle type args
-                self.expr(&expr.expr)
+                if !expr.type_args.params.is_empty() {
+                    let type_args: Vec<_> =
+                        self.types(expr.type_args.params.iter().map(|t| t.as_ref()));
+                    self.clone().with_type_args(&type_args[..]).expr(&expr.expr)
+                } else {
+                    self.expr(&expr.expr)
+                }
             }
 
             // The "foo!" operator
             ast::Expr::TsNonNull(expr) => {
                 let base = self.expr(&expr.expr);
                 match base {
-                    Type::Optional(typ) => *typ,
-                    Type::Union(types) => {
-                        let non_null = types
+                    Type::Optional(typ) => *typ.0,
+                    Type::Union(union) => {
+                        let non_null = union
+                            .types
                             .into_iter()
                             .filter(|t| {
                                 !matches!(
@@ -1016,10 +1171,10 @@ impl Ctx<'_> {
                                 )
                             })
                             .collect::<Vec<_>>();
-                        match &non_null.len() {
+                        match non_null.len() {
                             0 => Type::Basic(Basic::Never),
                             1 => non_null[0].clone(),
-                            _ => Type::Union(non_null),
+                            _ => Type::Union(Union { types: non_null }),
                         }
                     }
                     _ => base,
@@ -1049,14 +1204,16 @@ impl Ctx<'_> {
             if elem.spread.is_some() {
                 // The type of [...["a"]] is string[].
                 if let Type::Array(arr) = base {
-                    base = *arr;
+                    base = *arr.0;
                 }
             }
 
             match &elem_type {
                 Some(Type::Union(_elem_types)) => {}
                 Some(typ) => {
-                    elem_type = Some(Type::Union(vec![typ.clone(), base]));
+                    elem_type = Some(Type::Union(Union {
+                        types: vec![typ.clone(), base],
+                    }));
                 }
                 None => {
                     elem_type = Some(base);
@@ -1064,7 +1221,7 @@ impl Ctx<'_> {
             }
         }
 
-        Type::Union(elem_types)
+        Type::Union(Union { types: elem_types })
     }
 
     fn object_lit(&self, lit: &ast::ObjectLit) -> Type {
@@ -1161,9 +1318,10 @@ impl Ctx<'_> {
             | Type::Tuple(_)
             | Type::Union(_)
             | Type::Optional(_)
-            | Type::This
+            | Type::This(_)
             | Type::Generic(_)
-            | Type::Class(_) => {
+            | Type::Class(_)
+            | Type::Validation(_) => {
                 HANDLER.with(|handler| handler.span_err(prop.span(), "unsupported member on type"));
                 Type::Basic(Basic::Never)
             }
@@ -1218,27 +1376,31 @@ impl Ctx<'_> {
                 let underlying = self.underlying(obj_type);
                 self.resolve_member_prop(&underlying, prop)
             }
+            Type::Validated(v) => self.resolve_member_prop(&v.typ, prop),
+            Type::Custom(Custom::WireSpec(spec)) => {
+                self.resolve_member_prop(&spec.underlying, prop)
+            }
         }
     }
 
     /// Resolves a prop name to the underlying string literal.
     fn prop_name_to_string<'b>(&self, prop: &'b ast::PropName) -> Cow<'b, str> {
         match prop {
-            ast::PropName::Ident(id) => Cow::Borrowed(id.sym.as_ref()),
-            ast::PropName::Str(str) => Cow::Borrowed(str.value.as_ref()),
-            ast::PropName::Num(num) => Cow::Owned(num.value.to_string()),
-            ast::PropName::BigInt(bigint) => Cow::Owned(bigint.value.to_string()),
+            ast::PropName::Ident(id) => Borrowed(id.sym.as_ref()),
+            ast::PropName::Str(str) => Borrowed(str.value.as_ref()),
+            ast::PropName::Num(num) => Owned(num.value.to_string()),
+            ast::PropName::BigInt(bigint) => Owned(bigint.value.to_string()),
             ast::PropName::Computed(expr) => {
                 if let Type::Literal(lit) = self.expr(&expr.expr) {
                     match lit {
-                        Literal::String(str) => return Cow::Owned(str),
-                        Literal::Number(num) => return Cow::Owned(num.to_string()),
+                        Literal::String(str) => return Owned(str),
+                        Literal::Number(num) => return Owned(num.to_string()),
                         _ => {}
                     }
                 }
 
                 HANDLER.with(|handler| handler.span_err(expr.span, "unsupported computed prop"));
-                Cow::Borrowed("")
+                Borrowed("")
             }
         }
     }
@@ -1422,27 +1584,31 @@ impl Ctx<'_> {
     pub fn concrete<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         match typ {
             // Basic types that never change.
-            Type::Basic(_) | Type::Literal(_) | Type::Enum(_) | Type::This => Same(typ),
+            Type::Basic(_) | Type::Literal(_) | Type::Enum(_) | Type::This(_) => Same(typ),
 
             // Nested types that recurse.
-            Type::Array(elem) => match self.concrete(elem) {
-                New(t) => New(Type::Array(Box::new(t))),
-                Changed(t) => New(Type::Array(Box::new(t.clone()))),
+            Type::Array(elem) => match self.concrete(&elem.0) {
+                New(t) => New(Type::Array(Array(Box::new(t)))),
+                Changed(t) => New(Type::Array(Array(Box::new(t.clone())))),
                 Same(_) => Same(typ),
             },
-            Type::Tuple(types) => match self.concrete_list(types) {
-                New(t) => New(Type::Tuple(t)),
-                Changed(t) => New(Type::Tuple(t.to_owned())),
+            Type::Tuple(tuple) => match self.concrete_list(&tuple.types) {
+                New(t) => New(Type::Tuple(Tuple { types: t })),
+                Changed(t) => New(Type::Tuple(Tuple {
+                    types: t.to_owned(),
+                })),
                 Same(_) => Same(typ),
             },
-            Type::Union(types) => match self.concrete_list(types) {
-                New(t) => New(Type::Union(t)),
-                Changed(t) => New(Type::Union(t.to_owned())),
+            Type::Union(union) => match self.concrete_list(&union.types) {
+                New(t) => New(Type::Union(Union { types: t })),
+                Changed(t) => New(Type::Union(Union {
+                    types: t.to_owned(),
+                })),
                 Same(_) => Same(typ),
             },
-            Type::Optional(typ) => match self.concrete(typ) {
-                New(t) => New(Type::Optional(Box::new(t))),
-                Changed(t) => New(Type::Optional(Box::new(t.to_owned()))),
+            Type::Optional(opt) => match self.concrete(&opt.0) {
+                New(t) => New(Type::Optional(Optional(Box::new(t)))),
+                Changed(t) => New(Type::Optional(Optional(Box::new(t.to_owned())))),
                 Same(_) => Same(typ),
             },
 
@@ -1529,8 +1695,18 @@ impl Ctx<'_> {
                     }
                 }
 
+                Generic::Inferred(inferred) => {
+                    // If we have a concrete inferred type, return that.
+                    if let Some(arg) = self.infer_type_args.get(inferred.0) {
+                        Changed(arg)
+                    } else {
+                        // We don't have a concrete type, so return the original type.
+                        Same(typ)
+                    }
+                }
+
                 Generic::Keyof(source) => {
-                    let concrete_source = self.concrete(source);
+                    let concrete_source = self.concrete(&source.0);
                     let keys = self.keyof(&concrete_source);
                     New(keys)
                 }
@@ -1563,6 +1739,7 @@ impl Ctx<'_> {
                             // Construct a modified context that modifies the given type argument
                             // to refer only to the concrete type for this union.
                             let result: Vec<_> = check
+                                .types
                                 .into_iter()
                                 .filter_map(|c| {
                                     // Modify the type args.
@@ -1588,25 +1765,47 @@ impl Ctx<'_> {
                         }
 
                         // Otherwise just check the single element.
-                        (_, check) => match check.assignable(self.state, &extends) {
-                            Some(true) => self.concrete(&cond.true_type).same_to_changed(),
-                            Some(false) => self.concrete(&cond.false_type).same_to_changed(),
+                        (_, check) => match check.extends(self.state, &extends).into_static() {
+                            Extends::Yes(mut inferred) => {
+                                // Convert the inferred types to a vector with the gaps
+                                // filled in with the `unknown` type.
+                                inferred.sort_by_key(|(i, _)| *i);
+                                let mut inf = Vec::new();
+                                for (idx, typ) in inferred {
+                                    while inf.len() < idx {
+                                        inf.push(Cow::Owned(Type::Basic(Basic::Unknown)));
+                                    }
+                                    inf.push(typ);
+                                }
+
+                                self.clone()
+                                    .with_infer_type_args(&inf[..])
+                                    .concrete(&cond.true_type)
+                                    .into_new()
+                            }
+                            Extends::No => self.concrete(&cond.false_type).same_to_changed(),
 
                             // We don't yet have enough type information to resolve the conditional.
                             // Still, return a new type with the concretized types we have.
-                            None => New(Type::Generic(Generic::Conditional(Conditional {
-                                check_type: Box::new(check),
-                                extends_type: Box::new(extends.into_owned()),
-                                true_type: Box::new(self.concrete(&cond.true_type).into_owned()),
-                                false_type: Box::new(self.concrete(&cond.false_type).into_owned()),
-                            }))),
+                            Extends::Unknown => {
+                                New(Type::Generic(Generic::Conditional(Conditional {
+                                    check_type: Box::new(check),
+                                    extends_type: Box::new(extends.into_owned()),
+                                    true_type: Box::new(
+                                        self.concrete(&cond.true_type).into_owned(),
+                                    ),
+                                    false_type: Box::new(
+                                        self.concrete(&cond.false_type).into_owned(),
+                                    ),
+                                })))
+                            }
                         },
                     }
                 }
 
-                Generic::Index((source, index)) => {
-                    let source = self.concrete(source);
-                    let index = self.concrete(index);
+                Generic::Index(index) => {
+                    let source = self.concrete(&index.source);
+                    let index = self.concrete(&index.index);
                     let result = self.type_index(Span::default(), &source, &index);
                     New(result)
                 }
@@ -1641,6 +1840,9 @@ impl Ctx<'_> {
                                 });
                             }
 
+                            // An unresolved generic type means we can't resolve this yet.
+                            Type::Generic(_) => return Same(typ),
+
                             // Do we have a wildcard type like "string" or "number"?
                             // If so treat it as an index signature.
                             source @ (Type::Basic(Basic::String)
@@ -1656,7 +1858,7 @@ impl Ctx<'_> {
                                 let (typ, optional) = match value {
                                     // Never means the field should be excluded.
                                     Type::Basic(Basic::Never) => continue,
-                                    Type::Optional(typ) => (*typ, true),
+                                    Type::Optional(typ) => (*typ.0, true),
                                     typ => (typ, false),
                                 };
 
@@ -1683,9 +1885,9 @@ impl Ctx<'_> {
                             let value = if *optional {
                                 match value.as_ref() {
                                     Type::Optional(_) => value,
-                                    _ => Box::new(Type::Optional(value)),
+                                    _ => Box::new(Type::Optional(Optional(value))),
                                 }
-                            } else if let Type::Optional(inner) = *value {
+                            } else if let Type::Optional(Optional(inner)) = *value {
                                 inner
                             } else {
                                 value
@@ -1701,10 +1903,35 @@ impl Ctx<'_> {
                     New(Type::Interface(iface))
                 }
 
-                Generic::MappedKeyType => match self.mapped_key_type {
+                Generic::MappedKeyType(_) => match self.mapped_key_type {
                     Some(key) => Changed(key),
                     None => Same(typ),
                 },
+            },
+
+            Type::Validated(v) => match self.concrete(&v.typ) {
+                New(inner) => New(Type::Validated(Validated {
+                    typ: Box::new(inner),
+                    expr: v.expr.clone(),
+                })),
+                Changed(inner) => New(Type::Validated(Validated {
+                    typ: Box::new(inner.clone()),
+                    expr: v.expr.clone(),
+                })),
+                Same(_) => Same(typ),
+            },
+
+            Type::Validation(_) => Same(typ),
+            Type::Custom(Custom::WireSpec(spec)) => match self.concrete(&spec.underlying) {
+                New(inner) => New(Type::Custom(Custom::WireSpec(WireSpec {
+                    underlying: Box::new(inner),
+                    ..spec.clone()
+                }))),
+                Changed(inner) => New(Type::Custom(Custom::WireSpec(WireSpec {
+                    underlying: Box::new(inner.clone()),
+                    ..spec.clone()
+                }))),
+                Same(_) => Same(typ),
             },
         }
     }
@@ -1762,5 +1989,155 @@ impl Ctx<'_> {
 
         // All types are the same, so we can just return the original list.
         Same(v)
+    }
+
+    #[allow(dead_code)]
+    fn doc_comment(&self, pos: BytePos) -> Option<String> {
+        self.state
+            .lookup_module(self.module)
+            .and_then(|m| m.base.preceding_comments(pos.into()))
+    }
+
+    fn parse_validation(&self, sp: Span, named: &Named) -> Option<validation::Expr> {
+        let name = named.obj.name.as_deref()?;
+
+        #[allow(dead_code)]
+        fn i64_lit(typ: &Type) -> Option<i64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                let i = *n as i64;
+                if i as f64 == *n {
+                    return Some(i);
+                }
+            }
+            None
+        }
+
+        fn u64_lit(typ: &Type) -> Option<u64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                let u = *n as u64;
+                if u as f64 == *n {
+                    return Some(u);
+                }
+            }
+            None
+        }
+
+        fn f64_lit(typ: &Type) -> Option<f64> {
+            if let Type::Literal(Literal::Number(n)) = typ {
+                return Some(*n);
+            }
+            None
+        }
+
+        fn str_lit(typ: &Type) -> Option<String> {
+            if let Type::Literal(Literal::String(s)) = typ {
+                return Some(s.clone());
+            }
+            None
+        }
+
+        use validation::{Expr, Is, Rule, N};
+        match name {
+            "Min" => {
+                if let Some(num) = named.type_arguments.first().and_then(f64_lit) {
+                    Some(Expr::Rule(Rule::MinVal(N(num))))
+                } else {
+                    sp.err("Min requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "Max" => {
+                if let Some(num) = named.type_arguments.first().and_then(f64_lit) {
+                    Some(Expr::Rule(Rule::MaxVal(validation::N(num))))
+                } else {
+                    sp.err("Max requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "MinLen" => {
+                if let Some(num) = named.type_arguments.first().and_then(u64_lit) {
+                    Some(Expr::Rule(Rule::MinLen(num)))
+                } else {
+                    sp.err("MinLen requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "MaxLen" => {
+                if let Some(num) = named.type_arguments.first().and_then(u64_lit) {
+                    Some(Expr::Rule(Rule::MaxLen(num)))
+                } else {
+                    sp.err("MaxLen requires a number literal as its first type argument");
+                    None
+                }
+            }
+            "StartsWith" => {
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::StartsWith(str)))
+                } else {
+                    sp.err("StartsWith requires a string literal as its first type argument");
+                    None
+                }
+            }
+            "EndsWith" => {
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::EndsWith(str)))
+                } else {
+                    sp.err("EndsWith requires a string literal as its first type argument");
+                    None
+                }
+            }
+            "MatchesRegexp" => {
+                if let Some(str) = named.type_arguments.first().and_then(str_lit) {
+                    Some(Expr::Rule(Rule::MatchesRegexp(str)))
+                } else {
+                    sp.err("MatchesRegexp requires a string literal as its first type argument");
+                    None
+                }
+            }
+            "IsEmail" => Some(Expr::Rule(Rule::Is(Is::Email))),
+            "IsURL" => Some(Expr::Rule(Rule::Is(Is::Url))),
+            _ => None,
+        }
+    }
+
+    fn parse_wire_spec(&self, span: Span, obj: &Object, type_args: &[Type]) -> Option<WireSpec> {
+        let location = match &obj.name.as_deref() {
+            Some("Header") => WireLocation::Header,
+            Some("Query") => WireLocation::Query,
+            Some("Attribute") => WireLocation::PubSubAttr,
+            _ => return None,
+        };
+
+        fn str_lit(sp: Span, typ: &Type) -> Option<String> {
+            if let Type::Literal(Literal::String(s)) = typ {
+                return Some(s.clone());
+            }
+            sp.err("expected a string literal as the second type argument");
+            None
+        }
+
+        let (underlying, name_override) = match (type_args.first(), type_args.get(1)) {
+            (None, None) => (Type::Basic(Basic::String), None),
+
+            (Some(first), None) => {
+                // If we only have a single argument, check its type.
+                // If it's a string literal it's the name, otherwise it's the type.
+                match first {
+                    Type::Literal(Literal::String(lit)) => {
+                        (Type::Basic(Basic::String), Some(lit.to_string()))
+                    }
+                    _ => (first.clone(), None),
+                }
+            }
+
+            (Some(typ), Some(name)) => (typ.clone(), str_lit(span, name)),
+            (None, Some(_)) => unreachable!(),
+        };
+
+        Some(WireSpec {
+            location,
+            underlying: Box::new(underlying),
+            name_override,
+        })
     }
 }

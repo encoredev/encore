@@ -173,7 +173,7 @@ See `encore help db` for more information on database management commands.
 
 For cloud environments on AWS/GCP you can view database user credentials (created by Encore when provisioning databases) via the Cloud Dashboard:
 
-* Open your app in the [Cloud Dashboard](https://app.encore.dev), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
+* Open your app in the [Encore Cloud dashboard](https://app.encore.cloud), navigate to the **Infrastructure** page for the appropriate environment, and locate the `USERS` section within the relevant **Database Cluster**.
 
 ## Handling migration errors
 
@@ -263,6 +263,14 @@ This means Encore was not able to create the database. Often this is due to a pr
 - Check if you have permission to access Docker by running `docker images`.
 - Set the correct permissions with `sudo usermod -aG docker $USER` (Learn more in the [Docker documentation](https://docs.docker.com/engine/install/linux-postinstall/))
 - Then log out and log back in so that your group membership is refreshed.
+
+** Error: unable to save docker image **
+
+This error is often caused by a problem with Docker.
+
+- Make sure that you have [Docker](https://docker.com) installed and running.
+- In Docker, open **Settings > Advanced** and make sure that the setting `Allow the default Docker socket to be used` is checked.
+- If it still fails, restart the Encore daemon by running `encore daemon`, then try `encore run` again.
 
 ** Error: unable to add CA to cert pool **
 

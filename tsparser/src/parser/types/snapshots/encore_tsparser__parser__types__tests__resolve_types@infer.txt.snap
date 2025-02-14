@@ -1,0 +1,61 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/infer.txt
+---
+{
+    "Iface": Generic(
+        Conditional(
+            Conditional {
+                check_type: Generic(
+                    TypeParam(
+                        TypeParam {
+                            idx: 0,
+                            constraint: None,
+                        },
+                    ),
+                ),
+                extends_type: Interface(
+                    Interface {
+                        fields: [
+                            InterfaceField {
+                                name: String(
+                                    "X",
+                                ),
+                                optional: false,
+                                typ: Generic(
+                                    Inferred(
+                                        Inferred(
+                                            0,
+                                        ),
+                                    ),
+                                ),
+                            },
+                        ],
+                        index: None,
+                        call: None,
+                    },
+                ),
+                true_type: Generic(
+                    Inferred(
+                        Inferred(
+                            0,
+                        ),
+                    ),
+                ),
+                false_type: Basic(
+                    Never,
+                ),
+            },
+        ),
+    ),
+    "Infer1": Basic(
+        String,
+    ),
+    "Infer2": Basic(
+        Never,
+    ),
+    "Infer3": Basic(
+        String,
+    ),
+}

@@ -35,10 +35,6 @@ pub struct TranspileParams<'a> {
     /// for generating useful error messages.
     pub cwd: &'a Path,
 
-    /// The Encore CLI runtime version
-    #[allow(dead_code)]
-    pub runtime_version: &'a String,
-
     /// The services and gateways to transpile.
     pub inputs: Vec<Input>,
 
@@ -108,11 +104,7 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     )
                 };
 
-                let mut command = vec![
-                    "node".to_string(),
-                    "--enable-source-maps".into(),
-                    "--preserve-symlinks".into(),
-                ];
+                let mut command = vec!["node".to_string(), "--enable-source-maps".into()];
 
                 match p.debug {
                     DebugMode::Disabled => {}

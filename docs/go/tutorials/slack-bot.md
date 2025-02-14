@@ -77,6 +77,7 @@ on [Enabling interactivity with Slash Commands](https://api.slack.com/interactiv
 🥐 In your Encore app, create a new directory named `slack` and create a file `slack/slack.go` with the following contents:
 
 ```go
+-- slack/slack.go --
 // Service slack implements a cowsaw Slack bot.
 package slack
 
@@ -149,6 +150,7 @@ Let's define a secret using Encore's secrets management functionality.
 🥐 Add this to your `slack.go` file:
 
 ```go
+-- slack/slack.go --
 var secrets struct {
 	SlackSigningSecret string
 }
@@ -166,7 +168,9 @@ You can use the same secret value or a placeholder value.
 Go makes computing HMAC very straightforward, but it's still a fair amount of code.
 
 🥐 Add a few more imports to your file, so that it reads:
+
 ```go
+-- slack/slack.go --
 import (
 	"crypto/hmac"
 	"crypto/sha256"
@@ -188,6 +192,7 @@ import (
 🥐 Next, we'll add the `verifyRequest` function:
 
 ```go
+-- slack/slack.go --
 // verifyRequest verifies that a request is coming from Slack.
 func verifyRequest(req *http.Request) (body []byte, err error) {
 	eb := errs.B().Code(errs.InvalidArgument)
@@ -236,6 +241,7 @@ We're now ready to verify the signature.
 🥐 Update the `Cowsay` function to look like this:
 
 ```go
+-- slack/slack.go --
 //encore:api public raw path=/cowsay
 func Cowsay(w http.ResponseWriter, req *http.Request) {
 	body, err := verifyRequest(req)
@@ -259,9 +265,10 @@ func Cowsay(w http.ResponseWriter, req *http.Request) {
 
 Finally we're ready to put it all together.
 
-🥐 Update the `cowart` like so:
+🥐 Add the `cowart` like so:
 
 ```go
+-- slack/slack.go --
 const cowart = `
  ________________________________________
 < %- 38s >

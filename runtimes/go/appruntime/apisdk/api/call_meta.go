@@ -47,6 +47,7 @@ type CallMeta struct {
 	ParentSpanID  model.SpanID       // The span ID of the calling request (zero if there's no parent)
 	ParentEventID model.TraceEventID // The event ID which started the RPC call (zero if there's no parent)
 	CorrelationID string             // The correlation ID of the calling request
+	TraceSampled  bool               // Whether the caller sampled trace info
 
 	// Internal meta data which gets populated by Encore on service to service calls
 	//
@@ -85,6 +86,7 @@ func (s *Server) metaFromAPICall(call *model.APICall) (meta CallMeta, err error)
 		meta.ParentSpanID = call.Source.SpanID
 		meta.ParentEventID = call.StartEventID
 		meta.CorrelationID = call.Source.ExtCorrelationID
+		meta.TraceSampled = call.Source.Traced
 
 		if call.Source.RPCData != nil && call.Source.RPCData.Desc != nil {
 			// If we're processing an API call, let's update the caller
@@ -120,7 +122,11 @@ func (meta CallMeta) AddToRequest(server *Server, targetService config.Service, 
 	// If we're tracing, pass the trace ID, span ID and event ID to the downstream service
 	if !meta.TraceID.IsZero() {
 		// Encode Encore's trace ID and span ID as the traceparent header
-		req.SetMeta(transport.TraceParentKey, fmt.Sprintf("00-%x-%x-01", meta.TraceID[:], meta.ParentSpanID[:]))
+		sampled := "00"
+		if meta.TraceSampled {
+			sampled = "01"
+		}
+		req.SetMeta(transport.TraceParentKey, fmt.Sprintf("00-%x-%x-%s", meta.TraceID[:], meta.ParentSpanID[:], sampled))
 
 		if !meta.ParentSpanID.IsZero() {
 			// Because Encore does not count an RPC call as a span, but rather a set of events within a span
@@ -233,7 +239,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		// to interopt with other tracing systems.
 		meta.Internal != nil {
 
-		meta.TraceID, meta.ParentSpanID, _ = parseTraceParent(traceParent)
+		meta.TraceID, meta.ParentSpanID, meta.TraceSampled, _ = parseTraceParent(traceParent)
 
 		// If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
 		// If we include it the root request won't be tagged as such.
@@ -271,7 +277,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 // parseTraceParent parses the trace and span ids from s, which is assumed
 // to be in the format of the traceparent header (see https://www.w3.org/TR/trace-context/).
 // If it's not a valid traceparent header it returns zero ids and ok == false.
-func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, ok bool) {
+func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, sampled, ok bool) {
 	const (
 		version       = "00"
 		traceIDLen    = 32
@@ -293,20 +299,28 @@ func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, ok 
 	)
 
 	if len(s) != totalLen || s[verStart:verEnd] != version || s[verSep] != '-' || s[traceIDSep] != '-' || s[spanIDSep] != '-' {
-		return model.TraceID{}, model.SpanID{}, false
+		return model.TraceID{}, model.SpanID{}, false, false
 	}
 
 	_, err := hex.Decode(traceID[:], []byte(s[traceIDStart:traceIDEnd]))
 	if err != nil {
-		return model.TraceID{}, model.SpanID{}, false
+		return model.TraceID{}, model.SpanID{}, false, false
 	}
 
 	_, err = hex.Decode(spanID[:], []byte(s[spanIDStart:spanIDEnd]))
 	if err != nil {
-		return model.TraceID{}, model.SpanID{}, false
+		return model.TraceID{}, model.SpanID{}, false, false
 	}
 
-	return traceID, spanID, true
+	var flags [2]byte
+	_, err = hex.Decode(flags[:], []byte(s[flagsStart:flagsEnd]))
+	if err != nil {
+		return model.TraceID{}, model.SpanID{}, false, false
+	}
+
+	sampled = flags[1]&1 == 1
+
+	return traceID, spanID, sampled, true
 }
 
 // parseTraceState parses the trace event id from the tracestate header (see https://www.w3.org/TR/trace-context/).

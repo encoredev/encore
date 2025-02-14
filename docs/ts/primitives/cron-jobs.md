@@ -17,13 +17,13 @@ When a Cron Job is defined in your application, Encore automatically calls your 
 
 <Callout type="info">
 
-Cron Jobs do not run when developing locally or in [Preview Environments](/docs/platform/deploy/preview-environments), but you can always call the API manually to test the behavior. 
+Cron Jobs do not run when developing locally or in [Preview Environments](/docs/platform/deploy/preview-environments), but you can always call the API manually to test the behavior.
 
 </Callout>
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/uptime" 
-    desc="Uptime Monitoring app that uses a Cron Job to periodically check the uptime of a website." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/uptime"
+    desc="Uptime Monitoring app that uses a Cron Job to periodically check the uptime of a website."
 />
 
 ## Defining a Cron Job
@@ -57,7 +57,7 @@ Encore uses this ID to keep track that it's the same Cron Job and not a differen
 When this code gets deployed Encore will automatically register the Cron Job in Encore Cloud
 and begin calling the `sendWelcomeEmail` API every two hours.
 
-Encore's Cloud Dashboard provides a convenient user interface for monitoring and debugging
+The Encore Cloud dashboard provides a convenient user interface for monitoring and debugging
 Cron Job executions across all your environments via the `Cron Jobs` menu item:
 
 ![Cron Jobs UI](/assets/docs/cron.png)
@@ -65,7 +65,7 @@ Cron Job executions across all your environments via the `Cron Jobs` menu item:
 ## Keep in mind when using Cron Jobs
 
 - Cron Jobs do not execute during local development or in [Preview Environments](/docs/platform/deploy/preview-environments). However, you can manually invoke the API to test its behavior.
-- In Encore Cloud, Cron Job executions are limited to **once every hour**, with the exact minute randomized within that hour for users on the Free Tier. To enable more frequent executions or to specify the exact minute within the hour, consider [deploying to your own cloud](/docs/platform/infrastructure/own-cloud) or upgrading to the [Pro plan](/pricing).
+- In Encore Cloud, Cron Job executions are limited to **once every hour**, with the exact minute randomized within that hour for users on the Free Tier. To enable more frequent executions or to specify the exact minute within the hour, consider [deploying to your own cloud](/docs/platform/deploy/own-cloud) or upgrading to the [Pro plan](/pricing).
 - Both public and private APIs are supported for Cron Jobs.
 - Ensure that the API endpoints used in Cron Jobs are idempotent, as they may be called multiple times under certain network conditions.
 - API endpoints utilized in Cron Jobs must not accept any request parameters.

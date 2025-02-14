@@ -114,7 +114,7 @@ export namespace authentication {
         }
 
         public async Docs(params: FooType): Promise<void> {
-            await this.baseClient.callAPI("POST", `/authentication.Docs`, JSON.stringify(params))
+            await this.baseClient.callTypedAPI("POST", `/authentication.Docs`, JSON.stringify(params))
         }
     }
 }
@@ -166,13 +166,13 @@ export namespace products {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/products.Create`, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callTypedAPI("POST", `/products.Create`, JSON.stringify(body), {headers})
             return await resp.json() as Product
         }
 
         public async List(): Promise<ProductListing> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/products.List`)
+            const resp = await this.baseClient.callTypedAPI("GET", `/products.List`)
             return await resp.json() as ProductListing
         }
     }
@@ -298,11 +298,11 @@ export namespace svc {
                 boo: params.boo,
             }
 
-            await this.baseClient.callAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
+            await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, JSON.stringify(body), {headers, query})
         }
 
         public async FallbackPath(a: string, b: string[]): Promise<void> {
-            await this.baseClient.callAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+            await this.baseClient.callTypedAPI("POST", `/fallbackPath/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
         }
 
         public async Get(params: GetRequest): Promise<void> {
@@ -311,7 +311,7 @@ export namespace svc {
                 boo: String(params.Baz),
             })
 
-            await this.baseClient.callAPI("GET", `/svc.Get`, undefined, {query})
+            await this.baseClient.callTypedAPI("GET", `/svc.Get`, undefined, {query})
         }
 
         public async GetRequestWithAllInputTypes(params: AllInputTypes<number>): Promise<HeaderOnlyStruct> {
@@ -327,7 +327,7 @@ export namespace svc {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
+            const resp = await this.baseClient.callTypedAPI("GET", `/svc.GetRequestWithAllInputTypes`, undefined, {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as HeaderOnlyStruct
@@ -357,22 +357,22 @@ export namespace svc {
                 "x-uuid":    String(params.UUID),
             })
 
-            await this.baseClient.callAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
+            await this.baseClient.callTypedAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
         }
 
         public async Nested(params: WithNested): Promise<WithNested> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.Nested`, JSON.stringify(params))
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.Nested`, JSON.stringify(params))
             return await resp.json() as WithNested
         }
 
         public async RESTPath(a: string, b: number): Promise<void> {
-            await this.baseClient.callAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
+            await this.baseClient.callTypedAPI("POST", `/path/${encodeURIComponent(a)}/${encodeURIComponent(b)}`)
         }
 
         public async Rec(params: Recursive): Promise<Recursive> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.Rec`, JSON.stringify(params))
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.Rec`, JSON.stringify(params))
             return await resp.json() as Recursive
         }
 
@@ -393,7 +393,7 @@ export namespace svc {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.RequestWithAllInputTypes`, JSON.stringify(body), {headers, query})
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.RequestWithAllInputTypes`, JSON.stringify(body), {headers, query})
 
             //Populate the return object from the JSON body and received headers
             const rtn = await resp.json() as AllInputTypes<number>
@@ -407,16 +407,16 @@ export namespace svc {
          */
         public async TupleInputOutput(params: Tuple<string, WrappedRequest>): Promise<Tuple<boolean, Foo>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callAPI("POST", `/svc.TupleInputOutput`, JSON.stringify(params))
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.TupleInputOutput`, JSON.stringify(params))
             return await resp.json() as Tuple<boolean, Foo>
         }
 
-        public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<Response> {
+        public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
         }
 
         public async Webhook2(a: string, b: string[]): Promise<void> {
-            await this.baseClient.callAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
+            await this.baseClient.callTypedAPI("POST", `/webhook2/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`)
         }
     }
 }
@@ -668,9 +668,7 @@ class BaseClient {
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
-        this.headers = {
-            "Content-Type": "application/json",
-        }
+        this.headers = {}
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
@@ -787,6 +785,14 @@ class BaseClient {
         return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
+    // callTypedAPI makes an API call, defaulting content type to "application/json"
+    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+        return this.callAPI(method, path, body, {
+            ...params,
+            headers: { "Content-Type": "application/json", ...params?.headers }
+        });
+    }
+
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
@@ -799,7 +805,6 @@ class BaseClient {
 
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
-
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();

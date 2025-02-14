@@ -2,11 +2,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::parser::doc_comments::doc_comments_before;
-use anyhow::Result;
+use litparser::{ParseResult, ToParseErr};
 use serde::Serialize;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::SyntaxContext;
+use swc_common::{Span, Spanned, SyntaxContext};
 
 pub struct FileSet {
     source_map: Lrc<swc_common::SourceMap>,
@@ -93,7 +93,7 @@ pub enum FilePath {
 impl FilePath {
     pub fn is_tsx(&self) -> bool {
         match self {
-            FilePath::Real(p) => p.extension().map_or(false, |ext| ext == "tsx"),
+            FilePath::Real(p) => p.extension().is_some_and(|ext| ext == "tsx"),
             FilePath::Custom(p) => p.ends_with(".tsx"),
         }
     }
@@ -169,13 +169,16 @@ impl Range {
     }
 
     /// Report the file name this range is in.
-    pub fn loc(&self, fset: &FileSet) -> Result<Loc> {
-        Ok(match fset.source_map.span_to_lines(self.to_span()) {
+    pub fn loc(&self, fset: &FileSet) -> ParseResult<Loc> {
+        let sp = self.to_span();
+        Ok(match fset.source_map.span_to_lines(sp) {
             Ok(lines) => {
                 let file = match &lines.file.name {
                     swc_common::FileName::Real(p) => FilePath::Real(p.to_owned()),
                     swc_common::FileName::Custom(s) => FilePath::Custom(s.to_owned()),
-                    _ => anyhow::bail!("expected real file name"),
+                    _ => {
+                        return Err(sp.parse_err("expected real file name"));
+                    }
                 };
                 match (lines.lines.first(), lines.lines.last()) {
                     (Some(first), Some(last)) => Loc {
@@ -187,10 +190,14 @@ impl Range {
                         src_col_start: first.start_col.0,
                         src_col_end: last.end_col.0,
                     },
-                    (_, _) => anyhow::bail!("missing line information"),
+                    (_, _) => {
+                        return Err(sp.parse_err("missing line information"));
+                    }
                 }
             }
-            Err(_) => anyhow::bail!("missing file information"),
+            Err(_) => {
+                return Err(sp.parse_err("missing file information"));
+            }
         })
     }
 
@@ -209,6 +216,12 @@ impl Range {
 
     pub fn err(&self, msg: &str) {
         HANDLER.with(|handler| handler.span_err(self.to_span(), msg))
+    }
+}
+
+impl Spanned for Range {
+    fn span(&self) -> Span {
+        self.to_span()
     }
 }
 

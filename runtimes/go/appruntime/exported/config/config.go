@@ -37,19 +37,20 @@ type Static struct {
 }
 
 type Runtime struct {
-	AppID          string          `json:"app_id"`
-	AppSlug        string          `json:"app_slug"`
-	APIBaseURL     string          `json:"api_base_url"`
-	EnvID          string          `json:"env_id"`
-	EnvName        string          `json:"env_name"`
-	EnvType        string          `json:"env_type"`
-	EnvCloud       string          `json:"env_cloud"`
-	DeployID       string          `json:"deploy_id"` // Overridden by ENCORE_DEPLOY_ID env var if set
-	DeployedAt     time.Time       `json:"deploy_time"`
-	TraceEndpoint  string          `json:"trace_endpoint,omitempty"`
-	AuthKeys       []EncoreAuthKey `json:"auth_keys,omitempty"`
-	CORS           *CORS           `json:"cors,omitempty"`
-	EncoreCloudAPI *EncoreCloudAPI `json:"ec_api,omitempty"` // If nil, the app is not running in Encore Cloud
+	AppID             string          `json:"app_id"`
+	AppSlug           string          `json:"app_slug"`
+	APIBaseURL        string          `json:"api_base_url"`
+	EnvID             string          `json:"env_id"`
+	EnvName           string          `json:"env_name"`
+	EnvType           string          `json:"env_type"`
+	EnvCloud          string          `json:"env_cloud"`
+	DeployID          string          `json:"deploy_id"` // Overridden by ENCORE_DEPLOY_ID env var if set
+	DeployedAt        time.Time       `json:"deploy_time"`
+	TraceEndpoint     string          `json:"trace_endpoint,omitempty"`
+	TraceSamplingRate *float64        `json:"trace_sampling_rate,omitempty"`
+	AuthKeys          []EncoreAuthKey `json:"auth_keys,omitempty"`
+	CORS              *CORS           `json:"cors,omitempty"`
+	EncoreCloudAPI    *EncoreCloudAPI `json:"ec_api,omitempty"` // If nil, the app is not running in Encore Cloud
 
 	SQLDatabases     []*SQLDatabase          `json:"sql_databases,omitempty"`
 	SQLServers       []*SQLServer            `json:"sql_servers,omitempty"`
@@ -87,6 +88,10 @@ type Runtime struct {
 	// Experiments which impact compilation should be handled by the compiler
 	// and added to the static config.
 	DynamicExperiments []string `json:"dynamic_experiments,omitempty"`
+
+	// Log configuration to set for the application.
+	// If empty it defaults to "trace".
+	LogConfig string `json:"log_config"`
 }
 
 // GracefulShutdownTimings defines the timings for the graceful shutdown process.
@@ -415,6 +420,16 @@ type S3BucketProvider struct {
 type GCSBucketProvider struct {
 	Endpoint  string `json:"endpoint"`
 	Anonymous bool   `json:"anonymous"`
+
+	// Additional options for signed URLs when running in local dev mode.
+	// Only use with anonymous mode.
+	LocalSign *GCSLocalSignOptions `json:"local_sign,omitempty"`
+}
+
+type GCSLocalSignOptions struct {
+	BaseURL    string `json:"base_url"`
+	AccessID   string `json:"access_id"`
+	PrivateKey string `json:"private_key"`
 }
 
 type Bucket struct {

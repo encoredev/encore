@@ -8,6 +8,7 @@ use axum::extract::{FromRequestParts, WebSocketUpgrade};
 use axum::http::HeaderValue;
 use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
+use http::HeaderMap;
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -18,8 +19,8 @@ use crate::api::schema::encoding::{
 };
 use crate::api::schema::{JSONPayload, Method};
 use crate::api::{jsonschema, schema, ErrCode, Error};
-use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::rpc;
+use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
@@ -102,7 +103,13 @@ impl ToResponse for Error {
 }
 
 pub type HandlerRequest = Arc<model::Request>;
-pub type HandlerResponse = APIResult<JSONPayload>;
+pub type HandlerResponse = APIResult<HandlerResponseInner>;
+
+pub struct HandlerResponseInner {
+    pub payload: JSONPayload,
+    pub extra_headers: Option<HeaderMap>,
+    pub status: Option<u16>,
+}
 
 /// A trait for handlers that accept a request and return a response.
 pub trait TypedHandler: Send + Sync + 'static {
@@ -121,7 +128,7 @@ pub trait BoxedHandler: Send + Sync + 'static {
 }
 
 pub enum ResponseData {
-    Typed(APIResult<JSONPayload>),
+    Typed(HandlerResponse),
     Raw(axum::http::Response<axum::body::Body>),
 }
 
@@ -168,6 +175,9 @@ pub struct Endpoint {
     /// The static assets to serve from this endpoint.
     /// Set only for static asset endpoints.
     pub static_assets: Option<meta::rpc::StaticAssets>,
+
+    /// The tags for this endpoint.
+    pub tags: Vec<String>,
 }
 
 impl Endpoint {
@@ -326,6 +336,14 @@ pub fn endpoints_from_meta(
         let raw =
             rpc::Protocol::try_from(ep.ep.proto).is_ok_and(|proto| proto == rpc::Protocol::Raw);
 
+        let tags = ep
+            .ep
+            .tags
+            .iter()
+            .filter(|item| item.r#type() == selector::Type::Tag)
+            .map(|item| item.value.clone())
+            .collect();
+
         let endpoint = Endpoint {
             name: EndpointName::new(ep.svc.name.clone(), ep.ep.name.clone()),
             path: ep.ep.path.clone().unwrap_or_else(|| meta::Path {
@@ -334,6 +352,7 @@ pub fn endpoints_from_meta(
                     r#type: meta::path_segment::SegmentType::Literal as i32,
                     value_type: meta::path_segment::ParamType::String as i32,
                     value: format!("/{}.{}", ep.ep.service_name, ep.ep.name),
+                    validation: None,
                 }],
             }),
             handshake,
@@ -348,6 +367,7 @@ pub fn endpoints_from_meta(
             requires_auth: !ep.ep.allow_unauthenticated,
             body_limit: ep.ep.body_limit,
             static_assets: ep.ep.static_assets.clone(),
+            tags,
         };
 
         endpoint_map.insert(
@@ -594,20 +614,20 @@ impl EndpointHandler {
                 Some(fields)
             });
 
-            let (status_code, mut encoded_resp, resp_payload, error) = match resp {
-                ResponseData::Raw(resp) => (resp.status().as_u16(), resp, None, None),
-                ResponseData::Typed(Ok(payload)) => (
-                    200,
+            let (mut encoded_resp, resp_payload, extra_headers, error) = match resp {
+                ResponseData::Raw(resp) => (resp, None, None, None),
+                ResponseData::Typed(Ok(response)) => (
                     self.endpoint
                         .response
-                        .encode(&payload)
+                        .encode(&response.payload, response.status.unwrap_or(200))
                         .unwrap_or_else(|err| err.to_response(internal_caller)),
-                    Some(payload),
+                    Some(response.payload),
+                    response.extra_headers,
                     None,
                 ),
                 ResponseData::Typed(Err(err)) => (
-                    err.code.status_code().as_u16(),
                     err.as_ref().to_response(internal_caller),
+                    None,
                     None,
                     Some(err),
                 ),
@@ -618,7 +638,7 @@ impl EndpointHandler {
                     request: request.clone(),
                     duration,
                     data: model::ResponseData::RPC(model::RPCResponseData {
-                        status_code,
+                        status_code: encoded_resp.status().as_u16(),
                         resp_payload,
                         error,
                         resp_headers: encoded_resp.headers().clone(),
@@ -629,6 +649,10 @@ impl EndpointHandler {
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {
                 encoded_resp.headers_mut().insert("x-encore-trace-id", val);
+            }
+
+            if let Some(extra_headers) = extra_headers {
+                encoded_resp.headers_mut().extend(extra_headers)
             }
 
             encoded_resp

@@ -10,6 +10,8 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::schema::v1 as schema;
 use crate::encore::parser::schema::v1::r#type::Typ;
 
+use super::validation;
+
 impl Registry {
     pub fn schema(self: &Arc<Self>, id: usize) -> JSONSchema {
         JSONSchema {
@@ -110,9 +112,9 @@ impl BuilderCtx<'_, '_> {
     /// Computes the JSONSchema value for the given type.
     #[inline]
     fn typ<T: ToType>(&mut self, typ: T) -> Result<Value> {
-        let typ = typ.tt()?;
+        let tt = typ.tt()?;
 
-        match typ {
+        let val = match tt {
             Typ::Named(named) => self.named(named),
             Typ::Builtin(builtin) => {
                 let builtin = schema::Builtin::try_from(*builtin).context("invalid builtin")?;
@@ -133,6 +135,16 @@ impl BuilderCtx<'_, '_> {
                     .ok_or_else(|| anyhow::anyhow!("missing type argument"))?;
                 Ok(Value::Ref(*idx))
             }
+        }?;
+
+        if let Some(expr) = typ.validation() {
+            let bov = self.bov(val);
+            Ok(Value::Validation(validation::Validation {
+                expr: expr.try_into()?,
+                bov,
+            }))
+        } else {
+            Ok(val)
         }
     }
 
@@ -226,9 +238,6 @@ impl BuilderCtx<'_, '_> {
 
     #[inline]
     fn struct_field<'c>(&mut self, f: &'c schema::Field) -> Result<(&'c String, Field)> {
-        // Note: Our JS/TS support don't include the ability to change
-        // the JSON name from the field name, so we use the field name unconditionally.
-
         let typ = self.typ(&f.typ)?;
         let value = match typ {
             Value::Basic(basic) => BasicOrValue::Basic(basic),
@@ -250,13 +259,13 @@ impl BuilderCtx<'_, '_> {
         // Note: JSON doesn't support anything but string keys,
         // so we don't actually track the key type for the purpose
         // of JSON schemas. Ignore it here.
-        let value = self.typ(map.value.tt()?)?;
+        let value = self.typ(&map.value)?;
         Ok(Value::Map(self.bov(value)))
     }
 
     #[inline]
     fn list(&mut self, list: &schema::List) -> Result<Value> {
-        let value = self.typ(list.elem.tt()?)?;
+        let value = self.typ(&list.elem)?;
         Ok(Value::Array(self.bov(value)))
     }
 
@@ -298,8 +307,9 @@ impl BuilderCtx<'_, '_> {
     }
 }
 
-trait ToType {
+trait ToType: std::fmt::Debug {
     fn tt(&self) -> Result<&Typ>;
+    fn validation(&self) -> Option<&schema::ValidationExpr>;
 }
 
 impl<T> ToType for Option<T>
@@ -308,6 +318,10 @@ where
 {
     fn tt(&self) -> Result<&Typ> {
         self.as_ref().context("missing type")?.tt()
+    }
+
+    fn validation(&self) -> Option<&schema::ValidationExpr> {
+        self.as_ref().and_then(|t| t.validation())
     }
 }
 
@@ -318,22 +332,28 @@ where
     fn tt(&self) -> Result<&Typ> {
         self.deref().tt()
     }
+
+    fn validation(&self) -> Option<&schema::ValidationExpr> {
+        self.deref().validation()
+    }
 }
 
 impl ToType for schema::Type {
     fn tt(&self) -> Result<&Typ> {
         self.typ.as_ref().context("missing type")
     }
-}
 
-impl ToType for Typ {
-    fn tt(&self) -> Result<&Typ> {
-        Ok(self)
+    fn validation(&self) -> Option<&schema::ValidationExpr> {
+        self.validation.as_ref()
     }
 }
 
 impl<T: ToType> ToType for &T {
     fn tt(&self) -> Result<&Typ> {
         (*self).tt()
+    }
+
+    fn validation(&self) -> Option<&schema::ValidationExpr> {
+        (*self).validation()
     }
 }

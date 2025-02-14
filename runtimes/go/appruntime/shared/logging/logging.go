@@ -24,8 +24,15 @@ func configure(static *config.Static, runtime *config.Runtime) zerolog.Logger {
 		})
 	}
 
+	level := zerolog.TraceLevel
+	if runtime.LogConfig != "" {
+		if l, err := zerolog.ParseLevel(runtime.LogConfig); err == nil {
+			level = l
+		}
+	}
+
 	reconfigureZerologFormat(runtime)
-	return zerolog.New(logOutput).With().Timestamp().Logger()
+	return zerolog.New(logOutput).Level(level).With().Timestamp().Logger()
 }
 
 func reconfigureZerologFormat(runtime *config.Runtime) {

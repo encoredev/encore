@@ -1,11 +1,15 @@
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
 
+use crate::api::jsonschema;
 use crate::error::{AppError, StackTrace};
 use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+
+use super::jsonschema::JSONSchema;
+use super::PValues;
 
 /// Represents an API Error.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -13,10 +17,25 @@ pub struct Error {
     pub code: ErrCode,
     pub message: String,
     pub internal_message: Option<String>,
-    pub details: Option<serde_json::Map<String, serde_json::Value>>,
+    #[serde(deserialize_with = "deserialize_details_as_any")]
+    pub details: ErrDetails,
 
     #[serde(skip_serializing)]
     pub stack: Option<StackTrace>,
+}
+
+pub type ErrDetails = Option<Box<PValues>>;
+
+// We don't have a schema for error details, so we do best effort to deserialize them.
+// Special types like Date will be lost, as we can't know if its a Date or a string.
+fn deserialize_details_as_any<'de, D>(deserializer: D) -> Result<ErrDetails, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(JSONSchema::any()
+        .deserialize(deserializer, jsonschema::DecodeConfig::default())
+        .map(|pvalues| Some(Box::new(pvalues)))
+        .unwrap_or(None))
 }
 
 /// ErrorExternal hides internal information on `Error` when it serializes

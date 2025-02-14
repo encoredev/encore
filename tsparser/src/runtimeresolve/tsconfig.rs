@@ -259,6 +259,7 @@ fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
 
 struct PathResolveIterator {
     base: PathBuf,
+    base_ext: Option<String>,
     candidates: &'static [&'static str],
     idx: usize,
 }
@@ -273,6 +274,10 @@ impl Iterator for PathResolveIterator {
 
             if candidate.is_empty() {
                 Some(self.base.clone())
+            } else if let Some(base_ext) = &self.base_ext {
+                // Combine the candidate extension with the base extension.
+                let ext = format!("{base_ext}.{candidate}");
+                Some(self.base.with_extension(ext))
             } else {
                 Some(self.base.with_extension(candidate))
             }
@@ -283,18 +288,26 @@ impl Iterator for PathResolveIterator {
 }
 
 fn file_candidates(base: PathBuf) -> impl Iterator<Item = PathBuf> {
-    let candidates: &'static [&'static str] = match base.extension().and_then(|s| s.to_str()) {
+    let base_ext = base
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string());
+
+    let candidates: &'static [&'static str] = match base_ext.as_deref() {
         Some("js") => &["ts", "tsx", "d.ts", "js", "jsx"],
         Some("mjs") => &["mts", "d.mts", "mjs"],
         Some("cjs") => &["cts", "d.cts", "cjs"],
-        None => &[
+
+        // If we don't have an extension, or it's not recognized, try all extensions.
+        _ => &[
             "ts", "tsx", "d.ts", "js", "jsx", "mts", "d.mts", "mjs", "cts", "d.cts", "cjs", "",
         ],
-        _ => &[""],
     };
+
     PathResolveIterator {
         base,
         candidates,
+        base_ext,
         idx: 0,
     }
 }

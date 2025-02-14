@@ -34,6 +34,8 @@ import (
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/internal/optracker"
+	"encr.dev/internal/userconfig"
+	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
@@ -106,6 +108,17 @@ const (
 	BrowserModeNever                     // never open
 	BrowserModeAlways                    // always open
 )
+
+func BrowserModeFromConfig(cfg *userconfig.Config) BrowserMode {
+	switch cfg.RunBrowser {
+	case "never":
+		return BrowserModeNever
+	case "always":
+		return BrowserModeAlways
+	default:
+		return BrowserModeAuto
+	}
+}
 
 func BrowserModeFromProto(b daemonpb.RunRequest_BrowserMode) BrowserMode {
 	switch b {
@@ -349,6 +362,9 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		KeepOutput:         false,
 		Revision:           vcsRevision.Revision,
 		UncommittedChanges: vcsRevision.Uncommitted,
+
+		// Use the local JS runtime if this is a development build.
+		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
 	// A context that is canceled when the proc exits.

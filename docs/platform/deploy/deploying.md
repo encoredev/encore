@@ -1,28 +1,60 @@
 ---
 seotitle: Deploying your Encore application is as simple as git push
 seodesc: Learn how to deploy your backend application built with Encore with a single command, while Encore manages your entire CI/CD process.
-title: Deploying Applications with Encore
-subtitle: Encore comes with built-in CI/CD and integrates with GitHub
+title: Deploying Applications with Encore Cloud
+subtitle: Encore Cloud automates the deployment and infrastructure provisioning process
 lang: platform
 ---
 
-Encore simplifies the deployment process, making it as straightforward as a `git push`. Encore's built-in integration with Git and GitHub, automated CI/CD pipeline, and automatic provisioning of [Preview Environments](/docs/platform/deploy/preview-environments) and [cloud infrastructure](/docs/platform/infrastructure/infra), is designed to speed up development and remove manual steps.
+Encore Cloud simplifies deploying your application, making it as simple as pushing to a git repository, removing the need for manual steps.
 
-## Setting Up Your Encore Application 
+## Deploying your application
 
-1. **Create your Application**: If you haven't already, create an application using the Encore CLI. This automatically creates a new git repository managed by Encore.
+### Step 1: Prerequisites
+
+Before deploying, ensure that you have an **Encore Cloud account** and have created an **Encore application**.
+
+You can create both an account and an application by running the following command:
 
 ```shell
 $ encore app create
 ```
 
-2. **Integrate with GitHub (Optional)**: If you prefer to use GitHub, you can [integrate your app with GitHub](/docs/platform/integrations/github). This way, you can push code to GitHub, which triggers Encore's deployment process. This is especially handy for teams as it enables collaborative development, version control, and other GitHub functionality.
+You will be asked to create a free Encore Cloud account first, and you will then proceed to create a new Encore application.
 
-## Deploying Your Application
+### Step 2: Integrate with GitHub (Optional)
 
-With Encore, deploys are triggered simply by pushing changes to the connected Git repository.
+When creating an Encore application, Encore will automatically create a new Encore managed git repository.
+If you are just trying out Encore Cloud, you can use this and skip the rest of this step.
 
-- If you are using Encore's Git, run the following command to deploy your application:
+For production applications we recommend integrating with GitHub instead of the built-in Encore managed git:
+
+#### **Connecting your GitHub account**
+
+Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > GitHub**.
+Click the **Connect Account to GitHub** button, which will open GitHub where you can grant access either to the relevant repositorie(s).
+
+[See the full docs](/docs/platform/integrations/github) on integrating with GitHub to learn how to configure different repository structures.
+
+Once connected to GitHub, pushing code will trigger deployments automatically. Encore Cloud Pro users get [Preview Environments](/docs/platform/deploy/preview-environments) for each pull request.
+
+### Step 3: Connect your AWS / GCP account (Optional)
+
+Deploy to your own cloud on AWS or GCP by connecting your cloud account to Encore Cloud.
+
+If you're just trying out Encore Cloud, skip this step to deploy to a free development environment using Encore Cloud's hosting, subject to [fair use limits](/docs/platform/management/usage).
+
+#### **Connecting your cloud account**
+
+Open your app in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > App Settings > Integrations > Connect Cloud**.
+
+Learn more in the [connecting your cloud docs](/docs/platform/deploy/own-cloud).
+
+### Step 4: Push to deploy
+
+Deploy your application by pushing your code to the connected Git repository.
+
+- **Using Encore Cloud's managed git**:
 
 ```shell
 $ git add -A .
@@ -30,7 +62,7 @@ $ git commit -m 'Commit message'
 $ git push encore
 ```
 
-- If you are using GitHub, a standard `git push` to your repository will work:
+- **If you have connected your GitHub account:**
 
 ```shell
 $ git add -A .
@@ -38,21 +70,26 @@ $ git commit -m 'Commit message'
 $ git push origin
 ```
 
-In both scenarios, this will trigger Encore's built-in CI/CD pipeline. This includes building your application, running tests, provisioning the necessary infrastructure, and deploying your application.
+This will trigger Encore Cloud's deployment process, consisting of the following phases:
+* A build & test phase
+* An infrastructure provisioning phase
+* A deployment phase
 
-### Configure deploy trigger
+Once you've pushed your code, you can monitor the progress in the **[Encore Cloud dashboard](https://app.encore.cloud/) > (Select your app) > Deployments**.
 
-When using GitHub, you can configure Encore to automatically trigger deploys when you push to a specific branch name.
+## Configuring deploy trigger
 
-To configure which branch name is used to trigger deploys, open your app in the [Cloud Dashboard](https://app.encore.dev) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
+When using GitHub, you can configure Encore Cloud to automatically trigger deploys when you push to a specific branch name.
 
-### Preview Environments
+To configure which branch name is used to trigger deploys, open your app in the [Encore Cloud dashboard](https://app.encore.cloud) and go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the `Branch name`  and hit save.
 
-When you connect your GitHub account and push changes to a pull request, Encore will automatically create a [Preview Environment](/docs/platform/deploy/preview-environments). This is a fully functional, isolated environment where you can test your application as it would run in production. This environment runs in Encore's free development cloud, giving you an efficient way to validate your changes before they are merged and deployed to the [primary environment](/docs/platform/deploy/environments#primary-environment).
+### Integrating using Encore Cloud's API
 
-## Custom build settings
+You can trigger deployments using Encore Cloud's API, learn more in the [API reference](/docs/platform/integrations/api-reference).
 
-You can override certain aspects of the CI/CD process in the `encore.app` file:
+## Configuring custom build settings
+
+If you want, you can override certain aspects of the CI/CD process in the `encore.app` file:
 
 * The Docker base image to use when deploying
 * Whether to build with Cgo enabled
@@ -67,19 +104,19 @@ with their default values:
         // Enables cgo when building the application and running tests
         // in Encore's CI/CD system.
         "cgo_enabled": false,
-        
+
         // Docker-related configuration
         "docker": {
         	// The Docker base image to use when deploying the application.
         	// It must be a publicly accessible image, and defaults to "scratch".
             "base_image": "scratch",
-            
+
             // Whether to bundle the source code in the docker image.
             // The source code will be copied into /workspace as part
             // of the build process. This is primarily useful for tools like
             // Sentry that need access to the source code to generate stack traces.
             "bundle_source": false,
-            
+
             // The working directory to start the docker image in.
             // If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
             "working_dir": ""

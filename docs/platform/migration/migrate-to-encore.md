@@ -53,7 +53,7 @@ When you create an Encore service and add a [database](/docs/ts/primitives/datab
 
 ### 3. Deploy to your cloud account
 
-Once you're ready to deploy, you can [connect your cloud account](/docs/platform/infrastructure/own-cloud) (GCP or AWS) and have Encore deploy and provision your new system directly in your existing account.
+Once you're ready to deploy, you can [connect your cloud account](/docs/platform/deploy/own-cloud) (GCP or AWS) and have Encore deploy and provision your new system directly in your existing account.
 
 See the [infrastructure documentation](/docs/platform/infrastructure/infra#production-infrastructure) for details on how Encore provisions cloud infrastructure for each cloud provider.
 

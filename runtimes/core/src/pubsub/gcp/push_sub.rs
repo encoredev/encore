@@ -3,7 +3,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use axum::extract::Request;
 use axum::RequestExt;
 use chrono::{DateTime, Utc};
@@ -61,7 +61,7 @@ impl pubsub::Subscription for PushSubscription {
     fn subscribe(
         &self,
         handler: Arc<SubHandler>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = APIResult<()>> + Send + 'static>> {
         self.inner.handler.write().unwrap().replace(handler);
 
         // Block forever; the handler is called from the HTTP handler.

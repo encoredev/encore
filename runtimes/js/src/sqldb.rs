@@ -1,4 +1,5 @@
 use crate::api::Request;
+use crate::pvalue::{parse_pvalue, pvalue_to_js};
 use encore_runtime_core::sqldb;
 use mappable_rc::Marc;
 use napi::{Env, JsUnknown};
@@ -21,76 +22,26 @@ pub struct QueryArgs {
 #[napi]
 impl QueryArgs {
     #[napi(constructor)]
-    pub fn new(env: Env, params: Vec<JsUnknown>) -> napi::Result<Self> {
-        let values = convert_row_values(env, params)?;
+    pub fn new(params: Vec<JsUnknown>) -> napi::Result<Self> {
+        let values = convert_row_values(params)?;
         Ok(Self {
             values: std::sync::Mutex::new(values),
         })
     }
 }
 
-fn convert_row_values(env: Env, params: Vec<JsUnknown>) -> napi::Result<Vec<sqldb::RowValue>> {
-    use napi::{JsBuffer, ValueType};
+fn convert_row_values(params: Vec<JsUnknown>) -> napi::Result<Vec<sqldb::RowValue>> {
+    use napi::JsBuffer;
     params
         .into_iter()
         .map(|val| -> napi::Result<sqldb::RowValue> {
-            Ok(match val.get_type()? {
-                ValueType::Null => sqldb::RowValue::Json(serde_json::Value::Null),
-                ValueType::Number => {
-                    let float = val.coerce_to_number()?.get_double()?;
-                    let int = float as i64;
-                    if float == int as f64 {
-                        sqldb::RowValue::Json(serde_json::Value::Number(int.into()))
-                    } else {
-                        match serde_json::Number::from_f64(float) {
-                            Some(n) => sqldb::RowValue::Json(serde_json::Value::Number(n)),
-                            None => {
-                                return Err(napi::Error::new(
-                                    napi::Status::GenericFailure,
-                                    "failed to convert float to json number".to_string(),
-                                ));
-                            }
-                        }
-                    }
-                }
-                ValueType::Boolean => {
-                    let b = val.coerce_to_bool()?.get_value()?;
-                    sqldb::RowValue::Json(serde_json::Value::Bool(b))
-                }
-                ValueType::String => {
-                    let s = val.coerce_to_string()?.into_utf8()?.into_owned()?;
-                    sqldb::RowValue::Json(serde_json::Value::String(s))
-                }
-                ValueType::Object => {
-                    // Is this a buffer?
-                    if val.is_buffer()? {
-                        let buf: JsBuffer = val.try_into()?;
-                        let buf = buf.into_value()?;
-                        sqldb::RowValue::Bytes(buf.to_vec())
-                    } else {
-                        let val: serde_json::Value = env.from_js_value(val)?;
-                        sqldb::RowValue::Json(val)
-                    }
-                }
-                ValueType::Unknown => {
-                    return Err(napi::Error::new(
-                        napi::Status::GenericFailure,
-                        "unknown not yet supported".to_string(),
-                    ));
-                }
-                ValueType::BigInt => {
-                    return Err(napi::Error::new(
-                        napi::Status::GenericFailure,
-                        "unsupported value type".to_string(),
-                    ));
-                }
-                _ => {
-                    return Err(napi::Error::new(
-                        napi::Status::GenericFailure,
-                        "unsupported value type".to_string(),
-                    ));
-                }
-            })
+            if val.is_buffer()? {
+                let buf: JsBuffer = val.try_into()?;
+                let buf = buf.into_value()?;
+                return Ok(sqldb::RowValue::Bytes(buf.to_vec()));
+            }
+            let pval = parse_pvalue(val)?;
+            Ok(sqldb::RowValue::PVal(pval))
         })
         .collect()
 }
@@ -187,7 +138,7 @@ impl Row {
         let mut map = HashMap::with_capacity(vals.len());
         for (key, val) in vals {
             let val: JsUnknown = match val {
-                sqldb::RowValue::Json(val) => env.to_js_value(&val)?,
+                sqldb::RowValue::PVal(val) => pvalue_to_js(env, &val)?,
                 sqldb::RowValue::Bytes(val) => {
                     env.create_arraybuffer_with_data(val)?.into_unknown()
                 }
