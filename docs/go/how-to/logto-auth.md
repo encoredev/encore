@@ -20,7 +20,7 @@ Before we begin integrating with Encore, you'll need to set up a few things in L
    - Set a name and API identifier (e.g., `https://api.encoreapp.com`)
    - Note down the API identifier on the API resource details page as we'll need it later
   
-  <img src="./assets/logto-api-resource.png" title="Logto API Resource"/>
+  <img src="/assets/docs/logto-api-resource.png" title="Logto API Resource"/>
 
 3. Create an application for your frontend application
   - Go to "Applications" in Logto Console
@@ -28,7 +28,7 @@ Before we begin integrating with Encore, you'll need to set up a few things in L
   - (Optional, we'll cover this later) Integrate Logto with your frontend application according to the guide in the Logto Console.
   - Note down the application ID and issuer URL on the Application details page as we'll need them later
 
-  <img src="./assets/logto-application-endpoints.png" title="Logto application endpoints"/>
+  <img src="/assets/docs/logto-application-endpoints.png" title="Logto application endpoints"/>
 
 ## Setup the auth handler
 
@@ -321,5 +321,4 @@ You can find the complete example code [here](https://github.com/encoredev/examp
 If you want to use more Logto features, you can refer to the following links for more information:
 
 - Combine Logto's [Custom token claims](https://docs.logto.io/developers/custom-token-claims) to set [custom user data](/docs/go/develop/auth#with-custom-user-data) in the auth handler
-- Use [Logto RBAC features](https://docs.logto.io/authorization/role-based-access-control) to add authorization support to your Encore API service. The React integration tutorial also demonstrates how to add `scope` information to your Access token (note that you need to sign in again after updating Logto config)
-- Build your Multi-tenant application with Encore API service using organization tokens, refer to [Build a multi-tenant SaaS application with Logto](https://blog.logto.io/build-multi-tenant-saas-application)
+- Use [Logto RBAC features](https://docs.logto.io/authorization/role-based-access-control) to add authorization support to your application. The React integration tutorial also demonstrates how to add `scope` information to your Access token (note that you need to sign in again after updating Logto config)
