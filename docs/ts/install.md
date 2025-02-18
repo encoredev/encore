@@ -15,11 +15,10 @@ This is what provisions your local development environment, and runs your Local 
 
 <InstallInstructions />
 
-<Callout type="info">
+### Prerequisites
 
-To locally run Encore apps with databases, you also need to have [Docker](https://www.docker.com) installed and running.
-
-</Callout>
+- [Node.js](https://nodejs.org/en/download/) is required to run Encore.ts apps.
+- [Docker](https://www.docker.com) is required for Encore to set up local databases.
 
 ### Optional: Add Encore LLM instructions
 
