@@ -162,9 +162,10 @@ impl ManagerConfig<'_> {
             let routes = paths::compute(
                 endpoints
                     .iter()
-                    .filter(|(_, ep)| gw_cfg.internal || ep.exposed.contains(name))
-                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
+                    .filter(|(_, ep)| ep.exposed.contains(name))
+                    .map(|(_, ep)| ep.to_owned()),
             );
+            let internal_routes = paths::compute(endpoints.iter().map(|(_, ep)| ep.to_owned()));
 
             let gw = build_gateway(
                 self.meta,
@@ -172,6 +173,7 @@ impl ManagerConfig<'_> {
                 service_registry.clone(),
                 endpoints.clone(),
                 routes,
+                internal_routes,
                 self.http_client.clone(),
                 self.tracer.clone(),
             )?;
@@ -221,21 +223,18 @@ impl ManagerConfig<'_> {
     }
 }
 
-#[derive(Debug)]
-struct RoutePerService(Arc<Endpoint>);
-
-impl Pather for RoutePerService {
+impl Pather for Arc<Endpoint> {
     type Key = EncoreName;
     type Value = Arc<Endpoint>;
 
     fn key(&self) -> Self::Key {
-        self.0.name.service().into()
+        self.name.service().into()
     }
     fn value(&self) -> Self::Value {
-        self.0.clone()
+        self.clone()
     }
     fn path(&self) -> &meta::Path {
-        &self.0.path
+        &self.path
     }
 }
 
@@ -245,6 +244,7 @@ fn build_gateway(
     service_registry: Arc<ServiceRegistry>,
     endpoints: Arc<HashMap<EndpointName, Arc<Endpoint>>>,
     routes: PathSet<EncoreName, Arc<Endpoint>>,
+    internal_routes: PathSet<EncoreName, Arc<Endpoint>>,
     http_client: reqwest::Client,
     tracer: Tracer,
 ) -> anyhow::Result<Gateway> {
@@ -286,10 +286,10 @@ fn build_gateway(
     Gateway::new(
         gw_cfg.encore_name.clone().into(),
         routes,
+        internal_routes,
         auth_handler,
         cors_config,
         match_rules,
-        gw_cfg.internal,
     )
 }
 

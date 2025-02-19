@@ -611,7 +611,6 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                         base_url,
                         cors: cors.clone(),
                         match_rules,
-                        internal: false,
                     }
                 })
                 .collect::<Vec<_>>()

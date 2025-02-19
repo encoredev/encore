@@ -455,7 +455,4 @@ message Gateway {
     // If set, the incoming request must match this path.
     optional string path_prefix = 2;
   }
-
-  // If this gateway only allows platform authed requests.
-  bool internal = 7;
 }

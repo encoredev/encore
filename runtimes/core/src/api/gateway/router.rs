@@ -12,20 +12,11 @@ pub struct Router {
 }
 
 impl Router {
-    pub fn new() -> Self {
-        let main = matchit::Router::new();
-        let fallback = matchit::Router::new();
-        Router { main, fallback }
-    }
+    pub fn new(routes: &PathSet<EncoreName, Arc<api::Endpoint>>) -> anyhow::Result<Self> {
+        let mut main = matchit::Router::new();
+        let mut fallback = matchit::Router::new();
 
-    pub fn add_routes(
-        &mut self,
-        routes: &PathSet<EncoreName, Arc<api::Endpoint>>,
-    ) -> anyhow::Result<()> {
-        for (router, routes) in [
-            (&mut self.main, &routes.main),
-            (&mut self.fallback, &routes.fallback),
-        ] {
+        for (router, routes) in [(&mut main, &routes.main), (&mut fallback, &routes.fallback)] {
             fn register_methods(
                 mr: &mut MethodRoute,
                 path: &str,
@@ -75,7 +66,7 @@ impl Router {
             }
         }
 
-        Ok(())
+        Ok(Router { main, fallback })
     }
 
     pub fn route_to_service(

@@ -36,14 +36,14 @@ use super::encore_routes::healthz;
 
 pub struct GatewayCtx {
     upstream_service_name: EncoreName,
-    upstream_base_path: String,
+    upstream_path: String,
     upstream_host: Option<String>,
     upstream_require_auth: bool,
     gateway: Arc<Gateway>,
 }
 
 impl GatewayCtx {
-    fn prepend_base_path(&self, uri: &http::Uri) -> anyhow::Result<http::Uri> {
+    fn with_path(&self, uri: &http::Uri) -> anyhow::Result<http::Uri> {
         let mut builder = http::Uri::builder();
         if let Some(scheme) = uri.scheme() {
             builder = builder.scheme(scheme.clone());
@@ -52,13 +52,13 @@ impl GatewayCtx {
             builder = builder.authority(authority.clone());
         }
 
-        let base_path = self.upstream_base_path.trim_end_matches('/');
-        builder = builder.path_and_query(format!(
-            "{}{}",
-            base_path,
-            uri.path_and_query().map_or("", |pq| pq.as_str())
-        ));
+        let path_and_query = if let Some(query) = uri.query() {
+            format!("{}?{}", self.upstream_path, query)
+        } else {
+            self.upstream_path.clone()
+        };
 
+        builder = builder.path_and_query(path_and_query);
         builder.build().context("failed to build uri")
     }
 }
@@ -93,9 +93,9 @@ pub struct Gateway {
     name: EncoreName,
     auth_handler: Option<auth::Authenticator>,
     router: router::Router,
+    internal_router: router::Router,
     cors_config: CorsHeadersConfig,
     match_rules: Vec<GatewayMatchRule>,
-    internal: bool,
 }
 
 impl std::fmt::Debug for Gateway {
@@ -105,7 +105,6 @@ impl std::fmt::Debug for Gateway {
             .field("auth_handler", &self.auth_handler.is_some())
             .field("cors_config", &self.cors_config)
             .field("match_rules", &self.match_rules)
-            .field("internal", &self.internal)
             .finish()
     }
 }
@@ -114,21 +113,21 @@ impl Gateway {
     pub fn new(
         name: EncoreName,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
+        internal_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
         match_rules: Vec<GatewayMatchRule>,
-        internal: bool,
     ) -> anyhow::Result<Self> {
-        let mut router = router::Router::new();
-        router.add_routes(&service_routes)?;
+        let router = router::Router::new(&service_routes)?;
+        let internal_router = router::Router::new(&internal_routes)?;
 
         Ok(Gateway {
             name,
             auth_handler,
             router,
+            internal_router,
             cors_config,
             match_rules,
-            internal,
         })
     }
 
@@ -223,9 +222,6 @@ impl GatewayServer {
             }
         }
 
-        // if platform auth is provided, considure this an internal request
-        let internal = req.headers().get(platform::ENCORE_AUTH_HEADER).is_some();
-
         let req_headers = req.headers();
         let req_host = req_headers
             .get(HOST)
@@ -233,20 +229,12 @@ impl GatewayServer {
             .unwrap_or_default();
         let req_path = req.uri.path();
 
-        for gateway in &self.gateways {
-            if gateway.internal != internal {
-                continue;
-            }
-            if gateway
+        self.gateways.iter().find(|&gateway| {
+            gateway
                 .match_rules
                 .iter()
                 .any(|rule| rule.matches(req_host, req_path))
-            {
-                return Some(gateway);
-            }
-        }
-
-        None
+        })
     }
 }
 
@@ -311,16 +299,6 @@ impl ProxyHttp for GatewayServer {
             .target(session.req_header())
             .ok_or_else(|| api::Error::not_found("gateway not found"))?;
 
-        // if this is an internal gateway, validate the request
-        if target_gateway.internal {
-            log::trace!("validating internal credentials");
-            if let Ok(data) = platform::ValidationData::from_req(session.req_header()) {
-                self.platform_validator
-                    .validate_platform_request(&data)
-                    .or_err(ErrorType::HTTPStatus(401), "Unauthorized internal request")?;
-            }
-        }
-
         let path = session.req_header().uri.path();
 
         // Check if this is a pubsub push request and if we need to proxy it to another service
@@ -338,38 +316,62 @@ impl ProxyHttp for GatewayServer {
             }
         }
 
-        let target = push_proxy_svc.map_or_else(
-            || {
-                // Find which service handles the path route
-                session
-                    .req_header()
-                    .method
-                    .as_ref()
-                    .try_into()
-                    .map_err(|e: anyhow::Error| api::Error {
-                        code: api::ErrCode::InvalidArgument,
-                        message: "invalid method".to_string(),
-                        internal_message: Some(e.to_string()),
-                        stack: None,
-                        details: None,
-                    })
-                    .and_then(|method| target_gateway.router.route_to_service(method, path))
-                    .cloned()
-            },
-            Ok,
-        )?;
+        let upstream_path = session.req_header().uri.path();
+        let target = if let Some(proxy_svc) = push_proxy_svc {
+            proxy_svc
+        } else {
+            let target = session
+                .req_header()
+                .method
+                .as_ref()
+                .try_into()
+                .map_err(|e: anyhow::Error| api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: "invalid method".to_string(),
+                    internal_message: Some(e.to_string()),
+                    stack: None,
+                    details: None,
+                })
+                .and_then(|method| target_gateway.router.route_to_service(method, path))
+                .cloned();
 
-        let upstream = self
+            if target.is_err()
+                && session
+                    .req_header()
+                    .headers()
+                    .get(platform::ENCORE_AUTH_HEADER)
+                    .is_some()
+            {
+                log::trace!("validating internal credentials");
+                if let Ok(data) = platform::ValidationData::from_req(session.req_header()) {
+                    self.platform_validator
+                        .validate_platform_request(&data)
+                        .or_err(ErrorType::HTTPStatus(401), "Unauthorized internal request")?;
+                }
+
+                // TODO lookup target to service based on path
+                // TODO strip service prefix from `upstream_path`
+            }
+
+            target?
+        };
+
+        let upstream_base_url: Url = self
             .service_registry
             .service_base_url(&target.service_name)
-            .or_err(ErrorType::InternalError, "couldn't find upstream")?;
-
-        let upstream_url: Url = upstream
+            .or_err(ErrorType::InternalError, "couldn't find upstream")?
             .parse()
             .or_err(ErrorType::InternalError, "upstream not a valid url")?;
 
-        let upstream_addrs = upstream_url
-            .socket_addrs(|| match upstream_url.scheme() {
+        let upstream_base_path = upstream_base_url.path();
+        let upstream_path = format!(
+            "{}{}",
+            upstream_base_path,
+            upstream_path.trim_start_matches('/')
+        );
+
+        let upstream_addrs = upstream_base_url
+            .socket_addrs(|| match upstream_base_url.scheme() {
                 "https" => Some(443),
                 "http" => Some(80),
                 _ => None,
@@ -384,12 +386,12 @@ impl ProxyHttp for GatewayServer {
             "didn't find any upstream ip addresses",
         )?;
 
-        let tls = upstream_url.scheme() == "https";
-        let host = upstream_url.host().map(|h| h.to_string());
+        let tls = upstream_base_url.scheme() == "https";
+        let host = upstream_base_url.host().map(|h| h.to_string());
         let peer = HttpPeer::new(upstream_addr, tls, host.clone().unwrap_or_default());
 
         ctx.replace(GatewayCtx {
-            upstream_base_path: upstream_url.path().to_string(),
+            upstream_path: upstream_path.to_string(),
             upstream_host: host,
             upstream_service_name: target.service_name.clone(),
             upstream_require_auth: target.requires_auth,
@@ -427,12 +429,10 @@ impl ProxyHttp for GatewayServer {
         Self::CTX: Send + Sync,
     {
         if let Some(gateway_ctx) = ctx.as_ref() {
-            let new_uri = gateway_ctx
-                .prepend_base_path(&upstream_request.uri)
-                .or_err(
-                    ErrorType::InternalError,
-                    "failed to prepend upstream base path",
-                )?;
+            let new_uri = gateway_ctx.with_path(&upstream_request.uri).or_err(
+                ErrorType::InternalError,
+                "failed to prepend upstream base path",
+            )?;
 
             upstream_request.set_uri(new_uri);
 
