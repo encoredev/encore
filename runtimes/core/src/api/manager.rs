@@ -125,7 +125,7 @@ impl ManagerConfig<'_> {
             self.secrets,
             endpoints.clone(),
             self.environment,
-            self.service_discovery,
+            self.service_discovery.clone(),
             own_api_address
                 .as_ref()
                 .map(|addr| addr.to_string())
@@ -170,6 +170,7 @@ impl ManagerConfig<'_> {
             let gw = build_gateway(
                 self.meta,
                 gw_cfg,
+                &self.service_discovery,
                 service_registry.clone(),
                 endpoints.clone(),
                 routes,
@@ -240,9 +241,11 @@ impl Pather for RoutePerService {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_gateway(
     meta: &meta::Data,
     gw_cfg: &runtime::Gateway,
+    service_discovery: &runtime::ServiceDiscovery,
     service_registry: Arc<ServiceRegistry>,
     endpoints: Arc<HashMap<EndpointName, Arc<Endpoint>>>,
     routes: PathSet<EncoreName, Arc<Endpoint>>,
@@ -277,6 +280,7 @@ fn build_gateway(
 
     Gateway::new(
         gw_cfg.encore_name.clone().into(),
+        service_discovery,
         routes,
         auth_handler,
         cors_config,

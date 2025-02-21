@@ -19,6 +19,7 @@ use pingora::server::configuration::{Opt, ServerConf};
 use pingora::services::Service;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::{Error, ErrorSource, ErrorType, OkOrErr, OrErr};
+use router::Router;
 use router::Target;
 use tokio::sync::watch;
 use url::Url;
@@ -29,6 +30,7 @@ use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::platform;
 use crate::api::reqauth::{svcauth, CallMeta};
+use crate::encore::runtime::v1::ServiceDiscovery;
 use crate::{api, model, EncoreName};
 
 use super::auth::InboundRequest;
@@ -70,23 +72,28 @@ pub struct Gateway {
     name: EncoreName,
     auth_handler: Option<auth::Authenticator>,
     router: router::Router,
+    internal_router: router::Router,
     cors_config: CorsHeadersConfig,
 }
 
 impl Gateway {
     pub fn new(
         name: EncoreName,
+        service_discovery: &ServiceDiscovery,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
     ) -> anyhow::Result<Self> {
-        let mut router = router::Router::new();
-        router.add_routes(&service_routes)?;
+        let router = service_routes.try_into()?;
+
+        let services = service_discovery.services.keys().cloned().collect();
+        let internal_router = Router::new_internal(services)?;
 
         Ok(Gateway {
             name,
             auth_handler,
             router,
+            internal_router,
             cors_config,
         })
     }
@@ -264,7 +271,7 @@ impl ProxyHttp for GatewayServer {
             }
         }
 
-        let upstream_path = session.req_header().uri.path();
+        let mut upstream_path = session.req_header().uri.path();
         let target =
             if let Some(ref target) = push_proxy_svc {
                 target
@@ -284,11 +291,19 @@ impl ProxyHttp for GatewayServer {
                         .and_then(|data| self.platform_validator.validate_platform_request(&data))
                         .map_err(|_e| api::Error::unauthenticated())?;
 
-                    // TODO: dont use internal_gateway, remove it and use some internal router
-                    // instead, it should be /service-name/* -> target=service-name
-                    todo!()
+                    let target = target_gateway
+                        .internal_router
+                        .route_to_service(method, path)?;
 
-                    // TODO: set upstream_path by stripping service prefix from path
+                    if let Some(new_path) = upstream_path.strip_prefix(&*target.service_name) {
+                        upstream_path = new_path;
+                        target
+                    } else {
+                        return Err(api::Error::internal(anyhow::anyhow!(
+                            "route path was not prefixed with target service name"
+                        ))
+                        .into());
+                    }
                 } else {
                     target_gateway.router.route_to_service(method, path)?
                 }
