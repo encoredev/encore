@@ -23,6 +23,32 @@ pub struct ValidationData<'a> {
     pub x_encore_auth_header: &'a str,
 }
 
+impl<'a> ValidationData<'a> {
+    pub fn from_req(req: &'a axum::http::request::Parts) -> Result<Self, ValidationError> {
+        let Some(x_encore_auth_header) = req.headers.get("x-encore-auth") else {
+            return Err(ValidationError::MissingAuthHeader);
+        };
+        let x_encore_auth_header = x_encore_auth_header
+            .to_str()
+            .map_err(|_| ValidationError::InvalidMac)?;
+
+        let Some(date_header) = req.headers.get("Date") else {
+            return Err(ValidationError::InvalidDateHeader);
+        };
+        let date_header = date_header
+            .to_str()
+            .map_err(|_| ValidationError::InvalidDateHeader)?;
+
+        let request_path = req.uri.path();
+
+        Ok(ValidationData {
+            request_path,
+            date_header,
+            x_encore_auth_header,
+        })
+    }
+}
+
 /// A seal of approval is a record that the request originated from the Encore Platform.
 #[derive(Debug)]
 pub struct SealOfApproval;
@@ -141,6 +167,7 @@ pub enum ValidationError {
     UnknownMacKey,
     InvalidMacKey,
     InvalidDateHeader,
+    MissingAuthHeader,
     TimeSkew,
     SecretResolve(secrets::ResolveError),
 }
@@ -152,6 +179,7 @@ impl Display for ValidationError {
             ValidationError::UnknownMacKey => write!(f, "unknown mac key"),
             ValidationError::InvalidMacKey => write!(f, "invalid mac key"),
             ValidationError::InvalidDateHeader => write!(f, "invalid or missing date header"),
+            ValidationError::MissingAuthHeader => write!(f, "missing auth header"),
             ValidationError::TimeSkew => write!(f, "time skew"),
             ValidationError::SecretResolve(e) => {
                 write!(f, "resolve secret: {}", e)

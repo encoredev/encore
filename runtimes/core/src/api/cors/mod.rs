@@ -197,12 +197,16 @@ pub struct MetaHeaders {
 }
 
 impl MetaHeaders {
-    pub fn from_schema(endpoints: &EndpointMap, auth: Option<&auth::Authenticator>) -> Self {
+    pub fn from_schema(
+        gateway_name: &str,
+        endpoints: &EndpointMap,
+        auth: Option<&auth::Authenticator>,
+    ) -> Self {
         let mut allow_headers = HashSet::new();
         let mut expose_headers = HashSet::new();
 
         for ep in endpoints.values() {
-            if !ep.exposed {
+            if !ep.exposed.contains(gateway_name) {
                 continue;
             }
             for h in ep.request.iter().flat_map(|req| req.header.iter()) {
