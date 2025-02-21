@@ -31,7 +31,6 @@ pub struct ManagerConfig<'a> {
     pub meta: &'a meta::Data,
     pub environment: &'a runtime::Environment,
     pub gateways: Vec<runtime::Gateway>,
-    pub internal_gateway: Option<runtime::Gateway>,
     pub hosted_services: Vec<runtime::HostedService>,
     pub hosted_gateway_rids: Vec<String>,
     pub svc_auth_methods: Vec<runtime::ServiceAuth>,
@@ -159,37 +158,12 @@ impl ManagerConfig<'_> {
             self.platform_validator.clone(),
         );
 
-        if let Some(gw_cfg) = self.internal_gateway {
-            // internal gateway exposes all routes
-            let routes = paths::compute(
-                endpoints
-                    .iter()
-                    .map(|(_, ep)| RoutePerService(ep.to_owned())),
-            );
-
-            let gw = build_gateway(
-                self.meta,
-                &gw_cfg,
-                service_registry.clone(),
-                endpoints.clone(),
-                routes,
-                self.http_client.clone(),
-                self.tracer.clone(),
-            )?;
-
-            auth_data_schemas.insert(
-                gw_cfg.encore_name,
-                gw.auth_handler().map(|ah| ah.auth_data().clone()),
-            );
-
-            gateway_server.set_internal_gateway(gw);
-        }
-
         for (name, gw_cfg) in hosted_gateways {
             let routes = paths::compute(
                 endpoints
                     .iter()
-                    .filter(|(_, ep)| ep.exposed.contains(name))
+                    // TODO(fredr) we should filter out only public routs here
+                    // .filter(|(_, ep)| ep.exposed.contains(name))
                     .map(|(_, ep)| RoutePerService(ep.to_owned())),
             );
 

@@ -373,11 +373,6 @@ impl Runtime {
         let api = api::ManagerConfig {
             meta: &md,
             environment: &environment,
-            internal_gateway: resources
-                .gateways
-                .iter()
-                .find(|gw| gw.encore_name == "api-gateway")
-                .cloned(),
             gateways: resources.gateways,
             hosted_services: deployment.hosted_services,
             hosted_gateway_rids: deployment.hosted_gateways,

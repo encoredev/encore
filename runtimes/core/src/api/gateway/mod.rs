@@ -104,7 +104,6 @@ pub struct GatewayServer {
     own_api_address: Option<SocketAddr>,
     proxied_push_subs: HashMap<String, EncoreName>,
     platform_validator: Arc<platform::RequestValidator>,
-    internal_gateway: Option<Arc<Gateway>>,
 }
 
 impl GatewayServer {
@@ -121,7 +120,6 @@ impl GatewayServer {
             healthz,
             own_api_address,
             proxied_push_subs,
-            internal_gateway: None,
             platform_validator,
         }
     }
@@ -145,10 +143,6 @@ impl GatewayServer {
         }
 
         Ok(())
-    }
-
-    pub fn set_internal_gateway(&mut self, gateway: Gateway) {
-        self.internal_gateway = Some(Arc::new(gateway));
     }
 
     pub async fn serve(self, listen_addr: &str) -> anyhow::Result<()> {
@@ -292,11 +286,7 @@ impl ProxyHttp for GatewayServer {
 
                     // TODO: dont use internal_gateway, remove it and use some internal router
                     // instead, it should be /service-name/* -> target=service-name
-                    self.internal_gateway
-                        .as_ref()
-                        .unwrap()
-                        .router
-                        .route_to_service(method, path)?
+                    todo!()
 
                     // TODO: set upstream_path by stripping service prefix from path
                 } else {
