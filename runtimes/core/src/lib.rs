@@ -661,7 +661,7 @@ impl Hosted {
 
 impl FromIterator<String> for Hosted {
     fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
-        Self(iter.into_iter().map(Into::into).collect())
+        Self(iter.into_iter().collect())
     }
 }
 
