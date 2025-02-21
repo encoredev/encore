@@ -137,18 +137,14 @@ impl<W: Write + Sync + Send + 'static> Writer for ConsoleWriter<W> {
 
         self.write_fields(&mut buf, values)?;
 
-        buf.write_all(b"\n")
-            .map_err(std::io::Error::from)
-            .context("new line")?;
+        buf.write_all(b"\n").context("new line")?;
 
         match self.mu.lock() {
             Ok(guard) => {
                 let mut w = guard
                     .try_borrow_mut()
                     .context("unable to borrow console output")?;
-                w.write_all(&buf)
-                    .map_err(std::io::Error::from)
-                    .context("write")?;
+                w.write_all(&buf).context("write")?;
                 Ok(())
             }
             Err(poisoned) => Err(anyhow::anyhow!("poisoned mutex: {:?}", poisoned)),

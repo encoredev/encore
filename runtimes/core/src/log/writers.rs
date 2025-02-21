@@ -80,16 +80,12 @@ impl<W: Write + Sync + Send + 'static> Writer for BlockingWriter<W> {
         serde_json::to_writer(&mut buf, values)
             .map_err(std::io::Error::from)
             .context("serde_writer")?;
-        buf.write_all(b"\n")
-            .map_err(std::io::Error::from)
-            .context("new line")?;
+        buf.write_all(b"\n").context("new line")?;
 
         match self.mu.lock() {
             Ok(guard) => {
                 let mut w = guard.try_borrow_mut().context("unable to borrow")?;
-                w.write_all(&buf)
-                    .map_err(std::io::Error::from)
-                    .context("write")?;
+                w.write_all(&buf).context("write")?;
                 Ok(())
             }
             Err(poisoned) => Err(anyhow::anyhow!("poisoned mutex: {:?}", poisoned)),
@@ -121,9 +117,7 @@ impl<W: AsyncWrite + Sync + Send + 'static> Writer for AsyncWriter<W> {
         serde_json::to_writer(&mut buf, values)
             .map_err(std::io::Error::from)
             .context("serde_writer")?;
-        buf.write_all(b"\n")
-            .map_err(std::io::Error::from)
-            .context("new line")?;
+        buf.write_all(b"\n").context("new line")?;
 
         let mu = self.mu.clone();
         tokio::spawn(async move {
