@@ -30,7 +30,6 @@ use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::platform;
 use crate::api::reqauth::{svcauth, CallMeta};
-use crate::encore::runtime::v1::ServiceDiscovery;
 use crate::{api, model, EncoreName};
 
 use super::auth::InboundRequest;
@@ -79,14 +78,14 @@ pub struct Gateway {
 impl Gateway {
     pub fn new(
         name: EncoreName,
-        service_discovery: &ServiceDiscovery,
+        service_registry: Arc<ServiceRegistry>,
         service_routes: PathSet<EncoreName, Arc<api::Endpoint>>,
         auth_handler: Option<auth::Authenticator>,
         cors_config: CorsHeadersConfig,
     ) -> anyhow::Result<Self> {
         let router = service_routes.try_into()?;
 
-        let services = service_discovery.services.keys().cloned().collect();
+        let services = service_registry.service_names();
         let internal_router = Router::new_internal(services)?;
 
         Ok(Gateway {
@@ -295,7 +294,9 @@ impl ProxyHttp for GatewayServer {
                         .internal_router
                         .route_to_service(method, path)?;
 
-                    if let Some(new_path) = upstream_path.strip_prefix(&*target.service_name) {
+                    if let Some(new_path) =
+                        upstream_path.strip_prefix(&format!("/{}", target.service_name))
+                    {
                         upstream_path = new_path;
                         target
                     } else {

@@ -18,12 +18,12 @@ impl Router {
         Router { main, fallback }
     }
 
-    pub fn new_internal(services: Vec<String>) -> anyhow::Result<Self> {
+    pub fn new_internal(services: Vec<&EncoreName>) -> anyhow::Result<Self> {
         let mut router = Router::new();
 
         for service in services {
             let target = Some(Target {
-                service_name: service.clone().into(),
+                service_name: service.clone(),
                 requires_auth: false,
             });
 
