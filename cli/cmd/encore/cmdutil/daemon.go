@@ -155,11 +155,14 @@ func dialDaemon(ctx context.Context, socketPath string) (*grpc.ClientConn, error
 	dialer := func(ctx context.Context, addr string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
 	}
+	// Set max message size to 16mb (up from default 4mb) for json formatted debug metadata for large applications.
 	return grpc.DialContext(ctx, "",
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
 		grpc.WithUnaryInterceptor(errInterceptor),
-		grpc.WithContextDialer(dialer))
+		grpc.WithContextDialer(dialer),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(16*1024*1024)),
+	)
 }
 
 func errInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
