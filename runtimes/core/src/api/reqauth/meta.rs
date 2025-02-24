@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::str::{self, FromStr};
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum MetaKey {
@@ -78,7 +78,8 @@ impl MetaMapMut for reqwest::header::HeaderMap {
 
 impl MetaMap for axum::http::HeaderMap {
     fn get_meta(&self, key: MetaKey) -> Option<&str> {
-        self.get(key.header_key()).and_then(|v| v.to_str().ok())
+        self.get(key.header_key())
+            .and_then(|val| std::str::from_utf8(val.as_bytes()).ok())
     }
 
     fn meta_values<'a>(&'a self, key: MetaKey) -> Box<dyn Iterator<Item = &'a str> + 'a> {
