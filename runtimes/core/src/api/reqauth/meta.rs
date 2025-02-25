@@ -78,6 +78,8 @@ impl MetaMapMut for reqwest::header::HeaderMap {
 
 impl MetaMap for axum::http::HeaderMap {
     fn get_meta(&self, key: MetaKey) -> Option<&str> {
+        // Some meta values may contain utf8 characters (e.g authdata) so we use `str::from_utf8`
+        // rather than using `HeaderValues::to_str` which errors on non-visible ASCII characters.
         self.get(key.header_key())
             .and_then(|val| std::str::from_utf8(val.as_bytes()).ok())
     }
