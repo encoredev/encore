@@ -172,9 +172,30 @@ For example:
 ```ts
 // Retrieves a blog post by its id.
 export const getBlogPost = api(
-    {method: "GET", path: "/blog/:id/*path"},
+    { method: "GET", path: "/blog/:id/*path" },
     async (params: {id: number; path: string}): Promise<BlogPost> {
         // Use id and path to query database...
+    }
+)
+```
+
+### Fallback routes
+
+Encore supports defining fallback routes that will be called if no other endpoint matches the request,
+using the syntax `path: "/!fallback"`.
+
+This is often useful when migrating an existing backend service over to Encore, as it allows you to gradually
+migrate endpoints over to Encore while routing the remaining endpoints to the existing HTTP router using
+a raw endpoint with a fallback route.
+
+For example:
+
+```ts
+// Route all requests to the existing HTTP router if no other endpoint matches.
+export const fallback = api.raw(
+    { expose: true, method: "*", path: "/!path" },
+    async (req, resp) {
+        // Call old router
     }
 )
 ```
