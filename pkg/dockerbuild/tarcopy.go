@@ -2,7 +2,6 @@ package dockerbuild
 
 import (
 	"archive/tar"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/xos"
 	"encr.dev/v2/compiler/build"
 	"github.com/cockroachdb/errors"
@@ -53,7 +53,7 @@ type dirCopyDesc struct {
 	ExcludeSrcPaths map[HostPath]bool
 
 	// Src paths to include.
-	IncludeSrcPaths []HostPath
+	IncludeSrcPaths option.Option[[]HostPath]
 }
 
 func (tc *tarCopier) CopyData(spec *ImageSpec) error {
@@ -97,13 +97,23 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 	return nil
 }
 
+// shouldInclude returns true if the path should be included in the tar.
 func shouldInclude(desc *dirCopyDesc, path HostPath) bool {
-	if len(desc.IncludeSrcPaths) == 0 {
+	includeSrcPaths, ok := desc.IncludeSrcPaths.Get()
+	if !ok {
 		return true
 	}
 
-	for _, include := range desc.IncludeSrcPaths {
-		if strings.HasPrefix(string(path), string(include)) || string(path) == string(include) {
+	for _, include := range includeSrcPaths {
+		if string(path) == string(include) {
+			return true
+		}
+
+		if strings.HasPrefix(string(path), string(include)) {
+			return true
+		}
+
+		if strings.HasPrefix(string(include), string(path)) {
 			return true
 		}
 	}
@@ -116,10 +126,6 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 			return err
 		}
 		path := HostPath(pathStr)
-
-		// path is the full host path, absolute.
-		// what exactly is the include and exclude path here? TODO!!
-		fmt.Println("path", path)
 
 		// Should we keep this path?
 		if !shouldInclude(desc, path) {

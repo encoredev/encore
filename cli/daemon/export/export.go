@@ -145,11 +145,11 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		describeCfg.BundleSource = option.Some(dockerbuild.BundleSourceSpec{
 			Source: dockerbuild.HostPath(workspaceRoot),
 			Dest:   "/workspace",
-			IncludeSource: []dockerbuild.RelPath{
+			IncludeSource: option.Some([]dockerbuild.RelPath{
 				"node_modules",
 				"package.json",
 				"apps/encore-app",
-			},
+			}),
 			ExcludeSource: []dockerbuild.RelPath{
 				".git",
 			},

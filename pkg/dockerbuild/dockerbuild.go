@@ -259,10 +259,13 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 }
 
 func bundleSource(tc *tarCopier, spec *ImageSpec, bundle *BundleSourceSpec) error {
-	includes := []HostPath{}
-	for _, ex := range bundle.ExcludeSource {
-		absPath := bundle.Source.Join(string(ex))
-		includes = append(includes, absPath)
+	includes := option.None[[]HostPath]()
+	if includeSources, ok := bundle.IncludeSource.Get(); ok {
+		srcs := make([]HostPath, len(includeSources))
+		for i, ex := range includeSources {
+			srcs[i] = bundle.Source.Join(string(ex))
+		}
+		includes = option.Some(srcs)
 	}
 
 	excludes := make(map[HostPath]bool, len(bundle.ExcludeSource))

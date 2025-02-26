@@ -108,7 +108,8 @@ type BundleSourceSpec struct {
 	ExcludeSource []RelPath
 
 	// Source paths to include from copying, relative to Source.
-	IncludeSource []RelPath
+	// If None, include all files.
+	IncludeSource option.Option[[]RelPath]
 }
 
 type SupervisorSpec struct {
