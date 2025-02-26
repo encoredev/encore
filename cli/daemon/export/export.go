@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -130,9 +131,25 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if buildSettings.Docker.BundleSource || appLang == appfile.LangTS {
+		// TODO(fredr): get workspace root from somewhere
+		workspaceRoot := "/home/fredr/projects/encore-apps/npm-workspace-test/"
+		appRoot := app.Root()
+
+		relPath, err := filepath.Rel(workspaceRoot, appRoot)
+		if err != nil {
+			return false, errors.Wrap(err, "relative path from workspace root to app root")
+		}
+
+		appImagePath := dockerbuild.ImagePath(filepath.Join("/workspace", relPath))
+
 		describeCfg.BundleSource = option.Some(dockerbuild.BundleSourceSpec{
-			Source: dockerbuild.HostPath(app.Root()),
+			Source: dockerbuild.HostPath(workspaceRoot),
 			Dest:   "/workspace",
+			IncludeSource: []dockerbuild.RelPath{
+				"node_modules",
+				"package.json",
+				"apps/encore-app",
+			},
 			ExcludeSource: []dockerbuild.RelPath{
 				".git",
 			},
@@ -140,7 +157,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 
 		if describeCfg.WorkingDir.Empty() {
 			// Set the working directory to "/workspace" by default, in this case.
-			describeCfg.WorkingDir = option.Some[dockerbuild.ImagePath]("/workspace")
+			describeCfg.WorkingDir = option.Some(appImagePath)
 		}
 	}
 

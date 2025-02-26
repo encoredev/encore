@@ -106,6 +106,9 @@ type BundleSourceSpec struct {
 
 	// Source paths to exclude from copying, relative to Source.
 	ExcludeSource []RelPath
+
+	// Source paths to include from copying, relative to Source.
+	IncludeSource []RelPath
 }
 
 type SupervisorSpec struct {
@@ -358,18 +361,6 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 		imageArtifacts, ok := b.seenArtifactDirs[hostArtifacts]
 		if !ok {
 			return nil, errors.Errorf("missing image artifact dir for %q", hostArtifacts)
-		}
-
-		// If this is a JS build, copy the node modules and package.json to out dir.
-		if jsOut, ok := out.(*builder.JSBuildOutput); ok {
-			if nodeModules, ok := jsOut.NodeModules.Get(); ok {
-				dst := imageArtifacts.Base.Join("node_modules")
-				b.spec.CopyData[dst] = HostPath(nodeModules)
-			}
-
-			pkgJsonPath := imageArtifacts.Base.Join("package.json")
-			b.spec.CopyData[pkgJsonPath] = HostPath(jsOut.PackageJson)
-			b.addPrio(pkgJsonPath)
 		}
 
 		for _, ep := range out.GetEntrypoints() {
