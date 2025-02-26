@@ -1,5 +1,19 @@
 use std::str::{self, FromStr};
 
+use http::HeaderValue;
+
+pub trait HeaderValueExt {
+    fn to_utf8_str(&self) -> Result<&str, std::str::Utf8Error>;
+}
+
+impl HeaderValueExt for HeaderValue {
+    // Some header values may contain utf8 characters (e.g authdata) so we use `str::from_utf8`
+    // rather than using `HeaderValues::to_str` which errors on non-visible ASCII characters.
+    fn to_utf8_str(&self) -> Result<&str, std::str::Utf8Error> {
+        std::str::from_utf8(self.as_bytes())
+    }
+}
+
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum MetaKey {
     TraceParent,
@@ -78,17 +92,15 @@ impl MetaMapMut for reqwest::header::HeaderMap {
 
 impl MetaMap for axum::http::HeaderMap {
     fn get_meta(&self, key: MetaKey) -> Option<&str> {
-        // Some meta values may contain utf8 characters (e.g authdata) so we use `str::from_utf8`
-        // rather than using `HeaderValues::to_str` which errors on non-visible ASCII characters.
         self.get(key.header_key())
-            .and_then(|val| std::str::from_utf8(val.as_bytes()).ok())
+            .and_then(|val| val.to_utf8_str().ok())
     }
 
     fn meta_values<'a>(&'a self, key: MetaKey) -> Box<dyn Iterator<Item = &'a str> + 'a> {
         Box::new(
             self.get_all(key.header_key())
                 .iter()
-                .filter_map(|v| v.to_str().ok()),
+                .filter_map(|v| v.to_utf8_str().ok()),
         )
     }
 
@@ -113,7 +125,7 @@ impl MetaMap for pingora::http::RequestHeader {
     fn get_meta(&self, key: MetaKey) -> Option<&str> {
         self.headers
             .get(key.header_key())
-            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.to_utf8_str().ok())
     }
 
     fn meta_values<'a>(&'a self, key: MetaKey) -> Box<dyn Iterator<Item = &'a str> + 'a> {
@@ -121,7 +133,7 @@ impl MetaMap for pingora::http::RequestHeader {
             self.headers
                 .get_all(key.header_key())
                 .iter()
-                .filter_map(|v| v.to_str().ok()),
+                .filter_map(|v| v.to_utf8_str().ok()),
         )
     }
 

@@ -3,6 +3,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::api::reqauth::meta::HeaderValueExt;
 use crate::api::{self, PValue};
 use crate::model::{LogField, LogFieldValue, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
@@ -888,7 +889,7 @@ impl EventBuffer {
         self.uvarint(headers.len() as u64);
         for (k, v) in headers.iter() {
             self.str(k.as_str());
-            self.str(v.to_str().unwrap_or(""));
+            self.str(v.to_utf8_str().unwrap_or(""));
         }
     }
 }
