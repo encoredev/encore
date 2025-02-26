@@ -20,7 +20,7 @@ lang: ts
     </div>
 </div>
 
-Encore.ts helps you build robust type-safe applications by providing a high-performance API framework, which offers a declarative way of using common backend primitives like microservices, databases, queues, caches, cron jobs, and storage buckets.
+Encore.ts is a high-performance API framework that helps you build robust, type-safe applications. It provides a declarative approach to working with essential backend infrastructure like microservices, databases, queues, caches, cron jobs, and storage buckets.
 
 The framework comes with a lot of built-in tooling for a smooth developer experience:
 
