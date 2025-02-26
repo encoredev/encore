@@ -1,3 +1,4 @@
+use crate::api::reqauth::meta::HeaderValueExt;
 use crate::api::schema::{JSONPayload, ParseResponse, ToOutgoingRequest, ToResponse};
 use crate::api::{self, PValue, PValues};
 use crate::api::{jsonschema, APIResult};
@@ -74,10 +75,10 @@ impl AsStr for &axum::http::header::HeaderName {
 }
 
 impl ToHeaderStr for &axum::http::header::HeaderValue {
-    type Error = axum::http::header::ToStrError;
+    type Error = std::str::Utf8Error;
 
     fn to_str(&self) -> Result<&str, Self::Error> {
-        <axum::http::header::HeaderValue>::to_str(self)
+        <axum::http::header::HeaderValue>::to_utf8_str(self)
     }
     fn is_empty(&self) -> bool {
         <axum::http::header::HeaderValue>::is_empty(self)

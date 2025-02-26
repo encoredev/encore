@@ -1,7 +1,7 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use napi_derive::napi;
 
-use encore_runtime_core::model;
+use encore_runtime_core::{api::reqauth::meta::HeaderValueExt, model};
 
 use crate::pvalue::PVals;
 
@@ -149,7 +149,7 @@ fn serialize_headers(
     let mut map = Map::with_capacity(headers.len());
 
     for (k, v) in headers {
-        let Ok(v) = v.to_str() else {
+        let Ok(v) = v.to_utf8_str() else {
             continue;
         };
 
