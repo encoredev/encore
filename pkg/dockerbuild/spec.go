@@ -2,16 +2,19 @@ package dockerbuild
 
 import (
 	"fmt"
+	"os"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
 	"slices"
 	strconv "strconv"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/rs/xid"
 
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/noopgateway"
 	"encr.dev/pkg/noopgwdesc"
@@ -106,6 +109,13 @@ type BundleSourceSpec struct {
 
 	// Source paths to exclude from copying, relative to Source.
 	ExcludeSource []RelPath
+
+	// Path to app root, will be included, relative to Source.
+	AppRootRelpath RelPath
+
+	// Source paths to include from copying, relative to Source.
+	// If empty, include all files.
+	IncludeSource []RelPath
 }
 
 type SupervisorSpec struct {
@@ -252,7 +262,7 @@ const (
 func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	// Allocate artifact directories for each output.
 	for _, out := range cfg.Compile.Outputs {
-		b.allocArtifactDir(out)
+		b.allocArtifactDir(cfg, out)
 	}
 
 	// Determine if we should use the supervisor.
@@ -360,18 +370,6 @@ func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 			return nil, errors.Errorf("missing image artifact dir for %q", hostArtifacts)
 		}
 
-		// If this is a JS build, copy the node modules and package.json to out dir.
-		if jsOut, ok := out.(*builder.JSBuildOutput); ok {
-			if nodeModules, ok := jsOut.NodeModules.Get(); ok {
-				dst := imageArtifacts.Base.Join("node_modules")
-				b.spec.CopyData[dst] = HostPath(nodeModules)
-			}
-
-			pkgJsonPath := imageArtifacts.Base.Join("package.json")
-			b.spec.CopyData[pkgJsonPath] = HostPath(jsOut.PackageJson)
-			b.addPrio(pkgJsonPath)
-		}
-
 		for _, ep := range out.GetEntrypoints() {
 			// For each entrypoint, add prioritized files.
 			files := ep.Cmd.PrioritizedFiles.Expand(paths.FS(imageArtifacts.BuildArtifacts))
@@ -443,34 +441,119 @@ func (b *imageSpecBuilder) addPrio(path ImagePath) {
 	}
 }
 
-func (b *imageSpecBuilder) allocArtifactDir(out builder.BuildOutput) *imageArtifactDir {
+func (b *imageSpecBuilder) allocArtifactDir(cfg DescribeConfig, out builder.BuildOutput) *imageArtifactDir {
 	hostArtifacts := HostPath(out.GetArtifactDir())
 	if s := b.seenArtifactDirs[hostArtifacts]; s != nil {
 		// Already copied this artifact dir.
 		return s
 	}
 
-	// This artifact directory has not been copied yet.
-	// Determine a reasonable name for it.
-	basePath := "/artifacts"
+	// For TS apps the artifacts will be bundled with the source
+	if _, ok := out.(*builder.JSBuildOutput); ok {
+		// TS apps always have a bundle spec.
+		bundle := cfg.BundleSource.MustGet()
 
-	for i := 0; ; i++ {
-		candidatePath := ImagePath(pathpkg.Join(basePath, strconv.Itoa(i)))
-		candidate := &imageArtifactDir{
-			Base:           candidatePath,
-			BuildArtifacts: candidatePath.Join("build"),
-		}
-		if b.spec.CopyData[candidate.Base] == "" && b.spec.CopyData[candidate.BuildArtifacts] == "" {
-			// This name is available.
-			b.spec.CopyData[candidate.BuildArtifacts] = hostArtifacts
-			b.seenArtifactDirs[hostArtifacts] = candidate
-			return candidate
+		appRoot := bundle.Dest.Join(string(bundle.AppRootRelpath))
+		imageArtifactBase := appRoot.Join(".encore")
+
+		artifactDir := &imageArtifactDir{
+			Base:           imageArtifactBase,
+			BuildArtifacts: imageArtifactBase.Join("build"),
 		}
 
-		// This path already exists. Keep trying.
+		b.seenArtifactDirs[hostArtifacts] = artifactDir
+		return artifactDir
+	} else {
+
+		// This artifact directory has not been copied yet.
+		// Determine a reasonable name for it.
+		basePath := "/artifacts"
+
+		for i := 0; ; i++ {
+			candidatePath := ImagePath(pathpkg.Join(basePath, strconv.Itoa(i)))
+			candidate := &imageArtifactDir{
+				Base:           candidatePath,
+				BuildArtifacts: candidatePath.Join("build"),
+			}
+			if b.spec.CopyData[candidate.Base] == "" && b.spec.CopyData[candidate.BuildArtifacts] == "" {
+				// This name is available.
+				b.spec.CopyData[candidate.BuildArtifacts] = hostArtifacts
+				b.seenArtifactDirs[hostArtifacts] = candidate
+				return candidate
+			}
+
+			// This path already exists. Keep trying.
+		}
 	}
 }
 
 func randomProcID() string {
 	return fmt.Sprintf("proc_%s", xid.New())
+}
+
+// DetermineIncludes determines what paths within the workspace should be included in the image.
+func DetermineIncludes(appLang appfile.Lang, bundleSource bool, workspaceRoot string, appRoot string) ([]RelPath, error) {
+	// if the actual setting is set, include all files from the workspace
+	if bundleSource {
+		return []RelPath{"."}, nil
+	}
+
+	// app root is always includede
+	if workspaceRoot == appRoot {
+		return nil, nil
+	}
+
+	var extraIncludePaths []RelPath
+
+	// Include node_modules and package.json from the workspace root if the app is a TypeScript app.
+	if appLang == appfile.LangTS {
+		dir := filepath.Dir(appRoot)
+		for {
+			relPath, err := filepath.Rel(workspaceRoot, dir)
+			if err != nil {
+				return nil, errors.Wrap(err, "relative path from workspace root")
+			}
+
+			pathsToCheck := []string{"node_modules", "package.json"}
+			for _, path := range pathsToCheck {
+				if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
+					extraIncludePaths = append(extraIncludePaths, RelPath(filepath.Join(relPath, path)))
+				}
+			}
+
+			if dir == workspaceRoot {
+				break
+			}
+
+			dir = filepath.Dir(dir)
+		}
+	}
+
+	// Walk all files and folders in includedPaths and find any symlinks.
+	// Add the symlink target to includedPaths if it is within the workspace root.
+	for _, path := range extraIncludePaths {
+		absPath := filepath.Join(workspaceRoot, string(path))
+		filepath.Walk(absPath, func(path string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if fi.Mode()&os.ModeSymlink != 0 {
+				target, err := os.Readlink(path)
+				if err != nil {
+					return nil
+				}
+				absTarget := filepath.Join(filepath.Dir(path), filepath.Clean(target))
+				relTarget, err := filepath.Rel(workspaceRoot, absTarget)
+				if err != nil {
+					return nil
+				}
+				if strings.HasPrefix(absTarget, workspaceRoot) {
+					extraIncludePaths = append(extraIncludePaths, RelPath(relTarget))
+				}
+			}
+			return nil
+		})
+	}
+
+	return extraIncludePaths, nil
 }

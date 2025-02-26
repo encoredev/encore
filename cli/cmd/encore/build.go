@@ -47,6 +47,7 @@ func init() {
 			p.Goarch = targetArch.Value
 			p.Goos = targetOS.Value
 			p.AppRoot, _ = determineAppRoot()
+			p.WorkspaceRoot = determineWorkspaceRoot(p.AppRoot)
 			file, err := appfile.ParseFile(filepath.Join(p.AppRoot, appfile.Name))
 			if err == nil {
 				if !cmd.Flag("base").Changed && file.Lang == appfile.LangTS {
@@ -76,6 +77,7 @@ func init() {
 
 type buildParams struct {
 	AppRoot       string
+	WorkspaceRoot string
 	ImageTag      string
 	Push          bool
 	BaseImg       string
@@ -124,11 +126,12 @@ func dockerBuild(p buildParams) {
 		}
 	}
 	stream, err := daemon.Export(ctx, &daemonpb.ExportRequest{
-		AppRoot:    p.AppRoot,
-		CgoEnabled: p.CgoEnabled,
-		Goos:       p.Goos,
-		Goarch:     p.Goarch,
-		Environ:    os.Environ(),
+		AppRoot:       p.AppRoot,
+		WorkspaceRoot: p.WorkspaceRoot,
+		CgoEnabled:    p.CgoEnabled,
+		Goos:          p.Goos,
+		Goarch:        p.Goarch,
+		Environ:       os.Environ(),
 		Format: &daemonpb.ExportRequest_Docker{
 			Docker: params,
 		},

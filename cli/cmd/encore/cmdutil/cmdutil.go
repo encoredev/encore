@@ -66,6 +66,30 @@ func AppRoot() (appRoot, relPath string) {
 	return appRoot, relPath
 }
 
+// WorkspaceRoot determines the workspace root by looking for the .git folder in app root or parents to it.
+// It reports the absolute path to the workspace root.
+func WorkspaceRoot(appRoot string) string {
+	dir := appRoot
+	for {
+		path := filepath.Join(dir, ".git")
+		fi, err := os.Stat(path)
+		if errors.Is(err, fs.ErrNotExist) {
+			dir2 := filepath.Dir(dir)
+			if dir2 == dir {
+				return appRoot
+			}
+			dir = dir2
+			continue
+		} else if err != nil {
+			Fatal(err)
+		} else if !fi.IsDir() {
+			continue
+		} else {
+			return dir
+		}
+	}
+}
+
 // AppSlug reports the current app's app slug.
 // It throws a fatal error if the app is not connected with the Encore Platform.
 func AppSlug() string {
