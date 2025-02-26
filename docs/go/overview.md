@@ -20,7 +20,7 @@ lang: go
     </div>
 </div>
 
-Encore.go simplifies backend development through a structured API framework, which provides a declarative way of using common backend primitives like microservices, databases, queues, caches, cron jobs, and storage buckets.
+Encore.go is a backend framework for distributed systems that provides a declarative approach of working with essential backend primitives like APIs,microservices, databases, queues, caches, cron jobs, and storage buckets.
 
 Encore helps you build robust distributed systems and provides a smooth developer experience with a lot of built-in tooling:
 

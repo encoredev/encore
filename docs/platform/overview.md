@@ -7,7 +7,7 @@ toc: false
 lang: platform
 ---
 
-Encore Cloud fully automates DevOps and infrastructure on AWS and GCP — trusted by fast-moving teams to **3x** their development speed and reduce DevOps work by **90%**.
+Encore Cloud automates DevOps and infrastructure on AWS and GCP — trusted by fast-moving teams to **2x** their development speed and reduce DevOps work by **93%**.
 
 **If you're new, learn all about how Encore works in the [introduction](/docs/platform/introduction).**
 
