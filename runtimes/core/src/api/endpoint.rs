@@ -10,6 +10,7 @@ use axum::response::IntoResponse;
 use bytes::{BufMut, BytesMut};
 use http::HeaderMap;
 use indexmap::IndexMap;
+use percent_encoding::percent_decode_str;
 use serde::Serialize;
 
 use crate::api::reqauth::{platform, svcauth, CallMeta};
@@ -677,9 +678,9 @@ impl EndpointHandler {
             .to_str()
             .map_err(|_| platform::ValidationError::InvalidDateHeader)?;
 
-        let request_path = req.uri.path();
+        let request_path = percent_decode_str(req.uri.path()).decode_utf8_lossy();
         let req = platform::ValidationData {
-            request_path,
+            request_path: &request_path,
             date_header,
             x_encore_auth_header,
         };
