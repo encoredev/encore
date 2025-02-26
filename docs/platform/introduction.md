@@ -32,7 +32,7 @@ With the backend frameworks you only define **infrastructure semantics** — _th
 
 <img className="noshadow mx-auto d:w-3/4" src="/assets/docs/howitworks.png" title="Encore's infrastructure orchestration" />
 
-This means your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
+This means that, with Encore Cloud, your application code can be used to run locally, test in preview environments, and provision and deploy to cloud environments on AWS and GCP.
 
 When your application is deployed to your cloud, there are **no runtime dependencies on Encore Cloud** and there is **no proprietary code running in your cloud**.
 
