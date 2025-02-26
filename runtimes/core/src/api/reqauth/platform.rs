@@ -4,6 +4,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use encore::runtime::v1 as pb;
 use hmac::Mac;
+use percent_encoding::percent_decode_str;
 use std::fmt::Display;
 use std::time::SystemTime;
 
@@ -69,6 +70,10 @@ impl RequestValidator {
     }
 
     pub fn sign_outgoing_request(&self, req: &mut reqwest::Request) -> anyhow::Result<()> {
+        let path = percent_decode_str(req.url().path())
+            .decode_utf8_lossy()
+            .to_string();
+
         let date_str = req
             .headers_mut()
             .entry(reqwest::header::DATE)
@@ -82,7 +87,7 @@ impl RequestValidator {
         let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(key_data).unwrap();
         mac.update(date_str.as_bytes());
         mac.update(b"\x00");
-        mac.update(req.url().path().as_bytes());
+        mac.update(path.as_bytes());
 
         let mac_bytes = mac.finalize().into_bytes();
         let combined = [key.id.to_be_bytes().as_slice(), mac_bytes.as_slice()].concat();
