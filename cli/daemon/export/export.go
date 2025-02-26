@@ -132,7 +132,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 
 	if buildSettings.Docker.BundleSource || appLang == appfile.LangTS {
 		// TODO(fredr): get workspace root from somewhere
-		workspaceRoot := "/home/fredr/projects/encore-apps/npm-workspace-test/"
+		workspaceRoot := req.WorkspaceRoot
 		appRoot := app.Root()
 
 		relPath, err := filepath.Rel(workspaceRoot, appRoot)
