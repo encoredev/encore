@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -131,7 +132,6 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if buildSettings.Docker.BundleSource || appLang == appfile.LangTS {
-		// TODO(fredr): get workspace root from somewhere
 		workspaceRoot := req.WorkspaceRoot
 		appRoot := app.Root()
 
@@ -140,16 +140,36 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 			return false, errors.Wrap(err, "relative path from workspace root to app root")
 		}
 
-		appImagePath := dockerbuild.ImagePath(filepath.Join("/workspace", relPath))
+		includedPaths := []dockerbuild.RelPath{dockerbuild.RelPath(relPath)}
+		if appLang == appfile.LangTS && appRoot != workspaceRoot {
+			dir := filepath.Dir(appRoot)
+			for {
+				relPath, err := filepath.Rel(workspaceRoot, dir)
+				if err != nil {
+					return false, errors.Wrap(err, "relative path from workspace root")
+				}
+
+				pathsToCheck := []string{"node_modules", "package.json"}
+				for _, path := range pathsToCheck {
+					if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
+						includedPaths = append(includedPaths, dockerbuild.RelPath(filepath.Join(relPath, path)))
+					}
+				}
+
+				if dir == workspaceRoot {
+					break
+				}
+
+				dir = filepath.Dir(dir)
+			}
+		}
+
+		imageWorkingDir := dockerbuild.ImagePath(filepath.Join("/workspace", relPath))
 
 		describeCfg.BundleSource = option.Some(dockerbuild.BundleSourceSpec{
-			Source: dockerbuild.HostPath(workspaceRoot),
-			Dest:   "/workspace",
-			IncludeSource: option.Some([]dockerbuild.RelPath{
-				"node_modules",
-				"package.json",
-				"apps/encore-app",
-			}),
+			Source:        dockerbuild.HostPath(workspaceRoot),
+			Dest:          "/workspace",
+			IncludeSource: option.Some(includedPaths),
 			ExcludeSource: []dockerbuild.RelPath{
 				".git",
 			},
@@ -157,7 +177,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 
 		if describeCfg.WorkingDir.Empty() {
 			// Set the working directory to "/workspace" by default, in this case.
-			describeCfg.WorkingDir = option.Some(appImagePath)
+			describeCfg.WorkingDir = option.Some(imageWorkingDir)
 		}
 	}
 

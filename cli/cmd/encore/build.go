@@ -47,7 +47,7 @@ func init() {
 			p.Goarch = targetArch.Value
 			p.Goos = targetOS.Value
 			p.AppRoot, _ = determineAppRoot()
-			p.WorkspaceRoot = "/home/fredr/projects/encore-apps/npm-workspace-test/"
+			p.WorkspaceRoot = determineWorkspaceRoot(p.AppRoot)
 			file, err := appfile.ParseFile(filepath.Join(p.AppRoot, appfile.Name))
 			if err == nil {
 				if !cmd.Flag("base").Changed && file.Lang == appfile.LangTS {
