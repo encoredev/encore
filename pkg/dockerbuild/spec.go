@@ -256,7 +256,7 @@ const (
 func (b *imageSpecBuilder) Describe(cfg DescribeConfig) (*ImageSpec, error) {
 	// Allocate artifact directories for each output.
 	for _, out := range cfg.Compile.Outputs {
-		b.allocArtifactDir(out)
+		b.allocArtifactDir(cfg, out)
 	}
 
 	// Determine if we should use the supervisor.
@@ -435,31 +435,42 @@ func (b *imageSpecBuilder) addPrio(path ImagePath) {
 	}
 }
 
-func (b *imageSpecBuilder) allocArtifactDir(out builder.BuildOutput) *imageArtifactDir {
+func (b *imageSpecBuilder) allocArtifactDir(cfg DescribeConfig, out builder.BuildOutput) *imageArtifactDir {
 	hostArtifacts := HostPath(out.GetArtifactDir())
 	if s := b.seenArtifactDirs[hostArtifacts]; s != nil {
 		// Already copied this artifact dir.
 		return s
 	}
 
-	// This artifact directory has not been copied yet.
-	// Determine a reasonable name for it.
-	basePath := "/artifacts"
-
-	for i := 0; ; i++ {
-		candidatePath := ImagePath(pathpkg.Join(basePath, strconv.Itoa(i)))
-		candidate := &imageArtifactDir{
-			Base:           candidatePath,
-			BuildArtifacts: candidatePath.Join("build"),
-		}
-		if b.spec.CopyData[candidate.Base] == "" && b.spec.CopyData[candidate.BuildArtifacts] == "" {
-			// This name is available.
-			b.spec.CopyData[candidate.BuildArtifacts] = hostArtifacts
-			b.seenArtifactDirs[hostArtifacts] = candidate
-			return candidate
+	if cfg.Meta.Language == meta.Lang_TYPESCRIPT {
+		artifactDir := &imageArtifactDir{
+			Base:           cfg.WorkingDir.MustGet().Join(".encore"),
+			BuildArtifacts: cfg.WorkingDir.MustGet().Join(".encore", "build"),
 		}
 
-		// This path already exists. Keep trying.
+		b.seenArtifactDirs[hostArtifacts] = artifactDir
+		return artifactDir
+	} else {
+
+		// This artifact directory has not been copied yet.
+		// Determine a reasonable name for it.
+		basePath := "/artifacts"
+
+		for i := 0; ; i++ {
+			candidatePath := ImagePath(pathpkg.Join(basePath, strconv.Itoa(i)))
+			candidate := &imageArtifactDir{
+				Base:           candidatePath,
+				BuildArtifacts: candidatePath.Join("build"),
+			}
+			if b.spec.CopyData[candidate.Base] == "" && b.spec.CopyData[candidate.BuildArtifacts] == "" {
+				// This name is available.
+				b.spec.CopyData[candidate.BuildArtifacts] = hostArtifacts
+				b.seenArtifactDirs[hostArtifacts] = candidate
+				return candidate
+			}
+
+			// This path already exists. Keep trying.
+		}
 	}
 }
 
