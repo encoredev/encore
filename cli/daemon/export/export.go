@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -162,6 +163,32 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 
 				dir = filepath.Dir(dir)
 			}
+		}
+
+		// Walk all files and folders in includedPaths and find any symlinks.
+		// Add the symlink target to includedPaths if it is within the workspace root.
+		for i := 0; i < len(includedPaths); i++ {
+			absPath := filepath.Join(workspaceRoot, string(includedPaths[i]))
+			filepath.Walk(absPath, func(path string, fi os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if fi.Mode()&os.ModeSymlink != 0 {
+					target, err := os.Readlink(path)
+					if err != nil {
+						return nil
+					}
+					absTarget := filepath.Join(filepath.Dir(path), filepath.Clean(target))
+					relTarget, err := filepath.Rel(workspaceRoot, absTarget)
+					if err != nil {
+						return nil
+					}
+					if strings.HasPrefix(absTarget, workspaceRoot) {
+						includedPaths = append(includedPaths, dockerbuild.RelPath(relTarget))
+					}
+				}
+				return nil
+			})
 		}
 
 		imageWorkingDir := dockerbuild.ImagePath(filepath.Join("/workspace", relPath))
