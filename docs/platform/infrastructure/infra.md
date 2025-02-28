@@ -1,7 +1,7 @@
 ---
 seotitle: Cloud Infrastructure Provisioning
 seodesc: Learn how to provision appropriate cloud infrastructure depending on the environment type for AWS and GCP.
-title: Infrastructure provisioning
+title: Infrastructure provisioning & Environments
 subtitle: How Encore Cloud provisions infrastructure for your application
 lang: platform
 ---
@@ -10,9 +10,16 @@ Encore Cloud automatically provisions all necessary infrastructure, in all envir
 
 <img src="/assets/docs/encore_overview.png" title="Infrastructure Overview" className="noshadow"/>
 
-This is powered by Encore's [Backend Framework](/docs/ts), which lets you declare infrastructure resources (databases, caches, queues, scheduled jobs, etc.) as type-safe objects in application code.
+## How it works
 
-At compile time, Encore creates an [Application Model](/docs/ts/concepts/application-model) with a definition of the infrastructure your application requires. Encore Cloud then uses this model to provision the infrastructure in both your cloud account, and development and preview environments hosted by Encore Cloud.
+This is powered by Encore's open source [backend framework](/docs/ts), which lets you declare infrastructure resources (databases, caches, queues, scheduled jobs, etc.) as type-safe objects in application code.
+
+At compile time, Encore parses the application code to generate an [Application Model](/docs/ts/concepts/application-model), and Encore Cloud uses this meta data to create an infrastructure graph with a high-resolution definition of the infrastructure your application requires.
+
+Encore Cloud then uses this graph to provision and manage the necessary infrastructure in your cloud account (using AWS and GCP APIs), and in development and preview environments hosted by Encore Cloud.
+
+<img src="/assets/docs/howitworks.png" title="Infrastructure Provisioning"/>
+
 
 The approach removes the need for infrastructure configuration files and avoids creating cloud-specific dependencies in your application.
 
@@ -94,19 +101,8 @@ Encore Cloud provisions production infrastructure resources using best-practice 
 | **Cron Jobs:**      | Encore Cloud Managed                                                                                                               | Encore Cloud Managed                                                                                           | Encore Cloud Managed |
 | **Secrets:**        | [Secret Manager](/docs/platform/infrastructure/gcp#secrets-management)                                                             | [AWS Secrets Manager](/docs/platform/infrastructure/aws#se)                                                    |
 
-### Configurability
+### Configuration
 
-With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in the Encore Cloud dashboard. Encore Cloud takes care of syncing the changes automatically in both directions.
+With Encore you do not define any cloud service specifics in the application code. This means that after deploying, you can safely use your cloud provider's console to modify the provisioned resources, or use the built-in configuration UI in the Encore Cloud dashboard.
 
-In the future, Encore Cloud will offer automated optimization of cloud environments according to your application's real-world behavior.
-
-<img src="/assets/docs/infra_config.png" title="Infra configuration UI"/>
-
-#### Process allocation
-
-You can configure how microservices should be deployed on the compute hardware; either deploying all services in one process or one process per service.
-
-It's often recommended to deploy all services in one process in order to reduce costs and minimize response times between services. (But it depends on your use case.)
-Deploying each service as its own process will improve scalability and decrease blast radius if things go wrong. This is only recommended for production environments.
-
-<img src="/assets/docs/microservices-process-allocation.png" title="Process allocation config"/>
+Learn more in the [Infrastructure Configuration](/docs/platform/infrastructure/configuration) documentation.
