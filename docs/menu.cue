@@ -1055,9 +1055,14 @@
 			text: "Infrastructure"
 			items: [{
 				kind: "basic"
-				text: "Infrastructure overview"
+				text: "Provisioning & Environments"
 				path: "/platform/infrastructure/infra"
 				file: "platform/infrastructure/infra"
+			}, {
+				kind: "basic"
+				text: "Infrastructure Configuration"
+				path: "/platform/infrastructure/configuration"
+				file: "platform/infrastructure/configuration"
 			}, {
 				kind: "basic"
 				text: "GCP Infrastructure"
