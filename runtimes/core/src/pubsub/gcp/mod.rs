@@ -26,7 +26,11 @@ impl Cluster {
 }
 
 impl pubsub::Cluster for Cluster {
-    fn topic(&self, cfg: &pb::PubSubTopic) -> Arc<dyn pubsub::Topic + 'static> {
+    fn topic(
+        &self,
+        cfg: &pb::PubSubTopic,
+        _publisher_id: xid::Id,
+    ) -> Arc<dyn pubsub::Topic + 'static> {
         Arc::new(Topic::new(self.client.clone(), cfg))
     }
 

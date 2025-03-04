@@ -19,7 +19,7 @@ pub struct NoopTopic;
 pub struct NoopSubscription;
 
 impl pubsub::Cluster for NoopCluster {
-    fn topic(&self, _cfg: &pb::PubSubTopic) -> Arc<dyn pubsub::Topic> {
+    fn topic(&self, _cfg: &pb::PubSubTopic, _publisher_id: xid::Id) -> Arc<dyn pubsub::Topic> {
         Arc::new(NoopTopic)
     }
 
@@ -36,6 +36,7 @@ impl pubsub::Topic for NoopTopic {
     fn publish(
         &self,
         _: pubsub::MessageData,
+        _: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<pubsub::MessageId>> + Send + '_>> {
         Box::pin(async {
             anyhow::bail!("topic not configured");

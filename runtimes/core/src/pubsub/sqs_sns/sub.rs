@@ -314,9 +314,9 @@ struct SNSMessageWrapper {
     message: String,
     #[serde(rename = "Timestamp")]
     timestamp: String,
-    #[serde(rename = "SignatureVersion")]
+    #[serde(rename = "SignatureVersion", default)]
     signature_version: String,
-    #[serde(rename = "SigningCertURL")]
+    #[serde(rename = "SigningCertURL", default)]
     signing_cert_url: String,
     #[serde(rename = "UnsubscribeURL")]
     unsubscribe_url: String,
