@@ -115,6 +115,10 @@ pub(super) fn resolve_package_manager(
             pkg_json: package_json,
             dir: package_dir.to_path_buf(),
         })),
+        "bun" => Ok(Box::new(BunPackageManager {
+            pkg_json: package_json,
+            dir: package_dir.to_path_buf(),
+        })),
         "yarn" => Ok(Box::new(YarnPackageManager {
             pkg_json: package_json,
             dir: package_dir.to_path_buf(),
@@ -183,6 +187,63 @@ impl PackageManager for NpmPackageManager {
 
     fn mgr_name(&self) -> &'static str {
         "npm"
+    }
+}
+
+struct BunPackageManager {
+    pkg_json: PackageJson,
+    dir: PathBuf,
+}
+
+impl PackageManager for BunPackageManager {
+    fn setup_deps(&self, encore_dev_version: &PackageVersion) -> Result<(), PrepareError> {
+        // Install `encore.dev` if necessary
+        let installed = self.pkg_json.dependencies.get("encore.dev");
+        let v = installed.map_or(InstalledVersion::NotInstalled, |v| {
+            encore_dev_version.is_installed(v, &self.dir)
+        });
+
+        // First ensure the package.json file is up to date.
+        let modified = update_package_json(&self.dir, v, encore_dev_version)?;
+
+        // If we modified anything or don't have a node_modules directory, run 'bun install'.
+        if modified || !self.dir.join("node_modules").exists() {
+            let backend = std::env::var("BUN_INSTALL_BACKEND").unwrap_or_default();
+            if backend.is_empty() {
+                cmd!("bun", "install")
+                    .dir(&self.dir)
+                    .stdout_to_stderr()
+                    .run()
+                    .map_err(PrepareError::InstallNodeModules)?;
+            } else {
+                cmd!("bun", "install", "--backend", backend)
+                    .dir(&self.dir)
+                    .stdout_to_stderr()
+                    .run()
+                    .map_err(PrepareError::InstallNodeModules)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn run_tests(&self) -> CmdSpec {
+        CmdSpec {
+            command: vec![
+                "bun".to_string(),
+                "run".to_string(),
+                "test".to_string(),
+                // Specify '--' so that additional arguments added from the test runner
+                // aren't interpreted by bun.
+                "--".to_string(),
+            ],
+            env: vec![],
+            prioritized_files: vec![],
+        }
+    }
+
+    fn mgr_name(&self) -> &'static str {
+        "bun"
     }
 }
 
@@ -285,7 +346,6 @@ impl PackageManager for PnpmPackageManager {
                 .run()
                 .map_err(PrepareError::InstallNodeModules)?;
         }
-
         Ok(())
     }
 
