@@ -62,6 +62,7 @@ impl pubsub::Topic for Topic {
     fn publish(
         &self,
         msg: MessageData,
+        ordering_key: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<MessageId>> + Send + '_>> {
         Box::pin(async move {
             let (_, publisher) = self.get_topic().await?;
@@ -69,7 +70,7 @@ impl pubsub::Topic for Topic {
                 .publish(PubsubMessage {
                     data: msg.raw_body,
                     attributes: msg.attrs.into_iter().collect(),
-                    ordering_key: "".to_string(), // TODO support
+                    ordering_key: ordering_key.unwrap_or_default(),
                     ..Default::default()
                 })
                 .await;
