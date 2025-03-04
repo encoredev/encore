@@ -129,6 +129,10 @@ impl objects::BucketImpl for Bucket {
                             req.prefix = Some(key_prefix.clone());
                         }
 
+                        if let Some(key_prefix) = &options.prefix {
+                            req.prefix = Some(req.prefix.unwrap_or_default().clone() + key_prefix);
+                        }
+
                         'PageLoop:
                         loop {
                             let resp = client.list_objects(&req).await.map_err(|e| Error::Other(e.into()))?;
