@@ -97,6 +97,12 @@ impl objects::BucketImpl for Bucket {
                     req = req.prefix(key_prefix);
                 }
 
+                if let Some(key_prefix) = &options.prefix {
+                    let current_prefix = req.get_prefix().as_deref().unwrap_or_default();
+                    let new_prefix = format!("{}{}", current_prefix, key_prefix);
+                    req = req.prefix(new_prefix);
+                }
+
                 let page_size = if let Some(limit) = options.limit {
                     limit.min(1000) as i32
                 } else {
