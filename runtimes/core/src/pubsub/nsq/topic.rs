@@ -69,6 +69,7 @@ impl Topic for NsqTopic {
     fn publish(
         &self,
         msg: MessageData,
+        _ordering_key: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<MessageId>> + Send + '_>> {
         let tx = self.tx.clone();
         Box::pin(async move {

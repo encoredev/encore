@@ -37,7 +37,7 @@ pub struct Message {
 }
 
 trait Cluster: Debug + Send + Sync {
-    fn topic(&self, cfg: &pb::PubSubTopic) -> Arc<dyn Topic + 'static>;
+    fn topic(&self, cfg: &pb::PubSubTopic, publisher_id: xid::Id) -> Arc<dyn Topic + 'static>;
     fn subscription(
         &self,
         cfg: &pb::PubSubSubscription,
@@ -49,6 +49,7 @@ trait Topic: Debug + Send + Sync {
     fn publish(
         &self,
         msg: MessageData,
+        ordering_key: Option<String>,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<MessageId>> + Send + '_>>;
 }
 

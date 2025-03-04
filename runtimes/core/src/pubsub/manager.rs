@@ -31,6 +31,7 @@ pub struct Manager {
     tracer: Tracer,
     topic_cfg: HashMap<EncoreName, TopicConfig>,
     sub_cfg: HashMap<SubName, SubConfig>,
+    publisher_id: xid::Id,
 
     topics: Arc<RwLock<HashMap<EncoreName, Arc<TopicInner>>>>,
     subs: Arc<RwLock<HashMap<SubName, Arc<SubscriptionObj>>>>,
@@ -48,6 +49,7 @@ struct TopicInner {
     tracer: Tracer,
     imp: Arc<dyn Topic>,
     attr_fields: Arc<Vec<String>>,
+    ordering_attr: Option<String>,
 }
 
 impl TopicObj {
@@ -70,7 +72,7 @@ impl TopicInner {
         let inner = self.imp.clone();
         let name = self.name.clone();
         let attr_fields = self.attr_fields.clone();
-
+        let ordering_attr = self.ordering_attr.clone();
         async move {
             let raw_body = serde_json::to_vec_pretty(&payload)
                 .context("unable to serialize message payload")?;
@@ -84,6 +86,17 @@ impl TopicInner {
                     msg.attrs.insert(name.clone(), val.to_string());
                 }
             }
+
+            let ordering_key: Option<String> = if let Some(attr) = ordering_attr {
+                Some(
+                    msg.attrs
+                        .get(&attr)
+                        .with_context(|| format!("ordering attribute {} not found", attr))?
+                        .clone(),
+                )
+            } else {
+                None
+            };
 
             if let Some(source) = source.as_deref() {
                 msg.attrs.insert(
@@ -102,7 +115,7 @@ impl TopicInner {
                     topic: &name,
                     payload: &msg.raw_body,
                 });
-                let result = inner.publish(msg).await;
+                let result = inner.publish(msg, ordering_key).await;
                 tracer.pubsub_publish_end(protocol::PublishEndData {
                     start_id,
                     source,
@@ -110,7 +123,7 @@ impl TopicInner {
                 });
                 result
             } else {
-                inner.publish(msg).await
+                inner.publish(msg, ordering_key).await
             }
         }
     }
@@ -275,6 +288,7 @@ impl Manager {
         let (topic_cfg, sub_cfg) = make_cfg_maps(clusters, md)?;
 
         Ok(Self {
+            publisher_id: xid::new(),
             tracer,
             topic_cfg,
             sub_cfg,
@@ -296,12 +310,13 @@ impl Manager {
 
         let topic = Arc::new({
             if let Some(cfg) = self.topic_cfg.get(&name) {
-                let imp = cfg.cluster.topic(&cfg.cfg);
+                let imp = cfg.cluster.topic(&cfg.cfg, self.publisher_id);
                 TopicInner {
                     name: name.clone(),
                     imp,
                     tracer: self.tracer.clone(),
                     attr_fields: cfg.attr_fields.clone(),
+                    ordering_attr: cfg.cfg.ordering_attr.clone(),
                 }
             } else {
                 TopicInner {
@@ -309,6 +324,7 @@ impl Manager {
                     imp: Arc::new(noop::NoopTopic),
                     tracer: self.tracer.clone(),
                     attr_fields: Arc::new(vec![]),
+                    ordering_attr: None,
                 }
             }
         });
@@ -411,7 +427,6 @@ fn make_cfg_maps(
             let Some(schema_type) = &topic.message_type else {
                 anyhow::bail!("topic {} has no message type", topic.name);
             };
-
             let attr_fields = message_attr_fields(&md.decls, schema_type, 0)?;
             let schema_idx = schema_builder
                 .register_type(schema_type)
