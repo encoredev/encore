@@ -113,8 +113,7 @@ type BundleSourceSpec struct {
 	// Path to app root, will be included, relative to Source.
 	AppRootRelpath RelPath
 
-	// Source paths to include from copying, relative to Source.
-	// If empty, include all files.
+	// Extra source paths to include when bundling, relative to Source.
 	IncludeSource []RelPath
 }
 
