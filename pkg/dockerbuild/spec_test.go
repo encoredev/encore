@@ -20,7 +20,7 @@ func TestBuild_Node(t *testing.T) {
 		Meta:     &meta.Data{Language: meta.Lang_TYPESCRIPT},
 		Runtimes: "/host/runtimes",
 		BundleSource: option.Some(BundleSourceSpec{
-			Source:         "/host/app",
+			Source:         "/host",
 			Dest:           "/image",
 			AppRootRelpath: ".",
 		}),
@@ -46,7 +46,7 @@ func TestBuild_Node(t *testing.T) {
 
 	opts := append([]cmp.Option{cmpopts.EquateEmpty()}, option.CmpOpts()...)
 	c.Assert(spec, qt.CmpEquals(opts...), &ImageSpec{
-		Entrypoint: []string{"/image/.encore/build/entrypoint"},
+		Entrypoint: []string{"/image/artifacts/entrypoint"},
 		Env: []string{
 			"ENCORE_RUNTIME_LIB=/encore/runtimes/js/encore-runtime.node",
 		},
@@ -57,7 +57,7 @@ func TestBuild_Node(t *testing.T) {
 			"/encore/runtimes/js": "/host/runtimes/js",
 		},
 		BundleSource: option.Some(BundleSourceSpec{
-			Source:         "/host/app",
+			Source:         "/host",
 			Dest:           "/image",
 			AppRootRelpath: ".",
 			ExcludeSource:  []RelPath{},
@@ -69,7 +69,7 @@ func TestBuild_Node(t *testing.T) {
 		DockerBaseImage: "scratch",
 		FeatureFlags:    map[FeatureFlag]bool{NewRuntimeConfig: true},
 		StargzPrioritizedFiles: []ImagePath{
-			"/image/.encore/build/entrypoint",
+			"/image/artifacts/entrypoint",
 			"/encore/runtimes/js/encore-runtime.node",
 		},
 	})

@@ -20,9 +20,9 @@ func TestBuildImage(t *testing.T) {
 
 	artifacts := paths.FS(c.TempDir())
 	writeFiles(c, artifacts, map[string]string{
-		".encore/build/entrypoint": "echo hello",
-		"package.json":             `{"name": "package/name"}`,
-		"node_modules/foo":         "foo",
+		"entrypoint":       "echo hello",
+		"package.json":     `{"name": "package/name"}`,
+		"node_modules/foo": "foo",
 	})
 	runtimes := paths.FS(c.TempDir())
 	writeFiles(c, runtimes, map[string]string{

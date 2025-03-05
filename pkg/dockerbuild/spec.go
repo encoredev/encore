@@ -448,43 +448,50 @@ func (b *imageSpecBuilder) allocArtifactDir(cfg DescribeConfig, out builder.Buil
 		return s
 	}
 
+	bundle, hasBundle := cfg.BundleSource.Get()
+	_, isJSOutput := out.(*builder.JSBuildOutput)
+
 	// For TS apps the artifacts will be bundled with the source
-	if _, ok := out.(*builder.JSBuildOutput); ok {
-		// TS apps always have a bundle spec.
-		bundle := cfg.BundleSource.MustGet()
-
-		appRoot := bundle.Dest.Join(string(bundle.AppRootRelpath))
-		imageArtifactBase := appRoot.Join(".encore")
-
-		artifactDir := &imageArtifactDir{
-			Base:           imageArtifactBase,
-			BuildArtifacts: imageArtifactBase.Join("build"),
-		}
-
-		b.seenArtifactDirs[hostArtifacts] = artifactDir
-		return artifactDir
-	} else {
-
-		// This artifact directory has not been copied yet.
-		// Determine a reasonable name for it.
-		basePath := "/artifacts"
-
-		for i := 0; ; i++ {
-			candidatePath := ImagePath(pathpkg.Join(basePath, strconv.Itoa(i)))
-			candidate := &imageArtifactDir{
-				Base:           candidatePath,
-				BuildArtifacts: candidatePath.Join("build"),
-			}
-			if b.spec.CopyData[candidate.Base] == "" && b.spec.CopyData[candidate.BuildArtifacts] == "" {
-				// This name is available.
-				b.spec.CopyData[candidate.BuildArtifacts] = hostArtifacts
-				b.seenArtifactDirs[hostArtifacts] = candidate
-				return candidate
+	if isJSOutput && hasBundle {
+		// If hostArtifacts are within the the bundled source, we dont need to copy them.
+		if strings.HasPrefix(string(hostArtifacts), string(bundle.Source)) {
+			relpath, err := filepath.Rel(string(bundle.Source), string(hostArtifacts))
+			if err != nil {
+				panic(fmt.Sprintf("failed to calculate relative path from %q to %q: %v", bundle.Source, hostArtifacts, err))
 			}
 
-			// This path already exists. Keep trying.
+			imageBuildArtifactsDir := bundle.Dest.Join(string(relpath))
+
+			artifactDir := &imageArtifactDir{
+				Base:           imageBuildArtifactsDir.Dir(),
+				BuildArtifacts: imageBuildArtifactsDir,
+			}
+
+			b.seenArtifactDirs[hostArtifacts] = artifactDir
+			return artifactDir
 		}
 	}
+
+	// This artifact directory has not been copied yet.
+	// Determine a reasonable name for it.
+	basePath := "/artifacts"
+
+	for i := 0; ; i++ {
+		candidatePath := ImagePath(pathpkg.Join(basePath, strconv.Itoa(i)))
+		candidate := &imageArtifactDir{
+			Base:           candidatePath,
+			BuildArtifacts: candidatePath.Join("build"),
+		}
+		if b.spec.CopyData[candidate.Base] == "" && b.spec.CopyData[candidate.BuildArtifacts] == "" {
+			// This name is available.
+			b.spec.CopyData[candidate.BuildArtifacts] = hostArtifacts
+			b.seenArtifactDirs[hostArtifacts] = candidate
+			return candidate
+		}
+
+		// This path already exists. Keep trying.
+	}
+
 }
 
 func randomProcID() string {
