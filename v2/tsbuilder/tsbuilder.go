@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"encore.dev/appruntime/exported/experiments"
 	"github.com/cockroachdb/errors"
 	"google.golang.org/protobuf/proto"
 
@@ -197,14 +198,21 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 type compileInput struct {
 	UseLocalRuntime bool              `json:"use_local_runtime"`
 	Debug           builder.DebugMode `json:"debug"`
+	NodeJSRuntime   NodeJSRuntime     `json:"nodejs_runtime"`
 }
 
 func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
 	data := p.Parse.Data.(*data)
 
+	nodejsRuntime := NodeJS
+	if experiments.BunRuntime.Enabled(p.Experiments) {
+		nodejsRuntime = Bun
+	}
+
 	input, _ := json.Marshal(compileInput{
 		UseLocalRuntime: p.Build.UseLocalJSRuntime,
 		Debug:           p.Build.DebugMode,
+		NodeJSRuntime:   nodejsRuntime,
 	})
 
 	_, _ = data.stdin.Write([]byte("compile\n"))
@@ -342,6 +350,13 @@ func (i *BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacing
 
 type genUserFacingInput struct {
 }
+
+type NodeJSRuntime string
+
+const (
+	NodeJS NodeJSRuntime = "nodejs"
+	Bun    NodeJSRuntime = "bun"
+)
 
 type prepareInput struct {
 	JSRuntimeRoot        paths.FS `json:"js_runtime_root"`

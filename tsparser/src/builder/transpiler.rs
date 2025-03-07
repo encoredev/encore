@@ -5,6 +5,8 @@ use crate::builder::compile::{CmdSpec, Entrypoint};
 use crate::builder::{DebugMode, PlainError};
 use anyhow::{Context, Result};
 
+use super::NodeJSRuntime;
+
 #[allow(dead_code)]
 pub enum ExternalPackages<'a> {
     All,
@@ -40,6 +42,9 @@ pub struct TranspileParams<'a> {
 
     // If we should transpile for debug
     pub debug: DebugMode,
+
+    // What runtime should be used as entrypoint
+    pub nodejs_runtime: NodeJSRuntime,
 }
 
 pub struct TranspileResult {
@@ -104,7 +109,10 @@ impl OutputTranspiler for EsbuildCompiler<'_> {
                     )
                 };
 
-                let mut command = vec!["node".to_string(), "--enable-source-maps".into()];
+                let mut command = match p.nodejs_runtime {
+                    NodeJSRuntime::NodeJS => vec!["node".into(), "--enable-source-maps".into()],
+                    NodeJSRuntime::Bun => vec!["bun".into(), "run".into()],
+                };
 
                 match p.debug {
                     DebugMode::Disabled => {}

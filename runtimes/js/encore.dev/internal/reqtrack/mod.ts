@@ -1,22 +1,12 @@
 import * as runtime from "../runtime/mod";
-import { executionAsyncResource, createHook } from "node:async_hooks";
+import { AsyncLocalStorage } from "node:async_hooks";
 
-// Private symbol to avoid pollution
-const sym = Symbol("request");
-
-createHook({
-  init(asyncId: any, type: any, triggerAsyncId: any, resource: any) {
-    const cr: any = executionAsyncResource();
-    if (cr) {
-      resource[sym] = cr[sym];
-    }
-  }
-}).enable();
+const asyncLocalStorage = new AsyncLocalStorage();
 
 export function setCurrentRequest(req: runtime.Request) {
-  (executionAsyncResource() as any)[sym] = req;
+  asyncLocalStorage.enterWith(req);
 }
 
 export function getCurrentRequest(): runtime.Request | null {
-  return (executionAsyncResource() as any)[sym] ?? null;
+  return (asyncLocalStorage.getStore() as runtime.Request) ?? null;
 }

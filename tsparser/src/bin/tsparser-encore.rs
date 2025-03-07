@@ -12,7 +12,7 @@ use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use encore_tsparser::builder::{Builder, DebugMode, PlainError};
+use encore_tsparser::builder::{Builder, DebugMode, NodeJSRuntime, PlainError};
 use encore_tsparser::parser::parser::ParseContext;
 use encore_tsparser::{app, builder};
 
@@ -142,6 +142,7 @@ fn main() -> Result<()> {
                                 working_dir: &cwd,
                                 desc: parse,
                                 debug: input.debug,
+                                nodejs_runtime: input.nodejs_runtime,
                             };
 
                             log::info!("starting compile");
@@ -297,6 +298,8 @@ struct PrepareInput {
 #[derive(Deserialize, Debug)]
 struct CompileInput {
     debug: DebugMode,
+    #[serde(default)]
+    nodejs_runtime: NodeJSRuntime,
 }
 
 #[derive(Deserialize, Debug)]

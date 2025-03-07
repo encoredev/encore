@@ -211,3 +211,16 @@ pub enum DebugMode {
     Enabled,
     Break,
 }
+
+#[derive(Deserialize, Debug, Copy, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum NodeJSRuntime {
+    NodeJS,
+    Bun,
+}
+
+impl Default for NodeJSRuntime {
+    fn default() -> Self {
+        Self::NodeJS
+    }
+}
