@@ -45,16 +45,19 @@ type ImageBuildConfig struct {
 	// BaseImageOverride overrides the base image to use.
 	// If None it resolves the image from the spec using ResolveRemoteImage.
 	BaseImageOverride option.Option[v1.Image]
+
+	// A URL to a http proxy used to fetch images
+	DockerOptions []remote.Option
 }
 
 // BuildImage builds a docker image from the given spec.
 func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.Image, error) {
-	options := []remote.Option{
+	options := append(cfg.DockerOptions,
 		remote.WithPlatform(v1.Platform{
 			OS:           spec.OS,
 			Architecture: spec.Arch,
 		}),
-	}
+	)
 	baseImg, err := resolveBaseImage(ctx, spec.DockerBaseImage, cfg.BaseImageOverride, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve base image")
