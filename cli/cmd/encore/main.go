@@ -40,6 +40,10 @@ func determineAppRoot() (appRoot, relPath string) {
 	return cmdutil.AppRoot()
 }
 
+func determineWorkspaceRoot(appRoot string) string {
+	return cmdutil.WorkspaceRoot(appRoot)
+}
+
 func resolvePackages(dir string, patterns ...string) ([]string, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedName,

@@ -208,16 +208,9 @@ func (o *GoBuildOutput) GetArtifactDir() paths.FS     { return o.ArtifactDir }
 func (o *GoBuildOutput) GetEntrypoints() []Entrypoint { return o.Entrypoints }
 
 type JSBuildOutput struct {
-	// NodeModules are the node modules that the build artifacts rely on.
-	// It's None if the artifacts don't rely on any node modules.
-	NodeModules option.Option[paths.FS] `json:"node_modules"`
-
 	// The folder containing the build artifacts.
 	// These artifacts are assumed to be relocatable.
 	ArtifactDir paths.FS `json:"artifact_dir"`
-
-	// PackageJson is the path to the package.json file to use.
-	PackageJson paths.FS `json:"package_json"`
 
 	// The entrypoints that are part of this build output.
 	Entrypoints []Entrypoint `json:"entrypoints"`

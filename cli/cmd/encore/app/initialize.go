@@ -20,11 +20,6 @@ const (
 	tsEncoreAppData = `{%s
 	"id": "%s",
 	"lang": "typescript",
-	"build": {
-		"docker": {
-			"bundle_source": true
-		}
-	}
 }
 `
 	goEncoreAppData = `{%s
