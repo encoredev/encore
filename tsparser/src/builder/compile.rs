@@ -11,7 +11,7 @@ use crate::builder::transpiler::{
 };
 use crate::parser::parser::ParseContext;
 
-use super::{App, Builder, DebugMode};
+use super::{App, Builder, DebugMode, NodeJSRuntime};
 
 #[derive(Debug)]
 pub struct CompileParams<'a> {
@@ -20,6 +20,7 @@ pub struct CompileParams<'a> {
     pub working_dir: &'a Path,
     pub desc: &'a AppDesc,
     pub debug: DebugMode,
+    pub nodejs_runtime: NodeJSRuntime,
 }
 
 #[derive(Serialize, Debug)]
@@ -144,6 +145,7 @@ impl Builder<'_> {
             artifact_dir: build_dir.as_path(),
             cwd: params.app.root.as_path(),
             debug: params.debug,
+            nodejs_runtime: params.nodejs_runtime,
             inputs,
         })?;
 

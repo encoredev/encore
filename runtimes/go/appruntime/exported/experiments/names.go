@@ -41,6 +41,9 @@ const (
 
 	// TSWorkerThreads enables multiple worker threads for Encore.ts.
 	TSWorkerThreads Name = "ts-worker-threads"
+
+	// BunRuntime enables bun as the nodejs runtime
+	BunRuntime Name = "bun-runtime"
 )
 
 // Valid reports whether the given name is a known experiment.
@@ -55,7 +58,8 @@ func (x Name) Valid() bool {
 		TypeScript,
 		StreamTraces,
 		AdaptiveGCPPubSubGoroutines,
-		TSWorkerThreads:
+		TSWorkerThreads,
+		BunRuntime:
 		return true
 	default:
 		return false
