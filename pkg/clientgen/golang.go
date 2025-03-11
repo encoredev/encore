@@ -10,10 +10,10 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"github.com/fatih/structtag"
 
-	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/gocodegen"
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/clientgen/clientgentypes"
 	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"

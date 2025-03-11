@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sort"
 
-	"encr.dev/internal/clientgen/clientgentypes"
+	"encr.dev/pkg/clientgen/clientgentypes"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )

@@ -11,8 +11,8 @@ import (
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/internal/manifest"
-	"encr.dev/internal/clientgen"
 	"encr.dev/pkg/appfile"
+	"encr.dev/pkg/clientgen"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
