@@ -111,15 +111,15 @@ func Convert(err error) error {
 		return nil
 	}
 
+	if e, ok := err.(*Error); ok {
+		// If the parent is already an *Error we can return it directly.
+		return e
+	}
+
 	var e *Error
 	if errors.As(err, &e) {
-		if directErr, ok := err.(*Error); ok {
-			// If the parent is already an *Error, return it directly
-			return directErr
-		}
-
-		// The error itself isn't an *Error, but it wraps one somewhere in the chain
-		// Create a new *Error that preserves the outer error but takes properties from inner *Error
+		// The error itself isn't an *Error, but it wraps one somewhere in the chain. Create a new *Error that preserves
+		// the outer error but takes properties from inner *Error
 		return &Error{
 			Code:       e.Code,
 			Message:    err.Error(),
