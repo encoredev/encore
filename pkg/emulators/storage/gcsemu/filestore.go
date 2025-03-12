@@ -247,7 +247,7 @@ func (fs *filestore) Walk(ctx context.Context, bucket string, cb func(ctx contex
 		}
 
 		filename := strings.TrimPrefix(path, root)
-		filename = strings.TrimPrefix(filename, "/")
+		filename = strings.TrimPrefix(filename, string(os.PathSeparator))
 		if err != nil {
 			if os.IsNotExist(err) {
 				return err
