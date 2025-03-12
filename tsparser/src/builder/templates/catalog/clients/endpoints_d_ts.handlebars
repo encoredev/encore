@@ -14,7 +14,7 @@ import { {{name}} as {{name}}_handler } from {{toJSON import_path}};
 {{/if}}
 {{/each}}
 
-type StreamHandshake<Type> = Parameters<Type> extends [infer H, S] ? H : void;
+type StreamHandshake<Type extends (...args: any[]) => any> = Parameters<Type> extends [infer H, any] ? H : void;
 
 type StreamRequest<Type> = Type extends
   | StreamInOutHandlerFn<any, infer Req, any>
