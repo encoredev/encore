@@ -4,6 +4,7 @@
 package errs
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -69,7 +70,8 @@ func Wrap(err error, msg string, metaPairs ...interface{}) error {
 	}
 
 	e := &Error{Code: Unknown, Message: msg, underlying: err}
-	if ee, ok := err.(*Error); ok {
+	var ee *Error
+	if errors.As(err, &ee) {
 		e.Details = ee.Details
 		e.Code = ee.Code
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
@@ -89,7 +91,8 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 	}
 
 	e := &Error{Code: code, Message: msg, underlying: err}
-	if ee, ok := err.(*Error); ok {
+	var ee *Error
+	if errors.As(err, &ee) {
 		e.Details = ee.Details
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
 		e.stack = ee.stack
@@ -106,9 +109,13 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 func Convert(err error) error {
 	if err == nil {
 		return nil
-	} else if e, ok := err.(*Error); ok {
+	}
+
+	var e *Error
+	if errors.As(err, &e) {
 		return e
 	}
+
 	return &Error{
 		Code:       Unknown,
 		underlying: err,
@@ -122,7 +129,10 @@ func Convert(err error) error {
 func Code(err error) ErrCode {
 	if err == nil {
 		return OK
-	} else if e, ok := err.(*Error); ok {
+	}
+
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Code
 	}
 	return Unknown
@@ -131,7 +141,8 @@ func Code(err error) ErrCode {
 // Meta reports the metadata included in the error.
 // If err is nil or the error lacks metadata it reports nil.
 func Meta(err error) Metadata {
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Meta
 	}
 	return nil
@@ -140,7 +151,8 @@ func Meta(err error) Metadata {
 // Details reports the error details included in the error.
 // If err is nil or the error lacks details it reports nil.
 func Details(err error) ErrDetails {
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Details
 	}
 	return nil
@@ -167,9 +179,10 @@ func (e *Error) ErrorMessage() string {
 	var next error = e.underlying
 	for next != nil {
 		var msg string
-		if e, ok := next.(*Error); ok {
-			msg = e.Message
-			next = e.underlying
+		var ee *Error
+		if errors.As(next, &ee) {
+			msg = ee.Message
+			next = ee.underlying
 		} else {
 			msg = next.Error()
 			next = nil
@@ -229,5 +242,4 @@ func init() {
 		stream.WriteVal(e.Details)
 		stream.WriteObjectEnd()
 	}, nil)
-
 }
