@@ -504,7 +504,7 @@ func DetermineIncludes(appLang appfile.Lang, bundleSource bool, workspaceRoot st
 		return []RelPath{"."}, nil
 	}
 
-	// app root is always includede
+	// app root is always included
 	if workspaceRoot == appRoot {
 		return nil, nil
 	}
