@@ -190,13 +190,12 @@ func (e *Error) ErrorMessage() string {
 	var b strings.Builder
 	b.WriteString(e.Message)
 
-	var next error = e.underlying
+	next := e.underlying
 	for next != nil {
 		var msg string
-		var ee *Error
-		if errors.As(next, &ee) {
-			msg = ee.Message
-			next = ee.underlying
+		if e, ok := next.(*Error); ok {
+			msg = e.Message
+			next = e.underlying
 		} else {
 			msg = next.Error()
 			next = nil
