@@ -69,7 +69,11 @@ func Client(
 	var gen generator
 	switch lang {
 	case LangTypeScript:
-		gen = &typescript{generatorVersion: typescriptGenLatestVersion}
+		if opts.TSSharedTypes && md.Language == meta.Lang_TYPESCRIPT {
+			gen = &typescript{generatorVersion: typescriptGenLatestVersion, sharedTypes: true}
+		} else {
+			gen = &typescript{generatorVersion: typescriptGenLatestVersion, sharedTypes: false}
+		}
 	case LangJavascript:
 		gen = &javascript{generatorVersion: javascriptGenLatestVersion}
 	case LangGo:

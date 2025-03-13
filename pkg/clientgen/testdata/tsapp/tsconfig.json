@@ -2,5 +2,8 @@
 {
   "compilerOptions": {
     "target": "es2022",
+    "paths": {
+      "~backend/*": ["./*"]
+    },
   }
 }

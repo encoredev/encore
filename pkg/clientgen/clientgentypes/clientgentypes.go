@@ -10,6 +10,7 @@ import (
 // Options for the client generator.
 type Options struct {
 	OpenAPIExcludePrivateEndpoints bool
+	TSSharedTypes                  bool
 }
 
 type GenerateParams struct {

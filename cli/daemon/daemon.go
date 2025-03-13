@@ -147,6 +147,9 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	if params.OpenapiExcludePrivateEndpoints != nil {
 		opts.OpenAPIExcludePrivateEndpoints = *params.OpenapiExcludePrivateEndpoints
 	}
+	if params.TsSharedTypes != nil {
+		opts.TSSharedTypes = *params.TsSharedTypes
+	}
 	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet, opts)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
