@@ -7,7 +7,6 @@ use swc_common::Span;
 use crate::encore::parser::meta::v1;
 use crate::legacymeta::compute_meta;
 use crate::parser::parser::{ParseContext, ParseResult};
-use crate::parser::resourceparser::bind::Bind;
 use crate::parser::resources::apis::api::{Endpoint, Method, Methods};
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
@@ -94,19 +93,14 @@ impl AppValidator<'_> {
 
     fn validate_apis(&self) {
         let mut seen = std::collections::HashMap::new();
-        for bind in &self.parse.binds {
-            if let Bind {
-                resource: Resource::APIEndpoint(ep),
-                object: Some(object),
-                ..
-            } = bind.as_ref()
-            {
+        for resource in &self.parse.resources {
+            if let Resource::APIEndpoint(ep) = resource {
                 let key = (ep.service_name.clone(), ep.name.clone());
-                if let Some(prev) = seen.insert(key, object.range) {
+                if let Some(prev) = seen.insert(key, ep.name_range) {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
-                                object.range,
+                                ep.name_range,
                                 "api endpoints with conflicting names defined within the same service",
                             )
                             .span_note(prev, "previously defined here")
