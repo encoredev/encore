@@ -193,10 +193,14 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	_, err = conf.CurrentUser()
 	loggedIn := err == nil
 
-	exCfg, ok := parseExampleConfig(name)
-	if ok {
-		_ = os.Remove(exampleJSONPath(name))
+	exCfg, err := parseExampleConfig(name)
+	if err != nil {
+		return fmt.Errorf("failed to parse example config: %v", err)
 	}
+
+	// Delete the example config file.
+	_ = os.Remove(exampleJSONPath(name))
+
 	var app *platform.App
 	if loggedIn && createAppOnPlatform {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
@@ -209,7 +213,8 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		}
 	}
 
-	encoreAppPath := filepath.Join(name, "encore.app")
+	appRootRelpath := filepath.FromSlash(exCfg.EncoreAppPath)
+	encoreAppPath := filepath.Join(name, appRootRelpath, "encore.app")
 	appData, err := os.ReadFile(encoreAppPath)
 	if err != nil {
 		appData, err = []byte("{}"), nil
@@ -231,19 +236,19 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	}
 
 	// Update to latest encore.dev release
-	if _, err := os.Stat(filepath.Join(name, "go.mod")); err == nil {
+	if _, err := os.Stat(filepath.Join(name, appRootRelpath, "go.mod")); err == nil {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
-		if err := gogetEncore(name); err != nil {
+		if err := gogetEncore(filepath.Join(name, appRootRelpath)); err != nil {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
-	} else if _, err := os.Stat(filepath.Join(name, "package.json")); err == nil {
+	} else if _, err := os.Stat(filepath.Join(name, appRootRelpath, "package.json")); err == nil {
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running npm install encore.dev@latest"
 		s.Start()
-		if err := npmInstallEncore(name); err != nil {
+		if err := npmInstallEncore(filepath.Join(name, appRootRelpath)); err != nil {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
@@ -263,10 +268,10 @@ func createApp(ctx context.Context, name, template string) (err error) {
 
 	// Try to generate wrappers. Don't error out if it fails for some reason,
 	// it's a nice-to-have to avoid IDEs thinking there are compile errors before 'encore run' runs.
-	_ = generateWrappers(name)
+	_ = generateWrappers(filepath.Join(name, appRootRelpath))
 
 	// Create the app on the daemon.
-	appRoot, err := filepath.Abs(name)
+	appRoot, err := filepath.Abs(filepath.Join(name, appRootRelpath))
 	if err != nil {
 		cmdutil.Fatalf("failed to get absolute path: %v", err)
 	}
@@ -290,7 +295,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		fmt.Println()
 	}
 	greenBoldF := green.Add(color.Bold).SprintfFunc()
-	fmt.Printf("Run your app with: %s\n", greenBoldF("cd %s && encore run", name))
+	fmt.Printf("Run your app with: %s\n", greenBoldF("cd %s && encore run", filepath.Join(name, appRootRelpath)))
 	fmt.Println()
 	if promptRunApp() {
 		cmdutil.ClearTerminalExceptFirstNLines(0)
@@ -327,7 +332,7 @@ func createApp(ctx context.Context, name, template string) (err error) {
 		fmt.Print("        Deploys your app\n\n")
 	}
 
-	fmt.Printf("Get started now: %s\n", greenBoldF("cd %s && encore run", name))
+	fmt.Printf("Get started now: %s\n", greenBoldF("cd %s && encore run", filepath.Join(name, appRootRelpath)))
 	return nil
 }
 
@@ -425,6 +430,7 @@ func createAppOnServer(name string, cfg exampleConfig) (*platform.App, error) {
 	params := &platform.CreateAppParams{
 		Name:           name,
 		InitialSecrets: cfg.InitialSecrets,
+		AppRootDir:     cfg.EncoreAppPath,
 	}
 	return platform.CreateApp(ctx, params)
 }
@@ -578,19 +584,39 @@ func rewritePlaceholder(path string, info fs.DirEntry, app *platform.App) error 
 
 // exampleConfig is the optional configuration file for example apps.
 type exampleConfig struct {
+	// Relative path to the directory where the `encore.app` should be located.
+	// Defaults to ".".
+	EncoreAppPath string `json:"encore_app_path"`
+
 	InitialSecrets map[string]string `json:"initial_secrets"`
 	Tutorial       bool              `json:"tutorial"`
 }
 
-func parseExampleConfig(repoPath string) (cfg exampleConfig, exists bool) {
-	if data, err := os.ReadFile(exampleJSONPath(repoPath)); err == nil {
-		if data, err = hujson.Standardize(data); err == nil {
-			if err := json.Unmarshal(data, &cfg); err == nil {
-				return cfg, true
-			}
-		}
+func parseExampleConfig(repoPath string) (cfg exampleConfig, err error) {
+	baseConfig := exampleConfig{
+		EncoreAppPath: ".",
 	}
-	return exampleConfig{}, false
+	data, err := os.ReadFile(exampleJSONPath(repoPath))
+	if errors.Is(err, fs.ErrNotExist) {
+		return baseConfig, nil
+	} else if err != nil {
+		return baseConfig, err
+	}
+
+	data, err = hujson.Standardize(data)
+	if err != nil {
+		return baseConfig, err
+	} else if err := json.Unmarshal(data, &cfg); err != nil {
+		return baseConfig, err
+	}
+
+	if cfg.EncoreAppPath == "" {
+		cfg.EncoreAppPath = "."
+	}
+	if !filepath.IsLocal(cfg.EncoreAppPath) {
+		return baseConfig, errors.New("encore_app_path must be a local path")
+	}
+	return cfg, nil
 }
 
 func exampleJSONPath(repoPath string) string {
