@@ -50,6 +50,9 @@ type dirCopyDesc struct {
 
 	// Src paths to exclude.
 	ExcludeSrcPaths map[HostPath]bool
+
+	// Src paths to include.
+	IncludeSrcPaths []HostPath
 }
 
 func (tc *tarCopier) CopyData(spec *ImageSpec) error {
@@ -81,6 +84,7 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 				SrcPath:         p.Src,
 				DstPath:         p.Dest,
 				ExcludeSrcPaths: nil,
+				IncludeSrcPaths: []HostPath{p.Src},
 			})
 		} else {
 			err = tc.CopyFile(p.Dest, p.Src, fi, "")
@@ -93,12 +97,40 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 	return nil
 }
 
+// shouldInclude returns true if the path should be included in the tar.
+func shouldInclude(desc *dirCopyDesc, path HostPath) bool {
+	for _, include := range desc.IncludeSrcPaths {
+		if string(path) == string(include) {
+			return true
+		}
+
+		if strings.HasPrefix(string(path), string(include)) {
+			return true
+		}
+
+		if strings.HasPrefix(string(include), string(path)) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 	err := filepath.WalkDir(string(desc.SrcPath), func(pathStr string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		path := HostPath(pathStr)
+
+		// Should we keep this path?
+		if !shouldInclude(desc, path) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			} else {
+				return nil
+			}
+		}
 
 		// Should we skip this path?
 		if desc.ExcludeSrcPaths[path] {

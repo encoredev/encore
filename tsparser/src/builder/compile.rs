@@ -30,8 +30,6 @@ pub struct CompileResult {
 
 #[derive(Serialize, Debug)]
 pub struct JSBuildOutput {
-    pub node_modules: Option<PathBuf>,
-    pub package_json: PathBuf,
     pub artifact_dir: PathBuf,
     pub entrypoints: Vec<Entrypoint>,
 }
@@ -107,37 +105,6 @@ impl Builder<'_> {
                     .join("main.ts"),
             });
 
-            // for svc in &params.parse.desc.services {
-            //     inputs.push(Input {
-            //         kind: InputKind::Service(svc.name.clone()),
-            //         entrypoint: params
-            //             .app
-            //             .root
-            //             .join("encore.gen")
-            //             .join("internal")
-            //             .join("entrypoints")
-            //             .join("services")
-            //             .join(&svc.name)
-            //             .join("main.ts"),
-            //     });
-            // }
-            //
-            // for gw in &params.parse.desc.meta.gateways {
-            //     let name = &gw.encore_name;
-            //     inputs.push(Input {
-            //         kind: InputKind::Gateway(name.to_string()),
-            //         entrypoint: params
-            //             .app
-            //             .root
-            //             .join("encore.gen")
-            //             .join("internal")
-            //             .join("entrypoints")
-            //             .join("gateways")
-            //             .join(name)
-            //             .join("main.ts"),
-            //     });
-            // }
-
             inputs
         };
 
@@ -151,8 +118,6 @@ impl Builder<'_> {
 
         Ok(CompileResult {
             outputs: vec![JSBuildOutput {
-                node_modules: Some(node_modules),
-                package_json: params.app.root.join("package.json"),
                 artifact_dir: build_dir,
                 entrypoints: result.entrypoints,
             }],
