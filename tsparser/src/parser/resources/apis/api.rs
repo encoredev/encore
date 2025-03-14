@@ -31,6 +31,7 @@ use crate::span_err::ErrReporter;
 pub struct Endpoint {
     pub range: Range,
     pub name: String,
+    pub name_range: Range,
     pub service_name: String,
     pub doc: Option<String>,
     pub expose: bool,
@@ -365,6 +366,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             let resource = Resource::APIEndpoint(Lrc::new(Endpoint {
                 range: r.range,
                 name: r.endpoint_name,
+                name_range: r.bind_name.span.into(),
                 service_name: service_name.clone(),
                 doc: r.doc_comment,
                 expose: cfg.expose.unwrap_or(false),
