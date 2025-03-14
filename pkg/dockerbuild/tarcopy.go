@@ -84,6 +84,7 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 				SrcPath:         p.Src,
 				DstPath:         p.Dest,
 				ExcludeSrcPaths: nil,
+				IncludeSrcPaths: []HostPath{p.Src},
 			})
 		} else {
 			err = tc.CopyFile(p.Dest, p.Src, fi, "")
