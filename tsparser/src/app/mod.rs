@@ -92,6 +92,24 @@ impl AppValidator<'_> {
     }
 
     fn validate_apis(&self) {
+        let mut seen = std::collections::HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::APIEndpoint(ep) = resource {
+                let key = (ep.service_name.clone(), ep.name.clone());
+                if let Some(prev) = seen.insert(key, ep.name_range) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                ep.name_range,
+                                "api endpoints with conflicting names defined within the same service",
+                            )
+                            .span_note(prev, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+
         for service in self.parse.services.iter() {
             let mut router = Router::new();
             for bind in &service.binds {
