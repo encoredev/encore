@@ -533,6 +533,7 @@ export const Bar = 5;
                 range: Default::default(),
                 service_name: "svc".into(),
                 name: "Bar".into(),
+                name_range: Default::default(),
                 doc: None,
                 expose: true,
                 raw: false,
@@ -628,6 +629,7 @@ export const Bar = 5;
             let res = Resource::APIEndpoint(Lrc::new(Endpoint {
                 range: Default::default(),
                 name: "Bar".to_string(),
+                name_range: Default::default(),
                 service_name: "svc".to_string(),
                 doc: None,
                 expose: true,
