@@ -98,10 +98,6 @@ func (tc *tarCopier) CopyData(spec *ImageSpec) error {
 
 // shouldInclude returns true if the path should be included in the tar.
 func shouldInclude(desc *dirCopyDesc, path HostPath) bool {
-	if len(desc.IncludeSrcPaths) == 0 {
-		return true
-	}
-
 	for _, include := range desc.IncludeSrcPaths {
 		if string(path) == string(include) {
 			return true
