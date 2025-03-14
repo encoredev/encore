@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"encr.dev/internal/clientgen/clientgentypes"
-	"encr.dev/internal/clientgen/openapi"
+	"encr.dev/pkg/clientgen/clientgentypes"
+	"encr.dev/pkg/clientgen/openapi"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )

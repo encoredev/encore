@@ -11,8 +11,8 @@ import (
 	"github.com/rogpeppe/go-internal/txtar"
 
 	"encr.dev/cli/daemon/apps"
-	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/pkg/builder"
+	"encr.dev/pkg/clientgen/clientgentypes"
 	"encr.dev/pkg/golden"
 	"encr.dev/v2/tsbuilder"
 	"encr.dev/v2/v2builder"
