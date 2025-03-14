@@ -64,14 +64,14 @@ export interface ClientOptions {
  * Import the endpoint handlers to derive the types for the client.
  */
 import {
-    inOutWithHandshake as api_Svc_Svc_InOutWithHandshake,
-    inOutWithoutHandshake as api_Svc_Svc_InOutWithoutHandshake,
-    inWithHandshake as api_Svc_Svc_InWithHandshake,
-    inWithResponse as api_Svc_Svc_InWithResponse,
-    inWithResponseAndHandshake as api_Svc_Svc_InWithResponseAndHandshake,
-    inWithoutHandshake as api_Svc_Svc_InWithoutHandshake,
-    outWithHandshake as api_Svc_Svc_OutWithHandshake,
-    outWithoutHandshake as api_Svc_Svc_OutWithoutHandshake
+    inOutWithHandshake as api_svc_svc_inOutWithHandshake,
+    inOutWithoutHandshake as api_svc_svc_inOutWithoutHandshake,
+    inWithHandshake as api_svc_svc_inWithHandshake,
+    inWithResponse as api_svc_svc_inWithResponse,
+    inWithResponseAndHandshake as api_svc_svc_inWithResponseAndHandshake,
+    inWithoutHandshake as api_svc_svc_inWithoutHandshake,
+    outWithHandshake as api_svc_svc_outWithHandshake,
+    outWithoutHandshake as api_svc_svc_outWithoutHandshake
 } from "~backend/svc/svc";
 
 export namespace svc {
@@ -86,7 +86,7 @@ export namespace svc {
         /**
          * InOut stream type variants
          */
-        public async inOutWithHandshake(params: RequestType<typeof api_Svc_Svc_InOutWithHandshake>): Promise<StreamInOut<StreamRequest<typeof api_Svc_Svc_InOutWithHandshake>, StreamResponse<typeof api_Svc_Svc_InOutWithHandshake>>> {
+        public async inOutWithHandshake(params: RequestType<typeof api_svc_svc_inOutWithHandshake>): Promise<StreamInOut<StreamRequest<typeof api_svc_svc_inOutWithHandshake>, StreamResponse<typeof api_svc_svc_inOutWithHandshake>>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -99,14 +99,14 @@ export namespace svc {
             return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(params.pathParam)}`, {headers, query})
         }
 
-        public async inOutWithoutHandshake(): Promise<StreamInOut<StreamRequest<typeof api_Svc_Svc_InOutWithoutHandshake>, StreamResponse<typeof api_Svc_Svc_InOutWithoutHandshake>>> {
+        public async inOutWithoutHandshake(): Promise<StreamInOut<StreamRequest<typeof api_svc_svc_inOutWithoutHandshake>, StreamResponse<typeof api_svc_svc_inOutWithoutHandshake>>> {
             return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
         }
 
         /**
          * In stream type variants
          */
-        public async inWithHandshake(params: RequestType<typeof api_Svc_Svc_InWithHandshake>): Promise<StreamOut<StreamRequest<typeof api_Svc_Svc_InWithHandshake>, void>> {
+        public async inWithHandshake(params: RequestType<typeof api_svc_svc_inWithHandshake>): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithHandshake>, void>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -119,11 +119,11 @@ export namespace svc {
             return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(params.pathParam)}`, {headers, query})
         }
 
-        public async inWithResponse(): Promise<StreamOut<StreamRequest<typeof api_Svc_Svc_InWithResponse>, StreamResponse<typeof api_Svc_Svc_InWithResponse>>> {
+        public async inWithResponse(): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithResponse>, StreamResponse<typeof api_svc_svc_inWithResponse>>> {
             return await this.baseClient.createStreamOut(`/in/withResponse`)
         }
 
-        public async inWithResponseAndHandshake(params: RequestType<typeof api_Svc_Svc_InWithResponseAndHandshake>): Promise<StreamOut<StreamRequest<typeof api_Svc_Svc_InWithResponseAndHandshake>, StreamResponse<typeof api_Svc_Svc_InWithResponseAndHandshake>>> {
+        public async inWithResponseAndHandshake(params: RequestType<typeof api_svc_svc_inWithResponseAndHandshake>): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithResponseAndHandshake>, StreamResponse<typeof api_svc_svc_inWithResponseAndHandshake>>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -137,14 +137,14 @@ export namespace svc {
             return await this.baseClient.createStreamOut(`/in/withResponseAndHandshake`, {headers, query})
         }
 
-        public async inWithoutHandshake(): Promise<StreamOut<StreamRequest<typeof api_Svc_Svc_InWithoutHandshake>, void>> {
+        public async inWithoutHandshake(): Promise<StreamOut<StreamRequest<typeof api_svc_svc_inWithoutHandshake>, void>> {
             return await this.baseClient.createStreamOut(`/in/noHandshake`)
         }
 
         /**
          * Out stream type variants
          */
-        public async outWithHandshake(params: RequestType<typeof api_Svc_Svc_OutWithHandshake>): Promise<StreamIn<StreamResponse<typeof api_Svc_Svc_OutWithHandshake>>> {
+        public async outWithHandshake(params: RequestType<typeof api_svc_svc_outWithHandshake>): Promise<StreamIn<StreamResponse<typeof api_svc_svc_outWithHandshake>>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "some-header": params.headerValue,
@@ -157,7 +157,7 @@ export namespace svc {
             return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(params.pathParam)}`, {headers, query})
         }
 
-        public async outWithoutHandshake(): Promise<StreamIn<StreamResponse<typeof api_Svc_Svc_OutWithoutHandshake>>> {
+        public async outWithoutHandshake(): Promise<StreamIn<StreamResponse<typeof api_svc_svc_outWithoutHandshake>>> {
             return await this.baseClient.createStreamIn(`/out/noHandshake`)
         }
     }

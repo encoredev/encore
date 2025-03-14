@@ -48,7 +48,7 @@ export default class Client {
 /**
  * Import the auth handler to be able to derive the auth type
  */
-import type { auth as auth_Auth } from "~backend/svc/svc";
+import type { auth as auth_auth } from "~backend/svc/svc";
 
 /**
  * ClientOptions allows you to override any default behaviour within the generated Encore client.
@@ -69,16 +69,16 @@ export interface ClientOptions {
      * request either by passing in a static object or by passing in
      * a function which returns a new object for each request.
      */
-    auth?: RequestType<typeof auth_Auth> | AuthDataGenerator
+    auth?: RequestType<typeof auth_auth> | AuthDataGenerator
 }
 
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
 import {
-    dummy as api_Svc_Svc_Dummy,
-    imported as api_Svc_Svc_Imported,
-    root as api_Svc_Svc_Root
+    dummy as api_svc_svc_dummy,
+    imported as api_svc_svc_imported,
+    root as api_svc_svc_root
 } from "~backend/svc/svc";
 
 export namespace svc {
@@ -90,7 +90,7 @@ export namespace svc {
             this.baseClient = baseClient
         }
 
-        public async dummy(params: RequestType<typeof api_Svc_Svc_Dummy>): Promise<void> {
+        public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -111,13 +111,13 @@ export namespace svc {
             await this.baseClient.callTypedAPI(`/dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
         }
 
-        public async imported(params: RequestType<typeof api_Svc_Svc_Imported>): Promise<ResponseType<typeof api_Svc_Svc_Imported>> {
+        public async imported(params: RequestType<typeof api_svc_svc_imported>): Promise<ResponseType<typeof api_svc_svc_imported>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
-            return await resp.json() as ResponseType<typeof api_Svc_Svc_Imported>
+            return await resp.json() as ResponseType<typeof api_svc_svc_imported>
         }
 
-        public async root(params: RequestType<typeof api_Svc_Svc_Root>): Promise<void> {
+        public async root(params: RequestType<typeof api_svc_svc_root>): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -375,8 +375,8 @@ type CallParameters = Omit<RequestInit, "headers"> & {
 
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
 export type AuthDataGenerator = () =>
-  | RequestType<typeof auth_Auth>
-  | Promise<RequestType<typeof auth_Auth> | undefined>
+  | RequestType<typeof auth_auth>
+  | Promise<RequestType<typeof auth_auth> | undefined>
   | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
@@ -422,7 +422,7 @@ class BaseClient {
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        let authData: RequestType<typeof auth_Auth> | undefined;
+        let authData: RequestType<typeof auth_auth> | undefined;
 
         // If authorization data generator is present, call it and add the returned data to the request
         if (this.authGenerator) {

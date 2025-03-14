@@ -64,6 +64,7 @@ type typescript struct {
 	currDecl         *schema.Decl
 	generatorVersion tsGenVersion
 	sharedTypes      bool
+	clientTarget     string
 
 	seenJSON           bool // true if a JSON type was seen
 	seenStream         bool // true if a stream endpoint was seen
@@ -128,12 +129,8 @@ func hasPathParams(rpc *meta.RPC) bool {
 	})
 }
 
-func pascal(s string) string {
-	return idents.Convert(s, idents.PascalCase)
-}
-
 func (ts *typescript) authImportName() string {
-	return fmt.Sprintf("auth_%s", pascal(ts.md.AuthHandler.Name))
+	return fmt.Sprintf("auth_%s", validTSIdentifier(ts.md.AuthHandler.Name))
 }
 
 func (ts *typescript) writeAuthType() {
@@ -146,7 +143,7 @@ func (ts *typescript) writeAuthType() {
 
 func rpcImportName(rpc *meta.RPC) string {
 	fileName := strings.TrimSuffix(rpc.Loc.Filename, filepath.Ext(rpc.Loc.Filename))
-	return fmt.Sprintf("api_%s_%s_%s", pascal(rpc.ServiceName), pascal(fileName), pascal(rpc.Name))
+	return fmt.Sprintf("api_%s_%s_%s", validTSIdentifier(rpc.ServiceName), validTSIdentifier(fileName), validTSIdentifier(rpc.Name))
 }
 
 func getMethodType(rpc *meta.RPC) string {
@@ -980,7 +977,7 @@ export class StreamOut<Request, Response> {
 
 func (ts *typescript) writeClient(set clientgentypes.ServiceSet) {
 	w := ts.newIdentWriter(0)
-	w.WriteString(`
+	w.WriteStringf(`
 /**
  * BaseURL is the base URL for calling the Encore application's API.
  */
@@ -992,21 +989,26 @@ export const Local: BaseURL = "http://localhost:4000"
  * Environment returns a BaseURL for calling the cloud environment with the given name.
  */
 export function Environment(name: string): BaseURL {
-    return ` + "`https://${name}-" + ts.appSlug + ".encr.app`" + `
+    return `+"`https://${name}-"+ts.appSlug+".encr.app`"+`
 }
 
 /**
  * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
  */
 export function PreviewEnv(pr: number | string): BaseURL {
-    return Environment(` + "`pr${pr}`" + `)
+    return Environment(`+"`pr${pr}`"+`)
 }
 
 /**
- * Client is an API client for the ` + ts.appSlug + ` Encore application.
+ * Client is an API client for the `+ts.appSlug+` Encore application.
  */
-export default class Client {
-`)
+export %sclass Client {
+`, func() string {
+		if ts.clientTarget != "" {
+			return ""
+		}
+		return "default "
+	}())
 
 	{
 		w := w.Indent()
@@ -1071,6 +1073,12 @@ if (typeof options === "string") {
 		w.WriteString("}\n")
 	}
 	w.WriteString("}\n")
+
+	if ts.clientTarget != "" {
+		w.WriteStringf(`
+export default new Client(%s);
+`, ts.clientTarget)
+	}
 
 	handler := ts.md.AuthHandler
 	if ts.hasAuth && ts.sharedTypes && ts.authIsComplexType {

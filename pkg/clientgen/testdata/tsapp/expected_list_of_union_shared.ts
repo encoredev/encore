@@ -63,7 +63,7 @@ export interface ClientOptions {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
-import { dummy as api_Svc_Svc_Dummy } from "~backend/svc/svc";
+import { dummy as api_svc_svc_dummy } from "~backend/svc/svc";
 
 export namespace svc {
 
@@ -74,7 +74,7 @@ export namespace svc {
             this.baseClient = baseClient
         }
 
-        public async dummy(params: RequestType<typeof api_Svc_Svc_Dummy>): Promise<void> {
+        public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 listOfUnion: params.listOfUnion.map((v) => String(v)),

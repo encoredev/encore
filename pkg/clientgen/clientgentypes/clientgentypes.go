@@ -11,6 +11,7 @@ import (
 type Options struct {
 	OpenAPIExcludePrivateEndpoints bool
 	TSSharedTypes                  bool
+	TSClientTarget                 string
 }
 
 type GenerateParams struct {
