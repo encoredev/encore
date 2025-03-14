@@ -3,8 +3,10 @@ package clientgen
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/cockroachdb/errors"
 	. "github.com/dave/jennifer/jen"
@@ -769,11 +771,32 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 	return code, err
 }
 
+// goIdentifier converts a string into a valid Go identifier.
+func goIdentifier(input string) string {
+	if input == "" {
+		return "_"
+	}
+
+	// Convert string to rune slice for proper handling of Unicode characters
+	runes := []rune(input)
+
+	// Ensure the first character is a valid Go identifier start (letter or `_`)
+	if !unicode.IsLetter(runes[0]) && runes[0] != '_' {
+		runes[0] = '_'
+	}
+
+	// Regex to replace invalid characters (anything that isn't a letter, number, or `_`)
+	invalidChars := regexp.MustCompile(`[^\p{L}\p{N}_]`)
+	output := invalidChars.ReplaceAllString(string(runes), "_")
+
+	return output
+}
+
 func (g *golang) declToID(decl *schema.Decl) *Statement {
 	if g.skipPkgTypePrefix {
-		return Id(strings.Title(decl.Name))
+		return Id(goIdentifier(strings.Title(decl.Name)))
 	} else {
-		return Id(fmt.Sprintf("%s%s", strings.Title(decl.Loc.PkgName), strings.Title(decl.Name)))
+		return Id(goIdentifier(fmt.Sprintf("%s%s", strings.Title(decl.Loc.PkgName), strings.Title(decl.Name))))
 	}
 }
 

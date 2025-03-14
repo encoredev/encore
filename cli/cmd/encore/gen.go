@@ -32,6 +32,7 @@ func init() {
 		endpointTags                   []string
 		excludedEndpointTags           []string
 		openAPIExcludePrivateEndpoints bool
+		tsSharedTypes                  bool
 	)
 
 	genClientCmd := &cobra.Command{
@@ -118,6 +119,7 @@ To further narrow down the services to generate, use the '--services' flag.
 				EndpointTags:                   endpointTags,
 				ExcludedEndpointTags:           excludedEndpointTags,
 				OpenapiExcludePrivateEndpoints: &openAPIExcludePrivateEndpoints,
+				TsSharedTypes:                  &tsSharedTypes,
 			})
 			if err != nil {
 				fatal(err)
@@ -185,4 +187,6 @@ which may require the user-facing wrapper code to be manually generated.`,
 		StringSliceVar(&excludedEndpointTags, "excluded-tags", nil, "The names of endpoint tags to exclude in the output")
 	genClientCmd.Flags().
 		BoolVar(&openAPIExcludePrivateEndpoints, "openapi-exclude-private-endpoints", false, "Exclude private endpoints from the OpenAPI spec")
+	genClientCmd.Flags().
+		BoolVar(&tsSharedTypes, "ts:shared-types", false, "Import types from ~backend instead of re-generating them")
 }

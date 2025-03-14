@@ -66,6 +66,12 @@ class SvcServiceClient {
         await this.baseClient.callTypedAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
     }
 
+    async imported(params) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params))
+        return await resp.json()
+    }
+
     async root(params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({

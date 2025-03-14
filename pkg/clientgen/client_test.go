@@ -72,6 +72,7 @@ func TestClientCodeGenerationFromGoApp(t *testing.T) {
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						services := clientgentypes.AllServices(res.Meta)
+
 						generatedClient, err := Client(
 							language,
 							"app",
@@ -137,6 +138,10 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 						if strings.Contains(file.Name(), "openapi") {
 							language, ok = LangOpenAPI, true
 						}
+						options := clientgentypes.Options{}
+						if strings.Contains(file.Name(), "shared") {
+							options.TSSharedTypes = true
+						}
 						c.Assert(ok, qt.IsTrue, qt.Commentf("Unable to detect language type for %s", file.Name()))
 
 						services := clientgentypes.AllServices(res.Meta)
@@ -146,7 +151,7 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 							res.Meta,
 							services,
 							clientgentypes.TagSet{},
-							clientgentypes.Options{},
+							options,
 						)
 						c.Assert(err, qt.IsNil)
 

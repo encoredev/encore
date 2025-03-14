@@ -321,6 +321,12 @@ message GenClientRequest {
   // If this is set to `true`, private endpoints will not be included
   // in the generated OpenAPI spec.
   optional bool openapi_exclude_private_endpoints = 9;
+
+  // The TS generator by default re-declares the api types in the client.
+  // If this is set to `true`, the types will be imported and shared between
+  // the client and the server. It assumes "~backend" is available in the
+  // import path.
+  optional bool ts_shared_types = 10;
 }
 
 message GenClientResponse {
