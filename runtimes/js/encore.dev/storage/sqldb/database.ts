@@ -87,6 +87,25 @@ export class SQLDatabase {
   }
 
   /**
+   */
+  async *rawQuery<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): AsyncGenerator<T> {
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const result = await this.impl.query(query, args, source);
+    while (true) {
+      const row = await result.next();
+      if (row === null) {
+        break;
+      }
+
+      yield row.values() as T;
+    }
+  }
+
+  /**
    * queryRow is like query but returns only a single row.
    * If the query selects no rows it returns null.
    * Otherwise it returns the first row and discards the rest.
@@ -111,6 +130,21 @@ export class SQLDatabase {
   }
 
   /**
+   */
+  async rawQueryRow<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): Promise<T | null> {
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const result = await this.impl.query(query, args, source);
+    while (true) {
+      const row = await result.next();
+      return row ? (row.values() as T) : null;
+    }
+  }
+
+  /**
    * exec executes a query without returning any rows.
    *
    * @example
@@ -122,6 +156,18 @@ export class SQLDatabase {
     ...params: Primitive[]
   ): Promise<void> {
     const query = buildQuery(strings, params);
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+
+    // Need to await the cursor to process any errors from things like
+    // unique constraint violations.
+    let cur = await this.impl.query(query, args, source);
+    await cur.next();
+  }
+
+  /**
+   */
+  async rawExec(query: string, ...params: Primitive[]): Promise<void> {
     const args = new runtime.QueryArgs(params);
     const source = getCurrentRequest();
 
