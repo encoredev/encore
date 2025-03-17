@@ -87,6 +87,21 @@ export class SQLDatabase {
   }
 
   /**
+   * rawQuery queries the database using a raw parametrised SQL query and parameters.
+   *
+   * It returns an async generator, that allows iterating over the results
+   * in a streaming fashion using `for await`.
+   *
+   * @example
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * for await (const row of database.rawQuery(query, email)) {
+   *   console.log(row);
+   * }
+   *
+   * @param query - The raw SQL query string.
+   * @param params - The parameters to be used in the query.
+   * @returns An async generator that yields rows from the query result.
    */
   async *rawQuery<T extends Row = Record<string, any>>(
     query: string,
@@ -130,6 +145,19 @@ export class SQLDatabase {
   }
 
   /**
+   * rawQueryRow is like rawQuery but returns only a single row.
+   * If the query selects no rows, it returns null.
+   * Otherwise, it returns the first row and discards the rest.
+   *
+   * @example
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * const result = await database.rawQueryRow(query, email);
+   * console.log(result);
+   *
+   * @param query - The raw SQL query string.
+   * @param params - The parameters to be used in the query.
+   * @returns A promise that resolves to a single row or null.
    */
   async rawQueryRow<T extends Row = Record<string, any>>(
     query: string,
@@ -166,6 +194,16 @@ export class SQLDatabase {
   }
 
   /**
+   * rawExec executes a query without returning any rows.
+   *
+   * @example
+   * const query = "DELETE FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * await database.rawExec(query, email);
+   *
+   * @param query - The raw SQL query string.
+   * @param params - The parameters to be used in the query.
+   * @returns A promise that resolves when the query has been executed.
    */
   async rawExec(query: string, ...params: Primitive[]): Promise<void> {
     const args = new runtime.QueryArgs(params);
