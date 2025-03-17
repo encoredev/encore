@@ -262,6 +262,11 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 }
 
 func bundleSource(tc *tarCopier, spec *ImageSpec, bundle *BundleSourceSpec) error {
+	includes := []HostPath{bundle.Source.Join(string(bundle.AppRootRelpath))}
+	for _, ex := range bundle.IncludeSource {
+		includes = append(includes, bundle.Source.Join(string(ex)))
+	}
+
 	excludes := make(map[HostPath]bool, len(bundle.ExcludeSource))
 	for _, ex := range bundle.ExcludeSource {
 		absPath := bundle.Source.Join(string(ex))
@@ -273,6 +278,7 @@ func bundleSource(tc *tarCopier, spec *ImageSpec, bundle *BundleSourceSpec) erro
 		SrcPath:         bundle.Source,
 		DstPath:         bundle.Dest,
 		ExcludeSrcPaths: excludes,
+		IncludeSrcPaths: includes,
 	})
 	return errors.Wrap(err, "bundle source")
 }
