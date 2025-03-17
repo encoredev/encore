@@ -120,6 +120,12 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	}
 	ts.writeCustomErrorType()
 
+	if ts.clientTarget != "" {
+		fmt.Fprintf(ts, `
+export default new Client(%s);
+`, ts.clientTarget)
+	}
+
 	return nil
 }
 
@@ -280,14 +286,17 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		if ts.sharedTypes {
 			segmentPrefix = payloadName + "."
 		}
-		var rpcPath strings.Builder
-		if isRaw && hasPathParams(rpc) && ts.sharedTypes {
+		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
+		var hasHandshake = rpc.HandshakeSchema != nil
+		var inlinePathParams = (isRaw || (rpc.RequestSchema == nil && !hasHandshake)) && hasPathParams(rpc) && ts.sharedTypes
+		if inlinePathParams {
 			ts.WriteString(payloadName + ": { ")
 		}
+		var rpcPath strings.Builder
 		for _, s := range rpc.Path.Segments {
 			rpcPath.WriteByte('/')
 			if s.Type != meta.PathSegment_LITERAL {
-				if !ts.sharedTypes || isRaw {
+				if !ts.sharedTypes || inlinePathParams {
 					if nParams > 0 {
 						ts.WriteString(", ")
 					}
@@ -319,12 +328,10 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				rpcPath.WriteString(s.Value)
 			}
 		}
-		if isRaw && hasPathParams(rpc) && ts.sharedTypes {
+		if inlinePathParams {
 			ts.WriteString(" }")
 		}
 
-		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
-		var hasHandshake = rpc.HandshakeSchema != nil
 		if (!isStream && rpc.RequestSchema != nil) || (isStream && hasHandshake) {
 			if !ts.sharedTypes && nParams > 0 {
 				ts.WriteString(", ")
@@ -644,7 +651,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		callAPI += fmt.Sprintf("\"%s\", ", rpcEncoding.DefaultMethod)
 	}
 	callAPI += fmt.Sprintf("`%s`", rpcPath)
-	if body != "" || headers != "" || query != "" {
+	if body != "" || headers != "" || query != "" || ts.sharedTypes {
 		if body == "" {
 			body = "undefined"
 		}
@@ -1073,12 +1080,6 @@ if (typeof options === "string") {
 		w.WriteString("}\n")
 	}
 	w.WriteString("}\n")
-
-	if ts.clientTarget != "" {
-		w.WriteStringf(`
-export default new Client(%s);
-`, ts.clientTarget)
-	}
 
 	handler := ts.md.AuthHandler
 	if ts.hasAuth && ts.sharedTypes && ts.authIsComplexType {

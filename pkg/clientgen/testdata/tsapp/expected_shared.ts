@@ -78,6 +78,7 @@ export interface ClientOptions {
 import {
     dummy as api_svc_svc_dummy,
     imported as api_svc_svc_imported,
+    onlyPathParams as api_svc_svc_onlyPathParams,
     root as api_svc_svc_root
 } from "~backend/svc/svc";
 
@@ -115,6 +116,12 @@ export namespace svc {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
             return await resp.json() as ResponseType<typeof api_svc_svc_imported>
+        }
+
+        public async onlyPathParams(params: { pathParam: string, pathParam2: string }): Promise<ResponseType<typeof api_svc_svc_onlyPathParams>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/path/${encodeURIComponent(params.pathParam)}/${encodeURIComponent(params.pathParam2)}`, {method: "POST", body: undefined})
+            return await resp.json() as ResponseType<typeof api_svc_svc_onlyPathParams>
         }
 
         public async root(params: RequestType<typeof api_svc_svc_root>): Promise<void> {

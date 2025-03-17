@@ -72,6 +72,12 @@ class SvcServiceClient {
         return await resp.json()
     }
 
+    async onlyPathParams(pathParam, pathParam2) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/path/${encodeURIComponent(pathParam)}/${encodeURIComponent(pathParam2)}`)
+        return await resp.json()
+    }
+
     async root(params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({

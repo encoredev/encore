@@ -141,6 +141,12 @@ export namespace svc {
             return await resp.json() as common_stuff.ImportedResponse
         }
 
+        public async onlyPathParams(pathParam: string, pathParam2: string): Promise<common_stuff.ImportedResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/path/${encodeURIComponent(pathParam)}/${encodeURIComponent(pathParam2)}`)
+            return await resp.json() as common_stuff.ImportedResponse
+        }
+
         public async root(params: Request): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({

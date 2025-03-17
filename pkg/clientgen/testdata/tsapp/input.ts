@@ -32,6 +32,11 @@ export const imported = api(
   async (req: ImportedRequest) : Promise<ImportedResponse> => { },
 );
 
+export const onlyPathParams = api(
+  { expose: true, method: "POST", path: "/path/:pathParam/:pathParam2" },
+  async (req: { pathParam: string, pathParam2: string }) : Promise<ImportedResponse> => { },
+);
+
 
 export const dummy = api(
   { expose: true, method: "POST", path: "/dummy" },
