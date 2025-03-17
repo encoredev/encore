@@ -291,6 +291,14 @@ fn to_reqwest_header_value(value: &PValue) -> APIResult<ReqwestHeaders> {
             details: None,
         })?,
 
+        BigInt(bi) => reqwest::header::HeaderValue::from_str(bi).map_err(|e| api::Error {
+            code: api::ErrCode::InvalidArgument,
+            message: "unable to convert bigint to header value".to_string(),
+            internal_message: Some(format!("unable to convert bigint to header value: {}", e)),
+            stack: None,
+            details: None,
+        })?,
+
         DateTime(dt) => {
             let s = dt.to_rfc3339();
             reqwest::header::HeaderValue::from_str(&s).map_err(|e| api::Error {
@@ -364,6 +372,14 @@ fn to_axum_header_value(value: &PValue) -> APIResult<AxumHeaders> {
             code: api::ErrCode::InvalidArgument,
             message: "unable to convert string to header value".to_string(),
             internal_message: Some(format!("unable to convert string to header value: {}", e)),
+            stack: None,
+            details: None,
+        })?,
+
+        BigInt(bi) => axum::http::HeaderValue::from_str(bi).map_err(|e| api::Error {
+            code: api::ErrCode::InvalidArgument,
+            message: "unable to convert bigint to header value".to_string(),
+            internal_message: Some(format!("unable to convert bigint to header value: {}", e)),
             stack: None,
             details: None,
         })?,

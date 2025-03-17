@@ -70,6 +70,10 @@ impl ToSql for RowValue {
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
                     },
 
+                    PValue::BigInt(_bi) => {
+                        todo!()
+                    }
+
                     PValue::Number(num) => match *ty {
                         Type::INT2 => {
                             let val: Result<i16, _> = if num.is_i64() {

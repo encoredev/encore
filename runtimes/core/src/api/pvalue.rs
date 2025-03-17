@@ -31,6 +31,9 @@ pub enum PValue {
 
     // Represents a datetime value.
     DateTime(DateTime),
+
+    // Represents a BigInt value.
+    BigInt(String),
 }
 
 impl PValue {
@@ -65,6 +68,7 @@ impl Serialize for PValue {
             PValue::Array(a) => a.serialize(serializer),
             PValue::Object(o) => o.serialize(serializer),
             PValue::DateTime(dt) => dt.serialize(serializer),
+            PValue::BigInt(bi) => serializer.serialize_str(bi),
         }
     }
 }
@@ -76,6 +80,7 @@ impl Display for PValue {
             PValue::Bool(b) => write!(f, "{}", b),
             PValue::Number(n) => write!(f, "{}", n),
             PValue::String(s) => write!(f, "{}", s),
+            PValue::BigInt(bi) => write!(f, "{}", bi),
             PValue::DateTime(dt) => write!(f, "{}", dt.to_rfc3339()),
             PValue::Array(a) => {
                 write!(f, "[")?;

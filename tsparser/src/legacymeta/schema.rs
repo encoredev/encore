@@ -216,12 +216,9 @@ impl BuilderCtx<'_, '_> {
                 validation: None,
             },
 
-            Basic::Void
-            | Basic::Object
-            | Basic::BigInt
-            | Basic::Symbol
-            | Basic::Undefined
-            | Basic::Never => {
+            Basic::BigInt => b(schema::Builtin::String),
+
+            Basic::Void | Basic::Object | Basic::Symbol | Basic::Undefined | Basic::Never => {
                 HANDLER.with(|h| h.err(&format!("unsupported basic type in schema: {:?}", typ)));
                 b(schema::Builtin::Any)
             }
