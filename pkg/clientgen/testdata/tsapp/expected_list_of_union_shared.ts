@@ -60,10 +60,12 @@ export interface ClientOptions {
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { dummy as api_svc_svc_dummy } from "~backend/svc/svc";
+
 export namespace svc {
-    export interface Request {
-        Message: string
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -72,14 +74,24 @@ export namespace svc {
             this.baseClient = baseClient
         }
 
-        /**
-         * DummyAPI is a dummy endpoint.
-         */
-        public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+        public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                listOfUnion: params.listOfUnion.map((v) => String(v)),
+            })
+
+            await this.baseClient.callTypedAPI(`/dummy`, {query, method: "GET", body: undefined})
         }
     }
 }
+
+
+type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
+
+type RequestType<Type extends (...args: any[]) => any> = 
+  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
 
 
@@ -105,6 +117,27 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     }
     return record as Record<K, V>
 }
+
+import {
+  StreamInOutHandlerFn,
+  StreamInHandlerFn,
+  StreamOutHandlerFn,
+} from "encore.dev/api";
+
+type StreamRequest<Type> = Type extends
+  | StreamInOutHandlerFn<any, infer Req, any>
+  | StreamInHandlerFn<any, infer Req, any>
+  | StreamOutHandlerFn<any, any>
+  ? Req
+  : never;
+
+type StreamResponse<Type> = Type extends
+  | StreamInOutHandlerFn<any, any, infer Resp>
+  | StreamInHandlerFn<any, any, infer Resp>
+  | StreamOutHandlerFn<any, infer Resp>
+  ? Resp
+  : never;
+
 
 function encodeWebSocketHeaders(headers: Record<string, string>) {
     // url safe, no pad
@@ -277,7 +310,7 @@ export class StreamOut<Request, Response> {
     }
 }
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+type CallParameters = Omit<RequestInit, "headers"> & {
     /** Headers to be sent with the request */
     headers?: Record<string, string>
 
@@ -385,21 +418,19 @@ class BaseClient {
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        return this.callAPI(method, path, body, {
+    public async callTypedAPI(path: string, params?: CallParameters): Promise<Response> {
+        return this.callAPI(path, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
         });
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(path: string, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
-            method,
-            body: body ?? null,
         }
 
         // Merge our headers with any predefined headers

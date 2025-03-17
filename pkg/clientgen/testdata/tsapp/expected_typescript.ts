@@ -135,6 +135,12 @@ export namespace svc {
             await this.baseClient.callTypedAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
         }
 
+        public async imported(params: common_stuff.ImportedRequest): Promise<common_stuff.ImportedResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params))
+            return await resp.json() as common_stuff.ImportedResponse
+        }
+
         public async root(params: Request): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
@@ -155,6 +161,16 @@ export namespace svc {
 
             await this.baseClient.callTypedAPI("POST", `/`, JSON.stringify(body), {headers, query})
         }
+    }
+}
+
+export namespace common_stuff {
+    export interface ImportedRequest {
+        name: string
+    }
+
+    export interface ImportedResponse {
+        message: string
     }
 }
 
@@ -386,7 +402,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
