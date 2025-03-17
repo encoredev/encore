@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -130,17 +131,34 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if buildSettings.Docker.BundleSource || appLang == appfile.LangTS {
+		workspaceRoot := req.WorkspaceRoot
+		appRoot := app.Root()
+
+		relPath, err := filepath.Rel(workspaceRoot, appRoot)
+		if err != nil {
+			return false, errors.Wrap(err, "relative path from workspace root to app root")
+		}
+
+		includedPaths, err := dockerbuild.DetermineIncludes(appLang, buildSettings.Docker.BundleSource, workspaceRoot, appRoot)
+		if err != nil {
+			return false, errors.Wrap(err, "determine extra includes")
+		}
+
+		imageAppRoot := dockerbuild.ImagePath(filepath.Join("/workspace", relPath))
+
 		describeCfg.BundleSource = option.Some(dockerbuild.BundleSourceSpec{
-			Source: dockerbuild.HostPath(app.Root()),
-			Dest:   "/workspace",
+			Source:         dockerbuild.HostPath(workspaceRoot),
+			Dest:           "/workspace",
+			AppRootRelpath: dockerbuild.RelPath(relPath),
+			IncludeSource:  includedPaths,
 			ExcludeSource: []dockerbuild.RelPath{
 				".git",
 			},
 		})
 
 		if describeCfg.WorkingDir.Empty() {
-			// Set the working directory to "/workspace" by default, in this case.
-			describeCfg.WorkingDir = option.Some[dockerbuild.ImagePath]("/workspace")
+			// Set the working directory to app root by default.
+			describeCfg.WorkingDir = option.Some(imageAppRoot)
 		}
 	}
 

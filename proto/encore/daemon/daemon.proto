@@ -224,6 +224,9 @@ message ExportRequest {
   repeated string services = 8;
   repeated string gateways = 9;
   bool skip_infra_conf = 10;
+
+  // A parent path to app_root containing the .git, or the same as app_root
+  string workspace_root = 11;
 }
 
 message DockerExportParams {

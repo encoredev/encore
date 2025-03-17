@@ -33,11 +33,14 @@ func TestBuildImage(t *testing.T) {
 	cfg := DescribeConfig{
 		Meta:     &meta.Data{},
 		Runtimes: HostPath(runtimes),
+		BundleSource: option.Some(BundleSourceSpec{
+			Source:         HostPath(artifacts),
+			Dest:           "/workspace",
+			AppRootRelpath: ".",
+		}),
 		Compile: &builder.CompileResult{Outputs: []builder.BuildOutput{
 			&builder.JSBuildOutput{
 				ArtifactDir: artifacts,
-				PackageJson: artifacts.Join("package.json"),
-				NodeModules: option.Some(artifacts.Join("node_modules")),
 				Entrypoints: []builder.Entrypoint{{
 					Cmd: builder.CmdSpec{
 						Command:          builder.ArtifactStrings{"${ARTIFACT_DIR}/entrypoint"},
