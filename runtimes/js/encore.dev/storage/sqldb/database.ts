@@ -121,6 +121,71 @@ export class SQLDatabase {
   }
 
   /**
+   * queryAll queries the database using a template string, replacing your placeholders in the template
+   * with parametrised values without risking SQL injections.
+   *
+   * It returns an array of all results.
+   *
+   * @example
+   *
+   * const email = "foo@example.com";
+   * const result = database.queryAll`SELECT id FROM users WHERE email=${email}`
+   *
+   * This produces the query: "SELECT id FROM users WHERE email=$1".
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async queryAll<T extends Row = Record<string, any>>(
+    strings: TemplateStringsArray,
+    ...params: Primitive[]
+  ): Promise<T[]> {
+    const query = buildQuery(strings, params);
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const cursor = await this.impl.query(query, args, source);
+    const result: T[] = [];
+    while (true) {
+      const row = await cursor.next();
+      if (row === null) {
+        break;
+      }
+      result.push(row.values() as T);
+    }
+
+    return result;
+  }
+
+  /**
+   * rawQueryAll queries the database using a raw parametrised SQL query and parameters.
+   *
+   * It returns an array of all results.
+   *
+   * @example
+   *
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * const rows = await database.rawQueryAll(query, email);
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async rawQueryAll<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): Promise<T[]> {
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const cursor = await this.impl.query(query, args, source);
+    const result: T[] = [];
+    while (true) {
+      const row = await cursor.next();
+      if (row === null) {
+        break;
+      }
+      result.push(row.values() as T);
+    }
+
+    return result;
+  }
+
+  /**
    * queryRow is like query but returns only a single row.
    * If the query selects no rows it returns null.
    * Otherwise it returns the first row and discards the rest.
