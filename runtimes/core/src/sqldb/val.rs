@@ -70,9 +70,10 @@ impl ToSql for RowValue {
                         _ => Err(format!("string not supported for column of type {}", ty).into()),
                     },
 
-                    PValue::BigInt(_bi) => {
-                        todo!()
-                    }
+                    PValue::BigInt(bi) => match *ty {
+                        Type::TEXT | Type::VARCHAR => bi.to_sql(ty, out),
+                        _ => Err(format!("bigint not supported for column of type {}", ty).into()),
+                    },
 
                     PValue::Number(num) => match *ty {
                         Type::INT2 => {
