@@ -87,6 +87,105 @@ export class SQLDatabase {
   }
 
   /**
+   * rawQuery queries the database using a raw parametrised SQL query and parameters.
+   *
+   * It returns an async generator, that allows iterating over the results
+   * in a streaming fashion using `for await`.
+   *
+   * @example
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * for await (const row of database.rawQuery(query, email)) {
+   *   console.log(row);
+   * }
+   *
+   * @param query - The raw SQL query string.
+   * @param params - The parameters to be used in the query.
+   * @returns An async generator that yields rows from the query result.
+   */
+  async *rawQuery<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): AsyncGenerator<T> {
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const result = await this.impl.query(query, args, source);
+    while (true) {
+      const row = await result.next();
+      if (row === null) {
+        break;
+      }
+
+      yield row.values() as T;
+    }
+  }
+
+  /**
+   * queryAll queries the database using a template string, replacing your placeholders in the template
+   * with parametrised values without risking SQL injections.
+   *
+   * It returns an array of all results.
+   *
+   * @example
+   *
+   * const email = "foo@example.com";
+   * const result = database.queryAll`SELECT id FROM users WHERE email=${email}`
+   *
+   * This produces the query: "SELECT id FROM users WHERE email=$1".
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async queryAll<T extends Row = Record<string, any>>(
+    strings: TemplateStringsArray,
+    ...params: Primitive[]
+  ): Promise<T[]> {
+    const query = buildQuery(strings, params);
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const cursor = await this.impl.query(query, args, source);
+    const result: T[] = [];
+    while (true) {
+      const row = await cursor.next();
+      if (row === null) {
+        break;
+      }
+      result.push(row.values() as T);
+    }
+
+    return result;
+  }
+
+  /**
+   * rawQueryAll queries the database using a raw parametrised SQL query and parameters.
+   *
+   * It returns an array of all results.
+   *
+   * @example
+   *
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * const rows = await database.rawQueryAll(query, email);
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async rawQueryAll<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): Promise<T[]> {
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const cursor = await this.impl.query(query, args, source);
+    const result: T[] = [];
+    while (true) {
+      const row = await cursor.next();
+      if (row === null) {
+        break;
+      }
+      result.push(row.values() as T);
+    }
+
+    return result;
+  }
+
+  /**
    * queryRow is like query but returns only a single row.
    * If the query selects no rows it returns null.
    * Otherwise it returns the first row and discards the rest.
@@ -111,6 +210,34 @@ export class SQLDatabase {
   }
 
   /**
+   * rawQueryRow is like rawQuery but returns only a single row.
+   * If the query selects no rows, it returns null.
+   * Otherwise, it returns the first row and discards the rest.
+   *
+   * @example
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * const result = await database.rawQueryRow(query, email);
+   * console.log(result);
+   *
+   * @param query - The raw SQL query string.
+   * @param params - The parameters to be used in the query.
+   * @returns A promise that resolves to a single row or null.
+   */
+  async rawQueryRow<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): Promise<T | null> {
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+    const result = await this.impl.query(query, args, source);
+    while (true) {
+      const row = await result.next();
+      return row ? (row.values() as T) : null;
+    }
+  }
+
+  /**
    * exec executes a query without returning any rows.
    *
    * @example
@@ -122,6 +249,28 @@ export class SQLDatabase {
     ...params: Primitive[]
   ): Promise<void> {
     const query = buildQuery(strings, params);
+    const args = new runtime.QueryArgs(params);
+    const source = getCurrentRequest();
+
+    // Need to await the cursor to process any errors from things like
+    // unique constraint violations.
+    let cur = await this.impl.query(query, args, source);
+    await cur.next();
+  }
+
+  /**
+   * rawExec executes a query without returning any rows.
+   *
+   * @example
+   * const query = "DELETE FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * await database.rawExec(query, email);
+   *
+   * @param query - The raw SQL query string.
+   * @param params - The parameters to be used in the query.
+   * @returns A promise that resolves when the query has been executed.
+   */
+  async rawExec(query: string, ...params: Primitive[]): Promise<void> {
     const args = new runtime.QueryArgs(params);
     const source = getCurrentRequest();
 
