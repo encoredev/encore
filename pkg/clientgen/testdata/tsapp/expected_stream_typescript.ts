@@ -34,28 +34,12 @@ export default class Client {
 
 
     /**
-     * @deprecated This constructor is deprecated, and you should move to using BaseURL with an Options object
-     */
-    constructor(target: string, token?: string)
-
-    /**
      * Creates a Client for calling the public and authenticated APIs of your Encore application.
      *
      * @param target  The target which the client should be configured to use. See Local and Environment for options.
      * @param options Options for the client
      */
-    constructor(target: BaseURL, options?: ClientOptions)
-    constructor(target: string | BaseURL = "prod", options?: string | ClientOptions) {
-
-        // Convert the old constructor parameters to a BaseURL object and a ClientOptions object
-        if (!target.startsWith("http://") && !target.startsWith("https://")) {
-            target = Environment(target)
-        }
-
-        if (typeof options === "string") {
-            options = { auth: options }
-        }
-
+    constructor(target: BaseURL, options?: ClientOptions) {
         const base = new BaseClient(target, options ?? {})
         this.svc = new svc.ServiceClient(base)
     }
@@ -74,20 +58,57 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
-
-    /**
-     * Allows you to set the auth token to be used for each request
-     * either by passing in a static token string or by passing in a function
-     * which returns the auth token.
-     *
-     * These tokens will be sent as bearer tokens in the Authorization header.
-     */
-    auth?: string | AuthDataGenerator
 }
 
 export namespace svc {
-    export interface Request {
-        Message: string
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+        pathParam: string
+    }
+
+    export interface Handshake {
+        headerValue: string
+        queryValue: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface InMsg {
+        data: string
+    }
+
+    export interface OutMsg {
+        user: number
+        msg: string
     }
 
     export class ServiceClient {
@@ -98,17 +119,81 @@ export namespace svc {
         }
 
         /**
-         * DummyAPI is a dummy endpoint.
+         * InOut stream type variants
          */
-        public async DummyAPI(params: Request): Promise<void> {
-            await this.baseClient.callTypedAPI("POST", `/svc.DummyAPI`, JSON.stringify(params))
+        public async inOutWithHandshake(pathParam: string, params: Handshake): Promise<StreamInOut<InMsg, OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamInOut(`/inout/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async inOutWithoutHandshake(): Promise<StreamInOut<InMsg, OutMsg>> {
+            return await this.baseClient.createStreamInOut(`/inout/noHandshake`)
         }
 
         /**
-         * Private is a basic auth endpoint.
+         * In stream type variants
          */
-        public async Private(params: Request): Promise<void> {
-            await this.baseClient.callTypedAPI("POST", `/svc.Private`, JSON.stringify(params))
+        public async inWithHandshake(pathParam: string, params: Handshake): Promise<StreamOut<InMsg, void>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamOut(`/in/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async inWithResponse(): Promise<StreamOut<InMsg, OutMsg>> {
+            return await this.baseClient.createStreamOut(`/in/withResponse`)
+        }
+
+        public async inWithResponseAndHandshake(params: Handshake): Promise<StreamOut<InMsg, OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                pathParam:    params.pathParam,
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamOut(`/in/withResponseAndHandshake`, {headers, query})
+        }
+
+        public async inWithoutHandshake(): Promise<StreamOut<InMsg, void>> {
+            return await this.baseClient.createStreamOut(`/in/noHandshake`)
+        }
+
+        /**
+         * Out stream type variants
+         */
+        public async outWithHandshake(pathParam: string, params: Handshake): Promise<StreamIn<OutMsg>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "some-header": params.headerValue,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                "some-query": params.queryValue,
+            })
+
+            return await this.baseClient.createStreamIn(`/out/${encodeURIComponent(pathParam)}`, {headers, query})
+        }
+
+        public async outWithoutHandshake(): Promise<StreamIn<OutMsg>> {
+            return await this.baseClient.createStreamIn(`/out/noHandshake`)
         }
     }
 }
@@ -317,11 +402,6 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     query?: Record<string, string | string[]>
 }
 
-// AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () =>
-  | string
-  | Promise<string | undefined>
-  | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
@@ -333,7 +413,6 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
-    readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -341,7 +420,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
@@ -353,40 +432,9 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
-
-        // Setup an authentication data generator using the auth data token option
-        if (options.auth !== undefined) {
-            const auth = options.auth
-            if (typeof auth === "function") {
-                this.authGenerator = auth
-            } else {
-                this.authGenerator = () => auth
-            }
-        }
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        let authData: string | undefined;
-
-        // If authorization data generator is present, call it and add the returned data to the request
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator();
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise;
-            } else {
-                authData = mayBePromise;
-            }
-        }
-
-        if (authData) {
-            const data: CallParameters = {};
-
-            data.headers = {};
-            data.headers["Authorization"] = "Bearer " + authData;
-
-            return data;
-        }
-
         return undefined;
     }
 

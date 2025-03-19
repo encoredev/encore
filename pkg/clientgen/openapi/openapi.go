@@ -9,8 +9,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/clientgen/clientgentypes"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 

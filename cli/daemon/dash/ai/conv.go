@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"encr.dev/internal/clientgen"
+	"encr.dev/pkg/clientgen"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
 	"encr.dev/v2/internals/resourcepaths"

@@ -117,6 +117,8 @@ type SvcRequest struct {
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
 	dummy(ctx context.Context, params SvcRequest) error
+	imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
+	onlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
 	root(ctx context.Context, params SvcRequest) error
 }
 
@@ -157,6 +159,26 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 	return err
 }
 
+func (c *svcClient) imported(ctx context.Context, params Common_StuffImportedRequest) (resp Common_StuffImportedResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/imported", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *svcClient) onlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (resp Common_StuffImportedResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%s", url.PathEscape(pathParam), url.PathEscape(pathParam2)), nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
@@ -186,6 +208,14 @@ func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
 
 	_, err := callAPI(ctx, c.base, "POST", fmt.Sprintf("/?%s", queryString.Encode()), headers, body, nil)
 	return err
+}
+
+type Common_StuffImportedRequest struct {
+	name string
+}
+
+type Common_StuffImportedResponse struct {
+	message string
 }
 
 // HTTPDoer is an interface which can be used to swap out the default

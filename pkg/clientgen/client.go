@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"encr.dev/internal/clientgen/clientgentypes"
-	"encr.dev/internal/clientgen/openapi"
+	"encr.dev/pkg/clientgen/clientgentypes"
+	"encr.dev/pkg/clientgen/openapi"
 	"encr.dev/pkg/errinsrc/srcerrors"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -69,7 +69,11 @@ func Client(
 	var gen generator
 	switch lang {
 	case LangTypeScript:
-		gen = &typescript{generatorVersion: typescriptGenLatestVersion}
+		if opts.TSSharedTypes && md.Language == meta.Lang_TYPESCRIPT {
+			gen = &typescript{generatorVersion: typescriptGenLatestVersion, sharedTypes: true, clientTarget: opts.TSClientTarget}
+		} else {
+			gen = &typescript{generatorVersion: typescriptGenLatestVersion, sharedTypes: false}
+		}
 	case LangJavascript:
 		gen = &javascript{generatorVersion: javascriptGenLatestVersion}
 	case LangGo:
