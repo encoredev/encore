@@ -25,7 +25,7 @@ import (
 	"encr.dev/pkg/vcs"
 )
 
-// ExecScriptParams groups the parameters for the ExecScript method.
+// ExecCommandParams groups the parameters for the ExecCommand method.
 type ExecCommandParams struct {
 	// App is the app to execute the script for.
 	App *apps.Instance
