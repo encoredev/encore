@@ -104,12 +104,15 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 			streamExit(stream, 0)
 		}
 	case appfile.LangTS:
+		command := strings.TrimPrefix(req.CommandRelPath, req.WorkingDir)
+		command = strings.TrimPrefix(command, string(os.PathSeparator))
+
 		p := run.ExecCommandParams{
 			App:        app,
 			NS:         ns,
 			WorkingDir: req.WorkingDir,
 			Environ:    req.Environ,
-			Command:    req.CommandRelPath,
+			Command:    command,
 			ScriptArgs: req.ScriptArgs,
 			Stdout:     slog.Stdout(false),
 			Stderr:     slog.Stderr(false),
