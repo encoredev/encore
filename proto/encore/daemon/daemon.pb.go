@@ -1719,6 +1719,11 @@ type GenClientRequest struct {
 	// If this is set to `true`, private endpoints will not be included
 	// in the generated OpenAPI spec.
 	OpenapiExcludePrivateEndpoints *bool `protobuf:"varint,9,opt,name=openapi_exclude_private_endpoints,json=openapiExcludePrivateEndpoints,proto3,oneof" json:"openapi_exclude_private_endpoints,omitempty"`
+	// The TS generator by default re-declares the api types in the client.
+	// If this is set to `true`, the types will be imported and shared between
+	// the client and the server. It assumes "~backend" is available in the
+	// import path.
+	TsSharedTypes *bool `protobuf:"varint,10,opt,name=ts_shared_types,json=tsSharedTypes,proto3,oneof" json:"ts_shared_types,omitempty"`
 }
 
 func (x *GenClientRequest) Reset() {
@@ -1812,6 +1817,13 @@ func (x *GenClientRequest) GetExcludedEndpointTags() []string {
 func (x *GenClientRequest) GetOpenapiExcludePrivateEndpoints() bool {
 	if x != nil && x.OpenapiExcludePrivateEndpoints != nil {
 		return *x.OpenapiExcludePrivateEndpoints
+	}
+	return false
+}
+
+func (x *GenClientRequest) GetTsSharedTypes() bool {
+	if x != nil && x.TsSharedTypes != nil {
+		return *x.TsSharedTypes
 	}
 	return false
 }

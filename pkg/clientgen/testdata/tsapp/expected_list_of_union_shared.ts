@@ -58,54 +58,14 @@ export interface ClientOptions {
 
     /** Default RequestInit to be used for the client */
     requestInit?: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
-
-    /**
-     * Allows you to set the authentication data to be used for each
-     * request either by passing in a static object or by passing in
-     * a function which returns a new object for each request.
-     */
-    auth?: svc.AuthParams | AuthDataGenerator
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { dummy as api_svc_svc_dummy } from "~backend/svc/svc";
+
 export namespace svc {
-    export interface AuthParams {
-        cookie?: string
-        token?: string
-    }
-
-    export interface Request {
-        /**
-         * Foo is good
-         */
-        foo?: number
-
-        /**
-         * Baz is better
-         */
-        baz: string
-
-        queryFoo?: boolean
-        queryBar?: string
-        headerBaz?: string
-        headerNum?: number
-    }
-
-    export interface Request {
-        /**
-         * Foo is good
-         */
-        foo?: number
-
-        /**
-         * Baz is better
-         */
-        baz: string
-
-        queryFoo?: boolean
-        queryBar?: string
-        headerBaz?: string
-        headerNum?: number
-    }
 
     export class ServiceClient {
         private baseClient: BaseClient
@@ -114,49 +74,24 @@ export namespace svc {
             this.baseClient = baseClient
         }
 
-        public async dummy(params: Request): Promise<void> {
+        public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
             // Convert our params into the objects we need for the request
-            const headers = makeRecord<string, string>({
-                baz: params.headerBaz,
-                num: params.headerNum === undefined ? undefined : String(params.headerNum),
-            })
-
             const query = makeRecord<string, string | string[]>({
-                bar: params.queryBar,
-                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+                listOfUnion: params.listOfUnion.map((v) => String(v)),
             })
 
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                baz: params.baz,
-                foo: params.foo,
-            }
-
-            await this.baseClient.callTypedAPI("POST", `/dummy`, JSON.stringify(body), {headers, query})
-        }
-
-        public async root(params: Request): Promise<void> {
-            // Convert our params into the objects we need for the request
-            const headers = makeRecord<string, string>({
-                baz: params.headerBaz,
-                num: params.headerNum === undefined ? undefined : String(params.headerNum),
-            })
-
-            const query = makeRecord<string, string | string[]>({
-                bar: params.queryBar,
-                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
-            })
-
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                baz: params.baz,
-                foo: params.foo,
-            }
-
-            await this.baseClient.callTypedAPI("POST", `/`, JSON.stringify(body), {headers, query})
+            await this.baseClient.callTypedAPI(`/dummy`, {query, method: "GET", body: undefined})
         }
     }
 }
+
+
+type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
+
+type RequestType<Type extends (...args: any[]) => any> = 
+  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
 
 
@@ -182,6 +117,27 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     }
     return record as Record<K, V>
 }
+
+import {
+  StreamInOutHandlerFn,
+  StreamInHandlerFn,
+  StreamOutHandlerFn,
+} from "encore.dev/api";
+
+type StreamRequest<Type> = Type extends
+  | StreamInOutHandlerFn<any, infer Req, any>
+  | StreamInHandlerFn<any, infer Req, any>
+  | StreamOutHandlerFn<any, any>
+  ? Req
+  : never;
+
+type StreamResponse<Type> = Type extends
+  | StreamInOutHandlerFn<any, any, infer Resp>
+  | StreamInHandlerFn<any, any, infer Resp>
+  | StreamOutHandlerFn<any, infer Resp>
+  ? Resp
+  : never;
+
 
 function encodeWebSocketHeaders(headers: Record<string, string>) {
     // url safe, no pad
@@ -354,7 +310,7 @@ export class StreamOut<Request, Response> {
     }
 }
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+type CallParameters = Omit<RequestInit, "headers"> & {
     /** Headers to be sent with the request */
     headers?: Record<string, string>
 
@@ -362,11 +318,6 @@ type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     query?: Record<string, string | string[]>
 }
 
-// AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
-export type AuthDataGenerator = () =>
-  | svc.AuthParams
-  | Promise<svc.AuthParams | undefined>
-  | undefined;
 
 // A fetcher is the prototype for the inbuilt Fetch function
 export type Fetcher = typeof fetch;
@@ -378,7 +329,6 @@ class BaseClient {
     readonly fetcher: Fetcher
     readonly headers: Record<string, string>
     readonly requestInit: Omit<RequestInit, "headers"> & { headers?: Record<string, string> }
-    readonly authGenerator?: AuthDataGenerator
 
     constructor(baseURL: string, options: ClientOptions) {
         this.baseURL = baseURL
@@ -386,7 +336,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
@@ -398,42 +348,9 @@ class BaseClient {
         } else {
             this.fetcher = boundFetch
         }
-
-        // Setup an authentication data generator using the auth data token option
-        if (options.auth !== undefined) {
-            const auth = options.auth
-            if (typeof auth === "function") {
-                this.authGenerator = auth
-            } else {
-                this.authGenerator = () => auth
-            }
-        }
     }
 
     async getAuthData(): Promise<CallParameters | undefined> {
-        let authData: svc.AuthParams | undefined;
-
-        // If authorization data generator is present, call it and add the returned data to the request
-        if (this.authGenerator) {
-            const mayBePromise = this.authGenerator();
-            if (mayBePromise instanceof Promise) {
-                authData = await mayBePromise;
-            } else {
-                authData = mayBePromise;
-            }
-        }
-
-        if (authData) {
-            const data: CallParameters = {};
-
-            data.headers = makeRecord<string, string>({
-                cookie:        authData.cookie,
-                "x-api-token": authData.token,
-            });
-
-            return data;
-        }
-
         return undefined;
     }
 
@@ -501,21 +418,19 @@ class BaseClient {
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        return this.callAPI(method, path, body, {
+    public async callTypedAPI(path: string, params?: CallParameters): Promise<Response> {
+        return this.callAPI(path, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
         });
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(path: string, params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,
-            method,
-            body: body ?? null,
         }
 
         // Merge our headers with any predefined headers

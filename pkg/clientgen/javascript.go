@@ -12,7 +12,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"encr.dev/internal/clientgen/clientgentypes"
+	"encr.dev/pkg/clientgen/clientgentypes"
 	"encr.dev/pkg/idents"
 
 	"encr.dev/internal/version"

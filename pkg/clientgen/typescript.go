@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"maps"
+	"path/filepath"
 	"reflect"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,9 +16,10 @@ import (
 
 	"github.com/cockroachdb/errors"
 
-	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/version"
 	"encr.dev/parser/encoding"
+	"encr.dev/pkg/clientgen/clientgentypes"
+	"encr.dev/pkg/fns"
 	"encr.dev/pkg/idents"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 	schema "encr.dev/proto/encore/parser/schema/v1"
@@ -58,8 +63,11 @@ type typescript struct {
 	typs             *typeRegistry
 	currDecl         *schema.Decl
 	generatorVersion tsGenVersion
+	sharedTypes      bool
+	clientTarget     string
 
 	seenJSON           bool // true if a JSON type was seen
+	seenStream         bool // true if a stream endpoint was seen
 	seenHeaderResponse bool // true if we've seen a header used in a response object
 	hasAuth            bool // true if we've seen an authentication handler
 	authIsComplexType  bool // true if the auth type is a complex type
@@ -98,9 +106,11 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 		}
 		seenNs[svc.Name] = true
 	}
-	for _, ns := range nss {
-		if !seenNs[ns] {
-			ts.writeNamespace(ns)
+	if !ts.sharedTypes {
+		for _, ns := range nss {
+			if !seenNs[ns] {
+				ts.writeNamespace(ns)
+			}
 		}
 	}
 	ts.writeExtraTypes()
@@ -110,7 +120,52 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	}
 	ts.writeCustomErrorType()
 
+	if ts.clientTarget != "" {
+		fmt.Fprintf(ts, `
+export default new Client(%s);
+`, ts.clientTarget)
+	}
+
 	return nil
+}
+
+func hasPathParams(rpc *meta.RPC) bool {
+	return fns.Any(rpc.Path.Segments, func(s *meta.PathSegment) bool {
+		return s.Type != meta.PathSegment_LITERAL
+	})
+}
+
+func (ts *typescript) authImportName() string {
+	return fmt.Sprintf("auth_%s", validTSIdentifier(ts.md.AuthHandler.Name))
+}
+
+func (ts *typescript) writeAuthType() {
+	if ts.sharedTypes {
+		fmt.Fprintf(ts, "RequestType<typeof %s>", ts.authImportName())
+	} else {
+		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
+	}
+}
+
+func rpcImportName(rpc *meta.RPC) string {
+	fileName := strings.TrimSuffix(rpc.Loc.Filename, filepath.Ext(rpc.Loc.Filename))
+	return fmt.Sprintf("api_%s_%s_%s", validTSIdentifier(rpc.ServiceName), validTSIdentifier(fileName), validTSIdentifier(rpc.Name))
+}
+
+func getMethodType(rpc *meta.RPC) string {
+	ts := strings.Builder{}
+	for i, method := range rpc.HttpMethods {
+		if i > 0 {
+			ts.WriteString(" | ")
+		}
+
+		if method == "*" {
+			ts.WriteString("string")
+		} else {
+			ts.WriteString("\"" + method + "\"")
+		}
+	}
+	return ts.String()
 }
 
 func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSet, tags clientgentypes.TagSet) error {
@@ -123,17 +178,45 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		return nil
 	}
 
+	if ts.sharedTypes {
+		importsByPath := make(map[string][]string)
+		for _, rpc := range svc.Rpcs {
+			if rpc.AccessType == meta.RPC_PRIVATE || !tags.IsRPCIncluded(rpc) || rpc.Proto == meta.RPC_RAW ||
+				(rpc.ResponseSchema == nil && rpc.RequestSchema == nil && !hasPathParams(rpc)) {
+				continue
+			}
+			path := fmt.Sprintf("~backend/%s/%s", rpc.Loc.PkgName, strings.TrimSuffix(rpc.Loc.Filename, filepath.Ext(rpc.Loc.Filename)))
+			importsByPath[path] = append(importsByPath[path], fmt.Sprintf("%s as %s", rpc.Name, rpcImportName(rpc)))
+		}
+		if len(importsByPath) > 0 {
+			ts.WriteString(`/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+`)
+		}
+		for _, path := range slices.Sorted(maps.Keys(importsByPath)) {
+			imps := fmt.Sprintf(" %s ", importsByPath[path][0])
+			if len(importsByPath[path]) > 1 {
+				imps = "\n    " + strings.Join(importsByPath[path], ",\n    ") + "\n"
+			}
+			fmt.Fprintf(ts, "import {%s} from \"%s\";\n", imps, path)
+		}
+		ts.WriteString("\n")
+	}
+
 	ns := svc.Name
 	fmt.Fprintf(ts, "export namespace %s {\n", ts.typeName(ns))
 
 	sort.Slice(decls, func(i, j int) bool {
 		return decls[i].Name < decls[j].Name
 	})
-	for i, d := range decls {
-		if i > 0 {
-			ts.WriteString("\n")
+	if !ts.sharedTypes {
+		for i, d := range decls {
+			if i > 0 {
+				ts.WriteString("\n")
+			}
+			ts.writeDeclDef(ns, d)
 		}
-		ts.writeDeclDef(ns, d)
 	}
 
 	if !isIncluded {
@@ -190,77 +273,91 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		indent()
 		fmt.Fprintf(ts, "public async %s(", ts.memberName(rpc.Name))
 
-		if rpc.Proto == meta.RPC_RAW {
-			ts.WriteString("method: ")
-			for i, method := range rpc.HttpMethods {
-				if i > 0 {
-					ts.WriteString(" | ")
-				}
+		isRaw := rpc.Proto == meta.RPC_RAW
 
-				if method == "*" {
-					ts.WriteString("string")
-				} else {
-					ts.WriteString("\"" + method + "\"")
-				}
-			}
-			ts.WriteString(", ")
+		if isRaw && !ts.sharedTypes {
+			fmt.Fprintf(ts, "method: %s, ", getMethodType(rpc))
 		}
 
 		nParams := 0
+		// Avoid a name collision.
+		payloadName := "params"
+		segmentPrefix := ""
+		if ts.sharedTypes {
+			segmentPrefix = payloadName + "."
+		}
+		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
+		var hasHandshake = rpc.HandshakeSchema != nil
+		var inlinePathParams = (isRaw || (rpc.RequestSchema == nil && !hasHandshake)) && hasPathParams(rpc) && ts.sharedTypes
+		if inlinePathParams {
+			ts.WriteString(payloadName + ": { ")
+		}
 		var rpcPath strings.Builder
 		for _, s := range rpc.Path.Segments {
 			rpcPath.WriteByte('/')
 			if s.Type != meta.PathSegment_LITERAL {
-				if nParams > 0 {
-					ts.WriteString(", ")
-				}
+				if !ts.sharedTypes || inlinePathParams {
+					if nParams > 0 {
+						ts.WriteString(", ")
+					}
 
-				ts.WriteString(ts.nonReservedId(s.Value))
-				ts.WriteString(": ")
-				switch s.ValueType {
-				case meta.PathSegment_STRING, meta.PathSegment_UUID:
-					ts.WriteString("string")
-				case meta.PathSegment_BOOL:
-					ts.WriteString("boolean")
-				case meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64, meta.PathSegment_INT,
-					meta.PathSegment_UINT8, meta.PathSegment_UINT16, meta.PathSegment_UINT32, meta.PathSegment_UINT64, meta.PathSegment_UINT:
-					ts.WriteString("number")
-				default:
-					panic(fmt.Sprintf("unhandled PathSegment type %s", s.ValueType))
+					ts.WriteString(ts.nonReservedId(s.Value))
+					ts.WriteString(": ")
+					switch s.ValueType {
+					case meta.PathSegment_STRING, meta.PathSegment_UUID:
+						ts.WriteString("string")
+					case meta.PathSegment_BOOL:
+						ts.WriteString("boolean")
+					case meta.PathSegment_INT8, meta.PathSegment_INT16, meta.PathSegment_INT32, meta.PathSegment_INT64, meta.PathSegment_INT,
+						meta.PathSegment_UINT8, meta.PathSegment_UINT16, meta.PathSegment_UINT32, meta.PathSegment_UINT64, meta.PathSegment_UINT:
+						ts.WriteString("number")
+					default:
+						panic(fmt.Sprintf("unhandled PathSegment type %s", s.ValueType))
+					}
+					if s.Type == meta.PathSegment_WILDCARD || s.Type == meta.PathSegment_FALLBACK {
+						ts.WriteString("[]")
+					}
 				}
 				if s.Type == meta.PathSegment_WILDCARD || s.Type == meta.PathSegment_FALLBACK {
-					ts.WriteString("[]")
-					rpcPath.WriteString("${" + ts.nonReservedId(s.Value) + ".map(encodeURIComponent).join(\"/\")}")
+					rpcPath.WriteString("${" + segmentPrefix + ts.nonReservedId(s.Value) + ".map(encodeURIComponent).join(\"/\")}")
 				} else {
-					rpcPath.WriteString("${encodeURIComponent(" + ts.nonReservedId(s.Value) + ")}")
+					rpcPath.WriteString("${encodeURIComponent(" + segmentPrefix + ts.nonReservedId(s.Value) + ")}")
 				}
 				nParams++
 			} else {
 				rpcPath.WriteString(s.Value)
 			}
 		}
+		if inlinePathParams {
+			ts.WriteString(" }")
+		}
 
-		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
-
-		// Avoid a name collision.
-		payloadName := "params"
-
-		if (!isStream && rpc.RequestSchema != nil) || (isStream && rpc.HandshakeSchema != nil) {
-			if nParams > 0 {
+		if (!isStream && rpc.RequestSchema != nil) || (isStream && hasHandshake) {
+			if !ts.sharedTypes && nParams > 0 {
 				ts.WriteString(", ")
 			}
 			ts.WriteString(payloadName + ": ")
-			if isStream {
+			if ts.sharedTypes {
+				fmt.Fprintf(ts, "RequestType<typeof %s>", rpcImportName(rpc))
+			} else if isStream {
 				ts.writeTyp(ns, rpc.HandshakeSchema, 0)
 			} else {
 				ts.writeTyp(ns, rpc.RequestSchema, 0)
 
 			}
-		} else if rpc.Proto == meta.RPC_RAW {
+		} else if isRaw {
 			if nParams > 0 {
 				ts.WriteString(", ")
 			}
-			ts.WriteString("body?: BodyInit, options?: CallParameters")
+			if !ts.sharedTypes {
+				ts.WriteString("body?: BodyInit, ")
+			}
+
+			if ts.sharedTypes {
+				fmt.Fprintf(ts, "options: PickMethods<%s> = {}", getMethodType(rpc))
+			} else {
+				ts.WriteString("options?: CallParameters")
+			}
 		}
 
 		var direction streamDirection
@@ -273,37 +370,55 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			direction = In
 		}
 
-		writeTypOrVoid := func(ns string, typ *schema.Type, numIndents int) {
-			if typ != nil {
-				ts.writeTyp(ns, typ, numIndents)
-			} else {
+		writeStreamRequest := func(ns string, numIndents int) {
+			if rpc.RequestSchema == nil {
 				ts.WriteString("void")
+			} else if ts.sharedTypes {
+				fmt.Fprintf(ts, "StreamRequest<typeof %s>", rpcImportName(rpc))
+			} else {
+				ts.writeTyp(ns, rpc.RequestSchema, numIndents)
+			}
+		}
+		writeStreamResponse := func(ns string, numIndents int) {
+			if rpc.ResponseSchema == nil {
+				ts.WriteString("void")
+			} else if ts.sharedTypes {
+				ts.seenStream = true
+				fmt.Fprintf(ts, "StreamResponse<typeof %s>", rpcImportName(rpc))
+			} else {
+				ts.writeTyp(ns, rpc.ResponseSchema, numIndents)
 			}
 		}
 
 		ts.WriteString("): Promise<")
+
 		if isStream {
+			ts.seenStream = true
 			switch direction {
 			case InOut:
 				ts.WriteString("StreamInOut<")
-				writeTypOrVoid(ns, rpc.RequestSchema, 0)
+				writeStreamRequest(ns, 0)
 				ts.WriteString(", ")
-				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
+				writeStreamResponse(ns, 0)
 				ts.WriteString(">")
 			case In:
 				ts.WriteString("StreamIn<")
-				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
+				writeStreamResponse(ns, 0)
 				ts.WriteString(">")
 			case Out:
 				ts.WriteString("StreamOut<")
-				writeTypOrVoid(ns, rpc.RequestSchema, 0)
+				writeStreamRequest(ns, 0)
 				ts.WriteString(", ")
-				writeTypOrVoid(ns, rpc.ResponseSchema, 0)
+				writeStreamResponse(ns, 0)
 				ts.WriteString(">")
 			}
 		} else if rpc.ResponseSchema != nil {
-			ts.writeTyp(ns, rpc.ResponseSchema, 0)
-		} else if rpc.Proto == meta.RPC_RAW {
+			if ts.sharedTypes {
+				fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
+			} else {
+				ts.writeTyp(ns, rpc.ResponseSchema, 0)
+			}
+		} else if isRaw {
 			ts.WriteString("globalThis.Response")
 		} else {
 			ts.WriteString("void")
@@ -424,6 +539,7 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 	w.WriteStringf("return await %s\n", createStream)
 	return nil
 }
+
 func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpcPath string) error {
 	// Work out how we're going to encode and call this RPC
 	rpcEncoding, err := encoding.DescribeRPC(ts.md, rpc, &encoding.Options{SrcNameTag: "json"})
@@ -434,10 +550,23 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// Raw end points just pass through the request
 	// and need no further code generation
 	if rpc.Proto == meta.RPC_RAW {
-		w.WriteStringf(
-			"return this.baseClient.callAPI(method, `%s`, body, options)\n",
-			rpcPath,
-		)
+		if ts.sharedTypes {
+			w.WriteStringf("options.method ||= \"%s\";\n", rpcEncoding.DefaultMethod)
+		}
+		w.WriteString("return this.baseClient.callAPI(")
+		if ts.sharedTypes {
+			w.WriteStringf(
+				"`%s`, options",
+				rpcPath,
+			)
+
+		} else {
+			w.WriteStringf(
+				"method, `%s`, body, options",
+				rpcPath,
+			)
+		}
+		w.WriteString(")\n")
 		return nil
 	}
 
@@ -497,7 +626,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 		// Generate the body
 		if len(reqEnc.BodyParameters) > 0 {
-			if len(reqEnc.HeaderParameters) == 0 && len(reqEnc.QueryParameters) == 0 {
+			if len(reqEnc.HeaderParameters) == 0 && len(reqEnc.QueryParameters) == 0 && (!ts.sharedTypes || !hasPathParams(rpc)) {
 				// In the simple case we can just encode the params as the body directly
 				body = "JSON.stringify(params)"
 			} else {
@@ -517,19 +646,20 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	}
 
 	// Build the call to callTypedAPI
-	callAPI := fmt.Sprintf(
-		"this.baseClient.callTypedAPI(\"%s\", `%s`",
-		rpcEncoding.DefaultMethod,
-		rpcPath,
-	)
-	if body != "" || headers != "" || query != "" {
+	callAPI := "this.baseClient.callTypedAPI("
+	if !ts.sharedTypes {
+		callAPI += fmt.Sprintf("\"%s\", ", rpcEncoding.DefaultMethod)
+	}
+	callAPI += fmt.Sprintf("`%s`", rpcPath)
+	if body != "" || headers != "" || query != "" || ts.sharedTypes {
 		if body == "" {
-			callAPI += ", undefined"
-		} else {
+			body = "undefined"
+		}
+		if !ts.sharedTypes {
 			callAPI += ", " + body
 		}
 
-		if headers != "" || query != "" {
+		if headers != "" || query != "" || ts.sharedTypes {
 			callAPI += ", {" + headers
 
 			if headers != "" && query != "" {
@@ -540,8 +670,13 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 				callAPI += query
 			}
 
+			if ts.sharedTypes {
+				if headers != "" || query != "" {
+					callAPI += ", "
+				}
+				callAPI += fmt.Sprintf(`method: "%s", body: %s`, rpcEncoding.DefaultMethod, body)
+			}
 			callAPI += "}"
-
 		}
 	}
 	callAPI += ")"
@@ -559,14 +694,22 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	// If we don't need to do anything with the body, we can just return the response
 	if len(respEnc.HeaderParameters) == 0 {
 		w.WriteString("return await resp.json() as ")
-		ts.writeTyp(ns, rpc.ResponseSchema, 0)
+		if ts.sharedTypes {
+			fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
+		} else {
+			ts.writeTyp(ns, rpc.ResponseSchema, 0)
+		}
 		w.WriteString("\n")
 		return nil
 	}
 
 	// Otherwise, we need to add the header fields to the response
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\nconst rtn = await resp.json() as ")
-	ts.writeTyp(ns, rpc.ResponseSchema, 0)
+	if ts.sharedTypes {
+		fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
+	} else {
+		ts.writeTyp(ns, rpc.ResponseSchema, 0)
+	}
 	w.WriteString("\n")
 
 	for _, headerField := range respEnc.HeaderParameters {
@@ -616,6 +759,7 @@ func (ts *typescript) writeNamespace(ns string) {
 		if i > 0 {
 			ts.WriteString("\n")
 		}
+
 		ts.writeDeclDef(ns, d)
 	}
 	ts.WriteString("}\n\n")
@@ -661,6 +805,31 @@ func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
 }
 
 func (ts *typescript) writeStreamClasses() {
+	if ts.sharedTypes {
+		ts.WriteString(`
+import {
+  StreamInOutHandlerFn,
+  StreamInHandlerFn,
+  StreamOutHandlerFn,
+} from "encore.dev/api";
+
+type StreamRequest<Type> = Type extends
+  | StreamInOutHandlerFn<any, infer Req, any>
+  | StreamInHandlerFn<any, infer Req, any>
+  | StreamOutHandlerFn<any, any>
+  ? Req
+  : never;
+
+type StreamResponse<Type> = Type extends
+  | StreamInOutHandlerFn<any, any, infer Resp>
+  | StreamInHandlerFn<any, any, infer Resp>
+  | StreamOutHandlerFn<any, infer Resp>
+  ? Resp
+  : never;
+
+`)
+	}
+
 	send := `
     async send(msg: Request) {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
@@ -815,7 +984,7 @@ export class StreamOut<Request, Response> {
 
 func (ts *typescript) writeClient(set clientgentypes.ServiceSet) {
 	w := ts.newIdentWriter(0)
-	w.WriteString(`
+	w.WriteStringf(`
 /**
  * BaseURL is the base URL for calling the Encore application's API.
  */
@@ -827,21 +996,26 @@ export const Local: BaseURL = "http://localhost:4000"
  * Environment returns a BaseURL for calling the cloud environment with the given name.
  */
 export function Environment(name: string): BaseURL {
-    return ` + "`https://${name}-" + ts.appSlug + ".encr.app`" + `
+    return `+"`https://${name}-"+ts.appSlug+".encr.app`"+`
 }
 
 /**
  * PreviewEnv returns a BaseURL for calling the preview environment with the given PR number.
  */
 export function PreviewEnv(pr: number | string): BaseURL {
-    return Environment(` + "`pr${pr}`" + `)
+    return Environment(`+"`pr${pr}`"+`)
 }
 
 /**
- * Client is an API client for the ` + ts.appSlug + ` Encore application.
+ * Client is an API client for the `+ts.appSlug+` Encore application.
  */
-export default class Client {
-`)
+export %sclass Client {
+`, func() string {
+		if ts.clientTarget != "" {
+			return ""
+		}
+		return "default "
+	}())
 
 	{
 		w := w.Indent()
@@ -907,6 +1081,22 @@ if (typeof options === "string") {
 	}
 	w.WriteString("}\n")
 
+	handler := ts.md.AuthHandler
+	if ts.hasAuth && ts.sharedTypes && ts.authIsComplexType {
+
+		ts.WriteString(`
+/**
+ * Import the auth handler to be able to derive the auth type
+ */
+`)
+		fmt.Fprintf(ts, `import type { %s as %s } from "~backend/%s/%s";`,
+			handler.Name,
+			ts.authImportName(),
+			handler.Loc.PkgName,
+			strings.TrimSuffix(handler.Loc.Filename, filepath.Ext(handler.Loc.Filename)))
+		ts.WriteString("\n")
+	}
+
 	w.WriteString(`
 /**
  * ClientOptions allows you to override any default behaviour within the generated Encore client.
@@ -945,7 +1135,7 @@ export interface ClientOptions {
 		}
 
 		w.WriteString("    auth?: ")
-		ts.writeTyp("", ts.md.AuthHandler.Params, 2)
+		ts.writeAuthType()
 		w.WriteString(" | AuthDataGenerator\n")
 	}
 
@@ -957,26 +1147,30 @@ export interface ClientOptions {
 func (ts *typescript) writeBaseClient(appSlug string) error {
 	userAgent := fmt.Sprintf("%s-Generated-TS-Client (Encore/%s)", appSlug, version.Version)
 
-	ts.WriteString(`
+	reqOmit := `"method" | "body" | "headers"`
+	if ts.sharedTypes {
+		reqOmit = `"headers"`
+	}
+	fmt.Fprintf(ts, `
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
-type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
+type CallParameters = Omit<RequestInit, %s> & {
     /** Headers to be sent with the request */
     headers?: Record<string, string>
 
     /** Query parameters to be sent with the request */
     query?: Record<string, string | string[]>
 }
-`)
+`, reqOmit)
 
 	if ts.hasAuth {
 		ts.WriteString(`
 // AuthDataGenerator is a function that returns a new instance of the authentication data required by this API
 export type AuthDataGenerator = () =>
   | `)
-		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.writeAuthType()
 		ts.WriteString(`
   | Promise<`)
-		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.writeAuthType()
 		ts.WriteString(` | undefined>
   | undefined;`)
 	}
@@ -1006,7 +1200,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
             this.headers["User-Agent"] = "` + userAgent + `";
         }
 
@@ -1040,7 +1234,7 @@ class BaseClient {
 	if ts.hasAuth {
 		ts.WriteString(`
         let authData: `)
-		ts.writeTyp("", ts.md.AuthHandler.Params, 0)
+		ts.writeAuthType()
 		ts.WriteString(` | undefined;
 
         // If authorization data generator is present, call it and add the returned data to the request
@@ -1179,25 +1373,40 @@ class BaseClient {
         const queryString = query ? '?' + encodeQuery(query) : ''
         return new StreamOut(this.baseURL + path + queryString, headers);
     }
+`)
 
+	callParams := "method: string, path: string, body?: BodyInit, params?: CallParameters"
+	callAPIParams := "method, path, body"
+	initParams := `
+            method,
+            body: body ?? null,`
+	if ts.sharedTypes {
+		callParams = "path: string, params?: CallParameters"
+		callAPIParams = "path"
+		initParams = ""
+	}
+
+	fmt.Fprintf(ts, `
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
-        return this.callAPI(method, path, body, {
+    public async callTypedAPI(%s): Promise<Response> {
+        return this.callAPI(%s, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
         });
     }
+`, callParams, callAPIParams)
 
+	fmt.Fprintf(ts, `
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(%s): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
-            ...rest,
-            method,
-            body: body ?? null,
+            ...rest,%s
         }
+`, callParams, initParams)
 
+	ts.WriteString(`
         // Merge our headers with any predefined headers
         init.headers = {...this.headers, ...init.headers, ...headers}
 
@@ -1255,6 +1464,17 @@ func (ts *typescript) writeExtraTypes() {
 	if ts.seenJSON {
 		ts.WriteString(`// JSONValue represents an arbitrary JSON value.
 export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue}
+`)
+	}
+	if ts.sharedTypes {
+		ts.WriteString(`
+type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
+
+type RequestType<Type extends (...args: any[]) => any> = 
+  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
+
 `)
 	}
 
@@ -1598,9 +1818,27 @@ func (ts *typescript) Values(w *indentWriter, dict map[string]string) {
 	w.WriteString("}")
 }
 
+// Regex to replace invalid characters (anything that isn't a letter, number, `_`, or `$`)
+var invalidChars = regexp.MustCompile(`[^\p{L}\p{N}$_]`)
+
+// validTSIdentifier converts a string into a valid TypeScript identifier.
+func validTSIdentifier(input string) string {
+	if input == "" {
+		return "_"
+	}
+	runes := []rune(input)
+	// Ensure the first character is a valid TS identifier start (letter, `_`, or `$`)
+	if !unicode.IsLetter(runes[0]) && runes[0] != '_' && runes[0] != '$' {
+		runes[0] = '_'
+	}
+
+	output := invalidChars.ReplaceAllString(string(runes), "_")
+	return output
+}
+
 func (ts *typescript) typeName(identifier string) string {
 	if ts.generatorVersion < TsExperimental {
-		return identifier
+		return validTSIdentifier(identifier)
 	} else {
 		return idents.Convert(identifier, idents.PascalCase)
 	}
@@ -1608,7 +1846,7 @@ func (ts *typescript) typeName(identifier string) string {
 
 func (ts *typescript) memberName(identifier string) string {
 	if ts.generatorVersion < TsExperimental {
-		return identifier
+		return validTSIdentifier(identifier)
 	} else {
 		return idents.Convert(identifier, idents.CamelCase)
 	}

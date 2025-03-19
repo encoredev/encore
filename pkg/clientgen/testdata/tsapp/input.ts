@@ -4,9 +4,19 @@
 -- package.json --
 {"name": "ts-test-app"}
 
+-- common-stuff/types.ts --
+export interface ImportedRequest {
+  name: string;
+}
+
+export interface ImportedResponse {
+  message: string;
+}
+
 -- svc/svc.ts --
 import { Header, Query, api, Gateway } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";
+import type { ImportedRequest, ImportedResponse } from "../common-stuff/types";
 
 interface UnusedType {
   foo: Foo;
@@ -16,6 +26,17 @@ export const root = api(
   { expose: true, method: "POST", path: "/" },
   async (req: Request) => { },
 );
+
+export const imported = api(
+  { expose: true, method: "POST", path: "/imported" },
+  async (req: ImportedRequest) : Promise<ImportedResponse> => { },
+);
+
+export const onlyPathParams = api(
+  { expose: true, method: "POST", path: "/path/:pathParam/:pathParam2" },
+  async (req: { pathParam: string, pathParam2: string }) : Promise<ImportedResponse> => { },
+);
+
 
 export const dummy = api(
   { expose: true, method: "POST", path: "/dummy" },

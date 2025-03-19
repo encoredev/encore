@@ -25,11 +25,11 @@ import (
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/update"
-	"encr.dev/internal/clientgen"
-	"encr.dev/internal/clientgen/clientgentypes"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
+	"encr.dev/pkg/clientgen"
+	"encr.dev/pkg/clientgen/clientgentypes"
 	"encr.dev/pkg/errlist"
 	"encr.dev/pkg/fns"
 	daemonpb "encr.dev/proto/encore/daemon"
@@ -146,6 +146,9 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	opts := clientgentypes.Options{}
 	if params.OpenapiExcludePrivateEndpoints != nil {
 		opts.OpenAPIExcludePrivateEndpoints = *params.OpenapiExcludePrivateEndpoints
+	}
+	if params.TsSharedTypes != nil {
+		opts.TSSharedTypes = *params.TsSharedTypes
 	}
 	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet, opts)
 	if err != nil {
