@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -66,4 +65,5 @@ func init() {
 func init() {
 	execCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
 	alphaCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(execCmd)
 }
