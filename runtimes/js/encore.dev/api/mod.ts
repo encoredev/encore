@@ -257,6 +257,12 @@ export interface StaticOptions {
    * The path is relative to `dir` and must exist within that directory.
    */
   notFound?: string;
+
+  /**
+   * Http Status code used when serving notFound fallback.
+   * Defaults to 404.
+   */
+  notFoundStatus?: number;
 }
 
 export class StaticAssets {

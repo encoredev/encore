@@ -170,6 +170,7 @@ message RPC {
     // not_found_rel_path is the relative path to the file to serve when the requested
     // file is not found. It is relative to the files_rel_path directory.
     optional string not_found_rel_path = 2;
+    optional uint32 not_found_status = 3;
   }
 }
 
