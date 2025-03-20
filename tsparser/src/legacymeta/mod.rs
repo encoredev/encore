@@ -160,6 +160,7 @@ impl MetaBuilder<'_> {
                             Ok(v1::rpc::StaticAssets {
                                 dir_rel_path,
                                 not_found_rel_path,
+                                not_found_status_code: sa.not_found_status_code,
                             })
                         })
                         .transpose()?;
