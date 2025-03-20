@@ -1,9 +1,13 @@
 use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
+use http::StatusCode;
 use http_body_util::Empty;
 use std::fmt::Debug;
 use std::io;
-use tower_http::services::{fs::ServeDir, ServeFile};
+use tower_http::{
+    services::{fs::ServeDir, ServeFile},
+    set_status::SetStatus,
+};
 use tower_service::Service;
 
 use crate::{encore::parser::meta::v1 as meta, model::RequestData};
@@ -14,25 +18,33 @@ use super::{BoxedHandler, Error, HandlerRequest, ResponseData};
 pub struct StaticAssetsHandler {
     service: Arc<dyn FileServer>,
     not_found_handler: bool,
+    not_found_status: StatusCode,
 }
 
 impl StaticAssetsHandler {
     pub fn new(cfg: &meta::rpc::StaticAssets) -> Self {
         let service = ServeDir::new(PathBuf::from(&cfg.dir_rel_path));
 
+        let not_found_status = cfg
+            .not_found_status
+            .and_then(|c| StatusCode::from_u16(c as u16).ok())
+            .unwrap_or(StatusCode::NOT_FOUND);
+
         let not_found = cfg
             .not_found_rel_path
             .as_ref()
             .map(|p| ServeFile::new(PathBuf::from(p)));
         let not_found_handler = not_found.is_some();
-
         let service: Arc<dyn FileServer> = match not_found {
-            Some(not_found) => Arc::new(service.not_found_service(not_found)),
+            Some(not_found) => {
+                Arc::new(service.fallback(SetStatus::new(not_found, not_found_status)))
+            }
             None => Arc::new(service),
         };
         StaticAssetsHandler {
             service,
             not_found_handler,
+            not_found_status,
         }
     }
 }
@@ -93,7 +105,7 @@ impl BoxedHandler for StaticAssetsHandler {
                     {
                         ResponseData::Raw(resp.map(axum::body::Body::new))
                     }
-                    axum::http::StatusCode::NOT_FOUND => {
+                    code if code == self.not_found_status => {
                         // If we have a not found handler, use that directly.
                         if self.not_found_handler {
                             ResponseData::Raw(resp.map(axum::body::Body::new))

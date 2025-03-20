@@ -168,6 +168,9 @@ pub struct StaticAssets {
 
     /// File to serve when the path is not found.
     pub not_found: Option<Sp<PathBuf>>,
+
+    /// Http Status Code to use when serving not_found
+    pub not_found_status: Option<u32>,
 }
 
 pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
@@ -303,7 +306,11 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         handshake,
                     ))
                 }
-                EndpointKind::StaticAssets { dir, not_found } => {
+                EndpointKind::StaticAssets {
+                    dir,
+                    not_found,
+                    not_found_status,
+                } => {
                     // Support HEAD and GET for static assets.
                     let methods = Methods::Some(vec![Method::Head, Method::Get]);
 
@@ -350,6 +357,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     static_assets = Some(StaticAssets {
                         dir: assets_dir,
                         not_found: not_found_path,
+                        not_found_status,
                     });
 
                     describe_static_assets(r.range.to_span(), methods, path)
@@ -460,6 +468,7 @@ enum EndpointKind {
     StaticAssets {
         dir: Sp<LocalRelPath>,
         not_found: Option<Sp<LocalRelPath>>,
+        not_found_status: Option<u32>,
     },
     Raw,
 }
@@ -477,6 +486,7 @@ struct EndpointConfig {
     // For static assets.
     dir: Option<Sp<LocalRelPath>>,
     notFound: Option<Sp<LocalRelPath>>,
+    notFoundStatus: Option<u32>,
 }
 
 impl ReferenceParser for APIEndpointLiteral {
@@ -720,6 +730,7 @@ impl ReferenceParser for APIEndpointLiteral {
                         };
 
                         let not_found = cfg.notFound.clone();
+                        let not_found_status = cfg.notFoundStatus;
 
                         Self {
                             range: expr.span.into(),
@@ -727,7 +738,11 @@ impl ReferenceParser for APIEndpointLiteral {
                             endpoint_name: bind_name.sym.to_string(),
                             bind_name,
                             config: cfg,
-                            kind: EndpointKind::StaticAssets { dir, not_found },
+                            kind: EndpointKind::StaticAssets {
+                                dir,
+                                not_found,
+                                not_found_status,
+                            },
                         }
                     }
                     _ => {
