@@ -262,7 +262,7 @@ export interface StaticOptions {
    * Http Status code used when serving notFound fallback.
    * Defaults to 404.
    */
-  notFoundStatusCode?: number;
+  notFoundStatus?: number;
 }
 
 export class StaticAssets {
