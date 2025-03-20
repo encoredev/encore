@@ -85,7 +85,9 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 			return nil
 		}
 
-		commandPkg := paths.Pkg(mod.Module.Mod.Path).JoinSlash(paths.RelSlash(req.CommandRelPath))
+		commandRelPath := filepath.ToSlash(filepath.Join(req.WorkingDir, req.ScriptArgs[0]))
+		scriptArgs := req.ScriptArgs[1:]
+		commandPkg := paths.Pkg(mod.Module.Mod.Path).JoinSlash(paths.RelSlash(commandRelPath))
 
 		p := run.ExecScriptParams{
 			App:        app,
@@ -93,7 +95,7 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 			WorkingDir: req.WorkingDir,
 			Environ:    req.Environ,
 			MainPkg:    commandPkg,
-			ScriptArgs: req.ScriptArgs,
+			ScriptArgs: scriptArgs,
 			Stdout:     slog.Stdout(false),
 			Stderr:     slog.Stderr(false),
 			OpTracker:  ops,
@@ -104,16 +106,13 @@ func (s *Server) ExecScript(req *daemonpb.ExecScriptRequest, stream daemonpb.Dae
 			streamExit(stream, 0)
 		}
 	case appfile.LangTS:
-		command := strings.TrimPrefix(req.CommandRelPath, req.WorkingDir)
-		command = strings.TrimPrefix(command, string(os.PathSeparator))
-
 		p := run.ExecCommandParams{
 			App:        app,
 			NS:         ns,
 			WorkingDir: req.WorkingDir,
 			Environ:    req.Environ,
-			Command:    command,
-			ScriptArgs: req.ScriptArgs,
+			Command:    req.ScriptArgs[0],
+			ScriptArgs: req.ScriptArgs[1:],
 			Stdout:     slog.Stdout(false),
 			Stderr:     slog.Stderr(false),
 			OpTracker:  ops,
