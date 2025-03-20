@@ -35,18 +35,14 @@ func execScript(appRoot, relWD string, args []string) {
 		cancel()
 	}()
 
-	commandRelPath := filepath.ToSlash(filepath.Join(relWD, args[0]))
-	scriptArgs := args[1:]
-
 	daemon := setupDaemon(ctx)
 	stream, err := daemon.ExecScript(ctx, &daemonpb.ExecScriptRequest{
-		AppRoot:        appRoot,
-		WorkingDir:     relWD,
-		CommandRelPath: commandRelPath,
-		ScriptArgs:     scriptArgs,
-		Environ:        os.Environ(),
-		TraceFile:      root.TraceFile,
-		Namespace:      nonZeroPtr(nsName),
+		AppRoot:    appRoot,
+		WorkingDir: relWD,
+		ScriptArgs: args,
+		Environ:    os.Environ(),
+		TraceFile:  root.TraceFile,
+		Namespace:  nonZeroPtr(nsName),
 	})
 	if err != nil {
 		fatal(err)
