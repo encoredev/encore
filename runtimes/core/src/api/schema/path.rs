@@ -175,7 +175,7 @@ impl Path {
                     };
 
                     match value {
-                        PValue::String(str) => {
+                        PValue::String(str) | PValue::BigInt(str) => {
                             // URL-encode the string, so it doesn't get reinterpreted
                             // as multiple path segments.
                             let encoded = urlencoding::encode(str);
