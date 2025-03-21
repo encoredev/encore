@@ -4,10 +4,7 @@ use http::StatusCode;
 use http_body_util::Empty;
 use std::fmt::Debug;
 use std::io;
-use tower_http::{
-    services::{fs::ServeDir, ServeFile},
-    set_status::SetStatus,
-};
+use tower_http::services::{fs::ServeDir, ServeFile};
 use tower_service::Service;
 
 use crate::{encore::parser::meta::v1 as meta, model::RequestData};
@@ -36,9 +33,7 @@ impl StaticAssetsHandler {
             .map(|p| ServeFile::new(PathBuf::from(p)));
         let not_found_handler = not_found.is_some();
         let service: Arc<dyn FileServer> = match not_found {
-            Some(not_found) => {
-                Arc::new(service.fallback(SetStatus::new(not_found, not_found_status)))
-            }
+            Some(not_found) => Arc::new(service.not_found_service(not_found)),
             None => Arc::new(service),
         };
         StaticAssetsHandler {
@@ -97,7 +92,7 @@ impl BoxedHandler for StaticAssetsHandler {
             };
 
             match self.service.serve(httpreq).await {
-                Ok(resp) => match resp.status() {
+                Ok(mut resp) => match resp.status() {
                     // 1xx, 2xx, 3xx are all considered successful.
                     code if code.is_informational()
                         || code.is_success()
@@ -105,9 +100,10 @@ impl BoxedHandler for StaticAssetsHandler {
                     {
                         ResponseData::Raw(resp.map(axum::body::Body::new))
                     }
-                    code if code == self.not_found_status => {
+                    axum::http::StatusCode::NOT_FOUND => {
                         // If we have a not found handler, use that directly.
                         if self.not_found_handler {
+                            *resp.status_mut() = self.not_found_status;
                             ResponseData::Raw(resp.map(axum::body::Body::new))
                         } else {
                             // Otherwise return our standard not found error.
