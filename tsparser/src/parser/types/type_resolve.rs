@@ -313,6 +313,32 @@ impl Ctx<'_> {
                     .as_ref()
                     .map_or(Type::Basic(Basic::Never), |(_, value)| *value.clone()),
 
+                Type::Union(union) => {
+                    let mut types = vec![];
+                    for index_type in union.types.clone() {
+                        match index_type {
+                            Type::Literal(Literal::String(ref str)) => {
+                                for field in &iface.fields {
+                                    if field.name.eq_str(str) {
+                                        types.push(field.typ.clone());
+                                        break;
+                                    }
+                                }
+                            }
+                            _ => {
+                                HANDLER.with(|handler| {
+                                    handler.span_err(
+                                        span,
+                                        "only string literals supported when using index access with union",
+                                    )
+                                });
+                                return Type::Basic(Basic::Never);
+                            }
+                        }
+                    }
+
+                    Type::Union(Union { types })
+                }
                 _ => {
                     HANDLER.with(|handler| {
                         handler.span_err(span, "unsupported index access type operation")
