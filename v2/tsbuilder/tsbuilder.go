@@ -121,9 +121,13 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get stdin: %s", err)
+		return nil, fmt.Errorf("unable to get stdout: %s", err)
 	}
-	cmd.Stderr = os.Stderr
+	if p.Stderr != nil {
+		cmd.Stderr = p.Stderr
+	} else {
+		cmd.Stderr = os.Stderr
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start builder: %s", err)
 	}

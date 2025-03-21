@@ -94,6 +94,9 @@ type ParseParams struct {
 	Experiments *experiments.Set
 	WorkingDir  string
 	ParseTests  bool
+
+	// Optional redirect for stderr output from the parser. Defaults to os.Stderr.
+	Stderr io.Writer
 }
 
 type ParseResult struct {
