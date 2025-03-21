@@ -235,9 +235,11 @@ impl NSData {
                         let export_name = item.renamed.as_ref().unwrap_or(&item.orig_name);
                         if export_name == needle {
                             let module = ctx.resolve_module_import(curr_module, import_path)?;
-                            return module
-                                .data
-                                .get_named_export(ctx, curr_module, &item.orig_name);
+                            return module.data.get_named_export(
+                                ctx,
+                                &module.base.swc_file_path,
+                                &item.orig_name,
+                            );
                         }
                     }
                 }
