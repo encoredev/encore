@@ -1,0 +1,97 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/keyofenum.ts
+---
+{
+    "ObjectValues": Generic(
+        Index(
+            Index {
+                source: Generic(
+                    TypeParam(
+                        TypeParam {
+                            idx: 0,
+                            constraint: None,
+                        },
+                    ),
+                ),
+                index: Generic(
+                    Keyof(
+                        Keyof(
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            },
+        ),
+    ),
+    "MY_ENUM": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "VARIANT_1",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "VARIANT_1",
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "VARIANT_2",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "VARIANT_2",
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "VARIANT_3",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "VARIANT_3",
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "MyEnum": Union(
+        Union {
+            types: [
+                Literal(
+                    String(
+                        "VARIANT_1",
+                    ),
+                ),
+                Literal(
+                    String(
+                        "VARIANT_2",
+                    ),
+                ),
+                Literal(
+                    String(
+                        "VARIANT_3",
+                    ),
+                ),
+            ],
+        },
+    ),
+}
