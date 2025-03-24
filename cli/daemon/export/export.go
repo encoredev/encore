@@ -144,7 +144,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 			return false, errors.Wrap(err, "determine extra includes")
 		}
 
-		imageAppRoot := dockerbuild.ImagePath(filepath.Join("/workspace", relPath))
+		imageAppRoot := dockerbuild.ImagePath("/workspace").Join(filepath.ToSlash(relPath))
 
 		describeCfg.BundleSource = option.Some(dockerbuild.BundleSourceSpec{
 			Source:         dockerbuild.HostPath(workspaceRoot),
