@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -262,7 +263,7 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 }
 
 func bundleSource(tc *tarCopier, spec *ImageSpec, bundle *BundleSourceSpec) error {
-	includes := []HostPath{bundle.Source.Join(string(bundle.AppRootRelpath))}
+	includes := []HostPath{bundle.Source.Join(filepath.FromSlash(string(bundle.AppRootRelpath)))}
 	for _, ex := range bundle.IncludeSource {
 		includes = append(includes, bundle.Source.Join(string(ex)))
 	}

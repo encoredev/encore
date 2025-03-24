@@ -459,7 +459,7 @@ func (b *imageSpecBuilder) allocArtifactDir(cfg DescribeConfig, out builder.Buil
 				panic(fmt.Sprintf("failed to calculate relative path from %q to %q: %v", bundle.Source, hostArtifacts, err))
 			}
 
-			imageBuildArtifactsDir := bundle.Dest.Join(string(relpath))
+			imageBuildArtifactsDir := bundle.Dest.Join(string(filepath.ToSlash(relpath)))
 
 			artifactDir := &imageArtifactDir{
 				Base:           imageBuildArtifactsDir.Dir(),
