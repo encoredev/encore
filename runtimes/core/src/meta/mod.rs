@@ -158,6 +158,8 @@ pub struct DeployMeta {
     pub id: String,
     // The time the deployment was made.
     pub deploy_time: chrono::DateTime<chrono::Utc>,
+    // The services hosted by this deployment.
+    pub hosted_services: Vec<String>,
 }
 
 impl From<&rt::Deployment> for DeployMeta {
@@ -169,6 +171,7 @@ impl From<&rt::Deployment> for DeployMeta {
                 .as_ref()
                 .and_then(|d| chrono::DateTime::from_timestamp(d.seconds, d.nanos as u32))
                 .unwrap_or_else(chrono::Utc::now),
+            hosted_services: rt.hosted_services.iter().map(|s| s.name.clone()).collect(),
         }
     }
 }
@@ -178,6 +181,7 @@ impl Default for DeployMeta {
         DeployMeta {
             id: "".into(),
             deploy_time: chrono::Utc::now(),
+            hosted_services: vec![],
         }
     }
 }

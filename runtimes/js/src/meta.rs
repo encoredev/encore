@@ -105,6 +105,7 @@ impl From<meta::BuildMeta> for BuildMeta {
 pub struct DeployMeta {
     pub id: String,
     pub deploy_time: String,
+    pub hosted_services: Vec<String>,
 }
 
 impl From<meta::DeployMeta> for DeployMeta {
@@ -112,6 +113,7 @@ impl From<meta::DeployMeta> for DeployMeta {
         DeployMeta {
             id: rt.id,
             deploy_time: rt.deploy_time.to_string(),
+            hosted_services: rt.hosted_services,
         }
     }
 }
