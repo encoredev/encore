@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use encore_runtime_core::meta;
 use napi_derive::napi;
 
@@ -102,10 +104,16 @@ impl From<meta::BuildMeta> for BuildMeta {
 
 #[napi(object)]
 #[derive(Debug, Clone)]
+pub struct HostedServiceMeta {
+    pub name: String,
+}
+
+#[napi(object)]
+#[derive(Debug, Clone)]
 pub struct DeployMeta {
     pub id: String,
     pub deploy_time: String,
-    pub hosted_services: Vec<String>,
+    pub hosted_services: HashMap<String, HostedServiceMeta>,
 }
 
 impl From<meta::DeployMeta> for DeployMeta {
@@ -113,7 +121,17 @@ impl From<meta::DeployMeta> for DeployMeta {
         DeployMeta {
             id: rt.id,
             deploy_time: rt.deploy_time.to_string(),
-            hosted_services: rt.hosted_services,
+            hosted_services: rt
+                .hosted_services
+                .into_iter()
+                .map(|svc| (svc.name.clone(), svc.into()))
+                .collect(),
         }
+    }
+}
+
+impl From<meta::HostedServiceMeta> for HostedServiceMeta {
+    fn from(rt: meta::HostedServiceMeta) -> Self {
+        HostedServiceMeta { name: rt.name }
     }
 }

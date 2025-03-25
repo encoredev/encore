@@ -73,7 +73,12 @@ export interface DeployMeta {
   id: string;
 
   // The services hosted by this deployment
-  hostedServices: string[];
+  hostedServices: Record<string, HostedServiceMeta>;
+}
+
+export interface HostedServiceMeta {
+  // The name of the service
+  name: string;
 }
 
 // Returns metadata about the running Encore application.
