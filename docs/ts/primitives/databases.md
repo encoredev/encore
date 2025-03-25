@@ -110,11 +110,15 @@ Once you have created the database using `const db = new SQLDatabase(...)` you c
 
 ### Querying data
 
-To query data, use the `db.query` or `db.queryRow` methods. `db.query` returns
-an asynchronous iterator, yielding rows one by one as they are streamed from the database. `queryRow` returns a single row, or `null` if the query yields no rows.
+To query data, use the following methods:
 
-Both APIs operate using JavaScript template strings, allowing easy use of
-placeholder parameters while preventing the possibility of SQL Injection vulnerabilities.
+- `db.query`: Returns an asynchronous iterator, yielding rows one by one.
+- `db.queryRow`: Returns a single row, or `null` if no rows are found.
+- `db.queryAll`: Returns an array of all rows.
+- `db.rawQuery`: Similar to `db.query`, but takes a raw SQL string and parameters.
+- `db.rawQueryRow`: Similar to `db.queryRow`, but takes a raw SQL string and parameters.
+- `db.rawQueryAll`: Similar to `db.queryAll`, but takes a raw SQL string and parameters.
+
 
 Typical usage looks like this:
 
@@ -134,9 +138,19 @@ async function getTodoTitle(id: number): string | undefined {
 }
 ```
 
+Or to query using raw SQL and parameters:
+
+```ts
+async function getTodoTitle(id: number): string | undefined {
+  const row = await db.rawQueryRow("SELECT title FROM todo_item WHERE id = $1", id);
+  return row?.title;
+}
+```
+
+
 ### Inserting data
 
-To insert data, or to make database queries that don't return any rows, use `db.exec`.
+To insert data, or to make database queries that don't return any rows, use `db.exec` or `db.rawExec`.
 
 For example:
 
@@ -145,6 +159,16 @@ await db.exec`
   INSERT INTO todo_item (title, done)
   VALUES (${title}, false)
 `;
+```
+
+Or using raw SQL and parameters:
+
+```ts
+await db.rawExec(
+  "INSERT INTO todo_item (title, done) VALUES ($1, $2)",
+  title,
+  false
+);
 ```
 
 ## Connecting to databases
