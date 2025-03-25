@@ -4,6 +4,7 @@
 package errs
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -69,7 +70,8 @@ func Wrap(err error, msg string, metaPairs ...interface{}) error {
 	}
 
 	e := &Error{Code: Unknown, Message: msg, underlying: err}
-	if ee, ok := err.(*Error); ok {
+	var ee *Error
+	if errors.As(err, &ee) {
 		e.Details = ee.Details
 		e.Code = ee.Code
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
@@ -89,7 +91,8 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 	}
 
 	e := &Error{Code: code, Message: msg, underlying: err}
-	if ee, ok := err.(*Error); ok {
+	var ee *Error
+	if errors.As(err, &ee) {
 		e.Details = ee.Details
 		e.Meta = mergeMeta(ee.Meta, metaPairs)
 		e.stack = ee.stack
@@ -106,9 +109,27 @@ func WrapCode(err error, code ErrCode, msg string, metaPairs ...interface{}) err
 func Convert(err error) error {
 	if err == nil {
 		return nil
-	} else if e, ok := err.(*Error); ok {
+	}
+
+	if e, ok := err.(*Error); ok {
+		// If the parent is already an *Error we can return it directly.
 		return e
 	}
+
+	var e *Error
+	if errors.As(err, &e) {
+		// The error itself isn't an *Error, but it wraps one somewhere in the chain. Create a new *Error that preserves
+		// the outer error but takes properties from inner *Error
+		return &Error{
+			Code:       e.Code,
+			Message:    err.Error(),
+			Details:    e.Details,
+			Meta:       e.Meta,
+			underlying: err,
+			stack:      e.stack,
+		}
+	}
+
 	return &Error{
 		Code:       Unknown,
 		underlying: err,
@@ -122,7 +143,10 @@ func Convert(err error) error {
 func Code(err error) ErrCode {
 	if err == nil {
 		return OK
-	} else if e, ok := err.(*Error); ok {
+	}
+
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Code
 	}
 	return Unknown
@@ -131,7 +155,8 @@ func Code(err error) ErrCode {
 // Meta reports the metadata included in the error.
 // If err is nil or the error lacks metadata it reports nil.
 func Meta(err error) Metadata {
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Meta
 	}
 	return nil
@@ -140,7 +165,8 @@ func Meta(err error) Metadata {
 // Details reports the error details included in the error.
 // If err is nil or the error lacks details it reports nil.
 func Details(err error) ErrDetails {
-	if e, ok := err.(*Error); ok {
+	var e *Error
+	if errors.As(err, &e) {
 		return e.Details
 	}
 	return nil
@@ -164,7 +190,7 @@ func (e *Error) ErrorMessage() string {
 	var b strings.Builder
 	b.WriteString(e.Message)
 
-	var next error = e.underlying
+	next := e.underlying
 	for next != nil {
 		var msg string
 		if e, ok := next.(*Error); ok {
@@ -229,5 +255,4 @@ func init() {
 		stream.WriteVal(e.Details)
 		stream.WriteObjectEnd()
 	}, nil)
-
 }
