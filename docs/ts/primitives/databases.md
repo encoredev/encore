@@ -114,9 +114,9 @@ To query data, use the following methods:
 
 - `db.query`: Returns an asynchronous iterator, yielding rows one by one.
 - `db.queryRow`: Returns a single row, or `null` if no rows are found.
+- `db.queryAll`: Returns an array of all rows.
 - `db.rawQuery`: Similar to `db.query`, but takes a raw SQL string and parameters.
 - `db.rawQueryRow`: Similar to `db.queryRow`, but takes a raw SQL string and parameters.
-- `db.queryAll`: Returns an array of all rows.
 - `db.rawQueryAll`: Similar to `db.queryAll`, but takes a raw SQL string and parameters.
 
 
