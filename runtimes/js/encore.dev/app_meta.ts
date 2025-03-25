@@ -73,10 +73,10 @@ export interface DeployMeta {
   id: string;
 
   // The services hosted by this deployment
-  hostedServices: Record<string, HostedServiceMeta>;
+  hostedServices: Record<string, HostedService>;
 }
 
-export interface HostedServiceMeta {
+export interface HostedService {
   // The name of the service
   name: string;
 }

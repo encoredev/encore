@@ -153,7 +153,7 @@ impl From<&meta::Data> for BuildMeta {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct HostedServiceMeta {
+pub struct HostedService {
     // The name of the service
     pub name: String,
 }
@@ -165,7 +165,7 @@ pub struct DeployMeta {
     // The time the deployment was made.
     pub deploy_time: chrono::DateTime<chrono::Utc>,
     // The services hosted by this deployment.
-    pub hosted_services: Vec<HostedServiceMeta>,
+    pub hosted_services: Vec<HostedService>,
 }
 
 impl From<&rt::Deployment> for DeployMeta {
@@ -180,7 +180,7 @@ impl From<&rt::Deployment> for DeployMeta {
             hosted_services: rt
                 .hosted_services
                 .iter()
-                .map(|s| HostedServiceMeta {
+                .map(|s| HostedService {
                     name: s.name.clone(),
                 })
                 .collect(),

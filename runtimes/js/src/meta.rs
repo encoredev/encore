@@ -104,7 +104,7 @@ impl From<meta::BuildMeta> for BuildMeta {
 
 #[napi(object)]
 #[derive(Debug, Clone)]
-pub struct HostedServiceMeta {
+pub struct HostedService {
     pub name: String,
 }
 
@@ -113,7 +113,7 @@ pub struct HostedServiceMeta {
 pub struct DeployMeta {
     pub id: String,
     pub deploy_time: String,
-    pub hosted_services: HashMap<String, HostedServiceMeta>,
+    pub hosted_services: HashMap<String, HostedService>,
 }
 
 impl From<meta::DeployMeta> for DeployMeta {
@@ -130,8 +130,8 @@ impl From<meta::DeployMeta> for DeployMeta {
     }
 }
 
-impl From<meta::HostedServiceMeta> for HostedServiceMeta {
-    fn from(rt: meta::HostedServiceMeta) -> Self {
-        HostedServiceMeta { name: rt.name }
+impl From<meta::HostedService> for HostedService {
+    fn from(rt: meta::HostedService) -> Self {
+        HostedService { name: rt.name }
     }
 }
