@@ -25,7 +25,15 @@ export type Header<
 > = TypeOrName extends string ? string : TypeOrName;
 
 export type Query<
-  TypeOrName extends string | number | boolean | Date = string,
+  TypeOrName extends
+    | string
+    | string[]
+    | number
+    | number[]
+    | boolean
+    | boolean[]
+    | Date
+    | Date[] = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 

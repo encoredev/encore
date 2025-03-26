@@ -29,6 +29,7 @@ impl Query {
         let de = serde_urlencoded::Deserializer::new(parsed);
         let cfg = DecodeConfig {
             coerce_strings: true,
+            arrays_as_repeated_fields: true,
         };
 
         let decoded = self
@@ -96,7 +97,7 @@ impl ToOutgoingRequest<http::Request<()>> for Query {
             let mut pairs = url.query_pairs_mut();
             let serializer = serde_urlencoded::Serializer::new(&mut pairs);
 
-            payload
+            flatten_payload(payload)
                 .serialize(serializer)
                 .map_err(api::Error::internal)?;
         }
@@ -129,7 +130,7 @@ impl ToOutgoingRequest<reqwest::Request> for Query {
             let mut pairs = url.query_pairs_mut();
             let serializer = serde_urlencoded::Serializer::new(&mut pairs);
 
-            payload
+            flatten_payload(payload)
                 .serialize(serializer)
                 .map_err(api::Error::internal)?;
         }
@@ -141,4 +142,18 @@ impl ToOutgoingRequest<reqwest::Request> for Query {
 
         Ok(())
     }
+}
+
+// Flatten arrays into multi-fields for serde_urlencoded
+fn flatten_payload(payload: &PValues) -> Vec<(&String, &api::PValue)> {
+    payload
+        .iter()
+        .flat_map(|(k, v)| {
+            if let api::PValue::Array(vec) = v {
+                vec.iter().map(|val| (k, val)).collect()
+            } else {
+                vec![(k, v)]
+            }
+        })
+        .collect()
 }
