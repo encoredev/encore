@@ -22,6 +22,7 @@ import (
 
 	"encr.dev/pkg/eerror"
 	"encr.dev/pkg/errinsrc/srcerrors"
+	"encr.dev/pkg/fns"
 )
 
 // LoadFromFS takes a given filesystem object and the app-relative path to the service's root package
@@ -143,6 +144,7 @@ func writeFSToPath(fsys fs.FS, targetPath string) error {
 			if err != nil {
 				return eerror.Wrap(err, "config", "unable to open src file", nil)
 			}
+			defer fns.CloseIgnore(srcFile)
 
 			dstFile, err := os.OpenFile(filepath.Join(targetPath, osPath), os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
@@ -150,6 +152,9 @@ func writeFSToPath(fsys fs.FS, targetPath string) error {
 			}
 
 			_, err = io.Copy(dstFile, srcFile)
+			if err2 := dstFile.Close(); err == nil {
+				err = err2
+			}
 			if err != nil {
 				return eerror.Wrap(err, "config", "unable to copy file", nil)
 			}
