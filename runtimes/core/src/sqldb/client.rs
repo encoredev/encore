@@ -99,6 +99,50 @@ impl Pool {
             tracer: self.tracer.clone(),
         })
     }
+
+    pub async fn begin(&self) -> Result<Transaction, tokio_postgres::Error> {
+        let conn = self.pool.dedicated_connection().await?;
+        let tx = conn.owned_transaction().await?;
+        Ok(Transaction {
+            tx,
+            tracer: self.tracer.clone(),
+        })
+    }
+}
+
+pub struct Transaction {
+    tx: tokio_postgres::OwnedTransaction,
+    tracer: QueryTracer,
+}
+
+impl Transaction {
+    pub async fn commit(self) -> Result<(), tokio_postgres::Error> {
+        // TODO trace
+        self.tx.commit().await
+    }
+
+    pub async fn rollback(self) -> Result<(), tokio_postgres::Error> {
+        // TODO trace
+        self.tx.rollback().await
+    }
+
+    pub async fn query_raw<P, I>(
+        &self,
+        query: &str,
+        params: I,
+        source: Option<&model::Request>,
+    ) -> Result<Cursor, Error>
+    where
+        P: BorrowToSql,
+        I: IntoIterator<Item = P>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.tracer
+            .trace(source, query, || async {
+                self.tx.query_raw(query, params).await.map_err(Error::from)
+            })
+            .await
+    }
 }
 
 pub struct Cursor {

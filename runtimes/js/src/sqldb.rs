@@ -61,6 +61,20 @@ impl SQLDatabase {
         self.db.proxy_conn_string()
     }
 
+    /// Begins a transaction
+    #[napi]
+    pub async fn begin(&self) -> napi::Result<Transaction> {
+        let tx = self
+            .pool()?
+            .begin()
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+
+        Ok(Transaction {
+            tx: tokio::sync::Mutex::new(Some(tx)),
+        })
+    }
+
     #[napi]
     pub async fn query(
         &self,
@@ -116,6 +130,51 @@ impl SQLDatabase {
                 .new_pool()
                 .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e));
             Marc::new(pool)
+        })
+    }
+}
+
+#[napi]
+pub struct Transaction {
+    tx: tokio::sync::Mutex<Option<sqldb::Transaction>>,
+}
+
+#[napi]
+impl Transaction {
+    #[napi]
+    pub async fn commit(&self) -> napi::Result<()> {
+        let tx = self.tx.lock().await.take().unwrap(); // TODO unwrap
+        tx.commit()
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
+    }
+
+    #[napi]
+    pub async fn rollback(&self) -> napi::Result<()> {
+        let tx = self.tx.lock().await.take().unwrap(); // TODO unwrap
+        tx.rollback()
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
+    }
+
+    #[napi]
+    pub async fn query(
+        &self,
+        query: String,
+        args: &QueryArgs,
+        source: Option<&Request>,
+    ) -> napi::Result<Cursor> {
+        let values: Vec<_> = args.values.lock().unwrap().drain(..).collect();
+        let source = source.map(|s| s.inner.as_ref());
+        let tx = self.tx.lock().await;
+        let stream = tx
+            .as_ref()
+            .unwrap() // TODO
+            .query_raw(&query, values, source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+        Ok(Cursor {
+            stream: tokio::sync::Mutex::new(stream),
         })
     }
 }
