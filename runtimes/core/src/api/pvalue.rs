@@ -38,6 +38,10 @@ impl PValue {
         matches!(self, PValue::Null)
     }
 
+    pub fn is_array(&self) -> bool {
+        matches!(self, PValue::Array(..))
+    }
+
     /// If the `PValue` is a String, returns the associated str.
     /// Returns None otherwise.
     pub fn as_str(&self) -> Option<&str> {

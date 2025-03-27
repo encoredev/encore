@@ -199,6 +199,7 @@ impl SubHandler {
                 &mut de,
                 jsonschema::DecodeConfig {
                     coerce_strings: false,
+                    arrays_as_repeated_fields: false,
                 },
             );
             let (parsed_payload, parse_error) = match parsed_payload {
