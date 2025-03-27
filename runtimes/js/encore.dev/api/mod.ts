@@ -26,14 +26,14 @@ export type Header<
 
 export type Query<
   TypeOrName extends
-    | string
-    | string[]
-    | number
-    | number[]
-    | boolean
-    | boolean[]
-    | Date
-    | Date[] = string,
+  | string
+  | string[]
+  | number
+  | number[]
+  | boolean
+  | boolean[]
+  | Date
+  | Date[] = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
@@ -159,21 +159,21 @@ export interface StreamOut<Response> {
 
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-    ? (stream: StreamInOut<Request, Response>) => Promise<void>
-    : (
-        data: HandshakeData,
-        stream: StreamInOut<Request, Response>
-      ) => Promise<void>;
+  ? (stream: StreamInOut<Request, Response>) => Promise<void>
+  : (
+    data: HandshakeData,
+    stream: StreamInOut<Request, Response>
+  ) => Promise<void>;
 
 export type StreamOutHandlerFn<HandshakeData, Response> =
   HandshakeData extends void
-    ? (stream: StreamOut<Response>) => Promise<void>
-    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+  ? (stream: StreamOut<Response>) => Promise<void>
+  : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
 
 export type StreamInHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-    ? (stream: StreamIn<Request>) => Promise<Response>
-    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
+  ? (stream: StreamIn<Request>) => Promise<Response>
+  : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
@@ -262,7 +262,7 @@ export interface StaticOptions {
 
   /**
    * Path to the file to serve when the requested file is not found.
-   * The path is relative to `dir` and must exist within that directory.
+   * The path must be a relative path to within the calling file's directory.
    */
   notFound?: string;
 
