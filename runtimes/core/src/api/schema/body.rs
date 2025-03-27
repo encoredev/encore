@@ -33,6 +33,7 @@ impl Body {
         let mut jsonde = serde_json::Deserializer::from_slice(&bytes);
         let cfg = DecodeConfig {
             coerce_strings: false,
+            arrays_as_repeated_fields: false,
         };
         let value = self
             .schema
@@ -45,6 +46,7 @@ impl Body {
         let mut jsonde = serde_json::Deserializer::from_slice(&body);
         let cfg = DecodeConfig {
             coerce_strings: false,
+            arrays_as_repeated_fields: false,
         };
         let value = self
             .schema

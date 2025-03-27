@@ -194,6 +194,10 @@ pub struct DecodeConfig {
     // If true, attempts to parse strings as other primitive types
     // when there's a type mismatch.
     pub coerce_strings: bool,
+
+    // Set to true if arrays are serialized into repeated fields
+    // (e.g query string parameters)
+    pub arrays_as_repeated_fields: bool,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -517,6 +521,26 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
         E: serde::de::Error,
     {
         match self.value {
+            Value::Array(bov) if self.cfg.arrays_as_repeated_fields => match bov {
+                BasicOrValue::Basic(basic) => {
+                    let basic_val = Value::Basic(*basic);
+                    let visitor = DecodeValue {
+                        cfg: self.cfg,
+                        reg: self.reg,
+                        value: &basic_val,
+                    };
+                    Ok(PValue::Array(vec![visitor.visit_string(value)?]))
+                }
+                BasicOrValue::Value(idx) => {
+                    let visitor = DecodeValue {
+                        cfg: self.cfg,
+                        reg: self.reg,
+                        value: &self.reg.values[*idx],
+                    };
+                    Ok(PValue::Array(vec![visitor.visit_string(value)?]))
+                }
+            },
+
             Value::Basic(b) => match b {
                 Basic::Any | Basic::String => Ok(PValue::String(value)),
                 Basic::DateTime => api::DateTime::parse_from_rfc3339(&value)
@@ -778,14 +802,6 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                     // Get the corresponding value from the schema.
                     match fields.get(&key) {
                         Some(entry) => {
-                            // Check for duplicate keys.
-                            if !seen.insert(key.clone()) {
-                                return Err(serde::de::Error::custom(format_args!(
-                                    "duplicate field {}",
-                                    key
-                                )));
-                            }
-
                             // Resolve the field value.
                             let value = match &entry.value {
                                 BasicOrValue::Value(field_idx) => {
@@ -802,8 +818,33 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                                 }
                             };
 
+                            let allow_duplicate_fields =
+                                self.cfg.arrays_as_repeated_fields && value.is_array();
+                            let duplicate = !seen.insert(key.clone());
+
+                            // Check for duplicate keys.
+                            if duplicate && !allow_duplicate_fields {
+                                return Err(serde::de::Error::custom(format_args!(
+                                    "duplicate field {}",
+                                    key
+                                )));
+                            }
+
                             // Insert it into our map.
-                            values.insert(key, value);
+                            if self.cfg.arrays_as_repeated_fields && value.is_array() {
+                                if let PValue::Array(vec) = value {
+                                    values
+                                        .entry(key)
+                                        .and_modify(|prev| {
+                                            if let PValue::Array(prev) = prev {
+                                                prev.extend(vec.clone());
+                                            }
+                                        })
+                                        .or_insert_with(|| PValue::Array(vec));
+                                }
+                            } else {
+                                values.insert(key, value);
+                            }
                         }
                         None => {
                             // Unknown field; ignore it.

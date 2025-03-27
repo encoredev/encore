@@ -155,6 +155,7 @@ async fn parse_auth_response(resp: reqwest::Response, schema: &JSONSchema) -> AP
                 let mut jsonde = serde_json::Deserializer::from_slice(&bytes);
                 let cfg = DecodeConfig {
                     coerce_strings: false,
+                    arrays_as_repeated_fields: false,
                 };
                 let value = schema.deserialize(&mut jsonde, cfg).map_err(|e| {
                     api::Error::invalid_argument("unable to decode response body", e)
