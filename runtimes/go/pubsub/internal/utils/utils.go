@@ -247,12 +247,6 @@ func WithDefaultValue[T comparable](setValue, defaultValue T) T {
 }
 
 // Clamp returns the value clamped to the range [min, max].
-func Clamp[T cmp.Ordered](d T, min T, max T) T {
-	if d < min {
-		return min
-	}
-	if d > max {
-		return max
-	}
-	return d
+func Clamp[T cmp.Ordered](d T, minVal T, maxVal T) T {
+	return max(min(d, maxVal), minVal)
 }
