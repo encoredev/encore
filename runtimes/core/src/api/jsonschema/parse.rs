@@ -409,6 +409,7 @@ fn describe_json(value: &PValue) -> &'static str {
         PValue::DateTime(_) => "a datetime",
         PValue::Array(_) => "an array",
         PValue::Object(_) => "an object",
+        PValue::BigInt(_) => "a bigint",
     }
 }
 

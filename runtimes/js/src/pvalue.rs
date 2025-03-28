@@ -1,6 +1,6 @@
 use chrono::TimeZone;
 use encore_runtime_core::api::{self, auth, PValue, PValues};
-use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
+use napi::{bindgen_prelude::*, JsBigInt, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
 #[allow(dead_code)]
@@ -72,6 +72,16 @@ impl ToNapiValue for PVal {
                 let dt = env2.create_date(ts as f64)?;
                 JsDate::to_napi_value(env, dt)
             }
+
+            PValue::BigInt(bi) => {
+                let env2 = Env::from_raw(env);
+                let global = env2.get_global()?;
+                let func: JsFunction = global.get_named_property_unchecked("BigInt")?;
+                let val = func.call(None, &[env2.create_string(&bi)?])?;
+                let bi = JsBigInt::from_unknown(val)?;
+
+                JsBigInt::to_napi_value(env, bi)
+            }
         }
     }
 }
@@ -105,6 +115,15 @@ impl ToNapiValue for &PVal {
                 let ts = dt.timestamp_millis();
                 let dt = env2.create_date(ts as f64)?;
                 JsDate::to_napi_value(env, dt)
+            }
+            PValue::BigInt(bi) => {
+                let env2 = Env::from_raw(env);
+                let global = env2.get_global()?;
+                let func: JsFunction = global.get_named_property_unchecked("BigInt")?;
+                let val = func.call(None, &[env2.create_string(bi)?])?;
+                let bi = JsBigInt::from_unknown(val)?;
+
+                JsBigInt::to_napi_value(env, bi)
             }
         }
     }
@@ -148,7 +167,14 @@ impl FromNapiValue for PVal {
                     }
                 }
             }
-            ValueType::BigInt => todo!(),
+            ValueType::BigInt => {
+                let bi_string = JsBigInt::from_napi_value(env, napi_val)?
+                    .coerce_to_string()?
+                    .into_utf8()?
+                    .try_into()?;
+
+                PValue::BigInt(bi_string)
+            }
             ValueType::Null => PValue::Null,
             ValueType::Function => {
                 return Err(Error::new(
