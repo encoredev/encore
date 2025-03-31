@@ -26,7 +26,8 @@ export type Primitive =
   | boolean
   | Buffer
   | Date
-  | null;
+  | null
+  | undefined;
 
 /**
  * Constructing a new database object will result in Encore provisioning a database with
@@ -81,7 +82,7 @@ export class SQLDatabase {
     ...params: Primitive[]
   ): AsyncGenerator<T> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     while (true) {
@@ -114,7 +115,7 @@ export class SQLDatabase {
     query: string,
     ...params: Primitive[]
   ): AsyncGenerator<T> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const result = await this.impl.query(query, args, source);
     while (true) {
@@ -146,7 +147,7 @@ export class SQLDatabase {
     ...params: Primitive[]
   ): Promise<T[]> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     const result: T[] = [];
@@ -177,7 +178,7 @@ export class SQLDatabase {
     query: string,
     ...params: Primitive[]
   ): Promise<T[]> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     const result: T[] = [];
@@ -207,7 +208,7 @@ export class SQLDatabase {
     ...params: Primitive[]
   ): Promise<T | null> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const result = await this.impl.query(query, args, source);
     while (true) {
@@ -235,7 +236,7 @@ export class SQLDatabase {
     query: string,
     ...params: Primitive[]
   ): Promise<T | null> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const result = await this.impl.query(query, args, source);
     while (true) {
@@ -256,7 +257,7 @@ export class SQLDatabase {
     ...params: Primitive[]
   ): Promise<void> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
 
     // Need to await the cursor to process any errors from things like
@@ -278,7 +279,7 @@ export class SQLDatabase {
    * @returns A promise that resolves when the query has been executed.
    */
   async rawExec(query: string, ...params: Primitive[]): Promise<void> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
 
     // Need to await the cursor to process any errors from things like
@@ -336,7 +337,7 @@ export class Connection {
     ...params: Primitive[]
   ): AsyncGenerator<T> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     while (true) {
@@ -369,7 +370,7 @@ export class Connection {
     query: string,
     ...params: Primitive[]
   ): AsyncGenerator<T> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const result = await this.impl.query(query, args, source);
     while (true) {
@@ -401,7 +402,7 @@ export class Connection {
     ...params: Primitive[]
   ): Promise<T[]> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     const result: T[] = [];
@@ -432,7 +433,7 @@ export class Connection {
     query: string,
     ...params: Primitive[]
   ): Promise<T[]> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const cursor = await this.impl.query(query, args, source);
     const result: T[] = [];
@@ -462,7 +463,7 @@ export class Connection {
     ...params: Primitive[]
   ): Promise<T | null> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const result = await this.impl.query(query, args, source);
     while (true) {
@@ -490,7 +491,7 @@ export class Connection {
     query: string,
     ...params: Primitive[]
   ): Promise<T | null> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
     const result = await this.impl.query(query, args, source);
     while (true) {
@@ -511,7 +512,7 @@ export class Connection {
     ...params: Primitive[]
   ): Promise<void> {
     const query = buildQuery(strings, params);
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
 
     // Need to await the cursor to process any errors from things like
@@ -533,7 +534,7 @@ export class Connection {
    * @returns A promise that resolves when the query has been executed.
    */
   async rawExec(query: string, ...params: Primitive[]): Promise<void> {
-    const args = new runtime.QueryArgs(params);
+    const args = buildQueryArgs(params);
     const source = getCurrentRequest();
 
     // Need to await the cursor to process any errors from things like
@@ -555,4 +556,9 @@ function buildQuery(strings: TemplateStringsArray, expr: Primitive[]): string {
 
   // return queryWithComment(query, driverName);
   return query;
+}
+
+function buildQueryArgs(params: Primitive[]): runtime.QueryArgs {
+  // Convert undefined to null.
+  return new runtime.QueryArgs(params.map((p) => p ?? null));
 }
