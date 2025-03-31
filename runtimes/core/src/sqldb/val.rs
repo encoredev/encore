@@ -200,7 +200,7 @@ impl ToSql for RowValue {
                                         Ok(num.as_i64().unwrap().try_into()?)
                                     }
                                     _ => {
-                                        Err(format!("int2 array contained non numbers: {val:?}")
+                                        Err(format!("int2 array contained non-integer: {val:?}")
                                             .into())
                                     }
                                 })?;
@@ -212,7 +212,7 @@ impl ToSql for RowValue {
                                         Ok(num.as_i64().unwrap().try_into()?)
                                     }
                                     _ => {
-                                        Err(format!("int4 array contained non numbers: {val:?}")
+                                        Err(format!("int4 array contained non-integer: {val:?}")
                                             .into())
                                     }
                                 })?;
@@ -224,7 +224,7 @@ impl ToSql for RowValue {
                                         Ok(num.as_i64().unwrap())
                                     }
                                     _ => {
-                                        Err(format!("int8 array contained non numbers: {val:?}")
+                                        Err(format!("int8 array contained non-integer: {val:?}")
                                             .into())
                                     }
                                 })?;
