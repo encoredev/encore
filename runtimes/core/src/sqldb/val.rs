@@ -181,9 +181,61 @@ impl ToSql for RowValue {
                         }
                     },
                     PValue::DateTime(dt) => dt.to_sql(ty, out),
-                    PValue::Array(_) => {
-                        Err(format!("array not supported for column of type {}", ty).into())
+
+                    PValue::Array(arr) => {
+                        fn map_array<T, F>(
+                            arr: &[PValue],
+                            mapper: F,
+                        ) -> Result<Vec<T>, Box<dyn Error + Send + Sync>>
+                        where
+                            F: Fn(&PValue) -> Result<T, Box<dyn Error + Send + Sync>>,
+                        {
+                            arr.iter().map(mapper).collect()
+                        }
+
+                        match *ty {
+                            Type::INT2_ARRAY => {
+                                let result: Vec<i16> = map_array(arr, |val| match val {
+                                    PValue::Number(num) if num.is_i64() => {
+                                        Ok(num.as_i64().unwrap().try_into()?)
+                                    }
+                                    _ => {
+                                        Err(format!("int2 array contained non-integer: {val:?}")
+                                            .into())
+                                    }
+                                })?;
+                                result.to_sql(ty, out)
+                            }
+                            Type::INT4_ARRAY => {
+                                let result: Vec<i32> = map_array(arr, |val| match val {
+                                    PValue::Number(num) if num.is_i64() => {
+                                        Ok(num.as_i64().unwrap().try_into()?)
+                                    }
+                                    _ => {
+                                        Err(format!("int4 array contained non-integer: {val:?}")
+                                            .into())
+                                    }
+                                })?;
+                                result.to_sql(ty, out)
+                            }
+                            Type::INT8_ARRAY => {
+                                let result = map_array(arr, |val| match val {
+                                    PValue::Number(num) if num.is_i64() => {
+                                        Ok(num.as_i64().unwrap())
+                                    }
+                                    _ => {
+                                        Err(format!("int8 array contained non-integer: {val:?}")
+                                            .into())
+                                    }
+                                })?;
+                                result.to_sql(ty, out)
+                            }
+                            _ => {
+                                Err(format!("array not supported for column of type {}", ty).into())
+                            }
+                        }
                     }
+
                     PValue::Object(_) => {
                         Err(format!("object not supported for column of type {}", ty).into())
                     }
@@ -207,6 +259,9 @@ impl ToSql for RowValue {
                 | Type::INT2
                 | Type::INT4
                 | Type::INT8
+                | Type::INT2_ARRAY
+                | Type::INT4_ARRAY
+                | Type::INT8_ARRAY
                 | Type::OID
                 | Type::JSONB
                 | Type::JSON
@@ -254,6 +309,24 @@ impl<'a> FromSql<'a> for RowValue {
                 let val: i64 = FromSql::from_sql(ty, raw)?;
                 Self::PVal(PValue::Number(serde_json::Number::from(val)))
             }
+            Type::INT2_ARRAY => Self::PVal(PValue::Array(
+                <Vec<i16> as FromSql>::from_sql(ty, raw)?
+                    .into_iter()
+                    .map(|n| PValue::Number(serde_json::Number::from(n)))
+                    .collect(),
+            )),
+            Type::INT4_ARRAY => Self::PVal(PValue::Array(
+                <Vec<i32> as FromSql>::from_sql(ty, raw)?
+                    .into_iter()
+                    .map(|n| PValue::Number(serde_json::Number::from(n)))
+                    .collect(),
+            )),
+            Type::INT8_ARRAY => Self::PVal(PValue::Array(
+                <Vec<i64> as FromSql>::from_sql(ty, raw)?
+                    .into_iter()
+                    .map(|n| PValue::Number(serde_json::Number::from(n)))
+                    .collect(),
+            )),
             Type::OID => {
                 let val: u32 = FromSql::from_sql(ty, raw)?;
                 Self::PVal(PValue::Number(serde_json::Number::from(val)))
@@ -328,6 +401,9 @@ impl<'a> FromSql<'a> for RowValue {
             | Type::INT2
             | Type::INT4
             | Type::INT8
+            | Type::INT2_ARRAY
+            | Type::INT4_ARRAY
+            | Type::INT8_ARRAY
             | Type::OID
             | Type::JSONB
             | Type::JSON
