@@ -40,7 +40,6 @@ fn convert_row_values(params: Vec<JsUnknown>) -> napi::Result<Vec<sqldb::RowValu
                 let buf = buf.into_value()?;
                 return Ok(sqldb::RowValue::Bytes(buf.to_vec()));
             }
-
             let pval = parse_pvalue(val)?;
             Ok(sqldb::RowValue::PVal(pval))
         })

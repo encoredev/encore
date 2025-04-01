@@ -1,6 +1,6 @@
 use chrono::TimeZone;
 use encore_runtime_core::api::{self, auth, PValue, PValues};
-use napi::{bindgen_prelude::*, JsDate, JsObject, JsUnknown, NapiValue, Result};
+use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
 #[allow(dead_code)]
