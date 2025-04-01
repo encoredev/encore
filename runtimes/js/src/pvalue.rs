@@ -112,7 +112,7 @@ impl ToNapiValue for &PVal {
 
 impl FromNapiValue for PVal {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
-        let ty = dbg!(type_of!(env, napi_val))?;
+        let ty = type_of!(env, napi_val)?;
         let val = PVal(match ty {
             ValueType::Boolean => PValue::Bool(unsafe { bool::from_napi_value(env, napi_val)? }),
             ValueType::Number => PValue::Number(unsafe { Number::from_napi_value(env, napi_val)? }),
