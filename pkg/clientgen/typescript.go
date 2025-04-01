@@ -693,10 +693,11 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	// If we don't need to do anything with the body, we can just return the response
 	if len(respEnc.HeaderParameters) == 0 {
-		w.WriteString("return await resp.json() as ")
 		if ts.sharedTypes {
+			w.WriteString("return JSON.parse(await resp.text(), dateReviver) as ")
 			fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
 		} else {
+			w.WriteString("return await resp.json() as ")
 			ts.writeTyp(ns, rpc.ResponseSchema, 0)
 		}
 		w.WriteString("\n")
@@ -704,10 +705,12 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	}
 
 	// Otherwise, we need to add the header fields to the response
-	w.WriteString("\n//Populate the return object from the JSON body and received headers\nconst rtn = await resp.json() as ")
+	w.WriteString("\n//Populate the return object from the JSON body and received headers\n")
+
 	if ts.sharedTypes {
-		fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
+		fmt.Fprintf(ts, "const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
 	} else {
+		w.WriteString("const rtn = await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
 	}
 	w.WriteString("\n")
@@ -830,6 +833,11 @@ type StreamResponse<Type> = Type extends
 `)
 	}
 
+	parse := "JSON.parse(event.data)"
+	if ts.sharedTypes {
+		parse = "JSON.parse(event.data, dateReviver)"
+	}
+
 	send := `
     async send(msg: Request) {
         if (this.socket.ws.readyState === WebSocket.CONNECTING) {
@@ -927,7 +935,7 @@ export class StreamInOut<Request, Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(` + parse + `);
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -946,7 +954,7 @@ export class StreamIn<Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(` + parse + `);
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -967,7 +975,7 @@ export class StreamOut<Request, Response> {
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data))
+            responseResolver(` + parse + `)
         });
     }
 
@@ -1475,6 +1483,20 @@ type RequestType<Type extends (...args: any[]) => any> =
 
 type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
+function dateReviver(key: string, value: any): any {
+  if (
+    typeof value === "string" && 
+    value.length >= 10 && 
+    value.charCodeAt(0) >= 48 && // '0'
+    value.charCodeAt(0) <= 57 // '9'
+  ) {
+    const parsedDate = new Date(value);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return value;
+}
 `)
 	}
 
