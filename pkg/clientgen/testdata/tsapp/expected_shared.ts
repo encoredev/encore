@@ -115,13 +115,13 @@ export namespace svc {
         public async imported(params: RequestType<typeof api_svc_svc_imported>): Promise<ResponseType<typeof api_svc_svc_imported>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
-            return await resp.json() as ResponseType<typeof api_svc_svc_imported>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_imported>
         }
 
         public async onlyPathParams(params: { pathParam: string, pathParam2: string }): Promise<ResponseType<typeof api_svc_svc_onlyPathParams>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/path/${encodeURIComponent(params.pathParam)}/${encodeURIComponent(params.pathParam2)}`, {method: "POST", body: undefined})
-            return await resp.json() as ResponseType<typeof api_svc_svc_onlyPathParams>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_onlyPathParams>
         }
 
         public async root(params: RequestType<typeof api_svc_svc_root>): Promise<void> {
@@ -155,6 +155,20 @@ type RequestType<Type extends (...args: any[]) => any> =
 
 type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
+function dateReviver(key: string, value: any): any {
+  if (
+    typeof value === "string" && 
+    value.length >= 10 && 
+    value.charCodeAt(0) >= 48 && // '0'
+    value.charCodeAt(0) <= 57 // '9'
+  ) {
+    const parsedDate = new Date(value);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return value;
+}
 
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
@@ -268,7 +282,7 @@ export class StreamInOut<Request, Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(JSON.parse(event.data, dateReviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -312,7 +326,7 @@ export class StreamIn<Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(JSON.parse(event.data, dateReviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -348,7 +362,7 @@ export class StreamOut<Request, Response> {
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data))
+            responseResolver(JSON.parse(event.data, dateReviver))
         });
     }
 
