@@ -93,6 +93,20 @@ type RequestType<Type extends (...args: any[]) => any> =
 
 type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
+function dateReviver(key: string, value: any): any {
+  if (
+    typeof value === "string" && 
+    value.length >= 10 && 
+    value.charCodeAt(0) >= 48 && // '0'
+    value.charCodeAt(0) <= 57 // '9'
+  ) {
+    const parsedDate = new Date(value);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate;
+    }
+  }
+  return value;
+}
 
 
 function encodeQuery(parts: Record<string, string | string[]>): string {
@@ -206,7 +220,7 @@ export class StreamInOut<Request, Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(JSON.parse(event.data, dateReviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -250,7 +264,7 @@ export class StreamIn<Response> {
     constructor(url: string, headers?: Record<string, string>) {
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
+            this.buffer.push(JSON.parse(event.data, dateReviver));
             this.socket.resolveHasUpdateHandlers();
         });
     }
@@ -286,7 +300,7 @@ export class StreamOut<Request, Response> {
 
         this.socket = new WebSocketConnection(url, headers);
         this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data))
+            responseResolver(JSON.parse(event.data, dateReviver))
         });
     }
 
