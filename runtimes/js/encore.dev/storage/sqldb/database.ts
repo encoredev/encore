@@ -21,11 +21,16 @@ export type Row = Record<string, any>;
 /** Represents a type that can be used in query template literals */
 export type Primitive =
   | string
+  | string[]
   | number
   | number[]
   | boolean
+  | boolean[]
   | Buffer
   | Date
+  | Date[]
+  | Record<string, any>
+  | Record<string, any>[]
   | null
   | undefined;
 

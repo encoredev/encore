@@ -1,6 +1,6 @@
 use chrono::TimeZone;
 use encore_runtime_core::api::{self, auth, PValue, PValues};
-use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
+use napi::{bindgen_prelude::*, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
 #[allow(dead_code)]
@@ -112,7 +112,7 @@ impl ToNapiValue for &PVal {
 
 impl FromNapiValue for PVal {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
-        let ty = type_of!(env, napi_val)?;
+        let ty = dbg!(type_of!(env, napi_val))?;
         let val = PVal(match ty {
             ValueType::Boolean => PValue::Bool(unsafe { bool::from_napi_value(env, napi_val)? }),
             ValueType::Number => PValue::Number(unsafe { Number::from_napi_value(env, napi_val)? }),
