@@ -149,7 +149,10 @@ impl Drop for Transaction {
             return;
         }
 
-        log::warn!("transaction was not finished, rolling back");
+        if self.savepoint.is_none() {
+            log::warn!("transaction was not finished, rolling back");
+        }
+
         let name = self.savepoint.as_ref().map(|sp| sp.name.as_str());
         self.conn.__private_api_rollback(name);
     }
