@@ -305,7 +305,8 @@ export class SQLDatabase {
   }
 
   async begin(): Promise<Transaction> {
-    const impl = await this.impl.begin();
+    const source = getCurrentRequest();
+    const impl = await this.impl.begin(source);
     return new Transaction(impl);
   }
 }
@@ -318,10 +319,12 @@ export class Transaction {
   }
 
   async commit() {
-    await this.impl.commit();
+    const source = getCurrentRequest();
+    await this.impl.commit(source);
   }
   async rollback() {
-    await this.impl.rollback();
+    const source = getCurrentRequest();
+    await this.impl.rollback(source);
   }
 
   /**

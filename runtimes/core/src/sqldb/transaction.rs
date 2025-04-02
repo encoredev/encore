@@ -17,7 +17,8 @@ impl Transaction {
     pub(crate) async fn begin(
         conn: PooledConn,
         tracer: QueryTracer,
-    ) -> Result<Self, tokio_postgres::Error> {
+        source: Option<&model::Request>,
+    ) -> Result<Self, Error> {
         struct RollbackIfNotDone<'me> {
             client: &'me tokio_postgres::Client,
             done: bool,
@@ -29,7 +30,7 @@ impl Transaction {
                     return;
                 }
 
-                self.client.__private_api_rollback();
+                self.client.__private_api_rollback(None);
             }
         }
 
@@ -43,7 +44,13 @@ impl Transaction {
                 client: &conn,
                 done: false,
             };
-            conn.batch_execute("BEGIN").await?;
+
+            tracer
+                .trace_batch_execute(source, "BEGIN", || async {
+                    conn.batch_execute("BEGIN").await.map_err(Error::from)
+                })
+                .await?;
+
             cleaner.done = true;
         }
 
@@ -54,18 +61,28 @@ impl Transaction {
         })
     }
 
-    pub async fn commit(mut self) -> Result<(), tokio_postgres::Error> {
+    pub async fn commit(mut self, source: Option<&model::Request>) -> Result<(), Error> {
         self.done = true;
-        // TODO trace
         // TODO savepoint
-        self.conn.batch_execute("COMMIT").await
+        self.batch_execute("COMMIT", source).await
     }
 
-    pub async fn rollback(mut self) -> Result<(), tokio_postgres::Error> {
+    pub async fn rollback(mut self, source: Option<&model::Request>) -> Result<(), Error> {
         self.done = true;
-        // TODO trace
         // TODO savepoint
-        self.conn.batch_execute("ROLLBACK").await
+        self.batch_execute("ROLLBACK", source).await
+    }
+
+    async fn batch_execute(
+        &self,
+        query: &str,
+        source: Option<&model::Request>,
+    ) -> Result<(), Error> {
+        self.tracer
+            .trace_batch_execute(source, query, || async {
+                self.conn.batch_execute(query).await.map_err(Error::from)
+            })
+            .await
     }
 
     // TODO: nested transactions via savepoints
@@ -105,6 +122,8 @@ impl Drop for Transaction {
         }
 
         // TODO savepoint
-        self.conn.__private_api_rollback();
+        // TODO trace?
+        log::warn!("transaction was not finished, rolling back");
+        self.conn.__private_api_rollback(None);
     }
 }

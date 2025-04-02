@@ -63,10 +63,11 @@ impl SQLDatabase {
 
     /// Begins a transaction
     #[napi]
-    pub async fn begin(&self) -> napi::Result<Transaction> {
+    pub async fn begin(&self, source: Option<&Request>) -> napi::Result<Transaction> {
+        let source = source.map(|s| s.inner.as_ref());
         let tx = self
             .pool()?
-            .begin()
+            .begin(source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
 
@@ -142,17 +143,19 @@ pub struct Transaction {
 #[napi]
 impl Transaction {
     #[napi]
-    pub async fn commit(&self) -> napi::Result<()> {
+    pub async fn commit(&self, source: Option<&Request>) -> napi::Result<()> {
+        let source = source.map(|s| s.inner.as_ref());
         let tx = self.tx.lock().await.take().unwrap(); // TODO unwrap
-        tx.commit()
+        tx.commit(source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
     }
 
     #[napi]
-    pub async fn rollback(&self) -> napi::Result<()> {
+    pub async fn rollback(&self, source: Option<&Request>) -> napi::Result<()> {
+        let source = source.map(|s| s.inner.as_ref());
         let tx = self.tx.lock().await.take().unwrap(); // TODO unwrap
-        tx.rollback()
+        tx.rollback(source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
     }
