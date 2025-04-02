@@ -93,7 +93,13 @@ impl ToSql for PValue {
                         let val = Uuid::parse_str(str).context("unable to parse uuid")?;
                         val.to_sql(ty, out)
                     }
-                    _ => Err(format!("string not supported for column of type {}", ty).into()),
+                    _ => {
+                        if let Kind::Enum(_) = ty.kind() {
+                            str.to_sql(ty, out)
+                        } else {
+                            Err(format!("string not supported for column of type {}", ty).into())
+                        }
+                    }
                 },
 
                 PValue::Number(num) => match *ty {
@@ -235,7 +241,8 @@ impl ToSql for PValue {
                 | Type::TIMESTAMPTZ
                 | Type::DATE
                 | Type::TIME
-        ) || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
+        ) || matches!(ty.kind(), Kind::Enum(_))
+            || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
     }
     to_sql_checked!();
 }
