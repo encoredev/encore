@@ -344,7 +344,7 @@ export class Transaction {
    * Create a nested transaction via savepoint.
    * @returns a new transaction object
    */
-  async savepoint() {
+  async savepoint(): Promise<Transaction> {
     const source = getCurrentRequest();
     return new Transaction(await this.impl.savepoint(source));
   }
