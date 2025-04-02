@@ -6,7 +6,6 @@ use napi::{Env, JsUnknown};
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::DerefMut;
 use std::sync::{Arc, OnceLock};
 
 #[napi]
@@ -170,7 +169,7 @@ impl Transaction {
     #[napi]
     pub async fn savepoint(&self, source: Option<&Request>) -> napi::Result<Transaction> {
         let source = source.map(|s| s.inner.as_ref());
-        if let Some(ref mut tx) = self.tx.lock().await.deref_mut() {
+        if let Some(ref mut tx) = *self.tx.lock().await {
             let sp_tx = tx
                 .savepoint(None, source)
                 .await
