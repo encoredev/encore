@@ -146,7 +146,10 @@ impl Transaction {
     #[napi]
     pub async fn commit(&self, source: Option<&Request>) -> napi::Result<()> {
         let source = source.map(|s| s.inner.as_ref());
-        let tx = self.tx.lock().await.take().unwrap(); // TODO unwrap
+        let tx = self.tx.lock().await.take().ok_or(napi::Error::new(
+            napi::Status::GenericFailure,
+            "transaction closed",
+        ))?;
         tx.commit(source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
@@ -155,7 +158,10 @@ impl Transaction {
     #[napi]
     pub async fn rollback(&self, source: Option<&Request>) -> napi::Result<()> {
         let source = source.map(|s| s.inner.as_ref());
-        let tx = self.tx.lock().await.take().unwrap(); // TODO unwrap
+        let tx = self.tx.lock().await.take().ok_or(napi::Error::new(
+            napi::Status::GenericFailure,
+            "transaction closed",
+        ))?;
         tx.rollback(source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
@@ -174,7 +180,10 @@ impl Transaction {
                 tx: tokio::sync::Mutex::new(Some(sp_tx)),
             })
         } else {
-            todo!() // TODO
+            Err(napi::Error::new(
+                napi::Status::GenericFailure,
+                "transaction closed",
+            ))
         }
     }
 
@@ -190,7 +199,10 @@ impl Transaction {
         let tx = self.tx.lock().await;
         let stream = tx
             .as_ref()
-            .unwrap() // TODO
+            .ok_or(napi::Error::new(
+                napi::Status::GenericFailure,
+                "transaction closed",
+            ))?
             .query_raw(&query, values, source)
             .await
             .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
