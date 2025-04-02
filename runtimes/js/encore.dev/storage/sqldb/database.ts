@@ -34,30 +34,10 @@ export type Primitive =
   | null
   | undefined;
 
-/** Common interface for database operations */
-interface SQLQueryExecutor {
-  query(
-    query: string,
-    args: runtime.QueryArgs,
-    source: any
-  ): Promise<runtime.Cursor>;
-}
-
-interface SQLDatabaseImpl extends SQLQueryExecutor {
-  connString(): string;
-  acquire(): Promise<runtime.SQLConn>;
-  begin(source: any): Promise<runtime.Transaction>;
-}
-
-interface TransactionImpl extends SQLQueryExecutor {
-  commit(source: any): Promise<void>;
-  rollback(source: any): Promise<void>;
-  savepoint(source: any): Promise<runtime.Transaction>;
-}
-
-interface ConnectionImpl extends SQLQueryExecutor {
-  close(): Promise<void>;
-}
+type SQLQueryExecutor =
+  | runtime.SQLConn
+  | runtime.SQLDatabase
+  | runtime.Transaction;
 
 /** Base class containing shared query functionality */
 class BaseQueryExecutor {
@@ -283,7 +263,7 @@ class BaseQueryExecutor {
  * compile error to create duplicate databases.
  */
 export class SQLDatabase extends BaseQueryExecutor {
-  protected declare readonly impl: SQLDatabaseImpl;
+  protected declare readonly impl: runtime.SQLDatabase;
 
   constructor(name: string, cfg?: SQLDatabaseConfig) {
     super(runtime.RT.sqlDatabase(name));
@@ -329,7 +309,7 @@ export class SQLDatabase extends BaseQueryExecutor {
 }
 
 export class Transaction extends BaseQueryExecutor {
-  protected declare readonly impl: TransactionImpl;
+  protected declare readonly impl: runtime.Transaction;
 
   constructor(impl: runtime.Transaction) {
     super(impl);
@@ -365,7 +345,7 @@ export class Transaction extends BaseQueryExecutor {
  * Represents a dedicated connection to a database.
  */
 export class Connection extends BaseQueryExecutor {
-  protected declare readonly impl: ConnectionImpl;
+  protected declare readonly impl: runtime.SQLConn;
 
   constructor(impl: runtime.SQLConn) {
     super(impl);
