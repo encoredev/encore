@@ -304,6 +304,12 @@ export class SQLDatabase {
     return new Connection(impl);
   }
 
+  /**
+   * Begins a database transaction.
+   *
+   * Make sure to always call `rollback` or `commit` to prevent hanging transactions.
+   * @returns a transaction object
+   */
   async begin(): Promise<Transaction> {
     const source = getCurrentRequest();
     const impl = await this.impl.begin(source);
@@ -318,15 +324,27 @@ export class Transaction {
     this.impl = impl;
   }
 
+  /**
+   * Commit the transaction.
+   */
   async commit() {
     const source = getCurrentRequest();
     await this.impl.commit(source);
   }
+
+  /**
+   * Rollback the transaction.
+   */
   async rollback() {
     const source = getCurrentRequest();
     await this.impl.rollback(source);
   }
-  async transaction() {
+
+  /**
+   * Create a nested transaction via savepoint.
+   * @returns a new transaction object
+   */
+  async savepoint() {
     const source = getCurrentRequest();
     return new Transaction(await this.impl.savepoint(source));
   }
