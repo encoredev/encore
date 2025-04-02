@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tokio_postgres::types::BorrowToSql;
 
 use crate::model;
@@ -8,9 +10,15 @@ use super::{
 };
 
 pub struct Transaction {
-    conn: PooledConn,
+    conn: Arc<PooledConn>,
     tracer: QueryTracer,
     done: bool,
+    savepoint: Option<Savepoint>,
+}
+
+pub struct Savepoint {
+    name: String,
+    depth: u32,
 }
 
 impl Transaction {
@@ -55,22 +63,31 @@ impl Transaction {
         }
 
         Ok(Transaction {
-            conn,
+            conn: Arc::new(conn),
             tracer,
             done: false,
+            savepoint: None,
         })
     }
 
     pub async fn commit(mut self, source: Option<&model::Request>) -> Result<(), Error> {
         self.done = true;
-        // TODO savepoint
-        self.batch_execute("COMMIT", source).await
+        if let Some(sp) = self.savepoint.as_ref() {
+            self.batch_execute(&format!("RELEASE {}", sp.name), source)
+                .await
+        } else {
+            self.batch_execute("COMMIT", source).await
+        }
     }
 
     pub async fn rollback(mut self, source: Option<&model::Request>) -> Result<(), Error> {
         self.done = true;
-        // TODO savepoint
-        self.batch_execute("ROLLBACK", source).await
+        if let Some(sp) = self.savepoint.as_ref() {
+            self.batch_execute(&format!("ROLLBACK TO {}", sp.name), source)
+                .await
+        } else {
+            self.batch_execute("ROLLBACK", source).await
+        }
     }
 
     async fn batch_execute(
@@ -85,12 +102,23 @@ impl Transaction {
             .await
     }
 
-    // TODO: nested transactions via savepoints
-    pub async fn transaction(&mut self) -> Result<Transaction, tokio_postgres::Error> {
-        todo!()
-    }
-    pub async fn savepoint(&mut self, name: &str) -> Result<Transaction, tokio_postgres::Error> {
-        todo!()
+    pub async fn savepoint(
+        &mut self,
+        name: Option<&str>,
+        source: Option<&model::Request>,
+    ) -> Result<Transaction, Error> {
+        let depth = self.savepoint.as_ref().map_or(0, |sp| sp.depth) + 1;
+        let name = name.unwrap_or(&format!("sp_{depth}")).to_string();
+        let query = &format!("SAVEPOINT {}", &name);
+
+        self.batch_execute(query, source).await?;
+
+        Ok(Transaction {
+            conn: self.conn.clone(),
+            tracer: self.tracer.clone(),
+            done: false,
+            savepoint: Some(Savepoint { name, depth }),
+        })
     }
 
     pub async fn query_raw<P, I>(
@@ -121,9 +149,8 @@ impl Drop for Transaction {
             return;
         }
 
-        // TODO savepoint
-        // TODO trace?
         log::warn!("transaction was not finished, rolling back");
-        self.conn.__private_api_rollback(None);
+        let name = self.savepoint.as_ref().map(|sp| sp.name.as_str());
+        self.conn.__private_api_rollback(name);
     }
 }
