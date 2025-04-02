@@ -326,6 +326,10 @@ export class Transaction {
     const source = getCurrentRequest();
     await this.impl.rollback(source);
   }
+  async transaction() {
+    const source = getCurrentRequest();
+    return new Transaction(await this.impl.savepoint(source));
+  }
 
   /**
    * query queries the database using a template string, replacing your placeholders in the template
