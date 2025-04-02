@@ -9,6 +9,11 @@ use super::{
     Cursor,
 };
 
+// Heavily inspired by rust-postgres, but where the transaction doesnt have a lifetime, so it can
+// be shared via napi-rs.
+//
+// https://github.com/sfackler/rust-postgres/blob/720ffe83216714bf9716a03122c547a2e8e9bfd9/tokio-postgres/src/transaction.rs
+
 pub struct Transaction {
     conn: Arc<PooledConn>,
     tracer: QueryTracer,
