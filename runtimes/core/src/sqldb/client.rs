@@ -102,12 +102,12 @@ impl Pool {
         })
     }
 
-    pub async fn begin(&self) -> Result<Transaction, tokio_postgres::Error> {
+    pub async fn begin(&self, source: Option<&model::Request>) -> Result<Transaction, Error> {
         let conn = self.pool.get_owned().await.map_err(|e| match e {
             RunError::User(err) => err,
             RunError::TimedOut => tokio_postgres::Error::__private_api_timeout(),
         })?;
-        Transaction::begin(conn, self.tracer.clone()).await
+        Transaction::begin(conn, self.tracer.clone(), source).await
     }
 }
 
@@ -244,5 +244,37 @@ impl QueryTracer {
         Ok(Cursor {
             stream: Box::pin(stream),
         })
+    }
+
+    pub(crate) async fn trace_batch_execute<F, Fut>(
+        &self,
+        source: Option<&model::Request>,
+        query: &str,
+        exec: F,
+    ) -> Result<(), Error>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<(), Error>>,
+    {
+        let start_id = if let Some(source) = source {
+            let id = self
+                .0
+                .db_query_start(protocol::DBQueryStartData { source, query });
+            Some(id)
+        } else {
+            None
+        };
+
+        let result = exec().await;
+
+        if let Some(start_id) = start_id {
+            self.0.db_query_end(protocol::DBQueryEndData {
+                start_id,
+                source: source.unwrap(),
+                error: result.as_ref().err(),
+            });
+        }
+
+        result
     }
 }
