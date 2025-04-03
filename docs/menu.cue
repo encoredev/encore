@@ -813,6 +813,11 @@
 				text: "Multithreading"
 				path: "/ts/develop/multithreading"
 				file: "ts/develop/multithreading"
+			},{
+				kind: "basic"
+				text: "External tools"
+				path: "/ts/develop/tools"
+				file: "ts/develop/tools"
 			}]
 		},
 		{
