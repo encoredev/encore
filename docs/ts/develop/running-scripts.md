@@ -2,7 +2,7 @@
 seotitle: How to use `encore exec` for running scripts
 seodesc: Learn how to use the `encore exec` command to run scripts like database seeding in your Encore app.
 title: Running Scripts
-subtitle: Execute commands with Encore's infrastructure setup
+subtitle: Run scripts with your application's infrastructure and runtime configured and initialized
 lang: ts
 ---
 In local development, you may need to run scripts or commands, such as seeding a database with initial data.
