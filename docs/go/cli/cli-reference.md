@@ -34,6 +34,25 @@ Checks your application for compile-time errors using Encore's compiler.
 $ encore check
 ```
 
+
+#### Exec
+
+Runs executable scripts against the local Encore app.
+
+Compiles and runs a go script with the local Encore app environment setup.
+
+```
+$ encore exec <path/to/script>
+```
+
+##### Example
+
+Run a database seed script
+
+```
+$ encore exec cmd/seed
+```
+
 ## App
 
 Commands to create and link Encore apps
