@@ -6,7 +6,7 @@ subtitle: Execute commands with Encore's infrastructure setup
 lang: ts
 ---
 In local development, you may need to run scripts or commands, such as seeding a database with initial data.
-For that to work the database needs to be started, and the Encore runtime needs to be located and initialized.
+For that to work the database needs to be started, and the Encore runtime needs to be configured and initialized.
 
 ## Using `encore exec`
 
