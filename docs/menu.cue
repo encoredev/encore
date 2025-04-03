@@ -815,7 +815,7 @@
 				file: "ts/develop/multithreading"
 			},{
 				kind: "basic"
-				text: "Running scripts"
+				text: "Running Scripts"
 				path: "/ts/develop/running-scripts"
 				file: "ts/develop/running-scripts"
 			}]
