@@ -299,7 +299,7 @@ export class SQLDatabase extends BaseQueryExecutor {
    * Begins a database transaction.
    *
    * Make sure to always call `rollback` or `commit` to prevent hanging transactions.
-   * @returns a transaction object
+   * @returns a transaction object that implements AsycDisposable
    */
   async begin(): Promise<Transaction> {
     const source = getCurrentRequest();
