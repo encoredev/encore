@@ -1,7 +1,7 @@
 ---
 seotitle: How to use `encore exec` for executing commands
 seodesc: Learn how to use the `encore exec` command to execute tasks like database seeding in your Encore app.
-title: Using external tools
+title: Running scripts
 subtitle: Execute commands with Encore's infrastructure setup
 lang: ts
 ---

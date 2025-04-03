@@ -815,9 +815,9 @@
 				file: "ts/develop/multithreading"
 			},{
 				kind: "basic"
-				text: "External tools"
-				path: "/ts/develop/tools"
-				file: "ts/develop/tools"
+				text: "Running scripts"
+				path: "/ts/develop/running-scripts"
+				file: "ts/develop/running-scripts"
 			}]
 		},
 		{
