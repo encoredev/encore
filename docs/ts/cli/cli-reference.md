@@ -34,6 +34,24 @@ Checks your application for compile-time errors using Encore's compiler.
 $ encore check
 ```
 
+#### Exec
+
+Runs executable scripts against the local Encore app.
+
+Takes a command that it will execute with the local Encore app environment setup.
+
+```
+$ encore exec -- <command>
+```
+
+##### Example
+
+Run a database seed script
+
+```
+$ encore exec -- npx tsx ./seed.ts
+```
+
 ## App
 
 Commands to create and link Encore apps
