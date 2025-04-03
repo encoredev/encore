@@ -167,26 +167,6 @@ impl Transaction {
     }
 
     #[napi]
-    pub async fn savepoint(&self, source: Option<&Request>) -> napi::Result<Transaction> {
-        let source = source.map(|s| s.inner.as_ref());
-        if let Some(ref mut tx) = *self.tx.lock().await {
-            let sp_tx = tx
-                .savepoint(None, source)
-                .await
-                .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
-
-            Ok(Transaction {
-                tx: tokio::sync::Mutex::new(Some(sp_tx)),
-            })
-        } else {
-            Err(napi::Error::new(
-                napi::Status::GenericFailure,
-                "transaction closed",
-            ))
-        }
-    }
-
-    #[napi]
     pub async fn query(
         &self,
         query: String,

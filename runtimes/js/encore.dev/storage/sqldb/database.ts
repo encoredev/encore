@@ -308,8 +308,9 @@ export class SQLDatabase extends BaseQueryExecutor {
   }
 }
 
-export class Transaction extends BaseQueryExecutor {
+export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
   protected declare readonly impl: runtime.Transaction;
+  private done: boolean = false;
 
   constructor(impl: runtime.Transaction) {
     super(impl);
@@ -321,6 +322,7 @@ export class Transaction extends BaseQueryExecutor {
   async commit() {
     const source = getCurrentRequest();
     await this.impl.commit(source);
+    this.done = true;
   }
 
   /**
@@ -329,15 +331,13 @@ export class Transaction extends BaseQueryExecutor {
   async rollback() {
     const source = getCurrentRequest();
     await this.impl.rollback(source);
+    this.done = true;
   }
 
-  /**
-   * Create a nested transaction via savepoint.
-   * @returns a new transaction object
-   */
-  async savepoint(): Promise<Transaction> {
-    const source = getCurrentRequest();
-    return new Transaction(await this.impl.savepoint(source));
+  async [Symbol.asyncDispose]() {
+    if (!this.done) {
+      await this.rollback();
+    }
   }
 }
 
