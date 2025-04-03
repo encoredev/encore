@@ -21,7 +21,7 @@ pub fn encode(alphabet: Alphabet, data: &[u8]) -> String {
         Alphabet::Crockford => (CROCKFORD_ALPHABET, false),
         Alphabet::Encore => (ENCORE_ALPHABET, false),
     };
-    let mut ret = Vec::with_capacity((data.len() + 3) / 4 * 5);
+    let mut ret = Vec::with_capacity(data.len().div_ceil(4) * 5);
 
     for chunk in data.chunks(5) {
         let buf = {
@@ -43,7 +43,7 @@ pub fn encode(alphabet: Alphabet, data: &[u8]) -> String {
 
     if data.len() % 5 != 0 {
         let len = ret.len();
-        let num_extra = 8 - (data.len() % 5 * 8 + 4) / 5;
+        let num_extra = 8 - (data.len() % 5 * 8).div_ceil(5);
         if padding {
             for i in 1..num_extra + 1 {
                 ret[len - i] = b'=';
@@ -87,7 +87,7 @@ pub fn decode(alphabet: Alphabet, data: &str) -> Option<Vec<u8>> {
         unpadded_data_length -= 1;
     }
     let output_length = unpadded_data_length * 5 / 8;
-    let mut ret = Vec::with_capacity((output_length + 4) / 5 * 5);
+    let mut ret = Vec::with_capacity(output_length.div_ceil(5) * 5);
     for chunk in data.chunks(8) {
         let buf = {
             let mut buf = [0u8; 8];
