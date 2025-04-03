@@ -25,8 +25,12 @@ func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor, version trace2.Version)
 		return nil, err
 	}
 
+	typ := trace2.EventType(tp.Byte())
+	if err := tp.Err(); err != nil {
+		return nil, err
+	}
 	h := header{
-		Type:     trace2.EventType(tp.Byte()),
+		Type:     typ,
 		EventID:  trace2.EventID(tp.Uint64()),
 		Nanotime: tp.Nanotime(),
 		TraceID:  tp.traceID(),
@@ -34,6 +38,7 @@ func ParseEvent(buf *bufio.Reader, ta trace2.TimeAnchor, version trace2.Version)
 		Len:      tp.Uint32(),
 	}
 	if err := tp.Err(); err != nil {
+		log.Error().Err(err).Any("header", h).Msgf("failed to parse event header")
 		return nil, err
 	}
 
