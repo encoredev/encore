@@ -171,6 +171,31 @@ await db.rawExec(
 );
 ```
 
+### Transactions
+
+Transactions allow you to group multiple database operations into a single unit of work. If any operation within the transaction fails, the entire transaction is rolled back, ensuring data consistency.
+
+The transaction type implements `AsyncDisposable`, which automatically rolls back the transaction if it is not explicitly committed or rolled back. This ensures that no open transactions are left accidentally.
+
+For example:
+
+```ts
+await using tx = await db.begin();
+
+await db.exec`
+  INSERT INTO todo_item (title, done)
+  VALUES (${title1}, false)
+`;
+
+await db.exec`
+  INSERT INTO todo_item (title, done)
+  VALUES (${title2}, false)
+`;
+
+await tx.commit();
+```
+
+
 ## Connecting to databases
 
 It's often useful to be able to connect to the database from outside the backend application. For example for scripts, ad-hoc querying, or dumping data for analysis.

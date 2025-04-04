@@ -12,6 +12,8 @@ use crate::sqldb::val::RowValue;
 use crate::trace::{protocol, Tracer};
 use crate::{model, sqldb};
 
+use super::transaction::Transaction;
+
 type Mgr = PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>;
 
 pub struct Pool {
@@ -99,6 +101,14 @@ impl Pool {
             tracer: self.tracer.clone(),
         })
     }
+
+    pub async fn begin(&self, source: Option<&model::Request>) -> Result<Transaction, Error> {
+        let conn = self.pool.get_owned().await.map_err(|e| match e {
+            RunError::User(err) => err,
+            RunError::TimedOut => tokio_postgres::Error::__private_api_timeout(),
+        })?;
+        Transaction::begin(conn, self.tracer.clone(), source).await
+    }
 }
 
 pub struct Cursor {
@@ -135,35 +145,12 @@ impl Row {
     }
 }
 
-type PooledConn =
+pub(crate) type PooledConn =
     PooledConnection<'static, PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>>;
 
 pub struct Connection {
     conn: tokio::sync::RwLock<Option<PooledConn>>,
     tracer: QueryTracer,
-}
-
-#[derive(Debug)]
-pub enum Error {
-    DB(tokio_postgres::Error),
-    Closed,
-    ConnectTimeout,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::DB(err) => <tokio_postgres::Error as std::fmt::Display>::fmt(err, f),
-            Error::Closed => f.write_str("connection_closed"),
-            Error::ConnectTimeout => f.write_str("timeout establishing connection"),
-        }
-    }
-}
-
-impl From<tokio_postgres::Error> for Error {
-    fn from(err: tokio_postgres::Error) -> Self {
-        Error::DB(err)
-    }
 }
 
 impl Connection {
@@ -197,11 +184,34 @@ impl Connection {
     }
 }
 
+#[derive(Debug)]
+pub enum Error {
+    DB(tokio_postgres::Error),
+    Closed,
+    ConnectTimeout,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::DB(err) => <tokio_postgres::Error as std::fmt::Display>::fmt(err, f),
+            Error::Closed => f.write_str("connection_closed"),
+            Error::ConnectTimeout => f.write_str("timeout establishing connection"),
+        }
+    }
+}
+
+impl From<tokio_postgres::Error> for Error {
+    fn from(err: tokio_postgres::Error) -> Self {
+        Error::DB(err)
+    }
+}
+
 #[derive(Debug, Clone)]
-struct QueryTracer(Tracer);
+pub(crate) struct QueryTracer(Tracer);
 
 impl QueryTracer {
-    async fn trace<F, Fut>(
+    pub(crate) async fn trace<F, Fut>(
         &self,
         source: Option<&model::Request>,
         query: &str,
@@ -234,5 +244,37 @@ impl QueryTracer {
         Ok(Cursor {
             stream: Box::pin(stream),
         })
+    }
+
+    pub(crate) async fn trace_batch_execute<F, Fut>(
+        &self,
+        source: Option<&model::Request>,
+        query: &str,
+        exec: F,
+    ) -> Result<(), Error>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<(), Error>>,
+    {
+        let start_id = if let Some(source) = source {
+            let id = self
+                .0
+                .db_query_start(protocol::DBQueryStartData { source, query });
+            Some(id)
+        } else {
+            None
+        };
+
+        let result = exec().await;
+
+        if let Some(start_id) = start_id {
+            self.0.db_query_end(protocol::DBQueryEndData {
+                start_id,
+                source: source.unwrap(),
+                error: result.as_ref().err(),
+            });
+        }
+
+        result
     }
 }
