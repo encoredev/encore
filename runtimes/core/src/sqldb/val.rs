@@ -212,7 +212,13 @@ impl ToSql for PValue {
                         }
                     }
                 },
-                PValue::DateTime(dt) => dt.to_sql(ty, out),
+                PValue::DateTime(dt) => match *ty {
+                    Type::DATE => dt.naive_utc().date().to_sql(ty, out),
+                    Type::TIMESTAMP => dt.naive_utc().to_sql(ty, out),
+                    Type::TIMESTAMPTZ => dt.to_sql(ty, out),
+                    Type::TEXT | Type::VARCHAR => dt.to_rfc3339().to_sql(ty, out),
+                    _ => Err(format!("unsupported type for DateTime: {}", ty).into()),
+                },
                 PValue::Array(arr) => arr.to_sql(ty, out),
                 PValue::Object(_) => {
                     Err(format!("object not supported for column of type {}", ty).into())
