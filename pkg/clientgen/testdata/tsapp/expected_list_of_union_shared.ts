@@ -88,15 +88,15 @@ export namespace svc {
 
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
-type RequestType<Type extends (...args: any[]) => any> = 
+type RequestType<Type extends (...args: any[]) => any> =
   Parameters<Type> extends [infer H, ...any[]] ? H : void;
 
 type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
 function dateReviver(key: string, value: any): any {
   if (
-    typeof value === "string" && 
-    value.length >= 10 && 
+    typeof value === "string" &&
+    value.length >= 10 &&
     value.charCodeAt(0) >= 48 && // '0'
     value.charCodeAt(0) <= 57 // '9'
   ) {
