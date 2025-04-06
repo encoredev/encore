@@ -1617,6 +1617,7 @@ dependencies = [
  "sha2",
  "sha3",
  "subtle",
+ "sync-cell",
  "thiserror 1.0.69",
  "tokio",
  "tokio-nsq",
@@ -3883,7 +3884,7 @@ dependencies = [
  "pingora-http",
  "pingora-ketama",
  "pingora-runtime",
- "rand 0.7.3",
+ "rand 0.8.5",
  "tokio",
 ]
 
@@ -3896,7 +3897,7 @@ dependencies = [
  "arrayvec",
  "hashbrown 0.15.2",
  "parking_lot",
- "rand 0.7.3",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -5656,6 +5657,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "sync-cell"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03f753958cb8997f0356c66d3daa382cab71bf797ced914d31405cd9f018e10a"
 
 [[package]]
 name = "sync_wrapper"
