@@ -1478,15 +1478,15 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 		ts.WriteString(`
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
-type RequestType<Type extends (...args: any[]) => any> = 
+type RequestType<Type extends (...args: any[]) => any> =
   Parameters<Type> extends [infer H, ...any[]] ? H : void;
 
 type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
 
 function dateReviver(key: string, value: any): any {
   if (
-    typeof value === "string" && 
-    value.length >= 10 && 
+    typeof value === "string" &&
+    value.length >= 10 &&
     value.charCodeAt(0) >= 48 && // '0'
     value.charCodeAt(0) <= 57 // '9'
   ) {
@@ -1589,6 +1589,14 @@ func (ts *typescript) convertBuiltinToString(typ schema.Builtin, val string, isO
 		return val
 	case schema.Builtin_JSON:
 		code = fmt.Sprintf("JSON.stringify(%s)", val)
+	case schema.Builtin_TIME:
+		if ts.sharedTypes {
+			// If we're using shared types then this will actually be a Date object.
+			// Otherwise it will be a string.
+			code = fmt.Sprintf("%s.toISOString()", val)
+		} else {
+			code = fmt.Sprintf("String(%s)", val)
+		}
 	default:
 		code = fmt.Sprintf("String(%s)", val)
 	}
