@@ -23,6 +23,19 @@ var execCmd = &cobra.Command{
 		execScript(appRoot, wd, args)
 	},
 }
+var execCmdAlpha = &cobra.Command{
+	Use:        "exec path/to/script [args...]",
+	Short:      "Runs executable scripts against the local Encore app",
+	Hidden:     true,
+	Deprecated: "use \"encore exec\" instead",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			args = []string{"."} // current directory
+		}
+		appRoot, wd := determineAppRoot()
+		execScript(appRoot, wd, args)
+	},
+}
 
 func execScript(appRoot, relWD string, args []string) {
 	interrupt := make(chan os.Signal, 1)
@@ -64,6 +77,6 @@ func init() {
 
 func init() {
 	execCmd.Flags().StringVarP(&nsName, "namespace", "n", "", "Namespace to use (defaults to active namespace)")
-	alphaCmd.AddCommand(execCmd)
+	alphaCmd.AddCommand(execCmdAlpha)
 	rootCmd.AddCommand(execCmd)
 }
