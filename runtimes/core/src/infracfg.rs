@@ -799,7 +799,6 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                 )),
                             })
                             .collect();
-
                         let subscriptions = gcp
                             .topics
                             .iter()
@@ -812,22 +811,24 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                         topic_cloud_name: topic.name.clone(),
                                         subscription_cloud_name: sub.name.clone(),
                                         push_only: sub.push_config.is_some(),
-                                        provider_config: sub.push_config.as_ref().map(|pc| {
+                                        provider_config: Some(
                                             pub_sub_subscription::ProviderConfig::GcpConfig(
                                                 pub_sub_subscription::GcpConfig {
                                                     project_id: sub
                                                         .project_id
                                                         .clone()
                                                         .unwrap_or_else(|| gcp.project_id.clone()),
-                                                    push_service_account: Some(
-                                                        pc.service_account.clone(),
-                                                    ),
-                                                    push_jwt_audience: Some(
-                                                        pc.jwt_audience.clone(),
-                                                    ),
+                                                    push_service_account: sub
+                                                        .push_config
+                                                        .as_ref()
+                                                        .map(|pc| pc.service_account.clone()),
+                                                    push_jwt_audience: sub
+                                                        .push_config
+                                                        .as_ref()
+                                                        .map(|pc| pc.jwt_audience.clone()),
                                                 },
-                                            )
-                                        }),
+                                            ),
+                                        ),
                                     }
                                 })
                             })
