@@ -813,6 +813,11 @@
 				text: "Multithreading"
 				path: "/ts/develop/multithreading"
 				file: "ts/develop/multithreading"
+			},{
+				kind: "basic"
+				text: "Running Scripts"
+				path: "/ts/develop/running-scripts"
+				file: "ts/develop/running-scripts"
 			}]
 		},
 		{
