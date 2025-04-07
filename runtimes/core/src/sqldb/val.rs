@@ -281,6 +281,7 @@ impl<'a> FromSql<'a> for RowValue {
     fn accepts(ty: &Type) -> bool {
         matches!(*ty, Type::BYTEA | Type::UUID)
             || matches!(ty.kind(), Kind::Array(ty) if <RowValue as FromSql>::accepts(ty))
+            || <PValue as FromSql>::accepts(ty)
     }
 }
 
@@ -384,7 +385,6 @@ impl<'a> FromSql<'a> for PValue {
                 | Type::TIME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as FromSql>::accepts(ty))
-            || <PValue as FromSql>::accepts(ty)
     }
 }
 
