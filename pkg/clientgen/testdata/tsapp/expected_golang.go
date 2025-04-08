@@ -116,10 +116,10 @@ type SvcRequest struct {
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
-	dummy(ctx context.Context, params SvcRequest) error
-	imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
-	onlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
-	root(ctx context.Context, params SvcRequest) error
+	Dummy(ctx context.Context, params SvcRequest) error
+	Imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
+	OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
+	Root(ctx context.Context, params SvcRequest) error
 }
 
 type svcClient struct {
@@ -128,7 +128,7 @@ type svcClient struct {
 
 var _ SvcClient = (*svcClient)(nil)
 
-func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
+func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 
@@ -159,7 +159,7 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 	return err
 }
 
-func (c *svcClient) imported(ctx context.Context, params Common_StuffImportedRequest) (resp Common_StuffImportedResponse, err error) {
+func (c *svcClient) Imported(ctx context.Context, params Common_StuffImportedRequest) (resp Common_StuffImportedResponse, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", "/imported", nil, params, &resp)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *svcClient) imported(ctx context.Context, params Common_StuffImportedReq
 	return
 }
 
-func (c *svcClient) onlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (resp Common_StuffImportedResponse, err error) {
+func (c *svcClient) OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (resp Common_StuffImportedResponse, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%s", url.PathEscape(pathParam), url.PathEscape(pathParam2)), nil, nil, &resp)
 	if err != nil {
@@ -179,7 +179,7 @@ func (c *svcClient) onlyPathParams(ctx context.Context, pathParam string, pathPa
 	return
 }
 
-func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
+func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 

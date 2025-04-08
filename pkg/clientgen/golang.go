@@ -356,7 +356,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service, tags c
 		}
 
 		interfaceMethods = append(interfaceMethods,
-			Id(rpc.Name).Add(g.rpcParams(rpc)).Add(g.rpcReturnType(rpc, false)),
+			Id(g.capitalizeFirstLetter(rpc.Name)).Add(g.rpcParams(rpc)).Add(g.rpcReturnType(rpc, false)),
 		)
 	}
 	file.Type().Id(interfaceName).Interface(interfaceMethods...)
@@ -395,7 +395,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service, tags c
 
 		file.Func().
 			Params(Id("c").Op("*").Id(structName)).
-			Id(rpc.Name).
+			Id(g.capitalizeFirstLetter(rpc.Name)).
 			Add(
 				g.rpcParams(rpc),
 				g.rpcReturnType(rpc, true),
@@ -1503,4 +1503,15 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 	grp.Line()
 
 	return
+}
+
+// capitalizeFirstLetter ensures the first letter of the string is capitalized
+// to make it exported in Go (and thus accessible)
+func (g *golang) capitalizeFirstLetter(name string) string {
+	if len(name) == 0 {
+		return name
+	}
+	first := string(name[0])
+	rest := name[1:]
+	return strings.ToUpper(first) + rest
 }
