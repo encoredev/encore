@@ -336,6 +336,13 @@ func RunMigration(ctx context.Context, dbName string, allowNonSeq bool, conn *sq
 		srcDriver = mdSrc
 	}
 
+	curVersion, _, err := dbDriver.Version()
+	if err != nil {
+		return errors.Wrap(err, "failed to get current version")
+	} else if curVersion < -1 {
+		return errors.Newf("invalid current version (%d) for db %s", curVersion, dbName)
+	}
+
 	m, err := migrate.NewWithInstance("src", srcDriver, "postgres", dbDriver)
 	if err != nil {
 		return errors.Wrap(err, "failed to create migration instance")
