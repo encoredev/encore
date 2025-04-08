@@ -906,7 +906,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 			}
 
 			// The base field name and type
-			fieldTyp := Id(field.Name).Add(g.getType(field.Typ))
+			fieldTyp := Id(g.capitalizeFirstLetter(field.Name)).Add(g.getType(field.Typ))
 
 			// Add the field tags
 			if field.RawTag != "" {
@@ -1075,7 +1075,7 @@ func (g *golang) generateAnonStructTypes(fields []*encoding.ParameterEncoding, e
 
 		types = append(
 			types,
-			Id(field.SrcName).Add(g.getType(field.Type)).Tag(map[string]string{encodingTag: tagValue.String()}),
+			Id(g.capitalizeFirstLetter(field.SrcName)).Add(g.getType(field.Type)).Tag(map[string]string{encodingTag: tagValue.String()}),
 		)
 	}
 
@@ -1434,7 +1434,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					// If we have a slice, we need to encode each bit
 					slice, err := enc.ToStringSlice(
 						field.Type,
-						Id("authData").Dot(field.SrcName),
+						Id("authData").Dot(g.capitalizeFirstLetter(field.SrcName)),
 					)
 					if err != nil {
 						err = errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
@@ -1451,7 +1451,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					// Otherwise, we can just append the field
 					val, err := enc.ToString(
 						field.Type,
-						Id("authData").Dot(field.SrcName),
+						Id("authData").Dot(g.capitalizeFirstLetter(field.SrcName)),
 					)
 					if err != nil {
 						err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
@@ -1477,7 +1477,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 				// Otherwise, we can just append the field
 				val, err := enc.ToString(
 					field.Type,
-					Id("authData").Dot(field.SrcName),
+					Id("authData").Dot(g.capitalizeFirstLetter(field.SrcName)),
 				)
 				if err != nil {
 					err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
@@ -1505,13 +1505,13 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 	return
 }
 
-// capitalizeFirstLetter ensures the first letter of the string is capitalized
-// to make it exported in Go (and thus accessible)
-func (g *golang) capitalizeFirstLetter(name string) string {
-	if len(name) == 0 {
-		return name
+// capitalizeFirstLetterLetter ensures the first letter of a string is capitalized.
+// This is used to make the string exported in Go.
+func (g *golang) capitalizeFirstLetter(s string) string {
+	if len(s) == 0 {
+		return s
 	}
-	first := string(name[0])
-	rest := name[1:]
+	first := string(s[0])
+	rest := s[1:]
 	return strings.ToUpper(first) + rest
 }

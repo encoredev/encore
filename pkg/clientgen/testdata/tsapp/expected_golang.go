@@ -91,26 +91,26 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (SvcAuthParams, error)
 }
 
 type SvcAuthParams struct {
-	cookie string `encore:"optional" header:"Cookie,optional"`
-	token  string `encore:"optional" header:"x-api-token,optional"`
+	Cookie string `encore:"optional" header:"Cookie,optional"`
+	Token  string `encore:"optional" header:"x-api-token,optional"`
 }
 
 type SvcRequest struct {
-	foo       float64 `encore:"optional"` // Foo is good
-	baz       string  // Baz is better
-	queryFoo  bool    `encore:"optional" query:"foo,optional"`
-	queryBar  string  `encore:"optional" query:"bar,optional"`
-	headerBaz string  `encore:"optional" header:"baz,optional"`
-	headerNum float64 `encore:"optional" header:"num,optional"`
+	Foo       float64 `encore:"optional"` // Foo is good
+	Baz       string  // Baz is better
+	QueryFoo  bool    `encore:"optional" query:"foo,optional"`
+	QueryBar  string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz string  `encore:"optional" header:"baz,optional"`
+	HeaderNum float64 `encore:"optional" header:"num,optional"`
 }
 
 type SvcRequest struct {
-	foo       float64 `encore:"optional"` // Foo is good
-	baz       string  // Baz is better
-	queryFoo  bool    `encore:"optional" query:"foo,optional"`
-	queryBar  string  `encore:"optional" query:"bar,optional"`
-	headerBaz string  `encore:"optional" header:"baz,optional"`
-	headerNum float64 `encore:"optional" header:"num,optional"`
+	Foo       float64 `encore:"optional"` // Foo is good
+	Baz       string  // Baz is better
+	QueryFoo  bool    `encore:"optional" query:"foo,optional"`
+	QueryBar  string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz string  `encore:"optional" header:"baz,optional"`
+	HeaderNum float64 `encore:"optional" header:"num,optional"`
 }
 
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
@@ -148,8 +148,8 @@ func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		foo float64 `json:"foo"`
-		baz string  `json:"baz"`
+		Foo float64 `json:"foo"`
+		Baz string  `json:"baz"`
 	}{
 		baz: params.baz,
 		foo: params.foo,
@@ -199,8 +199,8 @@ func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		foo float64 `json:"foo"`
-		baz string  `json:"baz"`
+		Foo float64 `json:"foo"`
+		Baz string  `json:"baz"`
 	}{
 		baz: params.baz,
 		foo: params.foo,
@@ -211,11 +211,11 @@ func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 }
 
 type Common_StuffImportedRequest struct {
-	name string
+	Name string
 }
 
 type Common_StuffImportedResponse struct {
-	message string
+	Message string
 }
 
 // HTTPDoer is an interface which can be used to swap out the default
@@ -246,8 +246,8 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 			authEncoder := &serde{}
 
 			// Add the auth fields to the headers
-			req.Header.Set("cookie", authEncoder.FromString(authData.cookie))
-			req.Header.Set("x-api-token", authEncoder.FromString(authData.token))
+			req.Header.Set("cookie", authEncoder.FromString(authData.Cookie))
+			req.Header.Set("x-api-token", authEncoder.FromString(authData.Token))
 
 			if authEncoder.LastError != nil {
 				return nil, fmt.Errorf("unable to marshal authentication data: %w", authEncoder.LastError)
