@@ -74,6 +74,30 @@ The `next` function returns a `HandlerResponse` object which contains the respon
 Extra response headers can be added using `resp.header.set(key, value)` or `resp.header.add(key, value)`,
 if the endpoint is a [typed API endpoint](/docs/ts/primitives/defining-apis).
 
+To pass data from middleware to an API handler, you can assign values to `req.data` within the middleware. These values can then be accessed in the handler using `currentRequest()`.
+
+Here’s an example:
+
+```ts
+const mw = middleware(async (req, next) => {
+  // Assign a value to the request
+  req.data.myMiddlewareData = { some: "data" };
+
+  return await next(req);
+});
+
+export const ep = api(
+  { expose: true, method: "GET", path: "/endpoint" },
+  async () => {
+    const callMeta = currentRequest() as APICallMeta;
+
+    // Access the value in the API handler
+    const myData = callMeta.middlewareData?.myMiddlewareData;
+    // Use the data as needed
+  },
+);
+```
+
 ## Middleware ordering
 
 Middleware runs in the order they are defined in the [Service definitions](/docs/ts/primitives/services)
