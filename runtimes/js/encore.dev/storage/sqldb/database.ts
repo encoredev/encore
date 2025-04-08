@@ -320,18 +320,18 @@ export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
    * Commit the transaction.
    */
   async commit() {
+    this.done = true;
     const source = getCurrentRequest();
     await this.impl.commit(source);
-    this.done = true;
   }
 
   /**
    * Rollback the transaction.
    */
   async rollback() {
+    this.done = true;
     const source = getCurrentRequest();
     await this.impl.rollback(source);
-    this.done = true;
   }
 
   async [Symbol.asyncDispose]() {
