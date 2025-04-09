@@ -61,6 +61,21 @@ impl SQLDatabase {
         self.db.proxy_conn_string()
     }
 
+    /// Begins a transaction
+    #[napi]
+    pub async fn begin(&self, source: Option<&Request>) -> napi::Result<Transaction> {
+        let source = source.map(|s| s.inner.as_ref());
+        let tx = self
+            .pool()?
+            .begin(source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+
+        Ok(Transaction {
+            tx: tokio::sync::Mutex::new(Some(tx)),
+        })
+    }
+
     #[napi]
     pub async fn query(
         &self,
@@ -116,6 +131,62 @@ impl SQLDatabase {
                 .new_pool()
                 .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e));
             Marc::new(pool)
+        })
+    }
+}
+
+#[napi]
+pub struct Transaction {
+    tx: tokio::sync::Mutex<Option<sqldb::Transaction>>,
+}
+
+#[napi]
+impl Transaction {
+    #[napi]
+    pub async fn commit(&self, source: Option<&Request>) -> napi::Result<()> {
+        let source = source.map(|s| s.inner.as_ref());
+        let tx = self.tx.lock().await.take().ok_or(napi::Error::new(
+            napi::Status::GenericFailure,
+            "transaction closed",
+        ))?;
+        tx.commit(source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
+    }
+
+    #[napi]
+    pub async fn rollback(&self, source: Option<&Request>) -> napi::Result<()> {
+        let source = source.map(|s| s.inner.as_ref());
+        let tx = self.tx.lock().await.take().ok_or(napi::Error::new(
+            napi::Status::GenericFailure,
+            "transaction closed",
+        ))?;
+        tx.rollback(source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))
+    }
+
+    #[napi]
+    pub async fn query(
+        &self,
+        query: String,
+        args: &QueryArgs,
+        source: Option<&Request>,
+    ) -> napi::Result<Cursor> {
+        let values: Vec<_> = args.values.lock().unwrap().drain(..).collect();
+        let source = source.map(|s| s.inner.as_ref());
+        let tx = self.tx.lock().await;
+        let stream = tx
+            .as_ref()
+            .ok_or(napi::Error::new(
+                napi::Status::GenericFailure,
+                "transaction closed",
+            ))?
+            .query_raw(&query, values, source)
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e.to_string()))?;
+        Ok(Cursor {
+            stream: tokio::sync::Mutex::new(stream),
         })
     }
 }
