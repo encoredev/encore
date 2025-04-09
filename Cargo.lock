@@ -3883,7 +3883,7 @@ dependencies = [
  "pingora-http",
  "pingora-ketama",
  "pingora-runtime",
- "rand 0.7.3",
+ "rand 0.8.5",
  "tokio",
 ]
 
@@ -3896,7 +3896,7 @@ dependencies = [
  "arrayvec",
  "hashbrown 0.15.2",
  "parking_lot",
- "rand 0.7.3",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -4040,7 +4040,7 @@ dependencies = [
 [[package]]
 name = "postgres-protocol"
 version = "0.6.6"
-source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#08c0f981e1aa1d21c3f21ed50a19cdce8d21c873"
+source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches#eaf1bb1158e007b0ad873794a58284d5e172a1bd"
 dependencies = [
  "base64 0.21.7",
  "byteorder",
@@ -4058,7 +4058,7 @@ dependencies = [
 [[package]]
 name = "postgres-types"
 version = "0.2.6"
-source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#08c0f981e1aa1d21c3f21ed50a19cdce8d21c873"
+source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches#eaf1bb1158e007b0ad873794a58284d5e172a1bd"
 dependencies = [
  "array-init",
  "bytes",
@@ -5991,7 +5991,7 @@ dependencies = [
 [[package]]
 name = "tokio-postgres"
 version = "0.7.10"
-source = "git+https://github.com/encoredev/rust-postgres?branch=proxy#08c0f981e1aa1d21c3f21ed50a19cdce8d21c873"
+source = "git+https://github.com/encoredev/rust-postgres?branch=encore-patches#eaf1bb1158e007b0ad873794a58284d5e172a1bd"
 dependencies = [
  "async-trait",
  "byteorder",
