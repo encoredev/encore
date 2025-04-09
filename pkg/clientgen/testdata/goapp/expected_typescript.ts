@@ -33,6 +33,8 @@ export default class Client {
     public readonly authentication: authentication.ServiceClient
     public readonly products: products.ServiceClient
     public readonly svc: svc.ServiceClient
+    private readonly clientOptions?: ClientOptions
+    private readonly target: string
 
 
     /**
@@ -46,6 +48,19 @@ export default class Client {
         this.authentication = new authentication.ServiceClient(base)
         this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
+    }
+
+    /**
+     * Creates a new Encore client with the given auth handler.
+     *
+     * @param authHandler Authentication data to be used for each request. Either a static  
+     *                    object or a function which returns a new object for each request.
+     **/
+    public withAuth(authHandler: svc.AuthParams | AuthDataGenerator): Client {
+       return new Client(this.target, {
+            ...this.clientOptions,
+            auth: authHandler,
+       })
     }
 }
 

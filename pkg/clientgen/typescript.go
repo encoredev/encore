@@ -1033,6 +1033,10 @@ export %sclass Client {
 				w.WriteStringf("public readonly %s: %s.ServiceClient\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
 			}
 		}
+		if ts.hasAuth {
+			w.WriteString("private readonly clientOptions?: ClientOptions\n")
+			w.WriteString("private readonly target: string\n")
+		}
 		w.WriteString("\n")
 
 		// Only include the deprecated constructor if bearer token authentication is being used
@@ -1087,6 +1091,24 @@ if (typeof options === "string") {
 		}
 		w.WriteString("}\n")
 	}
+
+	if ts.hasAuth {
+		w.WriteString(`
+    /**
+     * Creates a new Encore client with the given auth handler.
+     *
+     * @param authHandler Authentication data to be used for each request. Either a static  
+     *                    object or a function which returns a new object for each request.
+     **/
+    public withAuth(authHandler: svc.AuthParams | AuthDataGenerator): Client {
+       return new Client(this.target, {
+            ...this.clientOptions,
+            auth: authHandler,
+       })
+    }
+`)
+	}
+
 	w.WriteString("}\n")
 
 	handler := ts.md.AuthHandler
