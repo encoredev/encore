@@ -129,6 +129,15 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 	numIndent++
 	indent()
 	js.WriteString("this.baseClient = baseClient\n")
+	for _, rpc := range svc.Rpcs {
+		if rpc.AccessType == meta.RPC_PRIVATE || !tags.IsRPCIncluded(rpc) {
+			continue
+		}
+		name := js.memberName(rpc.Name)
+		indent()
+		fmt.Fprintf(js, "this.%s = this.%s.bind(this)\n", name, name)
+	}
+
 	numIndent--
 	indent()
 	js.WriteString("}\n")

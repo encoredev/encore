@@ -33,6 +33,8 @@ export default class Client {
     public readonly authentication: authentication.ServiceClient
     public readonly products: products.ServiceClient
     public readonly svc: svc.ServiceClient
+    private readonly options: ClientOptions
+    private readonly target: string
 
 
     /**
@@ -42,10 +44,24 @@ export default class Client {
      * @param options Options for the client
      */
     constructor(target: BaseURL, options?: ClientOptions) {
-        const base = new BaseClient(target, options ?? {})
+        this.target = target
+        this.options = options ?? {}
+        const base = new BaseClient(this.target, this.options)
         this.authentication = new authentication.ServiceClient(base)
         this.products = new products.ServiceClient(base)
         this.svc = new svc.ServiceClient(base)
+    }
+
+    /**
+     * Creates a new Encore client with the given client options set.
+     *
+     * @param options Client options to set. They are merged with existing options.
+     **/
+    public with(options: ClientOptions): Client {
+        return new Client(this.target, {
+            ...this.options,
+            ...options,
+        })
     }
 }
 
@@ -111,6 +127,7 @@ export namespace authentication {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.Docs = this.Docs.bind(this)
         }
 
         public async Docs(params: FooType): Promise<void> {
@@ -151,6 +168,8 @@ export namespace products {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.Create = this.Create.bind(this)
+            this.List = this.List.bind(this)
         }
 
         public async Create(params: CreateProductRequest): Promise<Product> {
@@ -274,6 +293,18 @@ export namespace svc {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.DummyAPI = this.DummyAPI.bind(this)
+            this.FallbackPath = this.FallbackPath.bind(this)
+            this.Get = this.Get.bind(this)
+            this.GetRequestWithAllInputTypes = this.GetRequestWithAllInputTypes.bind(this)
+            this.HeaderOnlyRequest = this.HeaderOnlyRequest.bind(this)
+            this.Nested = this.Nested.bind(this)
+            this.RESTPath = this.RESTPath.bind(this)
+            this.Rec = this.Rec.bind(this)
+            this.RequestWithAllInputTypes = this.RequestWithAllInputTypes.bind(this)
+            this.TupleInputOutput = this.TupleInputOutput.bind(this)
+            this.Webhook = this.Webhook.bind(this)
+            this.Webhook2 = this.Webhook2.bind(this)
         }
 
         /**

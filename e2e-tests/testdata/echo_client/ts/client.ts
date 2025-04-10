@@ -38,6 +38,8 @@ export default class Client {
     public readonly middleware: middleware.ServiceClient
     public readonly test: test.ServiceClient
     public readonly validation: validation.ServiceClient
+    private readonly options: ClientOptions
+    private readonly target: string
 
 
     /**
@@ -47,7 +49,9 @@ export default class Client {
      * @param options Options for the client
      */
     constructor(target: BaseURL, options?: ClientOptions) {
-        const base = new BaseClient(target, options ?? {})
+        this.target = target
+        this.options = options ?? {}
+        const base = new BaseClient(this.target, this.options)
         this.cache = new cache.ServiceClient(base)
         this.di = new di.ServiceClient(base)
         this.echo = new echo.ServiceClient(base)
@@ -56,6 +60,18 @@ export default class Client {
         this.middleware = new middleware.ServiceClient(base)
         this.test = new test.ServiceClient(base)
         this.validation = new validation.ServiceClient(base)
+    }
+
+    /**
+     * Creates a new Encore client with the given client options set.
+     *
+     * @param options Client options to set. They are merged with existing options.
+     **/
+    public with(options: ClientOptions): Client {
+        return new Client(this.target, {
+            ...this.options,
+            ...options,
+        })
     }
 }
 
@@ -99,6 +115,11 @@ export namespace cache {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.GetList = this.GetList.bind(this)
+            this.GetStruct = this.GetStruct.bind(this)
+            this.Incr = this.Incr.bind(this)
+            this.PostList = this.PostList.bind(this)
+            this.PostStruct = this.PostStruct.bind(this)
         }
 
         public async GetList(key: number): Promise<ListResponse> {
@@ -139,6 +160,9 @@ export namespace di {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.One = this.One.bind(this)
+            this.Three = this.Three.bind(this)
+            this.Two = this.Two.bind(this)
         }
 
         public async One(): Promise<void> {
@@ -262,6 +286,19 @@ export namespace echo {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.AppMeta = this.AppMeta.bind(this)
+            this.BasicEcho = this.BasicEcho.bind(this)
+            this.ConfigValues = this.ConfigValues.bind(this)
+            this.Echo = this.Echo.bind(this)
+            this.EmptyEcho = this.EmptyEcho.bind(this)
+            this.Env = this.Env.bind(this)
+            this.HeadersEcho = this.HeadersEcho.bind(this)
+            this.MuteEcho = this.MuteEcho.bind(this)
+            this.NilResponse = this.NilResponse.bind(this)
+            this.NonBasicEcho = this.NonBasicEcho.bind(this)
+            this.Noop = this.Noop.bind(this)
+            this.Pong = this.Pong.bind(this)
+            this.Publish = this.Publish.bind(this)
         }
 
         /**
@@ -433,6 +470,7 @@ export namespace emptycfg {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.AnAPI = this.AnAPI.bind(this)
         }
 
         public async AnAPI(): Promise<void> {
@@ -448,6 +486,7 @@ export namespace endtoend {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.GeneratedWrappersEndToEndTest = this.GeneratedWrappersEndToEndTest.bind(this)
         }
 
         public async GeneratedWrappersEndToEndTest(): Promise<void> {
@@ -466,6 +505,9 @@ export namespace middleware {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.Error = this.Error.bind(this)
+            this.ResponseGen = this.ResponseGen.bind(this)
+            this.ResponseRewrite = this.ResponseRewrite.bind(this)
         }
 
         public async Error(): Promise<void> {
@@ -547,6 +589,16 @@ export namespace test {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.GetMessage = this.GetMessage.bind(this)
+            this.MarshallerTestHandler = this.MarshallerTestHandler.bind(this)
+            this.Noop = this.Noop.bind(this)
+            this.NoopWithError = this.NoopWithError.bind(this)
+            this.PathMultiSegments = this.PathMultiSegments.bind(this)
+            this.RawEndpoint = this.RawEndpoint.bind(this)
+            this.RestStyleAPI = this.RestStyleAPI.bind(this)
+            this.SimpleBodyEcho = this.SimpleBodyEcho.bind(this)
+            this.TestAuthHandler = this.TestAuthHandler.bind(this)
+            this.UpdateMessage = this.UpdateMessage.bind(this)
         }
 
         /**
@@ -720,6 +772,7 @@ export namespace validation {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.TestOne = this.TestOne.bind(this)
         }
 
         public async TestOne(params: Request): Promise<void> {

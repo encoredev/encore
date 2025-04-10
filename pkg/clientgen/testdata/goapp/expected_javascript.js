@@ -45,6 +45,7 @@ export default class Client {
 class AuthenticationServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.Docs = this.Docs.bind(this)
     }
 
     async Docs(params) {
@@ -59,6 +60,8 @@ export const authentication = {
 class ProductsServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.Create = this.Create.bind(this)
+        this.List = this.List.bind(this)
     }
 
     async Create(params) {
@@ -92,6 +95,18 @@ export const products = {
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.DummyAPI = this.DummyAPI.bind(this)
+        this.FallbackPath = this.FallbackPath.bind(this)
+        this.Get = this.Get.bind(this)
+        this.GetRequestWithAllInputTypes = this.GetRequestWithAllInputTypes.bind(this)
+        this.HeaderOnlyRequest = this.HeaderOnlyRequest.bind(this)
+        this.Nested = this.Nested.bind(this)
+        this.RESTPath = this.RESTPath.bind(this)
+        this.Rec = this.Rec.bind(this)
+        this.RequestWithAllInputTypes = this.RequestWithAllInputTypes.bind(this)
+        this.TupleInputOutput = this.TupleInputOutput.bind(this)
+        this.Webhook = this.Webhook.bind(this)
+        this.Webhook2 = this.Webhook2.bind(this)
     }
 
     /**

@@ -43,6 +43,14 @@ export default class Client {
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.inOutWithHandshake = this.inOutWithHandshake.bind(this)
+        this.inOutWithoutHandshake = this.inOutWithoutHandshake.bind(this)
+        this.inWithHandshake = this.inWithHandshake.bind(this)
+        this.inWithResponse = this.inWithResponse.bind(this)
+        this.inWithResponseAndHandshake = this.inWithResponseAndHandshake.bind(this)
+        this.inWithoutHandshake = this.inWithoutHandshake.bind(this)
+        this.outWithHandshake = this.outWithHandshake.bind(this)
+        this.outWithoutHandshake = this.outWithoutHandshake.bind(this)
     }
 
     /**

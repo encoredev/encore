@@ -242,6 +242,14 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 	numIndent++
 	indent()
 	ts.WriteString("this.baseClient = baseClient\n")
+	for _, rpc := range svc.Rpcs {
+		if rpc.AccessType == meta.RPC_PRIVATE || !tags.IsRPCIncluded(rpc) {
+			continue
+		}
+		name := ts.memberName(rpc.Name)
+		indent()
+		fmt.Fprintf(ts, "this.%s = this.%s.bind(this)\n", name, name)
+	}
 	numIndent--
 	indent()
 	ts.WriteString("}\n")
@@ -1033,6 +1041,8 @@ export %sclass Client {
 				w.WriteStringf("public readonly %s: %s.ServiceClient\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
 			}
 		}
+		w.WriteString("private readonly options: ClientOptions\n")
+		w.WriteString("private readonly target: string\n")
 		w.WriteString("\n")
 
 		// Only include the deprecated constructor if bearer token authentication is being used
@@ -1078,7 +1088,9 @@ if (typeof options === "string") {
 		{
 			w := w.Indent()
 
-			w.WriteString("const base = new BaseClient(target, options ?? {})\n")
+			w.WriteString("this.target = target\n")
+			w.WriteString("this.options = options ?? {}\n")
+			w.WriteString("const base = new BaseClient(this.target, this.options)\n")
 			for _, svc := range ts.md.Svcs {
 				if hasPublicRPC(svc) && set.Has(svc.Name) {
 					w.WriteStringf("this.%s = new %s.ServiceClient(base)\n", ts.memberName(svc.Name), ts.typeName(svc.Name))
@@ -1087,6 +1099,21 @@ if (typeof options === "string") {
 		}
 		w.WriteString("}\n")
 	}
+
+	w.WriteString(`
+    /**
+     * Creates a new Encore client with the given client options set.
+     *
+     * @param options Client options to set. They are merged with existing options.
+     **/
+    public with(options: ClientOptions): Client {
+        return new Client(this.target, {
+            ...this.options,
+            ...options,
+        })
+    }
+`)
+
 	w.WriteString("}\n")
 
 	handler := ts.md.AuthHandler

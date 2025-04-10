@@ -43,6 +43,7 @@ export default class Client {
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.dummy = this.dummy.bind(this)
     }
 
     async dummy(params) {
