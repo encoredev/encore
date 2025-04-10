@@ -236,6 +236,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 		SpanID:        c.callMeta.SpanID,
 		ParentSpanID:  c.callMeta.ParentSpanID,
 		CallerEventID: c.callMeta.ParentEventID,
+		ParentSampled: c.callMeta.TraceSampled,
 
 		Data: &model.RPCData{
 			Desc:                 d.rpcDesc(),
