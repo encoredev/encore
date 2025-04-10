@@ -312,13 +312,13 @@ func parseTraceParent(s string) (traceID model.TraceID, spanID model.SpanID, sam
 		return model.TraceID{}, model.SpanID{}, false, false
 	}
 
-	var flags [2]byte
+	var flags [1]byte
 	_, err = hex.Decode(flags[:], []byte(s[flagsStart:flagsEnd]))
 	if err != nil {
 		return model.TraceID{}, model.SpanID{}, false, false
 	}
 
-	sampled = flags[1]&1 == 1
+	sampled = flags[0]&1 == 1
 
 	return traceID, spanID, sampled, true
 }
