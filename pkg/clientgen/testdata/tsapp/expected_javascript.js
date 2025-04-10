@@ -43,6 +43,10 @@ export default class Client {
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.dummy = this.dummy.bind(this)
+        this.imported = this.imported.bind(this)
+        this.onlyPathParams = this.onlyPathParams.bind(this)
+        this.root = this.root.bind(this)
     }
 
     async dummy(params) {

@@ -31,7 +31,7 @@ export function PreviewEnv(pr: number | string): BaseURL {
  */
 export default class Client {
     public readonly svc: svc.ServiceClient
-    private readonly clientOptions?: ClientOptions
+    private readonly options: ClientOptions
     private readonly target: string
 
 
@@ -58,21 +58,22 @@ export default class Client {
             options = { auth: options }
         }
 
-        const base = new BaseClient(target, options ?? {})
+        this.target = target
+        this.options = options ?? {}
+        const base = new BaseClient(this.target, this.options)
         this.svc = new svc.ServiceClient(base)
     }
 
     /**
-     * Creates a new Encore client with the given auth handler.
+     * Creates a new Encore client with the given client options set.
      *
-     * @param authHandler Authentication data to be used for each request. Either a static  
-     *                    object or a function which returns a new object for each request.
+     * @param options Client options to set. They are merged with existing options.
      **/
-    public withAuth(authHandler: svc.AuthParams | AuthDataGenerator): Client {
-       return new Client(this.target, {
-            ...this.clientOptions,
-            auth: authHandler,
-       })
+    public with(options: ClientOptions): Client {
+        return new Client(this.target, {
+            ...this.options,
+            ...options,
+        })
     }
 }
 
@@ -110,6 +111,8 @@ export namespace svc {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.DummyAPI = this.DummyAPI.bind(this)
+            this.Private = this.Private.bind(this)
         }
 
         /**
