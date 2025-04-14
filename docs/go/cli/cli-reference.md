@@ -34,13 +34,6 @@ Checks your application for compile-time errors using Encore's compiler.
 $ encore check
 ```
 
-#### Port
-
-Specify the port on which the local application runs
-
-```shell
-$ encore run --port PORT_NUMBER
-```
 
 #### Exec
 
@@ -214,6 +207,14 @@ Use `--lang=<lang>` to specify the language. Supported language codes are:
 $ encore gen client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--lang=<lang>] [flags]
 ```
 
+## Logs
+
+Streams logs from your application
+
+```shell
+$ encore logs [--env=prod] [--json]
+```
+
 ## Kubernetes
 
 Kubernetes management commands
@@ -224,14 +225,6 @@ Updates your kubectl config to point to the Kubernetes cluster(s) for the specif
 
 ```shell
 $ encore k8s configure --env=ENV_NAME
-```
-
-## Logs
-
-Streams logs from your application
-
-```shell
-$ encore logs [--env=prod] [--json]
 ```
 
 ## Secrets Management
