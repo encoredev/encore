@@ -34,7 +34,15 @@ Checks your application for compile-time errors using Encore's compiler.
 $ encore check
 ```
 
-#### Exec
+#### Port
+
+Specify the port on which the local application runs
+
+```shell
+$ encore run --port PORT_NUMBER
+```
+
+## Exec
 
 Runs executable scripts against the local Encore app.
 
@@ -241,7 +249,6 @@ $ encore secret set --type <types> <secret-name>
 Where `<types>` defines which environment types the secret value applies to. Use a comma-separated list of `production`, `development`, `preview`, and `local`. Shorthands: `prod`, `dev`, `pr`.
 
 **Examples**
-
 
 Entering a secret directly in terminal:
 
