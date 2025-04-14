@@ -13,7 +13,7 @@ lang: go
 Runs your application.
 
 ```shell
-$ encore run [--debug] [--watch=true] [flags]
+$ encore run [--debug] [--watch=true] [--port NUMBER] [flags]
 ```
 
 #### Test
