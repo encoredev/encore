@@ -356,7 +356,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service, tags c
 		}
 
 		interfaceMethods = append(interfaceMethods,
-			Id(rpc.Name).Add(g.rpcParams(rpc)).Add(g.rpcReturnType(rpc, false)),
+			Id(idents.Convert(rpc.Name, idents.PascalCase)).Add(g.rpcParams(rpc)).Add(g.rpcReturnType(rpc, false)),
 		)
 	}
 	file.Type().Id(interfaceName).Interface(interfaceMethods...)
@@ -395,7 +395,7 @@ func (g *golang) generateServiceClient(file *File, service *meta.Service, tags c
 
 		file.Func().
 			Params(Id("c").Op("*").Id(structName)).
-			Id(rpc.Name).
+			Id(idents.Convert(rpc.Name, idents.PascalCase)).
 			Add(
 				g.rpcParams(rpc),
 				g.rpcReturnType(rpc, true),
@@ -906,7 +906,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 			}
 
 			// The base field name and type
-			fieldTyp := Id(field.Name).Add(g.getType(field.Typ))
+			fieldTyp := Id(idents.Convert(field.Name, idents.PascalCase)).Add(g.getType(field.Typ))
 
 			// Add the field tags
 			if field.RawTag != "" {
@@ -1075,7 +1075,7 @@ func (g *golang) generateAnonStructTypes(fields []*encoding.ParameterEncoding, e
 
 		types = append(
 			types,
-			Id(field.SrcName).Add(g.getType(field.Type)).Tag(map[string]string{encodingTag: tagValue.String()}),
+			Id(idents.Convert(field.SrcName, idents.PascalCase)).Add(g.getType(field.Type)).Tag(map[string]string{encodingTag: tagValue.String()}),
 		)
 	}
 
@@ -1434,7 +1434,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					// If we have a slice, we need to encode each bit
 					slice, err := enc.ToStringSlice(
 						field.Type,
-						Id("authData").Dot(field.SrcName),
+						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 					)
 					if err != nil {
 						err = errors.Wrapf(err, "unable to encode query fields %s", field.SrcName)
@@ -1451,7 +1451,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 					// Otherwise, we can just append the field
 					val, err := enc.ToString(
 						field.Type,
-						Id("authData").Dot(field.SrcName),
+						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 					)
 					if err != nil {
 						err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
@@ -1477,7 +1477,7 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 				// Otherwise, we can just append the field
 				val, err := enc.ToString(
 					field.Type,
-					Id("authData").Dot(field.SrcName),
+					Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
 				)
 				if err != nil {
 					err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
