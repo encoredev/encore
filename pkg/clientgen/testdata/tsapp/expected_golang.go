@@ -91,35 +91,35 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (SvcAuthParams, error)
 }
 
 type SvcAuthParams struct {
-	cookie string `encore:"optional" header:"Cookie,optional"`
-	token  string `encore:"optional" header:"x-api-token,optional"`
+	Cookie string `encore:"optional" header:"Cookie,optional"`
+	Token  string `encore:"optional" header:"x-api-token,optional"`
 }
 
 type SvcRequest struct {
-	foo       float64 `encore:"optional"` // Foo is good
-	baz       string  // Baz is better
-	queryFoo  bool    `encore:"optional" query:"foo,optional"`
-	queryBar  string  `encore:"optional" query:"bar,optional"`
-	headerBaz string  `encore:"optional" header:"baz,optional"`
-	headerNum float64 `encore:"optional" header:"num,optional"`
+	Foo       float64 `encore:"optional"` // Foo is good
+	Baz       string  // Baz is better
+	QueryFoo  bool    `encore:"optional" query:"foo,optional"`
+	QueryBar  string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz string  `encore:"optional" header:"baz,optional"`
+	HeaderNum float64 `encore:"optional" header:"num,optional"`
 }
 
 type SvcRequest struct {
-	foo       float64 `encore:"optional"` // Foo is good
-	baz       string  // Baz is better
-	queryFoo  bool    `encore:"optional" query:"foo,optional"`
-	queryBar  string  `encore:"optional" query:"bar,optional"`
-	headerBaz string  `encore:"optional" header:"baz,optional"`
-	headerNum float64 `encore:"optional" header:"num,optional"`
+	Foo       float64 `encore:"optional"` // Foo is good
+	Baz       string  // Baz is better
+	QueryFoo  bool    `encore:"optional" query:"foo,optional"`
+	QueryBar  string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz string  `encore:"optional" header:"baz,optional"`
+	HeaderNum float64 `encore:"optional" header:"num,optional"`
 }
 
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
-	dummy(ctx context.Context, params SvcRequest) error
-	imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
-	onlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
-	root(ctx context.Context, params SvcRequest) error
+	Dummy(ctx context.Context, params SvcRequest) error
+	Imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
+	OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
+	Root(ctx context.Context, params SvcRequest) error
 }
 
 type svcClient struct {
@@ -128,7 +128,7 @@ type svcClient struct {
 
 var _ SvcClient = (*svcClient)(nil)
 
-func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
+func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 
@@ -148,8 +148,8 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		foo float64 `json:"foo"`
-		baz string  `json:"baz"`
+		Foo float64 `json:"foo"`
+		Baz string  `json:"baz"`
 	}{
 		baz: params.baz,
 		foo: params.foo,
@@ -159,7 +159,7 @@ func (c *svcClient) dummy(ctx context.Context, params SvcRequest) error {
 	return err
 }
 
-func (c *svcClient) imported(ctx context.Context, params Common_StuffImportedRequest) (resp Common_StuffImportedResponse, err error) {
+func (c *svcClient) Imported(ctx context.Context, params Common_StuffImportedRequest) (resp Common_StuffImportedResponse, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", "/imported", nil, params, &resp)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *svcClient) imported(ctx context.Context, params Common_StuffImportedReq
 	return
 }
 
-func (c *svcClient) onlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (resp Common_StuffImportedResponse, err error) {
+func (c *svcClient) OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (resp Common_StuffImportedResponse, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/path/%s/%s", url.PathEscape(pathParam), url.PathEscape(pathParam2)), nil, nil, &resp)
 	if err != nil {
@@ -179,7 +179,7 @@ func (c *svcClient) onlyPathParams(ctx context.Context, pathParam string, pathPa
 	return
 }
 
-func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
+func (c *svcClient) Root(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
 
@@ -199,8 +199,8 @@ func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		foo float64 `json:"foo"`
-		baz string  `json:"baz"`
+		Foo float64 `json:"foo"`
+		Baz string  `json:"baz"`
 	}{
 		baz: params.baz,
 		foo: params.foo,
@@ -211,11 +211,11 @@ func (c *svcClient) root(ctx context.Context, params SvcRequest) error {
 }
 
 type Common_StuffImportedRequest struct {
-	name string
+	Name string
 }
 
 type Common_StuffImportedResponse struct {
-	message string
+	Message string
 }
 
 // HTTPDoer is an interface which can be used to swap out the default
@@ -246,8 +246,8 @@ func (b *baseClient) Do(req *http.Request) (*http.Response, error) {
 			authEncoder := &serde{}
 
 			// Add the auth fields to the headers
-			req.Header.Set("cookie", authEncoder.FromString(authData.cookie))
-			req.Header.Set("x-api-token", authEncoder.FromString(authData.token))
+			req.Header.Set("cookie", authEncoder.FromString(authData.Cookie))
+			req.Header.Set("x-api-token", authEncoder.FromString(authData.Token))
 
 			if authEncoder.LastError != nil {
 				return nil, fmt.Errorf("unable to marshal authentication data: %w", authEncoder.LastError)
