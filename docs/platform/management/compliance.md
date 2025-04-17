@@ -86,7 +86,7 @@ User account authentication is provided by _Clerk_, a SOC 2 compliant vendor.
 
 There are two ways for a user to log in to Encore: Single sign-on (SSO) and username plus password. Single sign-on can be used by organizations to fully manage access to Encore and, for example, ensure that former employees no longer have access after the offboarding period. Encore supports Google and GitHub SSO using OAuth.
 
-If no SSO is used, the default login method is username and password, also handled by _Clerk_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
+If no SSO is used, the default login method is passwordless login using email and "magic link", also handled by _Clerk_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
 
 Encore offers bug bounty incentives to individuals who discover any security discrepancies. The objective of offering bug bounty incentives is to receive security-related bug reports from trusted "white hat hackers" before the vulnerability is actively exploited in a malicious way. This contributes to maintaining Encore's product security.
 
