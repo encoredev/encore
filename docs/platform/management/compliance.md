@@ -6,7 +6,7 @@ subtitle: Encore SOC 2 Self-assessment
 lang: platform
 ---
 
-_Last updated: 30 October, 2024_
+_Last updated: 17 April, 2025_
 
 As an organization or engineer who creates applications, your applications, code, and data are among your most important assets. Encore highly prioritizes the security of these assets, allowing you to concentrate on your goal: designing exceptional applications.
 
@@ -82,11 +82,11 @@ As a general principle, all of Encore's data is encrypted while being transporte
 
 All customer secret information is further encrypted using GCP's Key Management Service (KMS). Any access to encrypted data by Encore employees requires elevated access and approval by multiple parties, and all such activity is audited.
 
-User account authentication is provided by _Auth0 by Okta_, a SOC 2 compliant vendor.
+User account authentication is provided by _Clerk_, a SOC 2 compliant vendor.
 
 There are two ways for a user to log in to Encore: Single sign-on (SSO) and username plus password. Single sign-on can be used by organizations to fully manage access to Encore and, for example, ensure that former employees no longer have access after the offboarding period. Encore supports Google and GitHub SSO using OAuth.
 
-If no SSO is used, the default login method is username and password, also handled by _Auth0 by Okta_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
+If no SSO is used, the default login method is username and password, also handled by _Clerk_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
 
 Encore offers bug bounty incentives to individuals who discover any security discrepancies. The objective of offering bug bounty incentives is to receive security-related bug reports from trusted "white hat hackers" before the vulnerability is actively exploited in a malicious way. This contributes to maintaining Encore's product security.
 
@@ -129,7 +129,7 @@ process.
 
 To reduce the risk of simultaneous failure, Encore backs up data to multiple US regions in GCP, with very limited access. Relational databases are backed up on a daily schedule.
 
-Encore is currently planning a rehearsal of disaster recovery in Q4 of 2023. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
+Encore is currently planning a rehearsal of disaster recovery in Q4 of 2025. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
 
 ### Incident handling
 
@@ -151,7 +151,7 @@ All systems access is subject to the "principle of least privilege", meaning tha
 
 ### Deletion
 
-User data will be stored by Encore after the termination of a subscription term, according to [Encore's Terms of Service](https://encore.dev/legal/terms). When a user requests the deletion of data, the data is made inaccessible or physically deleted, depending on the data type and storage location.  For technical reasons, data may remain in backups after this point.
+User data will be stored by Encore after the termination of a subscription term, according to [Encore's Terms of Service](https://encore.cloud/legal/terms). When a user requests the deletion of data, the data is made inaccessible or physically deleted, depending on the data type and storage location.  For technical reasons, data may remain in backups after this point.
 
 ## Processing integrity
 
@@ -195,7 +195,7 @@ One fundamental rule of the GDPR is the principle of "data minimization", which 
 
 ### Privacy policy
 
-We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](https://encore.dev/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
+We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](https://encore.cloud/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
 
 ## Questions and clarifications
 
