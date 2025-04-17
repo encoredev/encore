@@ -1,12 +1,12 @@
 ---
 seotitle: Compliance & Security
-seodesc: Encore is designed to help you build secure, scalabl, applications. We take the security and reliability of your application very seriously.
+seodesc: Encore is designed to help you build secure, scalable applications. We take the security and reliability of your application very seriously.
 title: Compliance & Security
 subtitle: Encore SOC 2 Self-assessment
 lang: platform
 ---
 
-_Last updated: 30 October, 2024_
+_Last updated: 17 April, 2025_
 
 As an organization or engineer who creates applications, your applications, code, and data are among your most important assets. Encore highly prioritizes the security of these assets, allowing you to concentrate on your goal: designing exceptional applications.
 
@@ -56,7 +56,7 @@ Encore's core production infrastructure is hosted on GCP (Google Cloud Platform)
 
 All core data processing is carried out in the US East region (us-east-1), and backups are kept in multiple separate regions in the US. Each region is composed of at least three "availability zones" (AZs) which are isolated locations, designed to take over in case of a catastrophic failure at one location. AZs are separated by a significant distance such that it is unlikely that they are affected by the same issues such as power outages, earthquakes, etc. Physical access to GCP is restricted by GCP's security controls. Furthermore, GCP monitors and immediately responds to power, temperature, fire, water leaks, etc.
 
-Access to Encore's production infrastructure is restricted to Encore employees. All systems have controlled access and only a limited number of employees have privileged access. Access is only possible through a VPN over Tailscale.
+Access to Encore's production infrastructure is restricted to Encore employees. All systems have access controls and only a limited number of employees have privileged access. Access is only possible through a VPN over Tailscale.
 
 The production environment is separated from testing environments, using separate accounts and VPCs (Virtual Private Cloud) in GCP. This ensures that any defect in a test environment cannot impact the production system. The connection to the internet is controlled by dedicated gateways.
 
@@ -72,7 +72,7 @@ Encore employment policy mandates that all hard drives must be encrypted.
 
 ### Product security
 
-Encore is aware of how important it is to its customers that all data is handled securely. Therefore, several layers of protection ensure that the data is not accessible to unauthorized persons.
+Encore is aware of how important it is for its customers that all data is handled securely. Therefore, several layers of protection ensure that the data is not accessible to unauthorized persons.
 
 An essential part of software security is "defense in depth" which means that there are multiple layers of protection. In case one layer is breached, the next layer helps to contain the breach and mitigate its consequences. This can be achieved by isolating software components from each other, such that the breach of one component does not affect adjacent software.
 
@@ -82,11 +82,11 @@ As a general principle, all of Encore's data is encrypted while being transporte
 
 All customer secret information is further encrypted using GCP's Key Management Service (KMS). Any access to encrypted data by Encore employees requires elevated access and approval by multiple parties, and all such activity is audited.
 
-User account authentication is provided by _Auth0 by Okta_, a SOC 2 compliant vendor.
+User account authentication is provided by _Clerk_, a SOC 2 compliant vendor.
 
 There are two ways for a user to log in to Encore: Single sign-on (SSO) and username plus password. Single sign-on can be used by organizations to fully manage access to Encore and, for example, ensure that former employees no longer have access after the offboarding period. Encore supports Google and GitHub SSO using OAuth.
 
-If no SSO is used, the default login method is username and password, also handled by _Auth0 by Okta_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
+If no SSO is used, the default login method is passwordless login using email and "magic link", also handled by _Clerk_. Encore does not store or in any way handle passwords, neither in plaintext nor cryptographic hash form. This means that Encore does not know the passwords of any users, and no passwords can be reconstructed from our databases.
 
 Encore offers bug bounty incentives to individuals who discover any security discrepancies. The objective of offering bug bounty incentives is to receive security-related bug reports from trusted "white hat hackers" before the vulnerability is actively exploited in a malicious way. This contributes to maintaining Encore's product security.
 
@@ -116,20 +116,17 @@ During the release of a new version of Encore services, Encore's engineers take 
 
 ### Performance monitoring
 
-Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring (all being SOC 2 compliant vendors). Grafana, is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
+Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring (all being SOC 2 compliant vendors). Grafana is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
 
-Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the developers in case the performance of the system has regressed, for example, due to increased response times, or increased error rates. To enable the root cause analysis of bugs, Encore collects system logs from all parts of the system. These logs can only be accessed by authorized users.
+Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the developers in case the performance of the system has regressed, for example, due to increased response times, or increased error rates. To enable root cause analysis of bugs, Encore collects system logs from all parts of the system. These logs can only be accessed by authorized users.
 
-Encore offers a public "Status page" where users and customers and find the current status of Encore systems. It is available at: [https://status.encore.dev/](https://status.encore.dev/).
-
-
-process.
+Encore offers a public "Status page" where users and customers can find the current status of Encore systems. It is available at: [https://status.encore.dev/](https://status.encore.dev/).
 
 ### Backups and disaster recovery
 
 To reduce the risk of simultaneous failure, Encore backs up data to multiple US regions in GCP, with very limited access. Relational databases are backed up on a daily schedule.
 
-Encore is currently planning a rehearsal of disaster recovery in Q4 of 2023. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
+Encore is currently planning a rehearsal of disaster recovery in Q4 of 2025. In this exercise, a clone of the production environment will be recovered from scratch using backups and tested for soundness.
 
 ### Incident handling
 
@@ -151,7 +148,7 @@ All systems access is subject to the "principle of least privilege", meaning tha
 
 ### Deletion
 
-User data will be stored by Encore after the termination of a subscription term, according to [Encore's Terms of Service](https://encore.dev/legal/terms). When a user requests the deletion of data, the data is made inaccessible or physically deleted, depending on the data type and storage location.  For technical reasons, data may remain in backups after this point.
+User data will be stored by Encore after the termination of a subscription term, according to [Encore's Terms of Service](https://encore.cloud/legal/terms). When a user requests the deletion of data, the data is made inaccessible or physically deleted, depending on the data type and storage location.  For technical reasons, data may remain in backups after this point.
 
 ## Processing integrity
 
@@ -195,7 +192,7 @@ One fundamental rule of the GDPR is the principle of "data minimization", which 
 
 ### Privacy policy
 
-We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](https://encore.dev/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
+We are aware that confidential handling of your data is essential to establishing trust. Therefore, [Encore's Privacy Policy](https://encore.cloud/legal/privacy) ensures that the data of our users is protected according to the high standards of GDPR.
 
 ## Questions and clarifications
 
