@@ -50,6 +50,11 @@ export default class Client {
 class CacheServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.GetList = this.GetList.bind(this)
+        this.GetStruct = this.GetStruct.bind(this)
+        this.Incr = this.Incr.bind(this)
+        this.PostList = this.PostList.bind(this)
+        this.PostStruct = this.PostStruct.bind(this)
     }
 
     async GetList(key) {
@@ -86,6 +91,9 @@ export const cache = {
 class DiServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.One = this.One.bind(this)
+        this.Three = this.Three.bind(this)
+        this.Two = this.Two.bind(this)
     }
 
     async One() {
@@ -110,6 +118,19 @@ export const di = {
 class EchoServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.AppMeta = this.AppMeta.bind(this)
+        this.BasicEcho = this.BasicEcho.bind(this)
+        this.ConfigValues = this.ConfigValues.bind(this)
+        this.Echo = this.Echo.bind(this)
+        this.EmptyEcho = this.EmptyEcho.bind(this)
+        this.Env = this.Env.bind(this)
+        this.HeadersEcho = this.HeadersEcho.bind(this)
+        this.MuteEcho = this.MuteEcho.bind(this)
+        this.NilResponse = this.NilResponse.bind(this)
+        this.NonBasicEcho = this.NonBasicEcho.bind(this)
+        this.Noop = this.Noop.bind(this)
+        this.Pong = this.Pong.bind(this)
+        this.Publish = this.Publish.bind(this)
     }
 
     /**
@@ -280,6 +301,7 @@ export const echo = {
 class EmptycfgServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.AnAPI = this.AnAPI.bind(this)
     }
 
     async AnAPI() {
@@ -294,6 +316,7 @@ export const emptycfg = {
 class EndtoendServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.GeneratedWrappersEndToEndTest = this.GeneratedWrappersEndToEndTest.bind(this)
     }
 
     async GeneratedWrappersEndToEndTest() {
@@ -308,6 +331,9 @@ export const endtoend = {
 class MiddlewareServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.Error = this.Error.bind(this)
+        this.ResponseGen = this.ResponseGen.bind(this)
+        this.ResponseRewrite = this.ResponseRewrite.bind(this)
     }
 
     async Error() {
@@ -334,6 +360,16 @@ export const middleware = {
 class TestServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.GetMessage = this.GetMessage.bind(this)
+        this.MarshallerTestHandler = this.MarshallerTestHandler.bind(this)
+        this.Noop = this.Noop.bind(this)
+        this.NoopWithError = this.NoopWithError.bind(this)
+        this.PathMultiSegments = this.PathMultiSegments.bind(this)
+        this.RawEndpoint = this.RawEndpoint.bind(this)
+        this.RestStyleAPI = this.RestStyleAPI.bind(this)
+        this.SimpleBodyEcho = this.SimpleBodyEcho.bind(this)
+        this.TestAuthHandler = this.TestAuthHandler.bind(this)
+        this.UpdateMessage = this.UpdateMessage.bind(this)
     }
 
     /**
@@ -503,6 +539,7 @@ export const test = {
 class ValidationServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.TestOne = this.TestOne.bind(this)
     }
 
     async TestOne(params) {
