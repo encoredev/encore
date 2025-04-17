@@ -33,7 +33,6 @@ type Request struct {
     Bar string `json:"-"`
     Baz string `json:"boo"`        // Baz is better
 
-
     QueryFoo bool    `query:"foo" encore:"optional"`
     QueryBar string  `query:"bar" encore:"optional"`
     HeaderBaz string `header:"baz" encore:"optional"`
