@@ -122,9 +122,6 @@ Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the d
 
 Encore offers a public "Status page" where users and customers and find the current status of Encore systems. It is available at: [https://status.encore.dev/](https://status.encore.dev/).
 
-
-process.
-
 ### Backups and disaster recovery
 
 To reduce the risk of simultaneous failure, Encore backs up data to multiple US regions in GCP, with very limited access. Relational databases are backed up on a daily schedule.
