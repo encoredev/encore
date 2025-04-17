@@ -1744,11 +1744,15 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			indent()
 			ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
 
-			if field.Optional || ts.isRecursive(field.Typ) {
+			isOptional := field.Optional || ts.isRecursive(field.Typ)
+			if isOptional {
 				ts.WriteString("?")
 			}
 			ts.WriteString(": ")
 			ts.writeTyp(ns, field.Typ, numIndents+1)
+			if isOptional {
+				ts.WriteString(" | undefined | null")
+			}
 			ts.WriteString("\n")
 
 			// Add another empty line if we have a doc comment
