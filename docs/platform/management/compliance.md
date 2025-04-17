@@ -116,7 +116,7 @@ During the release of a new version of Encore services, Encore's engineers take 
 
 ### Performance monitoring
 
-Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring (all being SOC 2 compliant vendors). Grafana, is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
+Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring (all being SOC 2 compliant vendors). Grafana is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
 
 Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the developers in case the performance of the system has regressed, for example, due to increased response times, or increased error rates. To enable the root cause analysis of bugs, Encore collects system logs from all parts of the system. These logs can only be accessed by authorized users.
 
