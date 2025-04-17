@@ -69,42 +69,42 @@ export interface ClientOptions {
 
 export namespace svc {
     export interface AuthParams {
-        cookie?: string
-        token?: string
+        cookie?: string | undefined | null
+        token?: string | undefined | null
     }
 
     export interface Request {
         /**
          * Foo is good
          */
-        foo?: number
+        foo?: number | undefined | null
 
         /**
          * Baz is better
          */
         baz: string
 
-        queryFoo?: boolean
-        queryBar?: string
-        headerBaz?: string
-        headerNum?: number
+        queryFoo?: boolean | undefined | null
+        queryBar?: string | undefined | null
+        headerBaz?: string | undefined | null
+        headerNum?: number | undefined | null
     }
 
     export interface Request {
         /**
          * Foo is good
          */
-        foo?: number
+        foo?: number | undefined | null
 
         /**
          * Baz is better
          */
         baz: string
 
-        queryFoo?: boolean
-        queryBar?: string
-        headerBaz?: string
-        headerNum?: number
+        queryFoo?: boolean | undefined | null
+        queryBar?: string | undefined | null
+        headerBaz?: string | undefined | null
+        headerNum?: number | undefined | null
     }
 
     export class ServiceClient {
