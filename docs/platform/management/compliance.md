@@ -1,6 +1,6 @@
 ---
 seotitle: Compliance & Security
-seodesc: Encore is designed to help you build secure, scalabl, applications. We take the security and reliability of your application very seriously.
+seodesc: Encore is designed to help you build secure, scalable applications. We take the security and reliability of your application very seriously.
 title: Compliance & Security
 subtitle: Encore SOC 2 Self-assessment
 lang: platform
@@ -56,7 +56,7 @@ Encore's core production infrastructure is hosted on GCP (Google Cloud Platform)
 
 All core data processing is carried out in the US East region (us-east-1), and backups are kept in multiple separate regions in the US. Each region is composed of at least three "availability zones" (AZs) which are isolated locations, designed to take over in case of a catastrophic failure at one location. AZs are separated by a significant distance such that it is unlikely that they are affected by the same issues such as power outages, earthquakes, etc. Physical access to GCP is restricted by GCP's security controls. Furthermore, GCP monitors and immediately responds to power, temperature, fire, water leaks, etc.
 
-Access to Encore's production infrastructure is restricted to Encore employees. All systems have controlled access and only a limited number of employees have privileged access. Access is only possible through a VPN over Tailscale.
+Access to Encore's production infrastructure is restricted to Encore employees. All systems have access controls and only a limited number of employees have privileged access. Access is only possible through a VPN over Tailscale.
 
 The production environment is separated from testing environments, using separate accounts and VPCs (Virtual Private Cloud) in GCP. This ensures that any defect in a test environment cannot impact the production system. The connection to the internet is controlled by dedicated gateways.
 
@@ -72,7 +72,7 @@ Encore employment policy mandates that all hard drives must be encrypted.
 
 ### Product security
 
-Encore is aware of how important it is to its customers that all data is handled securely. Therefore, several layers of protection ensure that the data is not accessible to unauthorized persons.
+Encore is aware of how important it is for its customers that all data is handled securely. Therefore, several layers of protection ensure that the data is not accessible to unauthorized persons.
 
 An essential part of software security is "defense in depth" which means that there are multiple layers of protection. In case one layer is breached, the next layer helps to contain the breach and mitigate its consequences. This can be achieved by isolating software components from each other, such that the breach of one component does not affect adjacent software.
 
@@ -118,9 +118,9 @@ During the release of a new version of Encore services, Encore's engineers take 
 
 Encore uses a number of performance monitoring systems, such as Sentry, Cronitor, Grafana, and Google Cloud Monitoring (all being SOC 2 compliant vendors). Grafana is used to monitor application performance, such as server response times and user interface speed. Grafana also collects server-side metrics like CPU and RAM usage. Additionally, Encore monitors the performance of databases with GCP tooling.
 
-Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the developers in case the performance of the system has regressed, for example, due to increased response times, or increased error rates. To enable the root cause analysis of bugs, Encore collects system logs from all parts of the system. These logs can only be accessed by authorized users.
+Slack, a SOC 2 compliant vendor, is used as the alerting channel to notify the developers in case the performance of the system has regressed, for example, due to increased response times, or increased error rates. To enable root cause analysis of bugs, Encore collects system logs from all parts of the system. These logs can only be accessed by authorized users.
 
-Encore offers a public "Status page" where users and customers and find the current status of Encore systems. It is available at: [https://status.encore.dev/](https://status.encore.dev/).
+Encore offers a public "Status page" where users and customers can find the current status of Encore systems. It is available at: [https://status.encore.dev/](https://status.encore.dev/).
 
 ### Backups and disaster recovery
 
