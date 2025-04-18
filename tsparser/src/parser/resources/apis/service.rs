@@ -51,7 +51,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                 }
 
                 // This resource is only allowed to be defined in a module named "encore.service.ts".
-                // Check that that is the case.
+                // Check that is the case.
                 match &pass.module.file_path {
                     FilePath::Real(buf) if buf.ends_with("encore.service.ts") => {}
                     _ => {
