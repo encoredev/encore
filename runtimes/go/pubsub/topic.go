@@ -156,8 +156,6 @@ func (t *Topic[T]) Publish(ctx context.Context, msg T) (id string, err error) {
 		}
 
 		attrs[parentSampledAttribute] = strconv.FormatBool(req.Traced)
-	} else {
-		attrs[parentSampledAttribute] = strconv.FormatBool(false)
 	}
 
 	// Start the trace span
