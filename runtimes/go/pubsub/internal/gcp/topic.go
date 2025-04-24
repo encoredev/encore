@@ -67,7 +67,12 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	}
 
 	// Attempt to publish the message
-	return t.gcpTopic.Publish(ctx, gcpMsg).Get(ctx)
+	id, err = t.gcpTopic.Publish(ctx, gcpMsg).Get(ctx)
+
+	if t.gcpTopic.EnableMessageOrdering && err != nil {
+		t.gcpTopic.ResumePublish(orderingKey)
+	}
+	return id, err
 }
 
 func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
