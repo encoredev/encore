@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: encr.dev
 
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: encr.dev
 
@@ -136,7 +136,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install jq
         uses: dcarbone/install-jq-action@91d8da7268538e8a0ae0c8b72af44f1763228455

@@ -39,7 +39,7 @@ jobs:
     runs-on: ${{ matrix.builder }}
     steps:
       - name: Check out repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: encr.dev
 
@@ -89,7 +89,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           sparse-checkout: .github
       - name: Download Artifacts
