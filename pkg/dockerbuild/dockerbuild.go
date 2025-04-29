@@ -314,14 +314,14 @@ func tryFetch(ctx context.Context, url string) (*http.Response, error) {
 
 func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
 	const (
-		encoreCachedRootCerts                     = "https://api.encore.cloud/artifacts/build/root-certs"
-		mozillaRootStoreWebsiteTrustBitEnabledURL = "https://ccadb-public.secure.force.com/mozilla/IncludedRootsPEMTxt?TrustBitsInclude=Websites"
+		encoreCachedRootCerts = "https://api.encore.cloud/artifacts/build/root-certs"
+		curlCACertStore       = "https://curl.se/ca/cacert.pem"
 	)
 	var (
 		resp *http.Response
 		err  error
 	)
-	for _, url := range []string{encoreCachedRootCerts, mozillaRootStoreWebsiteTrustBitEnabledURL} {
+	for _, url := range []string{encoreCachedRootCerts, curlCACertStore} {
 		resp, err = tryFetch(ctx, url)
 		if err == nil {
 			break
