@@ -208,6 +208,7 @@ impl Runtime {
         endpoint: String,
         payload: Option<JsUnknown>,
         source: Option<&Request>,
+        opts: Option<&CallOpts>,
     ) -> napi::Result<JsObject> {
         let payload = match payload {
             Some(payload) => parse_pvalues(payload)?,
@@ -215,7 +216,7 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
 
-        let fut = self.do_api_call(endpoint, payload, source);
+        let fut = self.do_api_call(endpoint, payload, source, opts);
         let fut = async move {
             let res: napi::Result<Either<Option<PValues>, APICallError>> = match fut.await {
                 Ok(data) => Ok(Either::A(data)),
@@ -237,9 +238,11 @@ impl Runtime {
         endpoint: EndpointName,
         payload: Option<PValues>,
         source: Option<&'a Request>,
+        opts: Option<&'a CallOpts>,
     ) -> impl Future<Output = api::APIResult<Option<PValues>>> + 'static {
         let source = source.map(|s| s.inner.clone());
-        let fut = self.runtime.api().call(endpoint, payload, source);
+        let opts = opts.map(|o| Arc::new(o.clone().into()));
+        let fut = self.runtime.api().call(endpoint, payload, source, opts);
 
         async move {
             let data = fut.await?;
@@ -264,6 +267,7 @@ impl Runtime {
         endpoint: String,
         payload: Option<JsUnknown>,
         source: Option<&Request>,
+        opts: Option<&CallOpts>,
     ) -> napi::Result<JsObject> {
         let payload = match payload {
             Some(payload) => parse_pvalues(payload)?,
@@ -271,7 +275,8 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
         let source = source.map(|s| s.inner.clone());
-        let fut = self.runtime.api().stream(endpoint, payload, source);
+        let opts = opts.map(|o| Arc::new(o.clone().into()));
+        let fut = self.runtime.api().stream(endpoint, payload, source, opts);
 
         let fut = async move {
             fut.await.map_err(|e| {
@@ -318,6 +323,39 @@ impl Runtime {
                 }
             }
             None => 1u32,
+        }
+    }
+}
+
+#[napi]
+#[derive(Clone, Default)]
+pub struct CallOpts {
+    pub auth_data: Option<PVals>,
+}
+
+#[napi]
+impl CallOpts {
+    #[napi(constructor)]
+    pub fn new() -> CallOpts {
+        CallOpts::default()
+    }
+
+    #[napi]
+    pub fn with_auth_data(&self, data: PVals) -> CallOpts {
+        CallOpts {
+            auth_data: Some(data),
+        }
+    }
+}
+
+impl From<CallOpts> for api::CallOpts {
+    fn from(value: CallOpts) -> Self {
+        api::CallOpts {
+            auth_data: value.auth_data.as_ref().map(|ad| ad.0.clone()),
+            auth_user_id: value.auth_data.as_ref().and_then(|ad| {
+                ad.0.get("userID")
+                    .and_then(|pv| pv.as_str().map(|s| s.to_string()))
+            }),
         }
     }
 }

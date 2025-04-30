@@ -5,10 +5,11 @@ import { APIError, ErrCode } from "../../api/error";
 export async function apiCall(
   service: string,
   endpoint: string,
-  data: any
+  data: any,
+  opts?: runtime.CallOpts
 ): Promise<any> {
   const source = getCurrentRequest();
-  const resp = await runtime.RT.apiCall(service, endpoint, data, source);
+  const resp = await runtime.RT.apiCall(service, endpoint, data, source, opts);
 
   // Convert any call error to our APIError type.
   // We do this here because NAPI doesn't have great support

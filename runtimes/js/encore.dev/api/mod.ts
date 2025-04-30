@@ -7,6 +7,7 @@ import { RawRequest } from "./mod";
 import { InternalHandlerResponse } from "../internal/appinit/mod";
 import { IterableSocket, IterableStream, Sink } from "./stream";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
+export { CallOpts } from "../internal/runtime/mod";
 
 export type Method =
   | "GET"
@@ -26,14 +27,14 @@ export type Header<
 
 export type Query<
   TypeOrName extends
-  | string
-  | string[]
-  | number
-  | number[]
-  | boolean
-  | boolean[]
-  | Date
-  | Date[] = string,
+    | string
+    | string[]
+    | number
+    | number[]
+    | boolean
+    | boolean[]
+    | Date
+    | Date[] = string,
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
@@ -159,21 +160,21 @@ export interface StreamOut<Response> {
 
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamInOut<Request, Response>) => Promise<void>
-  : (
-    data: HandshakeData,
-    stream: StreamInOut<Request, Response>
-  ) => Promise<void>;
+    ? (stream: StreamInOut<Request, Response>) => Promise<void>
+    : (
+        data: HandshakeData,
+        stream: StreamInOut<Request, Response>
+      ) => Promise<void>;
 
 export type StreamOutHandlerFn<HandshakeData, Response> =
   HandshakeData extends void
-  ? (stream: StreamOut<Response>) => Promise<void>
-  : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+    ? (stream: StreamOut<Response>) => Promise<void>
+    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
 
 export type StreamInHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamIn<Request>) => Promise<Response>
-  : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
+    ? (stream: StreamIn<Request>) => Promise<Response>
+    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
