@@ -361,7 +361,7 @@ func (pg *ProcGroup) Warnings() (rtn []warning) {
 	if missing := pg.ConfigGen.MissingSecrets(); len(missing) > 0 {
 		rtn = append(rtn, warning{
 			Title: "secrets not defined: " + strings.Join(missing, ", "),
-			Help:  "undefined secrets are left empty for local development only.\nsee https://encore.dev/docs/primitives/secrets for more information",
+			Help:  "undefined secrets are left empty for local development only, make sure you have access to the app.\nsee https://encore.dev/docs/primitives/secrets for more information",
 		})
 	}
 
