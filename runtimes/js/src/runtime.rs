@@ -329,6 +329,7 @@ impl Runtime {
 
 #[napi]
 #[derive(Clone, Default)]
+/// CallOpts can be used to set options for API calls.
 pub struct CallOpts {
     pub auth_data: Option<PVals>,
 }
