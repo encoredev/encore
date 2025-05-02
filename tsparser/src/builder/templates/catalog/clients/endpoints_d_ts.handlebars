@@ -31,11 +31,6 @@ type StreamResponse<Type> = Type extends
   : never;
 
 {{/if}}
-import { AuthData } from "../../auth/auth.js";
-export interface CallOpts {
-  authData?: AuthData;
-}
-
 type Parameters<T> = T extends (...args: infer P) => unknown ? P : never;
 type WithCallOpts<T extends (...args: any) => any> = (
   ...args: [...Parameters<T>, CallOpts?]

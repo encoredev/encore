@@ -10,6 +10,13 @@ export type AuthData = {{#each auth_handlers }}{{#unless @first}}
 export function getAuthData(): AuthData | null {
     return _getAuthData()
 }
+
+declare global {
+  interface CallOpts {
+    authData?: AuthData;
+  }
+}
+
 {{else}}
 export type AuthData = null;
 

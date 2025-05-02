@@ -1,3 +1,7 @@
+declare global {
+  interface CallOpts {}
+}
+
 export { appMeta } from "./app_meta";
 export type {
   AppMeta,
@@ -5,7 +9,7 @@ export type {
   CloudProvider,
   DeployMeta,
   EnvironmentMeta,
-  EnvironmentType,
+  EnvironmentType
 } from "./app_meta";
 
 export { currentRequest } from "./req_meta";
@@ -15,5 +19,5 @@ export type {
   Method,
   PubSubMessageMeta,
   RequestMeta,
-  TraceData,
+  TraceData
 } from "./req_meta";
