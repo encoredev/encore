@@ -208,7 +208,7 @@ impl Runtime {
         endpoint: String,
         payload: Option<JsUnknown>,
         source: Option<&Request>,
-        opts: Option<&CallOpts>,
+        opts: Option<CallOpts>,
     ) -> napi::Result<JsObject> {
         let payload = match payload {
             Some(payload) => parse_pvalues(payload)?,
@@ -238,7 +238,7 @@ impl Runtime {
         endpoint: EndpointName,
         payload: Option<PValues>,
         source: Option<&'a Request>,
-        opts: Option<&'a CallOpts>,
+        opts: Option<CallOpts>,
     ) -> impl Future<Output = api::APIResult<Option<PValues>>> + 'static {
         let source = source.map(|s| s.inner.clone());
         let opts = opts.map(|o| Arc::new(o.clone().into()));
@@ -267,7 +267,7 @@ impl Runtime {
         endpoint: String,
         payload: Option<JsUnknown>,
         source: Option<&Request>,
-        opts: Option<&CallOpts>,
+        opts: Option<CallOpts>,
     ) -> napi::Result<JsObject> {
         let payload = match payload {
             Some(payload) => parse_pvalues(payload)?,
@@ -327,26 +327,11 @@ impl Runtime {
     }
 }
 
-#[napi]
+#[napi(object)]
 #[derive(Clone, Default)]
 /// CallOpts can be used to set options for API calls.
 pub struct CallOpts {
     pub auth_data: Option<PVals>,
-}
-
-#[napi]
-impl CallOpts {
-    #[napi(constructor)]
-    pub fn new() -> CallOpts {
-        CallOpts::default()
-    }
-
-    #[napi]
-    pub fn with_auth_data(&self, data: PVals) -> CallOpts {
-        CallOpts {
-            auth_data: Some(data),
-        }
-    }
 }
 
 impl From<CallOpts> for api::CallOpts {
