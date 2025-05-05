@@ -239,7 +239,10 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			RequirePassword: false,
 			FrontendTLS:     nil,
 			DialBackend: func(ctx context.Context, startup *pgproxy.StartupData) (pgproxy.LogicalConn, error) {
-				startupData := startup.Raw.Encode(nil)
+				startupData, err := startup.Raw.Encode(nil)
+				if err != nil {
+					return nil, err
+				}
 				ws, err := platform.DBConnect(ctx, appID, params.EnvName, startup.Database, toRoleType(params.Role).String(), startupData)
 				if err != nil {
 					return nil, err

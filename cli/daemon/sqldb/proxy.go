@@ -420,10 +420,7 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 			Code:     "08006",
 			Message:  "database cluster not running",
 		}
-		encode, err := msg.Encode(nil)
-		if err != nil {
-			return
-		}
+		encode, _ := msg.Encode(nil)
 		_, _ = client.Write(encode)
 		return
 	}
@@ -435,10 +432,7 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 			Code:     "08006",
 			Message:  "database cluster not running",
 		}
-		encode, err := msg.Encode(nil)
-		if err != nil {
-			return
-		}
+		encode, _ := msg.Encode(nil)
 		_, _ = client.Write(encode)
 		return
 	}
