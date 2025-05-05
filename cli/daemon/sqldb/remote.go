@@ -42,7 +42,10 @@ func oneshotServer(ctx context.Context, ln net.Listener, passwd, appSlug, envSlu
 			if startup.Password != passwd {
 				return nil, fmt.Errorf("bad password")
 			}
-			startupData := startup.Raw.Encode(nil)
+			startupData, err := startup.Raw.Encode(nil)
+			if err != nil {
+				return nil, err
+			}
 			ws, err := platform.DBConnect(ctx, appSlug, envSlug, startup.Database, role.String(), startupData)
 			if err != nil {
 				var e platform.Error
@@ -102,7 +105,10 @@ func (c *WebsocketLogicalConn) Read(p []byte) (int, error) {
 
 func (c *WebsocketLogicalConn) Cancel(req *pgproxy.CancelData) error {
 	enc := base64.StdEncoding
-	data := req.Raw.Encode(nil)
+	data, err := req.Raw.Encode(nil)
+	if err != nil {
+		return err
+	}
 	encoded := make([]byte, enc.EncodedLen(len(data)))
 	enc.Encode(encoded, data)
 	log.Info().Msgf("sending cancel request %x", data)

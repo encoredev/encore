@@ -420,7 +420,8 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 			Code:     "08006",
 			Message:  "database cluster not running",
 		}
-		_, _ = client.Write(msg.Encode(nil))
+		encode, _ := msg.Encode(nil)
+		_, _ = client.Write(encode)
 		return
 	}
 
@@ -431,7 +432,8 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 			Code:     "08006",
 			Message:  "database cluster not running",
 		}
-		_, _ = client.Write(msg.Encode(nil))
+		encode, _ := msg.Encode(nil)
+		_, _ = client.Write(encode)
 		return
 	}
 	defer fns.CloseIgnore(backend)
@@ -439,6 +441,10 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 }
 
 func writeMsg(w io.Writer, msg pgproto3.Message) error {
-	_, err := w.Write(msg.Encode(nil))
+	encode, err := msg.Encode(nil)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(encode)
 	return err
 }
