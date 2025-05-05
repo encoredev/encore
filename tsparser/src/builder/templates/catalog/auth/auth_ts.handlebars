@@ -11,12 +11,6 @@ export function getAuthData(): AuthData | null {
     return _getAuthData()
 }
 
-declare global {
-  interface CallOpts {
-    authData?: AuthData;
-  }
-}
-
 {{else}}
 export type AuthData = null;
 
@@ -25,3 +19,9 @@ export function getAuthData(): AuthData | null {
     throw new Error("authData cannot be called when there are no auth handlers.")
 }
 {{/if}}
+declare module "encore.dev/api" {
+  interface CallOpts {
+    authData?: AuthData;
+  }
+}
+

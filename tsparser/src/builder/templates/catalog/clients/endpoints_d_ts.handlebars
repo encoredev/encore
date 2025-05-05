@@ -1,3 +1,5 @@
+import { CallOpts } from "encore.dev/api";
+
 {{#if has_streams}}
 import {
   StreamInOutHandlerFn,
@@ -33,7 +35,7 @@ type StreamResponse<Type> = Type extends
 {{/if}}
 type Parameters<T> = T extends (...args: infer P) => unknown ? P : never;
 type WithCallOpts<T extends (...args: any) => any> = (
-  ...args: [...Parameters<T>, CallOpts?]
+  ...args: [...Parameters<T>, opts?: CallOpts]
 ) => ReturnType<T>;
 
 {{#each endpoints}}

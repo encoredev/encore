@@ -487,6 +487,16 @@ export function middleware(
   }
 }
 
+/**
+ * Options when making api calls.
+ *
+ * This interface will be extended with additional fields from
+ * app's generated code.
+ */
+export interface CallOpts {
+  /* authData?: AuthData */
+}
+
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
 export { IterableSocket, IterableStream, Sink } from "./stream";

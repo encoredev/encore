@@ -1,7 +1,3 @@
-declare global {
-  interface CallOpts {}
-}
-
 export { appMeta } from "./app_meta";
 export type {
   AppMeta,
