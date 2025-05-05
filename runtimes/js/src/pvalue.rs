@@ -43,9 +43,9 @@ pub fn pvalues_to_js(env: Env, val: &PValues) -> Result<JsUnknown> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PVal(pub PValue);
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PVals(pub PValues);
 
 impl ToNapiValue for PVal {

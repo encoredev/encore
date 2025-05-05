@@ -439,6 +439,7 @@ fn listen_addr() -> String {
     "0.0.0.0:8080".to_string()
 }
 
+#[derive(Debug)]
 pub struct CallOpts {
     pub auth_data: Option<PValues>,
     pub auth_user_id: Option<String>,

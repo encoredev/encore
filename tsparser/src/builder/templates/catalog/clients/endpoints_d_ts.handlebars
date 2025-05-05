@@ -16,7 +16,7 @@ import { {{name}} as {{name}}_handler } from {{toJSON import_path}};
 {{/if}}
 {{/each}}
 
-type StreamHandshake<Type extends (...args: any[]) => any> = Parameters<Type> extends [infer H, any] ? H : void;
+type StreamHandshake<Type extends (...args: any[]) => any> = Parameters<Type> extends [infer H, any] ? H : never;
 
 type StreamRequest<Type> = Type extends
   | StreamInOutHandlerFn<any, infer Req, any>
@@ -43,7 +43,9 @@ type WithCallOpts<T extends (...args: any) => any> = (
 
 {{#if (and streaming_request streaming_response)}}
 export function {{name}}(
-  data: StreamHandshake<typeof {{name}}_handler>,
+  ...args: StreamHandshake<typeof {{name}}_handler> extends void
+    ? [opts?: CallOpts]
+    : [data: StreamHandshake<typeof {{name}}_handler>, opts?: CallOpts]
 ): Promise<
   StreamInOut<
     StreamResponse<typeof {{name}}_handler>,
@@ -53,7 +55,9 @@ export function {{name}}(
 {{else}}
 {{#if streaming_request}}
 export function {{name}}(
-  data: StreamHandshake<typeof {{name}}_handler>,
+  ...args: StreamHandshake<typeof {{name}}_handler> extends void
+    ? [opts?: CallOpts]
+    : [data: StreamHandshake<typeof {{name}}_handler>, opts?: CallOpts]
 ): Promise<
   StreamOutWithResponse<
     StreamRequest<typeof {{name}}_handler>,
@@ -63,7 +67,9 @@ export function {{name}}(
 {{/if}}
 {{#if streaming_response}}
 export function {{name}}(
-  data: StreamHandshake<typeof {{name}}_handler>,
+  ...args: StreamHandshake<typeof {{name}}_handler> extends void
+    ? [opts?: CallOpts]
+    : [data: StreamHandshake<typeof {{name}}_handler>, opts?: CallOpts]
 ): Promise<
   StreamIn<
     StreamResponse<typeof {{name}}_handler>
@@ -76,6 +82,7 @@ export function {{name}}(
 import { {{name}} as {{name}}_handler } from {{toJSON import_path}};
 declare const {{name}}: WithCallOpts<typeof {{name}}_handler>;
 export { {{name}} };
+
 {{/if}}
 {{/each}}
 

@@ -29,10 +29,11 @@ export async function apiCall(
 export async function streamInOut(
   service: string,
   endpoint: string,
-  data: any
+  data: any,
+  opts?: runtime.CallOpts
 ): Promise<any> {
   const source = getCurrentRequest();
-  const stream = await runtime.RT.stream(service, endpoint, data, source);
+  const stream = await runtime.RT.stream(service, endpoint, data, source, opts);
 
   return {
     async send(msg: any) {
@@ -59,10 +60,11 @@ export async function streamInOut(
 export async function streamIn(
   service: string,
   endpoint: string,
-  data: any
+  data: any,
+  opts?: runtime.CallOpts
 ): Promise<any> {
   const source = getCurrentRequest();
-  const stream = await runtime.RT.stream(service, endpoint, data, source);
+  const stream = await runtime.RT.stream(service, endpoint, data, source, opts);
   const response = new Promise(async (resolve, reject) => {
     try {
       resolve(await stream.recv());
@@ -87,10 +89,11 @@ export async function streamIn(
 export async function streamOut(
   service: string,
   endpoint: string,
-  data: any
+  data: any,
+  opts?: runtime.CallOpts
 ): Promise<any> {
   const source = getCurrentRequest();
-  const stream = await runtime.RT.stream(service, endpoint, data, source);
+  const stream = await runtime.RT.stream(service, endpoint, data, source, opts);
 
   return {
     async recv(): Promise<any> {
