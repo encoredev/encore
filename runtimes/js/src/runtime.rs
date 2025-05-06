@@ -241,8 +241,10 @@ impl Runtime {
         opts: Option<CallOpts>,
     ) -> impl Future<Output = api::APIResult<Option<PValues>>> + 'static {
         let source = source.map(|s| s.inner.clone());
-        let opts = opts.map(|o| Arc::new(o.clone().into()));
-        let fut = self.runtime.api().call(endpoint, payload, source, opts);
+        let fut = self
+            .runtime
+            .api()
+            .call(endpoint, payload, source, opts.map(Into::into));
 
         async move {
             let data = fut.await?;
@@ -275,8 +277,10 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
         let source = source.map(|s| s.inner.clone());
-        let opts = opts.map(|o| Arc::new(o.clone().into()));
-        let fut = self.runtime.api().stream(endpoint, payload, source, opts);
+        let fut = self
+            .runtime
+            .api()
+            .stream(endpoint, payload, source, opts.map(Into::into));
 
         let fut = async move {
             fut.await.map_err(|e| {

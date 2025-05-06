@@ -324,7 +324,7 @@ impl Manager {
         target: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
-        opts: Option<Arc<CallOpts>>,
+        opts: Option<CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         self.service_registry.api_call(target, data, source, opts)
     }
@@ -334,7 +334,7 @@ impl Manager {
         endpoint_name: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         self.service_registry
             .connect_stream(endpoint_name, data, source, opts)

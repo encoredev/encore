@@ -120,7 +120,7 @@ impl ServiceRegistry {
         target: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let tracer = self.tracer.clone();
         let call = model::APICall { source, target };
@@ -131,7 +131,7 @@ impl ServiceRegistry {
             data,
             call.source.as_deref(),
             start_event_id,
-            opts,
+            opts.as_ref(),
         );
         async move {
             let result = fut.await;
@@ -147,7 +147,7 @@ impl ServiceRegistry {
         target: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         let tracer = self.tracer.clone();
         let call = model::APICall { source, target };
@@ -158,7 +158,7 @@ impl ServiceRegistry {
             data,
             call.source.as_deref(),
             start_event_id,
-            opts,
+            opts.as_ref(),
         );
 
         async move {
@@ -176,7 +176,7 @@ impl ServiceRegistry {
         data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<&api::CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let http_client = self.http_client.clone();
         let req = self.prepare_api_call_request(target, data, source, start_event_id, opts);
@@ -205,7 +205,7 @@ impl ServiceRegistry {
         mut data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<&api::CallOpts>,
     ) -> APIResult<(reqwest::Request, Arc<schema::Response>)> {
         let base_url = self
             .base_urls
@@ -295,7 +295,7 @@ impl ServiceRegistry {
         data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<&api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         let req = self.prepare_stream_request(target, data, source, start_event_id, opts);
         async move {
@@ -315,7 +315,7 @@ impl ServiceRegistry {
         mut data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<&api::CallOpts>,
     ) -> APIResult<(
         http::Request<()>,
         Arc<schema::Request>,
@@ -406,7 +406,7 @@ impl ServiceRegistry {
         endpoint: &Endpoint,
         source: Option<&model::Request>,
         parent_event_id: Option<TraceEventId>,
-        opts: Option<Arc<api::CallOpts>>,
+        opts: Option<&api::CallOpts>,
     ) -> anyhow::Result<()> {
         let svc_auth_method = self
             .service_auth_method(endpoint.name.service())
