@@ -1070,7 +1070,7 @@
 				file: "platform/infrastructure/configuration"
 			},
 			{
-				kind: "section"
+				kind: "accordion"
 				text: "GCP Infrastructure"
 				items: [{
 					kind: "basic"
@@ -1094,7 +1094,7 @@
 					file: "platform/infrastructure/configure-network"
 				}]
 			}, {
-				kind: "section"
+				kind: "accordion"
 				text: "AWS Infrastructure"
 				items: [{
 					kind: "basic"
