@@ -96,6 +96,7 @@ percent-encoding = "2.3.1"
 aws-credential-types = "1.2.1"
 regex = "1.11.1"
 email_address = "0.2.9"
+cookie = "0.18.1"
 
 [build-dependencies]
 prost-build = "0.12.3"

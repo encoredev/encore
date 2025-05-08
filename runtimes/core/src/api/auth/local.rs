@@ -54,6 +54,10 @@ impl AuthHandler for LocalAuthHandler {
                 None => None,
                 Some(hdr) => hdr.parse(&req.headers)?,
             };
+            let cookie = match &self.schema.cookie {
+                None => None,
+                Some(c) => c.parse(&req.headers)?,
+            };
 
             let meta = req.call_meta;
             let span_id = meta.this_span_id.unwrap_or_else(model::SpanId::generate);
