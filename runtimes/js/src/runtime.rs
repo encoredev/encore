@@ -216,6 +216,7 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
 
+        let opts = opts.map(TryFrom::try_from).transpose()?;
         let fut = self.do_api_call(endpoint, payload, source, opts);
         let fut = async move {
             let res: napi::Result<Either<Option<PValues>, APICallError>> = match fut.await {
@@ -238,13 +239,10 @@ impl Runtime {
         endpoint: EndpointName,
         payload: Option<PValues>,
         source: Option<&'a Request>,
-        opts: Option<CallOpts>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = api::APIResult<Option<PValues>>> + 'static {
         let source = source.map(|s| s.inner.clone());
-        let fut = self
-            .runtime
-            .api()
-            .call(endpoint, payload, source, opts.map(Into::into));
+        let fut = self.runtime.api().call(endpoint, payload, source, opts);
 
         async move {
             let data = fut.await?;
@@ -277,10 +275,8 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
         let source = source.map(|s| s.inner.clone());
-        let fut = self
-            .runtime
-            .api()
-            .stream(endpoint, payload, source, opts.map(Into::into));
+        let opts = opts.map(TryFrom::try_from).transpose()?;
+        let fut = self.runtime.api().stream(endpoint, payload, source, opts);
 
         let fut = async move {
             fut.await.map_err(|e| {
@@ -338,15 +334,29 @@ pub struct CallOpts {
     pub auth_data: Option<PVals>,
 }
 
-impl From<CallOpts> for api::CallOpts {
-    fn from(value: CallOpts) -> Self {
-        api::CallOpts {
-            auth_data: value.auth_data.as_ref().map(|ad| ad.0.clone()),
-            auth_user_id: value.auth_data.as_ref().and_then(|ad| {
-                ad.0.get("userID")
-                    .and_then(|pv| pv.as_str().map(|s| s.to_string()))
-            }),
-        }
+impl TryFrom<CallOpts> for api::CallOpts {
+    type Error = napi::Error<napi::Status>;
+
+    fn try_from(value: CallOpts) -> Result<api::CallOpts> {
+        let auth_user_id = if let Some(ref data) = value.auth_data {
+            let user_id = data
+                .0
+                .get("userID")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    napi::Error::new(napi::Status::InvalidArg, "userID missing in auth data")
+                })?;
+            Some(user_id.to_string())
+        } else {
+            None
+        };
+
+        let auth_data = value.auth_data.map(|data| data.0);
+
+        Ok(api::CallOpts {
+            auth_data,
+            auth_user_id,
+        })
     }
 }
 
