@@ -37,6 +37,37 @@ export type Query<
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
+export type Cookie<Name = string> = {
+  name: Name;
+  value: string;
+  path?: string;
+  domain?: string;
+  expires?: Date;
+  maxAge: number;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: {};
+  partitioned: boolean;
+};
+
+export function createCookie<Name extends string>(
+  name: Name,
+  value: string
+): Cookie<Name> {
+  return {
+    name,
+    value,
+    path: "/",
+    domain: "example.com",
+    expires: new Date(Date.now() + 1000 * 60 * 60), // 1 hour from now
+    maxAge: 3600, // 1 hour in seconds
+    secure: true,
+    httpOnly: true,
+    sameSite: {}, // You can specify the sameSite value as needed
+    partitioned: false
+  };
+}
+
 export interface APIOptions {
   /**
    * The HTTP method(s) to match for this endpoint.

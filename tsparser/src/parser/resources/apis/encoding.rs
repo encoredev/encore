@@ -506,6 +506,7 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseRes
                     WireLocation::Header => ParamLocation::Header,
                     WireLocation::Query => ParamLocation::Query,
                     WireLocation::PubSubAttr => ParamLocation::Body,
+                    WireLocation::Cookie => ParamLocation::Cookie,
                 },
                 spec.name_override.clone(),
             ),

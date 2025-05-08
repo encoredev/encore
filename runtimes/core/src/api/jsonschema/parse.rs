@@ -218,6 +218,40 @@ impl ParseWithSchema<PValue> for PValue {
     }
 }
 
+impl ParseWithSchema<PValues> for cookie::CookieJar {
+    fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<PValues> {
+        let mut result = PValues::new();
+        let _reg = schema.registry.as_ref();
+
+        for (field_key, field) in schema.root().fields.iter() {
+            let name = field.name_override.as_deref().unwrap_or(field_key.as_str());
+            let Some(cookie) = self.get(name) else {
+                if field.optional {
+                    continue;
+                } else {
+                    return Err(api::Error {
+                        code: api::ErrCode::InvalidArgument,
+                        message: format!("missing required cookie: {}", name),
+                        internal_message: None,
+                        stack: None,
+                        details: None,
+                    });
+                }
+            };
+
+            result.insert(
+                field_key.clone(),
+                match field.value {
+                    BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
+                    BasicOrValue::Value(_idx) => todo!(),
+                },
+            );
+        }
+
+        Ok(result)
+    }
+}
+
 #[cfg_attr(
     feature = "rttrace",
     tracing::instrument(skip(reg), ret, level = "trace")

@@ -2131,6 +2131,7 @@ impl Ctx<'_> {
             Some("Header") => WireLocation::Header,
             Some("Query") => WireLocation::Query,
             Some("Attribute") => WireLocation::PubSubAttr,
+            Some("Cookie") => WireLocation::Cookie,
             _ => return None,
         };
 
