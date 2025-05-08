@@ -1072,7 +1072,7 @@
 			{
 				kind: "accordion"
 				text: "GCP Infrastructure"
-				items: [{
+				accordion: [{
 					kind: "basic"
 					text: "Overview"
 					path: "/platform/infrastructure/gcp"
@@ -1096,7 +1096,7 @@
 			}, {
 				kind: "accordion"
 				text: "AWS Infrastructure"
-				items: [{
+				accordion: [{
 					kind: "basic"
 					text: "Overview"
 					path: "/platform/infrastructure/aws"
