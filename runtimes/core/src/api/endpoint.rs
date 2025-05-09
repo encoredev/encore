@@ -365,6 +365,7 @@ pub fn endpoints_from_meta(
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
+                cookie: resp_schema.cookie,
                 body: resp_schema.body,
                 stream: ep.ep.streaming_response,
             }),
