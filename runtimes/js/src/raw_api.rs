@@ -74,10 +74,8 @@ impl ResponseWriterState {
         match self {
             Self::Initial { mut resp, sender } => {
                 resp = resp.status(status);
-                for (k, v) in headers {
-                    if let Some(k) = k {
-                        resp = resp.header(k, v);
-                    }
+                for (k, v) in headers.iter() {
+                    resp = resp.header(k, v);
                 }
                 Ok(Self::Initial { resp, sender })
             }
