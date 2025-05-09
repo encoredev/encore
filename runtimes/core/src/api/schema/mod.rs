@@ -113,6 +113,9 @@ pub struct Response {
     /// Response header names returned by the endpoint.
     pub header: Option<Header>,
 
+    /// Response cookie names returned by the endpoint.
+    pub cookie: Option<Cookie>,
+
     /// Response body, if any.
     pub body: Option<Body>,
 
