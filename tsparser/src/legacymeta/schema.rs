@@ -354,11 +354,13 @@ impl BuilderCtx<'_, '_> {
                                 },
                             });
 
-                            // TODO
-                            //Some(schema::WireSpec {
-                            //    location: Some(schema::wire_spec::Location::Cookie())
-                            //})
-                            todo!()
+                            Some(schema::WireSpec {
+                                location: Some(schema::wire_spec::Location::Cookie(
+                                    schema::wire_spec::Cookie {
+                                        name: spec.name_override.clone(),
+                                    },
+                                )),
+                            })
                         }
                     },
                 )
