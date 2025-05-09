@@ -54,7 +54,8 @@ impl AuthHandler for LocalAuthHandler {
                 None => None,
                 Some(hdr) => hdr.parse(&req.headers)?,
             };
-            let cookie = match &self.schema.cookie {
+            // TODO
+            let _cookie = match &self.schema.cookie {
                 None => None,
                 Some(c) => c.parse(&req.headers)?,
             };

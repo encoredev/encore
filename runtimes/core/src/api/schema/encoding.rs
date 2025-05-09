@@ -1,5 +1,5 @@
 use crate::api::jsonschema;
-use crate::api::schema::{Body, Header, Method, Path, Query};
+use crate::api::schema::{Body, Cookie, Header, Method, Path, Query};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::path_segment::SegmentType;
 use crate::encore::parser::schema::v1 as schema;
@@ -8,8 +8,6 @@ use anyhow::Context;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-
-use super::Cookie;
 
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub enum DefaultLoc {

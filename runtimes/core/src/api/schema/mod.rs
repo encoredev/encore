@@ -1,5 +1,6 @@
 use crate::api;
 pub use body::*;
+pub use cookie::*;
 pub use header::*;
 pub use method::*;
 pub use path::*;
@@ -11,6 +12,7 @@ use crate::api::{endpoint, APIResult, PValues, RequestPayload};
 use super::ResponsePayload;
 
 mod body;
+mod cookie;
 pub mod encoding;
 mod header;
 mod method;
@@ -48,6 +50,9 @@ pub struct Request {
     /// Header names used by the endpoint.
     pub header: Option<Header>,
 
+    /// Cookie names used by the endpoint.
+    pub cookie: Option<Cookie>,
+
     /// Query string names used by the endpoint.
     pub query: Option<Query>,
 
@@ -79,6 +84,10 @@ impl Request {
             None => None,
             Some(h) => h.parse_incoming_request_parts(parts)?,
         };
+        let cookie = match &self.cookie {
+            None => None,
+            Some(c) => c.parse_incoming_request_parts(parts)?,
+        };
 
         let body = match &self.body {
             RequestBody::Raw => endpoint::Body::Raw(Arc::new(std::sync::Mutex::new(Some(body)))),
@@ -92,6 +101,7 @@ impl Request {
             path,
             query,
             header,
+            cookie,
             body,
         }))
     }

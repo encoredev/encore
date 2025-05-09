@@ -698,11 +698,11 @@ impl Ctx<'_> {
             return Type::Array(Array(Box::new(elem)));
         }
 
-        // Is this a reference to the "Header" or "Query" wire spec overrides?
+        // Is this a reference to the "Header", "Query", or "Cookie" wire spec overrides?
         if obj
             .name
             .as_ref()
-            .is_some_and(|s| s == "Header" || s == "Query")
+            .is_some_and(|s| s == "Header" || s == "Query" || s == "Cookie")
             && self.state.is_module_path(obj.module_id, "encore.dev/api")
         {
             if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
