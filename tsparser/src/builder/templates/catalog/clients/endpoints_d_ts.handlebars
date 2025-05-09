@@ -1,3 +1,5 @@
+import { CallOpts } from "encore.dev/api";
+
 {{#if has_streams}}
 import {
   StreamInOutHandlerFn,
@@ -31,12 +33,19 @@ type StreamResponse<Type> = Type extends
   : never;
 
 {{/if}}
+type Parameters<T> = T extends (...args: infer P) => unknown ? P : never;
+type WithCallOpts<T extends (...args: any) => any> = (
+  ...args: [...Parameters<T>, opts?: CallOpts]
+) => ReturnType<T>;
+
 {{#each endpoints}}
 {{#if (or streaming_request streaming_response)~}}
 
 {{#if (and streaming_request streaming_response)}}
 export function {{name}}(
-  data: StreamHandshake<typeof {{name}}_handler>,
+  ...args: StreamHandshake<typeof {{name}}_handler> extends void
+    ? [opts?: CallOpts]
+    : [data: StreamHandshake<typeof {{name}}_handler>, opts?: CallOpts]
 ): Promise<
   StreamInOut<
     StreamResponse<typeof {{name}}_handler>,
@@ -46,7 +55,9 @@ export function {{name}}(
 {{else}}
 {{#if streaming_request}}
 export function {{name}}(
-  data: StreamHandshake<typeof {{name}}_handler>,
+  ...args: StreamHandshake<typeof {{name}}_handler> extends void
+    ? [opts?: CallOpts]
+    : [data: StreamHandshake<typeof {{name}}_handler>, opts?: CallOpts]
 ): Promise<
   StreamOutWithResponse<
     StreamRequest<typeof {{name}}_handler>,
@@ -56,7 +67,9 @@ export function {{name}}(
 {{/if}}
 {{#if streaming_response}}
 export function {{name}}(
-  data: StreamHandshake<typeof {{name}}_handler>,
+  ...args: StreamHandshake<typeof {{name}}_handler> extends void
+    ? [opts?: CallOpts]
+    : [data: StreamHandshake<typeof {{name}}_handler>, opts?: CallOpts]
 ): Promise<
   StreamIn<
     StreamResponse<typeof {{name}}_handler>
@@ -66,7 +79,10 @@ export function {{name}}(
 {{/if}}
 
 {{~else}}
-export { {{name}} } from {{toJSON import_path}};
+import { {{name}} as {{name}}_handler } from {{toJSON import_path}};
+declare const {{name}}: WithCallOpts<typeof {{name}}_handler>;
+export { {{name}} };
+
 {{/if}}
 {{/each}}
 

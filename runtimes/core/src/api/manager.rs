@@ -23,7 +23,7 @@ use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
 use super::encore_routes::healthz;
 use super::websocket_client::WebSocketClient;
-use super::ResponsePayload;
+use super::{PValues, ResponsePayload};
 
 pub struct ManagerConfig<'a> {
     pub meta: &'a meta::Data,
@@ -324,8 +324,9 @@ impl Manager {
         target: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
+        opts: Option<CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
-        self.service_registry.api_call(target, data, source)
+        self.service_registry.api_call(target, data, source, opts)
     }
 
     pub fn stream(
@@ -333,9 +334,10 @@ impl Manager {
         endpoint_name: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         self.service_registry
-            .connect_stream(endpoint_name, data, source)
+            .connect_stream(endpoint_name, data, source, opts)
     }
 
     /// Starts serving the API.
@@ -435,4 +437,15 @@ fn listen_addr() -> String {
         return format!("0.0.0.0:{}", port);
     }
     "0.0.0.0:8080".to_string()
+}
+
+#[derive(Debug)]
+pub struct CallOpts {
+    pub auth: Option<AuthOpts>,
+}
+
+#[derive(Debug)]
+pub struct AuthOpts {
+    pub data: PValues,
+    pub user_id: String,
 }

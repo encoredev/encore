@@ -120,12 +120,19 @@ impl ServiceRegistry {
         target: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let tracer = self.tracer.clone();
         let call = model::APICall { source, target };
         let start_event_id = tracer.rpc_call_start(&call);
 
-        let fut = self.do_api_call(&call.target, data, call.source.as_deref(), start_event_id);
+        let fut = self.do_api_call(
+            &call.target,
+            data,
+            call.source.as_deref(),
+            start_event_id,
+            opts.as_ref(),
+        );
         async move {
             let result = fut.await;
             if let Some(start_event_id) = start_event_id {
@@ -140,13 +147,19 @@ impl ServiceRegistry {
         target: EndpointName,
         data: JSONPayload,
         source: Option<Arc<model::Request>>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         let tracer = self.tracer.clone();
         let call = model::APICall { source, target };
         let start_event_id = tracer.rpc_call_start(&call);
 
-        let fut =
-            self.do_connect_stream(&call.target, data, call.source.as_deref(), start_event_id);
+        let fut = self.do_connect_stream(
+            &call.target,
+            data,
+            call.source.as_deref(),
+            start_event_id,
+            opts.as_ref(),
+        );
 
         async move {
             let result = fut.await;
@@ -163,9 +176,10 @@ impl ServiceRegistry {
         data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
+        opts: Option<&api::CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let http_client = self.http_client.clone();
-        let req = self.prepare_api_call_request(target, data, source, start_event_id);
+        let req = self.prepare_api_call_request(target, data, source, start_event_id, opts);
         async move {
             match req {
                 Ok((req, resp_schema)) => {
@@ -191,6 +205,7 @@ impl ServiceRegistry {
         mut data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
+        opts: Option<&api::CallOpts>,
     ) -> APIResult<(reqwest::Request, Arc<schema::Response>)> {
         let base_url = self
             .base_urls
@@ -266,7 +281,7 @@ impl ServiceRegistry {
 
         // Add call metadata.
         let headers = req.headers_mut();
-        self.propagate_call_meta(headers, &endpoint, source, start_event_id)
+        self.propagate_call_meta(headers, &endpoint, source, start_event_id, opts)
             .map_err(api::Error::internal)?;
 
         let resp_schema = endpoint.response.clone();
@@ -280,8 +295,9 @@ impl ServiceRegistry {
         data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
+        opts: Option<&api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
-        let req = self.prepare_stream_request(target, data, source, start_event_id);
+        let req = self.prepare_stream_request(target, data, source, start_event_id, opts);
         async move {
             match req {
                 Ok((req, outgoing, incoming)) => {
@@ -299,6 +315,7 @@ impl ServiceRegistry {
         mut data: JSONPayload,
         source: Option<&model::Request>,
         start_event_id: Option<TraceEventId>,
+        opts: Option<&api::CallOpts>,
     ) -> APIResult<(
         http::Request<()>,
         Arc<schema::Request>,
@@ -375,7 +392,7 @@ impl ServiceRegistry {
             }
         }
 
-        self.propagate_call_meta(req.headers_mut(), endpoint, source, start_event_id)
+        self.propagate_call_meta(req.headers_mut(), endpoint, source, start_event_id, opts)
             .map_err(api::Error::internal)?;
 
         let outgoing = endpoint.request[0].clone();
@@ -389,6 +406,7 @@ impl ServiceRegistry {
         endpoint: &Endpoint,
         source: Option<&model::Request>,
         parent_event_id: Option<TraceEventId>,
+        opts: Option<&api::CallOpts>,
     ) -> anyhow::Result<()> {
         let svc_auth_method = self
             .service_auth_method(endpoint.name.service())
@@ -425,6 +443,29 @@ impl ServiceRegistry {
             },
         };
 
+        let auth_opts = opts.as_ref().and_then(|o| o.auth.as_ref());
+
+        let auth_data = auth_opts.map(|o| &o.data).or_else(|| {
+            source.and_then(|r| match &r.data {
+                model::RequestData::RPC(data) => data.auth_data.as_ref(),
+                model::RequestData::Stream(data) => data.auth_data.as_ref(),
+                model::RequestData::Auth(_) => None,
+                model::RequestData::PubSub(_) => None,
+            })
+        });
+
+        let auth_user_id = auth_opts
+            .map(|o| &o.user_id)
+            .or_else(|| {
+                source.and_then(|r| match &r.data {
+                    model::RequestData::RPC(data) => data.auth_user_id.as_ref(),
+                    model::RequestData::Stream(data) => data.auth_user_id.as_ref(),
+                    model::RequestData::Auth(_) => None,
+                    model::RequestData::PubSub(_) => None,
+                })
+            })
+            .map(|id| Cow::Borrowed(id.as_str()));
+
         let desc = CallDesc {
             caller: &caller,
             svc_auth_method: svc_auth_method.as_ref(),
@@ -435,21 +476,8 @@ impl ServiceRegistry {
                     .as_ref()
                     .map(|id| Cow::Borrowed(id.as_str()))
             }),
-            auth_user_id: source.and_then(|r| {
-                match &r.data {
-                    model::RequestData::RPC(data) => data.auth_user_id.as_ref(),
-                    model::RequestData::Stream(data) => data.auth_user_id.as_ref(),
-                    model::RequestData::Auth(_) => None,
-                    model::RequestData::PubSub(_) => None,
-                }
-                .map(|id| Cow::Borrowed(id.as_str()))
-            }),
-            auth_data: source.and_then(|r| match &r.data {
-                model::RequestData::RPC(data) => data.auth_data.as_ref(),
-                model::RequestData::Stream(data) => data.auth_data.as_ref(),
-                model::RequestData::Auth(_) => None,
-                model::RequestData::PubSub(_) => None,
-            }),
+            auth_user_id,
+            auth_data,
         };
 
         desc.add_meta(headers)?;

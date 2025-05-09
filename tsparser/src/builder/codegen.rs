@@ -169,9 +169,16 @@ impl Builder<'_> {
                         .join(&svc_rel_path)
                         .join(rel_path);
 
+                    let has_params = if rpc.streaming_request || rpc.streaming_response {
+                        rpc.encoding.handshake.is_some()
+                    } else {
+                        !rpc.encoding.default_request_encoding().params.is_empty()
+                    };
+
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
+                        "has_params": has_params,
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
@@ -270,9 +277,16 @@ impl Builder<'_> {
                         .join(rel_path)
                         .with_extension("js");
 
+                    let has_params = if rpc.streaming_request || rpc.streaming_response {
+                        rpc.encoding.handshake.is_some()
+                    } else {
+                        !rpc.encoding.default_request_encoding().params.is_empty()
+                    };
+
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
+                        "has_params": has_params,
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
@@ -420,9 +434,16 @@ impl Builder<'_> {
                     let rel_path = get_svc_rel_path(&svc.root, rpc.range, true);
                     let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
 
+                    let has_params = if rpc.streaming_request || rpc.streaming_response {
+                        rpc.encoding.handshake.is_some()
+                    } else {
+                        !rpc.encoding.default_request_encoding().params.is_empty()
+                    };
+
                     endpoint_ctx.push(json!({
                         "name": rpc.name,
                         "raw": rpc.raw,
+                        "has_params": has_params,
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "service_name": svc.name,
