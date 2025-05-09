@@ -163,7 +163,7 @@ You can override the auth data for a specific endpoint when calling it via `~enc
 ```ts
 import { svc } from "~encore/clients";
 
-const resp = await svc.endpoint(params, { auth_data: { userID: "...", userEmail: "..." } });
+const resp = await svc.endpoint(params, { authData: { userID: "...", userEmail: "..." } });
 ```
 
 <Callout type="info">
