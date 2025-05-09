@@ -441,6 +441,11 @@ fn listen_addr() -> String {
 
 #[derive(Debug)]
 pub struct CallOpts {
-    pub auth_data: Option<PValues>,
-    pub auth_user_id: Option<String>,
+    pub auth: Option<AuthOpts>,
+}
+
+#[derive(Debug)]
+pub struct AuthOpts {
+    pub data: PValues,
+    pub user_id: String,
 }

@@ -443,20 +443,19 @@ impl ServiceRegistry {
             },
         };
 
-        let auth_data = opts.as_ref().and_then(|o| o.auth_data.clone()).or_else(|| {
-            source
-                .and_then(|r| match &r.data {
-                    model::RequestData::RPC(data) => data.auth_data.as_ref(),
-                    model::RequestData::Stream(data) => data.auth_data.as_ref(),
-                    model::RequestData::Auth(_) => None,
-                    model::RequestData::PubSub(_) => None,
-                })
-                .cloned()
+        let auth_opts = opts.as_ref().and_then(|o| o.auth.as_ref());
+
+        let auth_data = auth_opts.map(|o| &o.data).or_else(|| {
+            source.and_then(|r| match &r.data {
+                model::RequestData::RPC(data) => data.auth_data.as_ref(),
+                model::RequestData::Stream(data) => data.auth_data.as_ref(),
+                model::RequestData::Auth(_) => None,
+                model::RequestData::PubSub(_) => None,
+            })
         });
 
-        let auth_user_id = opts
-            .as_ref()
-            .and_then(|o| o.auth_user_id.as_ref())
+        let auth_user_id = auth_opts
+            .map(|o| &o.user_id)
             .or_else(|| {
                 source.and_then(|r| match &r.data {
                     model::RequestData::RPC(data) => data.auth_user_id.as_ref(),

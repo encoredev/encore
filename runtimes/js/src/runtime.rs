@@ -6,7 +6,7 @@ use crate::pvalue::{parse_pvalues, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
 use crate::{meta, objects, websocket_api};
-use encore_runtime_core::api::PValues;
+use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
 use napi::{bindgen_prelude::*, JsObject};
@@ -338,7 +338,7 @@ impl TryFrom<CallOpts> for api::CallOpts {
     type Error = napi::Error<napi::Status>;
 
     fn try_from(value: CallOpts) -> Result<api::CallOpts> {
-        let auth_user_id = if let Some(ref data) = value.auth_data {
+        let auth = if let Some(ref data) = value.auth_data {
             let user_id = data
                 .0
                 .get("userID")
@@ -346,17 +346,15 @@ impl TryFrom<CallOpts> for api::CallOpts {
                 .ok_or_else(|| {
                     napi::Error::new(napi::Status::InvalidArg, "userID missing in auth data")
                 })?;
-            Some(user_id.to_string())
+            Some(AuthOpts {
+                user_id: user_id.to_string(),
+                data: data.0.clone(),
+            })
         } else {
             None
         };
 
-        let auth_data = value.auth_data.map(|data| data.0);
-
-        Ok(api::CallOpts {
-            auth_data,
-            auth_user_id,
-        })
+        Ok(api::CallOpts { auth })
     }
 }
 
