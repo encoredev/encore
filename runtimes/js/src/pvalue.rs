@@ -243,6 +243,7 @@ pub fn encode_request_payload(
     add_fields_to_obj(&mut obj, p.path.as_ref())?;
     add_fields_to_obj(&mut obj, p.query.as_ref())?;
     add_fields_to_obj(&mut obj, p.header.as_ref())?;
+    add_fields_to_obj(&mut obj, p.cookie.as_ref())?;
 
     match &p.body {
         api::Body::Typed(typed) => add_fields_to_obj(&mut obj, typed.as_ref())?,
