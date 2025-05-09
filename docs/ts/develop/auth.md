@@ -26,7 +26,7 @@ requests to determine what user is authenticated (if any), and computing any oth
 authentication information.
 
 The authentication handler is defined similarly to API endpoints, using the `authHandler`
-function imported from `encore.dev/auth`. 
+function imported from `encore.dev/auth`.
 
 Like API endpoints, the authentication handler defines what request information it's interested in,
 in the form of HTTP headers, query strings, or cookies.
@@ -70,9 +70,9 @@ an `Authorization` header it will first call the authentication handler to
 resolve information about the user.
 
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/ts/clerk" 
-    desc="Example application showing an auth handler implementation using Clerk." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/ts/clerk"
+    desc="Example application showing an auth handler implementation using Clerk."
 />
 
 ### Rejecting authentication
@@ -156,13 +156,30 @@ require authentication always have valid authentication data present.
 
 </Callout>
 
+## Overriding auth information
+
+You can override the auth data for a specific endpoint when calling it via `~encore/clients` by passing `CallOpts`. Example:
+
+```ts
+import { svc } from "~encore/clients";
+
+const resp = await svc.endpoint(params, { authData: { userID: "...", userEmail: "..." } });
+```
+
+<Callout type="info">
+
+Overriding auth data is useful for testing endpoints that require authentication without having to
+authenticate the request manually.
+
+</Callout>
+
 ## Mocking auth
 
 You can mock `getAuthData` with vitest. Example:
 
 ```ts
 import { describe, expect, test, vi } from "vitest";
-import * as auth from "~encore/auth"; 
+import * as auth from "~encore/auth";
 import { get } from "./hello";
 
 
@@ -176,4 +193,3 @@ describe("get", () => {
   });
 });
 ```
-
