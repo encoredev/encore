@@ -6,7 +6,7 @@ use crate::pvalue::{parse_pvalues, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
 use crate::{meta, objects, websocket_api};
-use encore_runtime_core::api::PValues;
+use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
 use napi::{bindgen_prelude::*, JsObject};
@@ -208,6 +208,7 @@ impl Runtime {
         endpoint: String,
         payload: Option<JsUnknown>,
         source: Option<&Request>,
+        opts: Option<CallOpts>,
     ) -> napi::Result<JsObject> {
         let payload = match payload {
             Some(payload) => parse_pvalues(payload)?,
@@ -215,7 +216,8 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
 
-        let fut = self.do_api_call(endpoint, payload, source);
+        let opts = opts.map(TryFrom::try_from).transpose()?;
+        let fut = self.do_api_call(endpoint, payload, source, opts);
         let fut = async move {
             let res: napi::Result<Either<Option<PValues>, APICallError>> = match fut.await {
                 Ok(data) => Ok(Either::A(data)),
@@ -237,9 +239,10 @@ impl Runtime {
         endpoint: EndpointName,
         payload: Option<PValues>,
         source: Option<&'a Request>,
+        opts: Option<api::CallOpts>,
     ) -> impl Future<Output = api::APIResult<Option<PValues>>> + 'static {
         let source = source.map(|s| s.inner.clone());
-        let fut = self.runtime.api().call(endpoint, payload, source);
+        let fut = self.runtime.api().call(endpoint, payload, source, opts);
 
         async move {
             let data = fut.await?;
@@ -264,6 +267,7 @@ impl Runtime {
         endpoint: String,
         payload: Option<JsUnknown>,
         source: Option<&Request>,
+        opts: Option<CallOpts>,
     ) -> napi::Result<JsObject> {
         let payload = match payload {
             Some(payload) => parse_pvalues(payload)?,
@@ -271,7 +275,8 @@ impl Runtime {
         };
         let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
         let source = source.map(|s| s.inner.clone());
-        let fut = self.runtime.api().stream(endpoint, payload, source);
+        let opts = opts.map(TryFrom::try_from).transpose()?;
+        let fut = self.runtime.api().stream(endpoint, payload, source, opts);
 
         let fut = async move {
             fut.await.map_err(|e| {
@@ -319,6 +324,37 @@ impl Runtime {
             }
             None => 1u32,
         }
+    }
+}
+
+#[napi(object)]
+#[derive(Clone, Default, Debug)]
+/// CallOpts can be used to set options for API calls.
+pub struct CallOpts {
+    pub auth_data: Option<PVals>,
+}
+
+impl TryFrom<CallOpts> for api::CallOpts {
+    type Error = napi::Error<napi::Status>;
+
+    fn try_from(value: CallOpts) -> Result<api::CallOpts> {
+        let auth = if let Some(ref data) = value.auth_data {
+            let user_id = data
+                .0
+                .get("userID")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    napi::Error::new(napi::Status::InvalidArg, "userID missing in auth data")
+                })?;
+            Some(AuthOpts {
+                user_id: user_id.to_string(),
+                data: data.0.clone(),
+            })
+        } else {
+            None
+        };
+
+        Ok(api::CallOpts { auth })
     }
 }
 

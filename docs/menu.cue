@@ -1068,16 +1068,50 @@
 				text: "Infrastructure Configuration"
 				path: "/platform/infrastructure/configuration"
 				file: "platform/infrastructure/configuration"
-			}, {
-				kind: "basic"
+			},
+			{
+				kind: "accordion"
 				text: "GCP Infrastructure"
-				path: "/platform/infrastructure/gcp"
-				file: "platform/infrastructure/gcp"
+				accordion: [{
+					kind: "basic"
+					text: "Overview"
+					path: "/platform/infrastructure/gcp"
+					file: "platform/infrastructure/gcp"
+				}, {
+					kind: "basic"
+					text: "Import Cloud SQL"
+					path: "/platform/infrastructure/gcp/import-cloud-sql"
+					file: "platform/infrastructure/import-cloud-sql"
+				}, {
+					kind: "basic"
+					text: "Import Project"
+					path: "/platform/infrastructure/gcp/import-project"
+					file: "platform/infrastructure/import-project"
+				}, {
+					kind: "basic"
+					text: "Configure Network"
+					path: "/platform/infrastructure/configure-network"
+					file: "platform/infrastructure/configure-network"
+				}]
 			}, {
-				kind: "basic"
+				kind: "accordion"
 				text: "AWS Infrastructure"
-				path: "/platform/infrastructure/aws"
-				file: "platform/infrastructure/aws"
+				accordion: [{
+					kind: "basic"
+					text: "Overview"
+					path: "/platform/infrastructure/aws"
+					file: "platform/infrastructure/aws"
+				},{
+					kind: "basic"
+					text: "Import RDS Database"
+					path: "/platform/infrastructure/aws/import-rds"
+					file: "platform/infrastructure/import-rds"
+				}, {
+					kind: "basic"
+					text: "Configure Network"
+					path: "/platform/infrastructure/configure-network"
+					file: "platform/infrastructure/configure-network"
+				}]
 			}, {
 				kind: "accordion"
 				text: "Kubernetes deployment"

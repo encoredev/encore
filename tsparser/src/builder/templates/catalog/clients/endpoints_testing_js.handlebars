@@ -8,7 +8,7 @@ import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
 {{/with}}
 
 {{#each endpoints}}
-export async function {{name}}(params) {
+export async function {{name}}(params, opts) {
     const handler = (await import({{toJSON (stripExt import_path)}})).{{name}};
     registerTestHandler({
         apiRoute: { service: "{{../name}}", name: "{{name}}", raw: {{toJSON raw}}, handler, streamingRequest: {{ streaming_request }}, streamingResponse: {{ streaming_response }} },
@@ -18,16 +18,16 @@ export async function {{name}}(params) {
 
     {{#if (or streaming_request streaming_response)}}
     {{#if (and streaming_request streaming_response)}}
-    return streamInOut("{{../name}}", "{{name}}", params);
+    return streamInOut("{{../name}}", "{{name}}", params, opts);
     {{else}}
     {{#if streaming_request}}
-    return streamIn("{{../name}}", "{{name}}", params);
+    return streamIn("{{../name}}", "{{name}}", params, opts);
     {{else}}
-    return streamOut("{{../name}}", "{{name}}", params);
+    return streamOut("{{../name}}", "{{name}}", params, opts);
     {{/if}}
     {{/if}}
     {{else}}
-    return apiCall("{{../name}}", "{{name}}", params);
+    return apiCall("{{../name}}", "{{name}}", params, opts);
     {{/if}}
 }
 
