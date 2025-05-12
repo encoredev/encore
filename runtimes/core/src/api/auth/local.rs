@@ -57,7 +57,7 @@ impl AuthHandler for LocalAuthHandler {
             // TODO
             let _cookie = match &self.schema.cookie {
                 None => None,
-                Some(c) => c.parse(&req.headers)?,
+                Some(c) => c.parse_req(&req.headers)?,
             };
 
             let meta = req.call_meta;

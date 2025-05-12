@@ -134,6 +134,9 @@ impl Response {
         if let Some(hdr) = &self.header {
             bld = hdr.to_response(payload, bld)?
         };
+        if let Some(c) = &self.cookie {
+            bld = c.to_response(payload, bld)?;
+        }
         match &self.body {
             Some(body) => body.to_response(payload, bld),
             None => bld
@@ -146,6 +149,11 @@ impl Response {
         let header = match &self.header {
             None => None,
             Some(h) => h.parse(resp.headers())?,
+        };
+
+        let cookie = match &self.cookie {
+            None => None,
+            Some(c) => c.parse_resp(resp.headers())?,
         };
 
         // Do we have a body schema?
@@ -171,7 +179,11 @@ impl Response {
             }
         });
 
-        Ok(ResponsePayload { header, body })
+        Ok(ResponsePayload {
+            header,
+            body,
+            cookie,
+        })
     }
 }
 
