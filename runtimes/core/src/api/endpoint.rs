@@ -226,6 +226,9 @@ pub struct ResponsePayload {
     #[serde(flatten)]
     pub header: Option<PValues>,
 
+    #[serde(flatten)]
+    pub cookie: Option<PValues>,
+
     #[serde(flatten, skip_serializing_if = "Body::is_raw")]
     pub body: Body,
 }
