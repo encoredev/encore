@@ -50,6 +50,18 @@ impl PValue {
             _ => None,
         }
     }
+
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            PValue::Null => "null",
+            PValue::Bool(_) => "boolean",
+            PValue::Number(_) => "number",
+            PValue::String(_) => "string",
+            PValue::Array(_) => "array",
+            PValue::Object(_) => "object",
+            PValue::DateTime(_) => "datetime",
+        }
+    }
 }
 
 pub type PValues = BTreeMap<String, PValue>;
