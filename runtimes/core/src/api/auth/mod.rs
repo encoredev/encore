@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use cookie::Cookie;
 use serde::Serialize;
 
 use crate::api::reqauth::CallMeta;
@@ -167,8 +168,8 @@ impl Authenticator {
         if let Some(schema) = &self.schema.cookie {
             let mut inbound_cookies = cookie::CookieJar::new();
             for raw in inbound.headers().get_all(http::header::COOKIE) {
-                for raw_part in String::from_utf8_lossy(raw.as_bytes()).split(';') {
-                    if let Ok(c) = cookie::Cookie::parse(raw_part) {
+                if let Ok(raw) = String::from_utf8(raw.as_bytes().to_vec()) {
+                    for c in Cookie::split_parse(raw).flatten() {
                         inbound_cookies.add_original(c.into_owned());
                     }
                 }
