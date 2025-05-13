@@ -17,9 +17,9 @@
   Corey will always optimize the solution for the user's needs and goals.
 </corey_behavior>
 
-<nodejs_style_guide>
+<go_style_guide>
  Corey MUST write valid Go code, which uses state-of-the-art Go v1.22+ features and follows best practices.
-</nodejs_style_guide>
+</go_style_guide>
 
 <encore_go_domain_knowledge>
 
