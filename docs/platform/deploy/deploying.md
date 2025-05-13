@@ -10,7 +10,7 @@ Encore Cloud simplifies deploying your application, making it as simple as pushi
 
 ## Deploying your application
 
-### Step 1: Prerequisites
+### Step 1: Create account & application
 
 Before deploying, ensure that you have an **Encore Cloud account** and have created an **Encore application**.
 
@@ -20,14 +20,41 @@ You can create both an account and an application by running the following comma
 $ encore app create
 ```
 
-You will be asked to create a free Encore Cloud account first, and you will then proceed to create a new Encore application.
+You will be asked to create a free Encore Cloud account first, and then proceed to create a new Encore application.
+
+#### Already created an application locally?
+
+Follow these steps if you've already created an app and want to link it to an account on Encore Cloud:
+
+**1. Ensure you are logged in with the CLI**
+
+```bash
+encore auth signup # If you haven't created an Encore Cloud account
+encore auth login # If you've already created an Encore Cloud account
+```
+
+**2. Link your local app to Encore Cloud**
+
+Run this command from you application's root folder:
+
+```bash
+encore app init
+```
+
+**3. Set up Encore's git remote to enable pushing directly to Encore Cloud**
+
+Run this command from you application's root folder:
+
+```bash
+git remote add encore encore://<app-id>
+```
+
 
 ### Step 2: Integrate with GitHub (Optional)
 
-When creating an Encore application, Encore will automatically create a new Encore managed git repository.
-If you are just trying out Encore Cloud, you can use this and skip the rest of this step.
+When creating an Encore application, Encore will automatically create a new Encore managed git repository. If you are just trying out Encore Cloud, you can use this and skip the rest of this step.
 
-For production applications we recommend integrating with GitHub instead of the built-in Encore managed git:
+For production applications we recommend integrating with GitHub instead of using the built-in Encore managed git:
 
 #### **Connecting your GitHub account**
 
