@@ -54,8 +54,7 @@ impl AuthHandler for LocalAuthHandler {
                 None => None,
                 Some(hdr) => hdr.parse(&req.headers)?,
             };
-            // TODO
-            let _cookie = match &self.schema.cookie {
+            let cookie = match &self.schema.cookie {
                 None => None,
                 Some(c) => c.parse_req(&req.headers)?,
             };
@@ -77,7 +76,11 @@ impl AuthHandler for LocalAuthHandler {
                 start_time: std::time::SystemTime::now(),
                 data: RequestData::Auth(AuthRequestData {
                     auth_handler: this.name().clone(),
-                    parsed_payload: AuthPayload { query, header },
+                    parsed_payload: AuthPayload {
+                        query,
+                        header,
+                        cookie,
+                    },
                 }),
             });
 

@@ -3,6 +3,8 @@ use http::header::{COOKIE, SET_COOKIE};
 
 use crate::api::{self, jsonschema, schema::ToResponse, APIResult, DateTime, PValue, PValues};
 
+use super::{HTTPHeaders, ToHeaderStr};
+
 #[derive(Debug, Clone)]
 pub struct Cookie {
     schema: jsonschema::JSONSchema,
@@ -11,6 +13,34 @@ pub struct Cookie {
 impl Cookie {
     pub fn new(schema: jsonschema::JSONSchema) -> Self {
         Self { schema }
+    }
+
+    pub fn contains_any(&self, headers: &impl HTTPHeaders) -> bool {
+        let mut jar = cookie::CookieJar::new();
+        for raw in headers.get_all(axum::http::header::COOKIE.as_str()) {
+            let raw_str = raw.to_str().unwrap_or("");
+            for raw_part in raw_str.split(';') {
+                if let Ok(c) = cookie::Cookie::parse(raw_part) {
+                    jar.add_original(c.into_owned());
+                }
+            }
+        }
+
+        for (name, field) in self.schema.root().fields.iter() {
+            let cookie_name = field.name_override.as_deref().unwrap_or(name.as_str());
+
+            if let Some(c) = jar.get(cookie_name) {
+                // Only consider non-empty values to be present.
+                if !c.value().is_empty() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn fields(&self) -> impl Iterator<Item = (&String, &jsonschema::Field)> {
+        self.schema.root().fields.iter()
     }
 
     pub fn parse_incoming_request_parts(
@@ -46,10 +76,9 @@ impl Cookie {
 
         let mut jar = cookie::CookieJar::new();
         for raw in headers.get_all(SET_COOKIE) {
-            for raw_part in String::from_utf8_lossy(raw.as_bytes()).split(';') {
-                let c = cookie::Cookie::parse(raw_part).map_err(api::Error::internal)?;
-                jar.add_original(c.into_owned());
-            }
+            let c = cookie::Cookie::parse(String::from_utf8_lossy(raw.as_bytes()))
+                .map_err(api::Error::internal)?;
+            jar.add_original(c.into_owned());
         }
 
         match self.schema.parse(jar) {
