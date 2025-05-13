@@ -257,6 +257,7 @@ pub fn encode_auth_payload(env: Env, p: &auth::AuthPayload) -> napi::Result<JsUn
     let mut obj = env.create_object()?;
     add_fields_to_obj(&mut obj, p.query.as_ref())?;
     add_fields_to_obj(&mut obj, p.header.as_ref())?;
+    add_fields_to_obj(&mut obj, p.cookie.as_ref())?;
     Ok(obj.into_unknown())
 }
 
