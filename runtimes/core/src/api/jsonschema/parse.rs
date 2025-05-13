@@ -221,7 +221,7 @@ impl ParseWithSchema<PValue> for PValue {
 impl ParseWithSchema<PValues> for cookie::CookieJar {
     fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<PValues> {
         let mut result = PValues::new();
-        let _reg = schema.registry.as_ref();
+        let reg = schema.registry.as_ref();
 
         for (field_key, field) in schema.root().fields.iter() {
             let name = field.name_override.as_deref().unwrap_or(field_key.as_str());
@@ -243,12 +243,111 @@ impl ParseWithSchema<PValues> for cookie::CookieJar {
                 field_key.clone(),
                 match field.value {
                     BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
-                    BasicOrValue::Value(_idx) => todo!(),
+                    BasicOrValue::Value(idx) => {
+                        parse_cookie_value(cookie.value(), reg, reg.get(idx))?
+                    }
                 },
             );
         }
 
         Ok(result)
+    }
+}
+
+fn parse_cookie_value(cookie_value: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+    match schema {
+        // Recurse
+        Value::Ref(idx) => parse_cookie_value(cookie_value, reg, &reg.values[*idx]),
+
+        Value::Validation(v) => {
+            let inner = match &v.bov {
+                BasicOrValue::Basic(basic) => parse_basic_str(basic, cookie_value),
+                BasicOrValue::Value(idx) => {
+                    parse_cookie_value(cookie_value, reg, &reg.values[*idx])
+                }
+            }?;
+            match v.validate_pval(&inner) {
+                Ok(()) => Ok(inner),
+                Err(err) => Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: "invalid cookie value".to_string(),
+                    internal_message: Some(format!("invalid cookie value: {}", err)),
+                    stack: None,
+                    details: None,
+                }),
+            }
+        }
+
+        // If we have an empty cookie for an option, that's fine.
+        Value::Option(_) if cookie_value.is_empty() => Ok(PValue::Null),
+
+        // Otherwise recurse.
+        Value::Option(opt) => match opt {
+            BasicOrValue::Basic(basic) => parse_basic_str(basic, cookie_value),
+            BasicOrValue::Value(idx) => parse_cookie_value(cookie_value, reg, &reg.values[*idx]),
+        },
+
+        Value::Basic(basic) => parse_basic_str(basic, cookie_value),
+
+        Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
+
+        Value::Literal(lit) => match lit {
+            Literal::Str(want) if cookie_value == want => Ok(PValue::String(want.to_string())),
+            Literal::Bool(true) if cookie_value == "true" => Ok(PValue::Bool(true)),
+            Literal::Bool(false) if cookie_value == "false" => Ok(PValue::Bool(false)),
+            Literal::Int(want) if cookie_value.parse() == Ok(*want) => {
+                Ok(PValue::Number(serde_json::Number::from(*want)))
+            }
+            Literal::Float(want) if cookie_value.parse() == Ok(*want) => {
+                if let Some(num) = serde_json::Number::from_f64(*want) {
+                    Ok(PValue::Number(num))
+                } else {
+                    Err(api::Error {
+                        code: api::ErrCode::InvalidArgument,
+                        message: "invalid cookie value".to_string(),
+                        internal_message: Some(format!("invalid float value: {}", cookie_value)),
+                        stack: None,
+                        details: None,
+                    })
+                }
+            }
+
+            want => Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "invalid cookie value".to_string(),
+                internal_message: Some(format!(
+                    "expected {}, got {}",
+                    want.expecting(),
+                    cookie_value
+                )),
+                stack: None,
+                details: None,
+            }),
+        },
+
+        Value::Union(union) => {
+            // Find the first value that matches.
+            for value in union {
+                let result = match value {
+                    BasicOrValue::Basic(basic) => parse_basic_str(basic, cookie_value),
+                    BasicOrValue::Value(idx) => {
+                        let value = reg.get(*idx);
+                        parse_cookie_value(cookie_value, reg, value)
+                    }
+                };
+                match result {
+                    Ok(value) => return Ok(value),
+                    Err(_) => continue,
+                }
+            }
+            Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "invalid cookie value".to_string(),
+                internal_message: Some(format!("no union value matched: {}", cookie_value)),
+                stack: None,
+                details: None,
+            })
+        }
     }
 }
 
@@ -493,6 +592,13 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
         Basic::Any | Basic::String => Ok(PValue::String(str.to_string())),
 
         Basic::Null if str.is_empty() || str == "null" => Ok(PValue::Null),
+        Basic::Null => Err(api::Error {
+            code: api::ErrCode::InvalidArgument,
+            message: "invalid value".to_string(),
+            internal_message: Some(format!("expected {}, got {:#?}", basic.expecting(), str)),
+            stack: None,
+            details: None,
+        }),
 
         Basic::Bool => match str {
             "true" => Ok(PValue::Bool(true)),
@@ -525,13 +631,5 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
                 stack: None,
                 details: None,
             }),
-
-        _ => Err(api::Error {
-            code: api::ErrCode::InvalidArgument,
-            message: "invalid value".to_string(),
-            internal_message: Some(format!("expected {}, got {:#?}", basic.expecting(), str)),
-            stack: None,
-            details: None,
-        }),
     }
 }
