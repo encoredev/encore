@@ -18,9 +18,8 @@ impl Cookie {
     pub fn contains_any(&self, headers: &impl HTTPHeaders) -> bool {
         let mut jar = cookie::CookieJar::new();
         for raw in headers.get_all(axum::http::header::COOKIE.as_str()) {
-            let raw_str = raw.to_str().unwrap_or("");
-            for raw_part in raw_str.split(';') {
-                if let Ok(c) = cookie::Cookie::parse(raw_part) {
+            if let Ok(raw) = raw.to_str() {
+                for c in cookie::Cookie::split_parse(raw).flatten() {
                     jar.add_original(c.into_owned());
                 }
             }
@@ -57,9 +56,10 @@ impl Cookie {
 
         let mut jar = cookie::CookieJar::new();
         for raw in headers.get_all(COOKIE) {
-            for raw_part in String::from_utf8_lossy(raw.as_bytes()).split(';') {
-                let c = cookie::Cookie::parse(raw_part).map_err(api::Error::internal)?;
-                jar.add_original(c.into_owned());
+            if let Ok(raw) = raw.to_str() {
+                for c in cookie::Cookie::split_parse(raw).flatten() {
+                    jar.add_original(c.into_owned());
+                }
             }
         }
 
