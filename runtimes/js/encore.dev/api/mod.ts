@@ -53,8 +53,8 @@ export type Cookie<
   TypeOrName extends string | number | boolean | Date = string,
   Name extends string = ""
 > = TypeOrName extends string
-  ? CookieWithOptions<string> | string
-  : CookieWithOptions<TypeOrName> | TypeOrName;
+  ? CookieWithOptions<string>
+  : CookieWithOptions<TypeOrName>;
 
 export interface APIOptions {
   /**
