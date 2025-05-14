@@ -241,12 +241,15 @@ impl ParseWithSchema<PValues> for cookie::CookieJar {
 
             result.insert(
                 field_key.clone(),
-                match field.value {
-                    BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
-                    BasicOrValue::Value(idx) => {
-                        parse_cookie_value(cookie.value(), reg, reg.get(idx))?
-                    }
-                },
+                PValue::Object(PValues::from([(
+                    "value".to_string(),
+                    match field.value {
+                        BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
+                        BasicOrValue::Value(idx) => {
+                            parse_cookie_value(cookie.value(), reg, reg.get(idx))?
+                        }
+                    },
+                )])),
             );
         }
 
