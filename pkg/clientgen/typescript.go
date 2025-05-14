@@ -69,6 +69,7 @@ type typescript struct {
 	seenJSON           bool // true if a JSON type was seen
 	seenStream         bool // true if a stream endpoint was seen
 	seenHeaderResponse bool // true if we've seen a header used in a response object
+	seenCookieResponse bool // true if we've seen a cookie used in a response object
 	hasAuth            bool // true if we've seen an authentication handler
 	authIsComplexType  bool // true if the auth type is a complex type
 }
@@ -358,7 +359,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				ts.WriteString(", ")
 			}
 			if !ts.sharedTypes {
-				ts.WriteString("body?: BodyInit, ")
+				ts.WriteString("body?: RequestInit[\"body\"], ")
 			}
 
 			if ts.sharedTypes {
@@ -464,7 +465,7 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 
 		handshakeEnc := encs[0]
 
-		if len(handshakeEnc.HeaderParameters) > 0 || len(handshakeEnc.QueryParameters) > 0 {
+		if len(handshakeEnc.HeaderParameters) > 0 || len(handshakeEnc.QueryParameters) > 0 || len(handshakeEnc.CookieParameters) > 0 {
 			w.WriteString("// Convert our params into the objects we need for the request\n")
 		}
 
@@ -506,6 +507,19 @@ func (ts *typescript) streamCallSite(w *indentWriter, rpc *meta.RPC, rpcPath str
 			}
 
 			w.WriteString("const query = makeRecord<string, string | string[]>(")
+			ts.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
+
+		// Generate the cookie string
+		if len(handshakeEnc.CookieParameters) > 0 {
+			dict := make(map[string]string)
+			for _, field := range handshakeEnc.CookieParameters {
+				ref := ts.Dot("params", field.SrcName)
+				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+			}
+
+			w.WriteString("const cookie = makeRecord<string, string>(")
 			ts.Values(w, dict)
 			w.WriteString(")\n\n")
 		}
@@ -580,13 +594,14 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	// Work out how we encode the Request Schema
 	headers := ""
+	cookies := ""
 	query := ""
 	body := ""
 
 	if rpc.RequestSchema != nil {
 		reqEnc := rpcEncoding.DefaultRequestEncoding
 
-		if len(reqEnc.HeaderParameters) > 0 || len(reqEnc.QueryParameters) > 0 {
+		if len(reqEnc.HeaderParameters) > 0 || len(reqEnc.QueryParameters) > 0 || len(reqEnc.CookieParameters) > 0 {
 			w.WriteString("// Convert our params into the objects we need for the request\n")
 		}
 
@@ -601,6 +616,21 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			}
 
 			w.WriteString("const headers = makeRecord<string, string>(")
+			ts.Values(w, dict)
+			w.WriteString(")\n\n")
+		}
+
+		// Generate the cookies
+		if len(reqEnc.CookieParameters) > 0 {
+			cookies = "cookies"
+
+			dict := make(map[string]string)
+			for _, field := range reqEnc.CookieParameters {
+				ref := ts.Dot("params", field.SrcName)
+				dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+			}
+
+			w.WriteString("const cookies = makeRecord<string, string>(")
 			ts.Values(w, dict)
 			w.WriteString(")\n\n")
 		}
@@ -659,7 +689,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		callAPI += fmt.Sprintf("\"%s\", ", rpcEncoding.DefaultMethod)
 	}
 	callAPI += fmt.Sprintf("`%s`", rpcPath)
-	if body != "" || headers != "" || query != "" || ts.sharedTypes {
+	if body != "" || headers != "" || cookies != "" || query != "" || ts.sharedTypes {
 		if body == "" {
 			body = "undefined"
 		}
@@ -667,10 +697,18 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			callAPI += ", " + body
 		}
 
-		if headers != "" || query != "" || ts.sharedTypes {
+		if headers != "" || cookies != "" || query != "" || ts.sharedTypes {
 			callAPI += ", {" + headers
 
-			if headers != "" && query != "" {
+			if headers != "" && cookies != "" {
+				callAPI += ", "
+			}
+
+			if cookies != "" {
+				callAPI += cookies
+			}
+
+			if (headers != "" || cookies != "") && query != "" {
 				callAPI += ", "
 			}
 
@@ -679,7 +717,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 			}
 
 			if ts.sharedTypes {
-				if headers != "" || query != "" {
+				if headers != "" || cookies != "" || query != "" {
 					callAPI += ", "
 				}
 				callAPI += fmt.Sprintf(`method: "%s", body: %s`, rpcEncoding.DefaultMethod, body)
@@ -723,11 +761,28 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	}
 	w.WriteString("\n")
 
+	if len(respEnc.CookieParameters) > 0 {
+		w.WriteString("const respCookies = resp.headers.getSetCookie().reduce((acc, cookie) => {\n")
+		w.WriteString("  const cookiePair = cookie.split(';')[0].trim();\n")
+		w.WriteString("  const index = cookiePair.indexOf('=');\n")
+		w.WriteString("  if (index > 0) {\n")
+		w.WriteString("    acc[cookiePair.slice(0, index)] = cookiePair.slice(index + 1);\n")
+		w.WriteString("  }\n")
+		w.WriteString("  return acc;\n")
+		w.WriteString("}, {} as Record<string, string>);\n")
+	}
+
 	for _, headerField := range respEnc.HeaderParameters {
 		ts.seenHeaderResponse = true
 		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+	}
+	for _, cookieField := range respEnc.CookieParameters {
+		ts.seenCookieResponse = true
+		fieldValue := fmt.Sprintf("mustBeSet(\"Cookie `%s`\", respCookies[\"%s\"])", cookieField.WireFormat, cookieField.WireFormat)
+
+		w.WriteStringf("%s = %s\n", ts.Dot("rtn", cookieField.SrcName), ts.convertStringToBuiltin(cookieField.Type.GetBuiltin(), fieldValue))
 	}
 
 	w.WriteString("return rtn\n")
@@ -1187,6 +1242,7 @@ func (ts *typescript) writeBaseClient(appSlug string) error {
 		reqOmit = `"headers"`
 	}
 	fmt.Fprintf(ts, `
+
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, %s> & {
     /** Headers to be sent with the request */
@@ -1194,6 +1250,9 @@ type CallParameters = Omit<RequestInit, %s> & {
 
     /** Query parameters to be sent with the request */
     query?: Record<string, string | string[]>
+
+    /** Cookies to be sent with the request */
+    cookies?: Record<string, string>
 }
 `, reqOmit)
 
@@ -1331,6 +1390,19 @@ class BaseClient {
 				ts.Values(w, dict)
 				w.WriteString(");\n")
 			}
+
+			// Generate the cookies
+			if len(authData.CookieParameters) > 0 {
+				dict := make(map[string]string)
+				for _, field := range authData.CookieParameters {
+					ref := ts.Dot("authData", field.SrcName)
+					dict[field.WireFormat] = ts.convertBuiltinToString(field.Type.GetBuiltin(), ref, field.Optional)
+				}
+
+				w.WriteString("data.cookies = makeRecord<string, string>(")
+				ts.Values(w, dict)
+				w.WriteString(");\n")
+			}
 		} else {
 			w.WriteString("data.headers = {};\n")
 			w.WriteString("data.headers[\"Authorization\"] = \"Bearer \" + authData;\n")
@@ -1348,7 +1420,7 @@ class BaseClient {
 	ts.WriteString(`
     // createStreamInOut sets up a stream to a streaming API endpoint.
     async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
-        let { query, headers } = params ?? {};
+        let { query, headers, cookies } = params ?? {};
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
@@ -1361,6 +1433,13 @@ class BaseClient {
             if (authData.headers) {
                 headers = {...headers, ...authData.headers};
             }
+            if (authData.cookies) {
+                cookies = {...cookies, ...authData.cookies};
+            }
+        }
+
+        if (cookies) {
+            headers = {...headers, Cookie: Object.entries(cookies).map(([key, val]) => ` + "`${key}=${val}`" + `).join('; ')}
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
@@ -1369,7 +1448,7 @@ class BaseClient {
 
     // createStreamIn sets up a stream to a streaming API endpoint.
     async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
-        let { query, headers } = params ?? {};
+        let { query, headers, cookies } = params ?? {};
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
@@ -1382,6 +1461,13 @@ class BaseClient {
             if (authData.headers) {
                 headers = {...headers, ...authData.headers};
             }
+            if (authData.cookies) {
+                cookies = {...cookies, ...authData.cookies};
+            }
+        }
+
+        if (cookies) {
+            headers = {...headers, Cookie: Object.entries(cookies).map(([key, val]) => ` + "`${key}=${val}`" + `).join('; ')}
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
@@ -1390,7 +1476,7 @@ class BaseClient {
 
     // createStreamOut sets up a stream to a streaming API endpoint.
     async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
-        let { query, headers } = params ?? {};
+        let { query, headers, cookies } = params ?? {};
 
         // Fetch auth data if there is any
         const authData = await this.getAuthData();
@@ -1403,6 +1489,13 @@ class BaseClient {
             if (authData.headers) {
                 headers = {...headers, ...authData.headers};
             }
+            if (authData.cookies) {
+                cookies = {...cookies, ...authData.cookies};
+            }
+        }
+
+        if (cookies) {
+            headers = {...headers, Cookie: Object.entries(cookies).map(([key, val]) => ` + "`${key}=${val}`" + `).join('; ')}
         }
 
         const queryString = query ? '?' + encodeQuery(query) : ''
@@ -1410,7 +1503,7 @@ class BaseClient {
     }
 `)
 
-	callParams := "method: string, path: string, body?: BodyInit, params?: CallParameters"
+	callParams := "method: string, path: string, body?: RequestInit[\"body\"], params?: CallParameters"
 	callAPIParams := "method, path, body"
 	initParams := `
             method,
@@ -1434,7 +1527,7 @@ class BaseClient {
 	fmt.Fprintf(ts, `
     // callAPI is used by each generated API method to actually make the request
     public async callAPI(%s): Promise<Response> {
-        let { query, headers, ...rest } = params ?? {}
+        let { query, headers, cookies, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
             ...rest,%s
@@ -1455,6 +1548,18 @@ class BaseClient {
             }
             if (authData.headers) {
                 init.headers = {...init.headers, ...authData.headers};
+            }
+            if (authData.cookies) {
+                cookies = {...cookies, ...authData.cookies};
+            }
+        }
+
+        // Add cookies to the request
+        if (cookies) {
+            init.credentials = 'include'
+            init.headers = {...init.headers, Cookie: Object.entries(cookies).map(([key, val]) => ` + "`${key}=${val}`" + `).join('; ')}
+            for (const [key, val] of Object.entries(cookies)) {
+                document.cookie = ` + "`${key}=${val}; path=/`" + `
             }
         }
 
@@ -1553,7 +1658,7 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
 }
 `)
 
-	if ts.seenHeaderResponse {
+	if ts.seenHeaderResponse || ts.seenCookieResponse {
 		ts.WriteString(`
 
 // mustBeSet will throw an APIError with the Data Loss code if value is null or undefined
