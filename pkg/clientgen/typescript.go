@@ -773,10 +773,21 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	}
 
 	for _, headerField := range respEnc.HeaderParameters {
+		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
+		if isSetCookie {
+			w.WriteString("if (!BROWSER) {\n")
+			w = w.Indent()
+		}
+
 		ts.seenHeaderResponse = true
 		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+
+		if isSetCookie {
+			w = w.Dedent()
+			w.WriteString("}\n")
+		}
 	}
 	for _, cookieField := range respEnc.CookieParameters {
 		ts.seenCookieResponse = true
@@ -1077,6 +1088,8 @@ export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`+"`pr${pr}`"+`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the `+ts.appSlug+` Encore application.
  */
@@ -1294,7 +1307,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "` + userAgent + `";
         }
 
