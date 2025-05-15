@@ -762,6 +762,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n")
 
 	if len(respEnc.CookieParameters) > 0 {
+		w.WriteString("// respCookies will contain all the set-cookie header key/values in a nodejs server context\n")
 		w.WriteString("const respCookies = resp.headers.getSetCookie().reduce((acc, cookie) => {\n")
 		w.WriteString("  const cookiePair = cookie.split(';')[0].trim();\n")
 		w.WriteString("  const index = cookiePair.indexOf('=');\n")
@@ -770,6 +771,15 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		w.WriteString("  }\n")
 		w.WriteString("  return acc;\n")
 		w.WriteString("}, {} as Record<string, string>);\n")
+
+		w.WriteString("// getBrowserCookie gets a cookie by name in a browser context\n")
+		w.WriteString("const getBrowserCookie = (name: string) => {\n")
+		w.WriteString("  return document.cookie\n")
+		w.WriteString("    .split(';')\n")
+		w.WriteString("    .map((cookie) => cookie.trim())\n")
+		w.WriteString("    .find((cookie) => cookie.startsWith(`${name}=`))\n")
+		w.WriteString("    ?.split('=')[1];\n")
+		w.WriteString("};\n")
 	}
 
 	for _, headerField := range respEnc.HeaderParameters {
@@ -791,7 +801,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	}
 	for _, cookieField := range respEnc.CookieParameters {
 		ts.seenCookieResponse = true
-		fieldValue := fmt.Sprintf("mustBeSet(\"Cookie `%s`\", respCookies[\"%s\"])", cookieField.WireFormat, cookieField.WireFormat)
+		fieldValue := fmt.Sprintf("mustBeSet(\"Cookie `%s`\", BROWSER ? getBrowserCookie(\"%s\") : respCookies[\"%s\"])", cookieField.WireFormat, cookieField.WireFormat, cookieField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", cookieField.SrcName), ts.convertStringToBuiltin(cookieField.Type.GetBuiltin(), fieldValue))
 	}
