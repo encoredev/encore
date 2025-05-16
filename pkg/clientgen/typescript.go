@@ -1230,7 +1230,6 @@ func (ts *typescript) writeBaseClient(appSlug string) error {
 		reqOmit = `"headers"`
 	}
 	fmt.Fprintf(ts, `
-
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, %s> & {
     /** Headers to be sent with the request */
