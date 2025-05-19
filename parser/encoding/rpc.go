@@ -571,7 +571,7 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, optio
 		return nil, err
 	}
 	if keys := keyDiff(fields, Header, Body, Cookie); len(keys) > 0 {
-		return nil, errors.Newf("response must only contain body and header parameters. Found: %v", keys)
+		return nil, errors.Newf("response must only contain body, header and cookie parameters. Found: %v", keys)
 	}
 	return &ResponseEncoding{
 		BodyParameters:   fields[Body],
@@ -650,7 +650,6 @@ func describeParams(lang meta.Lang, encodingHints *encodingHints, payload *schem
 	paramByLocation := make(map[ParameterLocation][]*ParameterEncoding)
 	for _, f := range payload.GetFields() {
 		f, err := describeParam(lang, encodingHints, f)
-		fmt.Printf("%+v: %s\n", f, f.Location)
 		if err != nil {
 			return nil, err
 		}

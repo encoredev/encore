@@ -77,7 +77,7 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	js.typs = getNamedTypes(p.Meta, p.Services)
 
 	if js.md.AuthHandler != nil {
-		if !js.authParamsCookiesOnly() {
+		if !js.isAuthCookiesOnly() {
 			js.hasAuth = true
 			js.authIsComplexType = js.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
 		}
@@ -123,7 +123,7 @@ func (js *javascript) getFields(typ *schema.Type) []*schema.Field {
 	}
 }
 
-func (js *javascript) authParamsCookiesOnly() bool {
+func (js *javascript) isAuthCookiesOnly() bool {
 	fields := js.getFields(js.md.AuthHandler.Params)
 	if fields == nil {
 		return false
