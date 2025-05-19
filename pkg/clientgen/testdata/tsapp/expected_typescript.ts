@@ -125,15 +125,58 @@ export namespace svc {
         headerNum?: number
     }
 
+    export interface Request {
+        /**
+         * Foo is good
+         */
+        foo?: number
+
+        /**
+         * Baz is better
+         */
+        baz: string
+
+        queryFoo?: boolean
+        queryBar?: string
+        headerBaz?: string
+        headerNum?: number
+    }
+
     export class ServiceClient {
         private baseClient: BaseClient
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.cookieDummy = this.cookieDummy.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
+        }
+
+        public async cookieDummy(params: Request): Promise<{
+}> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                baz: params.headerBaz,
+                num: params.headerNum === undefined ? undefined : String(params.headerNum),
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                bar: params.queryBar,
+                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                baz: params.baz,
+                foo: params.foo,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
+            return await resp.json() as {
+}
         }
 
         public async dummy(params: Request): Promise<void> {

@@ -91,31 +91,50 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (SvcAuthParams, error)
 }
 
 type SvcAuthParams struct {
-	Cookie string `encore:"optional" header:"Cookie,optional"`
-	Token  string `encore:"optional" header:"x-api-token,optional"`
+	Cookie      string `encore:"optional" header:"Cookie,optional"`
+	Token       string `encore:"optional" header:"x-api-token,optional"`
+	CookieValue string `cookie:"acutal-cookie,optional" encore:"optional"`
 }
 
 type SvcRequest struct {
-	Foo       float64 `encore:"optional"` // Foo is good
-	Baz       string  // Baz is better
-	QueryFoo  bool    `encore:"optional" query:"foo,optional"`
-	QueryBar  string  `encore:"optional" query:"bar,optional"`
-	HeaderBaz string  `encore:"optional" header:"baz,optional"`
-	HeaderNum float64 `encore:"optional" header:"num,optional"`
+	Foo        float64 `encore:"optional"` // Foo is good
+	Baz        string  // Baz is better
+	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
+	QueryBar   string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
+	HeaderNum  float64 `encore:"optional" header:"num,optional"`
+	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
+	CookieQuux float64 `cookie:"quux,optional" encore:"optional"`
 }
 
 type SvcRequest struct {
-	Foo       float64 `encore:"optional"` // Foo is good
-	Baz       string  // Baz is better
-	QueryFoo  bool    `encore:"optional" query:"foo,optional"`
-	QueryBar  string  `encore:"optional" query:"bar,optional"`
-	HeaderBaz string  `encore:"optional" header:"baz,optional"`
-	HeaderNum float64 `encore:"optional" header:"num,optional"`
+	Foo        float64 `encore:"optional"` // Foo is good
+	Baz        string  // Baz is better
+	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
+	QueryBar   string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
+	HeaderNum  float64 `encore:"optional" header:"num,optional"`
+	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
+	CookieQuux float64 `cookie:"quux,optional" encore:"optional"`
+}
+
+type SvcRequest struct {
+	Foo        float64 `encore:"optional"` // Foo is good
+	Baz        string  // Baz is better
+	QueryFoo   bool    `encore:"optional" query:"foo,optional"`
+	QueryBar   string  `encore:"optional" query:"bar,optional"`
+	HeaderBaz  string  `encore:"optional" header:"baz,optional"`
+	HeaderNum  float64 `encore:"optional" header:"num,optional"`
+	CookieQux  string  `cookie:"qux,optional" encore:"optional"`
+	CookieQuux float64 `cookie:"quux,optional" encore:"optional"`
 }
 
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
+	CookieDummy(ctx context.Context, params SvcRequest) (struct {
+		Cookie string `cookie:"cookie"`
+	}, error)
 	Dummy(ctx context.Context, params SvcRequest) error
 	Imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
 	OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
@@ -127,6 +146,45 @@ type svcClient struct {
 }
 
 var _ SvcClient = (*svcClient)(nil)
+
+func (c *svcClient) CookieDummy(ctx context.Context, params SvcRequest) (resp struct {
+	Cookie string `cookie:"cookie"`
+}, err error) {
+	// Convert our params into the objects we need for the request
+	reqEncoder := &serde{}
+
+	headers := http.Header{
+		"baz": {reqEncoder.FromString(params.headerBaz)},
+		"num": {reqEncoder.FromFloat64(params.headerNum)},
+	}
+
+	queryString := url.Values{
+		"bar": {reqEncoder.FromString(params.queryBar)},
+		"foo": {reqEncoder.FromBool(params.queryFoo)},
+	}
+
+	if reqEncoder.LastError != nil {
+		err = fmt.Errorf("unable to marshal parameters: %w", reqEncoder.LastError)
+		return
+	}
+
+	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+	body := struct {
+		Foo float64 `json:"foo"`
+		Baz string  `json:"baz"`
+	}{
+		baz: params.baz,
+		foo: params.foo,
+	}
+
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", fmt.Sprintf("/cookie-dummy?%s", queryString.Encode()), headers, body, nil)
+	if err != nil {
+		return
+	}
+
+	return
+}
 
 func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request

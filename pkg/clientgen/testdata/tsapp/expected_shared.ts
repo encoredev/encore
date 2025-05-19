@@ -95,6 +95,7 @@ export interface ClientOptions {
  * Import the endpoint handlers to derive the types for the client.
  */
 import {
+    cookieDummy as api_svc_svc_cookieDummy,
     dummy as api_svc_svc_dummy,
     imported as api_svc_svc_imported,
     onlyPathParams as api_svc_svc_onlyPathParams,
@@ -108,10 +109,34 @@ export namespace svc {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.cookieDummy = this.cookieDummy.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
+        }
+
+        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<ResponseType<typeof api_svc_svc_cookieDummy>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                baz: params.headerBaz,
+                num: params.headerNum === undefined ? undefined : String(params.headerNum),
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                bar: params.queryBar,
+                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                baz: params.baz,
+                foo: params.foo,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_cookieDummy>
         }
 
         public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
