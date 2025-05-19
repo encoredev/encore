@@ -252,7 +252,7 @@ fn parse_bucket_ref(
         .resolve_type(data.module.clone(), type_arg);
 
     if let Some(ops) = process_type(data, &typ.span(), typ.deref(), 0) {
-        if !bucket.public && ops.iter().any(|o| *o == Operation::GetPublicUrl) {
+        if !bucket.public && ops.contains(&Operation::GetPublicUrl) {
             typ.span()
                 .err("cannot use publicUrl on a non-public bucket");
         }
