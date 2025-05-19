@@ -82,7 +82,7 @@ impl Process {
                 if token.is_cancelled() {
                     Ok(())
                 } else {
-                    Err(io::Error::new(io::ErrorKind::Other, "exited"))
+                    Err(io::Error::other("exited"))
                 }
             }
         })
@@ -92,7 +92,7 @@ impl Process {
     async fn run_once(&self, token: CancellationToken) -> io::Result<()> {
         // If the token is already cancelled, do nothing.
         if token.is_cancelled() {
-            return Err(io::Error::new(io::ErrorKind::Other, "canceled"));
+            return Err(io::Error::other("canceled"));
         }
 
         let envs = self.env.iter().map(|(k, v)| {
