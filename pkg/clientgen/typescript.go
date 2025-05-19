@@ -86,7 +86,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.typs = getNamedTypes(p.Meta, p.Services)
 
 	if ts.md.AuthHandler != nil {
-		if !ts.authParamsCookiesOnly() {
+		if !ts.isAuthCookieOnly() {
 			ts.hasAuth = true
 			ts.authIsComplexType = ts.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
 		}
@@ -149,7 +149,7 @@ func (ts *typescript) getFields(typ *schema.Type) []*schema.Field {
 	}
 }
 
-func (ts *typescript) authParamsCookiesOnly() bool {
+func (ts *typescript) isAuthCookieOnly() bool {
 	fields := ts.getFields(ts.md.AuthHandler.Params)
 	if fields == nil {
 		return false
