@@ -97,56 +97,80 @@ where
     }
 }
 
-fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+#[derive(Clone, Copy)]
+enum ValueType {
+    Header,
+    Cookie,
+}
+
+impl ValueType {
+    fn error_message(&self) -> &'static str {
+        match self {
+            ValueType::Header => "invalid header value",
+            ValueType::Cookie => "invalid cookie value",
+        }
+    }
+}
+
+fn parse_str_value(
+    value_str: &str,
+    reg: &Registry,
+    schema: &Value,
+    value_type: ValueType,
+) -> APIResult<PValue> {
     match schema {
         // Recurse
-        Value::Ref(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+        Value::Ref(idx) => parse_str_value(value_str, reg, &reg.values[*idx], value_type),
 
         Value::Validation(v) => {
             let inner = match &v.bov {
-                BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
-                BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+                BasicOrValue::Basic(basic) => parse_basic_str(basic, value_str),
+                BasicOrValue::Value(idx) => {
+                    parse_str_value(value_str, reg, &reg.values[*idx], value_type)
+                }
             }?;
             match v.validate_pval(&inner) {
                 Ok(()) => Ok(inner),
                 Err(err) => Err(api::Error {
                     code: api::ErrCode::InvalidArgument,
-                    message: "invalid header value".to_string(),
-                    internal_message: Some(format!("invalid header value: {}", err)),
+                    message: value_type.error_message().to_string(),
+                    internal_message: Some(format!("{}: {}", value_type.error_message(), err)),
                     stack: None,
                     details: None,
                 }),
             }
         }
 
-        // If we have an empty header for an option, that's fine.
-        Value::Option(_) if header.is_empty() => Ok(PValue::Null),
+        // If we have an empty value for an option, that's fine.
+        Value::Option(_) if value_str.is_empty() => Ok(PValue::Null),
 
         // Otherwise recurse.
         Value::Option(opt) => match opt {
-            BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
-            BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+            BasicOrValue::Basic(basic) => parse_basic_str(basic, value_str),
+            BasicOrValue::Value(idx) => {
+                parse_str_value(value_str, reg, &reg.values[*idx], value_type)
+            }
         },
 
-        Value::Basic(basic) => parse_basic_str(basic, header),
+        Value::Basic(basic) => parse_basic_str(basic, value_str),
 
         Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
 
         Value::Literal(lit) => match lit {
-            Literal::Str(want) if header == want => Ok(PValue::String(want.to_string())),
-            Literal::Bool(true) if header == "true" => Ok(PValue::Bool(true)),
-            Literal::Bool(false) if header == "false" => Ok(PValue::Bool(false)),
-            Literal::Int(want) if header.parse() == Ok(*want) => {
+            Literal::Str(want) if value_str == want => Ok(PValue::String(want.to_string())),
+            Literal::Bool(true) if value_str == "true" => Ok(PValue::Bool(true)),
+            Literal::Bool(false) if value_str == "false" => Ok(PValue::Bool(false)),
+            Literal::Int(want) if value_str.parse() == Ok(*want) => {
                 Ok(PValue::Number(serde_json::Number::from(*want)))
             }
-            Literal::Float(want) if header.parse() == Ok(*want) => {
+            Literal::Float(want) if value_str.parse() == Ok(*want) => {
                 if let Some(num) = serde_json::Number::from_f64(*want) {
                     Ok(PValue::Number(num))
                 } else {
                     Err(api::Error {
                         code: api::ErrCode::InvalidArgument,
-                        message: "invalid header value".to_string(),
-                        internal_message: Some(format!("invalid float value: {}", header)),
+                        message: value_type.error_message().to_string(),
+                        internal_message: Some(format!("invalid float value: {}", value_str)),
                         stack: None,
                         details: None,
                     })
@@ -155,8 +179,8 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
 
             want => Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
-                message: "invalid header value".to_string(),
-                internal_message: Some(format!("expected {}, got {}", want.expecting(), header)),
+                message: value_type.error_message().to_string(),
+                internal_message: Some(format!("expected {}, got {}", want.expecting(), value_str)),
                 stack: None,
                 details: None,
             }),
@@ -166,10 +190,10 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
             // Find the first value that matches.
             for value in union {
                 let result = match value {
-                    BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
+                    BasicOrValue::Basic(basic) => parse_basic_str(basic, value_str),
                     BasicOrValue::Value(idx) => {
                         let value = reg.get(*idx);
-                        parse_header_value(header, reg, value)
+                        parse_str_value(value_str, reg, value, value_type)
                     }
                 };
                 match result {
@@ -179,13 +203,21 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
             }
             Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
-                message: "invalid header value".to_string(),
-                internal_message: Some(format!("no union value matched: {}", header)),
+                message: value_type.error_message().to_string(),
+                internal_message: Some(format!("no union value matched: {}", value_str)),
                 stack: None,
                 details: None,
             })
         }
     }
+}
+
+fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+    parse_str_value(header, reg, schema, ValueType::Header)
+}
+
+fn parse_cookie_value(cookie_value: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+    parse_str_value(cookie_value, reg, schema, ValueType::Cookie)
 }
 
 impl ParseWithSchema<PValue> for PValue {
@@ -254,103 +286,6 @@ impl ParseWithSchema<PValues> for cookie::CookieJar {
         }
 
         Ok(result)
-    }
-}
-
-fn parse_cookie_value(cookie_value: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
-    match schema {
-        // Recurse
-        Value::Ref(idx) => parse_cookie_value(cookie_value, reg, &reg.values[*idx]),
-
-        Value::Validation(v) => {
-            let inner = match &v.bov {
-                BasicOrValue::Basic(basic) => parse_basic_str(basic, cookie_value),
-                BasicOrValue::Value(idx) => {
-                    parse_cookie_value(cookie_value, reg, &reg.values[*idx])
-                }
-            }?;
-            match v.validate_pval(&inner) {
-                Ok(()) => Ok(inner),
-                Err(err) => Err(api::Error {
-                    code: api::ErrCode::InvalidArgument,
-                    message: "invalid cookie value".to_string(),
-                    internal_message: Some(format!("invalid cookie value: {}", err)),
-                    stack: None,
-                    details: None,
-                }),
-            }
-        }
-
-        // If we have an empty cookie for an option, that's fine.
-        Value::Option(_) if cookie_value.is_empty() => Ok(PValue::Null),
-
-        // Otherwise recurse.
-        Value::Option(opt) => match opt {
-            BasicOrValue::Basic(basic) => parse_basic_str(basic, cookie_value),
-            BasicOrValue::Value(idx) => parse_cookie_value(cookie_value, reg, &reg.values[*idx]),
-        },
-
-        Value::Basic(basic) => parse_basic_str(basic, cookie_value),
-
-        Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
-
-        Value::Literal(lit) => match lit {
-            Literal::Str(want) if cookie_value == want => Ok(PValue::String(want.to_string())),
-            Literal::Bool(true) if cookie_value == "true" => Ok(PValue::Bool(true)),
-            Literal::Bool(false) if cookie_value == "false" => Ok(PValue::Bool(false)),
-            Literal::Int(want) if cookie_value.parse() == Ok(*want) => {
-                Ok(PValue::Number(serde_json::Number::from(*want)))
-            }
-            Literal::Float(want) if cookie_value.parse() == Ok(*want) => {
-                if let Some(num) = serde_json::Number::from_f64(*want) {
-                    Ok(PValue::Number(num))
-                } else {
-                    Err(api::Error {
-                        code: api::ErrCode::InvalidArgument,
-                        message: "invalid cookie value".to_string(),
-                        internal_message: Some(format!("invalid float value: {}", cookie_value)),
-                        stack: None,
-                        details: None,
-                    })
-                }
-            }
-
-            want => Err(api::Error {
-                code: api::ErrCode::InvalidArgument,
-                message: "invalid cookie value".to_string(),
-                internal_message: Some(format!(
-                    "expected {}, got {}",
-                    want.expecting(),
-                    cookie_value
-                )),
-                stack: None,
-                details: None,
-            }),
-        },
-
-        Value::Union(union) => {
-            // Find the first value that matches.
-            for value in union {
-                let result = match value {
-                    BasicOrValue::Basic(basic) => parse_basic_str(basic, cookie_value),
-                    BasicOrValue::Value(idx) => {
-                        let value = reg.get(*idx);
-                        parse_cookie_value(cookie_value, reg, value)
-                    }
-                };
-                match result {
-                    Ok(value) => return Ok(value),
-                    Err(_) => continue,
-                }
-            }
-            Err(api::Error {
-                code: api::ErrCode::InvalidArgument,
-                message: "invalid cookie value".to_string(),
-                internal_message: Some(format!("no union value matched: {}", cookie_value)),
-                stack: None,
-                details: None,
-            })
-        }
     }
 }
 
