@@ -480,6 +480,7 @@ export function middleware(
     return a as Middleware;
   } else {
     const opts = a as MiddlewareOptions;
+    // Wrap the middleware function to prevent options from being mutated.
     const mw: Middleware = (req: MiddlewareRequest, next: Next) => {
       return b(req, next);
     };
