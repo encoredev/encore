@@ -98,6 +98,10 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.WriteString("/* jshint ignore:start */\n")
 	ts.WriteString("/*jslint-disable*/\n")
 
+	if ts.sharedTypes {
+		ts.WriteString("import { CookieWithOptions } from \"encore.dev/api\";\n")
+	}
+
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
 	ts.writeClient(p.Services)
@@ -745,7 +749,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\n")
 
 	if ts.sharedTypes {
-		fmt.Fprintf(ts, "const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
+		w.WriteStringf("const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
 	} else {
 		w.WriteString("const rtn = await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
@@ -1548,10 +1552,14 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 		ts.WriteString(`
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
-type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+type OmitCookie<T> = {
+  [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
+};
 
-type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
+type RequestType<Type extends (...args: any[]) => any> =
+  Parameters<Type> extends [infer H, ...any[]] ? OmitCookie<H> : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
