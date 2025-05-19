@@ -93,7 +93,7 @@ func WithAuthFunc(authGenerator func(ctx context.Context) (SvcAuthParams, error)
 type SvcAuthParams struct {
 	Cookie      string `encore:"optional" header:"Cookie,optional"`
 	Token       string `encore:"optional" header:"x-api-token,optional"`
-	CookieValue string `cookie:"acutal-cookie,optional" encore:"optional"`
+	CookieValue string `cookie:"actual-cookie,optional" encore:"optional"`
 }
 
 type SvcRequest struct {

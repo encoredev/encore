@@ -52,7 +52,7 @@ export const cookieDummy = api(
 export interface AuthParams {
   cookie?: Header<'Cookie'>
   token?: Header<'x-api-token'>
-  cookieValue?: Cookie<'acutal-cookie'>
+  cookieValue?: Cookie<'actual-cookie'>
 }
 
 export interface AuthData {
