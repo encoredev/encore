@@ -184,6 +184,7 @@ impl Request {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum RequestData {
     RPC(RPCRequestData),
     Stream(StreamRequestData),
