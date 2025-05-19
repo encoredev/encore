@@ -4,6 +4,7 @@
 /* eslint-disable */
 /* jshint ignore:start */
 /*jslint-disable*/
+import { CookieWithOptions } from "encore.dev/api";
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.
@@ -25,6 +26,8 @@ export function Environment(name: string): BaseURL {
 export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`pr${pr}`)
 }
+
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
 
 /**
  * Client is an API client for the app Encore application.
@@ -170,10 +173,14 @@ export namespace svc {
 
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
-type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+type OmitCookie<T> = {
+  [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
+};
 
-type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
+type RequestType<Type extends (...args: any[]) => any> =
+  Parameters<Type> extends [infer H, ...any[]] ? OmitCookie<H> : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
@@ -438,7 +445,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
