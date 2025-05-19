@@ -480,7 +480,9 @@ export function middleware(
     return a as Middleware;
   } else {
     const opts = a as MiddlewareOptions;
-    const mw = b as Middleware;
+    const mw: Middleware = (req: MiddlewareRequest, next: Next) => {
+      return b(req, next);
+    };
     mw.options = opts;
 
     return mw;
