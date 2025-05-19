@@ -480,11 +480,12 @@ export function middleware(
     return a as Middleware;
   } else {
     const opts = a as MiddlewareOptions;
-    // Wrap the middleware function to prevent options from being mutated.
+    // Wrap the middleware function to delegate calls and preserve the original options.
+    // The options object is stored separately and made immutable to prevent accidental mutation.
     const mw: Middleware = (req: MiddlewareRequest, next: Next) => {
       return b(req, next);
     };
-    mw.options = opts;
+    mw.options = Object.freeze({ ...opts });
 
     return mw;
   }
