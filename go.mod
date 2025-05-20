@@ -75,7 +75,7 @@ require (
 	go4.org v0.0.0-20230225012048-214862532bf5
 	golang.org/x/crypto v0.28.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/mod v0.17.0
+	golang.org/x/mod v0.24.0
 	golang.org/x/net v0.30.0
 	golang.org/x/oauth2 v0.23.0
 	golang.org/x/sync v0.8.0
