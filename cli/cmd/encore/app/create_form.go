@@ -641,6 +641,12 @@ var defaultTemplates = []templateItem{
 		Lang:      "ts",
 	},
 	{
+		ItemTitle: "SaaS Starter",
+		Desc:      "Complete app with Clerk auth, Stripe billing, etc. (advanced)",
+		Template:  "ts/saas-starter",
+		Lang:      "ts",
+	},
+	{
 		ItemTitle: "Empty app",
 		Desc:      "Start from scratch (experienced users only)",
 		Template:  "",
