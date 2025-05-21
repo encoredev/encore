@@ -191,7 +191,7 @@ impl Path {
                             let encoded = dt.to_rfc3339();
                             path.push_str(&encoded);
                         }
-                        PValue::Array(_) | PValue::Object(_) => {
+                        PValue::Array(_) | PValue::Object(_) | PValue::Cookie(_) => {
                             return Err(api::Error {
                                 code: api::ErrCode::InvalidArgument,
                                 message: "unsupported type in request payload".into(),
