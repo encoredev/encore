@@ -150,6 +150,9 @@ func (ts *typescript) getFields(typ *schema.Type) []*schema.Field {
 }
 
 func (ts *typescript) isAuthCookieOnly() bool {
+	if ts.md.AuthHandler == nil {
+		return false
+	}
 	fields := ts.getFields(ts.md.AuthHandler.Params)
 	if fields == nil {
 		return false

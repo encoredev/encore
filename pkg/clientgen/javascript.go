@@ -124,6 +124,9 @@ func (js *javascript) getFields(typ *schema.Type) []*schema.Field {
 }
 
 func (js *javascript) isAuthCookiesOnly() bool {
+	if js.md.AuthHandler == nil {
+		return false
+	}
 	fields := js.getFields(js.md.AuthHandler.Params)
 	if fields == nil {
 		return false
