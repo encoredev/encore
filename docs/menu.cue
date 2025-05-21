@@ -412,7 +412,7 @@
 				file: "go/cli/telemetry"
 			}, {
 				kind: "basic"
-				text: "MCP"
+				text: "MCP Server"
 				path: "/go/cli/mcp"
 				file: "go/cli/mcp"
 			}]
@@ -855,7 +855,7 @@
 				file: "ts/cli/telemetry"
 			}, {
 				kind: "basic"
-				text: "MCP"
+				text: "MCP Server"
 				path: "/ts/cli/mcp"
 				file: "ts/cli/mcp"
 			}]
