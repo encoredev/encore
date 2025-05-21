@@ -410,6 +410,11 @@
 				text: "Telemetry"
 				path: "/go/cli/telemetry"
 				file: "go/cli/telemetry"
+			}, {
+				kind: "basic"
+				text: "MCP"
+				path: "/go/cli/mcp"
+				file: "go/cli/mcp"
 			}]
 		},
 		{
@@ -848,6 +853,11 @@
 				text: "Telemetry"
 				path: "/ts/cli/telemetry"
 				file: "ts/cli/telemetry"
+			}, {
+				kind: "basic"
+				text: "MCP"
+				path: "/ts/cli/mcp"
+				file: "ts/cli/mcp"
 			}]
 		},
 		{

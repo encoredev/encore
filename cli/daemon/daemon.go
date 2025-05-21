@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/mcp"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/run"
 	"encr.dev/cli/daemon/secret"
@@ -45,6 +46,7 @@ type Server struct {
 	cm   *sqldb.ClusterManager
 	sm   *secret.Manager
 	ns   *namespace.Manager
+	mcp  *mcp.Manager
 
 	mu      sync.Mutex
 	streams map[string]*streamLog // run id -> stream
@@ -59,13 +61,14 @@ type Server struct {
 }
 
 // New creates a new Server.
-func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager, ns *namespace.Manager) *Server {
+func New(appsMgr *apps.Manager, mgr *run.Manager, cm *sqldb.ClusterManager, sm *secret.Manager, ns *namespace.Manager, mcp *mcp.Manager) *Server {
 	srv := &Server{
 		apps:    appsMgr,
 		mgr:     mgr,
 		cm:      cm,
 		sm:      sm,
 		ns:      ns,
+		mcp:     mcp,
 		streams: make(map[string]*streamLog),
 
 		appDebouncers: make(map[*apps.Instance]*regenerateCodeDebouncer),

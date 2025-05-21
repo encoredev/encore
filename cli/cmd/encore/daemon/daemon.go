@@ -40,6 +40,7 @@ import (
 	"encr.dev/cli/daemon/engine"
 	"encr.dev/cli/daemon/engine/trace2"
 	"encr.dev/cli/daemon/engine/trace2/sqlite"
+	"encr.dev/cli/daemon/mcp"
 	"encr.dev/cli/daemon/namespace"
 	"encr.dev/cli/daemon/objects"
 	"encr.dev/cli/daemon/run"
@@ -100,6 +101,7 @@ type Daemon struct {
 	Dash          *retryingTCPListener
 	Debug         *retryingTCPListener
 	ObjectStorage *retryingTCPListener
+	MCP           *retryingTCPListener
 	EncoreDB      *sql.DB
 
 	Apps          *apps.Manager
@@ -108,11 +110,11 @@ type Daemon struct {
 	NS            *namespace.Manager
 	ClusterMgr    *sqldb.ClusterManager
 	ObjectsMgr    *objects.ClusterManager
+	MCPMgr        *mcp.Manager
 	PublicBuckets *objects.PublicBucketServer
 	Trace         trace2.Store
 	Server        *daemon.Server
-
-	dev bool // whether we're in development mode
+	dev           bool // whether we're in development mode
 
 	// exit is a channel that shuts down the daemon when sent on.
 	// A nil error indicates graceful exit.
@@ -129,6 +131,7 @@ func (d *Daemon) init(ctx context.Context) {
 	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
 	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
 	d.ObjectStorage = d.listenTCPRetry("objectstorage", option.None[string](), 9800)
+	d.MCP = d.listenTCPRetry("mcp", option.None[string](), 9900)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
@@ -163,13 +166,21 @@ func (d *Daemon) init(ctx context.Context) {
 		ObjectsMgr:    d.ObjectsMgr,
 		PublicBuckets: d.PublicBuckets,
 	}
+	d.MCPMgr = mcp.NewManager(
+		d.Apps,
+		d.ClusterMgr,
+		d.NS,
+		d.Trace,
+		d.RunMgr,
+		fmt.Sprintf("http://%s", d.MCP.ClientAddr()),
+	)
 
 	// Register namespace deletion handlers.
 	d.NS.RegisterDeletionHandler(d.ClusterMgr)
 	d.NS.RegisterDeletionHandler(d.RunMgr)
 	d.NS.RegisterDeletionHandler(d.ObjectsMgr)
 
-	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret, d.NS)
+	d.Server = daemon.New(d.Apps, d.RunMgr, d.ClusterMgr, d.Secret, d.NS, d.MCPMgr)
 }
 
 func (d *Daemon) serve() {
@@ -179,6 +190,7 @@ func (d *Daemon) serve() {
 	go d.serveDash()
 	go d.serveDebug()
 	go d.serveObjects()
+	go d.serveMCP()
 }
 
 // listenDaemonSocket listens on the encored.sock UNIX socket
@@ -254,6 +266,11 @@ func (d *Daemon) serveRuntime() {
 func (d *Daemon) serveDBProxy() {
 	log.Info().Stringer("addr", d.DBProxy.Addr()).Msg("serving dbproxy")
 	d.exit <- d.ClusterMgr.ServeProxy(d.DBProxy)
+}
+
+func (d *Daemon) serveMCP() {
+	log.Info().Stringer("addr", d.MCP.Addr()).Msg("serving mcp")
+	d.exit <- d.MCPMgr.Serve(d.MCP)
 }
 
 func (d *Daemon) serveObjects() {
