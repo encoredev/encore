@@ -1,6 +1,6 @@
 ---
 seotitle: Encore MCP server
-seodesc: The Model Context Portocal (MCP) server exposes tools that provide application context to LLMs.
+seodesc: The Model Context Protocol (MCP) server exposes tools that provide application context to LLMs.
 title: MCP
 subtitle: The Model Context Portocal (MCP) server exposes tools that provide application context to LLMs.
 lang: go
