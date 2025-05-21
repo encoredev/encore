@@ -112,35 +112,6 @@ impl ToNapiValue for &PVal {
     }
 }
 
-unsafe fn cookie_to_napi_value(env: sys::napi_env, c: api::Cookie) -> Result<sys::napi_value> {
-    let env2 = Env::from_raw(env);
-    let mut cookie = env2.create_object()?;
-
-    cookie.set("name", &c.name)?;
-    cookie.set("value", PVal(*c.value))?;
-
-    if let Some(secure) = c.secure {
-        cookie.set("secure", secure)?;
-    }
-    if let Some(http_only) = c.http_only {
-        cookie.set("httpOnly", http_only)?;
-    }
-
-    if let Some(domain) = &c.domain {
-        cookie.set("domain", domain)?;
-    }
-    if let Some(path) = &c.path {
-        cookie.set("path", path)?;
-    }
-    if let Some(expires) = c.expires {
-        let dt = PValue::DateTime(expires);
-        cookie.set("expires", PVal(dt))?;
-    }
-    if let Some(same_site) = c.same_site {
-        cookie.set("sameSite", same_site.to_string())?;
-    }
-    JsObject::to_napi_value(env, cookie)
-}
 impl FromNapiValue for PVal {
     unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
         let ty = type_of!(env, napi_val)?;
@@ -348,4 +319,34 @@ fn obj_get_pval<K: AsRef<str>>(
         let pval = PVal::from_napi_value(env, ret)?;
         Ok(Some(pval.0))
     }
+}
+
+unsafe fn cookie_to_napi_value(env: sys::napi_env, c: api::Cookie) -> Result<sys::napi_value> {
+    let env2 = Env::from_raw(env);
+    let mut cookie = env2.create_object()?;
+
+    cookie.set("name", &c.name)?;
+    cookie.set("value", PVal(*c.value))?;
+
+    if let Some(secure) = c.secure {
+        cookie.set("secure", secure)?;
+    }
+    if let Some(http_only) = c.http_only {
+        cookie.set("httpOnly", http_only)?;
+    }
+
+    if let Some(domain) = &c.domain {
+        cookie.set("domain", domain)?;
+    }
+    if let Some(path) = &c.path {
+        cookie.set("path", path)?;
+    }
+    if let Some(expires) = c.expires {
+        let dt = PValue::DateTime(expires);
+        cookie.set("expires", PVal(dt))?;
+    }
+    if let Some(same_site) = c.same_site {
+        cookie.set("sameSite", same_site.to_string())?;
+    }
+    JsObject::to_napi_value(env, cookie)
 }
