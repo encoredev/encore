@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/grpc/status"
 
+	"encr.dev/cli/internal/manifest"
 	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/errinsrc"
 	"encr.dev/pkg/errlist"
@@ -34,6 +35,10 @@ func MaybeAppRoot() (appRoot, relPath string, err error) {
 	if err != nil {
 		return "", "", err
 	}
+	return FindAppRootFromDir(dir)
+}
+
+func FindAppRootFromDir(dir string) (appRoot, relPath string, err error) {
 	rel := "."
 	for {
 		path := filepath.Join(dir, "encore.app")
@@ -88,6 +93,19 @@ func WorkspaceRoot(appRoot string) string {
 			return dir
 		}
 	}
+}
+
+func AppSlugOrLocalID() string {
+	appRoot, _ := AppRoot()
+	appID, _ := appfile.Slug(appRoot)
+	if appID == "" {
+		mf, err := manifest.ReadOrCreate(appRoot)
+		if err != nil {
+			Fatalf("failed to read app manifest: %v", err)
+		}
+		appID = mf.LocalID
+	}
+	return appID
 }
 
 // AppSlug reports the current app's app slug.
