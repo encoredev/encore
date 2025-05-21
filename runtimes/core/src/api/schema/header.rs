@@ -344,6 +344,15 @@ fn to_reqwest_header_value(value: &PValue) -> APIResult<ReqwestHeaders> {
                 details: None,
             })
         }
+        Cookie(_) => {
+            return Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "cookie type unsupported as header value".into(),
+                internal_message: None,
+                stack: None,
+                details: None,
+            })
+        }
     }))
 }
 
@@ -416,6 +425,16 @@ fn to_axum_header_value(value: &PValue) -> APIResult<AxumHeaders> {
             return Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: "map type unsupported as header value".into(),
+                internal_message: None,
+                stack: None,
+                details: None,
+            })
+        }
+
+        Cookie(_) => {
+            return Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "cookie type unsupported as header value".into(),
                 internal_message: None,
                 stack: None,
                 details: None,

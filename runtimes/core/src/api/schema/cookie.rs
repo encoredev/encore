@@ -332,5 +332,12 @@ fn to_cookie_value(value: &PValue) -> APIResult<String> {
             stack: None,
             details: None,
         }),
+        Cookie(_) => Err(api::Error {
+            code: api::ErrCode::InvalidArgument,
+            message: "cookie type unsupported as cookie value".to_string(),
+            internal_message: None,
+            stack: None,
+            details: None,
+        }),
     }
 }

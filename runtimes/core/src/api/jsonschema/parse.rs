@@ -1,5 +1,5 @@
 use crate::api::jsonschema::{Basic, BasicOrValue, JSONSchema, Registry, Struct, Value};
-use crate::api::{self, PValue, PValues};
+use crate::api::{self, Cookie, PValue, PValues, SameSite};
 use crate::api::{schema, APIResult};
 use schema::ToHeaderStr;
 
@@ -271,18 +271,35 @@ impl ParseWithSchema<PValues> for cookie::CookieJar {
                 }
             };
 
-            result.insert(
-                field_key.clone(),
-                PValue::Object(PValues::from([(
-                    "value".to_string(),
-                    match field.value {
-                        BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
-                        BasicOrValue::Value(idx) => {
-                            parse_cookie_value(cookie.value(), reg, reg.get(idx))?
-                        }
-                    },
-                )])),
-            );
+            let cookie_value = match field.value {
+                BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
+                BasicOrValue::Value(idx) => parse_cookie_value(cookie.value(), reg, reg.get(idx))?,
+            };
+
+            let cookie = Cookie {
+                name: name.to_string(),
+                value: Box::new(cookie_value),
+                path: cookie.path().map(|s| s.to_string()),
+                domain: cookie.domain().map(|s| s.to_string()),
+                secure: cookie.secure(),
+                http_only: cookie.http_only(),
+                expires: cookie.expires_datetime().map(|dt| {
+                    let system_time: std::time::SystemTime = dt.into();
+                    let utc: chrono::DateTime<chrono::Utc> = chrono::DateTime::from(system_time);
+                    utc.into()
+                }),
+                max_age: cookie
+                    .max_age()
+                    .map(|duration| duration.whole_seconds() as u64),
+                same_site: cookie.same_site().map(|ss| match ss {
+                    cookie::SameSite::Strict => SameSite::Strict,
+                    cookie::SameSite::Lax => SameSite::Lax,
+                    cookie::SameSite::None => SameSite::None,
+                }),
+                partitioned: cookie.partitioned(),
+            };
+
+            result.insert(field_key.clone(), PValue::Cookie(cookie));
         }
 
         Ok(result)
@@ -480,6 +497,7 @@ fn describe_json(value: &PValue) -> &'static str {
         PValue::DateTime(_) => "a datetime",
         PValue::Array(_) => "an array",
         PValue::Object(_) => "an object",
+        PValue::Cookie(_) => "a cookie",
     }
 }
 

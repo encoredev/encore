@@ -66,6 +66,36 @@ impl ToNapiValue for PVal {
                 unsafe { Array::to_napi_value(env, out) }
             }
             PValue::Object(obj) => unsafe { ToNapiValue::to_napi_value(env, PVals(obj)) },
+            PValue::Cookie(c) => {
+                let val: PVal = PVal(*c.value);
+                let env2 = Env::from_raw(env);
+                let mut cookie = env2.create_object()?;
+
+                cookie.set("name", c.name)?;
+                cookie.set("value", val)?;
+
+                if let Some(secure) = c.secure {
+                    cookie.set("secure", secure)?;
+                }
+                if let Some(http_only) = c.http_only {
+                    cookie.set("httpOnly", http_only)?;
+                }
+
+                if let Some(domain) = c.domain {
+                    cookie.set("domain", domain)?;
+                }
+                if let Some(path) = c.path {
+                    cookie.set("path", path)?;
+                }
+                if let Some(expires) = c.expires {
+                    let dt = PValue::DateTime(expires);
+                    cookie.set("expires", PVal::to_napi_value(env, PVal(dt))?)?;
+                }
+                if let Some(same_site) = c.same_site {
+                    cookie.set("sameSite", same_site.to_string())?;
+                }
+                JsObject::to_napi_value(env, cookie)
+            }
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
                 let ts = dt.timestamp_millis();
@@ -100,6 +130,37 @@ impl ToNapiValue for &PVal {
                 let pv = std::mem::transmute::<&PValues, &PVals>(obj);
                 ToNapiValue::to_napi_value(env, pv)
             },
+            PValue::Cookie(c) => {
+                let c = c.clone();
+                let val: PVal = PVal(*c.value);
+                let env2 = Env::from_raw(env);
+                let mut cookie = env2.create_object()?;
+
+                cookie.set("name", c.name)?;
+                cookie.set("value", val)?;
+
+                if let Some(secure) = c.secure {
+                    cookie.set("secure", secure)?;
+                }
+                if let Some(http_only) = c.http_only {
+                    cookie.set("httpOnly", http_only)?;
+                }
+
+                if let Some(domain) = c.domain {
+                    cookie.set("domain", domain)?;
+                }
+                if let Some(path) = c.path {
+                    cookie.set("path", path)?;
+                }
+                if let Some(expires) = c.expires {
+                    let dt = PValue::DateTime(expires);
+                    cookie.set("expires", PVal::to_napi_value(env, PVal(dt))?)?;
+                }
+                if let Some(same_site) = c.same_site {
+                    cookie.set("sameSite", same_site.to_string())?;
+                }
+                JsObject::to_napi_value(env, cookie)
+            }
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
                 let ts = dt.timestamp_millis();
