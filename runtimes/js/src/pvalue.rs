@@ -66,7 +66,7 @@ impl ToNapiValue for PVal {
                 unsafe { Array::to_napi_value(env, out) }
             }
             PValue::Object(obj) => unsafe { ToNapiValue::to_napi_value(env, PVals(obj)) },
-            PValue::Cookie(c) => unsafe { cookie_to_napi_value(env, c.clone()) },
+            PValue::Cookie(c) => cookie_to_napi_value(env, c.clone()),
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
                 let ts = dt.timestamp_millis();
