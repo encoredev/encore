@@ -1,12 +1,10 @@
 ---
-seotitle: Encore MCP
-seodesc: The Model Context Provider (MCP) exposes tools that provide application context to LLMs.
-title: MCP
+seotitle: Encore MCP Server
+seodesc: Encore's Model Context Protocol (MCP) server provides deep introspection of your application to AI development tools.
+title: MCP Server
 subtitle: The Model Context Provider (MCP) exposes tools that provide application context to LLMs.
 lang: go
 ---
-
-## Overview
 
 Encore provides an MCP server that implements the [Model Context Protocol](https://modelcontextprotocol.io/introduction), an open standard that enables large language models (LLMs) to access contextual information about your application. Think of MCP as a standardized interface—like a "USB-C port for AI applications"—that connects your Encore app's data and functionality to any LLM that supports the protocol.
 
@@ -23,6 +21,28 @@ encore mcp start
 ```
 
 Copy the appropriate URL or command to your MCP host's configuration, and you're ready to give your AI assistants rich context about your application.
+
+## Example: Integrating with Cursor
+
+[Cursor](https://cursor.com) is one of the most popular AI powered IDE's, and it's simple to use Encore's MCP server together with Cursor. 
+
+Simply create the file `.cursor/mcp.json` with the following settings:
+
+```json
+{
+    "mcpServers": {
+        "encore-mcp": {
+            "url": "http://localhost:9900/sse?app=your-app-id"
+        }
+    }
+}
+```
+
+Learn more in [Cursor's MCP docs](https://docs.cursor.com/context/model-context-protocol)
+
+Now when using Cursor's Agent mode, you can ask it to do advanced actions, such as:
+
+"Add an endpoint that publishes to a pub/sub topic, call it and verify that the publish is in the traces"
 
 ## Command Reference
 
