@@ -1,8 +1,8 @@
 ---
-seotitle: Encore MCP
-seodesc: The Model Context Provider (MCP) exposes tools that provide application context to LLMs.
+seotitle: Encore MCP server
+seodesc: The Model Context Protocol (MCP) server exposes tools that provide application context to LLMs.
 title: MCP
-subtitle: The Model Context Provider (MCP) exposes tools that provide application context to LLMs.
+subtitle: The Model Context Protocol (MCP) server exposes tools that provide application context to LLMs.
 lang: ts
 ---
 
