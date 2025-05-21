@@ -16,8 +16,8 @@ encore mcp start
 
   MCP Service is running!
 
-  MCP SSE URL:        http://localhost:9900/sse?appID=xxx
-  MCP stdio Command:  encore mcp run --app=xxx
+  MCP SSE URL:        http://localhost:9900/sse?app=your-app-id
+  MCP stdio Command:  encore mcp run --app=your-app-id
 ```
 
 Copy the appropriate URL or command to your MCP host's configuration, and you're ready to give your AI assistants rich context about your application.
@@ -32,7 +32,8 @@ Simply create the file `.cursor/mcp.json` with the following settings:
 {
     "mcpServers": {
         "encore-mcp": {
-            "url": "http://localhost:9900/sse?app=your-app-id"
+            "command": "encore",
+            "args": ["mcp", "run", "--app=your-app-id"]
         }
     }
 }
