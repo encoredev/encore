@@ -13,12 +13,16 @@ import (
 
 func (m *Manager) registerBucketTools() {
 	m.server.AddTool(mcp.NewTool("get_storage_buckets",
-		mcp.WithDescription("Retrieve comprehensive information about all storage buckets in the application, including their configurations, access patterns, and the services that interact with them. This tool helps understand the application's storage architecture and data management strategy."),
+		mcp.WithDescription("Retrieve comprehensive information about all storage buckets in the currently open Encore, including their configurations, access patterns, and the services that interact with them. This tool helps understand the application's storage architecture and data management strategy."),
 	), m.getStorageBuckets)
 
 	m.server.AddTool(mcp.NewTool("get_objects",
 		mcp.WithDescription("List and retrieve metadata about objects stored in one or more storage buckets. This tool helps inspect the contents of storage buckets and understand the data stored in them."),
-		mcp.WithArray("buckets", mcp.Description("List of bucket names to list objects from. Each bucket must be defined in the application's storage configuration.")),
+		mcp.WithArray("buckets",
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "List of bucket names to list objects from. Each bucket must be defined in the currently open Encore's storage configuration.",
+			})),
 	), m.listObjects)
 }
 

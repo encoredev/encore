@@ -22,13 +22,21 @@ func (m *Manager) registerDocsTools() {
 		mcp.WithString("query", mcp.Description("The search query to find relevant documentation. Can include keywords, feature names, or specific topics you're looking for.")),
 		mcp.WithNumber("page", mcp.Description("Page number for pagination, starting from 0. Use this to navigate through large result sets.")),
 		mcp.WithNumber("hits_per_page", mcp.Description("Number of results to return per page. Default is 10. Adjust this to control the size of the result set.")),
-		mcp.WithArray("facet_filters", mcp.Description("Optional array of facet filters to narrow down search results. These can include categories, tags, or other metadata to refine the search.")),
+		mcp.WithArray("facet_filters",
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "Optional array of facet filters to narrow down search results. These can include categories, tags, or other metadata to refine the search.",
+			})),
 	), m.searchDocs)
 
 	// Add tool for fetching Encore documentation content
 	m.server.AddTool(mcp.NewTool("get_docs",
 		mcp.WithDescription("Retrieve the full content of specific documentation pages. This tool is useful for getting detailed information about specific topics after finding them with search_docs."),
-		mcp.WithArray("paths", mcp.Description("List of documentation paths to fetch (e.g. ['/docs/concepts', '/docs/services']). These paths should be valid documentation URLs without the domain.")),
+		mcp.WithArray("paths",
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "List of documentation paths to fetch (e.g. ['/docs/concepts', '/docs/services']). These paths should be valid documentation URLs without the domain.",
+			})),
 	), m.getDocs)
 }
 

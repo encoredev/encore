@@ -11,7 +11,7 @@ import (
 
 func (m *Manager) registerPubSubTools() {
 	m.server.AddTool(mcp.NewTool("get_pubsub",
-		mcp.WithDescription("Retrieve detailed information about all PubSub topics and their subscriptions in the application. This includes topic configurations, subscription patterns, message schemas, and the services that publish to or subscribe to each topic."),
+		mcp.WithDescription("Retrieve detailed information about all PubSub topics and their subscriptions in the currently open Encore. This includes topic configurations, subscription patterns, message schemas, and the services that publish to or subscribe to each topic."),
 	), m.getPubSub)
 }
 
