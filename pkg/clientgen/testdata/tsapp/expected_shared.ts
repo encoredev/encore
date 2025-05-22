@@ -4,7 +4,7 @@
 /* eslint-disable */
 /* jshint ignore:start */
 /*jslint-disable*/
-import { CookieWithOptions } from "encore.dev/api";
+import type { CookieWithOptions } from "encore.dev/api";
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.

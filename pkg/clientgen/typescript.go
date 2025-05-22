@@ -99,7 +99,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.WriteString("/*jslint-disable*/\n")
 
 	if ts.sharedTypes {
-		ts.WriteString("import { CookieWithOptions } from \"encore.dev/api\";\n")
+		ts.WriteString("import type { CookieWithOptions } from \"encore.dev/api\";\n")
 	}
 
 	nss := ts.typs.Namespaces()
