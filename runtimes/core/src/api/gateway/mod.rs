@@ -334,10 +334,16 @@ impl ProxyHttp for Gateway {
                     .get_all("x-forwarded-for")
                     .iter()
                     .filter_map(|v| std::str::from_utf8(v.as_bytes()).ok())
-                    .collect::<Vec<_>>();
+                    .fold(String::new(), |mut acc, header| {
+                        if !acc.is_empty() {
+                            acc.push_str(", ");
+                        }
+                        acc.push_str(header);
+                        acc
+                    });
 
                 if !prior_headers.is_empty() {
-                    let combined = format!("{}, {}", prior_headers.join(", "), client_ip);
+                    let combined = format!("{}, {}", prior_headers, client_ip);
                     upstream_request.insert_header("x-forwarded-for", combined)?;
                 } else {
                     upstream_request.insert_header("x-forwarded-for", client_ip)?;
