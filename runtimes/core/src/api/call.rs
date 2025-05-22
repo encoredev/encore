@@ -96,7 +96,7 @@ impl ServiceRegistry {
         })
     }
 
-    pub fn endpoints<'a>(&'a self) -> &'a EndpointMap {
+    pub fn endpoints(&self) -> &EndpointMap {
         self.endpoints.as_ref()
     }
 
