@@ -47,11 +47,8 @@ encore gen client hello-a8bc --lang=openapi --output=./openapi.json
 
 ### Environment Selection
 
-By default, `encore gen client` generates the client for the version of the application currently deployed on the primary [environment](/docs/deploy/environments)
-of your application. You can change this using the `--env` flag and specifying the environment name.
-
-If you want to generate the client for the version of your application you have local running, then you can use the
-special environment name `local` (you'll need to be running the application first).
+By default, `encore gen client` generates the client based on the version of your application currently running in your local environment.
+You can change this using the `--env` flag and specifying the environment name.
 
 <Callout type="info">
 
