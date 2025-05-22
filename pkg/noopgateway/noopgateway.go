@@ -153,6 +153,7 @@ func (g *Gateway) handleRequest(r *httputil.ProxyRequest) {
 	if g.Rewrite != nil {
 		g.Rewrite(r)
 	}
+	r.SetXForwarded()
 }
 
 // lookupRoute looks up the route the request is for.
