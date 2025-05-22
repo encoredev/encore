@@ -96,6 +96,10 @@ impl ServiceRegistry {
         })
     }
 
+    pub fn endpoints<'a>(&'a self) -> &'a EndpointMap {
+        self.endpoints.as_ref()
+    }
+
     pub fn service_base_url<Q>(&self, service_name: &Q) -> Option<&String>
     where
         EncoreName: Borrow<Q>,
