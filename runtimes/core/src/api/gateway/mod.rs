@@ -324,6 +324,39 @@ impl ProxyHttp for Gateway {
                 )?;
             }
 
+            // Set X-Forwarded-* headers, based on https://cs.opensource.google/go/go/+/refs/tags/go1.24.3:src/net/http/httputil/reverseproxy.go;l=78
+            if let Some(client_addr) = session.client_addr().and_then(|addr| addr.as_inet()) {
+                let client_ip = client_addr.ip().to_string();
+
+                let prior_headers = upstream_request
+                    .headers
+                    .get_all("x-forwarded-for")
+                    .iter()
+                    .filter_map(|v| std::str::from_utf8(v.as_bytes()).ok())
+                    .collect::<Vec<_>>();
+
+                if !prior_headers.is_empty() {
+                    let combined = format!("{}, {}", prior_headers.join(", "), client_ip);
+                    upstream_request.insert_header("x-forwarded-for", combined)?;
+                } else {
+                    upstream_request.insert_header("x-forwarded-for", client_ip)?;
+                }
+            } else {
+                upstream_request.remove_header("x-forwarded-for");
+            }
+
+            if let Some(host) = session.req_header().headers.get("host") {
+                upstream_request.insert_header("x-forwarded-host", host)?;
+            }
+
+            // Determine if the connection is TLS
+            let is_tls = session.req_header().uri.scheme_str() == Some("https");
+            if is_tls {
+                upstream_request.insert_header("x-forwarded-proto", "https")?;
+            } else {
+                upstream_request.insert_header("x-forwarded-proto", "http")?;
+            }
+
             let svc_auth_method = self
                 .inner
                 .service_registry
