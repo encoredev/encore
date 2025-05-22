@@ -311,9 +311,6 @@ impl ProxyHttp for Gateway {
 
             upstream_request.set_uri(new_uri);
 
-            // Do we need to set the host header here?
-            // It means the upstream service won't be able to tell
-            // what the original Host header was, which is sometimes useful.
             if let Some(ref host) = gateway_ctx.upstream_host {
                 upstream_request.insert_header(header::HOST, host)?;
             }
