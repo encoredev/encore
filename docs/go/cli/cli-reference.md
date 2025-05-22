@@ -193,8 +193,8 @@ Code generation commands
 
 Generates an API client for your app. For more information about the generated clients, see [this page](/docs/go/cli/client-generation).
 
-By default generates the API based on your [primary environment](/docs/platform/deploy/environments#primary-environment).
-Use `--env=local` to generate it based on your local development version of the app.
+By default, `encore gen client` generates the client based on the version of your application currently running in your local environment.
+You can change this using the `--env` flag and specifying the environment name.
 
 Use `--lang=<lang>` to specify the language. Supported language codes are:
 - `go`: A Go client using the net/http package
