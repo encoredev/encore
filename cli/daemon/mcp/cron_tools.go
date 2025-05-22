@@ -10,7 +10,7 @@ import (
 
 func (m *Manager) registerCronTools() {
 	m.server.AddTool(mcp.NewTool("get_cronjobs",
-		mcp.WithDescription("Retrieve detailed information about all scheduled cron jobs in the application, including their schedules, endpoints they trigger, and execution history. This tool helps understand the application's background task scheduling and automation capabilities."),
+		mcp.WithDescription("Retrieve detailed information about all scheduled cron jobs in the currently open Encore, including their schedules, endpoints they trigger, and execution history. This tool helps understand the application's background task scheduling and automation capabilities."),
 	), m.getCronJobs)
 }
 

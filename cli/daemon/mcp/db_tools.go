@@ -17,17 +17,34 @@ import (
 func (m *Manager) registerDatabaseTools() {
 	// Add tool for getting all databases and optionally their tables
 	m.server.AddTool(mcp.NewTool("get_databases",
-		mcp.WithDescription("Retrieve metadata about all SQL databases defined in the application, including their schema, tables, and relationships. This tool helps understand the database structure and can optionally include detailed table information."),
+		mcp.WithDescription("Retrieve metadata about all SQL databases defined in the currently open Encore, including their schema, tables, and relationships. This tool helps understand the database structure and can optionally include detailed table information."),
 		mcp.WithBoolean("include_tables", mcp.Description("When true, includes detailed information about each table in the database, including column names, types, and constraints. This is useful for understanding the complete database schema.")),
 		mcp.WithArray("databases",
-			mcp.Description("Optional list of specific database names to retrieve information for. If not provided, returns information for all databases in the application."),
-		),
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "Optional list of specific database names to retrieve information for. If not provided, returns information for all databases in the currently open Encore.",
+			})),
 	), m.getDatabases)
 
 	// Add tool for querying a database
 	m.server.AddTool(mcp.NewTool("query_database",
-		mcp.WithDescription("Execute SQL queries against one or more databases in the application. This tool allows running custom SQL queries to inspect or manipulate data while respecting the application's database access patterns."),
-		mcp.WithArray("queries", mcp.Description("Array of query objects, where each object must contain 'database' (the database name to query) and 'query' (the SQL query to execute) fields. Multiple queries can be executed in a single call.")),
+		mcp.WithDescription("Execute SQL queries against one or more databases in the currently open Encore. This tool allows running custom SQL queries to inspect or manipulate data while respecting the application's database access patterns."),
+		mcp.WithArray("queries",
+			mcp.Items(map[string]any{
+				"type":        "object",
+				"description": "Array of query objects, where each object must contain 'database' (the database name to query) and 'query' (the SQL query to execute) fields. Multiple queries can be executed in a single call.",
+				"properties": map[string]any{
+					"database": map[string]any{
+						"type":        "string",
+						"description": "The database name to query",
+					},
+					"query": map[string]any{
+						"type":        "string",
+						"description": "The SQL query to execute",
+					},
+				},
+				"required": []string{"database", "query"},
+			})),
 	), m.runQuery)
 }
 

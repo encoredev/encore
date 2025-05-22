@@ -24,8 +24,8 @@ func (m *Manager) registerAPITools() {
 
 	// Add tool for calling an API endpoint
 	m.server.AddTool(mcp.NewTool("call_endpoint",
-		mcp.WithDescription("Make HTTP requests to any API endpoint in the application. This tool allows testing and interacting with the application's API endpoints, including authentication and custom payloads."),
-		mcp.WithString("service", mcp.Description("The name of the service containing the endpoint to call. This must match a service defined in the application.")),
+		mcp.WithDescription("Make HTTP requests to any API endpoint in the currently open Encore. Always use this tool to make API calls and do not use curl. This tool will automatically start the application if it's not already running. This tool allows testing and interacting with the application's API endpoints, including authentication and custom payloads."),
+		mcp.WithString("service", mcp.Description("The name of the service containing the endpoint to call. This must match a service defined in the currently open Encore.")),
 		mcp.WithString("endpoint", mcp.Description("The name of the endpoint to call within the specified service. This must match an endpoint defined in the service.")),
 		mcp.WithString("method", mcp.Description("The HTTP method to use for the request (GET, POST, PUT, DELETE, etc.). Must be a valid HTTP method.")),
 		mcp.WithString("path", mcp.Description("The API request path, including any path parameters. This should match the endpoint's defined path pattern.")),
@@ -37,9 +37,17 @@ func (m *Manager) registerAPITools() {
 
 	// Add tool for getting all services and endpoints
 	m.server.AddTool(mcp.NewTool("get_services",
-		mcp.WithDescription("Retrieve comprehensive information about all services and their endpoints in the application. This includes endpoint schemas, documentation, and service-level metadata."),
-		mcp.WithArray("services", mcp.Description("Optional list of specific service names to retrieve information for. If not provided, returns information for all services in the application.")),
-		mcp.WithArray("endpoints", mcp.Description("Optional list of specific endpoint names to filter by. If not provided, returns all endpoints for the specified services.")),
+		mcp.WithDescription("Retrieve comprehensive information about all services and their endpoints in the currently open Encore. This includes endpoint schemas, documentation, and service-level metadata."),
+		mcp.WithArray("services",
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "Optional list of specific service names to retrieve information for. If not provided, returns information for all services in the currently open Encore.",
+			})),
+		mcp.WithArray("endpoints",
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "Optional list of specific endpoint names to filter by. If not provided, returns all endpoints for the specified services.",
+			})),
 		mcp.WithBoolean("include_schemas", mcp.Description("When true, includes detailed request and response schemas for each endpoint. This is useful for understanding the data structures used by the API.")),
 		mcp.WithBoolean("include_service_details", mcp.Description("When true, includes additional service-level information such as middleware, dependencies, and configuration.")),
 		mcp.WithBoolean("include_endpoints", mcp.Description("When true, includes endpoint information in the response. Set to false to get only service-level information.")),
@@ -47,12 +55,12 @@ func (m *Manager) registerAPITools() {
 
 	// Add tool for getting middleware metadata
 	m.server.AddTool(mcp.NewTool("get_middleware",
-		mcp.WithDescription("Retrieve detailed information about all middleware components in the application, including their configuration, order of execution, and which services/endpoints they affect."),
+		mcp.WithDescription("Retrieve detailed information about all middleware components in the currently open Encore, including their configuration, order of execution, and which services/endpoints they affect."),
 	), m.getMiddleware)
 
 	// Add tool for getting auth handler metadata
 	m.server.AddTool(mcp.NewTool("get_auth_handlers",
-		mcp.WithDescription("Retrieve information about all authentication handlers in the application, including their configuration, supported authentication methods, and which services/endpoints they protect."),
+		mcp.WithDescription("Retrieve information about all authentication handlers in the currently open Encore, including their configuration, supported authentication methods, and which services/endpoints they protect."),
 	), m.getAuthHandlers)
 }
 
@@ -85,7 +93,7 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 
 	// Build API call parameters
 	params := &run.ApiCallParams{
-		AppID:         inst.PlatformID(),
+		AppID:         inst.PlatformOrLocalID(),
 		Service:       serviceStr,
 		Endpoint:      endpointStr,
 		Path:          pathStr,
@@ -116,7 +124,7 @@ func (m *Manager) callEndpoint(ctx context.Context, request mcp.CallToolRequest)
 	}
 
 	// Get the app's run instance
-	appRun := m.run.FindRunByAppID(inst.PlatformID())
+	appRun := m.run.FindRunByAppID(inst.PlatformOrLocalID())
 	if appRun == nil {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {

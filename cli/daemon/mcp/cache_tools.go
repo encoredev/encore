@@ -13,7 +13,7 @@ import (
 
 func (m *Manager) registerCacheTools() {
 	m.server.AddTool(mcp.NewTool("get_cache_keyspaces",
-		mcp.WithDescription("Retrieve comprehensive information about all cache keyspaces in the application, including their configurations, usage patterns, and the services that interact with them. This tool helps understand the application's caching strategy and data access patterns."),
+		mcp.WithDescription("Retrieve comprehensive information about all cache keyspaces in the currently open Encore, including their configurations, usage patterns, and the services that interact with them. This tool helps understand the application's caching strategy and data access patterns."),
 	), m.getCacheKeyspaces)
 }
 

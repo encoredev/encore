@@ -11,7 +11,7 @@ import (
 
 func (m *Manager) registerSecretTools() {
 	m.server.AddTool(mcp.NewTool("get_secrets",
-		mcp.WithDescription("Retrieve metadata about all secrets used in the application, including their usage patterns, which services depend on them, and their configuration. This tool helps understand the application's security requirements and secret management strategy."),
+		mcp.WithDescription("Retrieve metadata about all secrets used in the currently open Encore, including their usage patterns, which services depend on them, and their configuration. This tool helps understand the application's security requirements and secret management strategy."),
 	), m.getSecrets)
 }
 
