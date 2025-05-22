@@ -167,7 +167,8 @@ impl Authenticator {
         // Cookies.
         if let Some(schema) = &self.schema.cookie {
             let mut inbound_cookies = cookie::CookieJar::new();
-            headers
+            inbound
+                .headers()
                 .get_all(COOKIE)
                 .iter()
                 .filter_map(|raw| raw.to_str().ok())
