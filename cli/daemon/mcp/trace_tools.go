@@ -39,7 +39,11 @@ func (m *Manager) registerTraceTools() {
 	// Add tool for getting a single trace with all spans
 	m.server.AddTool(mcp.NewTool("get_trace_spans",
 		mcp.WithDescription("Retrieve detailed information about one or more traces, including all spans, timing information, and associated metadata. This tool is useful for deep debugging of individual requests."),
-		mcp.WithArray("trace_ids", mcp.Description("The unique identifiers of the traces to retrieve. These IDs are returned by the get_traces tool.")),
+		mcp.WithArray("trace_ids",
+			mcp.Items(map[string]any{
+				"type":        "string",
+				"description": "The unique identifiers of the traces to retrieve. These IDs are returned by the get_traces tool.",
+			})),
 	), m.getTrace)
 }
 
@@ -51,7 +55,7 @@ func (m *Manager) listTraces(ctx context.Context, request mcp.CallToolRequest) (
 
 	// Build trace query
 	query := &trace2.Query{
-		AppID: inst.PlatformID(),
+		AppID: inst.PlatformOrLocalID(),
 		Limit: 100, // Default limit
 	}
 
@@ -127,7 +131,7 @@ func (m *Manager) getTrace(ctx context.Context, request mcp.CallToolRequest) (*m
 
 		// Collect all events for the trace
 		var events []*tracepb2.TraceEvent
-		err = m.traces.Get(ctx, inst.PlatformID(), traceID, func(event *tracepb2.TraceEvent) bool {
+		err = m.traces.Get(ctx, inst.PlatformOrLocalID(), traceID, func(event *tracepb2.TraceEvent) bool {
 			events = append(events, event)
 			return true
 		})
@@ -161,7 +165,7 @@ func (m *Manager) getTraceResource(ctx context.Context, request mcp.ReadResource
 
 	// Collect all events for the trace
 	var events []*tracepb2.TraceEvent
-	err = m.traces.Get(ctx, inst.PlatformID(), traceID, func(event *tracepb2.TraceEvent) bool {
+	err = m.traces.Get(ctx, inst.PlatformOrLocalID(), traceID, func(event *tracepb2.TraceEvent) bool {
 		events = append(events, event)
 		return true
 	})

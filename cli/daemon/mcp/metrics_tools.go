@@ -11,7 +11,7 @@ import (
 
 func (m *Manager) registerMetricsTools() {
 	m.server.AddTool(mcp.NewTool("get_metrics",
-		mcp.WithDescription("Retrieve comprehensive information about all metrics defined in the application, including their types, labels, documentation, and usage across services. This tool helps understand the application's observability and monitoring capabilities."),
+		mcp.WithDescription("Retrieve comprehensive information about all metrics defined in the currently open Encore, including their types, labels, documentation, and usage across services. This tool helps understand the application's observability and monitoring capabilities."),
 	), m.getMetrics)
 }
 
