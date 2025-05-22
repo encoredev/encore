@@ -356,13 +356,13 @@ impl ProxyHttp for Gateway {
                 upstream_request.insert_header("x-forwarded-host", host)?;
             }
 
-            // Determine if the connection is TLS
-            let is_tls = session.req_header().uri.scheme() == Some(&Scheme::HTTPS);
-            if is_tls {
-                upstream_request.insert_header("x-forwarded-proto", "https")?;
-            } else {
-                upstream_request.insert_header("x-forwarded-proto", "http")?;
-            }
+            upstream_request.insert_header(
+                "x-forwarded-proto",
+                match session.req_header().uri.scheme() == Some(&Scheme::HTTPS) {
+                    true => "https",
+                    false => "http",
+                },
+            )?;
 
             let svc_auth_method = self
                 .inner
