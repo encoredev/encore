@@ -54,12 +54,13 @@ impl Cookie {
         }
 
         let mut jar = cookie::CookieJar::new();
-        for raw in headers.get_all(COOKIE) {
-            for c in cookie::Cookie::split_parse(String::from_utf8_lossy(raw.as_bytes())).flatten()
-            {
-                jar.add_original(c.into_owned());
-            }
-        }
+        headers
+            .get_all(COOKIE)
+            .iter()
+            .filter_map(|raw| raw.to_str().ok())
+            .flat_map(cookie::Cookie::split_parse)
+            .flatten()
+            .for_each(|c| jar.add_original(c.into_owned()));
 
         match self.schema.parse(jar) {
             Ok(decoded) => Ok(Some(decoded)),
@@ -73,11 +74,12 @@ impl Cookie {
         }
 
         let mut jar = cookie::CookieJar::new();
-        for raw in headers.get_all(SET_COOKIE) {
-            let c = cookie::Cookie::parse(String::from_utf8_lossy(raw.as_bytes()))
-                .map_err(api::Error::internal)?;
-            jar.add_original(c.into_owned());
-        }
+        headers
+            .get_all(SET_COOKIE)
+            .iter()
+            .filter_map(|raw| raw.to_str().ok())
+            .flat_map(cookie::Cookie::parse)
+            .for_each(|c| jar.add_original(c.into_owned()));
 
         match self.schema.parse(jar) {
             Ok(decoded) => Ok(Some(decoded)),
