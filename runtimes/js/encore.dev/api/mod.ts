@@ -144,6 +144,51 @@ api.raw = function raw(options: APIOptions, fn: RawHandler) {
   return fn;
 };
 
+export type InertiaHandler = (req: IncomingMessage, res: ServerResponse) => Promise<{
+  component: string;
+  props: Record<string, any>;
+  status?: number;
+  version?: string;
+}>;
+
+api.inertia = function inertia(options: APIOptions, handler: InertiaHandler) {
+  return api.raw(options, async (req, res) => {
+    const isInertia = req.headers["x-inertia"];
+    const method = req.method || "GET";
+
+    const result = await handler(req, res);
+
+    const page = {
+      component: result.component,
+      props: result.props,
+      url: req.url,
+      version: result.version ?? undefined,
+    };
+
+    if (isInertia) {
+      res.setHeader("Vary", "Accept");
+      res.setHeader("X-Inertia", "true");
+      res.setHeader("Content-Type", "application/json");
+      res.statusCode = result.status || 200;
+      res.end(JSON.stringify(page));
+    } else {
+      // Default fallback: render basic shell with server-injected page JSON
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><title>Inertia Page</title></head>
+          <body>
+            <div id="app" data-page='${JSON.stringify(page).replace(/'/g, "\\'")}'></div>
+            <script src="/static/js/app.js"></script>
+          </body>
+        </html>`;
+      res.setHeader("Content-Type", "text/html");
+      res.statusCode = result.status || 200;
+      res.end(html);
+    }
+  });
+};
+
 export interface StreamIn<Request> extends AsyncIterable<Request> {
   recv: () => Promise<Request>;
 }
