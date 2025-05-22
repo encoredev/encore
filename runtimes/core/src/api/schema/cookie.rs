@@ -55,10 +55,9 @@ impl Cookie {
 
         let mut jar = cookie::CookieJar::new();
         for raw in headers.get_all(COOKIE) {
-            if let Ok(raw) = raw.to_str() {
-                for c in cookie::Cookie::split_parse(raw).flatten() {
-                    jar.add_original(c.into_owned());
-                }
+            for c in cookie::Cookie::split_parse(String::from_utf8_lossy(raw.as_bytes())).flatten()
+            {
+                jar.add_original(c.into_owned());
             }
         }
 

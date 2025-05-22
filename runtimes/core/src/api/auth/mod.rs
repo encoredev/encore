@@ -168,10 +168,8 @@ impl Authenticator {
         if let Some(schema) = &self.schema.cookie {
             let mut inbound_cookies = cookie::CookieJar::new();
             for raw in inbound.headers().get_all(http::header::COOKIE) {
-                if let Ok(raw) = String::from_utf8(raw.as_bytes().to_vec()) {
-                    for c in Cookie::split_parse(raw).flatten() {
-                        inbound_cookies.add_original(c.into_owned());
-                    }
+                for c in Cookie::split_parse(String::from_utf8_lossy(raw.as_bytes())).flatten() {
+                    inbound_cookies.add_original(c.into_owned());
                 }
             }
 
