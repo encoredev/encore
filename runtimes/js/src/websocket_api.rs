@@ -235,7 +235,7 @@ fn ws_resolve_on_js_thread(ctx: ThreadSafeCallContext<WsRequestMessage>) -> napi
             .into_unknown(),
     };
 
-    let handler = APIPromiseHandler;
+    let handler = APIPromiseHandler { resp_schema: None };
 
     match ctx.callback.unwrap().call(None, &[req, stream_arg]) {
         Ok(result) => {

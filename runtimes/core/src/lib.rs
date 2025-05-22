@@ -445,6 +445,11 @@ impl Runtime {
     }
 
     #[inline]
+    pub fn endpoints(&self) -> &api::EndpointMap {
+        self.api.endpoints()
+    }
+
+    #[inline]
     pub fn tokio_handle(&self) -> &tokio::runtime::Handle {
         self.runtime.handle()
     }

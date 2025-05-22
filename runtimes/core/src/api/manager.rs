@@ -329,6 +329,10 @@ impl Manager {
         self.service_registry.api_call(target, data, source, opts)
     }
 
+    pub fn endpoints(&self) -> &api::EndpointMap {
+        self.service_registry.endpoints()
+    }
+
     pub fn stream(
         &self,
         endpoint_name: EndpointName,

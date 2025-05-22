@@ -157,11 +157,20 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
+        let endpoint_name = encore_runtime_core::EndpointName::new(route.service, route.name);
+
+        let eps = self.runtime.api().endpoints();
+        let ep = eps.get(&endpoint_name).unwrap();
+        let resp_schema = ep.response.clone();
+
+        // TODO hand the schema over to the handler and use it when parsing from napi?
+
         let handler = new_api_handler(
             env,
             route.handler,
             route.raw,
             route.streaming_request || route.streaming_response,
+            resp_schema,
         )?;
 
         // If we're not hosting an API server, this is a no-op.
@@ -169,8 +178,7 @@ impl Runtime {
             return Ok(());
         };
 
-        let endpoint = encore_runtime_core::EndpointName::new(route.service, route.name);
-        srv.register_handler(endpoint, handler).map_err(|e| {
+        srv.register_handler(endpoint_name, handler).map_err(|e| {
             Error::new(
                 Status::GenericFailure,
                 format!("failed to register handler: {:?}", e),
