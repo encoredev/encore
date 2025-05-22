@@ -9,6 +9,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
+use http::uri::Scheme;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -345,12 +346,12 @@ impl ProxyHttp for Gateway {
                 upstream_request.remove_header("x-forwarded-for");
             }
 
-            if let Some(host) = session.req_header().headers.get("host") {
+            if let Some(host) = session.req_header().headers.get(header::HOST) {
                 upstream_request.insert_header("x-forwarded-host", host)?;
             }
 
             // Determine if the connection is TLS
-            let is_tls = session.req_header().uri.scheme_str() == Some("https");
+            let is_tls = session.req_header().uri.scheme() == Some(&Scheme::HTTPS);
             if is_tls {
                 upstream_request.insert_header("x-forwarded-proto", "https")?;
             } else {
