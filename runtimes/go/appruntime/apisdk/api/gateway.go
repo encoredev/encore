@@ -80,6 +80,7 @@ func (s *Server) createProxyToService(service config.Service, endpointName strin
 			if err := meta.AddToRequest(s, service, t); err != nil {
 				logger.Err(err).Msg("failed to add call metadata to request")
 			}
+			req.Out.Header["X-Forwarded-For"] = req.In.Header["X-Forwarded-For"]
 			req.SetXForwarded()
 		},
 		// Have the reverse proxy log errors to our logger.

@@ -211,6 +211,7 @@ func (pg *ProcGroup) newProc(processName string, listenAddr netip.AddrPort) (*Pr
 		Transport: transport.NewH2CTransport(http.DefaultTransport),
 		Rewrite: func(r *httputil.ProxyRequest) {
 			r.SetURL(dst)
+			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
 			r.SetXForwarded()
 			// Copy the host head over.
 			r.Out.Host = r.In.Host
