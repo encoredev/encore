@@ -494,6 +494,7 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
     options: &objects::UploadOptions,
 ) -> UploadMultipartResult {
     let mut handles = Vec::new();
+    let mut part_numbers = Vec::new();
     let mut part_number = 0;
     let mut total_size = 0;
     let mut upload_part = |chunk: Bytes| {
@@ -512,6 +513,7 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
             .body(ByteStream::from(chunk))
             .send();
         handles.push(handle);
+        part_numbers.push(part_number);
     };
 
     upload_part(first_chunk);
@@ -529,18 +531,31 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
     // Wait for all the parts to finish uploading.
     let responses = futures::future::join_all(handles).await;
 
-    // Check for errors.
-    for res in responses {
-        if let Err(err) = res {
-            return UploadMultipartResult::UploadError(err);
+    // Check for errors and collect the completed parts.
+    let mut completed_parts = Vec::new();
+    for (i, res) in responses.into_iter().enumerate() {
+        match res {
+            Ok(output) => {
+                let part = s3::types::CompletedPart::builder()
+                    .part_number(part_numbers[i])
+                    .set_e_tag(output.e_tag)
+                    .build();
+                completed_parts.push(part);
+            }
+            Err(err) => return UploadMultipartResult::UploadError(err),
         }
     }
+
+    let multipart_upload = s3::types::CompletedMultipartUpload::builder()
+        .set_parts(Some(completed_parts))
+        .build();
 
     let mut req = client
         .complete_multipart_upload()
         .bucket(bucket)
         .key(key)
-        .upload_id(upload_id);
+        .upload_id(upload_id)
+        .multipart_upload(multipart_upload);
 
     if let Some(precond) = &options.preconditions {
         if precond.not_exists == Some(true) {
