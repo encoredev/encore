@@ -77,8 +77,10 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	js.typs = getNamedTypes(p.Meta, p.Services)
 
 	if js.md.AuthHandler != nil {
-		js.hasAuth = true
-		js.authIsComplexType = js.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
+		if !js.isAuthCookiesOnly() {
+			js.hasAuth = true
+			js.authIsComplexType = js.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
+		}
 	}
 
 	js.WriteString("// " + doNotEditHeader() + "\n\n")
@@ -104,6 +106,37 @@ func (js *javascript) Generate(p clientgentypes.GenerateParams) (err error) {
 	js.writeCustomErrorType()
 
 	return nil
+}
+
+func (js *javascript) getFields(typ *schema.Type) []*schema.Field {
+	if typ == nil {
+		return nil
+	}
+	switch typ.Typ.(type) {
+	case *schema.Type_Struct:
+		return typ.GetStruct().Fields
+	case *schema.Type_Named:
+		decl := js.md.Decls[typ.GetNamed().Id]
+		return js.getFields(decl.Type)
+	default:
+		return nil
+	}
+}
+
+func (js *javascript) isAuthCookiesOnly() bool {
+	if js.md.AuthHandler == nil {
+		return false
+	}
+	fields := js.getFields(js.md.AuthHandler.Params)
+	if fields == nil {
+		return false
+	}
+	for _, field := range fields {
+		if field.Wire.GetCookie() == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet, tags clientgentypes.TagSet) error {
@@ -489,12 +522,23 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\nconst rtn = await resp.json()\n")
 
 	for _, headerField := range respEnc.HeaderParameters {
+		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
+		if isSetCookie {
+			w.WriteString("// Skip set-cookie header in browser context as browsers doesn't have access to read it\n")
+			w.WriteString("if (!BROWSER) {\n")
+			w = w.Indent()
+		}
+
 		js.seenHeaderResponse = true
 		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", js.Dot("rtn", headerField.SrcName), js.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
-	}
 
+		if isSetCookie {
+			w = w.Dedent()
+			w.WriteString("}\n")
+		}
+	}
 	w.WriteString("return rtn\n")
 	return nil
 }
@@ -543,6 +587,8 @@ export function Environment(name) {
 export function PreviewEnv(pr) {
     return Environment(` + "`pr${pr}`" + `)
 }
+
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
 
 /**
  * Client is an API client for the ` + js.appSlug + ` Encore application.
@@ -751,7 +797,7 @@ class BaseClient {`)
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "` + userAgent + `";
         }
 

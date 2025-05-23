@@ -154,6 +154,7 @@ message WireSpec {
   oneof location {
     Header header = 1;
     Query  query  = 2;
+    Cookie cookie = 3;
   }
 
   message Header {
@@ -164,6 +165,12 @@ message WireSpec {
 
   message Query {
     // The explicitly specified query string name.
+    // If empty, the name of the field is used.
+    optional string name = 1;
+  }
+
+  message Cookie {
+    // The explicitly specified cookie string name.
     // If empty, the name of the field is used.
     optional string name = 1;
   }

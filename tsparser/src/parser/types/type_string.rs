@@ -164,6 +164,7 @@ where
             super::WireLocation::Query => self.buf.write_str("Query<")?,
             super::WireLocation::Header => self.buf.write_str("Header<")?,
             super::WireLocation::PubSubAttr => self.buf.write_str("Attribute<")?,
+            super::WireLocation::Cookie => self.buf.write_str("Cookie<")?,
         }
         self.render_type(&s.underlying)?;
         if let Some(name) = &s.name_override {

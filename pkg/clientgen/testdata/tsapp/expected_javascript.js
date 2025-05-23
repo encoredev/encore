@@ -24,6 +24,8 @@ export function PreviewEnv(pr) {
     return Environment(`pr${pr}`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the app Encore application.
  */
@@ -43,10 +45,34 @@ export default class Client {
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.cookieDummy = this.cookieDummy.bind(this)
         this.dummy = this.dummy.bind(this)
         this.imported = this.imported.bind(this)
         this.onlyPathParams = this.onlyPathParams.bind(this)
         this.root = this.root.bind(this)
+    }
+
+    async cookieDummy(params) {
+        // Convert our params into the objects we need for the request
+        const headers = makeRecord({
+            baz: params.headerBaz,
+            num: params.headerNum === undefined ? undefined : String(params.headerNum),
+        })
+
+        const query = makeRecord({
+            bar: params.queryBar,
+            foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+        })
+
+        // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+        const body = {
+            baz: params.baz,
+            foo: params.foo,
+        }
+
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
+        return await resp.json()
     }
 
     async dummy(params) {
@@ -303,7 +329,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "app-Generated-JS-Client (Encore/v0.0.0-develop)";
         }
 

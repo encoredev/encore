@@ -31,6 +31,9 @@ pub enum PValue {
 
     // Represents a datetime value.
     DateTime(DateTime),
+
+    // Represents a cookie.
+    Cookie(Cookie),
 }
 
 impl PValue {
@@ -50,12 +53,101 @@ impl PValue {
             _ => None,
         }
     }
+
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            PValue::Null => "null",
+            PValue::Bool(_) => "boolean",
+            PValue::Number(_) => "number",
+            PValue::String(_) => "string",
+            PValue::Array(_) => "array",
+            PValue::Object(_) => "object",
+            PValue::DateTime(_) => "datetime",
+            PValue::Cookie(_) => "cookie",
+        }
+    }
 }
 
 pub type PValues = BTreeMap<String, PValue>;
 
 pub type DateTime = chrono::DateTime<chrono::FixedOffset>;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cookie {
+    pub name: String,
+    pub value: Box<PValue>,
+    pub path: Option<String>,
+    pub domain: Option<String>,
+    pub secure: Option<bool>,
+    pub http_only: Option<bool>,
+    pub expires: Option<DateTime>,
+    pub max_age: Option<u64>,
+    pub same_site: Option<SameSite>,
+    pub partitioned: Option<bool>,
+}
+
+impl<'a> From<&'a Cookie> for cookie::Cookie<'a> {
+    fn from(value: &'a Cookie) -> Self {
+        let mut builder = cookie::CookieBuilder::new(&value.name, value.value.to_string());
+        if let Some(path) = &value.path {
+            builder = builder.path(path);
+        }
+        if let Some(domain) = &value.domain {
+            builder = builder.domain(domain);
+        }
+        if let Some(secure) = &value.secure {
+            builder = builder.secure(*secure);
+        }
+        if let Some(http_only) = &value.http_only {
+            builder = builder.http_only(*http_only);
+        }
+        if let Some(expires) = &value.expires {
+            let system_time: std::time::SystemTime = (*expires).into();
+            let expire = cookie::time::OffsetDateTime::from(system_time);
+            builder = builder.expires(expire);
+        }
+        if let Some(max_age) = &value.max_age {
+            builder = builder.max_age(cookie::time::Duration::seconds(*max_age as i64));
+        }
+        if let Some(same_site) = &value.same_site {
+            let same_site = match same_site {
+                SameSite::Strict => cookie::SameSite::Strict,
+                SameSite::Lax => cookie::SameSite::Lax,
+                SameSite::None => cookie::SameSite::None,
+            };
+            builder = builder.same_site(same_site);
+        }
+        if let Some(partitioned) = &value.partitioned {
+            builder = builder.partitioned(*partitioned);
+        }
+
+        builder.build()
+    }
+}
+
+impl Display for Cookie {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let c: cookie::Cookie<'_> = self.into();
+        write!(f, "{}", c)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SameSite {
+    Strict,
+    Lax,
+    None,
+}
+
+impl Display for SameSite {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SameSite::Strict => write!(f, "Strict"),
+            SameSite::Lax => write!(f, "Lax"),
+            SameSite::None => write!(f, "None"),
+        }
+    }
+}
 impl Serialize for PValue {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -69,6 +161,7 @@ impl Serialize for PValue {
             PValue::Array(a) => a.serialize(serializer),
             PValue::Object(o) => o.serialize(serializer),
             PValue::DateTime(dt) => dt.serialize(serializer),
+            PValue::Cookie(c) => serializer.serialize_str(&c.to_string()),
         }
     }
 }
@@ -101,6 +194,7 @@ impl Display for PValue {
                 }
                 write!(f, "}}")
             }
+            PValue::Cookie(c) => write!(f, "{}", c),
         }
     }
 }

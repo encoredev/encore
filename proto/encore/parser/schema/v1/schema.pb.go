@@ -1199,6 +1199,7 @@ type WireSpec struct {
 	//
 	//	*WireSpec_Header_
 	//	*WireSpec_Query_
+	//	*WireSpec_Cookie_
 	Location isWireSpec_Location `protobuf_oneof:"location"`
 }
 
@@ -1255,6 +1256,13 @@ func (x *WireSpec) GetQuery() *WireSpec_Query {
 	return nil
 }
 
+func (x *WireSpec) GetCookie() *WireSpec_Cookie {
+	if x, ok := x.GetLocation().(*WireSpec_Cookie_); ok {
+		return x.Cookie
+	}
+	return nil
+}
+
 type isWireSpec_Location interface {
 	isWireSpec_Location()
 }
@@ -1267,9 +1275,15 @@ type WireSpec_Query_ struct {
 	Query *WireSpec_Query `protobuf:"bytes,2,opt,name=query,proto3,oneof"`
 }
 
+type WireSpec_Cookie_ struct {
+	Cookie *WireSpec_Cookie `protobuf:"bytes,3,opt,name=cookie,proto3,oneof"`
+}
+
 func (*WireSpec_Header_) isWireSpec_Location() {}
 
 func (*WireSpec_Query_) isWireSpec_Location() {}
+
+func (*WireSpec_Cookie_) isWireSpec_Location() {}
 
 type Tag struct {
 	state         protoimpl.MessageState
@@ -1906,6 +1920,55 @@ func (x *WireSpec_Query) GetName() string {
 	return ""
 }
 
+type WireSpec_Cookie struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// The explicitly specified cookie string name.
+	// If empty, the name of the field is used.
+	Name *string `protobuf:"bytes,1,opt,name=name,proto3,oneof" json:"name,omitempty"`
+}
+
+func (x *WireSpec_Cookie) Reset() {
+	*x = WireSpec_Cookie{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_encore_parser_schema_v1_schema_proto_msgTypes[22]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *WireSpec_Cookie) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WireSpec_Cookie) ProtoMessage() {}
+
+func (x *WireSpec_Cookie) ProtoReflect() protoreflect.Message {
+	mi := &file_encore_parser_schema_v1_schema_proto_msgTypes[22]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WireSpec_Cookie.ProtoReflect.Descriptor instead.
+func (*WireSpec_Cookie) Descriptor() ([]byte, []int) {
+	return file_encore_parser_schema_v1_schema_proto_rawDescGZIP(), []int{10, 2}
+}
+
+func (x *WireSpec_Cookie) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
 var File_encore_parser_schema_v1_schema_proto protoreflect.FileDescriptor
 
 var file_encore_parser_schema_v1_schema_proto_rawDesc = []byte{
@@ -2072,7 +2135,7 @@ var file_encore_parser_schema_v1_schema_proto_rawDesc = []byte{
 	0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73, 0x65, 0x72, 0x2e, 0x73, 0x63,
 	0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x69, 0x72, 0x65, 0x53, 0x70, 0x65, 0x63,
 	0x48, 0x00, 0x52, 0x04, 0x77, 0x69, 0x72, 0x65, 0x88, 0x01, 0x01, 0x42, 0x07, 0x0a, 0x05, 0x5f,
-	0x77, 0x69, 0x72, 0x65, 0x22, 0xf2, 0x01, 0x0a, 0x08, 0x57, 0x69, 0x72, 0x65, 0x53, 0x70, 0x65,
+	0x77, 0x69, 0x72, 0x65, 0x22, 0xe2, 0x02, 0x0a, 0x08, 0x57, 0x69, 0x72, 0x65, 0x53, 0x70, 0x65,
 	0x63, 0x12, 0x42, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x28, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73, 0x65,
 	0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x69, 0x72, 0x65,
@@ -2081,10 +2144,17 @@ var file_encore_parser_schema_v1_schema_proto_rawDesc = []byte{
 	0x20, 0x01, 0x28, 0x0b, 0x32, 0x27, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61,
 	0x72, 0x73, 0x65, 0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x57,
 	0x69, 0x72, 0x65, 0x53, 0x70, 0x65, 0x63, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x48, 0x00, 0x52,
-	0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x1a, 0x2a, 0x0a, 0x06, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72,
-	0x12, 0x17, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00,
-	0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x88, 0x01, 0x01, 0x42, 0x07, 0x0a, 0x05, 0x5f, 0x6e, 0x61,
-	0x6d, 0x65, 0x1a, 0x29, 0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x17, 0x0a, 0x04, 0x6e,
+	0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x12, 0x42, 0x0a, 0x06, 0x63, 0x6f, 0x6f, 0x6b, 0x69, 0x65,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x28, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e,
+	0x70, 0x61, 0x72, 0x73, 0x65, 0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31,
+	0x2e, 0x57, 0x69, 0x72, 0x65, 0x53, 0x70, 0x65, 0x63, 0x2e, 0x43, 0x6f, 0x6f, 0x6b, 0x69, 0x65,
+	0x48, 0x00, 0x52, 0x06, 0x63, 0x6f, 0x6f, 0x6b, 0x69, 0x65, 0x1a, 0x2a, 0x0a, 0x06, 0x48, 0x65,
+	0x61, 0x64, 0x65, 0x72, 0x12, 0x17, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x48, 0x00, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x88, 0x01, 0x01, 0x42, 0x07, 0x0a,
+	0x05, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x1a, 0x29, 0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12,
+	0x17, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52,
+	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x88, 0x01, 0x01, 0x42, 0x07, 0x0a, 0x05, 0x5f, 0x6e, 0x61, 0x6d,
+	0x65, 0x1a, 0x2a, 0x0a, 0x06, 0x43, 0x6f, 0x6f, 0x6b, 0x69, 0x65, 0x12, 0x17, 0x0a, 0x04, 0x6e,
 	0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x04, 0x6e, 0x61, 0x6d,
 	0x65, 0x88, 0x01, 0x01, 0x42, 0x07, 0x0a, 0x05, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x42, 0x0a, 0x0a,
 	0x08, 0x6c, 0x6f, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x45, 0x0a, 0x03, 0x54, 0x61, 0x67,
@@ -2158,7 +2228,7 @@ func file_encore_parser_schema_v1_schema_proto_rawDescGZIP() []byte {
 }
 
 var file_encore_parser_schema_v1_schema_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_encore_parser_schema_v1_schema_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_encore_parser_schema_v1_schema_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_encore_parser_schema_v1_schema_proto_goTypes = []interface{}{
 	(Builtin)(0),               // 0: encore.parser.schema.v1.Builtin
 	(ValidationRule_Is)(0),     // 1: encore.parser.schema.v1.ValidationRule.Is
@@ -2184,6 +2254,7 @@ var file_encore_parser_schema_v1_schema_proto_goTypes = []interface{}{
 	(*ValidationExpr_Or)(nil),  // 21: encore.parser.schema.v1.ValidationExpr.Or
 	(*WireSpec_Header)(nil),    // 22: encore.parser.schema.v1.WireSpec.Header
 	(*WireSpec_Query)(nil),     // 23: encore.parser.schema.v1.WireSpec.Query
+	(*WireSpec_Cookie)(nil),    // 24: encore.parser.schema.v1.WireSpec.Cookie
 }
 var file_encore_parser_schema_v1_schema_proto_depIdxs = []int32{
 	9,  // 0: encore.parser.schema.v1.Type.named:type_name -> encore.parser.schema.v1.Named
@@ -2211,19 +2282,20 @@ var file_encore_parser_schema_v1_schema_proto_depIdxs = []int32{
 	12, // 22: encore.parser.schema.v1.Field.wire:type_name -> encore.parser.schema.v1.WireSpec
 	22, // 23: encore.parser.schema.v1.WireSpec.header:type_name -> encore.parser.schema.v1.WireSpec.Header
 	23, // 24: encore.parser.schema.v1.WireSpec.query:type_name -> encore.parser.schema.v1.WireSpec.Query
-	2,  // 25: encore.parser.schema.v1.Map.key:type_name -> encore.parser.schema.v1.Type
-	2,  // 26: encore.parser.schema.v1.Map.value:type_name -> encore.parser.schema.v1.Type
-	2,  // 27: encore.parser.schema.v1.List.elem:type_name -> encore.parser.schema.v1.Type
-	2,  // 28: encore.parser.schema.v1.Pointer.base:type_name -> encore.parser.schema.v1.Type
-	2,  // 29: encore.parser.schema.v1.Union.types:type_name -> encore.parser.schema.v1.Type
-	2,  // 30: encore.parser.schema.v1.ConfigValue.elem:type_name -> encore.parser.schema.v1.Type
-	4,  // 31: encore.parser.schema.v1.ValidationExpr.And.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
-	4,  // 32: encore.parser.schema.v1.ValidationExpr.Or.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
-	33, // [33:33] is the sub-list for method output_type
-	33, // [33:33] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	24, // 25: encore.parser.schema.v1.WireSpec.cookie:type_name -> encore.parser.schema.v1.WireSpec.Cookie
+	2,  // 26: encore.parser.schema.v1.Map.key:type_name -> encore.parser.schema.v1.Type
+	2,  // 27: encore.parser.schema.v1.Map.value:type_name -> encore.parser.schema.v1.Type
+	2,  // 28: encore.parser.schema.v1.List.elem:type_name -> encore.parser.schema.v1.Type
+	2,  // 29: encore.parser.schema.v1.Pointer.base:type_name -> encore.parser.schema.v1.Type
+	2,  // 30: encore.parser.schema.v1.Union.types:type_name -> encore.parser.schema.v1.Type
+	2,  // 31: encore.parser.schema.v1.ConfigValue.elem:type_name -> encore.parser.schema.v1.Type
+	4,  // 32: encore.parser.schema.v1.ValidationExpr.And.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
+	4,  // 33: encore.parser.schema.v1.ValidationExpr.Or.exprs:type_name -> encore.parser.schema.v1.ValidationExpr
+	34, // [34:34] is the sub-list for method output_type
+	34, // [34:34] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_encore_parser_schema_v1_schema_proto_init() }
@@ -2496,6 +2568,18 @@ func file_encore_parser_schema_v1_schema_proto_init() {
 				return nil
 			}
 		}
+		file_encore_parser_schema_v1_schema_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*WireSpec_Cookie); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	file_encore_parser_schema_v1_schema_proto_msgTypes[0].OneofWrappers = []interface{}{
 		(*Type_Named)(nil),
@@ -2528,6 +2612,7 @@ func file_encore_parser_schema_v1_schema_proto_init() {
 	file_encore_parser_schema_v1_schema_proto_msgTypes[10].OneofWrappers = []interface{}{
 		(*WireSpec_Header_)(nil),
 		(*WireSpec_Query_)(nil),
+		(*WireSpec_Cookie_)(nil),
 	}
 	file_encore_parser_schema_v1_schema_proto_msgTypes[16].OneofWrappers = []interface{}{
 		(*Literal_Str)(nil),
@@ -2538,13 +2623,14 @@ func file_encore_parser_schema_v1_schema_proto_init() {
 	}
 	file_encore_parser_schema_v1_schema_proto_msgTypes[20].OneofWrappers = []interface{}{}
 	file_encore_parser_schema_v1_schema_proto_msgTypes[21].OneofWrappers = []interface{}{}
+	file_encore_parser_schema_v1_schema_proto_msgTypes[22].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_encore_parser_schema_v1_schema_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

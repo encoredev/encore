@@ -341,6 +341,27 @@ impl BuilderCtx<'_, '_> {
 
                             None
                         }
+
+                        WireLocation::Cookie => {
+                            let name = spec.name_override.as_ref().unwrap_or(field_name);
+                            tags.push(schema::Tag {
+                                key: "cookie".into(),
+                                name: name.clone(),
+                                options: if f.optional {
+                                    vec!["optional".into()]
+                                } else {
+                                    vec![]
+                                },
+                            });
+
+                            Some(schema::WireSpec {
+                                location: Some(schema::wire_spec::Location::Cookie(
+                                    schema::wire_spec::Cookie {
+                                        name: spec.name_override.clone(),
+                                    },
+                                )),
+                            })
+                        }
                     },
                 )
             } else {

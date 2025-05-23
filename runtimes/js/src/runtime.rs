@@ -2,7 +2,7 @@ use crate::api::{new_api_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
-use crate::pvalue::{parse_pvalues, PVals};
+use crate::pvalue::{parse_pvalues, transform_pvalues_request, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
 use crate::{meta, objects, websocket_api};
@@ -157,11 +157,17 @@ impl Runtime {
 
     #[napi]
     pub fn register_handler(&self, env: Env, route: APIRoute) -> napi::Result<()> {
+        let endpoint_name = encore_runtime_core::EndpointName::new(route.service, route.name);
+
+        let eps = self.runtime.api().endpoints();
+        let resp_schema = eps.get(&endpoint_name).map(|ep| ep.response.clone());
+
         let handler = new_api_handler(
             env,
             route.handler,
             route.raw,
             route.streaming_request || route.streaming_response,
+            resp_schema,
         )?;
 
         // If we're not hosting an API server, this is a no-op.
@@ -169,8 +175,7 @@ impl Runtime {
             return Ok(());
         };
 
-        let endpoint = encore_runtime_core::EndpointName::new(route.service, route.name);
-        srv.register_handler(endpoint, handler).map_err(|e| {
+        srv.register_handler(endpoint_name, handler).map_err(|e| {
             Error::new(
                 Status::GenericFailure,
                 format!("failed to register handler: {:?}", e),
@@ -210,14 +215,23 @@ impl Runtime {
         source: Option<&Request>,
         opts: Option<CallOpts>,
     ) -> napi::Result<JsObject> {
-        let payload = match payload {
-            Some(payload) => parse_pvalues(payload)?,
-            None => None,
-        };
-        let endpoint = encore_runtime_core::EndpointName::new(service, endpoint);
+        let endpoint_name = encore_runtime_core::EndpointName::new(service, endpoint);
+
+        let eps = self.runtime.api().endpoints();
+        let req_schema = eps.get(&endpoint_name).map(|ep| ep.request[0].clone());
+
+        let payload = payload
+            .and_then(|p| parse_pvalues(p).transpose())
+            .transpose()?
+            .map(|payload| match req_schema {
+                Some(schema) => transform_pvalues_request(payload, schema)
+                    .map_err(|err| napi::Error::new(napi::Status::InvalidArg, err.to_string())),
+                None => Ok(payload),
+            })
+            .transpose()?;
 
         let opts = opts.map(TryFrom::try_from).transpose()?;
-        let fut = self.do_api_call(endpoint, payload, source, opts);
+        let fut = self.do_api_call(endpoint_name, payload, source, opts);
         let fut = async move {
             let res: napi::Result<Either<Option<PValues>, APICallError>> = match fut.await {
                 Ok(data) => Ok(Either::A(data)),

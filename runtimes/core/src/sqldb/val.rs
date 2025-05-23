@@ -223,6 +223,9 @@ impl ToSql for PValue {
                 PValue::Object(_) => {
                     Err(format!("object not supported for column of type {}", ty).into())
                 }
+                PValue::Cookie(_) => {
+                    Err(format!("cookie not supported for column of type {}", ty).into())
+                }
             },
         }
     }

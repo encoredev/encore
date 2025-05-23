@@ -86,9 +86,10 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.typs = getNamedTypes(p.Meta, p.Services)
 
 	if ts.md.AuthHandler != nil {
-		ts.hasAuth = true
-		ts.authIsComplexType = ts.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
-
+		if !ts.isAuthCookieOnly() {
+			ts.hasAuth = true
+			ts.authIsComplexType = ts.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
+		}
 	}
 
 	ts.WriteString("// " + doNotEditHeader() + "\n\n")
@@ -96,6 +97,10 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.WriteString("/* eslint-disable */\n")
 	ts.WriteString("/* jshint ignore:start */\n")
 	ts.WriteString("/*jslint-disable*/\n")
+
+	if ts.sharedTypes {
+		ts.WriteString("import type { CookieWithOptions } from \"encore.dev/api\";\n")
+	}
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -127,6 +132,37 @@ export default new Client(%s);
 	}
 
 	return nil
+}
+
+func (ts *typescript) getFields(typ *schema.Type) []*schema.Field {
+	if typ == nil {
+		return nil
+	}
+	switch typ.Typ.(type) {
+	case *schema.Type_Struct:
+		return typ.GetStruct().Fields
+	case *schema.Type_Named:
+		decl := ts.md.Decls[typ.GetNamed().Id]
+		return ts.getFields(decl.Type)
+	default:
+		return nil
+	}
+}
+
+func (ts *typescript) isAuthCookieOnly() bool {
+	if ts.md.AuthHandler == nil {
+		return false
+	}
+	fields := ts.getFields(ts.md.AuthHandler.Params)
+	if fields == nil {
+		return false
+	}
+	for _, field := range fields {
+		if field.Wire.GetCookie() == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func hasPathParams(rpc *meta.RPC) bool {
@@ -358,7 +394,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				ts.WriteString(", ")
 			}
 			if !ts.sharedTypes {
-				ts.WriteString("body?: BodyInit, ")
+				ts.WriteString("body?: RequestInit[\"body\"], ")
 			}
 
 			if ts.sharedTypes {
@@ -716,7 +752,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\n")
 
 	if ts.sharedTypes {
-		fmt.Fprintf(ts, "const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
+		w.WriteStringf("const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
 	} else {
 		w.WriteString("const rtn = await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
@@ -724,10 +760,22 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n")
 
 	for _, headerField := range respEnc.HeaderParameters {
+		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
+		if isSetCookie {
+			w.WriteString("// Skip set-cookie header in browser context as browsers doesn't have access to read it\n")
+			w.WriteString("if (!BROWSER) {\n")
+			w = w.Indent()
+		}
+
 		ts.seenHeaderResponse = true
 		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+
+		if isSetCookie {
+			w = w.Dedent()
+			w.WriteString("}\n")
+		}
 	}
 
 	w.WriteString("return rtn\n")
@@ -1022,6 +1070,8 @@ export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`+"`pr${pr}`"+`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the `+ts.appSlug+` Encore application.
  */
@@ -1235,7 +1285,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "` + userAgent + `";
         }
 
@@ -1410,7 +1460,7 @@ class BaseClient {
     }
 `)
 
-	callParams := "method: string, path: string, body?: BodyInit, params?: CallParameters"
+	callParams := "method: string, path: string, body?: RequestInit[\"body\"], params?: CallParameters"
 	callAPIParams := "method, path, body"
 	initParams := `
             method,
@@ -1505,10 +1555,14 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 		ts.WriteString(`
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
-type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+type OmitCookie<T> = {
+  [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
+};
 
-type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
+type RequestType<Type extends (...args: any[]) => any> =
+  Parameters<Type> extends [infer H, ...any[]] ? OmitCookie<H> : void;
+
+type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
@@ -1747,6 +1801,10 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		// Filter the fields to print based on struct tags.
 		fields := make([]*schema.Field, 0, len(typ.Struct.Fields))
 		for _, f := range typ.Struct.Fields {
+			// skip cookie fields as they are handled by the browser
+			if f.Wire.GetCookie() != nil {
+				continue
+			}
 			if encoding.IgnoreField(f) {
 				continue
 			}

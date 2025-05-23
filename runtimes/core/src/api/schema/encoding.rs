@@ -1,5 +1,5 @@
 use crate::api::jsonschema;
-use crate::api::schema::{Body, Header, Method, Path, Query};
+use crate::api::schema::{Body, Cookie, Header, Method, Path, Query};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::path_segment::SegmentType;
 use crate::encore::parser::schema::v1 as schema;
@@ -30,6 +30,7 @@ pub enum WireLoc {
     Query,
     Header(String),
     Path,
+    Cookie(String),
 }
 
 pub struct EncodingConfig<'a, 'b> {
@@ -49,6 +50,7 @@ pub struct SchemaUnderConstruction {
     body: Option<usize>,
     query: Option<usize>,
     header: Option<usize>,
+    cookie: Option<usize>,
     rpc_path: Option<meta::Path>,
 }
 
@@ -59,6 +61,7 @@ impl SchemaUnderConstruction {
             body: self.body.map(|v| Body::new(reg.schema(v))),
             query: self.query.map(|v| Query::new(reg.schema(v))),
             header: self.header.map(|v| Header::new(reg.schema(v))),
+            cookie: self.cookie.map(|v| Cookie::new(reg.schema(v))),
             path: self.rpc_path.as_ref().map(Path::from_meta).transpose()?,
         })
     }
@@ -71,6 +74,7 @@ pub struct Schema {
     pub header: Option<Header>,
     pub body: Option<Body>,
     pub path: Option<Path>,
+    pub cookie: Option<Cookie>,
 }
 
 impl EncodingConfig<'_, '_> {
@@ -84,6 +88,7 @@ impl EncodingConfig<'_, '_> {
                 body: None,
                 query: None,
                 header: None,
+                cookie: None,
                 rpc_path: self.rpc_path.cloned(),
             });
         };
@@ -109,6 +114,7 @@ impl EncodingConfig<'_, '_> {
         let mut body: Option<jsonschema::Struct> = None;
         let mut query: Option<jsonschema::Struct> = None;
         let mut header: Option<jsonschema::Struct> = None;
+        let mut cookie: Option<jsonschema::Struct> = None;
 
         for f in &st.fields {
             // If it's a path field, skip it. We handle it separately in Path::from_meta.
@@ -127,9 +133,12 @@ impl EncodingConfig<'_, '_> {
                     .with_context(|| format!("no location defined for field {}", f.name))?
                     .into_wire_loc(),
                 Some(schema::wire_spec::Location::Header(hdr)) => {
-                    WireLoc::Header(hdr.name.clone().unwrap_or_else(|| f.name.clone()))
+                    WireLoc::Header(hdr.name.as_ref().unwrap_or(&f.name).clone())
                 }
                 Some(schema::wire_spec::Location::Query(_)) => WireLoc::Query,
+                Some(schema::wire_spec::Location::Cookie(c)) => {
+                    WireLoc::Cookie(c.name.as_ref().unwrap_or(&f.name).clone())
+                }
             };
 
             // Add the field to the appropriate struct.
@@ -138,6 +147,7 @@ impl EncodingConfig<'_, '_> {
                 WireLoc::Query => (&mut query, None),
                 WireLoc::Header(s) => (&mut header, Some(s)),
                 WireLoc::Path => unreachable!(),
+                WireLoc::Cookie(s) => (&mut cookie, Some(s)),
             };
             field.name_override = name_override;
 
@@ -167,6 +177,7 @@ impl EncodingConfig<'_, '_> {
             body: body.map(&mut build),
             query: query.map(&mut build),
             header: header.map(&mut build),
+            cookie: cookie.map(&mut build),
             rpc_path: self.rpc_path.cloned(),
         })
     }
@@ -418,6 +429,7 @@ pub fn handshake_encoding(
                 body: None,
                 query: None,
                 header: None,
+                cookie: None,
                 rpc_path: Some(rpc_path.clone()),
             },
         }));
@@ -458,6 +470,7 @@ pub fn request_encoding(
                     body: None,
                     query: None,
                     header: None,
+                    cookie: None,
                     rpc_path: None,
                 },
             }]);
@@ -511,6 +524,7 @@ pub fn request_encoding(
                 body: None,
                 query: None,
                 header: None,
+                cookie: None,
                 rpc_path: Some(rpc_path.clone()),
             },
         }]);
@@ -551,6 +565,7 @@ pub fn response_encoding(
             body: None,
             query: None,
             header: None,
+            cookie: None,
             rpc_path: None,
         });
     };

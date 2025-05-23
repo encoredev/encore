@@ -96,6 +96,10 @@ impl ServiceRegistry {
         })
     }
 
+    pub fn endpoints(&self) -> &EndpointMap {
+        self.endpoints.as_ref()
+    }
+
     pub fn service_base_url<Q>(&self, service_name: &Q) -> Option<&String>
     where
         EncoreName: Borrow<Q>,
@@ -261,6 +265,9 @@ impl ServiceRegistry {
         if let Some(hdr) = &req_schema.header {
             hdr.to_outgoing_request(&mut data, &mut req)?;
         }
+        if let Some(c) = &req_schema.cookie {
+            c.to_outgoing_request(&mut data, &mut req)?;
+        }
 
         match &req_schema.body {
             schema::RequestBody::Typed(Some(body)) => {
@@ -389,6 +396,10 @@ impl ServiceRegistry {
 
             if let Some(hdr) = &req_schema.header {
                 hdr.to_outgoing_request(&mut data, &mut req)?;
+            }
+
+            if let Some(c) = &req_schema.cookie {
+                c.to_outgoing_request(&mut data, &mut req)?;
             }
         }
 
