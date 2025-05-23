@@ -1,11 +1,10 @@
 use crate::pvalue::PVal;
-use std::sync::Arc;
 
-use encore_runtime_core::api::{self, schema::Response, Cookie, DateTime, PValue, PValues};
+use encore_runtime_core::api::{self, Cookie, DateTime, PValue, PValues};
 use napi::{bindgen_prelude::*, JsObject, Result};
 
 // Helper struct to parse a PValue::Object from javascript into a PValue::Cookie
-struct JsCookie;
+pub(crate) struct JsCookie;
 
 impl JsCookie {
     fn get_bool(vals: &PValues, key: &str) -> Result<Option<bool>> {
@@ -89,26 +88,6 @@ impl JsCookie {
             partitioned: Self::get_bool(obj, "partitioned")?,
         })
     }
-}
-
-// transforms vals according to the response schema
-pub fn transform_pvalues_response(mut vals: PValues, schema: Arc<Response>) -> Result<PValues> {
-    if let Some(schema) = &schema.cookie {
-        for (key, field) in schema.fields() {
-            if let Some(PValue::Object(obj)) = vals.get(key) {
-                let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
-                let cookie_value = obj.get("value").ok_or(Error::new(
-                    Status::InvalidArg,
-                    "cookie requires a value".to_owned(),
-                ))?;
-
-                let cookie = JsCookie::parse_cookie(obj, cookie_name, cookie_value)?;
-                vals.insert(key.to_string(), PValue::Cookie(cookie));
-            }
-        }
-    }
-
-    Ok(vals)
 }
 
 pub(crate) unsafe fn cookie_to_napi_value(

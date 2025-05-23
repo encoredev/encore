@@ -1,8 +1,11 @@
-use http::header::{COOKIE, SET_COOKIE};
+use http::{
+    header::{COOKIE, SET_COOKIE},
+    HeaderValue,
+};
 
 use crate::api::{self, jsonschema, schema::ToResponse, APIResult, PValue, PValues};
 
-use super::{HTTPHeaders, ToHeaderStr};
+use super::{HTTPHeaders, JSONPayload, ToHeaderStr, ToOutgoingRequest};
 
 #[derive(Debug, Clone)]
 pub struct Cookie {
@@ -85,6 +88,67 @@ impl Cookie {
             Ok(decoded) => Ok(Some(decoded)),
             Err(err) => Err(err),
         }
+    }
+}
+
+impl ToOutgoingRequest<http::HeaderMap> for Cookie {
+    fn to_outgoing_request(
+        &self,
+        payload: &mut JSONPayload,
+        headers: &mut http::HeaderMap,
+    ) -> APIResult<()> {
+        if self.schema.root().is_empty() {
+            return Ok(());
+        }
+
+        let Some(payload) = payload else {
+            return Err(api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "missing cookie parameters".to_string(),
+                internal_message: Some("missing cookie parameters".to_string()),
+                stack: None,
+                details: None,
+            });
+        };
+
+        for (key, _field) in self.schema.root().fields.iter() {
+            if let PValue::Cookie(c) = payload.get(key).ok_or_else(|| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: format!("missing cookie parameter: {}", key),
+                internal_message: Some(format!("missing cookie parameter: {}", key)),
+                stack: None,
+                details: None,
+            })? {
+                let header_value =
+                    HeaderValue::from_str(&c.to_string()).map_err(api::Error::internal)?;
+
+                headers.append(http::header::COOKIE, header_value);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ToOutgoingRequest<reqwest::Request> for Cookie {
+    fn to_outgoing_request(
+        &self,
+        payload: &mut JSONPayload,
+        req: &mut reqwest::Request,
+    ) -> APIResult<()> {
+        let headers = req.headers_mut();
+        self.to_outgoing_request(payload, headers)
+    }
+}
+
+impl<B> ToOutgoingRequest<http::Request<B>> for Cookie {
+    fn to_outgoing_request(
+        &self,
+        payload: &mut JSONPayload,
+        req: &mut http::Request<B>,
+    ) -> APIResult<()> {
+        let headers = req.headers_mut();
+        self.to_outgoing_request(payload, headers)
     }
 }
 

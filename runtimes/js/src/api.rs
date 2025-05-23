@@ -1,8 +1,10 @@
-use crate::cookies::transform_pvalues_response;
 use crate::error::coerce_to_api_error;
 use crate::headers::parse_header_map;
 use crate::napi_util::{await_promise, PromiseHandler};
-use crate::pvalue::{encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null};
+use crate::pvalue::{
+    encode_auth_payload, encode_request_payload, parse_pvalues, pvalues_or_null,
+    transform_pvalues_response,
+};
 use crate::request_meta::RequestMeta;
 use crate::threadsafe_function::{
     ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
@@ -31,7 +33,7 @@ pub fn new_api_handler(
     func: JsFunction,
     raw: bool,
     streaming: bool,
-    resp_schema: Arc<schema::Response>,
+    resp_schema: Option<Arc<schema::Response>>,
 ) -> napi::Result<Arc<dyn api::BoxedHandler>> {
     if streaming {
         return websocket_api::new_handler(env, func);
@@ -143,12 +145,12 @@ impl PromiseHandler for APIPromiseHandler {
 
         match parse_pvalues(payload) {
             Ok(val) => {
-                let val = if let Some(resp_schema) = &self.resp_schema {
-                    val.map(|v| transform_pvalues_response(v, resp_schema.clone()))
+                let val = match &self.resp_schema {
+                    Some(schema) => val
+                        .map(|v| transform_pvalues_response(v, schema.clone()))
                         .transpose()
-                        .map_err(|e| api::Error::invalid_argument("couldn't parse response", e))?
-                } else {
-                    val
+                        .map_err(|e| api::Error::invalid_argument("couldn't parse response", e))?,
+                    None => val,
                 };
                 Ok(HandlerResponseInner {
                     payload: val,
@@ -179,13 +181,13 @@ impl PromiseHandler for APIPromiseHandler {
 
 struct TypedRequestMessage {
     req: Request,
-    resp_schema: Arc<schema::Response>,
+    resp_schema: Option<Arc<schema::Response>>,
     tx: tokio::sync::mpsc::UnboundedSender<HandlerResponse>,
 }
 
 pub struct JSTypedHandler {
     handler: ThreadsafeFunction<TypedRequestMessage>,
-    resp_schema: Arc<schema::Response>,
+    resp_schema: Option<Arc<schema::Response>>,
 }
 
 impl api::BoxedHandler for JSTypedHandler {
@@ -225,7 +227,7 @@ impl api::BoxedHandler for JSTypedHandler {
 fn typed_resolve_on_js_thread(ctx: ThreadSafeCallContext<TypedRequestMessage>) -> napi::Result<()> {
     let req = ctx.value.req.into_instance(ctx.env)?;
     let handler = APIPromiseHandler {
-        resp_schema: Some(ctx.value.resp_schema),
+        resp_schema: ctx.value.resp_schema,
     };
     match ctx.callback.unwrap().call(None, &[req]) {
         Ok(result) => {
