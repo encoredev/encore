@@ -9,6 +9,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
+use http::uri::Scheme;
 use hyper::header;
 use pingora::http::{RequestHeader, ResponseHeader};
 use pingora::protocols::http::error_resp;
@@ -310,9 +311,6 @@ impl ProxyHttp for Gateway {
 
             upstream_request.set_uri(new_uri);
 
-            // Do we need to set the host header here?
-            // It means the upstream service won't be able to tell
-            // what the original Host header was, which is sometimes useful.
             if let Some(ref host) = gateway_ctx.upstream_host {
                 upstream_request.insert_header(header::HOST, host)?;
             }
@@ -323,6 +321,45 @@ impl ProxyHttp for Gateway {
                     "invalid auth data passed in websocket protocol header",
                 )?;
             }
+
+            // Set X-Forwarded-* headers, based on https://cs.opensource.google/go/go/+/refs/tags/go1.24.3:src/net/http/httputil/reverseproxy.go;l=78
+            if let Some(client_addr) = session.client_addr().and_then(|addr| addr.as_inet()) {
+                let client_ip = client_addr.ip().to_string();
+
+                let prior_headers = upstream_request
+                    .headers
+                    .get_all("x-forwarded-for")
+                    .iter()
+                    .filter_map(|v| std::str::from_utf8(v.as_bytes()).ok())
+                    .fold(String::new(), |mut acc, header| {
+                        if !acc.is_empty() {
+                            acc.push_str(", ");
+                        }
+                        acc.push_str(header);
+                        acc
+                    });
+
+                if !prior_headers.is_empty() {
+                    let combined = format!("{}, {}", prior_headers, client_ip);
+                    upstream_request.insert_header("x-forwarded-for", combined)?;
+                } else {
+                    upstream_request.insert_header("x-forwarded-for", client_ip)?;
+                }
+            } else {
+                upstream_request.remove_header("x-forwarded-for");
+            }
+
+            if let Some(host) = session.req_header().headers.get(header::HOST) {
+                upstream_request.insert_header("x-forwarded-host", host)?;
+            }
+
+            upstream_request.insert_header(
+                "x-forwarded-proto",
+                match session.req_header().uri.scheme() == Some(&Scheme::HTTPS) {
+                    true => "https",
+                    false => "http",
+                },
+            )?;
 
             let svc_auth_method = self
                 .inner
