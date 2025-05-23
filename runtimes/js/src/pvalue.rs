@@ -1,6 +1,8 @@
-use crate::cookies::cookie_to_napi_value;
+use std::sync::Arc;
+
+use crate::cookies::{cookie_to_napi_value, JsCookie};
 use chrono::TimeZone;
-use encore_runtime_core::api::{self, auth, PValue, PValues};
+use encore_runtime_core::api::{self, auth, schema, PValue, PValues};
 use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
@@ -42,6 +44,52 @@ pub fn pvalues_to_js(env: Env, val: &PValues) -> Result<JsUnknown> {
         let val = ToNapiValue::to_napi_value(env, pv)?;
         JsUnknown::from_raw(env, val)
     }
+}
+
+// transforms vals according to the response schema
+pub fn transform_pvalues_response(
+    mut vals: PValues,
+    schema: Arc<schema::Response>,
+) -> Result<PValues> {
+    if let Some(schema) = &schema.cookie {
+        for (key, field) in schema.fields() {
+            if let Some(PValue::Object(obj)) = vals.get(key) {
+                let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
+                let cookie_value = obj.get("value").ok_or(Error::new(
+                    Status::InvalidArg,
+                    "cookie requires a value".to_owned(),
+                ))?;
+
+                let cookie = JsCookie::parse_cookie(obj, cookie_name, cookie_value)?;
+                vals.insert(key.to_string(), PValue::Cookie(cookie));
+            }
+        }
+    }
+
+    Ok(vals)
+}
+
+// transforms vals according to the response schema
+pub fn transform_pvalues_request(
+    mut vals: PValues,
+    schema: Arc<schema::Request>,
+) -> Result<PValues> {
+    if let Some(schema) = &schema.cookie {
+        for (key, field) in schema.fields() {
+            if let Some(PValue::Object(obj)) = vals.get(key) {
+                let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
+                let cookie_value = obj.get("value").ok_or(Error::new(
+                    Status::InvalidArg,
+                    "cookie requires a value".to_owned(),
+                ))?;
+
+                let cookie = JsCookie::parse_cookie(obj, cookie_name, cookie_value)?;
+                vals.insert(key.to_string(), PValue::Cookie(cookie));
+            }
+        }
+    }
+
+    Ok(vals)
 }
 
 #[derive(Clone, Debug)]

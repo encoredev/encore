@@ -114,6 +114,10 @@ impl ToOutgoingRequest<reqwest::Request> for Query {
         payload: &mut JSONPayload,
         req: &mut reqwest::Request,
     ) -> APIResult<()> {
+        if self.schema.root().is_empty() {
+            return Ok(());
+        }
+
         let Some(payload) = payload else {
             return Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
