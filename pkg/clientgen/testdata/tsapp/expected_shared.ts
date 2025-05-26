@@ -119,7 +119,7 @@ export namespace svc {
             this.root = this.root.bind(this)
         }
 
-        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<ResponseType<typeof api_svc_svc_cookieDummy>> {
+        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -140,7 +140,7 @@ export namespace svc {
             await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
         }
 
-        public async cookiesOnly(params: RequestType<typeof api_svc_svc_cookiesOnly>): Promise<ResponseType<typeof api_svc_svc_cookiesOnly>> {
+        public async cookiesOnly(): Promise<void> {
             await this.baseClient.callTypedAPI(`/cookies-only`, {method: "POST", body: undefined})
         }
 

@@ -149,11 +149,8 @@ func (ts *typescript) getFields(typ *schema.Type) []*schema.Field {
 	}
 }
 
-func (ts *typescript) isAuthCookieOnly() bool {
-	if ts.md.AuthHandler == nil {
-		return false
-	}
-	fields := ts.getFields(ts.md.AuthHandler.Params)
+func (ts *typescript) isEmptyObject(typ *schema.Type) bool {
+	fields := ts.getFields(typ)
 	if fields == nil {
 		return false
 	}
@@ -163,6 +160,13 @@ func (ts *typescript) isAuthCookieOnly() bool {
 		}
 	}
 	return true
+}
+
+func (ts *typescript) isAuthCookieOnly() bool {
+	if ts.md.AuthHandler == nil {
+		return false
+	}
+	return ts.isEmptyObject(ts.md.AuthHandler.Params)
 }
 
 func hasPathParams(rpc *meta.RPC) bool {
@@ -331,7 +335,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			segmentPrefix = payloadName + "."
 		}
 		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
-		var hasHandshake = rpc.HandshakeSchema != nil
+		var hasHandshake = rpc.HandshakeSchema != nil && !ts.isEmptyObject(rpc.HandshakeSchema)
 		var inlinePathParams = (isRaw || (rpc.RequestSchema == nil && !hasHandshake)) && hasPathParams(rpc) && ts.sharedTypes
 		if inlinePathParams {
 			ts.WriteString(payloadName + ": { ")
@@ -376,7 +380,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			ts.WriteString(" }")
 		}
 
-		if (!isStream && rpc.RequestSchema != nil) || (isStream && hasHandshake) {
+		if (!isStream && (rpc.RequestSchema != nil && !ts.isEmptyObject(rpc.RequestSchema))) || (isStream && hasHandshake) {
 			if !ts.sharedTypes && nParams > 0 {
 				ts.WriteString(", ")
 			}
@@ -415,7 +419,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		}
 
 		writeStreamRequest := func(ns string, numIndents int) {
-			if rpc.RequestSchema == nil {
+			if rpc.RequestSchema == nil || ts.isEmptyObject(rpc.RequestSchema) {
 				ts.WriteString("void")
 			} else if ts.sharedTypes {
 				fmt.Fprintf(ts, "StreamRequest<typeof %s>", rpcImportName(rpc))
@@ -424,7 +428,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			}
 		}
 		writeStreamResponse := func(ns string, numIndents int) {
-			if rpc.ResponseSchema == nil {
+			if rpc.ResponseSchema == nil || ts.isEmptyObject(rpc.ResponseSchema) {
 				ts.WriteString("void")
 			} else if ts.sharedTypes {
 				ts.seenStream = true
@@ -456,7 +460,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				writeStreamResponse(ns, 0)
 				ts.WriteString(">")
 			}
-		} else if rpc.ResponseSchema != nil {
+		} else if rpc.ResponseSchema != nil && !ts.isEmptyObject(rpc.ResponseSchema) {
 			if ts.sharedTypes {
 				fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
 			} else {
@@ -825,6 +829,10 @@ func (ts *typescript) writeNamespace(ns string) {
 }
 
 func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
+	if ts.isEmptyObject(decl.Type) {
+		return
+	}
+
 	if decl.Doc != "" {
 		scanner := bufio.NewScanner(strings.NewReader(decl.Doc))
 		ts.WriteString("    /**\n")

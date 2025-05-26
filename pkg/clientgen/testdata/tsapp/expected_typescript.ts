@@ -177,7 +177,7 @@ export namespace svc {
             await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
         }
 
-        public async cookiesOnly(params: void): Promise<void> {
+        public async cookiesOnly(): Promise<void> {
             await this.baseClient.callTypedAPI("POST", `/cookies-only`)
         }
 
