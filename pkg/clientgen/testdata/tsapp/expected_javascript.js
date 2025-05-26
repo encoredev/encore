@@ -72,15 +72,11 @@ class SvcServiceClient {
             foo: params.foo,
         }
 
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
-        return await resp.json()
+        await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
     }
 
-    async cookiesOnly(params) {
-        // Now make the actual call to the API
-        const resp = await this.baseClient.callTypedAPI("POST", `/cookies-only`)
-        return await resp.json()
+    async cookiesOnly() {
+        await this.baseClient.callTypedAPI("POST", `/cookies-only`)
     }
 
     async dummy(params) {

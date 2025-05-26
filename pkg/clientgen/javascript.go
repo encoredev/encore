@@ -123,11 +123,8 @@ func (js *javascript) getFields(typ *schema.Type) []*schema.Field {
 	}
 }
 
-func (js *javascript) isAuthCookiesOnly() bool {
-	if js.md.AuthHandler == nil {
-		return false
-	}
-	fields := js.getFields(js.md.AuthHandler.Params)
+func (js *javascript) isEmptyObject(typ *schema.Type) bool {
+	fields := js.getFields(typ)
 	if fields == nil {
 		return false
 	}
@@ -137,6 +134,13 @@ func (js *javascript) isAuthCookiesOnly() bool {
 		}
 	}
 	return true
+}
+
+func (js *javascript) isAuthCookiesOnly() bool {
+	if js.md.AuthHandler == nil {
+		return false
+	}
+	return js.isEmptyObject(js.md.AuthHandler.Params)
 }
 
 func (js *javascript) writeService(svc *meta.Service, set clientgentypes.ServiceSet, tags clientgentypes.TagSet) error {
@@ -232,7 +236,8 @@ func (js *javascript) writeService(svc *meta.Service, set clientgentypes.Service
 		// Avoid a name collision.
 		payloadName := "params"
 
-		if (!isStream && rpc.RequestSchema != nil) || (isStream && rpc.HandshakeSchema != nil) {
+		if (!isStream && (rpc.RequestSchema != nil && !js.isEmptyObject(rpc.RequestSchema))) ||
+			(isStream && (rpc.HandshakeSchema != nil && !js.isEmptyObject(rpc.HandshakeSchema))) {
 			if nParams > 0 {
 				js.WriteString(", ")
 			}
@@ -503,7 +508,7 @@ func (js *javascript) rpcCallSite(w *indentWriter, rpc *meta.RPC, rpcPath string
 	callAPI += ")"
 
 	// If there's no response schema, we can just return the call to the API directly
-	if rpc.ResponseSchema == nil {
+	if rpc.ResponseSchema == nil || js.isEmptyObject(rpc.ResponseSchema) {
 		w.WriteStringf("await %s\n", callAPI)
 		return nil
 	}

@@ -730,7 +730,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	callAPI += ")"
 
 	// If there's no response schema, we can just return the call to the API directly
-	if rpc.ResponseSchema == nil || !rpcEncoding.ResponseEncoding.HasResponseInBrowser() {
+	if rpc.ResponseSchema == nil || ts.isEmptyObject(rpc.ResponseSchema) {
 		w.WriteStringf("await %s\n", callAPI)
 		return nil
 	}
