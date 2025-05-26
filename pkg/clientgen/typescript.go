@@ -726,7 +726,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	callAPI += ")"
 
 	// If there's no response schema, we can just return the call to the API directly
-	if rpc.ResponseSchema == nil {
+	if rpc.ResponseSchema == nil || !rpcEncoding.ResponseEncoding.HasResponseInBrowser() {
 		w.WriteStringf("await %s\n", callAPI)
 		return nil
 	}
@@ -1555,14 +1555,25 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 		ts.WriteString(`
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
+// Helper type to omit all fields that are cookies.
 type OmitCookie<T> = {
   [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
 };
 
-type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? OmitCookie<H> : void;
+// Helper type to check if an object type is empty (has no properties)
+type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
 
-type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
+type RequestType<Type extends (...args: any[]) => any> =
+  Parameters<Type> extends [infer H, ...any[]]
+    ? IsEmptyObject<OmitCookie<H>> extends true
+      ? void
+      : OmitCookie<H>
+    : void;
+
+type ResponseType<Type extends (...args: any[]) => any> =
+  IsEmptyObject<OmitCookie<Awaited<ReturnType<Type>>>> extends true
+    ? void
+    : OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
@@ -1796,7 +1807,6 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		indent := func() {
 			ts.WriteString(strings.Repeat("    ", numIndents+1))
 		}
-		ts.WriteString("{\n")
 
 		// Filter the fields to print based on struct tags.
 		fields := make([]*schema.Field, 0, len(typ.Struct.Fields))
@@ -1811,39 +1821,44 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			fields = append(fields, f)
 		}
 
-		for i, field := range fields {
-			if field.Doc != "" {
-				scanner := bufio.NewScanner(strings.NewReader(field.Doc))
-				indent()
-				ts.WriteString("/**\n")
-				for scanner.Scan() {
+		if len(fields) > 0 {
+			ts.WriteString("{\n")
+			for i, field := range fields {
+				if field.Doc != "" {
+					scanner := bufio.NewScanner(strings.NewReader(field.Doc))
 					indent()
-					ts.WriteString(" * ")
-					ts.WriteString(scanner.Text())
+					ts.WriteString("/**\n")
+					for scanner.Scan() {
+						indent()
+						ts.WriteString(" * ")
+						ts.WriteString(scanner.Text())
+						ts.WriteByte('\n')
+					}
+					indent()
+					ts.WriteString(" */\n")
+				}
+
+				indent()
+				ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
+
+				if field.Optional || ts.isRecursive(field.Typ) {
+					ts.WriteString("?")
+				}
+				ts.WriteString(": ")
+				ts.writeTyp(ns, field.Typ, numIndents+1)
+				ts.WriteString("\n")
+
+				// Add another empty line if we have a doc comment
+				// and this was not the last field.
+				if field.Doc != "" && i < len(fields)-1 {
 					ts.WriteByte('\n')
 				}
-				indent()
-				ts.WriteString(" */\n")
 			}
-
-			indent()
-			ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
-
-			if field.Optional || ts.isRecursive(field.Typ) {
-				ts.WriteString("?")
-			}
-			ts.WriteString(": ")
-			ts.writeTyp(ns, field.Typ, numIndents+1)
-			ts.WriteString("\n")
-
-			// Add another empty line if we have a doc comment
-			// and this was not the last field.
-			if field.Doc != "" && i < len(fields)-1 {
-				ts.WriteByte('\n')
-			}
+			ts.WriteString(strings.Repeat("    ", numIndents))
+			ts.WriteByte('}')
+		} else {
+			ts.WriteString("void")
 		}
-		ts.WriteString(strings.Repeat("    ", numIndents))
-		ts.WriteByte('}')
 
 	case *schema.Type_TypeParameter:
 		decl := ts.md.Decls[typ.TypeParameter.DeclId]

@@ -46,8 +46,10 @@ class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
         this.cookieDummy = this.cookieDummy.bind(this)
+        this.cookiesOnly = this.cookiesOnly.bind(this)
         this.dummy = this.dummy.bind(this)
         this.imported = this.imported.bind(this)
+        this.noTypes = this.noTypes.bind(this)
         this.onlyPathParams = this.onlyPathParams.bind(this)
         this.root = this.root.bind(this)
     }
@@ -72,6 +74,12 @@ class SvcServiceClient {
 
         // Now make the actual call to the API
         const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
+        return await resp.json()
+    }
+
+    async cookiesOnly(params) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/cookies-only`)
         return await resp.json()
     }
 
@@ -100,6 +108,10 @@ class SvcServiceClient {
         // Now make the actual call to the API
         const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params))
         return await resp.json()
+    }
+
+    async noTypes() {
+        await this.baseClient.callTypedAPI("POST", `/type-less`)
     }
 
     async onlyPathParams(pathParam, pathParam2) {

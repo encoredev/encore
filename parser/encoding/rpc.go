@@ -171,6 +171,11 @@ func (e *ResponseEncoding) ParameterEncodingMapByName() map[string][]*ParameterE
 	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.CookieParameters, e.BodyParameters)
 }
 
+func (e *ResponseEncoding) HasResponseInBrowser() bool {
+	// We don't care about cookie parameters, as they are handled by the browser
+	return len(e.BodyParameters) > 0 || len(e.HeaderParameters) > 0
+}
+
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
 type RequestEncoding struct {
 	// The HTTP methods these field configurations can be used for

@@ -44,6 +44,17 @@ export const dummy = api(
 );
 
 
+export const noTypes = api(
+  { expose: true, method: "POST", path: "/type-less" },
+  async () => { },
+)
+export const cookiesOnly = api(
+  { expose: true, method: "POST", path: "/cookies-only" },
+  async (req: { field: Cookie<'cookie'> }): Promise<{ cookie: Cookie<'cookie'> }> => {
+    return { cookie: { value: "value" } }
+  },
+)
+
 export const cookieDummy = api(
   { expose: true, method: "POST", path: "/cookie-dummy" },
   async (req: Request): Promise<{ cookie: Cookie<'cookie'> }> => { return { cookie: { value: "value" } } },

@@ -148,14 +148,15 @@ export namespace svc {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.cookieDummy = this.cookieDummy.bind(this)
+            this.cookiesOnly = this.cookiesOnly.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
+            this.noTypes = this.noTypes.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
         }
 
-        public async cookieDummy(params: Request): Promise<{
-}> {
+        public async cookieDummy(params: Request): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -173,10 +174,11 @@ export namespace svc {
                 foo: params.foo,
             }
 
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
-            return await resp.json() as {
-}
+            await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
+        }
+
+        public async cookiesOnly(params: void): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/cookies-only`)
         }
 
         public async dummy(params: Request): Promise<void> {
@@ -204,6 +206,10 @@ export namespace svc {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params))
             return await resp.json() as common_stuff.ImportedResponse
+        }
+
+        public async noTypes(): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/type-less`)
         }
 
         public async onlyPathParams(pathParam: string, pathParam2: string): Promise<common_stuff.ImportedResponse> {

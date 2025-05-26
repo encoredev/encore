@@ -135,8 +135,14 @@ type SvcClient interface {
 	CookieDummy(ctx context.Context, params SvcRequest) (struct {
 		Cookie string `cookie:"cookie"`
 	}, error)
+	CookiesOnly(ctx context.Context, params struct {
+		Field string `cookie:"cookie"`
+	}) (struct {
+		Cookie string `cookie:"cookie"`
+	}, error)
 	Dummy(ctx context.Context, params SvcRequest) error
 	Imported(ctx context.Context, params Common_StuffImportedRequest) (Common_StuffImportedResponse, error)
+	NoTypes(ctx context.Context) error
 	OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (Common_StuffImportedResponse, error)
 	Root(ctx context.Context, params SvcRequest) error
 }
@@ -186,6 +192,20 @@ func (c *svcClient) CookieDummy(ctx context.Context, params SvcRequest) (resp st
 	return
 }
 
+func (c *svcClient) CookiesOnly(ctx context.Context, params struct {
+	Field string `cookie:"cookie"`
+}) (resp struct {
+	Cookie string `cookie:"cookie"`
+}, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/cookies-only", nil, nil, nil)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (c *svcClient) Dummy(ctx context.Context, params SvcRequest) error {
 	// Convert our params into the objects we need for the request
 	reqEncoder := &serde{}
@@ -225,6 +245,11 @@ func (c *svcClient) Imported(ctx context.Context, params Common_StuffImportedReq
 	}
 
 	return
+}
+
+func (c *svcClient) NoTypes(ctx context.Context) error {
+	_, err := callAPI(ctx, c.base, "POST", "/type-less", nil, nil, nil)
+	return err
 }
 
 func (c *svcClient) OnlyPathParams(ctx context.Context, pathParam string, pathParam2 string) (resp Common_StuffImportedResponse, err error) {

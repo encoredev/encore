@@ -96,6 +96,7 @@ export interface ClientOptions {
  */
 import {
     cookieDummy as api_svc_svc_cookieDummy,
+    cookiesOnly as api_svc_svc_cookiesOnly,
     dummy as api_svc_svc_dummy,
     imported as api_svc_svc_imported,
     onlyPathParams as api_svc_svc_onlyPathParams,
@@ -110,8 +111,10 @@ export namespace svc {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.cookieDummy = this.cookieDummy.bind(this)
+            this.cookiesOnly = this.cookiesOnly.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
+            this.noTypes = this.noTypes.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
         }
@@ -134,9 +137,11 @@ export namespace svc {
                 foo: params.foo,
             }
 
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_cookieDummy>
+            await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
+        }
+
+        public async cookiesOnly(params: RequestType<typeof api_svc_svc_cookiesOnly>): Promise<ResponseType<typeof api_svc_svc_cookiesOnly>> {
+            await this.baseClient.callTypedAPI(`/cookies-only`, {method: "POST", body: undefined})
         }
 
         public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
@@ -164,6 +169,10 @@ export namespace svc {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_imported>
+        }
+
+        public async noTypes(): Promise<void> {
+            await this.baseClient.callTypedAPI(`/type-less`, {method: "POST", body: undefined})
         }
 
         public async onlyPathParams(params: { pathParam: string, pathParam2: string }): Promise<ResponseType<typeof api_svc_svc_onlyPathParams>> {
@@ -198,14 +207,25 @@ export namespace svc {
 
 type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
 
+// Helper type to omit all fields that are cookies.
 type OmitCookie<T> = {
   [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
 };
 
-type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? OmitCookie<H> : void;
+// Helper type to check if an object type is empty (has no properties)
+type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
 
-type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
+type RequestType<Type extends (...args: any[]) => any> =
+  Parameters<Type> extends [infer H, ...any[]]
+    ? IsEmptyObject<OmitCookie<H>> extends true
+      ? void
+      : OmitCookie<H>
+    : void;
+
+type ResponseType<Type extends (...args: any[]) => any> =
+  IsEmptyObject<OmitCookie<Awaited<ReturnType<Type>>>> extends true
+    ? void
+    : OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
