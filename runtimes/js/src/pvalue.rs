@@ -51,8 +51,8 @@ pub fn transform_pvalues_response(
     mut vals: PValues,
     schema: Arc<schema::Response>,
 ) -> Result<PValues> {
-    if let Some(schema) = &schema.cookie {
-        for (key, field) in schema.fields() {
+    if let Some(cookie_schema) = &schema.cookie {
+        for (key, field) in cookie_schema.fields() {
             if let Some(PValue::Object(obj)) = vals.get(key) {
                 let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
                 let cookie_value = obj.get("value").ok_or(Error::new(
@@ -74,8 +74,8 @@ pub fn transform_pvalues_request(
     mut vals: PValues,
     schema: Arc<schema::Request>,
 ) -> Result<PValues> {
-    if let Some(schema) = &schema.cookie {
-        for (key, field) in schema.fields() {
+    if let Some(cookie_schema) = &schema.cookie {
+        for (key, field) in cookie_schema.fields() {
             if let Some(PValue::Object(obj)) = vals.get(key) {
                 let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
                 let cookie_value = obj.get("value").ok_or(Error::new(
