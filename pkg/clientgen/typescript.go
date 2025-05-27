@@ -149,8 +149,11 @@ func (ts *typescript) getFields(typ *schema.Type) []*schema.Field {
 	}
 }
 
-func (ts *typescript) isEmptyObject(typ *schema.Type) bool {
-	fields := ts.getFields(typ)
+func (ts *typescript) isAuthCookieOnly() bool {
+	if ts.md.AuthHandler == nil {
+		return false
+	}
+	fields := ts.getFields(ts.md.AuthHandler.Params)
 	if fields == nil {
 		return false
 	}
@@ -160,13 +163,6 @@ func (ts *typescript) isEmptyObject(typ *schema.Type) bool {
 		}
 	}
 	return true
-}
-
-func (ts *typescript) isAuthCookieOnly() bool {
-	if ts.md.AuthHandler == nil {
-		return false
-	}
-	return ts.isEmptyObject(ts.md.AuthHandler.Params)
 }
 
 func hasPathParams(rpc *meta.RPC) bool {
@@ -335,7 +331,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			segmentPrefix = payloadName + "."
 		}
 		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
-		var hasHandshake = rpc.HandshakeSchema != nil && !ts.isEmptyObject(rpc.HandshakeSchema)
+		var hasHandshake = rpc.HandshakeSchema != nil
 		var inlinePathParams = (isRaw || (rpc.RequestSchema == nil && !hasHandshake)) && hasPathParams(rpc) && ts.sharedTypes
 		if inlinePathParams {
 			ts.WriteString(payloadName + ": { ")
@@ -380,7 +376,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			ts.WriteString(" }")
 		}
 
-		if (!isStream && (rpc.RequestSchema != nil && !ts.isEmptyObject(rpc.RequestSchema))) || (isStream && hasHandshake) {
+		if (!isStream && rpc.RequestSchema != nil) || (isStream && hasHandshake) {
 			if !ts.sharedTypes && nParams > 0 {
 				ts.WriteString(", ")
 			}
@@ -419,7 +415,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		}
 
 		writeStreamRequest := func(ns string, numIndents int) {
-			if rpc.RequestSchema == nil || ts.isEmptyObject(rpc.RequestSchema) {
+			if rpc.RequestSchema == nil {
 				ts.WriteString("void")
 			} else if ts.sharedTypes {
 				fmt.Fprintf(ts, "StreamRequest<typeof %s>", rpcImportName(rpc))
@@ -428,7 +424,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			}
 		}
 		writeStreamResponse := func(ns string, numIndents int) {
-			if rpc.ResponseSchema == nil || ts.isEmptyObject(rpc.ResponseSchema) {
+			if rpc.ResponseSchema == nil {
 				ts.WriteString("void")
 			} else if ts.sharedTypes {
 				ts.seenStream = true
@@ -460,7 +456,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				writeStreamResponse(ns, 0)
 				ts.WriteString(">")
 			}
-		} else if rpc.ResponseSchema != nil && !ts.isEmptyObject(rpc.ResponseSchema) {
+		} else if rpc.ResponseSchema != nil {
 			if ts.sharedTypes {
 				fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
 			} else {
@@ -730,7 +726,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	callAPI += ")"
 
 	// If there's no response schema, we can just return the call to the API directly
-	if rpc.ResponseSchema == nil || ts.isEmptyObject(rpc.ResponseSchema) {
+	if rpc.ResponseSchema == nil {
 		w.WriteStringf("await %s\n", callAPI)
 		return nil
 	}
@@ -829,10 +825,6 @@ func (ts *typescript) writeNamespace(ns string) {
 }
 
 func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
-	if ts.isEmptyObject(decl.Type) {
-		return
-	}
-
 	if decl.Doc != "" {
 		scanner := bufio.NewScanner(strings.NewReader(decl.Doc))
 		ts.WriteString("    /**\n")
@@ -1568,20 +1560,12 @@ type OmitCookie<T> = {
   [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
 };
 
-// Helper type to check if an object type is empty (has no properties)
-type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
-
-// Helper type to omit object types without fields
-type OmitEmpty<T> = IsEmptyObject<T> extends true ? void : T;
-
 type RequestType<Type extends (...args: any[]) => any> =
   Parameters<Type> extends [infer H, ...any[]]
-    ? OmitEmpty<OmitCookie<H>>
+    ? OmitCookie<H>
     : void;
 
-type ResponseType<Type extends (...args: any[]) => any> = OmitEmpty<
-  OmitCookie<Awaited<ReturnType<Type>>>
->;
+type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
@@ -1864,8 +1848,6 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			}
 			ts.WriteString(strings.Repeat("    ", numIndents))
 			ts.WriteByte('}')
-		} else {
-			ts.WriteString("void")
 		}
 
 	case *schema.Type_TypeParameter:
