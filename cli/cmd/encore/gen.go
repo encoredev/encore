@@ -33,6 +33,8 @@ func init() {
 		excludedEndpointTags           []string
 		openAPIExcludePrivateEndpoints bool
 		tsSharedTypes                  bool
+		target                         string
+		tsDefaultClient                string
 	)
 
 	genClientCmd := &cobra.Command{
@@ -54,6 +56,16 @@ To further narrow down the services to generate, use the '--services' flag.
 `,
 		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			if target == "leap" {
+				lang = "typescript"
+				tsDefaultClient = "import.meta.env.VITE_CLIENT_TARGET"
+				if output == "" {
+					output = "../frontend/client.ts"
+				}
+				excludedServices = append(excludedServices, "frontend")
+				tsSharedTypes = true
+			}
+
 			if output == "" && lang == "" {
 				fatal("specify at least one of --output or --lang.")
 			}
@@ -110,6 +122,7 @@ To further narrow down the services to generate, use the '--services' flag.
 			if genServiceNames == nil {
 				genServiceNames = []string{"*"}
 			}
+
 			resp, err := daemon.GenClient(ctx, &daemonpb.GenClientRequest{
 				AppId:                          appID,
 				EnvName:                        envName,
@@ -120,6 +133,7 @@ To further narrow down the services to generate, use the '--services' flag.
 				ExcludedEndpointTags:           excludedEndpointTags,
 				OpenapiExcludePrivateEndpoints: &openAPIExcludePrivateEndpoints,
 				TsSharedTypes:                  &tsSharedTypes,
+				TsClientTarget:                 &tsDefaultClient,
 			})
 			if err != nil {
 				fatal(err)
@@ -189,4 +203,8 @@ which may require the user-facing wrapper code to be manually generated.`,
 		BoolVar(&openAPIExcludePrivateEndpoints, "openapi-exclude-private-endpoints", false, "Exclude private endpoints from the OpenAPI spec")
 	genClientCmd.Flags().
 		BoolVar(&tsSharedTypes, "ts:shared-types", false, "Import types from ~backend instead of re-generating them")
+	genClientCmd.Flags().StringVar(&target, "target", "", "An optional target for the client (\"leap\")")
+	_ = genClientCmd.RegisterFlagCompletionFunc("target", cmdutil.AutoCompleteFromStaticList(
+		"leap\tA TypeScript client for apps created with Leap (https://leap.new) ",
+	))
 }

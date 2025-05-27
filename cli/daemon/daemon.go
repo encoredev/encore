@@ -153,6 +153,9 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 	if params.TsSharedTypes != nil {
 		opts.TSSharedTypes = *params.TsSharedTypes
 	}
+	if params.TsClientTarget != nil {
+		opts.TSClientTarget = *params.TsClientTarget
+	}
 	code, err := clientgen.Client(lang, params.AppId, md, servicesToGenerate, tagSet, opts)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
