@@ -69,7 +69,7 @@ pub fn transform_pvalues_response(
     Ok(vals)
 }
 
-// transforms vals according to the response schema
+// transforms vals according to the request schema
 pub fn transform_pvalues_request(
     mut vals: PValues,
     schema: Arc<schema::Request>,
