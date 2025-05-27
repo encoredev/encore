@@ -124,25 +124,6 @@ You can use the following types for cookie values:
 When defining cookies, you can specify the type using the generic parameter:
 
 ```ts
-// String cookie - explicit declaration
-type StringCookie = Cookie<string, "sessionId">;
-
-// Equivalent string cookie with omitted type parameter
-type ImplicitStringCookie = Cookie<"sessionId">;
-
-// Number cookie
-type NumberCookie = Cookie<number, "userId">;
-
-// Boolean cookie
-type BooleanCookie = Cookie<boolean, "darkMode">;
-
-// Date cookie
-type DateCookie = Cookie<Date, "lastVisit">;
-```
-
-### Example: Using Different Cookie Types
-
-```ts
 interface UserPreferences {
   // Cookies with different types
   userId: Cookie<number, "userId">;
