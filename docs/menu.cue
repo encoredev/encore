@@ -724,6 +724,11 @@
 					text: "Static Assets"
 					path: "/ts/primitives/static-assets"
 					file: "ts/primitives/static-assets"
+				}, {
+					kind: "basic"
+					text: "Cookies"
+					path: "/ts/primitives/cookies"
+					file: "ts/primitives/cookies"
 				}]
 			}, {
 				kind: "basic"
