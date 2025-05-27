@@ -326,6 +326,11 @@ message GenClientRequest {
   // the client and the server. It assumes "~backend" is available in the
   // import path.
   optional bool ts_shared_types = 10;
+
+  // If set, the default export of the generate TypeScript client will be
+  // an instantiated client with the given target. The target can be e.g.
+  // a variable, e.g. "import.meta.env.VITE_CLIENT_TARGET" or a string literal.
+  optional string ts_client_target = 11;
 }
 
 message GenClientResponse {
