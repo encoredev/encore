@@ -119,7 +119,7 @@ export namespace svc {
             this.root = this.root.bind(this)
         }
 
-        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<void> {
+        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<ResponseType<typeof api_svc_svc_cookieDummy>> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 baz: params.headerBaz,
@@ -137,11 +137,15 @@ export namespace svc {
                 foo: params.foo,
             }
 
-            await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_cookieDummy>
         }
 
-        public async cookiesOnly(): Promise<void> {
-            await this.baseClient.callTypedAPI(`/cookies-only`, {method: "POST", body: undefined})
+        public async cookiesOnly(params: RequestType<typeof api_svc_svc_cookiesOnly>): Promise<ResponseType<typeof api_svc_svc_cookiesOnly>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/cookies-only`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_cookiesOnly>
         }
 
         public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
@@ -212,20 +216,12 @@ type OmitCookie<T> = {
   [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
 };
 
-// Helper type to check if an object type is empty (has no properties)
-type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
-
-// Helper type to omit object types without fields
-type OmitEmpty<T> = IsEmptyObject<T> extends true ? void : T;
-
 type RequestType<Type extends (...args: any[]) => any> =
   Parameters<Type> extends [infer H, ...any[]]
-    ? OmitEmpty<OmitCookie<H>>
+    ? OmitCookie<H>
     : void;
 
-type ResponseType<Type extends (...args: any[]) => any> = OmitEmpty<
-  OmitCookie<Awaited<ReturnType<Type>>>
->;
+type ResponseType<Type extends (...args: any[]) => any> = OmitCookie<Awaited<ReturnType<Type>>>;
 
 function dateReviver(key: string, value: any): any {
   if (
