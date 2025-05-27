@@ -191,7 +191,7 @@ export namespace svc {
 }
 
 
-type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
+type PickMethods<Type> = Omit<CallParameters, "method"> & { method?: Type };
 
 // Helper type to omit all fields that are cookies.
 type OmitCookie<T> = {
@@ -201,17 +201,17 @@ type OmitCookie<T> = {
 // Helper type to check if an object type is empty (has no properties)
 type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
 
+// Helper type to omit object types without fields
+type OmitEmpty<T> = IsEmptyObject<T> extends true ? void : T;
+
 type RequestType<Type extends (...args: any[]) => any> =
   Parameters<Type> extends [infer H, ...any[]]
-    ? IsEmptyObject<OmitCookie<H>> extends true
-      ? void
-      : OmitCookie<H>
+    ? OmitEmpty<OmitCookie<H>>
     : void;
 
-type ResponseType<Type extends (...args: any[]) => any> =
-  IsEmptyObject<OmitCookie<Awaited<ReturnType<Type>>>> extends true
-    ? void
-    : OmitCookie<Awaited<ReturnType<Type>>>;
+type ResponseType<Type extends (...args: any[]) => any> = OmitEmpty<
+  OmitCookie<Awaited<ReturnType<Type>>>
+>;
 
 function dateReviver(key: string, value: any): any {
   if (
