@@ -85,7 +85,7 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	switch req.Method {
-	case "GET":
+	case "GET", "HEAD":
 		_, isSigned := (queryLowerCase(req))["x-goog-signature"]
 		if isSigned {
 			err := validateGcsSignedRequest(req, time.Now())
@@ -112,7 +112,11 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Expose-Headers", "Content-Type, Content-Length, Content-Encoding, Date, X-Goog-Generation, X-Goog-Metageneration")
 		w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
-		w.Write(contents)
+
+		// Only write the body for GET requests, not HEAD
+		if req.Method == "GET" {
+			w.Write(contents)
+		}
 	case "PUT":
 		err := validateGcsSignedRequest(req, time.Now())
 		if err != nil {
