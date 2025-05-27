@@ -21,7 +21,8 @@ Cookies can be utilized in three main contexts within Encore.ts:
 Cookies can be used in authentication handlers:
 
 ```ts
-import { auth, Gateway } from "encore.dev";
+import { Cookie, Gateway } from "encore.dev/api";
+import { authHandler } from "encore.dev/auth";
 
 // Define auth parameters with cookies
 interface AuthParams {
@@ -29,14 +30,13 @@ interface AuthParams {
 }
 
 // Auth handler that uses cookies
-const authHandler = auth<AuthParams, User>(async ({ sessionId }) => {
-  const sessionId = sessionId.value;
-  return validateAndGetUser(sessionId);
+const auth = authHandler<AuthParams, User>(async ({ sessionId }) => {
+  return validateAndGetUser(sessionId.value);
 });
 
 // Configure the gateway with the auth handler
 export const gateway = new Gateway({
-  authHandler,
+  authHandler: auth,
 });
 ```
 
@@ -45,7 +45,7 @@ export const gateway = new Gateway({
 You can set cookies in your API responses by including them in your response type:
 
 ```ts
-import { api } from "encore.dev";
+import { api, Cookie } from "encore.dev/api";
 
 // Define a response type with a cookie
 interface LoginResponse {
@@ -58,7 +58,7 @@ export const login = api<LoginParams, LoginResponse>({
   method: "POST",
   path: "/login",
   expose: true,
-}, async (params) => {
+}, async (params): Promise<LoginResponse> => {
   // Authenticate user
   const user = await authenticateUser(params.username, params.password);
   const sessionId = generateSessionId();
@@ -85,7 +85,7 @@ export const login = api<LoginParams, LoginResponse>({
 When creating API endpoints, you can access cookies sent by the client by defining them in your parameter type:
 
 ```ts
-import { api } from "encore.dev";
+import { api } from "encore.dev/api";
 
 // Define a request type with a cookie
 interface Params {
@@ -93,17 +93,18 @@ interface Params {
 }
 
 // Create an API endpoint that uses the cookie
-export const get = api<Params, { msg: string }>({
-  method: "GET",
-  path: "/user/profile",
-  expose: true,
-}, async ({ language }) => {
-  // Access the cookie value
-  const language = language.value ?? "en";
-
-  return { msg: `your language: ${language}` }
-});
-```
+export const get = api<Params, { msg: string }>(
+  {
+    method: "GET",
+    path: "/user/profile",
+    expose: true,
+  },
+  async ({ language }) => {
+    // Access the cookie value
+    const lang = language?.value ?? "en";
+    return { msg: `your language: ${lang}` };
+  },
+);```
 
 ## Typed Cookie Values
 
