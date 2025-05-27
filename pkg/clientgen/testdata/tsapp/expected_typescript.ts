@@ -26,6 +26,8 @@ export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`pr${pr}`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the app Encore application.
  */
@@ -123,15 +125,60 @@ export namespace svc {
         headerNum?: number
     }
 
+    export interface Request {
+        /**
+         * Foo is good
+         */
+        foo?: number
+
+        /**
+         * Baz is better
+         */
+        baz: string
+
+        queryFoo?: boolean
+        queryBar?: string
+        headerBaz?: string
+        headerNum?: number
+    }
+
     export class ServiceClient {
         private baseClient: BaseClient
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.cookieDummy = this.cookieDummy.bind(this)
+            this.cookiesOnly = this.cookiesOnly.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
+            this.noTypes = this.noTypes.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
+        }
+
+        public async cookieDummy(params: Request): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                baz: params.headerBaz,
+                num: params.headerNum === undefined ? undefined : String(params.headerNum),
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                bar: params.queryBar,
+                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                baz: params.baz,
+                foo: params.foo,
+            }
+
+            await this.baseClient.callTypedAPI("POST", `/cookie-dummy`, JSON.stringify(body), {headers, query})
+        }
+
+        public async cookiesOnly(): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/cookies-only`)
         }
 
         public async dummy(params: Request): Promise<void> {
@@ -159,6 +206,10 @@ export namespace svc {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("POST", `/imported`, JSON.stringify(params))
             return await resp.json() as common_stuff.ImportedResponse
+        }
+
+        public async noTypes(): Promise<void> {
+            await this.baseClient.callTypedAPI("POST", `/type-less`)
         }
 
         public async onlyPathParams(pathParam: string, pathParam2: string): Promise<common_stuff.ImportedResponse> {
@@ -428,7 +479,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
@@ -543,7 +594,7 @@ class BaseClient {
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callTypedAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
         return this.callAPI(method, path, body, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
@@ -551,7 +602,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,

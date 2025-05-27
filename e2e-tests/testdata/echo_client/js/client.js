@@ -24,6 +24,8 @@ export function PreviewEnv(pr) {
     return Environment(`pr${pr}`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the slug Encore application.
  */
@@ -760,7 +762,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if (typeof window === "undefined") {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "slug-Generated-JS-Client (Encore/v0.0.0-develop)";
         }
 

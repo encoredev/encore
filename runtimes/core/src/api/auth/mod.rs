@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use http::header::COOKIE;
 use serde::Serialize;
 
 use crate::api::reqauth::CallMeta;
@@ -20,12 +21,14 @@ mod remote;
 
 pub type AxumRequest = axum::http::Request<axum::body::Body>;
 
+#[derive(Debug)]
 pub struct AuthRequest {
     pub headers: axum::http::HeaderMap,
     pub query: Option<String>,
     pub call_meta: CallMeta,
 }
 
+#[derive(Debug)]
 pub enum AuthResponse {
     Authenticated {
         auth_uid: String,
@@ -141,7 +144,7 @@ impl Authenticator {
         call_meta.parent_span_id = None;
 
         // Headers.
-        let headers = match &self.schema.header {
+        let mut headers = match &self.schema.header {
             None => axum::http::header::HeaderMap::new(),
             Some(schema) => {
                 let mut dest = axum::http::header::HeaderMap::with_capacity(schema.len());
@@ -158,6 +161,31 @@ impl Authenticator {
                     }
                 }
                 dest
+            }
+        };
+
+        // Cookies.
+        if let Some(schema) = &self.schema.cookie {
+            let mut inbound_cookies = cookie::CookieJar::new();
+            inbound
+                .headers()
+                .get_all(COOKIE)
+                .iter()
+                .filter_map(|raw| raw.to_str().ok())
+                .flat_map(cookie::Cookie::split_parse)
+                .flatten()
+                .for_each(|c| inbound_cookies.add_original(c.into_owned()));
+
+            for (key, field) in schema.fields() {
+                let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
+                let Some(c) = inbound_cookies.get(cookie_name) else {
+                    continue;
+                };
+                let Ok(val) = axum::http::HeaderValue::from_bytes(c.to_string().as_bytes()) else {
+                    continue;
+                };
+
+                headers.append(http::header::COOKIE, val);
             }
         };
 
@@ -194,8 +222,13 @@ impl Authenticator {
         }
 
         if let Some(header) = &self.schema.header {
-            let h = req.headers();
-            if header.contains_any(&h) {
+            if header.contains_any(&req.headers()) {
+                return true;
+            }
+        }
+
+        if let Some(cookie) = &self.schema.cookie {
+            if cookie.contains_any(&req.headers()) {
                 return true;
             }
         }
@@ -211,6 +244,9 @@ pub struct AuthPayload {
 
     #[serde(flatten)]
     pub header: Option<PValues>,
+
+    #[serde(flatten)]
+    pub cookie: Option<PValues>,
 }
 
 pub trait InboundRequest {

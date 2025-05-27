@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
+use crate::cookies::{cookie_to_napi_value, JsCookie};
 use chrono::TimeZone;
-use encore_runtime_core::api::{self, auth, PValue, PValues};
+use encore_runtime_core::api::{self, auth, schema, PValue, PValues};
 use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
@@ -43,6 +46,52 @@ pub fn pvalues_to_js(env: Env, val: &PValues) -> Result<JsUnknown> {
     }
 }
 
+// transforms vals according to the response schema
+pub fn transform_pvalues_response(
+    mut vals: PValues,
+    schema: Arc<schema::Response>,
+) -> Result<PValues> {
+    if let Some(cookie_schema) = &schema.cookie {
+        for (key, field) in cookie_schema.fields() {
+            if let Some(PValue::Object(obj)) = vals.get(key) {
+                let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
+                let cookie_value = obj.get("value").ok_or(Error::new(
+                    Status::InvalidArg,
+                    "cookie requires a value".to_owned(),
+                ))?;
+
+                let cookie = JsCookie::parse_cookie(obj, cookie_name, cookie_value)?;
+                vals.insert(key.to_string(), PValue::Cookie(cookie));
+            }
+        }
+    }
+
+    Ok(vals)
+}
+
+// transforms vals according to the request schema
+pub fn transform_pvalues_request(
+    mut vals: PValues,
+    schema: Arc<schema::Request>,
+) -> Result<PValues> {
+    if let Some(cookie_schema) = &schema.cookie {
+        for (key, field) in cookie_schema.fields() {
+            if let Some(PValue::Object(obj)) = vals.get(key) {
+                let cookie_name = field.name_override.as_deref().unwrap_or(key.as_ref());
+                let cookie_value = obj.get("value").ok_or(Error::new(
+                    Status::InvalidArg,
+                    "cookie requires a value".to_owned(),
+                ))?;
+
+                let cookie = JsCookie::parse_cookie(obj, cookie_name, cookie_value)?;
+                vals.insert(key.to_string(), PValue::Cookie(cookie));
+            }
+        }
+    }
+
+    Ok(vals)
+}
+
 #[derive(Clone, Debug)]
 pub struct PVal(pub PValue);
 #[derive(Clone, Debug)]
@@ -66,6 +115,7 @@ impl ToNapiValue for PVal {
                 unsafe { Array::to_napi_value(env, out) }
             }
             PValue::Object(obj) => unsafe { ToNapiValue::to_napi_value(env, PVals(obj)) },
+            PValue::Cookie(c) => crate::cookies::cookie_to_napi_value(env, c),
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
                 let ts = dt.timestamp_millis();
@@ -100,6 +150,7 @@ impl ToNapiValue for &PVal {
                 let pv = std::mem::transmute::<&PValues, &PVals>(obj);
                 ToNapiValue::to_napi_value(env, pv)
             },
+            PValue::Cookie(c) => cookie_to_napi_value(env, c.clone()),
             PValue::DateTime(dt) => {
                 let env2 = Env::from_raw(env);
                 let ts = dt.timestamp_millis();
@@ -243,6 +294,7 @@ pub fn encode_request_payload(
     add_fields_to_obj(&mut obj, p.path.as_ref())?;
     add_fields_to_obj(&mut obj, p.query.as_ref())?;
     add_fields_to_obj(&mut obj, p.header.as_ref())?;
+    add_fields_to_obj(&mut obj, p.cookie.as_ref())?;
 
     match &p.body {
         api::Body::Typed(typed) => add_fields_to_obj(&mut obj, typed.as_ref())?,
@@ -256,6 +308,7 @@ pub fn encode_auth_payload(env: Env, p: &auth::AuthPayload) -> napi::Result<JsUn
     let mut obj = env.create_object()?;
     add_fields_to_obj(&mut obj, p.query.as_ref())?;
     add_fields_to_obj(&mut obj, p.header.as_ref())?;
+    add_fields_to_obj(&mut obj, p.cookie.as_ref())?;
     Ok(obj.into_unknown())
 }
 

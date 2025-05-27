@@ -1,5 +1,5 @@
 use crate::api::jsonschema::{Basic, BasicOrValue, JSONSchema, Registry, Struct, Value};
-use crate::api::{self, PValue, PValues};
+use crate::api::{self, Cookie, PValue, PValues, SameSite};
 use crate::api::{schema, APIResult};
 use schema::ToHeaderStr;
 
@@ -97,56 +97,80 @@ where
     }
 }
 
-fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+#[derive(Clone, Copy)]
+enum ValueType {
+    Header,
+    Cookie,
+}
+
+impl ValueType {
+    fn error_message(&self) -> &'static str {
+        match self {
+            ValueType::Header => "invalid header value",
+            ValueType::Cookie => "invalid cookie value",
+        }
+    }
+}
+
+fn parse_str_value(
+    value_str: &str,
+    reg: &Registry,
+    schema: &Value,
+    value_type: ValueType,
+) -> APIResult<PValue> {
     match schema {
         // Recurse
-        Value::Ref(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+        Value::Ref(idx) => parse_str_value(value_str, reg, &reg.values[*idx], value_type),
 
         Value::Validation(v) => {
             let inner = match &v.bov {
-                BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
-                BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+                BasicOrValue::Basic(basic) => parse_basic_str(basic, value_str),
+                BasicOrValue::Value(idx) => {
+                    parse_str_value(value_str, reg, &reg.values[*idx], value_type)
+                }
             }?;
             match v.validate_pval(&inner) {
                 Ok(()) => Ok(inner),
                 Err(err) => Err(api::Error {
                     code: api::ErrCode::InvalidArgument,
-                    message: "invalid header value".to_string(),
-                    internal_message: Some(format!("invalid header value: {}", err)),
+                    message: value_type.error_message().to_string(),
+                    internal_message: Some(format!("{}: {}", value_type.error_message(), err)),
                     stack: None,
                     details: None,
                 }),
             }
         }
 
-        // If we have an empty header for an option, that's fine.
-        Value::Option(_) if header.is_empty() => Ok(PValue::Null),
+        // If we have an empty value for an option, that's fine.
+        Value::Option(_) if value_str.is_empty() => Ok(PValue::Null),
 
         // Otherwise recurse.
         Value::Option(opt) => match opt {
-            BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
-            BasicOrValue::Value(idx) => parse_header_value(header, reg, &reg.values[*idx]),
+            BasicOrValue::Basic(basic) => parse_basic_str(basic, value_str),
+            BasicOrValue::Value(idx) => {
+                parse_str_value(value_str, reg, &reg.values[*idx], value_type)
+            }
         },
 
-        Value::Basic(basic) => parse_basic_str(basic, header),
+        Value::Basic(basic) => parse_basic_str(basic, value_str),
 
         Value::Struct { .. } | Value::Map(_) | Value::Array(_) => unsupported(reg, schema),
 
         Value::Literal(lit) => match lit {
-            Literal::Str(want) if header == want => Ok(PValue::String(want.to_string())),
-            Literal::Bool(true) if header == "true" => Ok(PValue::Bool(true)),
-            Literal::Bool(false) if header == "false" => Ok(PValue::Bool(false)),
-            Literal::Int(want) if header.parse() == Ok(*want) => {
+            Literal::Str(want) if value_str == want => Ok(PValue::String(want.to_string())),
+            Literal::Bool(true) if value_str == "true" => Ok(PValue::Bool(true)),
+            Literal::Bool(false) if value_str == "false" => Ok(PValue::Bool(false)),
+            Literal::Int(want) if value_str.parse() == Ok(*want) => {
                 Ok(PValue::Number(serde_json::Number::from(*want)))
             }
-            Literal::Float(want) if header.parse() == Ok(*want) => {
+            Literal::Float(want) if value_str.parse() == Ok(*want) => {
                 if let Some(num) = serde_json::Number::from_f64(*want) {
                     Ok(PValue::Number(num))
                 } else {
                     Err(api::Error {
                         code: api::ErrCode::InvalidArgument,
-                        message: "invalid header value".to_string(),
-                        internal_message: Some(format!("invalid float value: {}", header)),
+                        message: value_type.error_message().to_string(),
+                        internal_message: Some(format!("invalid float value: {}", value_str)),
                         stack: None,
                         details: None,
                     })
@@ -155,8 +179,8 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
 
             want => Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
-                message: "invalid header value".to_string(),
-                internal_message: Some(format!("expected {}, got {}", want.expecting(), header)),
+                message: value_type.error_message().to_string(),
+                internal_message: Some(format!("expected {}, got {}", want.expecting(), value_str)),
                 stack: None,
                 details: None,
             }),
@@ -166,10 +190,10 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
             // Find the first value that matches.
             for value in union {
                 let result = match value {
-                    BasicOrValue::Basic(basic) => parse_basic_str(basic, header),
+                    BasicOrValue::Basic(basic) => parse_basic_str(basic, value_str),
                     BasicOrValue::Value(idx) => {
                         let value = reg.get(*idx);
-                        parse_header_value(header, reg, value)
+                        parse_str_value(value_str, reg, value, value_type)
                     }
                 };
                 match result {
@@ -179,13 +203,21 @@ fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult
             }
             Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
-                message: "invalid header value".to_string(),
-                internal_message: Some(format!("no union value matched: {}", header)),
+                message: value_type.error_message().to_string(),
+                internal_message: Some(format!("no union value matched: {}", value_str)),
                 stack: None,
                 details: None,
             })
         }
     }
+}
+
+fn parse_header_value(header: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+    parse_str_value(header, reg, schema, ValueType::Header)
+}
+
+fn parse_cookie_value(cookie_value: &str, reg: &Registry, schema: &Value) -> APIResult<PValue> {
+    parse_str_value(cookie_value, reg, schema, ValueType::Cookie)
 }
 
 impl ParseWithSchema<PValue> for PValue {
@@ -215,6 +247,62 @@ impl ParseWithSchema<PValue> for PValue {
 
             _ => unexpected_json(reg, schema.root_value(), &self),
         }
+    }
+}
+
+impl ParseWithSchema<PValues> for cookie::CookieJar {
+    fn parse_with_schema(self, schema: &JSONSchema) -> APIResult<PValues> {
+        let mut result = PValues::new();
+        let reg = schema.registry.as_ref();
+
+        for (field_key, field) in schema.root().fields.iter() {
+            let name = field.name_override.as_deref().unwrap_or(field_key.as_str());
+            let Some(cookie) = self.get(name) else {
+                if field.optional {
+                    continue;
+                } else {
+                    return Err(api::Error {
+                        code: api::ErrCode::InvalidArgument,
+                        message: format!("missing required cookie: {}", name),
+                        internal_message: None,
+                        stack: None,
+                        details: None,
+                    });
+                }
+            };
+
+            let cookie_value = match field.value {
+                BasicOrValue::Basic(basic) => parse_basic_str(&basic, cookie.value())?,
+                BasicOrValue::Value(idx) => parse_cookie_value(cookie.value(), reg, reg.get(idx))?,
+            };
+
+            let cookie = Cookie {
+                name: name.to_string(),
+                value: Box::new(cookie_value),
+                path: cookie.path().map(|s| s.to_string()),
+                domain: cookie.domain().map(|s| s.to_string()),
+                secure: cookie.secure(),
+                http_only: cookie.http_only(),
+                expires: cookie.expires_datetime().map(|dt| {
+                    let system_time: std::time::SystemTime = dt.into();
+                    let utc: chrono::DateTime<chrono::Utc> = chrono::DateTime::from(system_time);
+                    utc.into()
+                }),
+                max_age: cookie
+                    .max_age()
+                    .map(|duration| duration.whole_seconds() as u64),
+                same_site: cookie.same_site().map(|ss| match ss {
+                    cookie::SameSite::Strict => SameSite::Strict,
+                    cookie::SameSite::Lax => SameSite::Lax,
+                    cookie::SameSite::None => SameSite::None,
+                }),
+                partitioned: cookie.partitioned(),
+            };
+
+            result.insert(field_key.clone(), PValue::Cookie(cookie));
+        }
+
+        Ok(result)
     }
 }
 
@@ -409,6 +497,7 @@ fn describe_json(value: &PValue) -> &'static str {
         PValue::DateTime(_) => "a datetime",
         PValue::Array(_) => "an array",
         PValue::Object(_) => "an object",
+        PValue::Cookie(_) => "a cookie",
     }
 }
 
@@ -459,6 +548,13 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
         Basic::Any | Basic::String => Ok(PValue::String(str.to_string())),
 
         Basic::Null if str.is_empty() || str == "null" => Ok(PValue::Null),
+        Basic::Null => Err(api::Error {
+            code: api::ErrCode::InvalidArgument,
+            message: "invalid value".to_string(),
+            internal_message: Some(format!("expected {}, got {:#?}", basic.expecting(), str)),
+            stack: None,
+            details: None,
+        }),
 
         Basic::Bool => match str {
             "true" => Ok(PValue::Bool(true)),
@@ -491,13 +587,5 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
                 stack: None,
                 details: None,
             }),
-
-        _ => Err(api::Error {
-            code: api::ErrCode::InvalidArgument,
-            message: "invalid value".to_string(),
-            internal_message: Some(format!("expected {}, got {:#?}", basic.expecting(), str)),
-            stack: None,
-            details: None,
-        }),
     }
 }

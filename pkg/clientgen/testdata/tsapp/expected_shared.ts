@@ -4,6 +4,7 @@
 /* eslint-disable */
 /* jshint ignore:start */
 /*jslint-disable*/
+import type { CookieWithOptions } from "encore.dev/api";
 
 /**
  * BaseURL is the base URL for calling the Encore application's API.
@@ -25,6 +26,8 @@ export function Environment(name: string): BaseURL {
 export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`pr${pr}`)
 }
+
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
 
 /**
  * Client is an API client for the app Encore application.
@@ -92,6 +95,8 @@ export interface ClientOptions {
  * Import the endpoint handlers to derive the types for the client.
  */
 import {
+    cookieDummy as api_svc_svc_cookieDummy,
+    cookiesOnly as api_svc_svc_cookiesOnly,
     dummy as api_svc_svc_dummy,
     imported as api_svc_svc_imported,
     onlyPathParams as api_svc_svc_onlyPathParams,
@@ -105,10 +110,38 @@ export namespace svc {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.cookieDummy = this.cookieDummy.bind(this)
+            this.cookiesOnly = this.cookiesOnly.bind(this)
             this.dummy = this.dummy.bind(this)
             this.imported = this.imported.bind(this)
+            this.noTypes = this.noTypes.bind(this)
             this.onlyPathParams = this.onlyPathParams.bind(this)
             this.root = this.root.bind(this)
+        }
+
+        public async cookieDummy(params: RequestType<typeof api_svc_svc_cookieDummy>): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                baz: params.headerBaz,
+                num: params.headerNum === undefined ? undefined : String(params.headerNum),
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                bar: params.queryBar,
+                foo: params.queryFoo === undefined ? undefined : String(params.queryFoo),
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                baz: params.baz,
+                foo: params.foo,
+            }
+
+            await this.baseClient.callTypedAPI(`/cookie-dummy`, {headers, query, method: "POST", body: JSON.stringify(body)})
+        }
+
+        public async cookiesOnly(): Promise<void> {
+            await this.baseClient.callTypedAPI(`/cookies-only`, {method: "POST", body: undefined})
         }
 
         public async dummy(params: RequestType<typeof api_svc_svc_dummy>): Promise<void> {
@@ -136,6 +169,10 @@ export namespace svc {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/imported`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_svc_svc_imported>
+        }
+
+        public async noTypes(): Promise<void> {
+            await this.baseClient.callTypedAPI(`/type-less`, {method: "POST", body: undefined})
         }
 
         public async onlyPathParams(params: { pathParam: string, pathParam2: string }): Promise<ResponseType<typeof api_svc_svc_onlyPathParams>> {
@@ -168,12 +205,27 @@ export namespace svc {
 }
 
 
-type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
+type PickMethods<Type> = Omit<CallParameters, "method"> & { method?: Type };
+
+// Helper type to omit all fields that are cookies.
+type OmitCookie<T> = {
+  [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
+};
+
+// Helper type to check if an object type is empty (has no properties)
+type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
+
+// Helper type to omit object types without fields
+type OmitEmpty<T> = IsEmptyObject<T> extends true ? void : T;
 
 type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+  Parameters<Type> extends [infer H, ...any[]]
+    ? OmitEmpty<OmitCookie<H>>
+    : void;
 
-type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
+type ResponseType<Type extends (...args: any[]) => any> = OmitEmpty<
+  OmitCookie<Awaited<ReturnType<Type>>>
+>;
 
 function dateReviver(key: string, value: any): any {
   if (
@@ -438,7 +490,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 

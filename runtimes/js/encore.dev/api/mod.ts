@@ -37,6 +37,25 @@ export type Query<
   Name extends string = ""
 > = TypeOrName extends string ? string : TypeOrName;
 
+export type CookieWithOptions<T> = {
+  value: T;
+  expires?: Date;
+  sameSite?: "Strict" | "Lax" | "None";
+  domain?: string;
+  path?: string;
+  maxAge?: number;
+  secure?: boolean;
+  httpOnly?: boolean;
+  partitioned?: boolean;
+};
+
+export type Cookie<
+  TypeOrName extends string | number | boolean | Date = string,
+  Name extends string = ""
+> = TypeOrName extends string
+  ? CookieWithOptions<string>
+  : CookieWithOptions<TypeOrName>;
+
 export interface APIOptions {
   /**
    * The HTTP method(s) to match for this endpoint.
