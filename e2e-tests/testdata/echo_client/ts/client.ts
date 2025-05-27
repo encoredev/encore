@@ -26,6 +26,8 @@ export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`pr${pr}`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the slug Encore application.
  */
@@ -169,7 +171,7 @@ export namespace di {
             await this.baseClient.callTypedAPI("POST", `/di/one`)
         }
 
-        public async Three(method: string, body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
+        public async Three(method: string, body?: RequestInit["body"], options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/di/raw`, body, options)
         }
 
@@ -700,7 +702,7 @@ export namespace test {
          * RawEndpoint allows us to test the clients' ability to send raw requests
          * under auth
          */
-        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string[], body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
+        public async RawEndpoint(method: "PUT" | "POST" | "DELETE" | "GET", id: string[], body?: RequestInit["body"], options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/raw/blah/${id.map(encodeURIComponent).join("/")}`, body, options)
         }
 
@@ -1026,7 +1028,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "slug-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
@@ -1146,7 +1148,7 @@ class BaseClient {
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callTypedAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
         return this.callAPI(method, path, body, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
@@ -1154,7 +1156,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,

@@ -61,12 +61,14 @@ var requestTags = map[string]tagDescription{
 	"query":  QueryTag,
 	"qs":     QsTag,
 	"header": HeaderTag,
+	"cookie": CookieTag,
 	"json":   JSONTag,
 }
 
 // responseTags is a description of tags used for responses
 var responseTags = map[string]tagDescription{
 	"header": HeaderTag,
+	"cookie": CookieTag,
 	"json":   JSONTag,
 }
 
@@ -154,18 +156,19 @@ func (e *AuthEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncod
 type ResponseEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
+	CookieParameters []*ParameterEncoding `json:"cookie_parameters"`
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 }
 
 // ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
 func (e *ResponseEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
-	return toEncodingMap(srcNameKey, e.HeaderParameters, e.BodyParameters)
+	return toEncodingMap(srcNameKey, e.HeaderParameters, e.CookieParameters, e.BodyParameters)
 }
 
 // ParameterEncodingMapByName returns the parameter encodings as a map, keyed by Name.
 // Conflicts result in an undefined encoding getting set.
 func (e *ResponseEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncoding {
-	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.BodyParameters)
+	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.CookieParameters, e.BodyParameters)
 }
 
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
@@ -175,18 +178,19 @@ type RequestEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	QueryParameters  []*ParameterEncoding `json:"query_parameters"`
+	CookieParameters []*ParameterEncoding `json:"cookie_parameters"`
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
 }
 
 // ParameterEncodingMap returns the parameter encodings as a map, keyed by SrcName.
 func (e *RequestEncoding) ParameterEncodingMap() map[string]*ParameterEncoding {
-	return toEncodingMap(srcNameKey, e.HeaderParameters, e.QueryParameters, e.BodyParameters)
+	return toEncodingMap(srcNameKey, e.HeaderParameters, e.QueryParameters, e.BodyParameters, e.CookieParameters)
 }
 
 // ParameterEncodingMapByName returns the parameter encodings as a map, keyed by Name.
 // Conflicts result in an undefined encoding getting set.
 func (e *RequestEncoding) ParameterEncodingMapByName() map[string][]*ParameterEncoding {
-	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.QueryParameters, e.BodyParameters)
+	return toEncodingMultiMap(nameKey, e.HeaderParameters, e.QueryParameters, e.BodyParameters, e.CookieParameters)
 }
 
 // ParameterEncoding expresses how a parameter should be encoded on the wire
@@ -302,6 +306,7 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 			HeaderParameters: defaultEncoding.HeaderParameters,
 			BodyParameters:   defaultEncoding.BodyParameters,
 			QueryParameters:  defaultEncoding.QueryParameters,
+			CookieParameters: defaultEncoding.CookieParameters,
 		}
 	}
 
@@ -565,12 +570,13 @@ func DescribeResponse(appMetaData *meta.Data, responseSchema *schema.Type, optio
 	if err != nil {
 		return nil, err
 	}
-	if keys := keyDiff(fields, Header, Body); len(keys) > 0 {
-		return nil, errors.Newf("response must only contain body and header parameters. Found: %v", keys)
+	if keys := keyDiff(fields, Header, Body, Cookie); len(keys) > 0 {
+		return nil, errors.Newf("response must only contain body, header and cookie parameters. Found: %v", keys)
 	}
 	return &ResponseEncoding{
 		BodyParameters:   fields[Body],
 		HeaderParameters: fields[Header],
+		CookieParameters: fields[Cookie],
 	}, nil
 }
 
@@ -620,13 +626,14 @@ func DescribeRequest(appMetaData *meta.Data, requestSchema *schema.Type, options
 			}
 		}
 
-		if keys := keyDiff(fields, Query, Header, Body); len(keys) > 0 {
-			return nil, errors.Newf("request must only contain Query, Body and Header parameters. Found: %v", keys)
+		if keys := keyDiff(fields, Query, Header, Body, Cookie); len(keys) > 0 {
+			return nil, errors.Newf("request must only contain Query, Body, Header and Cookie parameters. Found: %v", keys)
 		}
 		reqs = append(reqs, &RequestEncoding{
 			HTTPMethods:      methods,
 			QueryParameters:  fields[Query],
 			HeaderParameters: fields[Header],
+			CookieParameters: fields[Cookie],
 			BodyParameters:   fields[Body],
 		})
 	}

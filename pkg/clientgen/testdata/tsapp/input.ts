@@ -14,7 +14,7 @@ export interface ImportedResponse {
 }
 
 -- svc/svc.ts --
-import { Header, Query, api, Gateway } from "encore.dev/api";
+import { Header, Query, api, Gateway, Cookie } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";
 import type { ImportedRequest, ImportedResponse } from "../common-stuff/types";
 
@@ -43,9 +43,27 @@ export const dummy = api(
   async (req: Request) => { },
 );
 
+
+export const noTypes = api(
+  { expose: true, method: "POST", path: "/type-less" },
+  async () => { },
+)
+export const cookiesOnly = api(
+  { expose: true, method: "POST", path: "/cookies-only" },
+  async (req: { field: Cookie<'cookie'> }): Promise<{ cookie: Cookie<'cookie'> }> => {
+    return { cookie: { value: "value" } }
+  },
+)
+
+export const cookieDummy = api(
+  { expose: true, method: "POST", path: "/cookie-dummy" },
+  async (req: Request): Promise<{ cookie: Cookie<'cookie'> }> => { return { cookie: { value: "value" } } },
+);
+
 export interface AuthParams {
   cookie?: Header<'Cookie'>
   token?: Header<'x-api-token'>
+  cookieValue?: Cookie<'actual-cookie'>
 }
 
 export interface AuthData {
@@ -72,4 +90,6 @@ interface Request {
   queryBar?: Query<"bar">;
   headerBaz?: Header<"baz">;
   headerNum?: Header<number, "num">;
+  cookieQux?: Cookie<"qux">;
+  cookieQuux?: Cookie<number, "quux">;
 }

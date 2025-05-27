@@ -86,9 +86,10 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.typs = getNamedTypes(p.Meta, p.Services)
 
 	if ts.md.AuthHandler != nil {
-		ts.hasAuth = true
-		ts.authIsComplexType = ts.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
-
+		if !ts.isAuthCookieOnly() {
+			ts.hasAuth = true
+			ts.authIsComplexType = ts.md.AuthHandler.Params.GetBuiltin() != schema.Builtin_STRING
+		}
 	}
 
 	ts.WriteString("// " + doNotEditHeader() + "\n\n")
@@ -96,6 +97,10 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 	ts.WriteString("/* eslint-disable */\n")
 	ts.WriteString("/* jshint ignore:start */\n")
 	ts.WriteString("/*jslint-disable*/\n")
+
+	if ts.sharedTypes {
+		ts.WriteString("import type { CookieWithOptions } from \"encore.dev/api\";\n")
+	}
 
 	nss := ts.typs.Namespaces()
 	seenNs := make(map[string]bool)
@@ -127,6 +132,41 @@ export default new Client(%s);
 	}
 
 	return nil
+}
+
+func (ts *typescript) getFields(typ *schema.Type) []*schema.Field {
+	if typ == nil {
+		return nil
+	}
+	switch typ.Typ.(type) {
+	case *schema.Type_Struct:
+		return typ.GetStruct().Fields
+	case *schema.Type_Named:
+		decl := ts.md.Decls[typ.GetNamed().Id]
+		return ts.getFields(decl.Type)
+	default:
+		return nil
+	}
+}
+
+func (ts *typescript) isEmptyObject(typ *schema.Type) bool {
+	fields := ts.getFields(typ)
+	if fields == nil {
+		return false
+	}
+	for _, field := range fields {
+		if field.Wire.GetCookie() == nil {
+			return false
+		}
+	}
+	return true
+}
+
+func (ts *typescript) isAuthCookieOnly() bool {
+	if ts.md.AuthHandler == nil {
+		return false
+	}
+	return ts.isEmptyObject(ts.md.AuthHandler.Params)
 }
 
 func hasPathParams(rpc *meta.RPC) bool {
@@ -295,7 +335,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			segmentPrefix = payloadName + "."
 		}
 		var isStream = rpc.StreamingRequest || rpc.StreamingResponse
-		var hasHandshake = rpc.HandshakeSchema != nil
+		var hasHandshake = rpc.HandshakeSchema != nil && !ts.isEmptyObject(rpc.HandshakeSchema)
 		var inlinePathParams = (isRaw || (rpc.RequestSchema == nil && !hasHandshake)) && hasPathParams(rpc) && ts.sharedTypes
 		if inlinePathParams {
 			ts.WriteString(payloadName + ": { ")
@@ -340,7 +380,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			ts.WriteString(" }")
 		}
 
-		if (!isStream && rpc.RequestSchema != nil) || (isStream && hasHandshake) {
+		if (!isStream && (rpc.RequestSchema != nil && !ts.isEmptyObject(rpc.RequestSchema))) || (isStream && hasHandshake) {
 			if !ts.sharedTypes && nParams > 0 {
 				ts.WriteString(", ")
 			}
@@ -358,7 +398,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				ts.WriteString(", ")
 			}
 			if !ts.sharedTypes {
-				ts.WriteString("body?: BodyInit, ")
+				ts.WriteString("body?: RequestInit[\"body\"], ")
 			}
 
 			if ts.sharedTypes {
@@ -379,7 +419,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 		}
 
 		writeStreamRequest := func(ns string, numIndents int) {
-			if rpc.RequestSchema == nil {
+			if rpc.RequestSchema == nil || ts.isEmptyObject(rpc.RequestSchema) {
 				ts.WriteString("void")
 			} else if ts.sharedTypes {
 				fmt.Fprintf(ts, "StreamRequest<typeof %s>", rpcImportName(rpc))
@@ -388,7 +428,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 			}
 		}
 		writeStreamResponse := func(ns string, numIndents int) {
-			if rpc.ResponseSchema == nil {
+			if rpc.ResponseSchema == nil || ts.isEmptyObject(rpc.ResponseSchema) {
 				ts.WriteString("void")
 			} else if ts.sharedTypes {
 				ts.seenStream = true
@@ -420,7 +460,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				writeStreamResponse(ns, 0)
 				ts.WriteString(">")
 			}
-		} else if rpc.ResponseSchema != nil {
+		} else if rpc.ResponseSchema != nil && !ts.isEmptyObject(rpc.ResponseSchema) {
 			if ts.sharedTypes {
 				fmt.Fprintf(ts, "ResponseType<typeof %s>", rpcImportName(rpc))
 			} else {
@@ -690,7 +730,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	callAPI += ")"
 
 	// If there's no response schema, we can just return the call to the API directly
-	if rpc.ResponseSchema == nil {
+	if rpc.ResponseSchema == nil || ts.isEmptyObject(rpc.ResponseSchema) {
 		w.WriteStringf("await %s\n", callAPI)
 		return nil
 	}
@@ -716,7 +756,7 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n//Populate the return object from the JSON body and received headers\n")
 
 	if ts.sharedTypes {
-		fmt.Fprintf(ts, "const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
+		w.WriteStringf("const rtn = JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof %s>", rpcImportName(rpc))
 	} else {
 		w.WriteString("const rtn = await resp.json() as ")
 		ts.writeTyp(ns, rpc.ResponseSchema, 0)
@@ -724,10 +764,22 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 	w.WriteString("\n")
 
 	for _, headerField := range respEnc.HeaderParameters {
+		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
+		if isSetCookie {
+			w.WriteString("// Skip set-cookie header in browser context as browsers doesn't have access to read it\n")
+			w.WriteString("if (!BROWSER) {\n")
+			w = w.Indent()
+		}
+
 		ts.seenHeaderResponse = true
 		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
 		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+
+		if isSetCookie {
+			w = w.Dedent()
+			w.WriteString("}\n")
+		}
 	}
 
 	w.WriteString("return rtn\n")
@@ -777,6 +829,10 @@ func (ts *typescript) writeNamespace(ns string) {
 }
 
 func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
+	if ts.isEmptyObject(decl.Type) {
+		return
+	}
+
 	if decl.Doc != "" {
 		scanner := bufio.NewScanner(strings.NewReader(decl.Doc))
 		ts.WriteString("    /**\n")
@@ -1022,6 +1078,8 @@ export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`+"`pr${pr}`"+`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the `+ts.appSlug+` Encore application.
  */
@@ -1235,7 +1293,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "` + userAgent + `";
         }
 
@@ -1410,7 +1468,7 @@ class BaseClient {
     }
 `)
 
-	callParams := "method: string, path: string, body?: BodyInit, params?: CallParameters"
+	callParams := "method: string, path: string, body?: RequestInit[\"body\"], params?: CallParameters"
 	callAPIParams := "method, path, body"
 	initParams := `
             method,
@@ -1503,12 +1561,27 @@ export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: 
 	}
 	if ts.sharedTypes {
 		ts.WriteString(`
-type PickMethods<Type> = Omit<CallParameters, "method"> & {method?: Type}
+type PickMethods<Type> = Omit<CallParameters, "method"> & { method?: Type };
+
+// Helper type to omit all fields that are cookies.
+type OmitCookie<T> = {
+  [K in keyof T as T[K] extends CookieWithOptions<any> ? never : K]: T[K];
+};
+
+// Helper type to check if an object type is empty (has no properties)
+type IsEmptyObject<T> = [keyof T] extends [never] ? true : false;
+
+// Helper type to omit object types without fields
+type OmitEmpty<T> = IsEmptyObject<T> extends true ? void : T;
 
 type RequestType<Type extends (...args: any[]) => any> =
-  Parameters<Type> extends [infer H, ...any[]] ? H : void;
+  Parameters<Type> extends [infer H, ...any[]]
+    ? OmitEmpty<OmitCookie<H>>
+    : void;
 
-type ResponseType<Type extends (...args: any[]) => any> = Awaited<ReturnType<Type>>;
+type ResponseType<Type extends (...args: any[]) => any> = OmitEmpty<
+  OmitCookie<Awaited<ReturnType<Type>>>
+>;
 
 function dateReviver(key: string, value: any): any {
   if (
@@ -1742,50 +1815,58 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		indent := func() {
 			ts.WriteString(strings.Repeat("    ", numIndents+1))
 		}
-		ts.WriteString("{\n")
 
 		// Filter the fields to print based on struct tags.
 		fields := make([]*schema.Field, 0, len(typ.Struct.Fields))
 		for _, f := range typ.Struct.Fields {
+			// skip cookie fields as they are handled by the browser
+			if f.Wire.GetCookie() != nil {
+				continue
+			}
 			if encoding.IgnoreField(f) {
 				continue
 			}
 			fields = append(fields, f)
 		}
 
-		for i, field := range fields {
-			if field.Doc != "" {
-				scanner := bufio.NewScanner(strings.NewReader(field.Doc))
-				indent()
-				ts.WriteString("/**\n")
-				for scanner.Scan() {
+		if len(fields) > 0 {
+			ts.WriteString("{\n")
+			for i, field := range fields {
+				if field.Doc != "" {
+					scanner := bufio.NewScanner(strings.NewReader(field.Doc))
 					indent()
-					ts.WriteString(" * ")
-					ts.WriteString(scanner.Text())
+					ts.WriteString("/**\n")
+					for scanner.Scan() {
+						indent()
+						ts.WriteString(" * ")
+						ts.WriteString(scanner.Text())
+						ts.WriteByte('\n')
+					}
+					indent()
+					ts.WriteString(" */\n")
+				}
+
+				indent()
+				ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
+
+				if field.Optional || ts.isRecursive(field.Typ) {
+					ts.WriteString("?")
+				}
+				ts.WriteString(": ")
+				ts.writeTyp(ns, field.Typ, numIndents+1)
+				ts.WriteString("\n")
+
+				// Add another empty line if we have a doc comment
+				// and this was not the last field.
+				if field.Doc != "" && i < len(fields)-1 {
 					ts.WriteByte('\n')
 				}
-				indent()
-				ts.WriteString(" */\n")
 			}
-
-			indent()
-			ts.WriteString(ts.QuoteIfRequired(ts.fieldNameInStruct(field)))
-
-			if field.Optional || ts.isRecursive(field.Typ) {
-				ts.WriteString("?")
-			}
-			ts.WriteString(": ")
-			ts.writeTyp(ns, field.Typ, numIndents+1)
-			ts.WriteString("\n")
-
-			// Add another empty line if we have a doc comment
-			// and this was not the last field.
-			if field.Doc != "" && i < len(fields)-1 {
-				ts.WriteByte('\n')
-			}
+			ts.WriteString(strings.Repeat("    ", numIndents))
+			ts.WriteByte('}')
+		} else {
+			ts.WriteString("void")
 		}
-		ts.WriteString(strings.Repeat("    ", numIndents))
-		ts.WriteByte('}')
 
 	case *schema.Type_TypeParameter:
 		decl := ts.md.Decls[typ.TypeParameter.DeclId]

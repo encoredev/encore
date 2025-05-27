@@ -200,6 +200,9 @@ pub struct RequestPayload {
     #[serde(flatten)]
     pub header: Option<PValues>,
 
+    #[serde(flatten)]
+    pub cookie: Option<PValues>,
+
     #[serde(flatten, skip_serializing_if = "Body::is_raw")]
     pub body: Body,
 }
@@ -222,6 +225,9 @@ impl Body {
 pub struct ResponsePayload {
     #[serde(flatten)]
     pub header: Option<PValues>,
+
+    #[serde(flatten)]
+    pub cookie: Option<PValues>,
 
     #[serde(flatten, skip_serializing_if = "Body::is_raw")]
     pub body: Body,
@@ -297,6 +303,7 @@ pub fn endpoints_from_meta(
                         header: handshake_schema.schema.header,
                         query: handshake_schema.schema.query,
                         body: schema::RequestBody::Typed(None),
+                        cookie: handshake_schema.schema.cookie,
                         stream: false,
                     };
 
@@ -322,6 +329,7 @@ pub fn endpoints_from_meta(
                 path,
                 header: req_schema.schema.header,
                 query: req_schema.schema.query,
+                cookie: req_schema.schema.cookie,
                 body: if raw {
                     schema::RequestBody::Raw
                 } else {
@@ -360,6 +368,7 @@ pub fn endpoints_from_meta(
             request: request_schemas,
             response: Arc::new(schema::Response {
                 header: resp_schema.header,
+                cookie: resp_schema.cookie,
                 body: resp_schema.body,
                 stream: ep.ep.streaming_response,
             }),

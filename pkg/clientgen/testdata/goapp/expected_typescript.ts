@@ -26,6 +26,8 @@ export function PreviewEnv(pr: number | string): BaseURL {
     return Environment(`pr${pr}`)
 }
 
+const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
+
 /**
  * Client is an API client for the app Encore application.
  */
@@ -442,7 +444,7 @@ export namespace svc {
             return await resp.json() as Tuple<boolean, Foo>
         }
 
-        public async Webhook(method: string, a: string, b: string[], body?: BodyInit, options?: CallParameters): Promise<globalThis.Response> {
+        public async Webhook(method: string, a: string, b: string[], body?: RequestInit["body"], options?: CallParameters): Promise<globalThis.Response> {
             return this.baseClient.callAPI(method, `/webhook/${encodeURIComponent(a)}/${b.map(encodeURIComponent).join("/")}`, body, options)
         }
 
@@ -703,7 +705,7 @@ class BaseClient {
 
         // Add User-Agent header if the script is running in the server
         // because browsers do not allow setting User-Agent headers to requests
-        if ( typeof globalThis === "object" && !("window" in globalThis) ) {
+        if (!BROWSER) {
             this.headers["User-Agent"] = "app-Generated-TS-Client (Encore/v0.0.0-develop)";
         }
 
@@ -817,7 +819,7 @@ class BaseClient {
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"
-    public async callTypedAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callTypedAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
         return this.callAPI(method, path, body, {
             ...params,
             headers: { "Content-Type": "application/json", ...params?.headers }
@@ -825,7 +827,7 @@ class BaseClient {
     }
 
     // callAPI is used by each generated API method to actually make the request
-    public async callAPI(method: string, path: string, body?: BodyInit, params?: CallParameters): Promise<Response> {
+    public async callAPI(method: string, path: string, body?: RequestInit["body"], params?: CallParameters): Promise<Response> {
         let { query, headers, ...rest } = params ?? {}
         const init = {
             ...this.requestInit,
