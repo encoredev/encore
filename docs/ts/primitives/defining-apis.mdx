@@ -179,6 +179,22 @@ export const getBlogPost = api(
 )
 ```
 
+### Cookie parameters
+
+Cookies are defined by setting the field type to `Cookie<"Name-Of-Cookie">`. It can be used in both request and response data types.
+
+In the example below we define an optional field that will be parsed from the cookie header.
+
+```ts
+import { Cookie } from "encore.dev/api";
+
+interface Params {
+  settings?: Cookie<"settings">; // parsed from cookie header
+}
+```
+
+Read more about cookies [here](/docs/ts/primitives/cookies)
+
 ### Fallback routes
 
 Encore supports defining fallback routes that will be called if no other endpoint matches the request,
