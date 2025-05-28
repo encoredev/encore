@@ -127,7 +127,7 @@ func (ts *typescript) Generate(p clientgentypes.GenerateParams) (err error) {
 
 	if ts.clientTarget != "" {
 		fmt.Fprintf(ts, `
-export default new Client(%s);
+export default new Client(%s, { requestInit: { credentials: "include" } });
 `, ts.clientTarget)
 	}
 
