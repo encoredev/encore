@@ -128,7 +128,7 @@ impl<'a> From<&'a Cookie> for cookie::Cookie<'a> {
 impl Display for Cookie {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let c: cookie::Cookie<'_> = self.into();
-        write!(f, "{}", c)
+        write!(f, "{}", c.encoded())
     }
 }
 

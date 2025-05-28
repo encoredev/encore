@@ -21,7 +21,7 @@ impl Cookie {
         let mut jar = cookie::CookieJar::new();
         for raw in headers.get_all(axum::http::header::COOKIE.as_str()) {
             if let Ok(raw) = raw.to_str() {
-                for c in cookie::Cookie::split_parse(raw).flatten() {
+                for c in cookie::Cookie::split_parse_encoded(raw).flatten() {
                     jar.add_original(c.into_owned());
                 }
             }
@@ -61,7 +61,7 @@ impl Cookie {
             .get_all(COOKIE)
             .iter()
             .filter_map(|raw| raw.to_str().ok())
-            .flat_map(cookie::Cookie::split_parse)
+            .flat_map(cookie::Cookie::split_parse_encoded)
             .flatten()
             .for_each(|c| jar.add_original(c.into_owned()));
 
@@ -81,7 +81,7 @@ impl Cookie {
             .get_all(SET_COOKIE)
             .iter()
             .filter_map(|raw| raw.to_str().ok())
-            .flat_map(cookie::Cookie::parse)
+            .flat_map(cookie::Cookie::parse_encoded)
             .for_each(|c| jar.add_original(c.into_owned()));
 
         match self.schema.parse(jar) {

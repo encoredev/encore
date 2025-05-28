@@ -172,7 +172,7 @@ impl Authenticator {
                 .get_all(COOKIE)
                 .iter()
                 .filter_map(|raw| raw.to_str().ok())
-                .flat_map(cookie::Cookie::split_parse)
+                .flat_map(cookie::Cookie::split_parse_encoded)
                 .flatten()
                 .for_each(|c| inbound_cookies.add_original(c.into_owned()));
 
