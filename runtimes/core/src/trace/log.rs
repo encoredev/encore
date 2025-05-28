@@ -1,10 +1,8 @@
-use std::convert::Infallible;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use crate::api::reqauth::platform;
 use bytes::Bytes;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::model;
 use crate::trace::eventbuf::signed_to_unsigned_i64;
@@ -58,11 +56,8 @@ pub(super) struct TraceEvent {
 
 impl Reporter {
     pub async fn start_reporting(self) {
-        let mut inner = Box::new(InnerTraceEventStream {
-            rx: self.rx,
-            anchor: self.anchor.clone(),
-            current: None,
-        });
+        let mut rx = self.rx;
+        let anchor = self.anchor.clone();
         let trace_time_anchor = self.anchor.trace_header();
 
         let trace_headers = {
@@ -94,151 +89,97 @@ impl Reporter {
         };
 
         loop {
-            // Wait for at least one entry on rx before we open an HTTP request.
-            {
-                let Some(event) = inner.rx.recv().await else {
-                    // The stream is closed. This only happens if all senders have been dropped,
-                    // which should never happen in regular use.
-                    return;
-                };
-                inner.current = Some(StreamingTraceEvent {
-                    event,
-                    next: EventStreamState::Header,
-                });
-            };
+            let mut body_sender = None;
 
-            // Construct the body stream.
-            let mut no_data_ticker = tokio::time::interval(std::time::Duration::from_millis(1000));
-            no_data_ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            let timeout_duration = std::time::Duration::from_millis(10000);
+            let timeout_future = Box::pin(tokio::time::sleep(timeout_duration));
+            let mut no_data_timeout = timeout_future;
 
-            let stream = TraceEventStream {
-                inner: inner.as_mut() as *mut InnerTraceEventStream,
-                num_events_this_tick: 1,
-                no_data_ticker,
-            };
+            loop {
+                tokio::select! {
+                    event = rx.recv() => {
+                        match event {
+                            Some(event) => {
+                                // Wait for at least one entry on rx before we open a HTTP request.
+                                if body_sender.is_none() {
+                                    // Create a channel for the streaming body
+                                    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<bytes::Bytes, std::convert::Infallible>>();
+                                    let body = reqwest::Body::wrap_stream(UnboundedReceiverStream::new(rx));
 
-            let req = self
-                .http_client
-                .post(self.config.trace_endpoint.clone())
-                .headers(trace_headers.clone())
-                .build();
-            let mut req = match req {
-                Ok(req) => req,
-                Err(err) => {
-                    log::error!("failed to build trace request: {:?}", err);
-                    continue;
-                }
-            };
+                                    let mut req = self.http_client
+                                        .post(self.config.trace_endpoint.clone())
+                                        .headers(trace_headers.clone())
+                                        .body(body)
+                                        .build()
+                                        .unwrap_or_else(|err| {
+                                            log::error!("failed to build trace request: {:?}", err);
+                                            panic!("Failed to build trace request");
+                                        });
 
-            if let Err(err) = self
-                .config
-                .platform_validator
-                .sign_outgoing_request(&mut req)
-            {
-                log::error!("failed to sign trace request: {:?}", err);
-                continue;
-            }
+                                    if let Err(err) = self.config.platform_validator.sign_outgoing_request(&mut req) {
+                                        log::error!("failed to sign trace request: {:?}", err);
+                                        continue;
+                                    }
 
-            *req.body_mut() = Some(reqwest::Body::wrap_stream(stream));
+                                    // Start the request
+                                    let request = self.http_client.execute(req);
+                                    tokio::spawn(async move {
+                                        match request.await {
+                                            Ok(resp) if !resp.status().is_success() => {
+                                                let status = resp.status();
+                                                let body = resp.text().await.unwrap_or_else(|_| String::new());
+                                                log::error!("failed to send trace: HTTP {}: {}", status, body);
+                                            }
+                                            Err(err) => {
+                                                log::error!("failed to send trace: {}", err);
+                                            }
+                                            _ => {}
+                                        }
+                                    });
 
-            let result = self.http_client.execute(req).await;
-            match result {
-                Ok(resp) if !resp.status().is_success() => {
-                    let status = resp.status();
-                    let body = resp.text().await.unwrap_or_else(|_| String::new());
-                    log::error!("failed to send trace: HTTP {}: {}", status, body);
-                }
-                Err(err) => {
-                    log::error!("failed to send trace: {}", err);
-                }
-                _ => {}
-            }
-        }
-    }
-}
+                                    body_sender = Some(tx);
+                                }
 
-struct TraceEventStream {
-    inner: *mut InnerTraceEventStream,
+                                // Add the event to the stream
+                                if let Some(sender) = &body_sender {
+                                    let streaming_event = StreamingTraceEvent {
+                                        event,
+                                    };
 
-    // The number of events received since the last tick.
-    num_events_this_tick: usize,
+                                    // Send header
+                                    let header = streaming_event.header(&anchor);
+                                    if let Err(err) = sender.send(Ok(header)) {
+                                        log::error!("failed to send trace header: {:?}", err);
+                                        break;
+                                    }
 
-    /// Ticks to detect when there is no data to close the stream.
-    no_data_ticker: tokio::time::Interval,
-}
+                                    // Send data
+                                    let data = streaming_event.event.data.clone();
+                                    if let Err(err) = sender.send(Ok(data)) {
+                                        log::error!("failed to send trace data: {:?}", err);
+                                        break;
+                                    }
+                                }
 
-// Safety: the TraceEventStream only contains `poll_next` which requires a mutable reference
-// to self. Therefore it is never called concurrently. The lifetime of inner is guaranteed
-// to exceed the lifetime of the stream.
-unsafe impl Send for TraceEventStream {}
-unsafe impl Sync for TraceEventStream {}
-
-struct InnerTraceEventStream {
-    rx: tokio::sync::mpsc::UnboundedReceiver<TraceEvent>,
-    anchor: TimeAnchor,
-
-    /// Current item received from rx and being streamed.
-    current: Option<StreamingTraceEvent>,
-}
-
-impl futures_core::stream::Stream for TraceEventStream {
-    type Item = Result<Bytes, Infallible>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        // Safety: the inner pointer is boxed and never moved, and is kept alive
-        // by the start_reporting method for the lifetime of the stream.
-        let inner = unsafe { &mut *self.inner };
-
-        {
-            // If we have a current item, return it.
-            if inner.current.is_some() {
-                let next = inner.current.as_ref().unwrap().next;
-                return match next {
-                    EventStreamState::Header => {
-                        inner.current.as_mut().unwrap().next = EventStreamState::Data;
-                        Poll::Ready(Some(Ok(inner
-                            .current
-                            .as_ref()
-                            .unwrap()
-                            .header(&inner.anchor))))
+                                // Reset the timeout
+                                no_data_timeout = Box::pin(tokio::time::sleep(timeout_duration));
+                            }
+                            None => {
+                                // The stream is closed. This only happens if all senders have been dropped,
+                                // which should never happen in regular use.
+                                return;
+                            }
+                        }
                     }
-                    EventStreamState::Data => {
-                        let data = inner.current.as_ref().unwrap().event.data.clone(); // cheap clone
-                        inner.current = None;
-                        Poll::Ready(Some(Ok(data)))
+                    _ = &mut no_data_timeout => {
+                        // Timeout reached with no new events
+                        if let Some(sender) = body_sender {
+                            // Close the stream and wait for a new event
+                            drop(sender);
+                        }
+                        break;
                     }
-                };
-            }
-        }
-
-        // Check if the no-data-ticker is ready.
-        match self.no_data_ticker.poll_tick(cx) {
-            Poll::Ready(_) => {
-                // If we have received no events since the last tick, close the stream.
-                if self.num_events_this_tick == 0 {
-                    return Poll::Ready(None);
                 }
-                self.num_events_this_tick = 0;
-
-                // Call the ticker again to schedule a wake-up for the next tick.
-                _ = self.no_data_ticker.poll_tick(cx);
-            }
-            Poll::Pending => {}
-        }
-
-        // If we have no current item, poll the receiver for a new trace event.
-        {
-            match inner.rx.poll_recv(cx) {
-                Poll::Ready(Some(event)) => {
-                    self.num_events_this_tick += 1;
-                    inner.current = Some(StreamingTraceEvent {
-                        event,
-                        next: EventStreamState::Header,
-                    });
-                    self.poll_next(cx)
-                }
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Pending => Poll::Pending,
             }
         }
     }
@@ -249,8 +190,6 @@ impl futures_core::stream::Stream for TraceEventStream {
 struct StreamingTraceEvent {
     /// The event itself.
     event: TraceEvent,
-    /// The next part of the event to be sent.
-    next: EventStreamState,
 }
 
 impl StreamingTraceEvent {
@@ -323,11 +262,4 @@ impl StreamingTraceEvent {
             (ln >> 24) as u8,
         ])
     }
-}
-
-/// Represents the piece of data to be sent next.
-#[derive(Debug, Clone, Copy)]
-enum EventStreamState {
-    Header,
-    Data,
 }
