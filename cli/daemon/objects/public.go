@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -115,7 +116,7 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 
 		// Only write the body for GET requests, not HEAD
 		if req.Method == "GET" {
-			w.Write(contents)
+			http.ServeContent(w, req, obj.Name, time.Time{}, bytes.NewReader(contents))
 		}
 	case "PUT":
 		err := validateGcsSignedRequest(req, time.Now())
