@@ -91,7 +91,7 @@ impl Reporter {
         loop {
             let mut body_sender = None;
 
-            let timeout_duration = std::time::Duration::from_millis(10000);
+            let timeout_duration = std::time::Duration::from_millis(1000);
             let timeout_future = Box::pin(tokio::time::sleep(timeout_duration));
             let mut no_data_timeout = timeout_future;
 
