@@ -113,6 +113,7 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Expose-Headers", "Content-Type, Content-Length, Content-Encoding, Date, X-Goog-Generation, X-Goog-Metageneration")
 		w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
+		w.Header().Set("Accept-Ranges", "bytes")
 
 		// Only write the body for GET requests, not HEAD
 		if req.Method == "GET" {
