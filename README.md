@@ -25,6 +25,9 @@
   - Cursor: Rename the file to `.cursorrules`.
   - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
   - For other tools, place the file in your app root.
+ 
+**⚡️ Build your first Encore.ts app with AI using Leap.new**
+- [**Leap**](https://leap.new) is an AI developer agent for building full-stack Encore.ts applications. It's the fastest way to build your first app.
 
 **🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
