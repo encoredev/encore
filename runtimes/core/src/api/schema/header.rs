@@ -176,13 +176,19 @@ impl ToOutgoingRequest<http::HeaderMap> for Header {
         };
 
         for (key, field) in self.schema.root().fields.iter() {
-            let value = payload.get(key).ok_or_else(|| api::Error {
-                code: api::ErrCode::InvalidArgument,
-                message: format!("missing header parameter: {}", key),
-                internal_message: Some(format!("missing header parameter: {}", key)),
-                stack: None,
-                details: None,
-            })?;
+            let Some(value) = payload.get(key) else {
+                if field.optional {
+                    continue;
+                }
+                return Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: format!("missing header parameter: {}", key),
+                    internal_message: Some(format!("missing header parameter: {}", key)),
+                    stack: None,
+                    details: None,
+                });
+            };
+
             let header_name = field.name_override.as_deref().unwrap_or(key);
             let header_name =
                 reqwest::header::HeaderName::from_str(header_name).map_err(api::Error::internal)?;
