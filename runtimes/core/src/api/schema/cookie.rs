@@ -111,19 +111,24 @@ impl ToOutgoingRequest<http::HeaderMap> for Cookie {
             });
         };
 
-        for (key, _field) in self.schema.root().fields.iter() {
-            if let PValue::Cookie(c) = payload.get(key).ok_or_else(|| api::Error {
-                code: api::ErrCode::InvalidArgument,
-                message: format!("missing cookie parameter: {}", key),
-                internal_message: Some(format!("missing cookie parameter: {}", key)),
-                stack: None,
-                details: None,
-            })? {
-                let header_value =
-                    HeaderValue::from_str(&c.to_string()).map_err(api::Error::internal)?;
+        for (key, field) in self.schema.root().fields.iter() {
+            let Some(PValue::Cookie(c)) = payload.get(key) else {
+                if field.optional {
+                    continue;
+                }
+                return Err(api::Error {
+                    code: api::ErrCode::InvalidArgument,
+                    message: format!("missing cookie parameter: {}", key),
+                    internal_message: Some(format!("missing cookie parameter: {}", key)),
+                    stack: None,
+                    details: None,
+                });
+            };
 
-                headers.append(http::header::COOKIE, header_value);
-            }
+            let header_value =
+                HeaderValue::from_str(&c.to_string()).map_err(api::Error::internal)?;
+
+            headers.append(http::header::COOKIE, header_value);
         }
 
         Ok(())
