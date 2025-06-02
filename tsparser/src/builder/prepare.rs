@@ -37,8 +37,8 @@ pub enum PrepareError {
     )]
     EncoreDevTooNew(String),
 
-    #[error("installing node_modules failed: {0}, run 'npm install' manually to see the error")]
-    InstallNodeModules(#[source] io::Error),
+    #[error("installing node_modules failed: {0}, run '{1}' manually to see the error")]
+    InstallNodeModules(#[source] io::Error, String),
 
     #[error("failed to install 'encore.dev' package: {0}")]
     InstallEncoreDev(#[source] io::Error),

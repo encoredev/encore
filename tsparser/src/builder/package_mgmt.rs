@@ -164,7 +164,7 @@ impl PackageManager for NpmPackageManager {
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .map_err(PrepareError::InstallNodeModules)?;
+                .map_err(|e| PrepareError::InstallNodeModules(e, "npm install".into()))?;
         }
 
         Ok(())
@@ -214,13 +214,18 @@ impl PackageManager for BunPackageManager {
                     .dir(&self.dir)
                     .stdout_to_stderr()
                     .run()
-                    .map_err(PrepareError::InstallNodeModules)?;
+                    .map_err(|e| PrepareError::InstallNodeModules(e, "bun install".into()))?;
             } else {
-                cmd!("bun", "install", "--backend", backend)
+                cmd!("bun", "install", "--backend", &backend)
                     .dir(&self.dir)
                     .stdout_to_stderr()
                     .run()
-                    .map_err(PrepareError::InstallNodeModules)?;
+                    .map_err(|e| {
+                        PrepareError::InstallNodeModules(
+                            e,
+                            format!("bun install --backend {backend}"),
+                        )
+                    })?;
             }
         }
 
@@ -271,7 +276,7 @@ impl PackageManager for YarnPackageManager {
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .map_err(PrepareError::InstallNodeModules)?;
+                .map_err(|e| PrepareError::InstallNodeModules(e, "yarn install".into()))?;
         }
 
         Ok(())
@@ -344,7 +349,7 @@ impl PackageManager for PnpmPackageManager {
                 .dir(&self.dir)
                 .stdout_to_stderr()
                 .run()
-                .map_err(PrepareError::InstallNodeModules)?;
+                .map_err(|e| PrepareError::InstallNodeModules(e, "pnpm install".into()))?;
         }
         Ok(())
     }
