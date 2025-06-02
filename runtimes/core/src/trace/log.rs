@@ -106,15 +106,17 @@ impl Reporter {
                                     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<bytes::Bytes, std::convert::Infallible>>();
                                     let body = reqwest::Body::wrap_stream(UnboundedReceiverStream::new(rx));
 
-                                    let mut req = self.http_client
+                                    let mut req = match self.http_client
                                         .post(self.config.trace_endpoint.clone())
                                         .headers(trace_headers.clone())
                                         .body(body)
-                                        .build()
-                                        .unwrap_or_else(|err| {
-                                            log::error!("failed to build trace request: {:?}", err);
-                                            panic!("Failed to build trace request");
-                                        });
+                                        .build() {
+                                            Ok(req) => req,
+                                            Err(err) => {
+                                                log::error!("failed to build trace request: {:?}", err);
+                                                continue;
+                                            }
+                                        };
 
                                     if let Err(err) = self.config.platform_validator.sign_outgoing_request(&mut req) {
                                         log::error!("failed to sign trace request: {:?}", err);
