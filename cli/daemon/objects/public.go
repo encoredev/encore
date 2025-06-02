@@ -86,6 +86,11 @@ func (s *PublicBucketServer) handler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	switch req.Method {
+	case "OPTIONS":
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, GET, HEAD")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Content-Encoding, Date, X-Goog-Generation, X-Goog-Metageneration")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Type, Content-Length, Content-Encoding, Date, X-Goog-Generation, X-Goog-Metageneration")
 	case "GET", "HEAD":
 		_, isSigned := (queryLowerCase(req))["x-goog-signature"]
 		if isSigned {
