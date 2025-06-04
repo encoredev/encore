@@ -8,7 +8,7 @@ edition = "2021"
 rttrace = []
 
 [dependencies]
-pingora = { version = "0.4", features = [ "lb", "openssl" ] }
+pingora = { version = "0.4", features = ["lb", "openssl"] }
 anyhow = "1.0.76"
 base64 = "0.21.5"
 gjson = "0.8.1"
@@ -21,17 +21,19 @@ tokio-nsq = "0.14.0"
 xid = "1.0.3"
 log = { version = "0.4.20", features = ["kv_unstable", "kv_unstable_serde"] }
 bytes = { version = "1.5.0", features = [] }
-postgres-protocol = "0.6.6"
-tokio-postgres = { version = "0.7.10", features = [
+postgres-protocol = "0.6.8"
+tokio-postgres = { version = "0.7.13", features = [
     "array-impls",
     "with-serde_json-1",
     "with-geo-types-0_7",
     "with-uuid-1",
     "with-chrono-0_4",
+    "with-cidr-0_3",
 ] }
+cidr = "0.3.1"
 tokio-util = "0.7.10"
 tokio-tungstenite = "0.21.0"
-futures-util = "0.3.30"
+futures-util = "0.3.31"
 rand = "0.8.5"
 env_logger = "0.10.1"
 google-cloud-pubsub = "0.22.1"
@@ -86,12 +88,30 @@ tower-http = { version = "0.5.2", features = ["fs"] }
 google-cloud-storage = "0.22.1"
 serde_path_to_error = "0.1.16"
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["alloc", "ansi", "env-filter", "fmt", "matchers", "nu-ansi-term", "once_cell", "regex", "registry", "sharded-slab", "smallvec", "std", "thread_local", "tracing"], default-features = false }
+tracing-subscriber = { version = "0.3.18", features = [
+    "alloc",
+    "ansi",
+    "env-filter",
+    "fmt",
+    "matchers",
+    "nu-ansi-term",
+    "once_cell",
+    "regex",
+    "registry",
+    "sharded-slab",
+    "smallvec",
+    "std",
+    "thread_local",
+    "tracing",
+], default-features = false }
 thiserror = "1.0.64"
 async-stream = "0.3.6"
 md5 = "0.7.0"
 aws-sdk-s3 = "1.58.0"
-aws-smithy-types = { version = "1.2.8", features = ["byte-stream-poll-next", "rt-tokio"] }
+aws-smithy-types = { version = "1.2.8", features = [
+    "byte-stream-poll-next",
+    "rt-tokio",
+] }
 percent-encoding = "2.3.1"
 aws-credential-types = "1.2.1"
 regex = "1.11.1"

@@ -214,6 +214,8 @@ impl Row {
                     env.create_arraybuffer_with_data(val)?.into_unknown()
                 }
                 sqldb::RowValue::Uuid(val) => env.create_string(&val.to_string())?.into_unknown(),
+                sqldb::RowValue::Cidr(val) => env.create_string(&val.to_string())?.into_unknown(),
+                sqldb::RowValue::Inet(val) => env.create_string(&val.to_string())?.into_unknown(),
             };
             map.insert(key, val);
         }
