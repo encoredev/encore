@@ -509,6 +509,52 @@ mod tests {
     }
 
     #[test]
+    fn test_rowvalue_to_sql_cidr() {
+        let cidr = cidr::IpCidr::new(std::net::Ipv4Addr::new(192, 168, 0, 0).into(), 16).unwrap();
+        let value = RowValue::Cidr(cidr);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&Type::CIDR, &mut buf);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rowvalue_from_sql_cidr() {
+        let cidr = cidr::IpCidr::new(std::net::Ipv4Addr::new(192, 168, 0, 0).into(), 16).unwrap();
+        let mut buf = BytesMut::new();
+        cidr.to_sql(&Type::CIDR, &mut buf).unwrap();
+        let result = RowValue::from_sql(&Type::CIDR, &buf);
+        assert!(result.is_ok());
+        if let RowValue::Cidr(val) = result.unwrap() {
+            assert_eq!(val, cidr);
+        } else {
+            panic!("Expected RowValue::Cidr");
+        }
+    }
+
+    #[test]
+    fn test_rowvalue_to_sql_inet() {
+        let inet = cidr::IpInet::new_host(std::net::Ipv4Addr::new(192, 168, 1, 1).into());
+        let value = RowValue::Inet(inet);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&Type::INET, &mut buf);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rowvalue_from_sql_inet() {
+        let inet = cidr::IpInet::new_host(std::net::Ipv4Addr::new(192, 168, 1, 1).into());
+        let mut buf = BytesMut::new();
+        inet.to_sql(&Type::INET, &mut buf).unwrap();
+        let result = RowValue::from_sql(&Type::INET, &buf);
+        assert!(result.is_ok());
+        if let RowValue::Inet(val) = result.unwrap() {
+            assert_eq!(val, inet);
+        } else {
+            panic!("Expected RowValue::Inet");
+        }
+    }
+
+    #[test]
     fn test_pvalue_from_sql_bool() {
         let raw = &[1]; // true
         let result = PValue::from_sql(&Type::BOOL, raw);
