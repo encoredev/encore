@@ -683,8 +683,8 @@ impl Ctx<'_> {
             return Type::Basic(Basic::Date);
         }
 
-        let mut type_arguments =
-            Vec::with_capacity(typ.type_params.as_ref().map_or(0, |p| p.params.len()));
+        let num_params = typ.type_params.as_ref().map_or(0, |p| p.params.len());
+        let mut type_arguments = Vec::with_capacity(num_params);
         if let Some(params) = &typ.type_params {
             for p in &params.params {
                 type_arguments.push(self.typ(p));
@@ -1964,7 +1964,24 @@ impl Ctx<'_> {
 
     pub fn underlying_named(&self, named: &Named) -> Type {
         let type_params = named.obj.kind.type_params().collect::<Vec<_>>();
-        let type_args = self.concrete_list(&named.type_arguments);
+
+        // Create a complete list of type arguments with defaults applied where needed
+        let type_arguments = if named.type_arguments.len() < type_params.len() {
+            let mut args = named.type_arguments.clone();
+
+            // For each parameter that wasn't provided, try to use its default
+            for param in type_params.iter().skip(args.len()) {
+                if let Some(default) = param.default.as_ref() {
+                    args.push(self.typ(default));
+                }
+            }
+
+            args
+        } else {
+            named.type_arguments.clone()
+        };
+
+        let type_args = self.concrete_list(&type_arguments);
         let typ = self.obj_type(&named.obj);
 
         let ctx = self

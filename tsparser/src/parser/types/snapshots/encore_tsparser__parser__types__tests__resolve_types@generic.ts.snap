@@ -1,0 +1,448 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/generic.ts
+---
+{
+    "Interface": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 0,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "InterfaceDefault": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 0,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "InterfaceDefaultMulti": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 0,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 1,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "baz",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 2,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "qux",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 3,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "quux",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 4,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "corge",
+                    ),
+                    optional: false,
+                    typ: Generic(
+                        TypeParam(
+                            TypeParam {
+                                idx: 5,
+                                constraint: None,
+                            },
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "X": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Y": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Z": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "M1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Object,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Undefined,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "baz",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Null,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "qux",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "quux",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "corge",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "M2": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Object,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Undefined,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "baz",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Null,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "qux",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        BigInt,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "quux",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "corge",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "M3": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Object,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Undefined,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "baz",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Null,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "qux",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        BigInt,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "quux",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        Boolean(
+                            false,
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "corge",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "M4": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Object,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Undefined,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "baz",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Null,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "qux",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        BigInt,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "quux",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        Boolean(
+                            false,
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "corge",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "literal",
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

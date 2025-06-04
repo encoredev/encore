@@ -131,11 +131,12 @@ impl BuilderCtx<'_, '_> {
             },
             Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
             Type::Named(tt) => {
+                let has_type_params = tt.obj.kind.type_params().count() > 0;
                 let state = self.builder.pc.type_checker.state();
                 if state.is_universe(tt.obj.module_id) {
                     let underlying = tt.underlying(state);
                     self.typ(&underlying)?
-                } else if !tt.type_arguments.is_empty() {
+                } else if has_type_params {
                     tracing::trace!(
                         "got named type with type arguments, resolving to underlying type"
                     );
