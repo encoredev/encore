@@ -123,6 +123,13 @@ impl Cursor {
             None => None,
         }
     }
+
+    /// Returns the number of rows affected by the query.
+    ///
+    /// This function will return `None` until the stream has been exhausted.
+    pub fn rows_affected(&self) -> Option<u64> {
+        self.stream.rows_affected()
+    }
 }
 
 pub struct Row {

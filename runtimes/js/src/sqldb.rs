@@ -197,6 +197,17 @@ pub struct Cursor {
 }
 
 #[napi]
+impl Cursor {
+    /// Returns the number of rows affected by the query.
+    ///
+    /// This function will return `None` until the stream has been exhausted.
+    #[napi]
+    pub async fn affected_rows(&self) -> Option<u64> {
+        self.stream.lock().await.rows_affected()
+    }
+}
+
+#[napi]
 pub struct Row {
     row: sqldb::Row,
 }

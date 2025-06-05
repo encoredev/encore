@@ -164,6 +164,34 @@ class BaseQueryExecutor {
   }
 
   /**
+   * rawQueryAll queries the database using a raw parametrised SQL query and parameters.
+   *
+   * It returns an array of all results.
+   *
+   * @example
+   *
+   * const query = "SELECT id FROM users WHERE email=$1";
+   * const email = "foo@example.com";
+   * const rows = await database.rawQueryAll(query, email);
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async rawQueryAll2<T extends Row = Record<string, any>>(
+    query: string,
+    ...params: Primitive[]
+  ): Promise<{ rows: T[]; affectedRows: bigint }> {
+    const args = buildQueryArgs(params);
+    const source = getCurrentRequest();
+    const cursor = await this.impl.query(query, args, source);
+    const result: T[] = [];
+    while (true) {
+      const row = await cursor.next();
+      if (row === null) break;
+      result.push(row.values() as T);
+    }
+    return { rows: result, affectedRows: (await cursor.affectedRows()) ?? 0n };
+  }
+
+  /**
    * queryRow is like query but returns only a single row.
    * If the query selects no rows it returns null.
    * Otherwise it returns the first row and discards the rest.
@@ -263,7 +291,7 @@ class BaseQueryExecutor {
  * compile error to create duplicate databases.
  */
 export class SQLDatabase extends BaseQueryExecutor {
-  protected declare readonly impl: runtime.SQLDatabase;
+  declare protected readonly impl: runtime.SQLDatabase;
 
   constructor(name: string, cfg?: SQLDatabaseConfig) {
     super(runtime.RT.sqlDatabase(name));
@@ -309,7 +337,7 @@ export class SQLDatabase extends BaseQueryExecutor {
 }
 
 export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
-  protected declare readonly impl: runtime.Transaction;
+  declare protected readonly impl: runtime.Transaction;
   private done: boolean = false;
 
   constructor(impl: runtime.Transaction) {
@@ -345,7 +373,7 @@ export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
  * Represents a dedicated connection to a database.
  */
 export class Connection extends BaseQueryExecutor {
-  protected declare readonly impl: runtime.SQLConn;
+  declare protected readonly impl: runtime.SQLConn;
 
   constructor(impl: runtime.SQLConn) {
     super(impl);
