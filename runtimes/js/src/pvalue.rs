@@ -199,7 +199,12 @@ impl FromNapiValue for PVal {
                     }
                 }
             }
-            ValueType::BigInt => todo!(),
+            ValueType::BigInt => {
+                return Err(Error::new(
+                    Status::InvalidArg,
+                    "bigint is not yet supported",
+                ))
+            }
             ValueType::Null => PValue::Null,
             ValueType::Function => {
                 return Err(Error::new(
