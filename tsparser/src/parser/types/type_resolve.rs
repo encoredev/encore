@@ -9,7 +9,7 @@ use litparser::Sp;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::{BytePos, Span, Spanned};
-use swc_ecma_ast as ast;
+use swc_ecma_ast::{self as ast, TsTypeParam};
 
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
@@ -683,8 +683,8 @@ impl Ctx<'_> {
             return Type::Basic(Basic::Date);
         }
 
-        let mut type_arguments =
-            Vec::with_capacity(typ.type_params.as_ref().map_or(0, |p| p.params.len()));
+        let num_params = typ.type_params.as_ref().map_or(0, |p| p.params.len());
+        let mut type_arguments = Vec::with_capacity(num_params);
         if let Some(params) = &typ.type_params {
             for p in &params.params {
                 type_arguments.push(self.typ(p));
@@ -1964,17 +1964,22 @@ impl Ctx<'_> {
 
     pub fn underlying_named(&self, named: &Named) -> Type {
         let type_params = named.obj.kind.type_params().collect::<Vec<_>>();
-        let type_args = self.concrete_list(&named.type_arguments);
-        let typ = self.obj_type(&named.obj);
 
-        let ctx = self
-            .clone()
-            .with_type_params(&type_params)
-            .with_type_args(&type_args);
+        // Create a complete list of type arguments with defaults applied where needed
+        if named.type_arguments.len() < type_params.len() {
+            let mut args = named.type_arguments.clone();
 
-        let span = tracing::trace_span!("underlying_named", ?named, ?type_args);
-        let _guard = span.enter();
-        ctx.underlying(&typ).into_owned()
+            // For each parameter that wasn't provided, try to use its default
+            for param in type_params.iter().skip(args.len()) {
+                if let Some(default) = param.default.as_ref() {
+                    args.push(self.typ(default));
+                }
+            }
+
+            self.underlying_type(named, &args, &type_params)
+        } else {
+            self.underlying_type(named, &named.type_arguments, &type_params)
+        }
     }
 
     pub fn underlying<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
@@ -1993,6 +1998,25 @@ impl Ctx<'_> {
                 _ => New(tt),
             },
         }
+    }
+
+    fn underlying_type(
+        &self,
+        named: &Named,
+        type_arguments: &[Type],
+        type_params: &[&TsTypeParam],
+    ) -> Type {
+        let type_args = self.concrete_list(type_arguments);
+        let typ = self.obj_type(&named.obj);
+
+        let ctx = self
+            .clone()
+            .with_type_params(type_params)
+            .with_type_args(&type_args);
+
+        let span = tracing::trace_span!("underlying_named", ?named, ?type_args);
+        let _guard = span.enter();
+        ctx.underlying(&typ).into_owned()
     }
 
     fn concrete_list<'b>(&'b self, v: &'b [Type]) -> Resolved<'b, [Type]> {
