@@ -153,7 +153,10 @@ func (tc *tarCopier) CopyDir(desc *dirCopyDesc) error {
 		isSymlink := d.Type()&fs.ModeSymlink != 0
 		if !isSymlink && runtime.GOOS == "windows" {
 			// Check if the file is a junction point on Windows.
-			isSymlink, _ = xos.IsWindowsJunctionPoint(pathStr)
+			if isJunction, _ := xos.IsWindowsJunctionPoint(pathStr); isJunction {
+				return errors.Newf("%q is a windows junction point and cannot be copied to a docker image. Use symlinks instead.", pathStr)
+			}
+
 		}
 
 		if isSymlink {
