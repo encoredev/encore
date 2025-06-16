@@ -166,6 +166,16 @@ func ParseFile(path string) (*File, error) {
 	return Parse(data)
 }
 
+// ParseFileStrict parses the app file located at path.
+// Unlike ParseFile, it returns an error if the file does not exist.
+func ParseFileStrict(path string) (*File, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("appfile.ParseFileStrict: %w", err)
+	}
+	return Parse(data)
+}
+
 // Slug parses the app slug for the encore.app file located at path.
 // The slug can be empty if the app is not linked to encore.dev.
 func Slug(appRoot string) (string, error) {
