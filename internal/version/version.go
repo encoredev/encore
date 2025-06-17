@@ -42,6 +42,7 @@ func ConfigHash() (string, error) {
 	fmt.Fprintf(h, "APIBaseURL=%s\n", conf.APIBaseURL)
 	fmt.Fprintf(h, "ConfigDir=%s\n", configDir)
 	fmt.Fprintf(h, "EncoreDevDashListenAddr=%s\n", env.EncoreDevDashListenAddr().GetOrElse(""))
+	fmt.Fprintf(h, "EncoreMCPSSEListenAddr=%s\n", env.EncoreMCPSSEListenAddr().GetOrElse(""))
 
 	digest := h.Sum(nil)
 	return base64.RawURLEncoding.EncodeToString(digest), nil
