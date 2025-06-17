@@ -131,7 +131,7 @@ func (d *Daemon) init(ctx context.Context) {
 	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
 	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
 	d.ObjectStorage = d.listenTCPRetry("objectstorage", option.None[string](), 9800)
-	d.MCP = d.listenTCPRetry("mcp", option.None[string](), 9900)
+	d.MCP = d.listenTCPRetry("mcp", env.EncoreMCPSSEListenAddr(), 9900)
 	d.EncoreDB = d.openDB()
 
 	d.Apps = apps.NewManager(d.EncoreDB)
