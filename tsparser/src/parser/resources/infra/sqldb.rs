@@ -72,13 +72,13 @@ pub struct DBMigration {
     pub number: u64,
 }
 
-#[derive(LitParser)]
+#[derive(LitParser, Debug)]
 struct MigrationsConfig {
     path: LocalRelPath,
     source: Option<String>,
 }
 
-#[derive(LitParser, Default)]
+#[derive(LitParser, Default, Debug)]
 struct DecodedDatabaseConfig {
     migrations: Option<Either<LocalRelPath, MigrationsConfig>>,
 }
@@ -363,7 +363,7 @@ fn parse_migrations(
     let mut migrations = match source {
         Some(MigrationFileSource::Drizzle) => parse_drizzle(span, dir),
         Some(MigrationFileSource::Prisma) => parse_prisma(span, dir),
-        _ => parse_default(span, dir),
+        None => parse_default(span, dir),
     }?;
     migrations.sort_by_key(|m| m.number);
     Ok(migrations)
@@ -379,7 +379,7 @@ pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> 
             db,
         })),
 
-        _ => {
+        UsageExprKind::Other(_) | UsageExprKind::Callee(_) => {
             data.expr.err("invalid use of database resource");
             None
         }

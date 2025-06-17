@@ -186,13 +186,11 @@ impl<'a> UsageResolver<'a> {
                         };
 
                         for bind in resolved_binds.into_iter().flatten() {
-                            if let Some(name) = &bind.name {
-                                external.push(BindToScan {
-                                    bound_name: local_name.to_id(),
-                                    selector: Some(name),
-                                    bind: bind.to_owned(),
-                                });
-                            }
+                            external.push(BindToScan {
+                                bound_name: local_name.to_id(),
+                                selector: bind.name.as_deref(),
+                                bind: bind.to_owned(),
+                            });
                         }
                     }
                 }

@@ -66,6 +66,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
     }
 }
 
+#[derive(Debug)]
 pub struct NamedClassResourceOptionalConfig<
     Config,
     const NAME_IDX: usize = 0,
