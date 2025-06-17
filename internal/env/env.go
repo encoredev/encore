@@ -100,6 +100,16 @@ func EncoreDevDashListenAddr() option.Option[string] {
 	return option.None[string]()
 }
 
+// EncoreMCPSSEListenAddr reports the listen address for
+// where the daemon exposes the MCP SSE endpoint.
+// It can be overridden by setting ENCORE_MCPSSE_LISTEN_ADDR.
+func EncoreMCPSSEListenAddr() option.Option[string] {
+	if p := os.Getenv("ENCORE_MCPSSE_LISTEN_ADDR"); p != "" {
+		return option.Some(p)
+	}
+	return option.None[string]()
+}
+
 func encoreGoRoot() string {
 	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
 		return p
