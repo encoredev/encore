@@ -6,6 +6,7 @@ use swc_ecma_ast::{self as ast, CallExpr, MemberExpr, NewExpr, TsTypeParamInstan
 use swc_ecma_visit::VisitWithPath;
 
 use crate::parser::module_loader::Module;
+use crate::parser::resourceparser::bind::BindName;
 use crate::parser::Range;
 
 pub trait ReferenceParser
@@ -23,10 +24,9 @@ pub struct NamedClassResource<Config, const NAME_IDX: usize = 0, const CONFIG_ID
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
     pub resource_name: String,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub config: Config,
     pub expr: ast::NewExpr,
-    pub is_default_export: bool,
 }
 
 impl<Config, const NAME_IDX: usize, const CONFIG_IDX: usize> Spanned
@@ -63,7 +63,6 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
             bind_name: res.bind_name,
             config,
             expr: res.expr,
-            is_default_export: res.is_default_export,
         }))
     }
 }
@@ -78,10 +77,9 @@ pub struct NamedClassResourceOptionalConfig<
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
     pub resource_name: String,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub config: Option<Config>,
     pub expr: ast::NewExpr,
-    pub is_default_export: bool,
 }
 
 impl<Config, const NAME_IDX: usize, const CONFIG_IDX: usize> Spanned
@@ -109,7 +107,16 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     return Err(expr.span.parse_err("missing constructor arguments"));
                 };
 
-                let bind_name = extract_bind_name(path)?;
+                let bind_name = match extract_bind_name(path)? {
+                    Some(name) => BindName::Named(name),
+                    None => {
+                        if is_default_export(path, (*expr).into()) {
+                            BindName::DefaultExport
+                        } else {
+                            BindName::Anonymous
+                        }
+                    }
+                };
                 let resource_name = extract_resource_name(expr.span, args, NAME_IDX)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
@@ -125,7 +132,6 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     doc_comment,
                     bind_name,
                     config,
-                    is_default_export: is_default_export(path, (*expr).into()),
                     expr: (*expr).to_owned(),
                 }));
             }
@@ -139,9 +145,8 @@ pub struct UnnamedClassResource<Config, const CONFIG_IDX: usize = 0> {
     #[allow(dead_code)]
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub config: Config,
-    pub is_default_export: bool,
 }
 
 impl<Config, const CONFIG_IDX: usize> Spanned for UnnamedClassResource<Config, CONFIG_IDX> {
@@ -167,7 +172,16 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                     return Err(expr.span.parse_err("missing constructor arguments"));
                 };
 
-                let bind_name = extract_bind_name(path)?;
+                let bind_name = match extract_bind_name(path)? {
+                    Some(name) => BindName::Named(name),
+                    None => {
+                        if is_default_export(path, (*expr).into()) {
+                            BindName::DefaultExport
+                        } else {
+                            BindName::Anonymous
+                        }
+                    }
+                };
                 let config = Config::parse_lit(&args[CONFIG_IDX].expr)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
@@ -177,7 +191,6 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                     doc_comment,
                     bind_name,
                     config,
-                    is_default_export: is_default_export(path, (*expr).into()),
                 }));
             }
         }
@@ -192,8 +205,7 @@ pub struct NamedStaticMethod<const NAME_IDX: usize = 0> {
     #[allow(dead_code)]
     pub doc_comment: Option<String>,
     pub resource_name: String,
-    pub bind_name: Option<ast::Ident>,
-    pub is_default_export: bool,
+    pub bind_name: BindName,
 }
 
 impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
@@ -231,7 +243,16 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                     continue;
                 };
 
-                let bind_name = extract_bind_name(path)?;
+                let bind_name = match extract_bind_name(path)? {
+                    Some(name) => BindName::Named(name),
+                    None => {
+                        if is_default_export(path, (*expr).into()) {
+                            BindName::DefaultExport
+                        } else {
+                            BindName::Anonymous
+                        }
+                    }
+                };
                 let resource_name = extract_resource_name(call.span, &call.args, NAME_IDX)?;
                 let doc_comment = module.preceding_comments(call.span.lo.into());
 
@@ -241,7 +262,6 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                     resource_name: resource_name.to_string(),
                     doc_comment,
                     bind_name,
-                    is_default_export: is_default_export(path, (*expr).into()),
                 }));
             }
         }

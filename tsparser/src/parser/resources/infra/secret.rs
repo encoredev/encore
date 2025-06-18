@@ -1,9 +1,9 @@
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
+use crate::parser::resourceparser::bind::{BindData, BindKind, BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{
-    extract_bind_name, is_default_export, iter_references, ReferenceParser, TrackedNames,
+    extract_bind_name, iter_references, ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
 use crate::parser::Range;
@@ -47,8 +47,7 @@ pub const SECRET_PARSER: ResourceParser = ResourceParser {
                 resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
-                ident: Some(r.bind_name),
-                is_default_export: r.is_default_export,
+                ident: BindName::Named(r.bind_name),
             });
         }
     },
@@ -60,7 +59,6 @@ struct SecretLiteral {
     pub doc_comment: Option<String>,
     pub secret_name: String,
     pub bind_name: ast::Ident,
-    pub is_default_export: bool,
 }
 
 fn inside_function(path: &swc_ecma_visit::AstNodePath) -> Option<Span> {
@@ -113,7 +111,6 @@ impl ReferenceParser for SecretLiteral {
                     doc_comment,
                     secret_name,
                     bind_name,
-                    is_default_export: is_default_export(path, (*expr).into()),
                 }));
             }
         }

@@ -71,7 +71,7 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                 spread.err("cannot use ... for PubSub topic reference");
                 continue;
             }
-            let object = match &r.bind_name {
+            let object = match r.bind_name.ident() {
                 None => None,
                 Some(id) => pass
                     .type_checker
@@ -128,7 +128,6 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,
-                is_default_export: r.is_default_export,
             });
         }
     },

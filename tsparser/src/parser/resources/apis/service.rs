@@ -7,8 +7,8 @@ use litparser::LitParser;
 use litparser_derive::LitParser;
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{
@@ -72,8 +72,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     resource: ResourceOrPath::Resource(resource),
                     object: None,
                     kind: BindKind::Create,
-                    ident: None,
-                    is_default_export: true,
+                    ident: BindName::DefaultExport,
                 });
             }
         }

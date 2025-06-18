@@ -39,7 +39,7 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
         for r in iter_references::<Res>(&module, &names) {
             let r = report_and_continue!(r);
 
-            let object = match &r.bind_name {
+            let object = match r.bind_name.ident() {
                 None => None,
                 Some(id) => pass
                     .type_checker
@@ -69,7 +69,6 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,
-                is_default_export: r.is_default_export,
             });
         }
     },

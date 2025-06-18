@@ -5,7 +5,7 @@ use swc_ecma_ast as ast;
 use litparser::{report_and_continue, LitParser, ParseResult, Sp, ToParseErr};
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
+use crate::parser::resourceparser::bind::{BindData, BindKind, BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{
@@ -63,7 +63,7 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<PubSubTopicDefinition>(&module, &names) {
             let r = report_and_continue!(r);
-            let object = match &r.bind_name {
+            let object = match r.bind_name.ident() {
                 None => None,
                 Some(id) => pass
                     .type_checker
@@ -89,7 +89,6 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,
-                is_default_export: r.is_default_export,
             });
         }
     },
@@ -101,9 +100,8 @@ struct PubSubTopicDefinition {
     pub resource_name: String,
     pub config: DecodedTopicConfig,
     pub doc_comment: Option<String>,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub message_type: ast::TsType,
-    pub is_default_export: bool,
 }
 
 impl ReferenceParser for PubSubTopicDefinition {
@@ -128,7 +126,6 @@ impl ReferenceParser for PubSubTopicDefinition {
             doc_comment: res.doc_comment,
             bind_name: res.bind_name,
             message_type: message_type.to_owned(),
-            is_default_export: res.is_default_export,
         }))
     }
 }

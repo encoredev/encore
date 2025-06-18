@@ -61,7 +61,7 @@ fn parse_cron_job(
     pass: &mut ResourceParseContext,
     r: NamedClassResource<DecodedCronJobConfig>,
 ) -> ParseResult<()> {
-    let object = match &r.bind_name {
+    let object = match r.bind_name.ident() {
         None => None,
         Some(id) => pass
             .type_checker
@@ -88,7 +88,6 @@ fn parse_cron_job(
         object,
         kind: BindKind::Create,
         ident: r.bind_name,
-        is_default_export: r.is_default_export,
     });
     Ok(())
 }

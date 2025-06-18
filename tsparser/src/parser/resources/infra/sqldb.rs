@@ -152,7 +152,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     }
                 };
 
-                let object = match &r.bind_name {
+                let object = match r.bind_name.ident() {
                     None => None,
                     Some(id) => pass
                         .type_checker
@@ -172,7 +172,6 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     object,
                     kind: BindKind::Create,
                     ident: r.bind_name,
-                    is_default_export: r.is_default_export,
                 });
             }
         }
@@ -180,7 +179,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
         {
             for r in iter_references::<NamedStaticMethod>(&module, &names) {
                 let r = report_and_continue!(r);
-                let object = match &r.bind_name {
+                let object = match r.bind_name.ident() {
                     None => None,
                     Some(id) => pass
                         .type_checker
@@ -195,7 +194,6 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     object,
                     kind: BindKind::Reference,
                     ident: r.bind_name,
-                    is_default_export: r.is_default_export,
                 });
             }
         }
