@@ -111,7 +111,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     Some(name) => BindName::Named(name),
                     None => {
                         if is_default_export(path, (*expr).into()) {
-                            BindName::DefaultExport
+                            BindName::DefaultExport((*expr).to_owned().into())
                         } else {
                             BindName::Anonymous
                         }
@@ -176,7 +176,7 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                     Some(name) => BindName::Named(name),
                     None => {
                         if is_default_export(path, (*expr).into()) {
-                            BindName::DefaultExport
+                            BindName::DefaultExport((*expr).to_owned().into())
                         } else {
                             BindName::Anonymous
                         }
@@ -247,7 +247,7 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                     Some(name) => BindName::Named(name),
                     None => {
                         if is_default_export(path, (*expr).into()) {
-                            BindName::DefaultExport
+                            BindName::DefaultExport((*expr).to_owned().into())
                         } else {
                             BindName::Anonymous
                         }

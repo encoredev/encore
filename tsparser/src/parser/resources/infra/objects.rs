@@ -5,8 +5,8 @@ use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
-use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{iter_references, TrackedNames};
@@ -46,9 +46,12 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                 let r = report_and_continue!(r);
                 let cfg = r.config.unwrap_or_default();
 
-                let object = match r.bind_name.ident() {
-                    None => None,
-                    Some(id) => pass
+                let object = match r.bind_name {
+                    BindName::Anonymous => None,
+                    BindName::DefaultExport(ref expr) => {
+                        pass.type_checker.resolve_obj(pass.module.clone(), expr)
+                    }
+                    BindName::Named(ref id) => pass
                         .type_checker
                         .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };
@@ -74,9 +77,12 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
         {
             for r in iter_references::<NamedStaticMethod>(&module, &names) {
                 let r = report_and_continue!(r);
-                let object = match r.bind_name.ident() {
-                    None => None,
-                    Some(id) => pass
+                let object = match r.bind_name {
+                    BindName::Anonymous => None,
+                    BindName::DefaultExport(ref expr) => {
+                        pass.type_checker.resolve_obj(pass.module.clone(), expr)
+                    }
+                    BindName::Named(ref id) => pass
                         .type_checker
                         .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };

@@ -63,9 +63,12 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<PubSubTopicDefinition>(&module, &names) {
             let r = report_and_continue!(r);
-            let object = match r.bind_name.ident() {
-                None => None,
-                Some(id) => pass
+            let object = match r.bind_name {
+                BindName::Anonymous => None,
+                BindName::DefaultExport(ref expr) => {
+                    pass.type_checker.resolve_obj(pass.module.clone(), expr)
+                }
+                BindName::Named(ref id) => pass
                     .type_checker
                     .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
             };

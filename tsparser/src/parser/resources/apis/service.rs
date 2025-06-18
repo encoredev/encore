@@ -72,7 +72,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     resource: ResourceOrPath::Resource(resource),
                     object: None,
                     kind: BindKind::Create,
-                    ident: BindName::DefaultExport,
+                    ident: BindName::DefaultExport(r.expr.into()),
                 });
             }
         }
@@ -86,6 +86,7 @@ struct ServiceLiteral {
     pub doc_comment: Option<String>,
     pub resource_name: String,
     pub config: Option<DecodedServiceConfig>,
+    pub expr: ast::NewExpr,
 }
 
 impl ReferenceParser for ServiceLiteral {
@@ -129,6 +130,7 @@ impl ReferenceParser for ServiceLiteral {
                     doc_comment,
                     resource_name: resource_name.to_string(),
                     config,
+                    expr: (*expr).to_owned(),
                 }));
             }
         }

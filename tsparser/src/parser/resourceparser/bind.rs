@@ -26,15 +26,15 @@ pub enum ResourceOrPath {
 #[derive(Debug)]
 pub enum BindName {
     Named(ast::Ident),
-    DefaultExport,
+    DefaultExport(ast::Expr),
     Anonymous,
 }
 
 impl BindName {
-    pub fn to_string_option(&self) -> Option<String> {
+    pub fn name(&self) -> Option<String> {
         match self {
             BindName::Named(ident) => Some(ident.sym.to_string()),
-            BindName::DefaultExport => Some("default".to_string()),
+            BindName::DefaultExport(_) => Some("default".to_string()),
             BindName::Anonymous => None,
         }
     }

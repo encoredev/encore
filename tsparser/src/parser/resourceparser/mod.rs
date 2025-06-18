@@ -103,10 +103,9 @@ impl<'a> PassOneParser<'a> {
         let mut binds = Vec::with_capacity(ctx.binds.len());
         for b in ctx.binds {
             self.next_id += 1;
-            let name = b.ident.to_string_option();
             binds.push(UnresolvedBind {
                 id: self.next_id.into(),
-                name,
+                name: b.ident.name(),
                 object: b.object,
                 kind: b.kind,
                 resource: b.resource,
