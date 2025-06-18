@@ -1595,10 +1595,7 @@ impl Ctx<'_> {
     fn resolve_obj(&self, expr: &ast::Expr) -> Option<Rc<Object>> {
         match self.expr(expr) {
             Type::Named(named) => Some(named.obj.clone()),
-            other => {
-                dbg!(other);
-                None
-            }
+            _ => None,
         }
     }
 
