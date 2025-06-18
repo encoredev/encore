@@ -69,6 +69,7 @@ pub const GATEWAY_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,
+                is_default_export: r.is_default_export,
             });
         }
     },

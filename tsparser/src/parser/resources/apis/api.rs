@@ -19,7 +19,8 @@ use crate::parser::resources::apis::encoding::{
     describe_endpoint, describe_static_assets, describe_stream_endpoint, EndpointEncoding,
 };
 use crate::parser::resources::parseutil::{
-    extract_bind_name, extract_type_param, iter_references, ReferenceParser, TrackedNames,
+    extract_bind_name, extract_type_param, is_default_export, iter_references, ReferenceParser,
+    TrackedNames,
 };
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
@@ -395,6 +396,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: Some(r.bind_name),
+                is_default_export: r.is_default_export,
             });
         }
     },
@@ -425,6 +427,7 @@ struct APIEndpointLiteral {
     pub bind_name: ast::Ident,
     pub config: Sp<EndpointConfig>,
     pub kind: EndpointKind,
+    pub is_default_export: bool,
 }
 
 impl Spanned for APIEndpointLiteral {
@@ -535,6 +538,7 @@ impl ReferenceParser for APIEndpointLiteral {
                             bind_name,
                             config: cfg,
                             kind: EndpointKind::Raw,
+                            is_default_export: is_default_export(path, (*expr).into()),
                         }
                     }
 
@@ -595,6 +599,7 @@ impl ReferenceParser for APIEndpointLiteral {
                                 request: ParameterType::Stream(request.clone()),
                                 response: ParameterType::Stream(response.clone()),
                             },
+                            is_default_export: is_default_export(path, (*expr).into()),
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamIn") => {
@@ -660,6 +665,7 @@ impl ReferenceParser for APIEndpointLiteral {
                                 request: ParameterType::Stream(request.clone()),
                                 response,
                             },
+                            is_default_export: is_default_export(path, (*expr).into()),
                         }
                     }
                     ast::Expr::Member(member) if member.prop.is_ident_with("streamOut") => {
@@ -718,6 +724,7 @@ impl ReferenceParser for APIEndpointLiteral {
                                 request: ParameterType::None,
                                 response: ParameterType::Stream(response.clone()),
                             },
+                            is_default_export: is_default_export(path, (*expr).into()),
                         }
                     }
 
@@ -743,6 +750,7 @@ impl ReferenceParser for APIEndpointLiteral {
                                 not_found,
                                 not_found_status,
                             },
+                            is_default_export: is_default_export(path, (*expr).into()),
                         }
                     }
                     _ => {
@@ -771,6 +779,7 @@ impl ReferenceParser for APIEndpointLiteral {
                                 request: req.cloned(),
                                 response: resp.cloned(),
                             },
+                            is_default_export: is_default_export(path, (*expr).into()),
                         }
                     }
                 }));

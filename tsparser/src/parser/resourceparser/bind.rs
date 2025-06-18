@@ -33,6 +33,8 @@ pub struct BindData {
     // The object it is bound to, if any.
     pub object: Option<Rc<Object>>,
     pub kind: BindKind,
+    // if this is the default export
+    pub is_default_export: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

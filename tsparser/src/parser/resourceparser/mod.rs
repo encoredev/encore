@@ -102,7 +102,17 @@ impl<'a> PassOneParser<'a> {
         let mut binds = Vec::with_capacity(ctx.binds.len());
         for b in ctx.binds {
             self.next_id += 1;
-            let name = b.ident.as_ref().map(|x| x.sym.as_ref().to_string());
+            let name = b
+                .ident
+                .as_ref()
+                .map(|ident| ident.sym.as_ref().to_string())
+                .or_else(|| {
+                    if b.is_default_export {
+                        Some("default".to_string())
+                    } else {
+                        None
+                    }
+                });
             binds.push(UnresolvedBind {
                 id: self.next_id.into(),
                 name,

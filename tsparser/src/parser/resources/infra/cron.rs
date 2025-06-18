@@ -88,6 +88,7 @@ fn parse_cron_job(
         object,
         kind: BindKind::Create,
         ident: r.bind_name,
+        is_default_export: r.is_default_export,
     });
     Ok(())
 }

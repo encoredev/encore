@@ -11,10 +11,10 @@ use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::parseutil::ReferenceParser;
 use crate::parser::resources::parseutil::{
     extract_bind_name, extract_resource_name, iter_references, TrackedNames,
 };
+use crate::parser::resources::parseutil::{is_default_export, ReferenceParser};
 use crate::parser::resources::Resource;
 use crate::parser::{FilePath, Range};
 use crate::span_err::ErrReporter;
@@ -73,6 +73,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     object: None,
                     kind: BindKind::Create,
                     ident: None,
+                    is_default_export: true,
                 });
             }
         }
@@ -119,7 +120,7 @@ impl ReferenceParser for ServiceLiteral {
                     .map(|arg| DecodedServiceConfig::parse_lit(&arg.expr))
                     .transpose()?;
 
-                if !is_default_export(path, expr) {
+                if !is_default_export(path, (*expr).into()) {
                     expr.span().err("service must be default export");
                     continue;
                 }
@@ -135,24 +136,4 @@ impl ReferenceParser for ServiceLiteral {
 
         Ok(None)
     }
-}
-
-// checks if `new_expr` is the default export in `path`
-fn is_default_export(path: &swc_ecma_visit::AstNodePath, new_expr: &swc_ecma_ast::NewExpr) -> bool {
-    for node in path.iter().rev() {
-        match node {
-            swc_ecma_visit::AstParentNodeRef::ExportDefaultExpr(
-                swc_ecma_ast::ExportDefaultExpr { expr, .. },
-                swc_ecma_visit::fields::ExportDefaultExprField::Expr,
-            ) => {
-                return if let swc_ecma_ast::Expr::New(ref expr) = **expr {
-                    expr == new_expr
-                } else {
-                    false
-                }
-            }
-            _ => continue,
-        }
-    }
-    false
 }

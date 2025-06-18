@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use litparser::{LitParser, ParseResult, ToParseErr};
 use swc_common::{Span, Spanned};
-use swc_ecma_ast::{self as ast, TsTypeParamInstantiation};
+use swc_ecma_ast::{self as ast, CallExpr, MemberExpr, NewExpr, TsTypeParamInstantiation};
 use swc_ecma_visit::VisitWithPath;
 
 use crate::parser::module_loader::Module;
@@ -26,6 +26,7 @@ pub struct NamedClassResource<Config, const NAME_IDX: usize = 0, const CONFIG_ID
     pub bind_name: Option<ast::Ident>,
     pub config: Config,
     pub expr: ast::NewExpr,
+    pub is_default_export: bool,
 }
 
 impl<Config, const NAME_IDX: usize, const CONFIG_IDX: usize> Spanned
@@ -62,6 +63,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
             bind_name: res.bind_name,
             config,
             expr: res.expr,
+            is_default_export: res.is_default_export,
         }))
     }
 }
@@ -79,6 +81,7 @@ pub struct NamedClassResourceOptionalConfig<
     pub bind_name: Option<ast::Ident>,
     pub config: Option<Config>,
     pub expr: ast::NewExpr,
+    pub is_default_export: bool,
 }
 
 impl<Config, const NAME_IDX: usize, const CONFIG_IDX: usize> Spanned
@@ -122,6 +125,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     doc_comment,
                     bind_name,
                     config,
+                    is_default_export: is_default_export(path, (*expr).into()),
                     expr: (*expr).to_owned(),
                 }));
             }
@@ -137,6 +141,7 @@ pub struct UnnamedClassResource<Config, const CONFIG_IDX: usize = 0> {
     pub doc_comment: Option<String>,
     pub bind_name: Option<ast::Ident>,
     pub config: Config,
+    pub is_default_export: bool,
 }
 
 impl<Config, const CONFIG_IDX: usize> Spanned for UnnamedClassResource<Config, CONFIG_IDX> {
@@ -172,6 +177,7 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                     doc_comment,
                     bind_name,
                     config,
+                    is_default_export: is_default_export(path, (*expr).into()),
                 }));
             }
         }
@@ -187,6 +193,7 @@ pub struct NamedStaticMethod<const NAME_IDX: usize = 0> {
     pub doc_comment: Option<String>,
     pub resource_name: String,
     pub bind_name: Option<ast::Ident>,
+    pub is_default_export: bool,
 }
 
 impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
@@ -234,6 +241,7 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                     resource_name: resource_name.to_string(),
                     doc_comment,
                     bind_name,
+                    is_default_export: is_default_export(path, (*expr).into()),
                 }));
             }
         }
@@ -282,6 +290,58 @@ pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> ParseResult<Opti
         }
     }
     Ok(None)
+}
+
+pub enum Expr<'a> {
+    New(&'a NewExpr),
+    Call(&'a CallExpr),
+    Member(&'a MemberExpr),
+}
+
+impl<'a> From<&'a NewExpr> for Expr<'a> {
+    fn from(expr: &'a NewExpr) -> Self {
+        Self::New(expr)
+    }
+}
+impl<'a> From<&'a CallExpr> for Expr<'a> {
+    fn from(expr: &'a CallExpr) -> Self {
+        Self::Call(expr)
+    }
+}
+
+impl<'a> From<&'a MemberExpr> for Expr<'a> {
+    fn from(expr: &'a MemberExpr) -> Self {
+        Self::Member(expr)
+    }
+}
+
+// checks if `expr` is the default export in `path`
+pub fn is_default_export(path: &swc_ecma_visit::AstNodePath, expr: Expr) -> bool {
+    for node in path.iter().rev() {
+        match node {
+            swc_ecma_visit::AstParentNodeRef::ExportDefaultExpr(
+                swc_ecma_ast::ExportDefaultExpr {
+                    expr: exported_expr,
+                    ..
+                },
+                swc_ecma_visit::fields::ExportDefaultExprField::Expr,
+            ) => {
+                return match expr {
+                    Expr::Member(member_expr) => {
+                        matches!(**exported_expr, swc_ecma_ast::Expr::Member(ref expr) if expr == member_expr)
+                    }
+                    Expr::Call(call_expr) => {
+                        matches!(**exported_expr, swc_ecma_ast::Expr::Call(ref expr) if expr == call_expr)
+                    }
+                    Expr::New(new_expr) => {
+                        matches!(**exported_expr, swc_ecma_ast::Expr::New(ref expr) if expr == new_expr)
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
+    false
 }
 
 pub struct TrackedNames<'a>(HashMap<&'a str, Vec<&'a str>>);

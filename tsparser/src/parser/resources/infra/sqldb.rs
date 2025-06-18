@@ -172,6 +172,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     object,
                     kind: BindKind::Create,
                     ident: r.bind_name,
+                    is_default_export: r.is_default_export,
                 });
             }
         }
@@ -194,6 +195,7 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     object,
                     kind: BindKind::Reference,
                     ident: r.bind_name,
+                    is_default_export: r.is_default_export,
                 });
             }
         }

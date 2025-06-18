@@ -89,6 +89,7 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: r.bind_name,
+                is_default_export: r.is_default_export,
             });
         }
     },
@@ -102,6 +103,7 @@ struct PubSubTopicDefinition {
     pub doc_comment: Option<String>,
     pub bind_name: Option<ast::Ident>,
     pub message_type: ast::TsType,
+    pub is_default_export: bool,
 }
 
 impl ReferenceParser for PubSubTopicDefinition {
@@ -126,6 +128,7 @@ impl ReferenceParser for PubSubTopicDefinition {
             doc_comment: res.doc_comment,
             bind_name: res.bind_name,
             message_type: message_type.to_owned(),
+            is_default_export: res.is_default_export,
         }))
     }
 }

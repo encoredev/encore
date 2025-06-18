@@ -9,7 +9,7 @@ use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{describe_auth_handler, AuthHandlerEncoding};
 use crate::parser::resources::parseutil::{
-    extract_bind_name, iter_references, ReferenceParser, TrackedNames,
+    extract_bind_name, is_default_export, iter_references, ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
 use crate::parser::{FilePath, Range};
@@ -98,6 +98,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
                 object,
                 kind: BindKind::Create,
                 ident: Some(r.bind_name),
+                is_default_export: r.is_default_export,
             });
         }
     },
@@ -111,6 +112,7 @@ struct AuthHandlerLiteral {
     pub bind_name: ast::Ident,
     pub request: ast::TsType,
     pub response: ast::TsType,
+    pub is_default_export: bool,
 }
 
 impl ReferenceParser for AuthHandlerLiteral {
@@ -160,6 +162,7 @@ impl ReferenceParser for AuthHandlerLiteral {
                     bind_name,
                     request: req.clone(),
                     response: resp.clone(),
+                    is_default_export: is_default_export(path, (*expr).into()),
                 }));
             }
         }
