@@ -171,7 +171,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 	secrets, _ := s.sm.Load(app).Get(ctx, nil)
 	externalDBs := map[string]string{}
 	for key, val := range secrets.Values {
-		if db, ok := strings.CutPrefix(key, "db::"); ok {
+		if db, ok := strings.CutPrefix(key, "sqldb::"); ok {
 			var connCfg struct {
 				ConnString string `json:"connection_string"`
 			}

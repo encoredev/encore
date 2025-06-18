@@ -110,7 +110,7 @@ func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Clu
 					c.log.Error().Err(err).Msg("failed to load secrets for external database check")
 					return false
 				}
-				_, ok := secrets.Values["db::"+name]
+				_, ok := secrets.Values["sqldb::"+name]
 				return ok
 			},
 		}

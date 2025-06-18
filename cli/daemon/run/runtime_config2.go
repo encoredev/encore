@@ -279,7 +279,7 @@ func (g *RuntimeConfigGenerator) initialize() error {
 			})
 
 			for _, db := range g.md.SqlDatabases {
-				if externalDB, ok := g.DefinedSecrets["db::"+db.Name]; ok {
+				if externalDB, ok := g.DefinedSecrets["sqldb::"+db.Name]; ok {
 					var extCfg struct {
 						ConnectionString string `json:"connection_string"`
 					}
