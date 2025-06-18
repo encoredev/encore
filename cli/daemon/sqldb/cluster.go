@@ -46,8 +46,9 @@ type Cluster struct {
 	Ctx    context.Context
 	cancel func() // for canceling Ctx
 
-	mu  sync.Mutex
-	dbs map[string]*DB // name -> db
+	mu         sync.Mutex
+	dbs        map[string]*DB // name -> db
+	isExternal func(name string) bool
 }
 
 func (c *Cluster) Stop() {
@@ -192,27 +193,6 @@ func (c *Cluster) determineRoles(ctx context.Context, st *ClusterStatus, conn *p
 	return roles, nil
 }
 
-// initDBs adds the databases from md to the cluster's database map.
-// It does not create or migrate them.
-func (c *Cluster) initDBs(md *meta.Data, reinit bool) {
-	if md == nil {
-		return
-	}
-
-	// Create the databases we need in our cluster map.
-	c.mu.Lock()
-	for _, dbMeta := range md.SqlDatabases {
-		db, ok := c.dbs[dbMeta.Name]
-		if ok && reinit {
-			db.CloseConns()
-		}
-		if !ok || reinit {
-			c.initDB(dbMeta.Name)
-		}
-	}
-	c.mu.Unlock()
-}
-
 // initDB initializes the database for svc and adds it to c.dbs.
 // The cluster mutex must be held.
 func (c *Cluster) initDB(encoreName string) *DB {
@@ -256,6 +236,9 @@ func (c *Cluster) Setup(ctx context.Context, appRoot string, md *meta.Data) erro
 	for _, dbMeta := range md.SqlDatabases {
 		dbMeta := dbMeta
 		db, ok := c.dbs[dbMeta.Name]
+		if c.isExternal(dbMeta.Name) {
+			continue
+		}
 		if !ok {
 			db = c.initDB(dbMeta.Name)
 		}
@@ -266,13 +249,15 @@ func (c *Cluster) Setup(ctx context.Context, appRoot string, md *meta.Data) erro
 }
 
 // SetupAndMigrate creates and migrates the given databases.
-func (c *Cluster) SetupAndMigrate(ctx context.Context, appRoot string, md *meta.Data) error {
+func (c *Cluster) SetupAndMigrate(ctx context.Context, appRoot string, dbs []*meta.SQLDatabase) error {
 	c.log.Debug().Msg("creating and migrating cluster")
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(50)
 	c.mu.Lock()
-
-	for _, dbMeta := range md.SqlDatabases {
+	for _, dbMeta := range dbs {
+		if c.IsExternalDB(dbMeta.Name) {
+			continue
+		}
 		dbMeta := dbMeta
 		db, ok := c.dbs[dbMeta.Name]
 		if !ok {
@@ -290,6 +275,13 @@ func (c *Cluster) GetDB(name string) (*DB, bool) {
 	db, ok := c.dbs[name]
 	c.mu.Unlock()
 	return db, ok
+}
+
+func (c *Cluster) IsExternalDB(name string) bool {
+	if c.isExternal == nil {
+		return false
+	}
+	return c.isExternal(name)
 }
 
 // Recreate recreates the databases for the given database names.
@@ -311,6 +303,13 @@ func (c *Cluster) Recreate(ctx context.Context, appRoot string, databaseNames []
 		dbMeta := dbMeta
 		if filter == nil || filter[dbMeta.Name] {
 			db, ok := c.dbs[dbMeta.Name]
+			if c.isExternal(dbMeta.Name) {
+				if filter[dbMeta.Name] {
+					c.mu.Unlock()
+					return fmt.Errorf("cannot reset %q: resetting external databases is disabled", dbMeta.Name)
+				}
+				continue
+			}
 			if !ok {
 				db = c.initDB(dbMeta.Name)
 			}

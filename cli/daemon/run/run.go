@@ -428,16 +428,14 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 	})
 
 	var secrets map[string]string
-	if usesSecrets(parse.Meta) {
-		jobs.Go("Fetching application secrets", true, 150*time.Millisecond, func(ctx context.Context) error {
-			data, err := r.secrets.Get(ctx, expSet)
-			if err != nil {
-				return err
-			}
-			secrets = data.Values
-			return nil
-		})
-	}
+	jobs.Go("Fetching application secrets", true, 150*time.Millisecond, func(ctx context.Context) error {
+		data, err := r.secrets.Get(ctx, expSet)
+		if err != nil {
+			return err
+		}
+		secrets = data.Values
+		return nil
+	})
 
 	if err := jobs.Wait(); err != nil {
 		return err
