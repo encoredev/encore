@@ -34,7 +34,6 @@ Checks your application for compile-time errors using Encore's compiler.
 $ encore check
 ```
 
-
 #### Exec
 
 Runs executable scripts against the local Encore app.
@@ -42,8 +41,12 @@ Runs executable scripts against the local Encore app.
 Compiles and runs a go script with the local Encore app environment setup.
 
 ```
-$ encore exec <path/to/script>
+$ encore exec <path/to/command> [...args]
 ```
+
+The command directory should contain Go files with package main with a main function.
+
+The additional arguments are passed directly to the built binary.
 
 ##### Example
 
@@ -197,11 +200,11 @@ By default, `encore gen client` generates the client based on the version of you
 You can change this using the `--env` flag and specifying the environment name.
 
 Use `--lang=<lang>` to specify the language. Supported language codes are:
+
 - `go`: A Go client using the net/http package
 - `typescript`: A TypeScript client using the in-browser Fetch API
 - `javascript`: A JavaScript client using the in-browser Fetch API
 - `openapi`: An OpenAPI spec
-
 
 ```shell
 $ encore gen client [<app-id>] [--env=<name>] [--services=foo,bar] [--excluded-services=baz,qux] [--lang=<lang>] [flags]
@@ -243,17 +246,16 @@ Where `<types>` defines which environment types the secret value applies to. Use
 
 **Examples**
 
-
 Entering a secret directly in terminal:
 
-	$ encore secret set --type dev MySecret
-	Enter secret value: ...
-	Successfully created secret value for MySecret.
+    $ encore secret set --type dev MySecret
+    Enter secret value: ...
+    Successfully created secret value for MySecret.
 
 Piping a secret from a file:
 
-	$ encore secret set --type dev,local MySecret < my-secret.txt
-	Successfully created secret value for MySecret.
+    $ encore secret set --type dev,local MySecret < my-secret.txt
+    Successfully created secret value for MySecret.
 
 Note that this strips trailing newlines from the secret value.
 
@@ -280,7 +282,6 @@ Unarchives a secret value
 ```shell
 $  encore secret unarchive <id>
 ```
-
 
 ## Version
 
@@ -325,6 +326,7 @@ Stops the VPN connection
 ```shell
 $ encore vpn stop
 ```
+
 ## Build
 
 Generates an image for your app, which can be used to [self-host](/docs/go/self-host/docker-build) your app.
