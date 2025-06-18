@@ -188,7 +188,7 @@ impl<'a> UsageResolver<'a> {
                         for bind in resolved_binds.into_iter().flatten() {
                             external.push(BindToScan {
                                 bound_name: local_name.to_id(),
-                                selector: bind.name.as_deref(),
+                                selector: Some(bind.name.as_deref().unwrap_or("default")),
                                 bind: bind.to_owned(),
                             });
                         }
