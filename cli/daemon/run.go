@@ -183,6 +183,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 			connURL, err := url.Parse(connCfg.ConnString)
 			if err != nil {
 				log.Warn().Err(err).Str("key", key).Msg("failed to parse connection string")
+				continue
 			}
 			connURL.User = url.User(connURL.User.Username())
 			externalDBs[db] = connURL.String()
@@ -200,9 +201,9 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	if ns := runInstance.NS; !ns.Active || ns.Name != "default" {
 		_, _ = fmt.Fprintf(stderr, "  Namespace:                  %s\n", aurora.Cyan(ns.Name))
-	}
-	if len(externalDBs) > 0 {
-		_, _ = fmt.Fprintln(stderr, "  External databases:")
+		if len(externalDBs) > 0 {
+			_, _ = fmt.Fprintln(stderr, "  External databases:")
+		}
 	}
 	for db, connStr := range externalDBs {
 		_, _ = fmt.Fprintf(stderr, "     %s: %s\n", db, aurora.Cyan(connStr))
