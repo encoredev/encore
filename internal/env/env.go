@@ -110,6 +110,13 @@ func EncoreMCPSSEListenAddr() option.Option[string] {
 	return option.None[string]()
 }
 
+func EncoreObjectStorageListAddr() option.Option[string] {
+	if p := os.Getenv("ENCORE_OBJECTSTORAGE_LISTEN_ADDR"); p != "" {
+		return option.Some(p)
+	}
+	return option.None[string]()
+}
+
 func encoreGoRoot() string {
 	if p := os.Getenv("ENCORE_GOROOT"); p != "" {
 		return p
