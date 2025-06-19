@@ -245,7 +245,7 @@ func (rm *ResourceManager) StartSQLCluster(a *optracker.AsyncBuildJobs, md *meta
 			})
 		} else {
 			a.Go("Running database migrations", true, 250*time.Millisecond, func(ctx context.Context) error {
-				err := cluster.SetupAndMigrate(ctx, rm.app.Root(), md)
+				err := cluster.SetupAndMigrate(ctx, rm.app.Root(), md.SqlDatabases)
 				if err != nil {
 					rm.log.Error().Err(err).Msg("failed to setup db")
 					return err

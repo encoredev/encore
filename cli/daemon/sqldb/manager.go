@@ -14,10 +14,11 @@ import (
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
+	"encr.dev/cli/daemon/secret"
 )
 
 // NewClusterManager creates a new ClusterManager.
-func NewClusterManager(driver Driver, apps *apps.Manager, ns *namespace.Manager) *ClusterManager {
+func NewClusterManager(driver Driver, apps *apps.Manager, ns *namespace.Manager, secretMgr *secret.Manager) *ClusterManager {
 	log := log.Logger
 	return &ClusterManager{
 		log:            log,
@@ -26,6 +27,7 @@ func NewClusterManager(driver Driver, apps *apps.Manager, ns *namespace.Manager)
 		ns:             ns,
 		clusters:       make(map[clusterKey]*Cluster),
 		backendKeyData: make(map[uint32]*Cluster),
+		secretMgr:      secretMgr,
 	}
 }
 
@@ -36,6 +38,7 @@ type ClusterManager struct {
 	apps       *apps.Manager
 	ns         *namespace.Manager
 	startGroup singleflight.Group
+	secretMgr  *secret.Manager
 
 	mu       sync.Mutex
 	clusters map[clusterKey]*Cluster
@@ -97,6 +100,19 @@ func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Clu
 			started:  make(chan struct{}),
 			log:      cm.log.With().Interface("cluster", params.ClusterID).Logger(),
 			dbs:      make(map[string]*DB),
+			isExternal: func(name string) bool {
+				// Don't use external databases for Memfs clusters (tests/shadows).
+				if params.Memfs {
+					return false
+				}
+				secrets, err := cm.secretMgr.Load(params.ClusterID.NS.App).Get(ctx, nil)
+				if err != nil {
+					c.log.Error().Err(err).Msg("failed to load secrets for external database check")
+					return false
+				}
+				_, ok := secrets.Values["sqldb::"+name]
+				return ok
+			},
 		}
 
 		cm.clusters[key] = c

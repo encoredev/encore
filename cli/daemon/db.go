@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -137,6 +138,9 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		ClusterID: clusterID,
 		Memfs:     clusterType.Memfs(),
 	})
+	if cluster.IsExternalDB(req.DbName) {
+		return nil, errors.New("connecting to an external database is disabled")
+	}
 	// TODO would be nice to stream this to the CLI
 	if _, err := cluster.Start(ctx, nil); err != nil {
 		log.Error().Err(err).Msg("failed to start db cluster")
@@ -333,7 +337,6 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		sendErr(err)
 		return nil
 	}
-
 	err = cluster.Recreate(stream.Context(), req.AppRoot, req.DatabaseNames, parse.Meta)
 	if err != nil {
 		sendErr(err)

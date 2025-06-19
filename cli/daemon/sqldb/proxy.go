@@ -303,7 +303,15 @@ func (cm *ClusterManager) PreauthProxyConn(client net.Conn, id ClusterID) error 
 		})
 		return nil
 	}
-
+	if cluster.IsExternalDB(startup.Database) {
+		cm.log.Error().Str("db", startup.Database).Msg("dbproxy: cannot proxy external database")
+		_ = cl.Backend.Send(&pgproto3.ErrorResponse{
+			Severity: "FATAL",
+			Code:     "08006",
+			Message:  "proxy to external databases is disabled",
+		})
+		return nil
+	}
 	db, ok := cluster.GetDB(startup.Database)
 	if !ok {
 		_ = cl.Backend.Send(&pgproto3.ErrorResponse{

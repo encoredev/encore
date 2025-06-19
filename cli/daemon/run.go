@@ -1,13 +1,16 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/logrusorgru/aurora/v3"
+	"github.com/rs/zerolog/log"
 
 	"encr.dev/cli/daemon/run"
 	"encr.dev/internal/optracker"
@@ -165,6 +168,28 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 
 	ops.AllDone()
 
+	secrets, _ := s.sm.Load(app).Get(ctx, nil)
+	externalDBs := map[string]string{}
+	for key, val := range secrets.Values {
+		if db, ok := strings.CutPrefix(key, "sqldb::"); ok {
+			var connCfg struct {
+				ConnString string `json:"connection_string"`
+			}
+			err := json.Unmarshal([]byte(val), &connCfg)
+			if err != nil {
+				log.Warn().Err(err).Str("key", key).Msg("failed to unmarshal connection string")
+				continue
+			}
+			connURL, err := url.Parse(connCfg.ConnString)
+			if err != nil {
+				log.Warn().Err(err).Str("key", key).Msg("failed to parse connection string")
+				continue
+			}
+			connURL.User = url.User(connURL.User.Username())
+			externalDBs[db] = connURL.String()
+
+		}
+	}
 	_, _ = stderr.Write([]byte("\n"))
 	_, _ = fmt.Fprintf(stderr, "  Encore development server running!\n\n")
 
@@ -173,8 +198,15 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		"%s/%s", s.mgr.DashBaseURL, app.PlatformOrLocalID())))
 	_, _ = fmt.Fprintf(stderr, "  MCP SSE URL:                %s\n", aurora.Cyan(fmt.Sprintf(
 		"%s/sse?appID=%s", s.mcp.BaseURL, app.PlatformOrLocalID())))
+
 	if ns := runInstance.NS; !ns.Active || ns.Name != "default" {
 		_, _ = fmt.Fprintf(stderr, "  Namespace:                  %s\n", aurora.Cyan(ns.Name))
+		if len(externalDBs) > 0 {
+			_, _ = fmt.Fprintln(stderr, "  External databases:")
+		}
+	}
+	for db, connStr := range externalDBs {
+		_, _ = fmt.Fprintf(stderr, "     %s: %s\n", db, aurora.Cyan(connStr))
 	}
 	if req.DebugMode == daemonpb.RunRequest_DEBUG_ENABLED {
 		// Print the pid for debugging. Currently we only support this if we have a default gateway.

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/xid"
 	"go4.org/syncutil"
 	"google.golang.org/protobuf/proto"
@@ -278,30 +279,75 @@ func (g *RuntimeConfigGenerator) initialize() error {
 			})
 
 			for _, db := range g.md.SqlDatabases {
-				dbConfig, err := g.infraManager.SQLDatabaseConfig(db)
-				if err != nil {
-					return errors.Wrap(err, "failed to generate SQL database config")
+				if externalDB, ok := g.DefinedSecrets["sqldb::"+db.Name]; ok {
+					var extCfg struct {
+						ConnectionString string `json:"connection_string"`
+					}
+					if err := json.Unmarshal([]byte(externalDB), &extCfg); err != nil {
+						return errors.Wrapf(err, "failed to unmarshal external DB config for %q", db.Name)
+					}
+					pCfg, err := pgx.ParseConfig(extCfg.ConnectionString)
+					if err != nil {
+						return errors.Wrapf(err, "failed to parse external DB connection string for %q", db.Name)
+					}
+					cluster := g.conf.Infra.SQLCluster(&runtimev1.SQLCluster{
+						Rid: newRid(),
+					})
+					cluster.SQLServer(&runtimev1.SQLServer{
+						Rid:  newRid(),
+						Kind: runtimev1.ServerKind_SERVER_KIND_PRIMARY,
+						Host: pCfg.Host,
+						TlsConfig: &runtimev1.TLSConfig{
+							DisableCaValidation: true,
+						},
+					})
+					// Generate a role rid based on the cluster+username combination.
+					roleRid := fmt.Sprintf("role:%s:%s", cluster.Val.Rid, pCfg.User)
+					g.conf.Infra.SQLRole(&runtimev1.SQLRole{
+						Rid:           roleRid,
+						Username:      pCfg.User,
+						Password:      toSecret([]byte(pCfg.Password)),
+						ClientCertRid: nil,
+					})
+					cluster.SQLDatabase(&runtimev1.SQLDatabase{
+						Rid:        newRid(),
+						EncoreName: db.Name,
+						CloudName:  pCfg.Database,
+						ConnPools:  nil,
+					}).AddConnectionPool(&runtimev1.SQLConnectionPool{
+						IsReadonly:     false,
+						RoleRid:        roleRid,
+						MinConnections: int32(0),
+						MaxConnections: int32(0),
+					})
+				} else {
+					dbConfig, err := g.infraManager.SQLDatabaseConfig(db)
+					if err != nil {
+						return errors.Wrap(err, "failed to generate SQL database config")
+					}
+
+					// Generate a role rid based on the cluster+username combination.
+					roleRid := fmt.Sprintf("role:%s:%s", cluster.Val.Rid, dbConfig.User)
+					g.conf.Infra.SQLRole(&runtimev1.SQLRole{
+						Rid:           roleRid,
+						Username:      dbConfig.User,
+						Password:      toSecret([]byte(dbConfig.Password)),
+						ClientCertRid: nil,
+					})
+					cluster.SQLDatabase(&runtimev1.SQLDatabase{
+						Rid:        newRid(),
+						EncoreName: dbConfig.EncoreName,
+						CloudName:  dbConfig.DatabaseName,
+						ConnPools:  nil,
+					}).AddConnectionPool(&runtimev1.SQLConnectionPool{
+						IsReadonly:     false,
+						RoleRid:        roleRid,
+						MinConnections: int32(dbConfig.MinConnections),
+						MaxConnections: int32(dbConfig.MaxConnections),
+					})
+
 				}
 
-				// Generate a role rid based on the cluster+username combination.
-				roleRid := fmt.Sprintf("role:%s:%s", cluster.Val.Rid, dbConfig.User)
-				g.conf.Infra.SQLRole(&runtimev1.SQLRole{
-					Rid:           roleRid,
-					Username:      dbConfig.User,
-					Password:      toSecret([]byte(dbConfig.Password)),
-					ClientCertRid: nil,
-				})
-				cluster.SQLDatabase(&runtimev1.SQLDatabase{
-					Rid:        newRid(),
-					EncoreName: dbConfig.EncoreName,
-					CloudName:  dbConfig.DatabaseName,
-					ConnPools:  nil,
-				}).AddConnectionPool(&runtimev1.SQLConnectionPool{
-					IsReadonly:     false,
-					RoleRid:        roleRid,
-					MinConnections: int32(dbConfig.MinConnections),
-					MaxConnections: int32(dbConfig.MaxConnections),
-				})
 			}
 		}
 
