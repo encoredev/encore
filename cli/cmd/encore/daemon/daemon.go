@@ -130,7 +130,7 @@ func (d *Daemon) init(ctx context.Context) {
 	d.DBProxy = d.listenTCPRetry("dbproxy", option.None[string](), 9500)
 	d.Runtime = d.listenTCPRetry("runtime", option.None[string](), 9600)
 	d.Debug = d.listenTCPRetry("debug", option.None[string](), 9700)
-	d.ObjectStorage = d.listenTCPRetry("objectstorage", option.None[string](), 9800)
+	d.ObjectStorage = d.listenTCPRetry("objectstorage", env.EncoreObjectStorageListAddr(), 9800)
 	d.MCP = d.listenTCPRetry("mcp", env.EncoreMCPSSEListenAddr(), 9900)
 	d.EncoreDB = d.openDB()
 
