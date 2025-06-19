@@ -43,6 +43,19 @@ impl RequestValidator {
         Self { keys }
     }
 
+    #[cfg(test)]
+    pub fn new_mock() -> Self {
+        use crate::secrets::Secret;
+
+        Self {
+            keys: [SigningKey {
+                id: 123,
+                data: Secret::new_for_test("secret data"),
+            }]
+            .into(),
+        }
+    }
+
     pub fn validate_platform_request(
         &self,
         req: &ValidationData,
