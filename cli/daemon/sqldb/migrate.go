@@ -80,9 +80,25 @@ var _ io.ReadCloser = (*multiReadCloser)(nil)
 
 // NewMetadataSource creates a new MetadataSource instance.
 func NewMetadataSource(reader MigrationReader, migrations []*meta.DBMigration) *MetadataSource {
-	return &MetadataSource{
+	src := &MetadataSource{
 		MigrationReader: reader,
 		migrations:      migrations,
+	}
+	src.validate()
+	return src
+}
+
+func (src *MetadataSource) validate() {
+	if src.err != nil {
+		return
+	}
+	seen := make(map[uint64]struct{})
+	for _, m := range src.migrations {
+		if _, ok := seen[m.Number]; ok {
+			src.err = fmt.Errorf("duplicate migration identifier %q", m.Filename)
+			return
+		}
+		seen[m.Number] = struct{}{}
 	}
 }
 
@@ -91,6 +107,7 @@ func NewMetadataSource(reader MigrationReader, migrations []*meta.DBMigration) *
 type MetadataSource struct {
 	MigrationReader
 	migrations []*meta.DBMigration
+	err        error
 }
 
 func (src *MetadataSource) ReadUp(version uint) (r io.ReadCloser, identifier string, err error) {
@@ -150,6 +167,9 @@ func (src *MetadataSource) ReadDown(version uint) (r io.ReadCloser, identifier s
 }
 
 func (src *MetadataSource) migration(version uint, offset int) (*meta.DBMigration, error) {
+	if src.err != nil {
+		return nil, src.err
+	}
 	idx := slices.IndexFunc(src.migrations, func(m *meta.DBMigration) bool {
 		return m.Number == uint64(version)
 	})
