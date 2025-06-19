@@ -816,6 +816,10 @@ func buildAppStatus(app *apps.Instance, runInstance *run.Run) (s appStatus, err 
 func buildDbMigrationStatus(ctx context.Context, appMeta *meta.Data, cluster *sqldb.Cluster) []dbMigrationHistory {
 	var statuses []dbMigrationHistory
 	for _, dbMeta := range appMeta.SqlDatabases {
+		if cluster.IsExternalDB(dbMeta.Name) {
+			log.Debug().Msgf("skipping external database %s", dbMeta.Name)
+			continue
+		}
 		db, ok := cluster.GetDB(dbMeta.Name)
 		if !ok {
 			log.Error().Msgf("failed to get database %s", dbMeta.Name)

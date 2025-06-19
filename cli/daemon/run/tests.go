@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/rs/xid"
@@ -119,6 +120,12 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 			return nil, err
 		}
 		secrets = secretData.Values
+		// remove db override secrets for tests
+		for k, _ := range secrets {
+			if strings.HasPrefix(k, "sqldb::") {
+				delete(secrets, k)
+			}
+		}
 	}
 
 	vcsRevision := vcs.GetRevision(params.App.Root())

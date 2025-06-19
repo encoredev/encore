@@ -151,12 +151,12 @@ func (d *Daemon) init(ctx context.Context) {
 	}
 
 	d.NS = namespace.NewManager(d.EncoreDB)
-	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS)
+	d.Secret = secret.New()
+	d.ClusterMgr = sqldb.NewClusterManager(sqldbDriver, d.Apps, d.NS, d.Secret)
 	d.ObjectsMgr = objects.NewClusterManager(d.NS)
 	d.PublicBuckets = objects.NewPublicBucketServer("http://"+d.ObjectStorage.ClientAddr(), d.ObjectsMgr.PersistentStoreFallback)
 
 	d.Trace = sqlite.New(ctx, d.EncoreDB)
-	d.Secret = secret.New()
 	d.RunMgr = &run.Manager{
 		RuntimePort:   d.Runtime.Port(),
 		DBProxyPort:   d.DBProxy.Port(),
