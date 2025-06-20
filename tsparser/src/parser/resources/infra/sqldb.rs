@@ -12,8 +12,8 @@ use swc_ecma_ast as ast;
 use litparser::{report_and_continue, LitParser, Sp, ToParseErr};
 use litparser::{LocalRelPath, ParseResult};
 
-use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
+use crate::parser::resourceparser::bind::{BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{iter_references, TrackedNames};
@@ -72,13 +72,13 @@ pub struct DBMigration {
     pub number: u64,
 }
 
-#[derive(LitParser)]
+#[derive(LitParser, Debug)]
 struct MigrationsConfig {
     path: LocalRelPath,
     source: Option<String>,
 }
 
-#[derive(LitParser, Default)]
+#[derive(LitParser, Default, Debug)]
 struct DecodedDatabaseConfig {
     migrations: Option<Either<LocalRelPath, MigrationsConfig>>,
 }
@@ -152,9 +152,12 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                     }
                 };
 
-                let object = match &r.bind_name {
-                    None => None,
-                    Some(id) => pass
+                let object = match r.bind_name {
+                    BindName::Anonymous => None,
+                    BindName::DefaultExport(ref expr) => {
+                        pass.type_checker.resolve_obj(pass.module.clone(), expr)
+                    }
+                    BindName::Named(ref id) => pass
                         .type_checker
                         .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };
@@ -179,9 +182,12 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
         {
             for r in iter_references::<NamedStaticMethod>(&module, &names) {
                 let r = report_and_continue!(r);
-                let object = match &r.bind_name {
-                    None => None,
-                    Some(id) => pass
+                let object = match r.bind_name {
+                    BindName::Anonymous => None,
+                    BindName::DefaultExport(ref expr) => {
+                        pass.type_checker.resolve_obj(pass.module.clone(), expr)
+                    }
+                    BindName::Named(ref id) => pass
                         .type_checker
                         .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };
@@ -363,7 +369,7 @@ fn parse_migrations(
     let mut migrations = match source {
         Some(MigrationFileSource::Drizzle) => parse_drizzle(span, dir),
         Some(MigrationFileSource::Prisma) => parse_prisma(span, dir),
-        _ => parse_default(span, dir),
+        None => parse_default(span, dir),
     }?;
     migrations.sort_by_key(|m| m.number);
     Ok(migrations)
@@ -379,7 +385,7 @@ pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> 
             db,
         })),
 
-        _ => {
+        UsageExprKind::Other(_) | UsageExprKind::Callee(_) => {
             data.expr.err("invalid use of database resource");
             None
         }

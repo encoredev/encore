@@ -12,7 +12,7 @@ use litparser::{
 use litparser_derive::LitParser;
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
+use crate::parser::resourceparser::bind::{BindData, BindKind, BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::apis::encoding::{
@@ -394,7 +394,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 resource: ResourceOrPath::Resource(resource),
                 object,
                 kind: BindKind::Create,
-                ident: Some(r.bind_name),
+                ident: BindName::Named(r.bind_name),
             });
         }
     },
