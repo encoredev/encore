@@ -186,10 +186,11 @@ impl<'a> UsageResolver<'a> {
                         };
 
                         for bind in resolved_binds.into_iter().flatten() {
-                            if let Some(name) = &bind.name {
+                            // don't add anonymous binds e.g `const _ = new ...`
+                            if bind.name.is_some() {
                                 external.push(BindToScan {
                                     bound_name: local_name.to_id(),
-                                    selector: Some(name),
+                                    selector: bind.name.as_deref(),
                                     bind: bind.to_owned(),
                                 });
                             }

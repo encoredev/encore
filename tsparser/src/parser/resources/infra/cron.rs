@@ -11,7 +11,9 @@ use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resourceparser::ResourceParseContext;
-use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
+use crate::parser::resources::parseutil::{
+    iter_references, resolve_object_for_bind_name, NamedClassResource, TrackedNames,
+};
 use crate::parser::resources::Resource;
 use crate::parser::types::Object;
 
@@ -61,12 +63,7 @@ fn parse_cron_job(
     pass: &mut ResourceParseContext,
     r: NamedClassResource<DecodedCronJobConfig>,
 ) -> ParseResult<()> {
-    let object = match &r.bind_name {
-        None => None,
-        Some(id) => pass
-            .type_checker
-            .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
-    };
+    let object = resolve_object_for_bind_name(pass.type_checker, pass.module.clone(), &r.bind_name);
 
     let endpoint = pass
         .type_checker

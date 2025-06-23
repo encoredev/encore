@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::rc::Rc;
 
+use bind::BindName;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
@@ -102,15 +103,14 @@ impl<'a> PassOneParser<'a> {
         let mut binds = Vec::with_capacity(ctx.binds.len());
         for b in ctx.binds {
             self.next_id += 1;
-            let name = b.ident.as_ref().map(|x| x.sym.as_ref().to_string());
             binds.push(UnresolvedBind {
                 id: self.next_id.into(),
-                name,
+                name: b.ident.name(),
                 object: b.object,
                 kind: b.kind,
                 resource: b.resource,
                 range: Some(b.range),
-                internal_bound_id: b.ident.map(|i| i.to_id()),
+                internal_bound_id: b.ident.ident().map(|i| i.to_id()),
                 module_id: module.id,
             });
         }
@@ -156,9 +156,9 @@ impl<'a> ResourceParseContext<'a> {
     /// Register a bind.
     pub fn add_bind(&mut self, bind: BindData) {
         // Treat "_" as an anonymous bind.
-        let ident = match &bind.ident {
-            Some(name) if name.sym == "_" => None,
-            x => x.to_owned(),
+        let ident = match bind.ident {
+            BindName::Named(name) if name.sym == "_" => BindName::Anonymous,
+            x => x,
         };
         self.binds.push(BindData { ident, ..bind });
     }

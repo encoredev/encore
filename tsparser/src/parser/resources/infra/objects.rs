@@ -9,7 +9,9 @@ use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::parseutil::{iter_references, TrackedNames};
+use crate::parser::resources::parseutil::{
+    iter_references, resolve_object_for_bind_name, TrackedNames,
+};
 use crate::parser::resources::parseutil::{NamedClassResourceOptionalConfig, NamedStaticMethod};
 use crate::parser::resources::Resource;
 use crate::parser::resources::ResourcePath;
@@ -46,12 +48,11 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
                 let r = report_and_continue!(r);
                 let cfg = r.config.unwrap_or_default();
 
-                let object = match &r.bind_name {
-                    None => None,
-                    Some(id) => pass
-                        .type_checker
-                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
-                };
+                let object = resolve_object_for_bind_name(
+                    pass.type_checker,
+                    pass.module.clone(),
+                    &r.bind_name,
+                );
 
                 let resource = Resource::Bucket(Lrc::new(Bucket {
                     name: r.resource_name,
@@ -74,13 +75,11 @@ pub const OBJECTS_PARSER: ResourceParser = ResourceParser {
         {
             for r in iter_references::<NamedStaticMethod>(&module, &names) {
                 let r = report_and_continue!(r);
-                let object = match &r.bind_name {
-                    None => None,
-                    Some(id) => pass
-                        .type_checker
-                        .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
-                };
-
+                let object = resolve_object_for_bind_name(
+                    pass.type_checker,
+                    pass.module.clone(),
+                    &r.bind_name,
+                );
                 pass.add_bind(BindData {
                     range: r.range,
                     resource: ResourceOrPath::Path(ResourcePath::Bucket {

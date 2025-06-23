@@ -81,6 +81,15 @@ impl TypeChecker {
         let ctx = Ctx::new(&self.ctx, obj.module_id);
         ctx.obj_type(obj)
     }
+
+    pub fn resolve_default_export(&self, module: Lrc<module_loader::Module>) -> Option<Rc<Object>> {
+        // Ensure the module is initialized.
+        let module_id = module.id;
+        _ = self.ctx.get_or_init_module(module);
+
+        let ctx = Ctx::new(&self.ctx, module_id);
+        ctx.resolve_default_export()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1602,6 +1611,10 @@ impl Ctx<'_> {
     fn ident_obj(&self, ident: &ast::Ident) -> Option<Rc<Object>> {
         // Does this represent a type parameter?
         self.state.resolve_module_ident(self.module, ident)
+    }
+
+    fn resolve_default_export(&self) -> Option<Rc<Object>> {
+        self.state.resolve_module_default_export(self.module)
     }
 }
 
