@@ -86,7 +86,6 @@ struct ServiceLiteral {
     pub doc_comment: Option<String>,
     pub resource_name: String,
     pub config: Option<DecodedServiceConfig>,
-    pub expr: ast::NewExpr,
 }
 
 impl ReferenceParser for ServiceLiteral {
@@ -130,7 +129,6 @@ impl ReferenceParser for ServiceLiteral {
                     doc_comment,
                     resource_name: resource_name.to_string(),
                     config,
-                    expr: (*expr).to_owned(),
                 }));
             }
         }
