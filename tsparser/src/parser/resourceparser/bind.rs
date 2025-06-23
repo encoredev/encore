@@ -24,12 +24,37 @@ pub enum ResourceOrPath {
 }
 
 #[derive(Debug)]
+pub enum BindName {
+    Named(ast::Ident),
+    DefaultExport,
+    Anonymous,
+}
+
+impl BindName {
+    pub fn name(&self) -> Option<String> {
+        match self {
+            BindName::Named(ident) => Some(ident.sym.to_string()),
+            BindName::DefaultExport => Some("default".to_string()),
+            BindName::Anonymous => None,
+        }
+    }
+
+    pub fn ident(&self) -> Option<&ast::Ident> {
+        if let BindName::Named(name) = self {
+            Some(name)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct BindData {
     pub resource: ResourceOrPath,
     pub range: Range,
 
-    /// The identifier it is bound to, if any.
-    pub ident: Option<ast::Ident>,
+    /// The identifier it is bound to.
+    pub ident: BindName,
     // The object it is bound to, if any.
     pub object: Option<Rc<Object>>,
     pub kind: BindKind,

@@ -5,11 +5,12 @@ use swc_ecma_ast as ast;
 use litparser::{report_and_continue, LitParser, ParseResult, Sp, ToParseErr};
 
 use crate::parser::module_loader::Module;
-use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
+use crate::parser::resourceparser::bind::{BindData, BindKind, BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{
-    extract_type_param, iter_references, NamedClassResource, ReferenceParser, TrackedNames,
+    extract_type_param, iter_references, resolve_object_for_bind_name, NamedClassResource,
+    ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
 use crate::parser::types::Type;
@@ -63,12 +64,8 @@ pub const TOPIC_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<PubSubTopicDefinition>(&module, &names) {
             let r = report_and_continue!(r);
-            let object = match &r.bind_name {
-                None => None,
-                Some(id) => pass
-                    .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
-            };
+            let object =
+                resolve_object_for_bind_name(pass.type_checker, pass.module.clone(), &r.bind_name);
 
             let message_type = pass
                 .type_checker
@@ -100,7 +97,7 @@ struct PubSubTopicDefinition {
     pub resource_name: String,
     pub config: DecodedTopicConfig,
     pub doc_comment: Option<String>,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub message_type: ast::TsType,
 }
 

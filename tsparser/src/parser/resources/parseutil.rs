@@ -1,11 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use litparser::{LitParser, ParseResult, ToParseErr};
 use swc_common::{Span, Spanned};
-use swc_ecma_ast::{self as ast, TsTypeParamInstantiation};
+use swc_ecma_ast::{self as ast, CallExpr, MemberExpr, NewExpr, TsTypeParamInstantiation};
 use swc_ecma_visit::VisitWithPath;
 
 use crate::parser::module_loader::Module;
+use crate::parser::resourceparser::bind::BindName;
+use crate::parser::types::{Object, TypeChecker};
 use crate::parser::Range;
 
 pub trait ReferenceParser
@@ -23,7 +26,7 @@ pub struct NamedClassResource<Config, const NAME_IDX: usize = 0, const CONFIG_ID
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
     pub resource_name: String,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub config: Config,
     pub expr: ast::NewExpr,
 }
@@ -66,6 +69,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
     }
 }
 
+#[derive(Debug)]
 pub struct NamedClassResourceOptionalConfig<
     Config,
     const NAME_IDX: usize = 0,
@@ -75,7 +79,7 @@ pub struct NamedClassResourceOptionalConfig<
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
     pub resource_name: String,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub config: Option<Config>,
     pub expr: ast::NewExpr,
 }
@@ -105,7 +109,16 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     return Err(expr.span.parse_err("missing constructor arguments"));
                 };
 
-                let bind_name = extract_bind_name(path)?;
+                let bind_name = match extract_bind_name(path)? {
+                    Some(name) => BindName::Named(name),
+                    None => {
+                        if is_default_export(path, (*expr).into()) {
+                            BindName::DefaultExport
+                        } else {
+                            BindName::Anonymous
+                        }
+                    }
+                };
                 let resource_name = extract_resource_name(expr.span, args, NAME_IDX)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
@@ -134,7 +147,7 @@ pub struct UnnamedClassResource<Config, const CONFIG_IDX: usize = 0> {
     #[allow(dead_code)]
     pub constructor_args: Vec<ast::ExprOrSpread>,
     pub doc_comment: Option<String>,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
     pub config: Config,
 }
 
@@ -161,7 +174,16 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                     return Err(expr.span.parse_err("missing constructor arguments"));
                 };
 
-                let bind_name = extract_bind_name(path)?;
+                let bind_name = match extract_bind_name(path)? {
+                    Some(name) => BindName::Named(name),
+                    None => {
+                        if is_default_export(path, (*expr).into()) {
+                            BindName::DefaultExport
+                        } else {
+                            BindName::Anonymous
+                        }
+                    }
+                };
                 let config = Config::parse_lit(&args[CONFIG_IDX].expr)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
@@ -185,7 +207,7 @@ pub struct NamedStaticMethod<const NAME_IDX: usize = 0> {
     #[allow(dead_code)]
     pub doc_comment: Option<String>,
     pub resource_name: String,
-    pub bind_name: Option<ast::Ident>,
+    pub bind_name: BindName,
 }
 
 impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
@@ -223,7 +245,16 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                     continue;
                 };
 
-                let bind_name = extract_bind_name(path)?;
+                let bind_name = match extract_bind_name(path)? {
+                    Some(name) => BindName::Named(name),
+                    None => {
+                        if is_default_export(path, (*expr).into()) {
+                            BindName::DefaultExport
+                        } else {
+                            BindName::Anonymous
+                        }
+                    }
+                };
                 let resource_name = extract_resource_name(call.span, &call.args, NAME_IDX)?;
                 let doc_comment = module.preceding_comments(call.span.lo.into());
 
@@ -281,6 +312,58 @@ pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> ParseResult<Opti
         }
     }
     Ok(None)
+}
+
+pub enum Expr<'a> {
+    New(&'a NewExpr),
+    Call(&'a CallExpr),
+    Member(&'a MemberExpr),
+}
+
+impl<'a> From<&'a NewExpr> for Expr<'a> {
+    fn from(expr: &'a NewExpr) -> Self {
+        Self::New(expr)
+    }
+}
+impl<'a> From<&'a CallExpr> for Expr<'a> {
+    fn from(expr: &'a CallExpr) -> Self {
+        Self::Call(expr)
+    }
+}
+
+impl<'a> From<&'a MemberExpr> for Expr<'a> {
+    fn from(expr: &'a MemberExpr) -> Self {
+        Self::Member(expr)
+    }
+}
+
+// checks if `expr` is the default export in `path`
+pub fn is_default_export(path: &swc_ecma_visit::AstNodePath, expr: Expr) -> bool {
+    for node in path.iter().rev() {
+        match node {
+            swc_ecma_visit::AstParentNodeRef::ExportDefaultExpr(
+                swc_ecma_ast::ExportDefaultExpr {
+                    expr: exported_expr,
+                    ..
+                },
+                swc_ecma_visit::fields::ExportDefaultExprField::Expr,
+            ) => {
+                return match expr {
+                    Expr::Member(member_expr) => {
+                        matches!(**exported_expr, swc_ecma_ast::Expr::Member(ref expr) if expr == member_expr)
+                    }
+                    Expr::Call(call_expr) => {
+                        matches!(**exported_expr, swc_ecma_ast::Expr::Call(ref expr) if expr == call_expr)
+                    }
+                    Expr::New(new_expr) => {
+                        matches!(**exported_expr, swc_ecma_ast::Expr::New(ref expr) if expr == new_expr)
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
+    false
 }
 
 pub struct TrackedNames<'a>(HashMap<&'a str, Vec<&'a str>>);
@@ -415,4 +498,18 @@ pub fn extract_type_param(
     let params = params?;
     let param = params.params.get(idx)?;
     Some(param.as_ref())
+}
+
+pub fn resolve_object_for_bind_name(
+    type_checker: &TypeChecker,
+    module: Rc<Module>,
+    bind_name: &BindName,
+) -> Option<Rc<Object>> {
+    match bind_name {
+        BindName::Anonymous => None,
+        BindName::DefaultExport => type_checker.resolve_default_export(module.clone()),
+        BindName::Named(ref id) => {
+            type_checker.resolve_obj(module.clone(), &ast::Expr::Ident(id.clone()))
+        }
+    }
 }
