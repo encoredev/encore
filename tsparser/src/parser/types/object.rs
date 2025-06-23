@@ -306,6 +306,8 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
 
                 // TODO(andre) Can this affect the module namespace?
                 ast::ModuleDecl::ExportDefaultExpr(_expr) => {
+                    // TODO this is e.g `export default new SQLDatabase`
+                    // need to resolve to object
                     log::debug!("TODO export default expr");
                 }
 
@@ -734,6 +736,10 @@ impl ResolveState {
             .last()
             .ok_or_else(|| anyhow::anyhow!("internal error: no module on stack"))?;
         Ok(module.to_owned())
+    }
+
+    pub(super) fn resolve_module_default_export(&self, module_id: ModuleId) -> Option<Rc<Object>> {
+        self.lookup_module(module_id)?.data.default_export.clone()
     }
 
     pub(super) fn resolve_module_ident(

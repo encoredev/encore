@@ -7,10 +7,12 @@ use swc_ecma_ast as ast;
 
 use litparser::{report_and_continue, LitParser, Sp};
 
-use crate::parser::resourceparser::bind::{BindData, BindKind, BindName, ResourceOrPath};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
-use crate::parser::resources::parseutil::{iter_references, NamedClassResource, TrackedNames};
+use crate::parser::resources::parseutil::{
+    iter_references, resolve_object_for_bind_name, NamedClassResource, TrackedNames,
+};
 use crate::parser::resources::Resource;
 use crate::parser::types::Object;
 use crate::parser::Range;
@@ -71,15 +73,8 @@ pub const SUBSCRIPTION_PARSER: ResourceParser = ResourceParser {
                 spread.err("cannot use ... for PubSub topic reference");
                 continue;
             }
-            let object = match r.bind_name {
-                BindName::Anonymous => None,
-                BindName::DefaultExport(ref expr) => {
-                    pass.type_checker.resolve_obj(pass.module.clone(), expr)
-                }
-                BindName::Named(ref id) => pass
-                    .type_checker
-                    .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
-            };
+            let object =
+                resolve_object_for_bind_name(pass.type_checker, pass.module.clone(), &r.bind_name);
 
             let Some(topic) = pass
                 .type_checker

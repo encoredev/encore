@@ -72,7 +72,7 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                     resource: ResourceOrPath::Resource(resource),
                     object: None,
                     kind: BindKind::Create,
-                    ident: BindName::DefaultExport(r.expr.into()),
+                    ident: BindName::DefaultExport,
                 });
             }
         }

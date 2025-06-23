@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use litparser::{LitParser, ParseResult, ToParseErr};
 use swc_common::{Span, Spanned};
@@ -7,6 +8,7 @@ use swc_ecma_visit::VisitWithPath;
 
 use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::BindName;
+use crate::parser::types::{Object, TypeChecker};
 use crate::parser::Range;
 
 pub trait ReferenceParser
@@ -111,7 +113,7 @@ impl<Config: LitParser, const NAME_IDX: usize, const CONFIG_IDX: usize> Referenc
                     Some(name) => BindName::Named(name),
                     None => {
                         if is_default_export(path, (*expr).into()) {
-                            BindName::DefaultExport((*expr).to_owned().into())
+                            BindName::DefaultExport
                         } else {
                             BindName::Anonymous
                         }
@@ -176,7 +178,7 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                     Some(name) => BindName::Named(name),
                     None => {
                         if is_default_export(path, (*expr).into()) {
-                            BindName::DefaultExport((*expr).to_owned().into())
+                            BindName::DefaultExport
                         } else {
                             BindName::Anonymous
                         }
@@ -247,7 +249,7 @@ impl<const NAME_IDX: usize> ReferenceParser for NamedStaticMethod<NAME_IDX> {
                     Some(name) => BindName::Named(name),
                     None => {
                         if is_default_export(path, (*expr).into()) {
-                            BindName::DefaultExport((*expr).to_owned().into())
+                            BindName::DefaultExport
                         } else {
                             BindName::Anonymous
                         }
@@ -496,4 +498,18 @@ pub fn extract_type_param(
     let params = params?;
     let param = params.params.get(idx)?;
     Some(param.as_ref())
+}
+
+pub fn resolve_object_for_bind_name(
+    type_checker: &TypeChecker,
+    module: Rc<Module>,
+    bind_name: &BindName,
+) -> Option<Rc<Object>> {
+    match bind_name {
+        BindName::Anonymous => None,
+        BindName::DefaultExport => type_checker.resolve_default_export(module.clone()),
+        BindName::Named(ref id) => {
+            type_checker.resolve_obj(module.clone(), &ast::Expr::Ident(id.clone()))
+        }
+    }
 }
