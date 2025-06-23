@@ -52,6 +52,11 @@ type Endpoint struct {
 	// meaning all request/response information will be redacted in traces.
 	Sensitive bool
 
+	// OpenAPITags contains tags that should be included in the OpenAPI specification
+	// for this endpoint. These are extracted from tags with the "openapi-" prefix.
+	// For example, "tag:openapi-Users" becomes "Users" in this slice.
+	OpenAPITags []string
+
 	reqEncOnce  sync.Once
 	reqEncoding []*apienc.RequestEncoding
 
@@ -368,6 +373,21 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 			return true
 		},
 		ValidateTag: func(errs *perr.List, tag directive.Field) (ok bool) {
+			// Extract the tag name (remove "tag:" prefix)
+			tagName := tag.Value[len("tag:"):]
+
+			// Check if it's an OpenAPI tag
+			if strings.HasPrefix(tagName, "openapi-") {
+				openapiTag := tagName[len("openapi-"):]
+				if strings.TrimSpace(openapiTag) == "" {
+					errs.Add(errInvalidOpenAPITag("").AtGoNode(tag))
+					return false
+				}
+				endpoint.OpenAPITags = append(endpoint.OpenAPITags, openapiTag)
+				return true
+			}
+
+			// Regular middleware tag validation
 			sel, ok := selector.Parse(errs, tag.Pos(), tag.Value)
 			if !ok {
 				return false
