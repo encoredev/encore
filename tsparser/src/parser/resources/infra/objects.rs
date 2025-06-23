@@ -5,8 +5,8 @@ use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
 
+use crate::parser::resourceparser::bind::ResourceOrPath;
 use crate::parser::resourceparser::bind::{BindData, BindKind};
-use crate::parser::resourceparser::bind::{BindName, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resources::parseutil::{

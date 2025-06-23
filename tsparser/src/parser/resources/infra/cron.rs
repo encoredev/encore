@@ -7,7 +7,7 @@ use swc_ecma_ast as ast;
 
 use litparser::{report_and_continue, LitParser, ParseResult, Sp, ToParseErr};
 
-use crate::parser::resourceparser::bind::{BindData, BindKind, BindName, ResourceOrPath};
+use crate::parser::resourceparser::bind::{BindData, BindKind, ResourceOrPath};
 use crate::parser::resourceparser::paths::PkgPath;
 use crate::parser::resourceparser::resource_parser::ResourceParser;
 use crate::parser::resourceparser::ResourceParseContext;
