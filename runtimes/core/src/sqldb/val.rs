@@ -80,7 +80,7 @@ impl ToSql for PValue {
                 },
 
                 PValue::String(str) => match *ty {
-                    Type::TEXT | Type::VARCHAR => str.to_sql(ty, out),
+                    Type::TEXT | Type::VARCHAR | Type::NAME => str.to_sql(ty, out),
                     Type::BYTEA => {
                         let val = str.as_bytes();
                         val.to_sql(ty, out)
@@ -274,6 +274,7 @@ impl ToSql for PValue {
                 | Type::TIME
                 | Type::INET
                 | Type::CIDR
+                | Type::NAME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
     }
@@ -327,7 +328,7 @@ impl<'a> FromSql<'a> for PValue {
                 let val: bool = FromSql::from_sql(ty, raw)?;
                 PValue::Bool(val)
             }
-            Type::TEXT | Type::VARCHAR => {
+            Type::TEXT | Type::VARCHAR | Type::NAME => {
                 let val: String = FromSql::from_sql(ty, raw)?;
                 PValue::String(val)
             }
@@ -428,6 +429,7 @@ impl<'a> FromSql<'a> for PValue {
                 | Type::TIME
                 | Type::CIDR
                 | Type::INET
+                | Type::NAME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as FromSql>::accepts(ty))
     }
@@ -570,6 +572,18 @@ mod tests {
     fn test_pvalue_from_sql_string() {
         let raw = b"test";
         let result = PValue::from_sql(&Type::TEXT, raw);
+        assert!(result.is_ok());
+        if let PValue::String(val) = result.unwrap() {
+            assert_eq!(val, "test");
+        } else {
+            panic!("Expected PValue::String");
+        }
+    }
+
+    #[test]
+    fn test_pvalue_from_sql_name() {
+        let raw = b"test";
+        let result = PValue::from_sql(&Type::NAME, raw);
         assert!(result.is_ok());
         if let PValue::String(val) = result.unwrap() {
             assert_eq!(val, "test");
