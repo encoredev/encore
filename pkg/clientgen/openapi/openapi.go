@@ -141,6 +141,7 @@ func (g *Generator) newOperationForEncoding(rpc *meta.RPC, method string, reqEnc
 		Summary:     summary,
 		Description: desc,
 		OperationID: method + ":" + rpc.ServiceName + "." + rpc.Name,
+		Tags:        rpc.GetOpenapiTags(),
 		Responses:   make(openapi3.Responses),
 	}
 

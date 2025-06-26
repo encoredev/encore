@@ -119,6 +119,69 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 				HTTPMethods: []string{"*"},
 			},
 		},
+		{
+			name: "with_openapi_tags_single",
+			def: `
+//encore:api public tag:openapi-Users
+func GetUser(ctx context.Context) error {}
+`,
+			want: &Endpoint{
+				Name:        "GetUser",
+				Doc:         "",
+				Access:      Public,
+				AccessField: option.Some(directive.Field{Value: "public"}),
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "foo.GetUser", ValueType: schema.String},
+				}},
+				HTTPMethods: []string{"GET", "POST"},
+				OpenAPITags: []string{"Users"},
+			},
+		},
+		{
+			name: "with_openapi_tags_multiple",
+			def: `
+//encore:api public tag:openapi-Users tag:openapi-Management tag:openapi-Admin
+func AdminGetUser(ctx context.Context) error {}
+`,
+			want: &Endpoint{
+				Name:        "AdminGetUser",
+				Doc:         "",
+				Access:      Public,
+				AccessField: option.Some(directive.Field{Value: "public"}),
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "foo.AdminGetUser", ValueType: schema.String},
+				}},
+				HTTPMethods: []string{"GET", "POST"},
+				OpenAPITags: []string{"Users", "Management", "Admin"},
+			},
+		},
+		{
+			name: "with_openapi_tags_and_middleware_tags",
+			def: `
+//encore:api public tag:openapi-Users tag:middleware-tag
+func TaggedUser(ctx context.Context) error {}
+`,
+			want: &Endpoint{
+				Name:        "TaggedUser",
+				Doc:         "",
+				Access:      Public,
+				AccessField: option.Some(directive.Field{Value: "public"}),
+				Path: &resourcepaths.Path{Segments: []resourcepaths.Segment{
+					{Type: resourcepaths.Literal, Value: "foo.TaggedUser", ValueType: schema.String},
+				}},
+				HTTPMethods: []string{"GET", "POST"},
+				OpenAPITags: []string{"Users"},
+				Tags:        selector.NewSet(selector.Selector{Type: selector.Tag, Value: "middleware-tag"}),
+			},
+		},
+		{
+			name: "with_invalid_empty_openapi_tag",
+			def: `
+//encore:api public tag:openapi-
+func BadTags(ctx context.Context) error {}
+`,
+			wantErrs: []string{"Invalid OpenAPI tag"},
+		},
 	}
 
 	// testArchive renders the txtar archive to use for a given test.
