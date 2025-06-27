@@ -14,14 +14,23 @@ use object::Reexport;
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::{Globals, SourceMap, GLOBALS};
 use tempdir::TempDir;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[test]
 fn resolve_types() {
     // tracing_subscriber::fmt()
     //     .with_span_events(FmtSpan::ACTIVE)
     //     .init();
-    env_logger::init();
-    glob!("testdata/*", |path| {
+    //
+
+    //env_logger::init();
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::ENTER)
+        .with_writer(std::io::stderr)
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .pretty()
+        .init();
+    glob!("testdata/basic.ts", |path| {
         let globals = Globals::new();
         let errs = Rc::new(Handler::with_tty_emitter(
             swc_common::errors::ColorConfig::Auto,
@@ -65,6 +74,9 @@ fn resolve_types() {
                     .iter()
                     .sorted_by(|a, b| a.1.range.cmp(&b.1.range))
                     .map(|(name, obj)| {
+                        let span =
+                            tracing::trace_span!("resolve_types - named_exports", ?name, ?obj);
+                        let _guard = span.enter();
                         let typ = ctx.obj_type(obj);
                         let typ = ctx.underlying(&typ).into_owned();
                         (name, typ)
@@ -73,6 +85,9 @@ fn resolve_types() {
 
                 let default_key = "default".to_string();
                 if let Some(default_export) = module.data.default_export.as_ref() {
+                    let span =
+                        tracing::trace_span!("resolve_types - default_export", ?default_export);
+                    let _guard = span.enter();
                     let typ = ctx.obj_type(default_export);
                     let typ = ctx.underlying(&typ).into_owned();
                     result.insert(&default_key, typ);

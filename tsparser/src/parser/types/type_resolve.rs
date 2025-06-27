@@ -94,7 +94,7 @@ impl TypeChecker {
 
 #[derive(Debug, Clone)]
 pub struct Ctx<'a> {
-    state: &'a ResolveState,
+    pub state: &'a ResolveState,
 
     /// The current module being resolved.
     module: ModuleId,
@@ -133,6 +133,7 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    #[tracing::instrument(skip(self), level = "trace")]
     fn with_type_params(self, type_params: &'a [&'a ast::TsTypeParam]) -> Self {
         Self {
             type_params,
@@ -140,10 +141,12 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    #[tracing::instrument(skip(self), level = "trace")]
     fn with_type_args(self, type_args: &'a [Type]) -> Self {
         Self { type_args, ..self }
     }
 
+    #[tracing::instrument(skip(self), level = "trace")]
     fn with_mapped_key_id(self, mapped_key_id: Option<ast::Id>) -> Self {
         Self {
             mapped_key_id,
@@ -151,6 +154,7 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    #[tracing::instrument(skip(self), level = "trace")]
     fn with_mapped_key_type(self, mapped_key_type: Option<&'a Type>) -> Self {
         Self {
             mapped_key_type,
@@ -158,6 +162,7 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    #[tracing::instrument(skip(self), level = "trace")]
     fn with_infer_type_params(self, infer_type_params: Rc<RefCell<Vec<ast::Id>>>) -> Self {
         Self {
             infer_type_params: Some(infer_type_params),
@@ -165,6 +170,7 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    #[tracing::instrument(skip(self), level = "trace")]
     fn with_infer_type_args(self, infer_type_args: &'a [Cow<'a, Type>]) -> Self {
         Self {
             infer_type_args,
@@ -289,12 +295,12 @@ impl Ctx<'_> {
             }
 
             (Type::Named(named), idx) => {
-                let underlying = named.underlying(self.state);
+                let underlying = self.underlying_named(named);
                 self.type_index(span, &underlying, idx)
             }
 
             (obj, Type::Named(idx)) => {
-                let underlying = idx.underlying(self.state);
+                let underlying = self.underlying_named(idx);
                 self.type_index(span, obj, &underlying)
             }
 
@@ -966,6 +972,13 @@ impl Ctx<'_> {
         Type::Basic(basic)
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
+    fn type_alias_decl(&self, decl: &ast::TsTypeAliasDecl) -> Type {
+        // TODO handle type params here
+        self.typ(&decl.type_ann)
+    }
+
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
         if let Some(type_params) = &decl.type_params {
             let args: Vec<_> = type_params.params.iter().collect();
@@ -1442,6 +1455,7 @@ impl Ctx<'_> {
 }
 
 impl Ctx<'_> {
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     pub fn obj_type(&self, obj: &Object) -> Type {
         if matches!(&obj.kind, ObjectKind::Module(_)) {
             // Modules don't have a type.
@@ -1479,17 +1493,12 @@ impl Ctx<'_> {
         typ
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn resolve_obj_type(&self, obj: &Object) -> Type {
         match &obj.kind {
             ObjectKind::TypeName(tn) => match &tn.decl {
-                TypeNameDecl::Interface(iface) => {
-                    // TODO handle type params here
-                    self.interface_decl(iface)
-                }
-                TypeNameDecl::TypeAlias(ta) => {
-                    // TODO handle type params here
-                    self.typ(&ta.type_ann)
-                }
+                TypeNameDecl::Interface(iface) => self.interface_decl(iface),
+                TypeNameDecl::TypeAlias(ta) => self.type_alias_decl(ta),
             },
 
             ObjectKind::Enum(o) => {
@@ -1751,6 +1760,7 @@ impl Ctx<'_> {
                 }
 
                 Generic::Intersection(intersection) => {
+                    // HERE
                     let x = self.concrete(&intersection.x);
                     let y = self.concrete(&intersection.y);
 
@@ -1850,6 +1860,7 @@ impl Ctx<'_> {
                 }
 
                 Generic::Mapped(mapped) => {
+                    // HERE
                     let mut iface = Interface {
                         fields: vec![],
                         index: None,
@@ -1888,6 +1899,7 @@ impl Ctx<'_> {
                             | Type::Basic(Basic::Number)
                             | Type::Basic(Basic::Symbol)) => {
                                 // TODO actually do the mapping/filtering
+                                // what is missing?
                                 iface.index = Some((Box::new(source.clone()), Box::new(value)));
                             }
 
@@ -1975,6 +1987,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     pub fn underlying_named(&self, named: &Named) -> Type {
         let type_params = named.obj.kind.type_params().collect::<Vec<_>>();
 
@@ -1995,6 +2008,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     pub fn underlying<'b>(&'b self, typ: &'b Type) -> Resolved<'b, Type> {
         // Ensure we resolve the concrete type.
         match self.concrete(typ) {
@@ -2013,6 +2027,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn underlying_type(
         &self,
         named: &Named,
@@ -2027,11 +2042,10 @@ impl Ctx<'_> {
             .with_type_params(type_params)
             .with_type_args(&type_args);
 
-        let span = tracing::trace_span!("underlying_named", ?named, ?type_args);
-        let _guard = span.enter();
         ctx.underlying(&typ).into_owned()
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn concrete_list<'b>(&'b self, v: &'b [Type]) -> Resolved<'b, [Type]> {
         for (i, typ) in v.iter().enumerate() {
             let t = match self.concrete(typ) {

@@ -21,6 +21,8 @@ fn main() -> Result<()> {
         .with_span_events(FmtSpan::ENTER)
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_writer(io::stderr)
+        .with_ansi(true)
+        .pretty()
         .init();
     let cwd = std::env::current_dir()?;
 

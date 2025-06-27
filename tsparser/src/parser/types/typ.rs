@@ -54,6 +54,28 @@ pub enum Type {
     Custom(Custom),
 }
 
+impl Type {
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Type::Basic(_) => "basic",
+            Type::Array(_) => "array",
+            Type::Interface(_) => "interface",
+            Type::Union(_) => "union",
+            Type::Tuple(_) => "tuple",
+            Type::Literal(_) => "literal",
+            Type::Class(_) => "class",
+            Type::Enum(_) => "enum",
+            Type::Named(_) => "named",
+            Type::Optional(_) => "optional",
+            Type::This(_) => "this",
+            Type::Generic(_) => "generic",
+            Type::Validation(_) => "validation",
+            Type::Validated(_) => "validated",
+            Type::Custom(_) => "custom",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash, Serialize)]
 pub struct Array(pub Box<Type>);
 
@@ -804,6 +826,7 @@ impl Type {
     }
 }
 
+#[derive(Debug)]
 pub enum Extends<'a> {
     Yes(Vec<(usize, Cow<'a, Type>)>),
     No,
@@ -827,6 +850,7 @@ impl Extends<'_> {
 impl Type {
     /// Reports whether `self` is assignable to `other`.
     /// If the result is indeterminate due to an unresolved type, it reports None.
+    #[tracing::instrument(level = "trace", skip(state), ret)]
     pub fn extends<'a>(&'a self, state: &'_ ResolveState, other: &'_ Type) -> Extends<'a> {
         use Extends::*;
 
@@ -1242,11 +1266,11 @@ pub fn intersect<'a: 'b, 'b>(
         }
 
         (Type::Named(x), _) => {
-            let x = ctx.underlying_named(x);
+            let x = x.underlying(ctx.state);
             intersect(ctx, Cow::Owned(x), b)
         }
         (_, Type::Named(y)) => {
-            let y = ctx.underlying_named(y);
+            let y = y.underlying(ctx.state);
             intersect(ctx, a, Cow::Owned(y))
         }
 

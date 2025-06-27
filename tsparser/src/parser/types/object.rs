@@ -39,10 +39,10 @@ impl Serialize for Object {
 impl Debug for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Object")
-            // .field("id", &self.id)
+            .field("id", &self.id)
             // .field("range", &self.range)
             .field("name", &self.name)
-            // .field("kind", &self.kind)
+            .field("kind", &self.kind)
             // .field("module_id", &self.module_id)
             .finish()
     }
