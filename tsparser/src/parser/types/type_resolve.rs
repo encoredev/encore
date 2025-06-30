@@ -94,7 +94,7 @@ impl TypeChecker {
 
 #[derive(Debug, Clone)]
 pub struct Ctx<'a> {
-    pub state: &'a ResolveState,
+    state: &'a ResolveState,
 
     /// The current module being resolved.
     module: ModuleId,
@@ -295,12 +295,12 @@ impl Ctx<'_> {
             }
 
             (Type::Named(named), idx) => {
-                let underlying = self.underlying_named(named);
+                let underlying = named.underlying(self.state);
                 self.type_index(span, &underlying, idx)
             }
 
             (obj, Type::Named(idx)) => {
-                let underlying = self.underlying_named(idx);
+                let underlying = idx.underlying(self.state);
                 self.type_index(span, obj, &underlying)
             }
 
@@ -974,8 +974,12 @@ impl Ctx<'_> {
 
     #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_alias_decl(&self, decl: &ast::TsTypeAliasDecl) -> Type {
-        // TODO handle type params here
-        self.typ(&decl.type_ann)
+        if let Some(type_params) = &decl.type_params {
+            let args: Vec<_> = type_params.params.iter().collect();
+            self.clone().with_type_params(&args[..]).typ(&decl.type_ann)
+        } else {
+            self.typ(&decl.type_ann)
+        }
     }
 
     #[tracing::instrument(skip(self), ret, level = "trace")]
