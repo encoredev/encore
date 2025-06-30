@@ -1,9 +1,44 @@
-export interface MyInterface {
+// Basic interface
+export interface Interface {
   foo: string;
-  bar: string;
-  baz: string;
+  bar: number;
+  optional?: boolean;
 }
-export type Optional3<MY_T, MY_K extends keyof MY_T> = Omit<MY_T, MY_K> &
-  Partial<Pick<MY_T, MY_K>>;
 
-export type X3 = Optional3<MyInterface, "bar">;
+// Utility types
+export type Exclude1 = Exclude<keyof Interface, "foo">;
+export type Pick1 = Pick<Interface, "foo">;
+export type Pick2 = Pick<Interface, "foo" | "optional">;
+export type Omit1 = Omit<Interface, "foo">;
+export type Omit2 = Omit<Interface, "foo" | "bar">;
+
+export type Partial1 = Partial<Interface>;
+
+// Index signatures
+export type Index = { [key: string]: boolean | number };
+
+// Intersections
+export type Intersect1 = { foo: string } & { bar: number };
+export type Intersect2 = { foo: string } & { foo: "literal" };
+export type Intersect3 = { foo: string } & { foo: number };
+export type Intersect4 = { foo?: "optional" } & { foo: string };
+export type Intersect5 = { a: string; b: string; c: string } & {
+  a: any;
+  b: unknown;
+  c: never;
+};
+
+// Enums
+export enum Enum1 {
+  A,
+  B,
+  C,
+  D = "foo",
+  E = 5,
+  F
+}
+export type EnumFields = keyof typeof Enum1;
+
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+export type X = Optional<Interface, "bar">;

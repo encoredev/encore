@@ -12,7 +12,7 @@ use swc_common::{BytePos, Span, Spanned};
 use swc_ecma_ast::{self as ast, TsTypeParam};
 
 use crate::parser::module_loader::ModuleId;
-use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
+use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeName, TypeNameDecl};
 use crate::parser::types::{validation, Object};
 use crate::parser::{module_loader, Range};
 use crate::span_err::ErrReporter;
@@ -134,7 +134,7 @@ impl<'a> Ctx<'a> {
     }
 
     #[tracing::instrument(skip(self), level = "trace")]
-    fn with_type_params(self, type_params: &'a [&'a ast::TsTypeParam]) -> Self {
+    pub fn with_type_params(self, type_params: &'a [&'a ast::TsTypeParam]) -> Self {
         Self {
             type_params,
             ..self
@@ -142,7 +142,7 @@ impl<'a> Ctx<'a> {
     }
 
     #[tracing::instrument(skip(self), level = "trace")]
-    fn with_type_args(self, type_args: &'a [Type]) -> Self {
+    pub fn with_type_args(self, type_args: &'a [Type]) -> Self {
         Self { type_args, ..self }
     }
 
@@ -180,6 +180,7 @@ impl<'a> Ctx<'a> {
 }
 
 impl Ctx<'_> {
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     pub fn typ(&self, typ: &ast::TsType) -> Type {
         match typ {
             ast::TsType::TsKeywordType(tt) => self.keyword(tt),
@@ -221,6 +222,7 @@ impl Ctx<'_> {
     }
 
     /// Resolves keyof, unique, readonly, etc.
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_op(&self, tt: &ast::TsTypeOperator) -> Type {
         let underlying = self.typ(&tt.type_ann);
         match tt.op {
@@ -232,6 +234,7 @@ impl Ctx<'_> {
 
     /// Resolves a mapped type, which represents another type being modified.
     /// https://www.typescriptlang.org/docs/handbook/2/mapped-types.html
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn mapped(&self, tt: &ast::TsMappedType) -> Type {
         // [K in keyof T]: T[K]
 
@@ -278,12 +281,14 @@ impl Ctx<'_> {
     }
 
     // https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html#handbook-content
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn indexed_access(&self, tt: &ast::TsIndexedAccessType) -> Type {
         let obj = self.typ(&tt.obj_type);
         let idx = self.typ(&tt.index_type);
         self.type_index(tt.span, &obj, &idx)
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_index(&self, span: Span, obj: &Type, idx: &Type) -> Type {
         match (obj, idx) {
             // If either obj or index is a generic type, we need to store it as a Generic::Index.
@@ -385,6 +390,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn infer(&self, tt: &ast::TsInferType) -> Type {
         // Do we have an infer context?
         if let Some(params) = self.infer_type_params.as_ref() {
@@ -403,6 +409,7 @@ impl Ctx<'_> {
 
     /// Given a type, produces a union type of the underlying keys,
     /// e.g. `keyof {foo: string; bar: number}` yields `"foo" | "bar"`.
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn keyof(&self, typ: &Type) -> Type {
         match typ {
             Type::Basic(tt) => match tt {
@@ -491,6 +498,7 @@ impl Ctx<'_> {
     }
 
     /// Resolves the typeof operator.
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_query(&self, typ: &ast::TsTypeQuery) -> Type {
         if typ.type_args.is_some() {
             HANDLER.with(|handler| {
@@ -518,6 +526,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_lit(&self, type_lit: &ast::TsTypeLit) -> Type {
         let mut fields: Vec<InterfaceField> = Vec::with_capacity(type_lit.members.len());
         let mut index = None;
@@ -609,6 +618,7 @@ impl Ctx<'_> {
     }
 
     /// Resolves literals.
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn lit_type(&self, lit_type: &ast::TsLitType) -> Type {
         Type::Literal(match &lit_type.lit {
             ast::TsLit::Str(val) => Literal::String(val.value.to_string()),
@@ -629,6 +639,7 @@ impl Ctx<'_> {
         })
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_ref(&self, typ: &ast::TsTypeRef) -> Type {
         let obj = match &typ.type_name {
             ast::TsEntityName::Ident(ident) => {
@@ -775,6 +786,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn qualified_name_obj(&self, qn: &ast::TsQualifiedName) -> Option<Rc<Object>> {
         let obj = match &qn.left {
             ast::TsEntityName::Ident(ident) => self.ident_obj(ident)?,
@@ -836,14 +848,17 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn array(&self, tt: &ast::TsArrayType) -> Type {
         Type::Array(Array(Box::new(self.typ(&tt.elem_type))))
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn optional(&self, tt: &ast::TsOptionalType) -> Type {
         Type::Optional(Optional(Box::new(self.typ(&tt.type_ann))))
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn tuple(&self, tuple: &ast::TsTupleType) -> Type {
         let types = self.types(tuple.elem_types.iter().filter_map(|t|
             // As far as I can tell labels don't actually impact type-checking
@@ -858,12 +873,14 @@ impl Ctx<'_> {
         Type::Tuple(Tuple { types })
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn union(&self, union_type: &ast::TsUnionType) -> Type {
         let types = self.types(union_type.types.iter().map(|t| t.as_ref()));
         simplify_union(types)
     }
 
     // https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn conditional(&self, tt: &ast::TsConditionalType) -> Type {
         let check = self.typ(&tt.check_type);
         let infer_params: Rc<RefCell<Vec<ast::Id>>> = Default::default();
@@ -938,6 +955,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn intersection(&self, typ: &ast::TsIntersectionType) -> Type {
         let mut result = Owned(self.typ(&typ.types[0]));
         for t in &typ.types[1..] {
@@ -947,6 +965,7 @@ impl Ctx<'_> {
         result.into_owned()
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn keyword(&self, typ: &ast::TsKeywordType) -> Type {
         let basic: Basic = match typ.kind {
             ast::TsKeywordTypeKind::TsAnyKeyword => Basic::Any,
@@ -974,11 +993,33 @@ impl Ctx<'_> {
 
     #[tracing::instrument(skip(self), ret, level = "trace")]
     fn type_alias_decl(&self, decl: &ast::TsTypeAliasDecl) -> Type {
-        if let Some(type_params) = &decl.type_params {
+        let typ = if let Some(type_params) = &decl.type_params {
             let args: Vec<_> = type_params.params.iter().collect();
             self.clone().with_type_params(&args[..]).typ(&decl.type_ann)
         } else {
             self.typ(&decl.type_ann)
+        };
+
+        // if it is still an alias, resolve some more
+        match typ {
+            Type::Named(ref named) => {
+                if matches!(
+                    named.obj.kind,
+                    ObjectKind::TypeName(TypeName {
+                        decl: TypeNameDecl::TypeAlias(_)
+                    })
+                ) {
+                    let type_params: Vec<_> = named.obj.kind.type_params().collect();
+                    let ctx = self
+                        .clone()
+                        .with_type_params(&type_params)
+                        .with_type_args(&named.type_arguments);
+                    ctx.resolve_obj_type(named.obj.as_ref())
+                } else {
+                    typ
+                }
+            }
+            _ => typ,
         }
     }
 
@@ -1030,6 +1071,7 @@ impl Ctx<'_> {
         result.into_owned()
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn expr(&self, expr: &ast::Expr) -> Type {
         match expr {
             ast::Expr::This(_) => Type::This(This),
@@ -1245,6 +1287,7 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn array_lit(&self, lit: &ast::ArrayLit) -> Type {
         let elem_types = Vec::with_capacity(lit.elems.len());
 
@@ -1276,6 +1319,7 @@ impl Ctx<'_> {
         Type::Union(Union { types: elem_types })
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn object_lit(&self, lit: &ast::ObjectLit) -> Type {
         let mut fields = Vec::with_capacity(lit.props.len());
 
@@ -1357,11 +1401,13 @@ impl Ctx<'_> {
         })
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn member_expr(&self, expr: &ast::MemberExpr) -> Type {
         let obj_type = self.expr(&expr.obj);
         self.resolve_member_prop(&obj_type, &expr.prop)
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn resolve_member_prop(&self, obj_type: &Type, prop: &ast::MemberProp) -> Type {
         match obj_type {
             Type::Basic(_)
@@ -1436,6 +1482,7 @@ impl Ctx<'_> {
     }
 
     /// Resolves a prop name to the underlying string literal.
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn prop_name_to_string<'b>(&self, prop: &'b ast::PropName) -> Cow<'b, str> {
         match prop {
             ast::PropName::Ident(id) => Borrowed(id.sym.as_ref()),
@@ -1499,7 +1546,7 @@ impl Ctx<'_> {
 
     #[tracing::instrument(skip(self), ret, level = "trace")]
     fn resolve_obj_type(&self, obj: &Object) -> Type {
-        match &obj.kind {
+        let typ = match &obj.kind {
             ObjectKind::TypeName(tn) => match &tn.decl {
                 TypeNameDecl::Interface(iface) => self.interface_decl(iface),
                 TypeNameDecl::TypeAlias(ta) => self.type_alias_decl(ta),
@@ -1611,9 +1658,24 @@ impl Ctx<'_> {
                 // TODO include namespace objects in interface
                 Type::Basic(Basic::Object)
             }
-        }
+        };
+
+        /*
+        match typ {
+            Type::Named(named) => {
+                let type_params: Vec<_> = named.obj.kind.type_params().collect();
+                let ctx = self
+                    .clone()
+                    .with_type_params(&type_params)
+                    .with_type_args(&named.type_arguments);
+                ctx.resolve_obj_type(named.obj.as_ref())
+            }
+            _ => typ,
+        }*/
+        typ
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn resolve_obj(&self, expr: &ast::Expr) -> Option<Rc<Object>> {
         match self.expr(expr) {
             Type::Named(named) => Some(named.obj.clone()),
@@ -1621,11 +1683,13 @@ impl Ctx<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn ident_obj(&self, ident: &ast::Ident) -> Option<Rc<Object>> {
         // Does this represent a type parameter?
         self.state.resolve_module_ident(self.module, ident)
     }
 
+    #[tracing::instrument(skip(self), ret, level = "trace")]
     fn resolve_default_export(&self) -> Option<Rc<Object>> {
         self.state.resolve_module_default_export(self.module)
     }

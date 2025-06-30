@@ -30,7 +30,7 @@ fn resolve_types() {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .pretty()
         .init();
-    glob!("testdata/basic.ts", |path| {
+    glob!("testdata/*", |path| {
         let globals = Globals::new();
         let errs = Rc::new(Handler::with_tty_emitter(
             swc_common::errors::ColorConfig::Auto,

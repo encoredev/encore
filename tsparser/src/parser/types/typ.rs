@@ -11,6 +11,8 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use swc_common::errors::HANDLER;
 
+use super::ObjectKind;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeArgId(usize);
 
@@ -72,6 +74,19 @@ impl Type {
             Type::Validation(_) => "validation",
             Type::Validated(_) => "validated",
             Type::Custom(_) => "custom",
+        }
+    }
+
+    pub fn alias_decl(&self) -> Option<&swc_ecma_ast::TsTypeAliasDecl> {
+        match self {
+            Type::Named(named) => match &named.obj.kind {
+                ObjectKind::TypeName(name) => match &name.decl {
+                    object::TypeNameDecl::Interface(_) => None,
+                    object::TypeNameDecl::TypeAlias(decl) => Some(decl),
+                },
+                _ => None,
+            },
+            _ => None,
         }
     }
 }
