@@ -1266,11 +1266,11 @@ pub fn intersect<'a: 'b, 'b>(
         }
 
         (Type::Named(x), _) => {
-            let x = x.underlying(ctx.state);
+            let x = ctx.underlying_named(x);
             intersect(ctx, Cow::Owned(x), b)
         }
         (_, Type::Named(y)) => {
-            let y = y.underlying(ctx.state);
+            let y = ctx.underlying_named(y);
             intersect(ctx, a, Cow::Owned(y))
         }
 
