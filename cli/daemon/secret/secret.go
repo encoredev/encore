@@ -56,6 +56,8 @@ type LoadResult struct {
 	once    syncutil.Once
 	ch      <-chan singleflight.Result
 	initial singleflight.Result
+
+	localSecretMu sync.Mutex
 }
 
 // Load loads the secrets for appSlug.
@@ -79,6 +81,10 @@ func (mgr *Manager) Load(app *apps.Instance) *LoadResult {
 func (lr *LoadResult) Get(ctx context.Context, expSet *experiments.Set) (data *Data, err error) {
 	defer func() {
 		if err == nil {
+			// load.Instances in cue is not safe for concurrent access.
+			// https://github.com/cue-lang/cue/issues/1746
+			lr.localSecretMu.Lock()
+			defer lr.localSecretMu.Unlock()
 			// Return a new data object so we don't write the overrides to the cache.
 			data, err = applyLocalOverrides(lr.app, data)
 		}
