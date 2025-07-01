@@ -44,11 +44,6 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             types: [
                 Literal(
                     String(
-                        "foo",
-                    ),
-                ),
-                Literal(
-                    String(
                         "bar",
                     ),
                 ),

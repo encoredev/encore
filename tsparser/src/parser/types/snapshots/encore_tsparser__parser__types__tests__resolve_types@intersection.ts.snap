@@ -25,10 +25,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                     TsTypeAliasDecl {
                                                         span: Span {
                                                             lo: BytePos(
-                                                                899,
+                                                                944,
                                                             ),
                                                             hi: BytePos(
-                                                                944,
+                                                                989,
                                                             ),
                                                             ctxt: #0,
                                                         },
@@ -36,10 +36,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                         id: Ident {
                                                             span: Span {
                                                                 lo: BytePos(
-                                                                    904,
+                                                                    949,
                                                                 ),
                                                                 hi: BytePos(
-                                                                    911,
+                                                                    956,
                                                                 ),
                                                                 ctxt: #2,
                                                             },
@@ -50,10 +50,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                             TsTypeParamDecl {
                                                                 span: Span {
                                                                     lo: BytePos(
-                                                                        911,
+                                                                        956,
                                                                     ),
                                                                     hi: BytePos(
-                                                                        917,
+                                                                        962,
                                                                     ),
                                                                     ctxt: #0,
                                                                 },
@@ -61,20 +61,20 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                     TsTypeParam {
                                                                         span: Span {
                                                                             lo: BytePos(
-                                                                                912,
+                                                                                957,
                                                                             ),
                                                                             hi: BytePos(
-                                                                                913,
+                                                                                958,
                                                                             ),
                                                                             ctxt: #0,
                                                                         },
                                                                         name: Ident {
                                                                             span: Span {
                                                                                 lo: BytePos(
-                                                                                    912,
+                                                                                    957,
                                                                                 ),
                                                                                 hi: BytePos(
-                                                                                    913,
+                                                                                    958,
                                                                                 ),
                                                                                 ctxt: #9,
                                                                             },
@@ -90,20 +90,20 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                     TsTypeParam {
                                                                         span: Span {
                                                                             lo: BytePos(
-                                                                                915,
+                                                                                960,
                                                                             ),
                                                                             hi: BytePos(
-                                                                                916,
+                                                                                961,
                                                                             ),
                                                                             ctxt: #0,
                                                                         },
                                                                         name: Ident {
                                                                             span: Span {
                                                                                 lo: BytePos(
-                                                                                    915,
+                                                                                    960,
                                                                                 ),
                                                                                 hi: BytePos(
-                                                                                    916,
+                                                                                    961,
                                                                                 ),
                                                                                 ctxt: #9,
                                                                             },
@@ -123,10 +123,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                             TsConditionalType {
                                                                 span: Span {
                                                                     lo: BytePos(
-                                                                        920,
+                                                                        965,
                                                                     ),
                                                                     hi: BytePos(
-                                                                        943,
+                                                                        988,
                                                                     ),
                                                                     ctxt: #0,
                                                                 },
@@ -134,10 +134,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                     TsTypeRef {
                                                                         span: Span {
                                                                             lo: BytePos(
-                                                                                920,
+                                                                                965,
                                                                             ),
                                                                             hi: BytePos(
-                                                                                921,
+                                                                                966,
                                                                             ),
                                                                             ctxt: #0,
                                                                         },
@@ -145,10 +145,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                             Ident {
                                                                                 span: Span {
                                                                                     lo: BytePos(
-                                                                                        920,
+                                                                                        965,
                                                                                     ),
                                                                                     hi: BytePos(
-                                                                                        921,
+                                                                                        966,
                                                                                     ),
                                                                                     ctxt: #9,
                                                                                 },
@@ -163,10 +163,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                     TsTypeRef {
                                                                         span: Span {
                                                                             lo: BytePos(
-                                                                                930,
+                                                                                975,
                                                                             ),
                                                                             hi: BytePos(
-                                                                                931,
+                                                                                976,
                                                                             ),
                                                                             ctxt: #0,
                                                                         },
@@ -174,10 +174,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                             Ident {
                                                                                 span: Span {
                                                                                     lo: BytePos(
-                                                                                        930,
+                                                                                        975,
                                                                                     ),
                                                                                     hi: BytePos(
-                                                                                        931,
+                                                                                        976,
                                                                                     ),
                                                                                     ctxt: #9,
                                                                                 },
@@ -192,10 +192,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                     TsKeywordType {
                                                                         span: Span {
                                                                             lo: BytePos(
-                                                                                934,
+                                                                                979,
                                                                             ),
                                                                             hi: BytePos(
-                                                                                939,
+                                                                                984,
                                                                             ),
                                                                             ctxt: #0,
                                                                         },
@@ -206,10 +206,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                     TsTypeRef {
                                                                         span: Span {
                                                                             lo: BytePos(
-                                                                                942,
+                                                                                987,
                                                                             ),
                                                                             hi: BytePos(
-                                                                                943,
+                                                                                988,
                                                                             ),
                                                                             ctxt: #0,
                                                                         },
@@ -217,10 +217,10 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
                                                                             Ident {
                                                                                 span: Span {
                                                                                     lo: BytePos(
-                                                                                        942,
+                                                                                        987,
                                                                                     ),
                                                                                     hi: BytePos(
-                                                                                        943,
+                                                                                        988,
                                                                                     ),
                                                                                     ctxt: #9,
                                                                                 },
@@ -313,7 +313,7 @@ input_file: tsparser/src/parser/types/testdata/intersection.ts
             },
         ),
     ),
-    "X": Interface(
+    "X1": Interface(
         Interface {
             fields: [
                 InterfaceField {

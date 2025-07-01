@@ -1000,14 +1000,15 @@ impl Ctx<'_> {
             self.typ(&decl.type_ann)
         };
 
+        //typ
         // if it is still an alias, resolve some more
         match typ {
             Type::Named(ref named) => {
                 if matches!(
                     named.obj.kind,
                     ObjectKind::TypeName(TypeName {
-                        decl: TypeNameDecl::TypeAlias(_)
-                    })
+                        decl: TypeNameDecl::TypeAlias(ast::TsTypeAliasDecl { ref type_ann, .. }),
+                    }) if type_ann.is_ts_mapped_type()
                 ) {
                     let type_params: Vec<_> = named.obj.kind.type_params().collect();
                     let ctx = self
@@ -1660,18 +1661,10 @@ impl Ctx<'_> {
             }
         };
 
-        /*
-        match typ {
-            Type::Named(named) => {
-                let type_params: Vec<_> = named.obj.kind.type_params().collect();
-                let ctx = self
-                    .clone()
-                    .with_type_params(&type_params)
-                    .with_type_args(&named.type_arguments);
-                ctx.resolve_obj_type(named.obj.as_ref())
-            }
-            _ => typ,
-        }*/
+        // match typ {
+        //     Type::Named(named) => self.underlying_named(&named),
+        //     _ => typ,
+        // }
         typ
     }
 
@@ -1729,8 +1722,18 @@ impl Ctx<'_> {
             },
 
             Type::Named(named) => match self.concrete_list(&named.type_arguments) {
-                New(t) => New(Type::Named(Named::new(named.obj.clone(), t))),
-                Changed(t) => New(Type::Named(Named::new(named.obj.clone(), t.to_owned()))),
+                New(t) => {
+                    let ctx = self.clone().with_type_args(&t);
+                    let typ = ctx.obj_type(named.obj.as_ref());
+                    let typ = ctx.underlying(&typ);
+                    ctx.concrete(&typ).into_new()
+                }
+                Changed(t) => {
+                    let ctx = self.clone().with_type_args(t);
+                    let typ = ctx.obj_type(named.obj.as_ref());
+                    let typ = ctx.underlying(&typ);
+                    ctx.concrete(&typ).into_new()
+                }
                 Same(_) => Same(typ),
             },
 
