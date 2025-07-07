@@ -182,28 +182,53 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
                 x: Generic(
                     Mapped(
                         Mapped {
-                            in_type: Generic(
-                                TypeParam(
-                                    TypeParam {
-                                        idx: 1,
-                                        constraint: Some(
-                                            Generic(
+                            in_type: Named(
+                                Named {
+                                    obj: Object {
+                                        name: Some(
+                                            "Exclude",
+                                        ),
+                                    },
+                                    type_arguments: [
+                                        Generic(
+                                            Keyof(
                                                 Keyof(
-                                                    Keyof(
-                                                        Generic(
-                                                            TypeParam(
-                                                                TypeParam {
-                                                                    idx: 0,
-                                                                    constraint: None,
-                                                                },
-                                                            ),
+                                                    Generic(
+                                                        TypeParam(
+                                                            TypeParam {
+                                                                idx: 0,
+                                                                constraint: None,
+                                                            },
                                                         ),
                                                     ),
                                                 ),
                                             ),
                                         ),
-                                    },
-                                ),
+                                        Generic(
+                                            TypeParam(
+                                                TypeParam {
+                                                    idx: 1,
+                                                    constraint: Some(
+                                                        Generic(
+                                                            Keyof(
+                                                                Keyof(
+                                                                    Generic(
+                                                                        TypeParam(
+                                                                            TypeParam {
+                                                                                idx: 0,
+                                                                                constraint: None,
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                        ),
+                                                    ),
+                                                },
+                                            ),
+                                        ),
+                                    ],
+                                },
                             ),
                             value_type: Generic(
                                 Index(
@@ -289,9 +314,27 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             fields: [
                 InterfaceField {
                     name: String(
-                        "foo",
+                        "bar",
                     ),
                     optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optional",
+                    ),
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: true,
                     typ: Basic(
                         String,
                     ),

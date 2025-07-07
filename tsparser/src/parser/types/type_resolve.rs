@@ -877,13 +877,31 @@ impl Ctx<'_> {
                             .iter()
                             .any(|tp| tp.name.to_id() == ident.to_id())
                         {
+                            fn is_ts_ref_to(typ: &ast::TsType, ident: &ast::Ident) -> bool {
+                                typ.as_ts_type_ref()
+                                    .and_then(|t| t.type_name.as_ident())
+                                    .is_some_and(|typ_ident| typ_ident.to_id() == ident.to_id())
+                            }
+
                             // Apply the conditional to each type in the union.
                             let result = union
                                 .types
                                 .iter()
                                 .map(|t| match t.assignable(self.state, &extends) {
-                                    Some(true) => self.typ(&tt.true_type),
-                                    Some(false) => self.typ(&tt.false_type),
+                                    Some(true) => {
+                                        if is_ts_ref_to(tt.true_type.as_ref(), ident) {
+                                            t.clone()
+                                        } else {
+                                            self.typ(&tt.true_type)
+                                        }
+                                    }
+                                    Some(false) => {
+                                        if is_ts_ref_to(&tt.false_type, ident) {
+                                            t.clone()
+                                        } else {
+                                            self.typ(&tt.false_type)
+                                        }
+                                    }
                                     None => Type::Generic(Generic::Conditional(Conditional {
                                         check_type: Box::new(t.clone()),
                                         extends_type: Box::new(extends.clone()),
@@ -2018,13 +2036,13 @@ impl Ctx<'_> {
         type_params: &[&TsTypeParam],
     ) -> Type {
         let type_args = self.concrete_list(type_arguments);
-        let typ = self.obj_type(&named.obj);
 
         let ctx = self
             .clone()
             .with_type_params(type_params)
             .with_type_args(&type_args);
 
+        let typ = ctx.resolve_obj_type(&named.obj);
         let span = tracing::trace_span!("underlying_named", ?named, ?type_args);
         let _guard = span.enter();
         ctx.underlying(&typ).into_owned()
