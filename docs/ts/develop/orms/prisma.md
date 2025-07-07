@@ -44,6 +44,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  shadowDatabaseUrl = "<paste connection uri to encore db here>"
   url      = "<paste connection uri to encore shadow db here>"
 }
 
@@ -64,10 +65,18 @@ desc="Using Prisma ORM with Encore.ts"
 
 Prisma requires a "shadow database" for certain operations, essentially it's a second, temporary, database that is created and deleted automatically. Encore comes with built-in support for shadow databases, and by configuring Prisma to operate on Encore's shadow database, Encore.ts and Prisma won't interfere with each other. You can then use the Prisma CLI to generate migrations and the ORM client. Encore will take care of applying the migrations both in production and locally.
 
+Read more about Prisma's shadow database: https://www.prisma.io/docs/orm/prisma-migrate/understanding-prisma-migrate/shadow-database
+
 First add the prisma to your project by running:
 
 ```
 npm install prisma --save-dev
+```
+
+To get the db connection url to Encore.ts database, run:
+
+```
+encore db conn-uri <database name>
 ```
 
 To get the shadow db connection url to Encore.ts shadow database, run:
@@ -79,8 +88,10 @@ encore db conn-uri <database name> --shadow
 To initialize Prisma, run the following command from within your service folder:
 
 ```
-npx prisma init --url <shadow db connection url>
+npx prisma init --url <db connection url>
 ```
+
+Then head over to your `schema.prisma` file and add `shadowDatabaseUrl = <shadow db connection url>` to the `datasrouce db`, [as instructed by the Prisma docs](https://www.prisma.io/docs/orm/prisma-migrate/understanding-prisma-migrate/shadow-database#manually-configuring-the-shadow-database).
 
 To be able to deploy your app via Encore Cloud, you also need to configure a postinstall hook in your `package.json` that runs `npx prisma generate`, e.g:
 
