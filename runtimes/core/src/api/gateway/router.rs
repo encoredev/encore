@@ -99,7 +99,7 @@ impl Router {
             api::Error {
                 code: api::ErrCode::NotFound,
                 message: "no route for method".to_string(),
-                internal_message: Some(format!("no route for method {:?}: {}", method, path)),
+                internal_message: Some(format!("no route for method {method:?}: {path}")),
                 stack: None,
                 details: None,
             }
@@ -107,7 +107,7 @@ impl Router {
             api::Error {
                 code: api::ErrCode::NotFound,
                 message: "endpoint not found".to_string(),
-                internal_message: Some(format!("no such endpoint exists: {}", path)),
+                internal_message: Some(format!("no such endpoint exists: {path}")),
                 stack: None,
                 details: None,
             }

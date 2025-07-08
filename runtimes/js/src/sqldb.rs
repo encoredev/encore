@@ -232,7 +232,7 @@ impl Cursor {
             .next()
             .await
             .transpose()
-            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{:#?}", e)))?;
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{e:#?}")))?;
 
         Ok(row.map(|row| Row { row }))
     }

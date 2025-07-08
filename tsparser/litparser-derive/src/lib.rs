@@ -175,7 +175,7 @@ fn gen_field_match_cases(
             Fields::Named(ref fields) => {
                 let match_cases = fields.named.iter().map(|f| {
                     let name = f.ident.as_ref().unwrap();
-                    let match_literal = format!("{}", name);
+                    let match_literal = format!("{name}");
                     quote_spanned! {f.span() =>
                         #match_literal => {
                             if #name.is_some() {

@@ -157,10 +157,10 @@ pub enum Literal {
 impl Literal {
     pub fn expecting(&self) -> String {
         match self {
-            Literal::Str(lit) => format!("{:#?}", lit),
-            Literal::Bool(lit) => format!("{:#?}", lit),
-            Literal::Int(lit) => format!("{:#?}", lit),
-            Literal::Float(lit) => format!("{:#?}", lit),
+            Literal::Str(lit) => format!("{lit:#?}"),
+            Literal::Bool(lit) => format!("{lit:#?}"),
+            Literal::Int(lit) => format!("{lit:#?}"),
+            Literal::Float(lit) => format!("{lit:#?}"),
         }
     }
 
@@ -478,8 +478,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                     Ok(PValue::Number(num))
                 } else {
                     Err(serde::de::Error::custom(format_args!(
-                        "expected {}, got {}",
-                        val, value
+                        "expected {val}, got {value}"
                     )))
                 }
             }
@@ -545,9 +544,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                 Basic::Any | Basic::String => Ok(PValue::String(value)),
                 Basic::DateTime => api::DateTime::parse_from_rfc3339(&value)
                     .map(PValue::DateTime)
-                    .map_err(|e| {
-                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
-                    }),
+                    .map_err(|e| serde::de::Error::custom(format_args!("invalid datetime: {e}",))),
                 Basic::Bool if self.cfg.coerce_strings => {
                     if value == "true" {
                         Ok(PValue::Bool(true))
@@ -555,8 +552,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                         Ok(PValue::Bool(false))
                     } else {
                         Err(serde::de::Error::custom(format_args!(
-                            "expected a boolean, got {}",
-                            value
+                            "expected a boolean, got {value}"
                         )))
                     }
                 }
@@ -567,8 +563,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                         Ok(JSONNumber::from_f64(num).map_or(PValue::Null, PValue::Number))
                     } else {
                         Err(serde::de::Error::custom(format_args!(
-                            "expected a number, got {}",
-                            value
+                            "expected a number, got {value}"
                         )))
                     }
                 }
@@ -577,8 +572,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                         Ok(PValue::Null)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
-                            "expected null, got {}",
-                            value
+                            "expected null, got {value}"
                         )))
                     }
                 }
@@ -825,8 +819,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                             // Check for duplicate keys.
                             if duplicate && !allow_duplicate_fields {
                                 return Err(serde::de::Error::custom(format_args!(
-                                    "duplicate field {}",
-                                    key
+                                    "duplicate field {key}"
                                 )));
                             }
 
@@ -1059,9 +1052,7 @@ impl DecodeValue<'_> {
                 Value::Basic(Basic::Any | Basic::String) => Ok(()),
                 Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(string)
                     .map(|_| ())
-                    .map_err(|e| {
-                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
-                    }),
+                    .map_err(|e| serde::de::Error::custom(format_args!("invalid datetime: {e}",))),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
@@ -1423,7 +1414,7 @@ impl DecodeValue<'_> {
                 Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(&str)
                     .map(PValue::DateTime)
                     .map_err(|e| {
-                        serde::de::Error::custom(format_args!("invalid datetime: {}", e,))
+                        serde::de::Error::custom(format_args!("invalid datetime: {e}",))
                     })?,
 
                 // Any non-datetime basic value gets transformed into a string.
@@ -1465,7 +1456,7 @@ impl Display for FieldList<'_> {
                     if i == self.names.len() - 1 {
                         write!(formatter, "and ")?;
                     }
-                    write!(formatter, "`{}`", alt)?;
+                    write!(formatter, "`{alt}`")?;
                 }
                 Ok(())
             }

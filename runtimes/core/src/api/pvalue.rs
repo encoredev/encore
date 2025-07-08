@@ -128,7 +128,7 @@ impl<'a> From<&'a Cookie> for cookie::Cookie<'a> {
 impl Display for Cookie {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let c: cookie::Cookie<'_> = self.into();
-        write!(f, "{}", c)
+        write!(f, "{c}")
     }
 }
 
@@ -170,9 +170,9 @@ impl Display for PValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PValue::Null => write!(f, "null"),
-            PValue::Bool(b) => write!(f, "{}", b),
-            PValue::Number(n) => write!(f, "{}", n),
-            PValue::String(s) => write!(f, "{}", s),
+            PValue::Bool(b) => write!(f, "{b}"),
+            PValue::Number(n) => write!(f, "{n}"),
+            PValue::String(s) => write!(f, "{s}"),
             PValue::DateTime(dt) => write!(f, "{}", dt.to_rfc3339()),
             PValue::Array(a) => {
                 write!(f, "[")?;
@@ -180,7 +180,7 @@ impl Display for PValue {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", v)?;
+                    write!(f, "{v}")?;
                 }
                 write!(f, "]")
             }
@@ -190,11 +190,11 @@ impl Display for PValue {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", k, v)?;
+                    write!(f, "{k}: {v}")?;
                 }
                 write!(f, "}}")
             }
-            PValue::Cookie(c) => write!(f, "{}", c),
+            PValue::Cookie(c) => write!(f, "{c}"),
         }
     }
 }

@@ -278,7 +278,7 @@ pub fn extract_resource_name(
     idx: usize,
 ) -> ParseResult<&str> {
     let Some(val) = args.get(idx) else {
-        return Err(span.parse_err(format!("missing resource name as argument[{}]", idx)));
+        return Err(span.parse_err(format!("missing resource name as argument[{idx}]")));
     };
     if val.spread.is_none() {
         if let ast::Expr::Lit(ast::Lit::Str(str)) = val.expr.as_ref() {
@@ -299,7 +299,7 @@ pub fn extract_bind_name(path: &swc_ecma_visit::AstNodePath) -> ParseResult<Opti
             let Some(decl) = var.decls.get(*idx) else {
                 return Err(var
                     .span
-                    .parse_err(format!("missing declaration at index {}", idx)));
+                    .parse_err(format!("missing declaration at index {idx}")));
             };
             match &decl.name {
                 ast::Pat::Ident(bind_name) => {

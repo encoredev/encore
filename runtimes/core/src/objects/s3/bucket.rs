@@ -99,7 +99,7 @@ impl objects::BucketImpl for Bucket {
 
                 if let Some(key_prefix) = &options.prefix {
                     let current_prefix = req.get_prefix().as_deref().unwrap_or_default();
-                    let new_prefix = format!("{}{}", current_prefix, key_prefix);
+                    let new_prefix = format!("{current_prefix}{key_prefix}");
                     req = req.prefix(new_prefix);
                 }
 

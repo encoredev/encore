@@ -22,6 +22,6 @@ impl TimeAnchor {
             .system_time
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true);
 
-        format!("0 {}", dt)
+        format!("0 {dt}")
     }
 }

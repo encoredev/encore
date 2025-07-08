@@ -91,7 +91,7 @@ impl TopicInner {
                 Some(
                     msg.attrs
                         .get(&attr)
-                        .with_context(|| format!("ordering attribute {} not found", attr))?
+                        .with_context(|| format!("ordering attribute {attr} not found"))?
                         .clone(),
                 )
             } else {

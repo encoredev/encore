@@ -223,7 +223,7 @@ impl BuilderCtx<'_, '_> {
             | Basic::Symbol
             | Basic::Undefined
             | Basic::Never => {
-                HANDLER.with(|h| h.err(&format!("unsupported basic type in schema: {:?}", typ)));
+                HANDLER.with(|h| h.err(&format!("unsupported basic type in schema: {typ:?}")));
                 b(schema::Builtin::Any)
             }
         }
@@ -605,7 +605,7 @@ pub(super) fn loc_from_range(
     let loc = range.loc(fset)?;
     let (pkg_path, pkg_name, filename) = match loc.file {
         FilePath::Custom(ref str) => {
-            return Err(range.parse_err(format!("unsupported file path in schema: {}", str)));
+            return Err(range.parse_err(format!("unsupported file path in schema: {str}")));
         }
         FilePath::Real(buf) => match buf.strip_prefix(app_root) {
             Ok(rel_path) => {
@@ -638,7 +638,7 @@ pub(super) fn loc_from_range(
                     .ok_or(
                         range.parse_err(format!("missing package name for {}", buf.display())),
                     )?;
-                let pkg_path = format!("unknown/{}", pkg_name);
+                let pkg_path = format!("unknown/{pkg_name}");
                 (pkg_path, pkg_name, file_name)
             }
         },

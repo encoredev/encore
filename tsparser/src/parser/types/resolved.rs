@@ -129,9 +129,9 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Changed(ref b) => write!(f, "Changed({:?})", b),
-            Same(ref b) => write!(f, "Same({:?})", b),
-            New(ref o) => write!(f, "New({:?})", o),
+            Changed(ref b) => write!(f, "Changed({b:?})"),
+            Same(ref b) => write!(f, "Same({b:?})"),
+            New(ref o) => write!(f, "New({o:?})"),
         }
     }
 }

@@ -144,8 +144,7 @@ pub fn create_process_config(
                 && (gateways.iter().all(|g| p.gateways.contains(g)))
         })
         .context(format!(
-            "No matching proc found for services {:?} gateways {:?}",
-            services, gateways
+            "No matching proc found for services {services:?} gateways {gateways:?}"
         ))?;
 
     // Add proc-specific environment variables

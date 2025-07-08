@@ -101,11 +101,11 @@ impl Display for VerifyError {
         match self {
             NoAuthorizationHeader => write!(f, "no authorization header"),
             NoDateHeader => write!(f, "no date header"),
-            InvalidHeader(e) => write!(f, "invalid header: {}", e),
+            InvalidHeader(e) => write!(f, "invalid header: {e}"),
             SignatureMismatch => write!(f, "signature mismatch"),
             DateSkew => write!(f, "date skew"),
             UnknownKey => write!(f, "unknown key"),
-            ResolveKeyData(e) => write!(f, "unable to resolve secret key data: {}", e),
+            ResolveKeyData(e) => write!(f, "unable to resolve secret key data: {e}"),
         }
     }
 }

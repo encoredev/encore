@@ -316,16 +316,16 @@ mod tests {
             match (got, want) {
                 (Ok(got), Ok(want)) => {
                     let segments: Vec<_> = got.segments.into_iter().map(|s| s.take()).collect();
-                    assert_eq!(segments, want, "path {:?}", path);
+                    assert_eq!(segments, want, "path {path:?}");
                 }
                 (Err(got), Err(want)) => {
-                    assert_eq!(got.error, want, "path {:?}", path);
+                    assert_eq!(got.error, want, "path {path:?}");
                 }
                 (Ok(got), Err(want)) => {
-                    panic!("got {:?}, want err {:?}, path {:?}", got, want, path);
+                    panic!("got {got:?}, want err {want:?}, path {path:?}");
                 }
                 (Err(got), Ok(want)) => {
-                    panic!("got err {:?}, want {:?}, path {:?}", got, want, path);
+                    panic!("got err {got:?}, want {want:?}, path {path:?}");
                 }
             }
         }
@@ -338,12 +338,12 @@ mod tests {
 
         for path in ok_paths {
             let path = parse_url_path(path);
-            assert!(path.is_ok(), "path {:?} should be ok", path);
+            assert!(path.is_ok(), "path {path:?} should be ok");
         }
 
         for path in err_paths {
             let path = parse_url_path(path);
-            assert!(path.is_err(), "path {:?} should be err", path);
+            assert!(path.is_err(), "path {path:?} should be err");
         }
     }
 }

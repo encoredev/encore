@@ -246,7 +246,7 @@ impl Logger {
 
         let caller = match (record.module_path(), record.file(), record.line()) {
             (Some(module), _, _) => Some(module.to_string()),
-            (_, Some(file), Some(line)) => Some(format!("{}:{}", file, line)),
+            (_, Some(file), Some(line)) => Some(format!("{file}:{line}")),
             _ => None,
         };
 
@@ -489,7 +489,7 @@ impl Log for Logger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             self.try_log_record(record).unwrap_or_else(|e| {
-                eprintln!("failed to log: {}", e);
+                eprintln!("failed to log: {e}");
             });
         }
     }

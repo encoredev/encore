@@ -19,14 +19,14 @@ pub enum Expr {
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Rule(r) => f.write_fmt(format_args!("{}", r)),
+            Self::Rule(r) => f.write_fmt(format_args!("{r}")),
             Self::And(a) => {
                 f.write_char('(')?;
                 for (i, e) in a.iter().enumerate() {
                     if i > 0 {
                         f.write_str(" & ")?;
                     }
-                    f.write_fmt(format_args!("{}", e))?;
+                    f.write_fmt(format_args!("{e}"))?;
                 }
                 f.write_char(')')
             }
@@ -36,7 +36,7 @@ impl Display for Expr {
                     if i > 0 {
                         f.write_str(" | ")?;
                     }
-                    f.write_fmt(format_args!("{}", e))?;
+                    f.write_fmt(format_args!("{e}"))?;
                 }
                 f.write_char(')')
             }
@@ -59,13 +59,13 @@ pub enum Rule {
 impl Display for Rule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MinLen(n) => f.write_fmt(format_args!("MinLen<{}>", n)),
-            Self::MaxLen(n) => f.write_fmt(format_args!("MaxLen<{}>", n)),
-            Self::MinVal(n) => f.write_fmt(format_args!("Min<{}>", n)),
-            Self::MaxVal(n) => f.write_fmt(format_args!("Max<{}>", n)),
-            Self::StartsWith(s) => f.write_fmt(format_args!("StartsWith<{:#?}>", s)),
-            Self::EndsWith(s) => f.write_fmt(format_args!("EndsWith<{:#?}", s)),
-            Self::MatchesRegexp(s) => f.write_fmt(format_args!("MatchesRegexp<{:#?}", s)),
+            Self::MinLen(n) => f.write_fmt(format_args!("MinLen<{n}>")),
+            Self::MaxLen(n) => f.write_fmt(format_args!("MaxLen<{n}>")),
+            Self::MinVal(n) => f.write_fmt(format_args!("Min<{n}>")),
+            Self::MaxVal(n) => f.write_fmt(format_args!("Max<{n}>")),
+            Self::StartsWith(s) => f.write_fmt(format_args!("StartsWith<{s:#?}>")),
+            Self::EndsWith(s) => f.write_fmt(format_args!("EndsWith<{s:#?}")),
+            Self::MatchesRegexp(s) => f.write_fmt(format_args!("MatchesRegexp<{s:#?}")),
             Self::Is(Is::Email) => f.write_str("IsEmail"),
             Self::Is(Is::Url) => f.write_str("IsURL"),
         }
@@ -359,7 +359,7 @@ impl Display for UnsupportedValidationsError<'_> {
                 if i > 0 {
                     f.write_str(", ")?;
                 }
-                write!(f, "{}", rule)?;
+                write!(f, "{rule}")?;
             }
             Ok(())
         }

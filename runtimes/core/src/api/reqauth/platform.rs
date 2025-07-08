@@ -159,7 +159,7 @@ impl Display for ValidationError {
             ValidationError::InvalidDateHeader => write!(f, "invalid or missing date header"),
             ValidationError::TimeSkew => write!(f, "time skew"),
             ValidationError::SecretResolve(e) => {
-                write!(f, "resolve secret: {}", e)
+                write!(f, "resolve secret: {e}")
             }
         }
     }

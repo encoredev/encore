@@ -82,7 +82,7 @@ pub async fn main() {
             service_ports.clone(),
         );
         let proxy_token = root_token.child_token();
-        let proxy_fut = proxy.serve(format!("0.0.0.0:{}", exposed_port), proxy_token);
+        let proxy_fut = proxy.serve(format!("0.0.0.0:{exposed_port}"), proxy_token);
         handles.push(tokio::spawn(proxy_fut));
     }
 

@@ -243,7 +243,7 @@ fn parse_default(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
         // Ensure the file name matches the regex.
         let captures = FILENAME_RE
             .captures(name)
-            .ok_or(span.parse_err(format!("invalid migration filename: {}", name)))?;
+            .ok_or(span.parse_err(format!("invalid migration filename: {name}")))?;
         if captures[3].eq("up") {
             migrations.push(DBMigration {
                 file_name: name.to_string(),
@@ -285,7 +285,7 @@ fn parse_drizzle(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
         // Ensure the file name matches the regex.
         let captures = FILENAME_RE
             .captures(name)
-            .ok_or(span.parse_err(format!("invalid migration filename: {}", name)))?;
+            .ok_or(span.parse_err(format!("invalid migration filename: {name}")))?;
         migrations.push(DBMigration {
             file_name: name.to_string(),
             description: captures[2].to_string(),
@@ -325,7 +325,7 @@ fn parse_prisma(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
         // Ensure the file name matches the regex.
         let captures = FILENAME_RE
             .captures(dir_name)
-            .ok_or(span.parse_err(format!("invalid migration directory name: {}", dir_name)))?;
+            .ok_or(span.parse_err(format!("invalid migration directory name: {dir_name}")))?;
         migrations.push(DBMigration {
             file_name: path
                 .strip_prefix(dir)

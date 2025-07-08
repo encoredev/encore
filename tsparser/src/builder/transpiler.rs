@@ -199,7 +199,7 @@ impl OutputTranspiler for BunBuildCompiler<'_> {
                 }
                 ExternalPackages::Some(pkgs) => {
                     for pkg in pkgs {
-                        cmd.arg(format!("--external:{}", pkg));
+                        cmd.arg(format!("--external:{pkg}"));
                     }
                 }
                 ExternalPackages::None => {}

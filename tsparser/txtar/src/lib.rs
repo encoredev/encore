@@ -130,7 +130,7 @@ impl Archive {
 
     /// Serialize the archive as txtar into the I/O stream.
     pub fn to_writer<W: Write>(&self, writer: &mut W) -> io::Result<()> {
-        write!(writer, "{}", self)
+        write!(writer, "{self}")
     }
 
     /// Writes each file in this archive to the directory at the given
@@ -387,11 +387,8 @@ Archive { comment: \"blah\\r\\n\", files: [File { name: \"hello\", data: \"hello
         let err = bad_rel.materialize(dir);
         match err {
             Err(MaterializeError::DirEscape(p)) => assert_eq!(p, expected.to_string()),
-            Err(e) => panic!("expected `MaterializeError::DirEscape`, got {:?}", e),
-            Ok(_) => panic!(
-                "materialize({}) outside of parent dir should have failed",
-                expected
-            ),
+            Err(e) => panic!("expected `MaterializeError::DirEscape`, got {e:?}"),
+            Ok(_) => panic!("materialize({expected}) outside of parent dir should have failed"),
         }
     }
 }

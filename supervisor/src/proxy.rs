@@ -95,7 +95,7 @@ impl GatewayProxy {
     pub async fn health_check(&self) -> Result<HealthzResponse> {
         let handles = self.services.clone().into_iter().map(|(svc, port)| {
             let client = self.client.clone();
-            let url = format!("http://127.0.0.1:{}/__encore/healthz", port);
+            let url = format!("http://127.0.0.1:{port}/__encore/healthz");
             tokio::spawn(async move {
                 let err_resp = || HealthzResponse {
                     code: "unhealthy".to_string(),
@@ -105,7 +105,7 @@ impl GatewayProxy {
                         encore_compiler: "".to_string(),
                         deploy_id: "".to_string(),
                         checks: vec![HealthzCheckResult {
-                            name: format!("service.{}.initialized", svc),
+                            name: format!("service.{svc}.initialized"),
                             passed: false,
                             error: None,
                         }],

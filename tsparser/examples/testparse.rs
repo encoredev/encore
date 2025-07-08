@@ -66,7 +66,7 @@ fn main() {
                         err_msg.push_str(err);
                         err_msg.push('\n');
                     }
-                    eprintln!("{}", err_msg);
+                    eprintln!("{err_msg}");
                     panic!("parse failure")
                 }
             }

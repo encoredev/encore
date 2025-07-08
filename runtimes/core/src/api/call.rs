@@ -65,7 +65,7 @@ impl ServiceRegistry {
         }
 
         if let Some(own_address) = own_address {
-            let own_address = format!("http://{}", own_address);
+            let own_address = format!("http://{own_address}");
             for svc_name in hosted_services.iter() {
                 if !base_urls.contains_key(svc_name) {
                     let svc = EncoreName::from(svc_name);
@@ -230,8 +230,7 @@ impl ServiceRegistry {
                 code: api::ErrCode::NotFound,
                 message: "endpoint not found".into(),
                 internal_message: Some(format!(
-                    "endpoint {} not found in application metadata",
-                    target
+                    "endpoint {target} not found in application metadata"
                 )),
                 stack: None,
                 details: None,
@@ -241,13 +240,12 @@ impl ServiceRegistry {
         let req_schema = &endpoint.request[0];
         let method = req_schema.methods[0];
         let req_path = req_schema.path.to_request_path(&mut data)?;
-        let req_url = format!("{}{}", base_url, req_path);
+        let req_url = format!("{base_url}{req_path}");
         let req_url = Url::parse(&req_url).map_err(|_| api::Error {
             code: api::ErrCode::Internal,
             message: "failed to build endpoint url".into(),
             internal_message: Some(format!(
-                "failed to build endpoint url for endpoint {}",
-                target
+                "failed to build endpoint url for endpoint {target}"
             )),
             stack: None,
             details: None,
@@ -347,8 +345,7 @@ impl ServiceRegistry {
                 code: api::ErrCode::NotFound,
                 message: "endpoint not found".into(),
                 internal_message: Some(format!(
-                    "endpoint {} not found in application metadata",
-                    target
+                    "endpoint {target} not found in application metadata"
                 )),
                 stack: None,
                 details: None,
@@ -360,8 +357,7 @@ impl ServiceRegistry {
                 code: api::ErrCode::NotFound,
                 message: "no handshake schema found".into(),
                 internal_message: Some(format!(
-                    "endpoint {} doesn't have a handshake schema specified",
-                    target
+                    "endpoint {target} doesn't have a handshake schema specified"
                 )),
                 stack: None,
                 details: None,
@@ -374,12 +370,11 @@ impl ServiceRegistry {
             .replace("http://", "ws://")
             .replace("https://", "wss://");
 
-        let req_url = Url::parse(&format!("{}{}", base_url, req_path)).map_err(|_| api::Error {
+        let req_url = Url::parse(&format!("{base_url}{req_path}")).map_err(|_| api::Error {
             code: api::ErrCode::Internal,
             message: "failed to build endpoint url".into(),
             internal_message: Some(format!(
-                "failed to build endpoint url for endpoint {}",
-                target
+                "failed to build endpoint url for endpoint {target}"
             )),
             stack: None,
             details: None,
