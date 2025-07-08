@@ -92,7 +92,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Ctx<'a> {
     state: &'a ResolveState,
 
@@ -117,6 +117,33 @@ pub struct Ctx<'a> {
 
     /// Type arguments to fill in for inferred type parameters.
     infer_type_args: &'a [Cow<'a, Type>],
+}
+
+impl<'a> Debug for Ctx<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = f.debug_struct("Ctx");
+
+        if !self.type_params.is_empty() {
+            debug.field("type_params", &self.type_params);
+        }
+        if !self.type_args.is_empty() {
+            debug.field("type_args", &self.type_args);
+        }
+        if self.mapped_key_id.is_some() {
+            debug.field("mapped_key_id", &self.mapped_key_id);
+        }
+        if self.mapped_key_type.is_some() {
+            debug.field("mapped_key_type", &self.mapped_key_type);
+        }
+        if self.infer_type_params.is_some() {
+            debug.field("infer_type_params", &self.infer_type_params);
+        }
+        if !self.infer_type_args.is_empty() {
+            debug.field("infer_type_args", &self.infer_type_args);
+        }
+
+        debug.finish()
+    }
 }
 
 impl<'a> Ctx<'a> {
@@ -896,7 +923,7 @@ impl Ctx<'_> {
                                         }
                                     }
                                     Some(false) => {
-                                        if is_ts_ref_to(&tt.false_type, ident) {
+                                        if is_ts_ref_to(tt.false_type.as_ref(), ident) {
                                             t.clone()
                                         } else {
                                             self.typ(&tt.false_type)
@@ -1788,6 +1815,70 @@ impl Ctx<'_> {
                     // See https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
 
                     match (cond.check_type.as_ref(), check.into_owned()) {
+                        (Type::Generic(Generic::Keyof(Keyof(keyof_type))), Type::Union(check))
+                            if matches!(
+                                keyof_type.as_ref(),
+                                Type::Generic(Generic::TypeParam(_))
+                            ) =>
+                        {
+                            if let Type::Generic(Generic::TypeParam(_)) = keyof_type.as_ref() {
+                                fn is_same_keyof(typ: &Type, other: &Type) -> bool {
+                                    match (typ, other) {
+                                        (
+                                            Type::Generic(Generic::Keyof(Keyof(typ_keyof))),
+                                            Type::Generic(Generic::Keyof(Keyof(other_keyof))),
+                                        ) => match (typ_keyof.as_ref(), other_keyof.as_ref()) {
+                                            (
+                                                Type::Generic(Generic::TypeParam(typ_param)),
+                                                Type::Generic(Generic::TypeParam(other_param)),
+                                            ) => typ_param.idx == other_param.idx,
+                                            _ => false,
+                                        },
+                                        _ => false,
+                                    }
+                                }
+
+                                let true_is_distributed =
+                                    is_same_keyof(&cond.check_type, &cond.true_type);
+                                let false_is_distributed =
+                                    is_same_keyof(&cond.check_type, &cond.false_type);
+
+                                let result: Vec<_> = check
+                                    .types
+                                    .into_iter()
+                                    .filter_map(|c| {
+                                        match c.assignable(self.state, &extends) {
+                                            Some(true) => {
+                                                if true_is_distributed {
+                                                    Some(c.clone())
+                                                } else {
+                                                    Some(
+                                                        self.concrete(&cond.true_type).into_owned(),
+                                                    )
+                                                }
+                                            }
+                                            Some(false) => {
+                                                if false_is_distributed {
+                                                    Some(c.clone())
+                                                } else {
+                                                    Some(
+                                                        self.concrete(&cond.false_type)
+                                                            .into_owned(),
+                                                    )
+                                                }
+                                            }
+                                            // This implies there's a generic type in this mix,
+                                            // which shouldn't happen when concretizing.
+                                            None => None,
+                                        }
+                                    })
+                                    .collect();
+
+                                New(simplify_union(result))
+                            } else {
+                                unreachable!()
+                            }
+                        }
                         (Type::Generic(Generic::TypeParam(param)), Type::Union(check)) => {
                             // If check is a union, apply the check to each type in the union.
                             let mut type_args = self.type_args.to_owned();
@@ -1897,7 +1988,15 @@ impl Ctx<'_> {
                             }
 
                             // An unresolved generic type means we can't resolve this yet.
-                            Type::Generic(_) => return Same(typ),
+                            source @ Type::Generic(_) => {
+                                return New(Type::Generic(Generic::Mapped(Mapped {
+                                    in_type: Box::new(source),
+                                    value_type: Box::new(
+                                        self.underlying(&mapped.value_type).into_owned(),
+                                    ),
+                                    optional: mapped.optional,
+                                })))
+                            }
 
                             // Do we have a wildcard type like "string" or "number"?
                             // If so treat it as an index signature.
@@ -2036,13 +2135,13 @@ impl Ctx<'_> {
         type_params: &[&TsTypeParam],
     ) -> Type {
         let type_args = self.concrete_list(type_arguments);
+        let typ = self.obj_type(&named.obj);
 
         let ctx = self
             .clone()
             .with_type_params(type_params)
             .with_type_args(&type_args);
 
-        let typ = ctx.resolve_obj_type(&named.obj);
         let span = tracing::trace_span!("underlying_named", ?named, ?type_args);
         let _guard = span.enter();
         ctx.underlying(&typ).into_owned()

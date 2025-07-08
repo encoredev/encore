@@ -182,15 +182,10 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
                 x: Generic(
                     Mapped(
                         Mapped {
-                            in_type: Named(
-                                Named {
-                                    obj: Object {
-                                        name: Some(
-                                            "Exclude",
-                                        ),
-                                    },
-                                    type_arguments: [
-                                        Generic(
+                            in_type: Generic(
+                                Conditional(
+                                    Conditional {
+                                        check_type: Generic(
                                             Keyof(
                                                 Keyof(
                                                     Generic(
@@ -204,7 +199,7 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
                                                 ),
                                             ),
                                         ),
-                                        Generic(
+                                        extends_type: Generic(
                                             TypeParam(
                                                 TypeParam {
                                                     idx: 1,
@@ -227,8 +222,25 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
                                                 },
                                             ),
                                         ),
-                                    ],
-                                },
+                                        true_type: Basic(
+                                            Never,
+                                        ),
+                                        false_type: Generic(
+                                            Keyof(
+                                                Keyof(
+                                                    Generic(
+                                                        TypeParam(
+                                                            TypeParam {
+                                                                idx: 0,
+                                                                constraint: None,
+                                                            },
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                        ),
+                                    },
+                                ),
                             ),
                             value_type: Generic(
                                 Index(

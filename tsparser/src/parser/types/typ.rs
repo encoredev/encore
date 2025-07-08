@@ -1149,8 +1149,8 @@ pub fn intersect<'a: 'b, 'b>(
             }
             Cow::Owned(simplify_union(types))
         }
-        (Type::Union(_), _) => union_with(a, b),
-        (_, Type::Union(_)) => union_with(b, a),
+        (Type::Union(_), Type::Literal(_)) => union_with(a, b),
+        (Type::Literal(_), Type::Union(_)) => union_with(b, a),
 
         (Type::Literal(x), Type::Literal(y)) if x == y => a,
         (Type::Literal(lit), Type::Basic(x)) => {
