@@ -94,7 +94,7 @@ impl Reporter {
 
                                 // Add the event to the stream
                                 if let Some(sender) = &body_sender {
-                                    if let Err(err) =  self.send_event_to_stream(sender, event) {
+                                    if let Err(err) = sender.send(event) {
                                         log::error!("failed to stream event: {err}");
                                         break;
                                     }
@@ -214,15 +214,6 @@ impl Reporter {
         );
 
         Ok(headers)
-    }
-
-    fn send_event_to_stream(
-        &self,
-        sender: &tokio::sync::mpsc::UnboundedSender<TraceEvent>,
-        event: TraceEvent,
-    ) -> anyhow::Result<()> {
-        sender.send(event)?;
-        Ok(())
     }
 }
 
@@ -347,8 +338,8 @@ mod tests {
         };
 
         // Send the event with empty payload
-        reporter
-            .send_event_to_stream(&body_tx, event)
+        body_tx
+            .send(event)
             .expect("Failed to send event with empty payload");
 
         // Verify header was received
@@ -407,9 +398,7 @@ mod tests {
             ts: tokio::time::Instant::now(),
         };
 
-        reporter
-            .send_event_to_stream(&body_tx, event)
-            .expect("Failed to send event to stream");
+        body_tx.send(event).expect("Failed to send event to stream");
 
         let header = body_stream
             .next()
@@ -499,9 +488,7 @@ mod tests {
         };
 
         // Send the event with large payload
-        reporter
-            .send_event_to_stream(&body_tx, event)
-            .expect("Failed to send large payload event to stream");
+        body_tx.send(event).expect("Failed to send event to stream");
 
         // Verify header was received
         let header = body_stream
