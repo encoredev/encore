@@ -92,7 +92,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Ctx<'a> {
     state: &'a ResolveState,
 
@@ -117,33 +117,6 @@ pub struct Ctx<'a> {
 
     /// Type arguments to fill in for inferred type parameters.
     infer_type_args: &'a [Cow<'a, Type>],
-}
-
-impl<'a> Debug for Ctx<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut debug = f.debug_struct("Ctx");
-
-        if !self.type_params.is_empty() {
-            debug.field("type_params", &self.type_params);
-        }
-        if !self.type_args.is_empty() {
-            debug.field("type_args", &self.type_args);
-        }
-        if self.mapped_key_id.is_some() {
-            debug.field("mapped_key_id", &self.mapped_key_id);
-        }
-        if self.mapped_key_type.is_some() {
-            debug.field("mapped_key_type", &self.mapped_key_type);
-        }
-        if self.infer_type_params.is_some() {
-            debug.field("infer_type_params", &self.infer_type_params);
-        }
-        if !self.infer_type_args.is_empty() {
-            debug.field("infer_type_args", &self.infer_type_args);
-        }
-
-        debug.finish()
-    }
 }
 
 impl<'a> Ctx<'a> {
@@ -1988,9 +1961,10 @@ impl Ctx<'_> {
                             }
 
                             // An unresolved generic type means we can't resolve this yet.
-                            source @ Type::Generic(_) => {
+                            // get the underlying types to apply any type arguments that we have.
+                            in_type @ Type::Generic(_) => {
                                 return New(Type::Generic(Generic::Mapped(Mapped {
-                                    in_type: Box::new(source),
+                                    in_type: Box::new(in_type),
                                     value_type: Box::new(
                                         self.underlying(&mapped.value_type).into_owned(),
                                     ),
