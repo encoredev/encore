@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Debug;
 use std::io::Write;
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex};
 
 /// A log writer.
@@ -51,7 +51,7 @@ pub struct ActorWriter {
 }
 impl ActorWriter {
     pub fn new<W: Write + Sync + Send + 'static>(w: W) -> Self {
-        let (sender, recv) = std::sync::mpsc::sync_channel::<bytes::Bytes>(1024);
+        let (sender, recv) = mpsc::sync_channel::<bytes::Bytes>(1024);
         std::thread::spawn(move || {
             let mut writer = w;
             while let Ok(bytes) = recv.recv() {
