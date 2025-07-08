@@ -7,9 +7,8 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Debug;
 use std::io::Write;
-use std::pin::Pin;
+use std::sync::mpsc::SyncSender;
 use std::sync::{Arc, Mutex};
-use tokio::io::AsyncWrite;
 
 /// A log writer.
 pub trait Writer: Send + Sync + 'static {
@@ -43,13 +42,45 @@ pub fn default_writer(fields: &'static FieldConfig) -> Arc<dyn Writer> {
         }
     }
 
-    // if tokio::runtime::Handle::try_current().is_ok() {
-    // If we're running in a tokio runtime we'll use the async writer.
-    // Arc::new(AsyncWriter::default())
-    // } else {
-    // Otherwise we'll use the blocking writer.
-    Arc::new(BlockingWriter::default())
-    // }
+    Arc::new(ActorWriter::default())
+}
+
+// ActorWriter creates a bounded channel that sends log data to a separate thread that handles the writing.
+pub struct ActorWriter {
+    sender: SyncSender<bytes::Bytes>,
+}
+impl ActorWriter {
+    pub fn new<W: Write + Sync + Send + 'static>(w: W) -> Self {
+        let (sender, recv) = std::sync::mpsc::sync_channel::<bytes::Bytes>(1024);
+        std::thread::spawn(move || {
+            let mut writer = w;
+            while let Ok(bytes) = recv.recv() {
+                if let Err(e) = writer.write_all(&bytes) {
+                    eprintln!("Failed to write log entry: {e}");
+                    continue;
+                }
+            }
+        });
+        Self { sender }
+    }
+}
+impl Writer for ActorWriter {
+    fn write(&self, _: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
+        let mut buf = Vec::with_capacity(256);
+        serde_json::to_writer(&mut buf, values)
+            .map_err(std::io::Error::from)
+            .context("serde_writer")?;
+        buf.extend_from_slice(b"\n");
+
+        self.sender.send(buf.into())?;
+        Ok(())
+    }
+}
+
+impl Default for ActorWriter {
+    fn default() -> Self {
+        Self::new(std::io::stderr())
+    }
 }
 
 /// A log writer that synchronizes writes to stderr blocking
@@ -90,43 +121,5 @@ impl<W: Write + Sync + Send + 'static> Writer for BlockingWriter<W> {
             }
             Err(poisoned) => Err(anyhow::anyhow!("poisoned mutex: {:?}", poisoned)),
         }
-    }
-}
-
-pub struct AsyncWriter<W: AsyncWrite + Sync + Send + 'static> {
-    mu: Arc<tokio::sync::Mutex<Pin<Box<W>>>>,
-}
-
-impl<W: AsyncWrite + Sync + Send + 'static> AsyncWriter<W> {
-    pub fn new(w: W) -> Self {
-        Self {
-            mu: Arc::new(tokio::sync::Mutex::new(Box::pin(w))),
-        }
-    }
-}
-
-impl Default for AsyncWriter<tokio::io::Stderr> {
-    fn default() -> Self {
-        Self::new(tokio::io::stderr())
-    }
-}
-
-impl<W: AsyncWrite + Sync + Send + 'static> Writer for AsyncWriter<W> {
-    fn write(&self, _: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
-        let mut buf = Vec::with_capacity(256);
-        serde_json::to_writer(&mut buf, values)
-            .map_err(std::io::Error::from)
-            .context("serde_writer")?;
-        buf.write_all(b"\n").context("new line")?;
-
-        let mu = self.mu.clone();
-        tokio::spawn(async move {
-            use tokio::io::AsyncWriteExt;
-
-            let mut w = mu.lock().await;
-            w.write_all(&buf).await
-        });
-
-        Ok(())
     }
 }
