@@ -55,13 +55,27 @@ impl ActorWriter {
         std::thread::spawn(move || {
             let mut writer = w;
             while let Ok(bytes) = recv.recv() {
-                if let Err(e) = writer.write_all(&bytes) {
-                    eprintln!("Failed to write log entry: {e}");
-                    continue;
-                }
+                Self::write_with_retry(&mut writer, &bytes);
             }
         });
         Self { sender }
+    }
+
+    fn write_with_retry<W: Write>(writer: &mut W, bytes: &[u8]) {
+        const MAX_RETRIES: u32 = 10;
+        const INITIAL_RETRY_DELAY: u64 = 1;
+
+        let mut delay_ms = INITIAL_RETRY_DELAY;
+        for retry in 0..=MAX_RETRIES {
+            if writer.write_all(bytes).is_ok() {
+                return;
+            }
+
+            if retry < MAX_RETRIES {
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                delay_ms *= 2;
+            }
+        }
     }
 }
 impl Writer for ActorWriter {
