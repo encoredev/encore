@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use crate::api::reqauth::platform;
 use bytes::Bytes;
+use futures::StreamExt;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::model;
@@ -121,26 +123,35 @@ impl Reporter {
         }
     }
 
+    fn create_body_stream(
+        &self,
+        rx: UnboundedReceiver<TraceEvent>,
+    ) -> impl futures::Stream<Item = Result<Bytes, std::io::Error>> {
+        let anchor = self.anchor.clone();
+        UnboundedReceiverStream::new(rx).flat_map(move |event| {
+            let streaming_event = StreamingTraceEvent { event };
+            futures::stream::iter(vec![
+                Ok::<_, std::io::Error>(streaming_event.header(&anchor)),
+                Ok::<_, std::io::Error>(streaming_event.event.data),
+            ])
+        })
+    }
+
     fn setup_trace_request(
         &self,
         trace_headers: &reqwest::header::HeaderMap,
-    ) -> Result<tokio::sync::mpsc::UnboundedSender<bytes::Bytes>, String> {
+    ) -> Result<tokio::sync::mpsc::UnboundedSender<TraceEvent>, String> {
         {
             let http_client: &reqwest::Client = &self.http_client;
             let endpoint: &reqwest::Url = &self.config.trace_endpoint;
             let validator: &Arc<platform::RequestValidator> = &self.config.platform_validator;
             // Create a channel for the streaming body
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<bytes::Bytes>();
-
-            let stream = tokio_stream::StreamExt::map(
-                UnboundedReceiverStream::new(rx),
-                |item| -> Result<bytes::Bytes, std::io::Error> { Ok(item) },
-            );
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<TraceEvent>();
 
             let mut req = match http_client
                 .post(endpoint.clone())
                 .headers(trace_headers.clone())
-                .body(reqwest::Body::wrap_stream(stream))
+                .body(reqwest::Body::wrap_stream(self.create_body_stream(rx)))
                 .build()
             {
                 Ok(req) => req,
@@ -207,23 +218,10 @@ impl Reporter {
 
     fn send_event_to_stream(
         &self,
-        sender: &tokio::sync::mpsc::UnboundedSender<bytes::Bytes>,
+        sender: &tokio::sync::mpsc::UnboundedSender<TraceEvent>,
         event: TraceEvent,
     ) -> anyhow::Result<()> {
-        let streaming_event = StreamingTraceEvent { event };
-
-        // Send header
-        let header = streaming_event.header(&self.anchor);
-        if let Err(err) = sender.send(header) {
-            anyhow::bail!("failed to send trace header: {:?}", err);
-        }
-
-        // Send data
-        let data = streaming_event.event.data.clone();
-        if let Err(err) = sender.send(data) {
-            anyhow::bail!("failed to send trace data: {:?}", err);
-        }
-
+        sender.send(event)?;
         Ok(())
     }
 }
@@ -312,6 +310,7 @@ mod tests {
     use super::*;
     use crate::api::reqauth::platform::RequestValidator;
 
+    use tokio_stream::StreamExt;
     use url::Url;
 
     fn setup_reporter() -> Reporter {
@@ -332,10 +331,11 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_event_to_stream_empty_payload() {
+    #[tokio::test]
+    async fn test_event_to_stream_empty_payload() {
         let reporter = setup_reporter();
-        let (body_tx, mut body_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (body_tx, body_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut body_stream = Box::pin(reporter.create_body_stream(body_rx));
 
         // Create an event with empty data payload
         let event = TraceEvent {
@@ -352,9 +352,11 @@ mod tests {
             .expect("Failed to send event with empty payload");
 
         // Verify header was received
-        let header = body_rx
-            .try_recv()
-            .expect("Failed to receive header for empty payload");
+        let header = body_stream
+            .next()
+            .await
+            .expect("Failed to receive header for empty payload")
+            .expect("Header should be Ok");
         assert_eq!(header[0], EventType::LogMessage as u8);
 
         // Verify data length in header is zero
@@ -365,22 +367,27 @@ mod tests {
         assert_eq!(data_length, 0, "Data length in header should be zero");
 
         // Verify empty data was received
-        let data = body_rx
-            .try_recv()
-            .expect("Failed to receive empty data payload");
+        let data = body_stream
+            .next()
+            .await
+            .expect("Failed to receive empty data payload")
+            .expect("Data should be Ok");
         assert_eq!(data.len(), 0, "Data payload should be empty");
 
-        // Verify channel is now empty
+        drop(body_tx);
+
+        // Verify stream is now empty
         assert!(
-            body_rx.try_recv().is_err(),
-            "Channel should be empty after receiving header and data"
+            body_stream.next().await.is_none(),
+            "Stream should be empty after receiving header and data"
         );
     }
 
-    #[test]
-    fn test_event_to_stream() {
+    #[tokio::test]
+    async fn test_event_to_stream() {
         let reporter = setup_reporter();
-        let (body_tx, mut body_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (body_tx, body_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut body_stream = Box::pin(reporter.create_body_stream(body_rx));
 
         // Use specific test values that we can verify in the header
         let event_id = 42u64;
@@ -404,12 +411,16 @@ mod tests {
             .send_event_to_stream(&body_tx, event)
             .expect("Failed to send event to stream");
 
-        let header = body_rx
-            .try_recv()
-            .expect("Failed to receive header from stream");
-        let data = body_rx
-            .try_recv()
-            .expect("Failed to receive data from stream");
+        let header = body_stream
+            .next()
+            .await
+            .expect("Failed to receive header from stream")
+            .expect("Header should be Ok");
+        let data = body_stream
+            .next()
+            .await
+            .expect("Failed to receive data from stream")
+            .expect("Data should be Ok");
 
         // Verify that header has correct format and size
         assert_eq!(header.len(), 45, "Header should be exactly 45 bytes");
@@ -443,11 +454,7 @@ mod tests {
 
         // Verify span ID (bytes 33-40)
         for i in 0..8 {
-            assert_eq!(
-                header[33 + i],
-                span_id[i],
-                "Span ID byte {i} should match"
-            );
+            assert_eq!(header[33 + i], span_id[i], "Span ID byte {i} should match");
         }
 
         // Verify data length (bytes 41-44)
@@ -465,17 +472,19 @@ mod tests {
         assert_eq!(data, data_bytes, "Data payload should match original");
         assert_eq!(data.len(), test_data.len(), "Data length should match");
 
+        drop(body_tx);
         // Verify channel is now empty
         assert!(
-            body_rx.try_recv().is_err(),
+            body_stream.next().await.is_none(),
             "Channel should be empty after receiving header and data"
         );
     }
 
-    #[test]
-    fn test_event_to_stream_large_payload() {
+    #[tokio::test]
+    async fn test_event_to_stream_large_payload() {
         let reporter = setup_reporter();
-        let (body_tx, mut body_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (body_tx, body_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut body_stream = Box::pin(reporter.create_body_stream(body_rx));
 
         // Create a large payload (1MB)
         let large_data_size = 1024 * 1024;
@@ -495,9 +504,11 @@ mod tests {
             .expect("Failed to send large payload event to stream");
 
         // Verify header was received
-        let header = body_rx
-            .try_recv()
-            .expect("Failed to receive header for large payload");
+        let header = body_stream
+            .next()
+            .await
+            .expect("Failed to receive header for large payload")
+            .expect("Header should be Ok");
         assert_eq!(header[0], EventType::DBQueryStart as u8);
 
         // Extract the data length from the header (last 4 bytes)
@@ -510,15 +521,18 @@ mod tests {
         assert_eq!(data_length, large_data_size as u32);
 
         // Verify data was received and matches the original
-        let data = body_rx
-            .try_recv()
-            .expect("Failed to receive large payload data");
+        let data = body_stream
+            .next()
+            .await
+            .expect("Failed to receive large payload data")
+            .expect("Data should be Ok");
         assert_eq!(data.len(), large_data_size);
         assert_eq!(data[0], 0xAA);
         assert_eq!(data[large_data_size - 1], 0xAA);
 
+        drop(body_tx);
         // Verify channel is now empty
-        assert!(body_rx.try_recv().is_err());
+        assert!(body_stream.next().await.is_none());
     }
 
     #[test]
