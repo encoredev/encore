@@ -145,12 +145,12 @@ impl Reporter {
             {
                 Ok(req) => req,
                 Err(err) => {
-                    return Err(format!("failed to build trace request: {:?}", err));
+                    return Err(format!("failed to build trace request: {err:?}"));
                 }
             };
 
             if let Err(err) = validator.sign_outgoing_request(&mut req) {
-                return Err(format!("failed to sign trace request: {:?}", err));
+                return Err(format!("failed to sign trace request: {err:?}"));
             }
 
             // Start the request
@@ -437,8 +437,7 @@ mod tests {
             assert_eq!(
                 header[17 + i],
                 trace_id[i],
-                "Trace ID byte {} should match",
-                i
+                "Trace ID byte {i} should match"
             );
         }
 
@@ -447,8 +446,7 @@ mod tests {
             assert_eq!(
                 header[33 + i],
                 span_id[i],
-                "Span ID byte {} should match",
-                i
+                "Span ID byte {i} should match"
             );
         }
 
