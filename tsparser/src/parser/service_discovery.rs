@@ -251,7 +251,7 @@ export const bar = api(
 
         match svcs {
             Err(err) => {
-                panic!("{:#?}", err);
+                panic!("{err:#?}");
             }
             Ok(svcs) => {
                 let tmp_root = tmp_dir.path();

@@ -42,7 +42,7 @@ fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
         .map_err(|e| {
             Error::new(
                 Status::GenericFailure,
-                format!("failed to initialize runtime: {:?}", e),
+                format!("failed to initialize runtime: {e:?}"),
             )
         })
 }
@@ -178,7 +178,7 @@ impl Runtime {
         srv.register_handler(endpoint_name, handler).map_err(|e| {
             Error::new(
                 Status::GenericFailure,
-                format!("failed to register handler: {:?}", e),
+                format!("failed to register handler: {e:?}"),
             )
         })
     }
@@ -296,7 +296,7 @@ impl Runtime {
             fut.await.map_err(|e| {
                 Error::new(
                     Status::GenericFailure,
-                    format!("failed to make api call: {:?}", e),
+                    format!("failed to make api call: {e:?}"),
                 )
             })
         };

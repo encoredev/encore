@@ -118,8 +118,8 @@ impl ToOutgoingRequest<http::HeaderMap> for Cookie {
                 }
                 return Err(api::Error {
                     code: api::ErrCode::InvalidArgument,
-                    message: format!("missing cookie parameter: {}", key),
-                    internal_message: Some(format!("missing cookie parameter: {}", key)),
+                    message: format!("missing cookie parameter: {key}"),
+                    internal_message: Some(format!("missing cookie parameter: {key}")),
                     stack: None,
                     details: None,
                 });

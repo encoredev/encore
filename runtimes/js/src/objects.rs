@@ -293,7 +293,7 @@ impl ListIterator {
         if let Some(stream) = stream.as_mut() {
             let row =
                 stream.next().await.transpose().map_err(|e| {
-                    napi::Error::new(napi::Status::GenericFailure, format!("{:#?}", e))
+                    napi::Error::new(napi::Status::GenericFailure, format!("{e:#?}"))
                 })?;
             Ok(row.map(ListEntry::from))
         } else {

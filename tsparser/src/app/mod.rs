@@ -162,7 +162,7 @@ impl AppValidator<'_> {
                 HANDLER.with(|h| {
                     h.struct_span_err(
                         self.span,
-                        &format!("unsupported standalone validation expression: {}", node),
+                        &format!("unsupported standalone validation expression: {node}"),
                     )
                     .note("validation expressions must be attached to a regular type using '&'")
                     .emit()

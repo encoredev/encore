@@ -321,7 +321,7 @@ impl MetaBuilder<'_> {
                         }),
                         schedule: match &cj.schedule {
                             CronJobSchedule::Cron(expr) => format!("schedule:{}", expr.0),
-                            CronJobSchedule::Every(mins) => format!("every:{}", mins),
+                            CronJobSchedule::Every(mins) => format!("every:{mins}"),
                         },
                     };
                     self.data.cron_jobs.push(result);
@@ -588,7 +588,7 @@ impl MetaBuilder<'_> {
         let message_type = self.schema.typ(&topic.message_type).map_err(|e| {
             topic
                 .message_type
-                .parse_err(format!("could not resolve message type: {}", e))
+                .parse_err(format!("could not resolve message type: {e}"))
         })?;
         Ok(v1::PubSubTopic {
             name: topic.name.clone(),

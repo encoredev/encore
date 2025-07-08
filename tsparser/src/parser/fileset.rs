@@ -110,7 +110,7 @@ impl std::fmt::Display for FilePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FilePath::Real(p) => write!(f, "FilePath::Real({})", p.display()),
-            FilePath::Custom(p) => write!(f, "FilePath::Custom({})", p),
+            FilePath::Custom(p) => write!(f, "FilePath::Custom({p})"),
         }
     }
 }

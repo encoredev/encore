@@ -37,7 +37,7 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
                 buf,
                 "{}{}",
                 format!("{}=", self.field_config.error_field_name).cyan(),
-                format!("{}", err).red()
+                format!("{err}").red()
             )
             .map_err(std::io::Error::from)
             .context("unable to write error field value")?;
@@ -57,9 +57,9 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
             if !buf.is_empty() {
                 buf.push(b' ');
             }
-            write!(buf, "{}", format!("{}=", key).cyan())
+            write!(buf, "{}", format!("{key}=").cyan())
                 .map_err(std::io::Error::from)
-                .context(format!("unable to write field key {}", key))?;
+                .context(format!("unable to write field key {key}"))?;
 
             let value = values.get(key).expect("key not found");
 
@@ -74,17 +74,17 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
                         || s.contains('\\')
                         || s.contains('"')
                     {
-                        format!("{}", value)
+                        format!("{value}")
                     } else {
                         s.to_string()
                     }
                 }
-                _ => format!("{}", value),
+                _ => format!("{value}"),
             };
 
-            write!(buf, "{}", value_to_print)
+            write!(buf, "{value_to_print}")
                 .map_err(std::io::Error::from)
-                .context(format!("unable to write field value {}", key))?;
+                .context(format!("unable to write field value {key}"))?;
         }
 
         // Finally, write the stack trace to the log
@@ -160,13 +160,13 @@ fn write_part(
 ) -> anyhow::Result<()> {
     if let Some(value) = values.get(field) {
         if let Some(value) = value.as_str() {
-            let value = mapper(value).context(format!("unable to map part {}", field))?;
+            let value = mapper(value).context(format!("unable to map part {field}"))?;
             if !buf.is_empty() {
                 buf.push(b' ');
             }
-            write!(buf, "{}", value)
+            write!(buf, "{value}")
                 .map_err(std::io::Error::from)
-                .context(format!("unable to write part {}", field))?;
+                .context(format!("unable to write part {field}"))?;
         }
     }
     Ok(())
@@ -174,14 +174,14 @@ fn write_part(
 
 fn format_timestamp(timestamp: &str) -> anyhow::Result<String> {
     let timestamp = chrono::DateTime::parse_from_rfc3339(timestamp)
-        .context(format!("unable to parse timestamp: {}", timestamp))?;
+        .context(format!("unable to parse timestamp: {timestamp}"))?;
     let datetime: chrono::DateTime<chrono::Local> = timestamp.into();
 
     let (is_pm, hour) = datetime.hour12();
     let minute = datetime.minute();
 
     let mut timestamp = String::with_capacity(32);
-    timestamp.push_str(&format!("{:02}:{:02}", hour, minute));
+    timestamp.push_str(&format!("{hour:02}:{minute:02}"));
 
     if is_pm {
         timestamp.push_str("PM");
@@ -204,7 +204,7 @@ fn write_level(buf: &mut Vec<u8>, level: log::Level) -> anyhow::Result<()> {
     if !buf.is_empty() {
         buf.push(b' ');
     }
-    write!(buf, "{}", level_str)
+    write!(buf, "{level_str}")
         .map_err(std::io::Error::from)
         .context("unable to write log level")?;
 

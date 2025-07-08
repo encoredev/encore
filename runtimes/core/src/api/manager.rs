@@ -147,11 +147,7 @@ impl ManagerConfig<'_> {
                     .map(|gw| (gw.encore_name.as_str(), gw))
             }));
         let mut gateways = HashMap::new();
-        let routes = paths::compute(
-            endpoints
-                .iter()
-                .map(|(_, ep)| RoutePerService(ep.to_owned())),
-        );
+        let routes = paths::compute(endpoints.values().map(|ep| RoutePerService(ep.to_owned())));
 
         let mut auth_data_schemas = HashMap::new();
         for gw in &self.meta.gateways {
@@ -438,7 +434,7 @@ fn listen_addr() -> String {
         return addr;
     }
     if let Ok(port) = std::env::var("PORT") {
-        return format!("0.0.0.0:{}", port);
+        return format!("0.0.0.0:{port}");
     }
     "0.0.0.0:8080".to_string()
 }

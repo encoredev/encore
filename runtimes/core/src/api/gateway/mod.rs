@@ -340,7 +340,7 @@ impl ProxyHttp for Gateway {
                     });
 
                 if !prior_headers.is_empty() {
-                    let combined = format!("{}, {}", prior_headers, client_ip);
+                    let combined = format!("{prior_headers}, {client_ip}");
                     upstream_request.insert_header("x-forwarded-for", combined)?;
                 } else {
                     upstream_request.insert_header("x-forwarded-for", client_ip)?;

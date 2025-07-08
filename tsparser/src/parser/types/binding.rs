@@ -271,7 +271,7 @@ mod tests {
         ];
 
         for (expr, want) in tests {
-            let stmt = format!("let {} = 1;", expr);
+            let stmt = format!("let {expr} = 1;");
             let module = test_parse(&stmt);
             let var = module.ast.body[0]
                 .as_stmt()
@@ -283,8 +283,8 @@ mod tests {
             let got = super::bindings(&var.decls[0].name);
             assert_eq!(got.len(), want.len());
             for (got, want) in got.iter().zip(want.iter()) {
-                assert_eq!(got.name, want.0, "expr: {}", expr);
-                assert_eq!(got.destructure_path, want.1, "expr: {}", expr);
+                assert_eq!(got.name, want.0, "expr: {expr}");
+                assert_eq!(got.destructure_path, want.1, "expr: {expr}");
             }
         }
     }

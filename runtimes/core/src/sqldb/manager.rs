@@ -233,10 +233,7 @@ impl ClientBouncer for Bouncer {
 
 /// Returns the connection string for connecting to the database via the proxy.
 fn proxy_conn_string(db_encore_name: &str, proxy_port: u16) -> String {
-    format!(
-        "postgresql://encore:password@127.0.0.1:{}/{}?sslmode=disable",
-        proxy_port, db_encore_name,
-    )
+    format!("postgresql://encore:password@127.0.0.1:{proxy_port}/{db_encore_name}?sslmode=disable",)
 }
 
 /// Computes the database configuration for the given clusters.

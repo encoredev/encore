@@ -62,7 +62,7 @@ impl BoxedHandler for StaticAssetsHandler {
                     .values()
                     .next()
                     .and_then(|v| v.as_str())
-                    .map(|s| format!("/{}", s))
+                    .map(|s| format!("/{s}"))
                     .unwrap_or("/".to_string()),
                 None => "/".to_string(),
             };

@@ -21,7 +21,7 @@ impl Secret {
         let val = self.secret.get().map_err(|e| {
             Error::new(
                 Status::GenericFailure,
-                format!("failed to resolve secret: {}", e),
+                format!("failed to resolve secret: {e}"),
             )
         })?;
         String::from_utf8(val.to_vec())

@@ -98,7 +98,7 @@ where
                             continue;
                         }
 
-                        let tsr = format!("{}/", route);
+                        let tsr = format!("{route}/");
                         if !path_set.contains(&tsr) {
                             tsr_routes.push(tsr);
                         }

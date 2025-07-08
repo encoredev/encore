@@ -240,7 +240,7 @@ fn parse_bucket_ref(
             }
 
             _ => {
-                sp.err(&format!("unsupported bucket permission type {:#?}", t));
+                sp.err(&format!("unsupported bucket permission type {t:#?}"));
                 None
             }
         }

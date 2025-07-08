@@ -270,10 +270,7 @@ impl NSData {
     fn add_import(&mut self, id: AstId, import: ImportedName) {
         if self.imports.contains_key(&id) {
             HANDLER.with(|handler| {
-                handler.span_err(
-                    import.range.to_span(),
-                    &format!("`{}` already imported", id),
-                );
+                handler.span_err(import.range.to_span(), &format!("`{id}` already imported"));
             });
             return;
         }
@@ -798,7 +795,7 @@ impl ResolveState {
         let ast_module = ast_module
             .inspect_err(|err| {
                 HANDLER.with(|handler| {
-                    handler.span_err(imp.range.to_span(), &format!("import not found: {}", err))
+                    handler.span_err(imp.range.to_span(), &format!("import not found: {err}"))
                 })
             })
             .ok()?;
@@ -812,8 +809,7 @@ impl ResolveState {
 
                 if obj.is_none() {
                     HANDLER.with(|handler| {
-                        handler
-                            .span_err(imp.range.to_span(), &format!("object not found: {}", name));
+                        handler.span_err(imp.range.to_span(), &format!("object not found: {name}"));
                     });
                 }
 
