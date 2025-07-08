@@ -223,7 +223,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                             h.struct_span_err(err.span, &err.error.to_string())
                                 .span_note(
                                     config_span,
-                                    &format!("no path provided, so defaulting to {}", path_str),
+                                    &format!("no path provided, so defaulting to {path_str}"),
                                 )
                                 .emit();
                         });
@@ -342,7 +342,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 
                     let assets_dir = dir.with(module_file_path.parent().unwrap().join(&dir.buf));
                     if let Err(err) = std::fs::read_dir(assets_dir.as_path()) {
-                        dir.err(&format!("unable to read static assets directory: {}", err));
+                        dir.err(&format!("unable to read static assets directory: {err}"));
                     }
 
                     // Ensure the not_found file exists.

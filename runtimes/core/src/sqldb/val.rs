@@ -26,17 +26,17 @@ impl ToSql for RowValue {
             Self::Uuid(val) => match *ty {
                 Type::UUID => val.to_sql(ty, out),
                 Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
-                _ => Err(format!("uuid not supported for column of type {}", ty).into()),
+                _ => Err(format!("uuid not supported for column of type {ty}").into()),
             },
             Self::Cidr(val) => match *ty {
                 Type::CIDR => val.to_sql(ty, out),
                 Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
-                _ => Err(format!("cidr not supported for column of type {}", ty).into()),
+                _ => Err(format!("cidr not supported for column of type {ty}").into()),
             },
             Self::Inet(val) => match *ty {
                 Type::INET => val.to_sql(ty, out),
                 Type::TEXT | Type::VARCHAR => val.to_string().to_sql(ty, out),
-                _ => Err(format!("inet not supported for column of type {}", ty).into()),
+                _ => Err(format!("inet not supported for column of type {ty}").into()),
             },
 
             Self::PVal(val) => val.to_sql(ty, out),
@@ -76,7 +76,7 @@ impl ToSql for PValue {
                 PValue::Bool(bool) => match *ty {
                     Type::BOOL => bool.to_sql(ty, out),
                     Type::TEXT | Type::VARCHAR => bool.to_string().to_sql(ty, out),
-                    _ => Err(format!("bool not supported for column of type {}", ty).into()),
+                    _ => Err(format!("bool not supported for column of type {ty}").into()),
                 },
 
                 PValue::String(str) => match *ty {
@@ -119,7 +119,7 @@ impl ToSql for PValue {
                         if let Kind::Enum(_) = ty.kind() {
                             str.to_sql(ty, out)
                         } else {
-                            Err(format!("string not supported for column of type {}", ty).into())
+                            Err(format!("string not supported for column of type {ty}").into())
                         }
                     }
                 },
@@ -136,10 +136,10 @@ impl ToSql for PValue {
                             if res as f64 == float {
                                 Ok(res)
                             } else {
-                                return Err(format!("number {} is not an i16", float).into());
+                                return Err(format!("number {float} is not an i16").into());
                             }
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         };
                         val.map_err(Box::new)?.to_sql(ty, out)
                     }
@@ -154,10 +154,10 @@ impl ToSql for PValue {
                             if res as f64 == float {
                                 Ok(res)
                             } else {
-                                return Err(format!("number {} is not an i32", float).into());
+                                return Err(format!("number {float} is not an i32").into());
                             }
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         };
                         val.map_err(Box::new)?.to_sql(ty, out)
                     }
@@ -172,10 +172,10 @@ impl ToSql for PValue {
                             if res as f64 == float {
                                 Ok(res)
                             } else {
-                                return Err(format!("number {} is not an i64", float).into());
+                                return Err(format!("number {float} is not an i64").into());
                             }
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         };
                         val.map_err(Box::new)?.to_sql(ty, out)
                     }
@@ -187,7 +187,7 @@ impl ToSql for PValue {
                         } else if num.is_f64() {
                             num.as_f64().unwrap() as f32
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         };
                         val.to_sql(ty, out)
                     }
@@ -199,7 +199,7 @@ impl ToSql for PValue {
                         } else if num.is_f64() {
                             num.as_f64().unwrap()
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         };
                         val.to_sql(ty, out)
                     }
@@ -214,10 +214,10 @@ impl ToSql for PValue {
                             if res as f64 == float {
                                 Ok(res)
                             } else {
-                                return Err(format!("number {} is not an u32", float).into());
+                                return Err(format!("number {float} is not an u32").into());
                             }
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         };
                         val.map_err(Box::new)?.to_sql(ty, out)
                     }
@@ -230,7 +230,7 @@ impl ToSql for PValue {
                         } else if num.is_f64() {
                             num.as_f64().unwrap().to_sql(ty, out)
                         } else {
-                            return Err(format!("unsupported number: {:?}", num).into());
+                            return Err(format!("unsupported number: {num:?}").into());
                         }
                     }
                 },
@@ -239,14 +239,14 @@ impl ToSql for PValue {
                     Type::TIMESTAMP => dt.naive_utc().to_sql(ty, out),
                     Type::TIMESTAMPTZ => dt.to_sql(ty, out),
                     Type::TEXT | Type::VARCHAR => dt.to_rfc3339().to_sql(ty, out),
-                    _ => Err(format!("unsupported type for DateTime: {}", ty).into()),
+                    _ => Err(format!("unsupported type for DateTime: {ty}").into()),
                 },
                 PValue::Array(arr) => arr.to_sql(ty, out),
                 PValue::Object(_) => {
-                    Err(format!("object not supported for column of type {}", ty).into())
+                    Err(format!("object not supported for column of type {ty}").into())
                 }
                 PValue::Cookie(_) => {
-                    Err(format!("cookie not supported for column of type {}", ty).into())
+                    Err(format!("cookie not supported for column of type {ty}").into())
                 }
             },
         }
@@ -304,7 +304,7 @@ impl<'a> FromSql<'a> for RowValue {
                 if <PValue as FromSql>::accepts(ty) {
                     Self::PVal(FromSql::from_sql(ty, raw)?)
                 } else {
-                    return Err(format!("unsupported type: {:?}", ty).into());
+                    return Err(format!("unsupported type: {ty:?}").into());
                 }
             }
         })
@@ -399,7 +399,7 @@ impl<'a> FromSql<'a> for PValue {
                     let val = std::str::from_utf8(raw)?;
                     PValue::String(val.to_string())
                 } else {
-                    return Err(format!("unsupported type: {:?}", ty).into());
+                    return Err(format!("unsupported type: {ty:?}").into());
                 }
             }
         })

@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
                 let entry = match entry {
                     Ok(e) => e,
                     Err(err) => {
-                        HANDLER.with(|h| h.err(&format!("unable to walk filesystem: {}", err)));
+                        HANDLER.with(|h| h.err(&format!("unable to walk filesystem: {err}")));
                         continue;
                     }
                 };
@@ -236,7 +236,7 @@ impl<'a> Parser<'a> {
                     if let Resource::Service(svc) = res {
                         let Some(parent) = path.parent() else {
                             HANDLER.with(|h| {
-                                h.err(&format!("path {:?} does not have a parent directory", path))
+                                h.err(&format!("path {path:?} does not have a parent directory"))
                             });
                             continue;
                         };
@@ -342,7 +342,7 @@ fn resolve_binds(resources: &[Resource], binds: Vec<UnresolvedBind>) -> Vec<Lrc<
                 let Some(res) = resource_paths.get(&path) else {
                     b.range
                         .map_or(DUMMY_SP, |r| r.to_span())
-                        .err(&format!("resource not found: {:?}", path));
+                        .err(&format!("resource not found: {path:?}"));
                     continue;
                 };
                 (*res).to_owned()

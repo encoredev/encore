@@ -79,7 +79,7 @@ impl Display for InvalidSignature {
             InvalidAuthScheme => write!(f, "invalid auth scheme"),
             InvalidCredentialString => write!(f, "invalid credential string"),
             InvalidOperationHash => write!(f, "invalid operation hash"),
-            UnknownParameter(name) => write!(f, "unknown parameter: {}", name),
+            UnknownParameter(name) => write!(f, "unknown parameter: {name}"),
         }
     }
 }
@@ -170,7 +170,7 @@ fn create_credential_string(
 ) -> String {
     let dt: DateTime<Utc> = timestamp.into();
     let date = dt.format("%Y%m%d");
-    format!("{}/{}/{}/{}", date, app_slug, env_name, key_id)
+    format!("{date}/{app_slug}/{env_name}/{key_id}")
 }
 
 struct CredentialComponents {

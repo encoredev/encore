@@ -125,7 +125,7 @@ impl fmt::Debug for JSONSchema {
 impl Value {
     fn write_debug(&self, reg: &Registry, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Basic(b) => write!(f, "{:?}", b),
+            Value::Basic(b) => write!(f, "{b:?}"),
             Value::Struct(Struct { fields }) => {
                 f.debug_struct("Struct").field("fields", &fields).finish()
             }
@@ -136,7 +136,7 @@ impl Value {
             Value::Literal(v) => f.debug_struct("Literal").field("value", &v).finish(),
             Value::Ref(idx) => match reg.values.get(*idx) {
                 Some(v) => v.write_debug(reg, f),
-                None => write!(f, "Ref({})", idx),
+                None => write!(f, "Ref({idx})"),
             },
             Value::Validation(v) => f
                 .debug_struct("Validation")
@@ -209,6 +209,6 @@ mod tests {
         let str = r#"{"foo": "bar", "blah": "baz"}"#;
         let mut jsonde = serde_json::Deserializer::from_str(str);
         let res = schema.deserialize(&mut jsonde, DecodeConfig::default());
-        println!("{:?}", res);
+        println!("{res:?}");
     }
 }

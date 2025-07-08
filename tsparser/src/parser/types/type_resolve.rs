@@ -200,7 +200,7 @@ impl Ctx<'_> {
             | ast::TsType::TsTypePredicate(_) // https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates, https://www.typescriptlang.org/docs/handbook/2/classes.html#this-based-type-guards
             | ast::TsType::TsImportType(_) // ??
             => {
-                HANDLER.with(|handler| handler.span_err(typ.span(), &format!("unsupported: {:#?}", typ)));
+                HANDLER.with(|handler| handler.span_err(typ.span(), &format!("unsupported: {typ:#?}")));
                 Type::Basic(Basic::Never)
             }, // typeof
         }
@@ -369,8 +369,7 @@ impl Ctx<'_> {
                     handler.span_err(
                         span,
                         &format!(
-                            "unsupported indexed access type operation: obj {:#?} index {:#?}",
-                            obj, idx
+                            "unsupported indexed access type operation: obj {obj:#?} index {idx:#?}"
                         ),
                     )
                 });
@@ -586,7 +585,7 @@ impl Ctx<'_> {
                 | ast::TsTypeElement::TsGetterSignature(_)
                 | ast::TsTypeElement::TsSetterSignature(_) => {
                     HANDLER.with(|handler| {
-                        handler.span_err(m.span(), &format!("unsupported: {:#?}", type_lit))
+                        handler.span_err(m.span(), &format!("unsupported: {type_lit:#?}"))
                     });
                     continue;
                 }
@@ -1911,8 +1910,7 @@ impl Ctx<'_> {
 
                             typ => {
                                 HANDLER.with(|handler| {
-                                    handler
-                                        .err(&format!("unsupported mapped key type: {:#?}", typ));
+                                    handler.err(&format!("unsupported mapped key type: {typ:#?}"));
                                 });
                             }
                         }

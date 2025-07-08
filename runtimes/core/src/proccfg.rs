@@ -60,7 +60,7 @@ impl ProcessConfig {
             .get_or_insert_with(Default::default);
         // Iterate through service_ports and add service_discovery entries
         for (service_name, port) in &self.local_service_ports {
-            let base_url = format!("http://127.0.0.1:{}", port);
+            let base_url = format!("http://127.0.0.1:{port}");
             svc_discovery.services.insert(
                 service_name.clone(),
                 runtimepb::service_discovery::Location {

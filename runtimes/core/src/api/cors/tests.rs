@@ -25,15 +25,9 @@ fn check_origins(cors: &CorsHeadersConfig, creds: bool, good: bool, origins: &[H
         let allowed = allow_origin.map(|val| val == origin).unwrap_or(false);
 
         if allowed != good {
-            panic!(
-                "origin={:?} creds={}: got allowed={}, want {}",
-                origin, creds, allowed, good
-            );
+            panic!("origin={origin:?} creds={creds}: got allowed={allowed}, want {good}");
         } else {
-            println!(
-                "origin={:?} creds={}: ok allowed={}",
-                origin, creds, allowed
-            );
+            println!("origin={origin:?} creds={creds}: ok allowed={allowed}");
         }
     }
 }
@@ -83,16 +77,13 @@ fn check_headers(cors: &CorsHeadersConfig, allowed_headers: &[HeaderName], want_
         for val in allowed_headers {
             assert!(
                 allow_headers.contains(val),
-                "want header {:?} to be allowed, got false; resp header={}",
-                val,
-                allow_headers_val
+                "want header {val:?} to be allowed, got false; resp header={allow_headers_val}"
             )
         }
     } else {
         assert_ne!(
             allow_headers_val, "",
-            "want headers not to be allowed, got {}",
-            allow_headers_val
+            "want headers not to be allowed, got {allow_headers_val}"
         );
     }
 }

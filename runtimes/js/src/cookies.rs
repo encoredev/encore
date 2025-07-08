@@ -13,7 +13,7 @@ impl JsCookie {
             Some(PValue::Bool(b)) => Ok(Some(*b)),
             Some(_) => Err(Error::new(
                 Status::InvalidArg,
-                format!("cookie field {} must be a boolean", key),
+                format!("cookie field {key} must be a boolean"),
             )),
         }
     }
@@ -23,7 +23,7 @@ impl JsCookie {
             Some(PValue::String(s)) => Ok(Some(s.clone())),
             Some(_) => Err(Error::new(
                 Status::InvalidArg,
-                format!("cookie field {} must be a string", key),
+                format!("cookie field {key} must be a string"),
             )),
         }
     }
@@ -33,7 +33,7 @@ impl JsCookie {
             Some(PValue::DateTime(d)) => Ok(Some(*d)),
             Some(_) => Err(Error::new(
                 Status::InvalidArg,
-                format!("cookie field {} must be a datetime", key),
+                format!("cookie field {key} must be a datetime"),
             )),
         }
     }
@@ -59,7 +59,7 @@ impl JsCookie {
             }
             Some(_) => Err(Error::new(
                 Status::InvalidArg,
-                format!("cookie field {} must be an integer", key),
+                format!("cookie field {key} must be an integer"),
             )),
         }
     }

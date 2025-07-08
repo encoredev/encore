@@ -47,7 +47,7 @@ impl PubSubTopic {
                 Ok(id) => Ok(id),
                 Err(e) => Err(Error::new(
                     Status::GenericFailure,
-                    format!("failed to publish: {}", e),
+                    format!("failed to publish: {e}"),
                 )),
             }
         };
@@ -95,12 +95,10 @@ impl PubSubSubscription {
 impl PubSubSubscription {
     #[napi]
     pub async fn subscribe(&self) -> napi::Result<()> {
-        self.sub.subscribe(self.handler.clone()).await.map_err(|e| {
-            Error::new(
-                Status::GenericFailure,
-                format!("failed to subscribe: {}", e),
-            )
-        })
+        self.sub
+            .subscribe(self.handler.clone())
+            .await
+            .map_err(|e| Error::new(Status::GenericFailure, format!("failed to subscribe: {e}")))
     }
 }
 

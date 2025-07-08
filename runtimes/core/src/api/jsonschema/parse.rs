@@ -40,7 +40,7 @@ where
                 } else {
                     return Err(api::Error {
                         code: api::ErrCode::InvalidArgument,
-                        message: format!("missing required header: {}", header_name),
+                        message: format!("missing required header: {header_name}"),
                         internal_message: None,
                         stack: None,
                         details: None,
@@ -170,7 +170,7 @@ fn parse_str_value(
                     Err(api::Error {
                         code: api::ErrCode::InvalidArgument,
                         message: value_type.error_message().to_string(),
-                        internal_message: Some(format!("invalid float value: {}", value_str)),
+                        internal_message: Some(format!("invalid float value: {value_str}")),
                         stack: None,
                         details: None,
                     })
@@ -204,7 +204,7 @@ fn parse_str_value(
             Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: value_type.error_message().to_string(),
-                internal_message: Some(format!("no union value matched: {}", value_str)),
+                internal_message: Some(format!("no union value matched: {value_str}")),
                 stack: None,
                 details: None,
             })
@@ -263,7 +263,7 @@ impl ParseWithSchema<PValues> for cookie::CookieJar {
                 } else {
                     return Err(api::Error {
                         code: api::ErrCode::InvalidArgument,
-                        message: format!("missing required cookie: {}", name),
+                        message: format!("missing required cookie: {name}"),
                         internal_message: None,
                         stack: None,
                         details: None,
@@ -519,7 +519,7 @@ fn parse_basic_json(reg: &Registry, basic: &Basic, value: PValue) -> APIResult<P
                 "false" => Ok(PValue::Bool(false)),
                 _ => Err(api::Error {
                     code: api::ErrCode::InvalidArgument,
-                    message: format!("invalid boolean value: {}", str),
+                    message: format!("invalid boolean value: {str}"),
                     internal_message: None,
                     stack: None,
                     details: None,
@@ -529,7 +529,7 @@ fn parse_basic_json(reg: &Registry, basic: &Basic, value: PValue) -> APIResult<P
                 .map(PValue::Number)
                 .map_err(|_err| api::Error {
                     code: api::ErrCode::InvalidArgument,
-                    message: format!("invalid number value: {}", str),
+                    message: format!("invalid number value: {str}"),
                     internal_message: None,
                     stack: None,
                     details: None,
@@ -561,7 +561,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
             "false" => Ok(PValue::Bool(false)),
             _ => Err(api::Error {
                 code: api::ErrCode::InvalidArgument,
-                message: format!("invalid boolean value: {}", str),
+                message: format!("invalid boolean value: {str}"),
                 internal_message: None,
                 stack: None,
                 details: None,
@@ -572,7 +572,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
             .map(PValue::Number)
             .map_err(|_err| api::Error {
                 code: api::ErrCode::InvalidArgument,
-                message: format!("invalid number value: {}", str),
+                message: format!("invalid number value: {str}"),
                 internal_message: None,
                 stack: None,
                 details: None,
@@ -583,7 +583,7 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
             .map_err(|_err| api::Error {
                 code: api::ErrCode::InvalidArgument,
                 message: "invalid datetime".to_string(),
-                internal_message: Some(format!("invalid datetime string {:?}", str)),
+                internal_message: Some(format!("invalid datetime string {str:?}")),
                 stack: None,
                 details: None,
             }),

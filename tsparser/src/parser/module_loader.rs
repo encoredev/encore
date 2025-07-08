@@ -75,7 +75,7 @@ impl Error {
     pub fn msg(&self) -> String {
         match self {
             Error::UnableToResolve(s, source) => {
-                format!("unable to resolve module {}: {:?}", s, source)
+                format!("unable to resolve module {s}: {source:?}")
             }
             Error::InvalidFilename(_) | Error::LoadFile(_) => self.to_string(),
             Error::ParseError(e) => e.clone().into_kind().msg().to_string(),

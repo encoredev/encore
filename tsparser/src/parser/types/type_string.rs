@@ -105,9 +105,9 @@ where
     fn render_literal(&mut self, lit: &super::Literal) -> std::fmt::Result {
         use super::Literal;
         match lit {
-            Literal::String(s) => self.buf.write_fmt(format_args!("{:#?}", s)),
-            Literal::Boolean(b) => self.buf.write_fmt(format_args!("{}", b)),
-            Literal::Number(n) => self.buf.write_fmt(format_args!("{}", n)),
+            Literal::String(s) => self.buf.write_fmt(format_args!("{s:#?}")),
+            Literal::Boolean(b) => self.buf.write_fmt(format_args!("{b}")),
+            Literal::Number(n) => self.buf.write_fmt(format_args!("{n}")),
             Literal::BigInt(n) => self.buf.write_str(n),
         }
     }
@@ -145,7 +145,7 @@ where
     }
 
     fn render_validation(&mut self, v: &validation::Expr) -> std::fmt::Result {
-        self.buf.write_fmt(format_args!("{}", v))
+        self.buf.write_fmt(format_args!("{v}"))
     }
 
     fn render_validated(&mut self, v: &Validated) -> std::fmt::Result {
@@ -168,7 +168,7 @@ where
         }
         self.render_type(&s.underlying)?;
         if let Some(name) = &s.name_override {
-            self.buf.write_fmt(format_args!(", {:#?}", name))?;
+            self.buf.write_fmt(format_args!(", {name:#?}"))?;
         }
         self.buf.write_char('>')
     }

@@ -292,7 +292,7 @@ impl Path {
                             if let Err(err) = validation.validate_pval(&val) {
                                 return Err(api::Error {
                                     code: api::ErrCode::InvalidArgument,
-                                    message: format!("invalid path parameter {}: {}", name, err),
+                                    message: format!("invalid path parameter {name}: {err}"),
                                     internal_message: None,
                                     stack: None,
                                     details: None,

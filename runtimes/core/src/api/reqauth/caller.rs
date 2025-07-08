@@ -27,12 +27,12 @@ impl Caller {
                 topic,
                 subscription,
                 message_id,
-            } => format!("pubsub:{}:{}:{}", topic, subscription, message_id),
+            } => format!("pubsub:{topic}:{subscription}:{message_id}"),
             Caller::Gateway { gateway } => {
-                format!("gateway:{}", gateway)
+                format!("gateway:{gateway}")
             }
-            Caller::App { deploy_id } => format!("app:{}", deploy_id),
-            Caller::EncorePrincipal(name) => format!("encore:{}", name),
+            Caller::App { deploy_id } => format!("app:{deploy_id}"),
+            Caller::EncorePrincipal(name) => format!("encore:{name}"),
         }
     }
 
