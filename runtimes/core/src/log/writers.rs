@@ -50,10 +50,9 @@ pub struct ActorWriter {
     sender: SyncSender<Vec<u8>>,
 }
 impl ActorWriter {
-    pub fn new<W: Write + Sync + Send + 'static>(w: W) -> Self {
+    pub fn new<W: Write + Sync + Send + 'static>(mut writer: W) -> Self {
         let (sender, recv) = mpsc::sync_channel::<Vec<u8>>(10_000);
         std::thread::spawn(move || {
-            let mut writer = w;
             while let Ok(bytes) = recv.recv() {
                 Self::write_with_retry(&mut writer, &bytes);
             }
@@ -62,19 +61,17 @@ impl ActorWriter {
     }
 
     fn write_with_retry<W: Write>(writer: &mut W, bytes: &[u8]) {
-        const MAX_RETRIES: u32 = 10;
         const INITIAL_RETRY_DELAY_MS: u64 = 1;
+        const MAX_DELAY_MS: u64 = 1000;
 
         let mut delay_ms = INITIAL_RETRY_DELAY_MS;
-        for retry in 0..=MAX_RETRIES {
+        loop {
             if writer.write_all(bytes).is_ok() {
                 return;
             }
 
-            if retry < MAX_RETRIES {
-                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-                delay_ms *= 2;
-            }
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            delay_ms = u64::min(delay_ms * 2, MAX_DELAY_MS);
         }
     }
 }
