@@ -146,7 +146,7 @@ func (c *Cluster) setupRoles(ctx context.Context, st *ClusterStatus) (EncoreRole
 		case RoleAdmin:
 			// Grant admins the ability to create databases.
 			_, err := conn.Exec(ctx, `
-				ALTER USER `+sanitizedUsername+` CREATEDB
+				ALTER USER `+sanitizedUsername+` CREATEDB CREATEROLE
 			`)
 			if err != nil {
 				c.log.Error().Err(err).Str("role", role.Username).Msg("unable to grant CREATEDB")
