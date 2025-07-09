@@ -61,10 +61,10 @@ impl ActorWriter {
     }
 
     fn write_with_retry<W: Write>(writer: &mut W, bytes: &[u8]) {
-        const INITIAL_RETRY_DELAY_MS: u64 = 1;
+        const INITIAL_DELAY_MS: u64 = 1;
         const MAX_DELAY_MS: u64 = 1000;
 
-        let mut delay_ms = INITIAL_RETRY_DELAY_MS;
+        let mut delay_ms = INITIAL_DELAY_MS;
         loop {
             if writer.write_all(bytes).is_ok() {
                 return;
