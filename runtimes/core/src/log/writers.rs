@@ -47,11 +47,11 @@ pub fn default_writer(fields: &'static FieldConfig) -> Arc<dyn Writer> {
 
 // ActorWriter creates a bounded channel that sends log data to a separate thread that handles the writing.
 pub struct ActorWriter {
-    sender: SyncSender<bytes::Bytes>,
+    sender: SyncSender<Vec<u8>>,
 }
 impl ActorWriter {
     pub fn new<W: Write + Sync + Send + 'static>(w: W) -> Self {
-        let (sender, recv) = mpsc::sync_channel::<bytes::Bytes>(1024);
+        let (sender, recv) = mpsc::sync_channel::<Vec<u8>>(1024);
         std::thread::spawn(move || {
             let mut writer = w;
             while let Ok(bytes) = recv.recv() {
@@ -86,7 +86,7 @@ impl Writer for ActorWriter {
             .context("serde_writer")?;
         buf.extend_from_slice(b"\n");
 
-        self.sender.send(buf.into())?;
+        self.sender.send(buf)?;
         Ok(())
     }
 }
