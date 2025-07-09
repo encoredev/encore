@@ -96,6 +96,7 @@ func (b *builder) Build() *meta.Data {
 					HttpMethods:    ep.HTTPMethods,
 					Tags:           ep.Tags.ToProto(),
 					Sensitive:      ep.Sensitive,
+					OpenapiTags:    ep.OpenAPITags,
 					Expose:         make(map[string]*meta.RPC_ExposeOptions),
 				}
 				if ep.Raw {
