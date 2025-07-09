@@ -17,6 +17,7 @@ prost-types = "0.12.3"
 serde = "1.0.193"
 serde_json = { version = "1.0.108", features = ["raw_value"] }
 tokio = { version = "1.35.1", features = ["sync"] }
+tokio-stream = "0.1.17"
 tokio-nsq = "0.14.0"
 xid = "1.0.3"
 log = { version = "0.4.20", features = ["kv_unstable", "kv_unstable_serde"] }
