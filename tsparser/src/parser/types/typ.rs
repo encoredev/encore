@@ -604,6 +604,10 @@ impl Generic {
 }
 
 impl Type {
+    pub fn is_generic(&self) -> bool {
+        matches!(self, Type::Generic(..))
+    }
+
     pub fn iter_unions<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Type> + 'a> {
         match self {
             Type::Union(union) => Box::new(union.types.iter().flat_map(|t| t.iter_unions())),
@@ -1243,11 +1247,25 @@ pub fn intersect<'a: 'b, 'b>(
 
         (Type::Named(x), _) => {
             let x = ctx.underlying_named(x);
-            intersect(ctx, Cow::Owned(x), b)
+            if x.is_generic() {
+                Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
+                    x: Box::new(a.into_owned()),
+                    y: Box::new(b.into_owned()),
+                })))
+            } else {
+                intersect(ctx, Cow::Owned(x), b)
+            }
         }
         (_, Type::Named(y)) => {
             let y = ctx.underlying_named(y);
-            intersect(ctx, a, Cow::Owned(y))
+            if y.is_generic() {
+                Cow::Owned(Type::Generic(Generic::Intersection(Intersection {
+                    x: Box::new(a.into_owned()),
+                    y: Box::new(b.into_owned()),
+                })))
+            } else {
+                intersect(ctx, a, Cow::Owned(y))
+            }
         }
 
         (Type::Interface(_), Type::Interface(_)) => {

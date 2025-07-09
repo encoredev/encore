@@ -176,6 +176,142 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
             call: None,
         },
     ),
+    "Optional": Generic(
+        Intersection(
+            Intersection {
+                x: Named(
+                    Named {
+                        obj: Object {
+                            name: Some(
+                                "Omit",
+                            ),
+                        },
+                        type_arguments: [
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 1,
+                                        constraint: Some(
+                                            Generic(
+                                                Keyof(
+                                                    Keyof(
+                                                        Generic(
+                                                            TypeParam(
+                                                                TypeParam {
+                                                                    idx: 0,
+                                                                    constraint: None,
+                                                                },
+                                                            ),
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ],
+                    },
+                ),
+                y: Named(
+                    Named {
+                        obj: Object {
+                            name: Some(
+                                "Partial",
+                            ),
+                        },
+                        type_arguments: [
+                            Named(
+                                Named {
+                                    obj: Object {
+                                        name: Some(
+                                            "Pick",
+                                        ),
+                                    },
+                                    type_arguments: [
+                                        Generic(
+                                            TypeParam(
+                                                TypeParam {
+                                                    idx: 0,
+                                                    constraint: None,
+                                                },
+                                            ),
+                                        ),
+                                        Generic(
+                                            TypeParam(
+                                                TypeParam {
+                                                    idx: 1,
+                                                    constraint: Some(
+                                                        Generic(
+                                                            Keyof(
+                                                                Keyof(
+                                                                    Generic(
+                                                                        TypeParam(
+                                                                            TypeParam {
+                                                                                idx: 0,
+                                                                                constraint: None,
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                        ),
+                                                    ),
+                                                },
+                                            ),
+                                        ),
+                                    ],
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+    ),
+    "Optional1": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optional",
+                    ),
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: true,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
     "Index": Interface(
         Interface {
             fields: [],
