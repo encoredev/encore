@@ -51,7 +51,7 @@ pub struct ActorWriter {
 }
 impl ActorWriter {
     pub fn new<W: Write + Sync + Send + 'static>(w: W) -> Self {
-        let (sender, recv) = mpsc::sync_channel::<Vec<u8>>(1024);
+        let (sender, recv) = mpsc::sync_channel::<Vec<u8>>(10_000);
         std::thread::spawn(move || {
             let mut writer = w;
             while let Ok(bytes) = recv.recv() {
