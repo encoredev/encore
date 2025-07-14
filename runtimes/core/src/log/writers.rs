@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Debug;
 use std::io::{IoSlice, Write};
-use std::sync::mpsc::{self, Receiver, RecvError, RecvTimeoutError, SyncSender};
+use std::sync::mpsc::{self, Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -63,24 +63,24 @@ impl ActorWriter {
 
     fn recv_batch(recv: &Receiver<Vec<u8>>) -> Result<Vec<Vec<u8>>, RecvError> {
         const MAX_BATCH_SIZE: usize = 256;
-        const TIMEOUT: Duration = Duration::from_millis(10);
-
         let mut bufs = Vec::with_capacity(MAX_BATCH_SIZE);
+
         // wait for a log message
         bufs.push(recv.recv()?);
 
-        let instant = Instant::now();
+        // receive logs until channel is empty or max batch size is reached
         loop {
-            match recv.recv_timeout(TIMEOUT) {
-                Ok(bytes) => {
-                    bufs.push(bytes);
-                    if instant.elapsed() >= TIMEOUT || bufs.len() >= MAX_BATCH_SIZE {
+            match recv.try_recv() {
+                Ok(log) => {
+                    bufs.push(log);
+
+                    if bufs.len() >= MAX_BATCH_SIZE {
                         break;
                     }
                 }
                 // on error, break the loop and return the bufs that we have already collected.
-                Err(RecvTimeoutError::Timeout) => break,
-                Err(RecvTimeoutError::Disconnected) => break,
+                Err(TryRecvError::Disconnected) => break,
+                Err(TryRecvError::Empty) => break,
             }
         }
         Ok(bufs)
