@@ -7,9 +7,9 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Debug;
 use std::io::{IoSlice, Write};
-use std::sync::mpsc::{self, Receiver, RecvError, RecvTimeoutError, SyncSender, TryRecvError};
+use std::sync::mpsc::{self, Receiver, RecvError, SyncSender, TryRecvError};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// A log writer.
 pub trait Writer: Send + Sync + 'static {
@@ -63,10 +63,9 @@ impl ActorWriter {
 
     fn recv_batch(recv: &Receiver<Vec<u8>>) -> Result<Vec<Vec<u8>>, RecvError> {
         const MAX_BATCH_SIZE: usize = 256;
-        let mut bufs = Vec::with_capacity(MAX_BATCH_SIZE);
 
         // wait for a log message
-        bufs.push(recv.recv()?);
+        let mut bufs = vec![recv.recv()?];
 
         // receive logs until channel is empty or max batch size is reached
         loop {
