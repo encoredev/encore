@@ -6,9 +6,10 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Debug;
-use std::io::Write;
-use std::sync::mpsc::{self, SyncSender};
+use std::io::{IoSlice, Write};
+use std::sync::mpsc::{self, Receiver, RecvError, SyncSender, TryRecvError};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// A log writer.
 pub trait Writer: Send + Sync + 'static {
@@ -53,25 +54,62 @@ impl ActorWriter {
     pub fn new<W: Write + Sync + Send + 'static>(mut writer: W) -> Self {
         let (sender, recv) = mpsc::sync_channel::<Vec<u8>>(10_000);
         std::thread::spawn(move || {
-            while let Ok(bytes) = recv.recv() {
-                Self::write_with_retry(&mut writer, &bytes);
+            while let Ok(bytes) = Self::recv_batch(&recv) {
+                Self::write_batch_with_retry(&mut writer, &bytes);
             }
         });
         Self { sender }
     }
 
-    fn write_with_retry<W: Write>(writer: &mut W, bytes: &[u8]) {
+    fn recv_batch(recv: &Receiver<Vec<u8>>) -> Result<Vec<Vec<u8>>, RecvError> {
+        const MAX_BATCH_SIZE: usize = 256;
+
+        // wait for a log message
+        let mut bufs = vec![recv.recv()?];
+
+        // receive logs until channel is empty or max batch size is reached
+        loop {
+            match recv.try_recv() {
+                Ok(log) => {
+                    bufs.push(log);
+
+                    if bufs.len() >= MAX_BATCH_SIZE {
+                        break;
+                    }
+                }
+                // on error, break the loop and return the bufs that we have already collected.
+                Err(TryRecvError::Disconnected) => break,
+                Err(TryRecvError::Empty) => break,
+            }
+        }
+        Ok(bufs)
+    }
+
+    fn write_batch_with_retry<W: Write>(writer: &mut W, bufs: &[Vec<u8>]) {
         const INITIAL_DELAY_MS: u64 = 1;
         const MAX_DELAY_MS: u64 = 1000;
 
-        let mut delay_ms = INITIAL_DELAY_MS;
-        loop {
-            if writer.write_all(bytes).is_ok() {
-                return;
-            }
+        let mut io_slices = bufs
+            .iter()
+            .map(|buf| IoSlice::new(buf))
+            .collect::<Vec<IoSlice>>();
+        let mut bufs = &mut io_slices[..];
 
-            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-            delay_ms = u64::min(delay_ms * 2, MAX_DELAY_MS);
+        // Guarantee that bufs is empty if it contains no data,
+        // to avoid calling write_vectored if there is no data to be written.
+        IoSlice::advance_slices(&mut bufs, 0);
+        let mut delay_ms = INITIAL_DELAY_MS;
+        while !bufs.is_empty() {
+            match writer.write_vectored(bufs) {
+                Ok(0) | Err(_) => {
+                    std::thread::sleep(Duration::from_millis(delay_ms));
+                    delay_ms = u64::min(delay_ms * 2, MAX_DELAY_MS);
+                }
+                Ok(n) => {
+                    delay_ms = INITIAL_DELAY_MS;
+                    IoSlice::advance_slices(&mut bufs, n)
+                }
+            }
         }
     }
 }
