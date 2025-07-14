@@ -20,7 +20,7 @@ your business logic and Encore for creating backend primitives like APIs, Databa
 
 ## Adding Encore to a NestJS project
 
-In you already have a NestJS project, you can add Encore to it by following these steps:
+If you already have a NestJS project, you can add Encore to it by following these steps:
 
 1. Run `encore app init` in the root of your project to create a new Encore application.
 2. Add `encore.dev` as a dependency by running `npm install encore.dev`.
