@@ -90,7 +90,28 @@ npm install prisma --save-dev
 npm install @prisma/client @prisma/adapter-pg dotenv --save
 ```
 
-### 2. Configure Database Connections
+### 2. Create Database Configuration
+
+Create your Encore database configuration file that uses Prisma migrations:
+
+```ts
+// my-service/database.ts
+import { SQLDatabase } from "encore.dev/storage/sqldb";
+
+// Create the database with Prisma migrations
+const DB = new SQLDatabase("myapp", {
+  migrations: {
+    path: "./prisma/migrations",
+    source: "prisma",
+  },
+});
+
+```
+
+Create the directory for migrations, `./my-service/prisma/migrations` and execute `encore run` to create the database.
+
+
+### 3. Configure Database Connections
 
 Prisma needs to connect to Encore's shadow database for migration operations. The shadow database is a temporary database that Prisma uses to detect schema drift and generate migrations without affecting your main database.
 
@@ -112,7 +133,7 @@ DB_URL=<main-database-connection-string>
 SHADOW_DB_URL=<shadow-database-connection-string>
 ```
 
-### 3. Create Prisma Configuration
+### 4. Create Prisma Configuration
 
 Create a `prisma.config.ts` file in your project root to configure Prisma:
 
@@ -127,7 +148,7 @@ type Env = {
 
 export default {
   earlyAccess: true,
-  schema: "./prisma/schema.prisma",
+  schema: "./my-service/prisma/schema.prisma",
   studio: {
     adapter: async (env: Env) => {
       // Connect Prisma Studio to the main Encore database
@@ -137,9 +158,9 @@ export default {
 } satisfies PrismaConfig<Env>;
 ```
 
-### 4. Create Your Prisma Schema
+### 5. Create Your Prisma Schema
 
-Create a `prisma/schema.prisma` file to define your database schema:
+Create a `my-service/prisma/schema.prisma` file to define your database schema:
 
 ```prisma
 generator client {
@@ -159,55 +180,58 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   name      String
-  posts     Post[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Post {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 ```
 
-### 5. Create Database Configuration
+### 6. Generate the client
 
-Create your Encore database configuration file that uses Prisma migrations:
+To generate the Prisma client, run:
+
+```bash
+npx prisma generate
+```
+
+### 7. Create Client Export
+
+Create a `my-service/prisma/client.ts` file that configures and exports the generated client:
 
 ```ts
-// services/db/database.ts
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-import { PrismaClient } from "./prisma/client";
+import { DB } from "../database";
+import { PrismaClient } from "./client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-// Create the database with Prisma migrations
-const DB = new SQLDatabase("myapp", {
-  migrations: {
-    path: "./prisma/migrations",
-    source: "prisma",
-  },
-});
-
-// Initialize Prisma client
 export const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: DB.connectionString }),
+  adapter: new PrismaPg({
+    connectionString: DB.connectionString,
+  }),
 });
 
+// Re-export everything from the generated client
+export * from "./generated/client";
 ```
 
-### 6. Create Client Export
+### 8. Generate Migration
 
-Create a `prisma/client.ts` file for cleaner imports:
+To generate a migration, run:
+
+```bash
+npx prisma migrate dev --name initial
+```
+
+And then restart encore by running `encore run` to apply the migration.
+
+### 9. Use the Client
+
+Import the client in your service code and use it to interact with the database:
 
 ```ts
-// Re-export everything from the generated client
-export * from "./generated/index";
+import { prisma } from "./prisma/client";
+
+async function getUsers() {
+  return await prisma.user.findMany();
+}
 ```
 
 ## Working with Migrations
