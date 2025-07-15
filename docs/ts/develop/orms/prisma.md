@@ -50,9 +50,9 @@ export async function getUsers() {
 
 -- prisma/schema.prisma --
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
   output          = "./generated"
-  previewFeatures = ["driverAdapters"]
+  previewFeatures = ["queryCompiler", "driverAdapters"]
 }
 
 datasource db {
@@ -143,7 +143,7 @@ Create a `prisma/schema.prisma` file to define your database schema:
 
 ```prisma
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
   output          = "./generated"
   previewFeatures = ["queryCompiler", "driverAdapters"]
 }
