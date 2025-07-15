@@ -67,7 +67,7 @@ export const prisma = new PrismaClient({
 });
 
 // Re-export types from the generated client
-export * from "./generated/index";
+export * from "./generated/client";
 
 -- users/api.ts --
 import { api } from "encore.dev/api";
@@ -208,20 +208,6 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   name      String
-  posts     Post[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Post {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 ```
 
@@ -230,7 +216,7 @@ model Post {
 Create `my-service/prisma/client.ts`:
 
 ```ts
-import { PrismaClient } from "./generated/index";
+import { PrismaClient } from "./generated/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { DB } from "../database";
 
@@ -240,7 +226,7 @@ export const prisma = new PrismaClient({
 });
 
 // Re-export types from the generated client
-export * from "./generated/index";
+export * from "./generated/client";
 ```
 
 ### 8. Generate Initial Migration
@@ -281,22 +267,22 @@ export const createUser = api(
       return user;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
+        if (error.code === "P2002") {
           throw APIError.alreadyExists("User with this email already exists");
         }
       }
       throw error;
     }
-  }
+  },
 );
 
 export const getUsers = api(
   { method: "GET", path: "/users", expose: true },
-  async () => {
-    return await prisma.user.findMany({
-      include: { posts: true },
-    });
-  }
+  async (): Promise<{
+    users: { name: string; email: string; id: number }[];
+  }> => {
+    return { users: await prisma.user.findMany() };
+  },
 );
 ```
 
