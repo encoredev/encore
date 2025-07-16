@@ -221,7 +221,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { DB } from "../database";
 
 // Create and export the Prisma client instance
-export const prisma = new PrismaClient({
+export const prismaClient = new PrismaClient({
   adapter: new PrismaPg({ connectionString: DB.connectionString }),
 });
 
@@ -250,7 +250,7 @@ Now you can use Prisma in your API endpoints:
 
 ```ts
 import { api, APIError } from "encore.dev/api";
-import { prisma, Prisma } from "./prisma/client";
+import { prismaClient, Prisma } from "./prisma/client";
 
 interface CreateUserRequest {
   email: string;
@@ -261,7 +261,7 @@ export const createUser = api(
   { method: "POST", path: "/users", expose: true },
   async (req: CreateUserRequest) => {
     try {
-      const user = await prisma.user.create({
+      const user = await prismaClient.user.create({
         data: req,
       });
       return user;
@@ -281,7 +281,7 @@ export const getUsers = api(
   async (): Promise<{
     users: { name: string; email: string; id: number }[];
   }> => {
-    return { users: await prisma.user.findMany() };
+    return { users: await prismaClient.user.findMany() };
   },
 );
 ```
