@@ -77,7 +77,7 @@ jobs:
 
       - name: Install encore-go
         run: |
-          URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \")
+          URL=$(curl -s https://api.github.com/repos/encoredev/go/releases/latest | grep "browser_download_url.*linux_x86-64.tar.gz" | cut -d : -f 2,3 | tr -d \" | tr -d '[:space:]')
           curl --fail -L -o encore-go.tar.gz $URL && tar -C . -xzf ./encore-go.tar.gz
 
       - name: Install tsparser
