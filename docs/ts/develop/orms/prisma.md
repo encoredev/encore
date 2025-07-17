@@ -155,7 +155,7 @@ encore db conn-uri myapp --shadow
 
 Create a `.env` file in your project root:
 
-```env
+```
 # Connection strings for local development
 DB_URL=<main-database-connection-string>
 SHADOW_DB_URL=<shadow-database-connection-string>
@@ -190,7 +190,7 @@ export default {
 
 Create `my-service/prisma/schema.prisma`:
 
-```prisma
+```
 generator client {
   provider        = "prisma-client"
   output          = "./generated"
