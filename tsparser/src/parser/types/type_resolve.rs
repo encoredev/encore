@@ -1879,7 +1879,15 @@ impl Ctx<'_> {
                             }
 
                             // An unresolved generic type means we can't resolve this yet.
-                            Type::Generic(_) => return Same(typ),
+                            Type::Generic(_) => {
+                                return New(Type::Generic(Generic::Mapped(Mapped {
+                                    in_type: Box::new(self.concrete(&mapped.in_type).into_owned()),
+                                    value_type: Box::new(
+                                        self.concrete(&mapped.value_type).into_owned(),
+                                    ),
+                                    optional: mapped.optional,
+                                })))
+                            }
 
                             // Do we have a wildcard type like "string" or "number"?
                             // If so treat it as an index signature.
