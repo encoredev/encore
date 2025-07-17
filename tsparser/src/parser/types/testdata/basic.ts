@@ -14,6 +14,9 @@ export type Omit2 = Omit<Interface, "foo" | "bar">;
 
 export type Partial1 = Partial<Interface>;
 
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+export type Optional1 = Optional<Interface, "foo">;
+
 // Index signatures
 export type Index = { [key: string]: boolean | number };
 
@@ -22,7 +25,11 @@ export type Intersect1 = { foo: string } & { bar: number };
 export type Intersect2 = { foo: string } & { foo: "literal" };
 export type Intersect3 = { foo: string } & { foo: number };
 export type Intersect4 = { foo?: "optional" } & { foo: string };
-export type Intersect5 = { a: string; b: string; c: string } & { a: any; b: unknown; c: never };
+export type Intersect5 = { a: string; b: string; c: string } & {
+  a: any;
+  b: unknown;
+  c: never;
+};
 
 // Enums
 export enum Enum1 {
@@ -31,6 +38,6 @@ export enum Enum1 {
   C,
   D = "foo",
   E = 5,
-  F,
+  F
 }
 export type EnumFields = keyof typeof Enum1;
