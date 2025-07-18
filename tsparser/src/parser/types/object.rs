@@ -632,7 +632,7 @@ fn process_namespace_body(ctx: &ResolveState, ns: &mut NSData, body: &ast::TsNam
 #[derive(Debug)]
 pub struct ResolveState {
     loader: Lrc<module_loader::ModuleLoader>,
-    modules: RefCell<HashMap<ModuleId, Rc<Module>>>,
+    module_objects: RefCell<HashMap<ModuleId, Rc<Object>>>,
     module_stack: RefCell<Vec<ModuleId>>,
     universe: OnceCell<Rc<Module>>,
     next_id: Cell<usize>,
@@ -642,7 +642,7 @@ impl ResolveState {
     pub(super) fn new(loader: Lrc<module_loader::ModuleLoader>) -> Self {
         Self {
             loader,
-            modules: RefCell::new(HashMap::new()),
+            module_objects: RefCell::new(HashMap::new()),
             module_stack: RefCell::new(vec![]),
             universe: OnceCell::new(),
             next_id: Cell::new(1),
@@ -681,7 +681,13 @@ impl ResolveState {
     }
 
     pub fn lookup_module(&self, id: ModuleId) -> Option<Rc<Module>> {
-        self.modules.borrow().get(&id).cloned()
+        self.module_objects
+            .borrow()
+            .get(&id)
+            .and_then(|obj| match &obj.kind {
+                ObjectKind::Module(module) => Some(module.clone()),
+                _ => None,
+            })
     }
 
     pub fn is_universe(&self, id: ModuleId) -> bool {
@@ -699,7 +705,7 @@ impl ResolveState {
 
     pub fn get_or_init_module(&self, module: Lrc<module_loader::Module>) -> Rc<Module> {
         let module_id = module.id;
-        if let Some(m) = self.modules.borrow().get(&module_id) {
+        if let Some(m) = self.lookup_module(module_id) {
             return m.clone();
         }
 
@@ -710,9 +716,16 @@ impl ResolveState {
 
         let new_module = Rc::new(Module { base: module, data });
 
-        self.modules
-            .borrow_mut()
-            .insert(module_id, new_module.clone());
+        self.module_objects.borrow_mut().insert(
+            module_id,
+            self.with_curr_module(module_id, || {
+                self.new_obj(
+                    None,
+                    new_module.base.ast.span.into(),
+                    ObjectKind::Module(new_module.clone()),
+                )
+            }),
+        );
 
         new_module
     }
@@ -832,15 +845,18 @@ impl ResolveState {
             }
             ImportKind::Namespace => {
                 let imported = self.get_or_init_module(ast_module);
-                let obj = self.with_curr_module(imported.base.id, || {
-                    self.new_obj(
-                        None,
-                        imported.base.ast.span.into(),
-                        ObjectKind::Module(imported),
-                    )
-                });
+                let obj = self.module_objects.borrow().get(&imported.base.id).cloned();
 
-                Some(obj)
+                if obj.is_none() {
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            imp.range.to_span(),
+                            "object for namespaced import not found",
+                        );
+                    });
+                }
+
+                obj
             }
         }
     }
