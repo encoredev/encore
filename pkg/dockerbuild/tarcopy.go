@@ -265,7 +265,7 @@ func (tc *tarCopier) MkdirAll(dstPath ImagePath, mode fs.FileMode) (err error) {
 			header := &tar.Header{
 				Typeflag: tar.TypeDir,
 				ModTime:  modTime,
-				Name:     (dstPath + "/").String(), // from [archive/tar.FileInfoHeader]
+				Name:     tarHeaderName(dstPath, true),
 				Mode:     int64(mode.Perm()),
 			}
 			tc.entries = append(tc.entries, &tarEntry{
@@ -297,10 +297,8 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		header.Mode = 0755
 	}
 
-	header.Name = filepath.ToSlash(dstPath.String())
-	entry := &tarEntry{
-		header: header,
-	}
+	header.Name = tarHeaderName(dstPath, fi.IsDir())
+	entry := &tarEntry{header: header}
 	tc.entries = append(tc.entries, entry)
 
 	if fi.IsDir() {
@@ -318,7 +316,7 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 
 func (tc *tarCopier) WriteFile(dstPath ImagePath, mode fs.FileMode, data []byte) (err error) {
 	header := &tar.Header{
-		Name:     filepath.ToSlash(dstPath.String()),
+		Name:     tarHeaderName(dstPath, false),
 		Typeflag: tar.TypeReg,
 		Mode:     int64(mode.Perm()),
 		Size:     int64(len(data)),
@@ -351,8 +349,9 @@ func (tc *tarCopier) Opener() tarball.Opener {
 		}
 	}
 
-	var tv tarstream.TarVec
+	var dvecs []tarstream.Datavec
 	for _, e := range tc.entries {
+		log.Info().Str("file", e.header.Name).Interface("header", e.header).Msg("processing file")
 		// create buffer to write tar header to
 		buf := new(bytes.Buffer)
 		tw := tar.NewWriter(buf)
@@ -367,8 +366,7 @@ func (tc *tarCopier) Opener() tarball.Opener {
 		}
 
 		// add the tar header mem buffer to the tarvec
-		tv.Dvecs = append(tv.Dvecs, memv)
-		tv.Size += memv.GetSize()
+		dvecs = append(dvecs, memv)
 
 		var dataEntry tarstream.Datavec
 		if hostPath, ok := e.hostPath.Get(); ok {
@@ -383,30 +381,31 @@ func (tc *tarCopier) Opener() tarball.Opener {
 
 		if dataEntry != nil {
 			// add the file path info to the tarvec
-			size := dataEntry.GetSize()
-			tv.Size += size
-			tv.Dvecs = append(tv.Dvecs, dataEntry)
+			dvecs = append(dvecs, dataEntry)
 
-			// tar requires file entries to be padded out to
-			// 512 byte offset
-			// if needed, record how much padding is needed
-			// and add to the tarvec
-			if size%512 != 0 {
-				padv := tarstream.PadVec{
-					Size: 512 - (size % 512),
+			// tar requires file entries to be padded out to 512 bytes.
+			if !e.header.FileInfo().IsDir() {
+				if size := dataEntry.GetSize(); size%512 != 0 {
+					padv := tarstream.PadVec{
+						Size: 512 - (size % 512),
+					}
+					dvecs = append(dvecs, padv)
 				}
-
-				tv.Dvecs = append(tv.Dvecs, padv)
-				tv.Size += padv.GetSize()
 			}
 		}
 	}
 
-	tv.ComputeSize()
-	tv.Pos = 0
-
+	tv := tarstream.NewTarVec(dvecs)
 	return func() (io.ReadCloser, error) {
 		tv2 := tv.Clone()
 		return tv2, nil
 	}
+}
+
+func tarHeaderName(p ImagePath, isDir bool) string {
+	name := strings.TrimPrefix(filepath.ToSlash(p.String()), "/")
+	if isDir {
+		name += "/"
+	}
+	return name
 }
