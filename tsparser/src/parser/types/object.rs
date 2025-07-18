@@ -706,7 +706,7 @@ impl ResolveState {
     pub fn get_or_init_module(&self, module: Lrc<module_loader::Module>) -> Rc<Module> {
         let module_id = module.id;
         if let Some(m) = self.lookup_module(module_id) {
-            return m.clone();
+            return m;
         }
 
         let mut data = Box::new(NSData::new());
