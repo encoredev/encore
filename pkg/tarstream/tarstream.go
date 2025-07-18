@@ -2,81 +2,130 @@ package tarstream
 
 import (
 	"archive/tar"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"sort"
 
 	"github.com/pkg/errors"
 )
 
-// TarVec is an array of datavecs representing a tarball
-type TarVec struct {
-	Dvecs []Datavec
-	Pos   int64
-	Size  int64
-}
-
-// PositionInfo stores information on where files get placed in the tarball
-type PositionInfo struct {
-	Name   string
-	Offset int64
-	Size   int64
-}
-
-// GetSize gets the size of the tarball represented by the tarvec
-func (tv TarVec) GetSize() int64 {
-	return tv.Size
-}
-
-// set the size field in the tarvec to represent
-// what the tarball size will be
-func (tv *TarVec) ComputeSize() {
-	tv.Size = 0
-	for _, dv := range tv.Dvecs {
-		tv.Size += dv.GetSize()
-	}
-}
-
-func (tv *TarVec) Clone() *TarVec {
-	vecs := make([]Datavec, len(tv.Dvecs))
-	for i, dv := range tv.Dvecs {
-		vecs[i] = dv.Clone()
+func NewTarVec(vecs []Datavec) *TarVec {
+	var totalSize int64
+	starts := make([]int64, len(vecs))
+	ends := make([]int64, len(vecs))
+	for i, dv := range vecs {
+		size := dv.GetSize()
+		starts[i] = totalSize
+		ends[i] = totalSize + size
+		totalSize += size
 	}
 
 	return &TarVec{
-		Dvecs: vecs,
-		Pos:   tv.Pos,
-		Size:  tv.Size,
+		vecs:   vecs,
+		starts: starts,
+		ends:   ends,
+		size:   totalSize,
 	}
+}
+
+// TarVec is an array of datavecs representing a tarball
+type TarVec struct {
+	vecs   []Datavec
+	starts []int64 // starting offset for each vec, inclusive
+	ends   []int64 // ending offset for each vec, exclusive
+	size   int64
+
+	// Current reading pos
+	pos  int64
+	curr *currReader
+}
+
+type currReader struct {
+	idx  int // datavec index
+	size int64
+	data DataReader
+}
+
+// Size gets the size of the tarball represented by the tarvec
+func (tv *TarVec) Size() int64 {
+	return tv.size
+}
+
+func (tv *TarVec) Clone() *TarVec {
+	return &TarVec{
+		vecs:   tv.vecs,
+		starts: tv.starts,
+		ends:   tv.ends,
+		pos:    tv.pos,
+	}
+}
+
+func (tv *TarVec) getReader() (*currReader, error) {
+	// Do we have a current reader?
+	if tv.curr != nil {
+		// Is the current position within the current datavec?
+		if tv.pos >= tv.starts[tv.curr.idx] && tv.pos < tv.ends[tv.curr.idx] {
+			return tv.curr, nil
+		}
+		_ = tv.curr.data.Close()
+		tv.curr = nil
+	}
+
+	// Find the datavec that contains the current position
+	candidate := sort.Search(len(tv.ends), func(i int) bool {
+		return tv.ends[i] > tv.pos
+	})
+	if candidate == len(tv.ends) {
+		// Position exceeds the end of the last data vec.
+		return nil, io.EOF
+	}
+
+	vec := tv.vecs[candidate]
+	data, err := vec.Open()
+	if err != nil {
+		return nil, fmt.Errorf("error opening data vec: %v", err)
+	}
+
+	tv.curr = &currReader{
+		idx:  candidate,
+		size: vec.GetSize(),
+		data: data,
+	}
+	return tv.curr, nil
 }
 
 // Read the data represented by the tarvec
 func (tv *TarVec) Read(b []byte) (int, error) {
-	off := int64(0)
-	// loop through the datavecs to find our current position
-	// then start reading when we find it
-	// we will fill the buffer with either the buffersize
-	// amount of data or the rest of the current datavec,
-	// whichever is less
-	for _, dv := range tv.Dvecs {
-		size := dv.GetSize()
-		if off+size <= tv.Pos {
-			off += size
-		} else {
-			err := dv.Open()
-			// XXX if os.IsNotExist(err), return 0s?
-			if err != nil {
-				return 0, errors.Wrap(err, fmt.Sprintf("opening vec"))
-			}
-			defer dv.Close()
-
-			n, err := dv.ReadAt(b, tv.Pos-off)
-			tv.Pos += int64(n)
-			return n, err
-		}
+	cr, err := tv.getReader()
+	if err != nil {
+		return 0, err
 	}
-	return 0, io.EOF
+
+	off := tv.pos - tv.starts[cr.idx]
+
+	// Sanity checks
+	remaining := cr.size - off
+	hasMoreVecs := cr.idx+1 < len(tv.vecs)
+	if remaining < 0 {
+		panic("TarVec: negative remaining size")
+	} else if remaining == 0 && hasMoreVecs && cr.size > 0 {
+		panic("TarVec: zero remaining size but more vecs exist")
+	}
+
+	n, err := cr.data.ReadAt(b, off)
+	if err == io.EOF {
+		// Ignore EOF from individual readers.
+		// getReader reports EOF when running out of readers.
+		err = nil
+	}
+
+	if n == 0 && len(b) > 0 && (err == nil || err == io.EOF) {
+		panic("TarVec: empty read from vec, more data remaining")
+	}
+	tv.pos += int64(n)
+
+	return n, err
 }
 
 // Seek the virtual offset of the tarvec
@@ -86,99 +135,32 @@ func (tv *TarVec) Seek(offset int64, whence int) (int64, error) {
 		if offset < 0 {
 			return 0, os.ErrInvalid
 		}
-		tv.Pos = offset
-		return tv.Pos, nil
+		tv.pos = offset
+		return tv.pos, nil
 	case io.SeekCurrent:
-		if tv.Pos+offset < 0 {
+		if tv.pos+offset < 0 {
 			return 0, os.ErrInvalid
 		}
-		tv.Pos += offset
-		return tv.Pos, nil
+		tv.pos += offset
+		return tv.pos, nil
 	case io.SeekEnd:
-		if tv.Size+offset < 0 {
+		if tv.size+offset < 0 {
 			return 0, os.ErrInvalid
 		}
-		tv.Pos = tv.Size + offset
-		return tv.Pos, nil
+		tv.pos = tv.size + offset
+		return tv.pos, nil
 	}
 	return 0, os.ErrInvalid
 }
 
 func (tv *TarVec) Close() error {
-	for _, dv := range tv.Dvecs {
-		dv.Close()
+	if tv.curr != nil {
+		err := tv.curr.data.Close()
+		tv.curr = nil
+		return err
 	}
+
 	return nil
-}
-
-// GenVec generates the tarvec and positioninfo from a list of files
-func GenVec(files []string) (TarVec, []PositionInfo, error) {
-	var tv TarVec
-	pinfo := make([]PositionInfo, len(files))
-
-	for i, file := range files {
-		// book keeping for file offsets within archive file
-		pinfo[i].Name = file
-		pinfo[i].Offset = tv.Size
-
-		fi, err := os.Lstat(file)
-		if err != nil {
-			continue
-		}
-		pinfo[i].Size = fi.Size()
-
-		// create buffer to write tar header to
-		buf := new(bytes.Buffer)
-		tw := tar.NewWriter(buf)
-
-		// generate tar header from file stat info
-		hdr, err := tar.FileInfoHeader(fi, "")
-		if err != nil {
-			return TarVec{}, []PositionInfo{},
-				errors.Wrap(err, fmt.Sprintf("generating header %v", file))
-		}
-
-		// write tar header to buffer
-		err = tw.WriteHeader(hdr)
-		if err != nil {
-			return TarVec{}, []PositionInfo{},
-				errors.Wrap(err, fmt.Sprintf("writing header %v", file))
-		}
-
-		memv := MemVec{
-			Data: buf.Bytes(),
-		}
-
-		// add the tar header mem buffer to the tarvec
-		tv.Dvecs = append(tv.Dvecs, memv)
-		tv.Size += memv.GetSize()
-
-		pathv := PathVec{
-			Path: file,
-			Info: fi,
-		}
-
-		// add the file path info to the tarvec
-		tv.Dvecs = append(tv.Dvecs, &pathv)
-		tv.Size += pathv.GetSize()
-
-		// tar requires file entries to be padded out to
-		// 512 byte offset
-		// if needed, record how much padding is needed
-		// and add to the tarvec
-		if fi.Size()%512 != 0 {
-			padv := PadVec{
-				Size: 512 - (fi.Size() % 512),
-			}
-
-			tv.Dvecs = append(tv.Dvecs, padv)
-			tv.Size += padv.GetSize()
-		}
-	}
-
-	tv.ComputeSize()
-	tv.Pos = 0
-	return tv, pinfo, nil
 }
 
 // Validate gets and validates the next header within the tarfile
