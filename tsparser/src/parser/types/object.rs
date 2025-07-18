@@ -70,7 +70,7 @@ pub enum ObjectKind {
     Using(Using),
     Func(Func),
     Class(Class),
-    Module(Module),
+    Module(Rc<Module>),
     Namespace(Namespace),
 }
 
@@ -831,10 +831,16 @@ impl ResolveState {
                 obj
             }
             ImportKind::Namespace => {
-                HANDLER.with(|handler| {
-                    handler.span_err(imp.range.to_span(), "namespace imports not yet supported");
+                let imported = self.get_or_init_module(ast_module);
+                let obj = self.with_curr_module(imported.base.id, || {
+                    self.new_obj(
+                        None,
+                        imported.base.ast.span.into(),
+                        ObjectKind::Module(imported),
+                    )
                 });
-                None
+
+                Some(obj)
             }
         }
     }
