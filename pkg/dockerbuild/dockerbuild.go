@@ -1,8 +1,6 @@
 package dockerbuild
 
 import (
-	"archive/tar"
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -154,18 +152,7 @@ func resolveBaseImage(ctx context.Context, baseImgTag string, overrideBaseImage 
 }
 
 func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildConfig) (opener tarball.Opener, err error) {
-	tarFile, err := os.CreateTemp("", "docker-img")
-	if err != nil {
-		return nil, errors.Wrap(err, "mktemp")
-	}
-	defer func() {
-		if e := tarFile.Close(); e != nil && err == nil {
-			err = errors.Wrap(e, "close docker-img file")
-		}
-	}()
-
-	tw := tar.NewWriter(tarFile)
-	tc := newTarCopier(tw, setFileTimes(cfg.BuildTime))
+	tc := newTarCopier(setFileTimes(cfg.BuildTime))
 
 	// Bundle the source code, if requested.
 	if bundle, ok := spec.BundleSource.Get(); ok {
@@ -199,24 +186,17 @@ func buildImageFilesystem(ctx context.Context, spec *ImageSpec, cfg *ImageBuildC
 		if caCertsDest == "" {
 			caCertsDest = DefaultCACertsPath
 		}
-		if err := addCACerts(ctx, tw, caCertsDest); err != nil {
+		if err := addCACerts(ctx, tc, caCertsDest); err != nil {
 			return nil, errors.Wrap(err, "add ca certs")
 		}
 	}
 
-	if err := tw.Close(); err != nil {
-		return nil, errors.Wrap(err, "complete tar")
-	}
-
-	opener = func() (io.ReadCloser, error) {
-		return os.Open(tarFile.Name())
-	}
-	return opener, nil
+	return tc.Opener(), nil
 }
 
 func writeExtraFiles(tc *tarCopier, files map[ImagePath][]byte) error {
 	for path, data := range files {
-		if err := tc.WriteFile(path.String(), 0644, data); err != nil {
+		if err := tc.WriteFile(path, 0644, data); err != nil {
 			return errors.Wrap(err, "write image data")
 		}
 	}
@@ -254,7 +234,7 @@ func setupSupervisor(tc *tarCopier, spec *ImageSpec, cfg *ImageBuildConfig) erro
 		if err != nil {
 			return errors.Wrap(err, "marshal supervisor config")
 		}
-		if err := tc.WriteFile(string(super.ConfigPath), 0644, data); err != nil {
+		if err := tc.WriteFile(super.ConfigPath, 0644, data); err != nil {
 			return errors.Wrap(err, "write supervisor config")
 		}
 	}
@@ -290,7 +270,7 @@ func writeBuildInfo(tc *tarCopier, spec BuildInfoSpec) error {
 		return errors.Wrap(err, "marshal build info")
 	}
 
-	err = tc.WriteFile(string(spec.InfoPath), 0644, info)
+	err = tc.WriteFile(spec.InfoPath, 0644, info)
 	return errors.Wrap(err, "write build info")
 }
 
@@ -312,7 +292,7 @@ func tryFetch(ctx context.Context, url string) (*http.Response, error) {
 	return resp, nil
 }
 
-func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
+func addCACerts(ctx context.Context, tc *tarCopier, dest ImagePath) error {
 	const (
 		encoreCachedRootCerts = "https://api.encore.cloud/artifacts/build/root-certs"
 		curlCACertStore       = "https://curl.se/ca/cacert.pem"
@@ -333,34 +313,14 @@ func addCACerts(ctx context.Context, tw *tar.Writer, dest ImagePath) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// We need to populate the body of the tar file before writing the contents.
-	// Use the content length if it was provided. Otherwise, read the whole response
-	// into memory and use its length.
-	var body io.Reader = resp.Body
-	size := resp.ContentLength
-	if size < 0 {
-		// Unknown body; read the whole response into memory
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return errors.Wrap(err, "read cert data")
-		}
-		size = int64(len(data))
-		body = bytes.NewReader(data)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "read cert data")
 	}
 
 	// Add the file
-	err = tw.WriteHeader(&tar.Header{
-		Typeflag: tar.TypeReg,
-		Name:     string(dest),
-		Size:     size,
-	})
-	if err != nil {
-		return errors.Wrap(err, "create cert file")
-	}
-	if _, err := io.Copy(tw, body); err != nil {
-		return errors.Wrap(err, "write cert data")
-	}
-	return nil
+	err = tc.WriteFile(dest, 0644, data)
+	return err
 }
 
 type envMap map[string]string

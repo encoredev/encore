@@ -496,7 +496,7 @@ impl Ctx<'_> {
             ast::TsTypeQueryExpr::TsEntityName(ast::TsEntityName::Ident(ident)) => {
                 let obj = self.ident_obj(ident);
                 if let Some(obj) = obj {
-                    self.resolve_obj_type(&obj)
+                    self.obj_type(&obj)
                 } else {
                     HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
                     Type::Basic(Basic::Never)
@@ -963,6 +963,15 @@ impl Ctx<'_> {
         };
 
         Type::Basic(basic)
+    }
+
+    fn type_alias_decl(&self, decl: &ast::TsTypeAliasDecl) -> Type {
+        if let Some(type_params) = &decl.type_params {
+            let args: Vec<_> = type_params.params.iter().collect();
+            self.clone().with_type_params(&args[..]).typ(decl)
+        } else {
+            self.typ(decl)
+        }
     }
 
     fn interface_decl(&self, decl: &ast::TsInterfaceDecl) -> Type {
@@ -1481,14 +1490,8 @@ impl Ctx<'_> {
     fn resolve_obj_type(&self, obj: &Object) -> Type {
         match &obj.kind {
             ObjectKind::TypeName(tn) => match &tn.decl {
-                TypeNameDecl::Interface(iface) => {
-                    // TODO handle type params here
-                    self.interface_decl(iface)
-                }
-                TypeNameDecl::TypeAlias(ta) => {
-                    // TODO handle type params here
-                    self.typ(&ta.type_ann)
-                }
+                TypeNameDecl::Interface(iface) => self.interface_decl(iface),
+                TypeNameDecl::TypeAlias(ta) => self.type_alias_decl(ta),
             },
 
             ObjectKind::Enum(o) => {
