@@ -309,8 +309,36 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
                 }
 
                 ast::ModuleDecl::ExportNamed(decl) => {
-                    // Re-exporting from the same module
-                    let Some(src) = &decl.src else {
+                    if let Some(src) = &decl.src {
+                        // Re-exporting from another module.
+                        ns.reexports.push(Reexport::List {
+                            import_path: src.value.to_string(),
+                            items: decl
+                                .specifiers
+                                .iter()
+                                .filter_map(|spec| match spec {
+                                    ast::ExportSpecifier::Named(named) => {
+                                        let orig_name = module_export_name_to_string(&named.orig);
+                                        Some(NamedReexport {
+                                            orig_name,
+                                            renamed: named
+                                                .exported
+                                                .as_ref()
+                                                .map(module_export_name_to_string),
+                                        })
+                                    }
+                                    ast::ExportSpecifier::Default(_) => {
+                                        log::debug!("TODO: ExportNamed with default");
+                                        None
+                                    }
+                                    ast::ExportSpecifier::Namespace(_) => {
+                                        log::debug!("TODO: ExportNamed with namespace");
+                                        None
+                                    }
+                                })
+                                .collect(),
+                        });
+                    } else {
                         for spec in &decl.specifiers {
                             match spec {
                                 swc_ecma_ast::ExportSpecifier::Named(named) => {
@@ -341,38 +369,7 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
                                 }
                             };
                         }
-
-                        return;
-                    };
-
-                    // Re-exporting from another module.
-                    ns.reexports.push(Reexport::List {
-                        import_path: src.value.to_string(),
-                        items: decl
-                            .specifiers
-                            .iter()
-                            .filter_map(|spec| match spec {
-                                ast::ExportSpecifier::Named(named) => {
-                                    let orig_name = module_export_name_to_string(&named.orig);
-                                    Some(NamedReexport {
-                                        orig_name,
-                                        renamed: named
-                                            .exported
-                                            .as_ref()
-                                            .map(module_export_name_to_string),
-                                    })
-                                }
-                                ast::ExportSpecifier::Default(_) => {
-                                    log::debug!("TODO: ExportNamed with default");
-                                    None
-                                }
-                                ast::ExportSpecifier::Namespace(_) => {
-                                    log::debug!("TODO: ExportNamed with namespace");
-                                    None
-                                }
-                            })
-                            .collect(),
-                    });
+                    }
                 }
 
                 ast::ModuleDecl::ExportAll(decl) => {
