@@ -9,7 +9,7 @@ use serde::Serialize;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
-use swc_ecma_ast as ast;
+use swc_ecma_ast::{self as ast};
 
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::ast_id::AstId;
@@ -309,12 +309,43 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
                 }
 
                 ast::ModuleDecl::ExportNamed(decl) => {
-                    // Re-exporting from another module.
+                    // Re-exporting from the same module
                     let Some(src) = &decl.src else {
-                        log::debug!("ExportNamed without src");
-                        continue;
+                        for spec in &decl.specifiers {
+                            match spec {
+                                swc_ecma_ast::ExportSpecifier::Named(named) => {
+                                    // TODO: can it ever be Str?
+                                    let ident = match &named.orig {
+                                        swc_ecma_ast::ModuleExportName::Ident(ident) => ident,
+                                        swc_ecma_ast::ModuleExportName::Str(_) => continue,
+                                    };
+
+                                    // TODO: what if the object it is refering to have not yet been processed?
+                                    if let Some(obj) = ns.top_level.get(&AstId::from(ident)) {
+                                        let name = named
+                                            .exported
+                                            .as_ref()
+                                            .map(module_export_name_to_string)
+                                            .unwrap_or_else(|| {
+                                                module_export_name_to_string(&named.orig)
+                                            });
+
+                                        ns.named_exports.insert(name, obj.clone());
+                                    }
+                                }
+                                swc_ecma_ast::ExportSpecifier::Namespace(_) => {
+                                    log::debug!("TODO: ExportNamed with namespace");
+                                }
+                                swc_ecma_ast::ExportSpecifier::Default(_) => {
+                                    log::debug!("TODO: ExportNamed with default");
+                                }
+                            };
+                        }
+
+                        return;
                     };
 
+                    // Re-exporting from another module.
                     ns.reexports.push(Reexport::List {
                         import_path: src.value.to_string(),
                         items: decl
