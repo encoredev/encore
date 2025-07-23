@@ -3,7 +3,7 @@ use swc_ecma_ast as ast;
 
 /// AstId is a convenience wrapper around ast::Id that also tracks the name of the identifier,
 /// for debugging purposes. It can be swapped out for ast::Id later.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstId(ast::Id, String);
 
 impl AstId {
