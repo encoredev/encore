@@ -580,7 +580,14 @@ fn process_decl(ctx: &ResolveState, ns: &mut NSData, decl: &ast::Decl) -> Vec<Rc
             match &d.id {
                 ast::TsModuleName::Ident(id) => {
                     let mut ns2 = Namespace {
-                        data: Box::new(NSData::new()),
+                        data: Box::new(NSData {
+                            imports: HashMap::new(),
+                            top_level: ns.top_level.clone(),
+                            named_exports: HashMap::new(),
+                            default_export: None,
+                            reexports: vec![],
+                            unprocessed_exports: vec![],
+                        }),
                     };
                     if let Some(body) = &d.body {
                         process_namespace_body(ctx, &mut ns2.data, body);
@@ -646,7 +653,14 @@ fn process_namespace_body(ctx: &ResolveState, ns: &mut NSData, body: &ast::TsNam
         ast::TsNamespaceBody::TsNamespaceDecl(decl) => {
             let name = Some(decl.id.sym.to_string());
             let mut ns2 = Namespace {
-                data: Box::new(NSData::new()),
+                data: Box::new(NSData {
+                    imports: HashMap::new(),
+                    top_level: ns.top_level.clone(),
+                    named_exports: HashMap::new(),
+                    default_export: None,
+                    reexports: vec![],
+                    unprocessed_exports: vec![],
+                }),
             };
             process_namespace_body(ctx, &mut ns2.data, &decl.body);
 
