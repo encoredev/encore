@@ -2,6 +2,8 @@ package dockerbuild
 
 import (
 	"archive/tar"
+	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -11,21 +13,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/rs/zerolog/log"
+
+	"encr.dev/pkg/option"
+	"encr.dev/pkg/tarstream"
 	"encr.dev/pkg/xos"
 	"encr.dev/v2/compiler/build"
-	"github.com/cockroachdb/errors"
-	"github.com/rs/zerolog/log"
 )
 
 type tarCopier struct {
 	fileTimes *time.Time
-	tw        *tar.Writer
+	entries   []*tarEntry
 	seenDirs  map[ImagePath]bool
 }
 
-func newTarCopier(tw *tar.Writer, opts ...tarCopyOption) *tarCopier {
+func newTarCopier(opts ...tarCopyOption) *tarCopier {
 	tc := &tarCopier{
-		tw:       tw,
 		seenDirs: make(map[ImagePath]bool),
 	}
 	for _, opt := range opts {
@@ -260,12 +265,12 @@ func (tc *tarCopier) MkdirAll(dstPath ImagePath, mode fs.FileMode) (err error) {
 			header := &tar.Header{
 				Typeflag: tar.TypeDir,
 				ModTime:  modTime,
-				Name:     (dstPath + "/").String(), // from [archive/tar.FileInfoHeader]
+				Name:     tarHeaderName(dstPath, true),
 				Mode:     int64(mode.Perm()),
 			}
-			if err := tc.tw.WriteHeader(header); err != nil {
-				return errors.Wrap(err, "write tar header")
-			}
+			tc.entries = append(tc.entries, &tarEntry{
+				header: header,
+			})
 			tc.seenDirs[dstPath] = true
 		}
 
@@ -292,10 +297,9 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 		header.Mode = 0755
 	}
 
-	header.Name = filepath.ToSlash(dstPath.String())
-	if err := tc.tw.WriteHeader(header); err != nil {
-		return errors.Wrap(err, "write tar header")
-	}
+	header.Name = tarHeaderName(dstPath, fi.IsDir())
+	entry := &tarEntry{header: header}
+	tc.entries = append(tc.entries, entry)
 
 	if fi.IsDir() {
 		tc.seenDirs[dstPath] = true
@@ -304,28 +308,15 @@ func (tc *tarCopier) CopyFile(dstPath ImagePath, srcPath HostPath, fi fs.FileInf
 
 	// If this is not a symlink, write the file.
 	if (fi.Mode() & fs.ModeSymlink) != fs.ModeSymlink {
-		// Write the file
-		f, err := os.Open(srcPath.String())
-		if err != nil {
-			return errors.Wrap(err, "open file")
-		}
-		defer func() {
-			if closeErr := f.Close(); err == nil {
-				err = errors.Wrap(closeErr, "close file")
-			}
-		}()
-
-		if _, err = io.Copy(tc.tw, f); err != nil {
-			return errors.Wrap(err, "copy file")
-		}
+		entry.hostPath = option.Some(srcPath)
 	}
 
 	return nil
 }
 
-func (tc *tarCopier) WriteFile(dstPath string, mode fs.FileMode, data []byte) (err error) {
+func (tc *tarCopier) WriteFile(dstPath ImagePath, mode fs.FileMode, data []byte) (err error) {
 	header := &tar.Header{
-		Name:     dstPath,
+		Name:     tarHeaderName(dstPath, false),
 		Typeflag: tar.TypeReg,
 		Mode:     int64(mode.Perm()),
 		Size:     int64(len(data)),
@@ -337,11 +328,84 @@ func (tc *tarCopier) WriteFile(dstPath string, mode fs.FileMode, data []byte) (e
 		header.ChangeTime = t
 	}
 
-	header.Name = filepath.ToSlash(dstPath)
-	if err := tc.tw.WriteHeader(header); err != nil {
-		return errors.Wrap(err, "write tar header")
+	tc.entries = append(tc.entries, &tarEntry{
+		header: header,
+		data:   option.Some(data),
+	})
+	return nil
+}
+
+type tarEntry struct {
+	header *tar.Header
+
+	data     option.Option[[]byte]
+	hostPath option.Option[HostPath]
+}
+
+func (tc *tarCopier) Opener() tarball.Opener {
+	errThunk := func(err error) tarball.Opener {
+		return func() (io.ReadCloser, error) {
+			return nil, err
+		}
 	}
 
-	_, err = tc.tw.Write(data)
-	return errors.Wrap(err, "write file")
+	var dvecs []tarstream.Datavec
+	for _, e := range tc.entries {
+		log.Info().Str("file", e.header.Name).Interface("header", e.header).Msg("processing file")
+		// create buffer to write tar header to
+		buf := new(bytes.Buffer)
+		tw := tar.NewWriter(buf)
+
+		// write tar header to buffer
+		if err := tw.WriteHeader(e.header); err != nil {
+			return errThunk(errors.Wrap(err, fmt.Sprintf("writing header %v", e)))
+		}
+
+		memv := tarstream.MemVec{
+			Data: buf.Bytes(),
+		}
+
+		// add the tar header mem buffer to the tarvec
+		dvecs = append(dvecs, memv)
+
+		var dataEntry tarstream.Datavec
+		if hostPath, ok := e.hostPath.Get(); ok {
+			fi := e.header.FileInfo()
+			dataEntry = &tarstream.PathVec{
+				Path: hostPath.String(),
+				Info: fi,
+			}
+		} else if data, ok := e.data.Get(); ok {
+			dataEntry = tarstream.MemVec{Data: data}
+		}
+
+		if dataEntry != nil {
+			// add the file path info to the tarvec
+			dvecs = append(dvecs, dataEntry)
+
+			// tar requires file entries to be padded out to 512 bytes.
+			if !e.header.FileInfo().IsDir() {
+				if size := dataEntry.GetSize(); size%512 != 0 {
+					padv := tarstream.PadVec{
+						Size: 512 - (size % 512),
+					}
+					dvecs = append(dvecs, padv)
+				}
+			}
+		}
+	}
+
+	tv := tarstream.NewTarVec(dvecs)
+	return func() (io.ReadCloser, error) {
+		tv2 := tv.Clone()
+		return tv2, nil
+	}
+}
+
+func tarHeaderName(p ImagePath, isDir bool) string {
+	name := strings.TrimPrefix(filepath.ToSlash(p.String()), "/")
+	if isDir {
+		name += "/"
+	}
+	return name
 }
