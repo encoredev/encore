@@ -24,3 +24,5 @@ runtimes/supervisor-encore
 runtimes/supervisor-encore-linux-amd64
 
 encore-runtime.node-linux-amd64
+config.bat
+node_modules
