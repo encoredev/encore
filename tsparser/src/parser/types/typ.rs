@@ -560,6 +560,9 @@ pub struct Mapped {
     /// Must be evaluated using the property name in the evaluation context.
     pub in_type: Box<Type>,
 
+    /// Optionally there is an as type.
+    pub as_type: Option<Box<Type>>,
+
     /// The value of each property in the mapped type.
     /// Must be evaluated using the property name in the evaluation context.
     pub value_type: Box<Type>,
@@ -574,7 +577,13 @@ pub struct Mapped {
 
 impl Mapped {
     pub fn identical(&self, other: &Mapped) -> bool {
-        self.in_type.identical(&other.in_type) && self.value_type.identical(&other.value_type)
+        self.in_type.identical(&other.in_type)
+            && self.value_type.identical(&other.value_type)
+            && match (&self.as_type, &other.as_type) {
+                (Some(a), Some(b)) => a.identical(b),
+                (None, None) => true,
+                _ => false,
+            }
     }
 }
 

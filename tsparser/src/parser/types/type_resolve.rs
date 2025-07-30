@@ -228,6 +228,8 @@ impl Ctx<'_> {
     /// https://www.typescriptlang.org/docs/handbook/2/mapped-types.html
     fn mapped(&self, tt: &ast::TsMappedType) -> Type {
         // [K in keyof T]: T[K]
+        // or
+        // [K in keyof T as SomeType]: T[K]
 
         let Some(value_type) = &tt.type_ann else {
             HANDLER.with(|handler| handler.span_err(tt.span, "missing value type annotation"));
@@ -236,13 +238,6 @@ impl Ctx<'_> {
 
         let Some(in_type) = &tt.type_param.constraint else {
             HANDLER.with(|handler| handler.span_err(tt.span, "missing 'in' type annotation"));
-            return Type::Basic(Basic::Never);
-        };
-
-        if let Some(name_type) = &tt.name_type {
-            HANDLER.with(|handler| {
-                handler.span_err(name_type.span(), "'as' type annotation not yet supported")
-            });
             return Type::Basic(Basic::Never);
         };
 
@@ -257,6 +252,11 @@ impl Ctx<'_> {
 
         // Next, parse the value type.
         let value_type = nested.btyp(value_type);
+        // Parse the "as" type if there is one
+        let as_type = tt
+            .name_type
+            .as_ref()
+            .map(|name_type| nested.btyp(name_type));
 
         let optional = match tt.optional {
             None => None,
@@ -266,6 +266,7 @@ impl Ctx<'_> {
 
         Type::Generic(Generic::Mapped(Mapped {
             in_type,
+            as_type,
             value_type,
             optional,
         }))
@@ -348,7 +349,8 @@ impl Ctx<'_> {
 
                     Type::Union(Union { types })
                 }
-                _ => {
+                t => {
+                    eprintln!("index type op on: {t:?}");
                     HANDLER.with(|handler| {
                         handler.span_err(span, "unsupported index access type operation")
                     });
@@ -778,8 +780,20 @@ impl Ctx<'_> {
 
     fn qualified_name_obj(&self, qn: &ast::TsQualifiedName) -> Option<Rc<Object>> {
         let obj = match &qn.left {
-            ast::TsEntityName::Ident(ident) => self.ident_obj(ident)?,
-            ast::TsEntityName::TsQualifiedName(qn) => self.qualified_name_obj(qn)?,
+            ast::TsEntityName::Ident(ident) => match self.ident_obj(ident) {
+                Some(obj) => obj,
+                None => {
+                    eprintln!("Failed to look up ident: {:?}", ident.sym);
+                    return None;
+                }
+            },
+            ast::TsEntityName::TsQualifiedName(qn) => match self.qualified_name_obj(qn) {
+                Some(obj) => obj,
+                None => {
+                    eprintln!("Failed to look up qualified name: {qn:?}");
+                    return None;
+                }
+            },
         };
 
         let name = qn.right.sym.as_str();
@@ -821,18 +835,26 @@ impl Ctx<'_> {
                 None
             }
             ObjectKind::Module(module) => {
-                if name == "default" {
+                let result = if name == "default" {
                     module.data.default_export.clone()
                 } else {
                     module.data.named_exports.get(name).cloned()
+                };
+                if result.is_none() {
+                    eprintln!("Failed to resolve qualified name '{name}' on module",);
                 }
+                result
             }
             ObjectKind::Namespace(ns) => {
-                if name == "default" {
+                let result = if name == "default" {
                     ns.data.default_export.clone()
                 } else {
                     ns.data.named_exports.get(name).cloned()
+                };
+                if result.is_none() {
+                    eprintln!("Failed to resolve qualified name '{name}' on namespace {ns:#?}",);
                 }
+                result
             }
         }
     }
@@ -1870,8 +1892,52 @@ impl Ctx<'_> {
                         call: None,
                     };
 
-                    let keys = self.underlying(&mapped.in_type).into_owned();
-                    for key in keys.into_iter_unions() {
+                    let in_type = self.underlying(&mapped.in_type).into_owned();
+                    if matches!(in_type, Type::Generic(_)) {
+                        // An unresolved generic type means we can't resolve this yet.
+                        return New(Type::Generic(Generic::Mapped(Mapped {
+                            in_type: Box::new(self.concrete(&mapped.in_type).into_owned()),
+                            as_type: mapped
+                                .as_type
+                                .as_ref()
+                                .map(|t| Box::new(self.concrete(t).into_owned())),
+                            value_type: Box::new(self.concrete(&mapped.value_type).into_owned()),
+                            optional: mapped.optional,
+                        })));
+                    }
+
+                    let debug = mapped.as_type.is_some();
+                    if debug {
+                        eprintln!("=== RESOLVING with as_type ===");
+                        dbg!((&mapped, &in_type));
+                    }
+
+                    for key in in_type.into_iter_unions() {
+                        // Never means the field should be excluded.
+                        if let Type::Basic(Basic::Never) = &key {
+                            HANDLER.with(|handler| {
+                                handler.err("unexpected 'never' type as mapped type key");
+                            });
+
+                            continue;
+                        }
+
+                        let key = mapped
+                            .as_type
+                            .as_ref()
+                            .map(|t| {
+                                self.clone()
+                                    .with_mapped_key_type(Some(&key))
+                                    .underlying(t)
+                                    .into_owned()
+                            })
+                            .unwrap_or(key);
+
+                        // If the key resolves to 'never' it should be skipped.
+                        if let Type::Basic(Basic::Never) = &key {
+                            continue;
+                        }
+
                         let value = self
                             .clone()
                             .with_mapped_key_type(Some(&key))
@@ -1886,24 +1952,6 @@ impl Ctx<'_> {
                         // Get the underlying key type if it's named.
 
                         match key {
-                            // Never means the field should be excluded.
-                            Type::Basic(Basic::Never) => {
-                                HANDLER.with(|handler| {
-                                    handler.err("unexpected 'never' type as mapped type key");
-                                });
-                            }
-
-                            // An unresolved generic type means we can't resolve this yet.
-                            Type::Generic(_) => {
-                                return New(Type::Generic(Generic::Mapped(Mapped {
-                                    in_type: Box::new(self.concrete(&mapped.in_type).into_owned()),
-                                    value_type: Box::new(
-                                        self.concrete(&mapped.value_type).into_owned(),
-                                    ),
-                                    optional: mapped.optional,
-                                })))
-                            }
-
                             // Do we have a wildcard type like "string" or "number"?
                             // If so treat it as an index signature.
                             source @ (Type::Basic(Basic::String)
@@ -1960,6 +2008,9 @@ impl Ctx<'_> {
                         }
                     }
 
+                    if debug {
+                        dbg!(&iface);
+                    }
                     New(Type::Interface(iface))
                 }
 
