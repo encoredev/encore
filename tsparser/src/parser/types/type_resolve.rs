@@ -968,9 +968,9 @@ impl Ctx<'_> {
     fn type_alias_decl(&self, decl: &ast::TsTypeAliasDecl) -> Type {
         if let Some(type_params) = &decl.type_params {
             let args: Vec<_> = type_params.params.iter().collect();
-            self.clone().with_type_params(&args[..]).typ(decl)
+            self.clone().with_type_params(&args[..]).typ(&decl.type_ann)
         } else {
-            self.typ(decl)
+            self.typ(&decl.type_ann)
         }
     }
 
