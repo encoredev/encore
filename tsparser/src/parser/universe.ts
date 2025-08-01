@@ -1,5 +1,4 @@
-
-export class Promise<T> { }
+export class Promise<T> {}
 
 /**
  * Make all properties in T optional
@@ -57,7 +56,32 @@ export type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
 export type NonNullable<T> = T & {};
 
 /** Builtin date class. */
-export class Date { };
+export class Date {}
 
 /** Builtin array type */
 export type Array<T> = T[];
+
+/**
+ * Convert string literal type to uppercase
+ */
+export type Uppercase<S extends string> = intrinsic;
+
+/**
+ * Convert string literal type to lowercase
+ */
+export type Lowercase<S extends string> = intrinsic;
+
+/**
+ * Convert first character of string literal type to uppercase
+ */
+export type Capitalize<S extends string> = intrinsic;
+
+/**
+ * Convert first character of string literal type to lowercase
+ */
+export type Uncapitalize<S extends string> = intrinsic;
+
+/**
+ * Creates a new function.
+ */
+export class Function {}
