@@ -70,8 +70,12 @@ impl LazyGCPClient {
                 let config = gcp::client::ClientConfig::default()
                     .with_auth()
                     .await
+                    .inspect_err(|e| log::error!("failed to get client config: {e:?}"))
                     .context("get client config")?;
-                gcp::client::Client::new(config).await.context("get client")
+                gcp::client::Client::new(config)
+                    .await
+                    .inspect_err(|e| log::error!("failed to get client: {e:?}"))
+                    .context("get client")
             })
             .await
     }
