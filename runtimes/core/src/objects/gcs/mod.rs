@@ -71,6 +71,7 @@ async fn initialize(cfg: &pb::bucket_cluster::Gcs) -> anyhow::Result<Arc<gcs::cl
         config = config
             .with_auth()
             .await
+            .inspect_err(|e| log::error!("unable to resolve client config: {e:?}"))
             .context("unable to resolve client config")?;
     }
 
