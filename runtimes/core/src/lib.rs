@@ -608,7 +608,7 @@ fn parse_meta(path: &Path) -> Result<metapb::Data, ParseError> {
 }
 
 fn enable_test_mode() -> Result<(), ParseError> {
-    if std::env::var("ENCORE_APP_META").is_ok() {
+    if std::env::var("ENCORE_APP_META").is_ok() || std::env::var("ENCORE_APP_META_PATH").is_ok() {
         return Ok(());
     }
 
