@@ -166,7 +166,7 @@ func testParse(c *qt.C, code string) *meta.Data {
 	err := txtar.Write(ar, root)
 	c.Assert(err, qt.IsNil)
 
-	bld := v2builder.BuilderImpl{}
+	bld := v2builder.New()
 	ctx := context.Background()
 
 	res, err := bld.Parse(ctx, builder.ParseParams{

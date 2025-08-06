@@ -12,5 +12,5 @@ func Resolve(lang appfile.Lang, expSet *experiments.Set) builder.Impl {
 	if lang == appfile.LangTS || experiments.TypeScript.Enabled(expSet) {
 		return tsbuilder.New()
 	}
-	return v2builder.BuilderImpl{}
+	return v2builder.New()
 }
