@@ -39,6 +39,7 @@ const (
 	serviceCfgEnvPrefix = "ENCORE_CFG_"
 	listenEnvVar        = "ENCORE_LISTEN_ADDR"
 	metaEnvVar          = "ENCORE_APP_META"
+	metaPathEnvVar      = "ENCORE_APP_META_PATH"
 )
 
 type RuntimeConfigGenerator struct {
@@ -76,8 +77,11 @@ type RuntimeConfigGenerator struct {
 	Gateways      map[string]GatewayConfig
 	AuthKey       config.EncoreAuthKey
 
-	// Whether to include the metadata as an environment variable.
-	IncludeMetaEnv bool
+	// Whether to include the metadata.
+	IncludeMeta bool
+	// If set, write the metadata to the given path
+	// instead of including it as an environment variable.
+	MetaPath option.Option[string]
 
 	// The values of defined secrets.
 	DefinedSecrets map[string]string
@@ -96,7 +100,6 @@ type GatewayConfig struct {
 func (g *RuntimeConfigGenerator) initialize() error {
 	return g.initOnce.Do(func() error {
 		g.conf = rtconfgen.NewBuilder()
-
 		newRid := func() string { return "res_" + xid.New().String() }
 
 		if deployID, ok := g.DeployID.Get(); ok {
@@ -726,7 +729,7 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (envs []string, e
 	svcNames := fns.Map(g.md.Svcs, func(svc *meta.Service) string { return svc.Name })
 	envs = append(envs, g.encodeConfigs(svcNames...)...)
 
-	if g.IncludeMetaEnv {
+	if g.IncludeMeta {
 		metaBytes, err := proto.Marshal(g.md)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal metadata")
@@ -786,14 +789,21 @@ func (g *RuntimeConfigGenerator) ProcEnvs(proc *ProcConfig, useRuntimeConfigV2 b
 		env = append(env, fmt.Sprintf("%s=%s", runtimeCfgEnvVar, runtimeCfgStr))
 	}
 
-	if g.IncludeMetaEnv {
+	if g.IncludeMeta {
 		metaBytes, err := proto.Marshal(g.md)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal metadata")
 		}
-		gzipped := gzipBytes(metaBytes)
-		metaEnvStr := "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
-		env = append(env, fmt.Sprintf("%s=%s", metaEnvVar, metaEnvStr))
+		if metaPath, ok := g.MetaPath.Get(); ok {
+			if err := os.WriteFile(metaPath, metaBytes, 0644); err != nil {
+				return nil, errors.Wrap(err, "failed to write metadata")
+			}
+			env = append(env, fmt.Sprintf("%s=%s", metaPathEnvVar, metaPath))
+		} else {
+			gzipped := gzipBytes(metaBytes)
+			metaEnvStr := "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
+			env = append(env, fmt.Sprintf("%s=%s", metaEnvVar, metaEnvStr))
+		}
 	}
 
 	if runtimeLibPath := encoreEnv.EncoreRuntimeLib(); runtimeLibPath != "" {

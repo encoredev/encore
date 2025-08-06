@@ -551,7 +551,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			DefinedSecrets: params.Secrets,
 			SvcConfigs:     params.ServiceConfigs,
 			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
-			IncludeMetaEnv: r.Builder.NeedsMeta(),
+			IncludeMeta:    r.Builder.NeedsMeta(),
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
