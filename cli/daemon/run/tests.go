@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -191,6 +192,15 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		return nil, err
 	}
 
+	var metaPath option.Option[string]
+	if bld.NeedsMeta() {
+		tempDir, err := bld.TempDir()
+		if err != nil {
+			return nil, err
+		}
+		metaPath = option.Some(filepath.Join(tempDir, "meta.pb"))
+	}
+
 	authKey := genAuthKey()
 	configGen := &RuntimeConfigGenerator{
 		app:            params.App,
@@ -206,7 +216,8 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		EnvName:        option.Some("test"),
 		EnvType:        option.Some(runtimev1.Environment_TYPE_TEST),
 		DeployID:       option.Some(fmt.Sprintf("clitest_%s", xid.New().String())),
-		IncludeMetaEnv: bld.NeedsMeta(),
+		IncludeMeta:    bld.NeedsMeta(),
+		MetaPath:       metaPath,
 	}
 
 	env, err := configGen.ForTests(bld.UseNewRuntimeConfig())

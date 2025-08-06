@@ -165,7 +165,7 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		Gateways:       gateways,
 		DefinedSecrets: secrets,
 		SvcConfigs:     cfg.Configs,
-		IncludeMetaEnv: bld.NeedsMeta(),
+		IncludeMeta:    bld.NeedsMeta(),
 	}
 	procConf, err := configGen.AllInOneProc()
 	if err != nil {
