@@ -5,12 +5,10 @@ use aws_sdk_s3::presigning::PresigningConfig;
 use aws_smithy_types::byte_stream::ByteStream;
 use base64::Engine;
 use bytes::{Bytes, BytesMut};
-use futures::Stream;
 use std::borrow::Cow;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::Poll;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::encore::runtime::v1 as pb;
@@ -567,29 +565,6 @@ async fn upload_multipart_chunks<R: AsyncRead + Unpin + ?Sized>(
     match resp {
         Ok(output) => UploadMultipartResult::CompleteSuccess { total_size, output },
         Err(err) => UploadMultipartResult::CompleteError(err),
-    }
-}
-
-struct ObjectStream {
-    inner: ByteStream,
-}
-
-impl Stream for ObjectStream {
-    type Item = Result<Bytes, objects::Error>;
-
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let stream = Pin::new(&mut self.get_mut().inner);
-        match stream.poll_next(cx) {
-            Poll::Ready(Some(Err(err))) => {
-                Poll::Ready(Some(Err(objects::Error::Other(err.into()))))
-            }
-            Poll::Ready(Some(Ok(data))) => Poll::Ready(Some(Ok(data))),
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
-        }
     }
 }
 

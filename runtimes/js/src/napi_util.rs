@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use napi::{Either, Env, JsFunction, JsObject, JsUnknown};
 
 pub trait PromiseHandler: Clone + Send + Sync + 'static {
@@ -70,17 +68,4 @@ pub fn await_promise<T, H>(
         let res = outer_handler.error(env, err);
         _ = outer_tx.send(res);
     });
-}
-
-#[derive(Debug)]
-pub struct JSError {
-    pub message: String,
-}
-
-impl std::error::Error for JSError {}
-
-impl Display for JSError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
-    }
 }
