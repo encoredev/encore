@@ -230,7 +230,7 @@ impl ToSql for PValue {
                         } else if num.is_f64() {
                             num.as_f64().unwrap().to_sql(ty, out)
                         } else {
-                            return Err(format!("unsupported number: {num:?}").into());
+                            Err(format!("unsupported number: {num:?}").into())
                         }
                     }
                 },
