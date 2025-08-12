@@ -37,7 +37,7 @@ func (mgr *Manager) NewTestDatabase(ctx context.Context, name string) (*Database
 		_, err := db.Exec(context.Background(), fmt.Sprintf("DROP DATABASE %s WITH (FORCE)",
 			pgx.Identifier{dbName}.Sanitize()))
 		if err != nil {
-			mgr.rootLogger.Error().Msgf("Failed to clean up test database: name=%s, err=%v", dbName, err)
+			mgr.rootLogger.Error().Err(err).Str("database", dbName).Msg("failed to clean up test database")
 		}
 	})
 	return clone, nil
