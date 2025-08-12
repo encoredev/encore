@@ -4,6 +4,7 @@ package et
 
 import (
 	"context"
+	"fmt"
 
 	"encore.dev/beta/auth"
 	"encore.dev/storage/sqldb"
@@ -27,6 +28,9 @@ import (
 // OverrideAuthInfo is not safe for concurrent use with code that invokes
 // auth.UserID or auth.Data() within the same request.
 func OverrideAuthInfo(uid auth.UID, data any) {
+	if Singleton.runtime.EnvType != "test" {
+		panic("et: cannot override auth info in non-test environment")
+	}
 	Singleton.OverrideAuthInfo(uid, data)
 }
 
@@ -40,6 +44,9 @@ func OverrideAuthInfo(uid auth.UID, data any) {
 // contain state that is not reset between tests, this can cause issues. In that case,
 // you can call this function to isolate the services for the impacted tests.
 func EnableServiceInstanceIsolation() {
+	if Singleton.runtime.EnvType != "test" {
+		panic("et: cannot enable service instance isolation in non-test environment")
+	}
 	Singleton.testMgr.SetIsolatedServices(true)
 }
 
@@ -59,5 +66,8 @@ type stringLiteral string
 //
 // The provided name must be a constant string literal (like "mydb").
 func NewTestDatabase(ctx context.Context, name stringLiteral) (*sqldb.Database, error) {
+	if Singleton.runtime.EnvType != "test" {
+		return nil, fmt.Errorf("et: cannot create test database in non-test environment")
+	}
 	return Singleton.db.NewTestDatabase(ctx, string(name))
 }

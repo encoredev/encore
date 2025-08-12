@@ -11,4 +11,4 @@ import (
 )
 
 //publicapigen:drop
-var Singleton = NewManager(appconf.Static, reqtrack.Singleton, testsupport.Singleton, api.Singleton, sqldb.Singleton)
+var Singleton = NewManager(appconf.Static, appconf.Runtime, reqtrack.Singleton, testsupport.Singleton, api.Singleton, sqldb.Singleton)

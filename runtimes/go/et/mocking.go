@@ -50,6 +50,9 @@ func RunMiddleware(enabled bool) MockOption {
 //
 // Setting the mock to nil will remove the endpoint mock.
 func MockEndpoint[T any](originalEndpoint T, mock T, opts ...MockOption) {
+	if Singleton.runtime.EnvType != "test" {
+		panic("et: cannot mock endpoint in non-test environment")
+	}
 	options := &mockOptions{}
 	for _, opt := range opts {
 		opt(options)
@@ -96,6 +99,9 @@ func MockEndpoint[T any](originalEndpoint T, mock T, opts ...MockOption) {
 //
 // Setting the mock to nil will remove the service mock.
 func MockService[T any](serviceName string, mock T, opts ...MockOption) {
+	if Singleton.runtime.EnvType != "test" {
+		panic("et: cannot mock service in non-test environment")
+	}
 	options := &mockOptions{}
 	for _, opt := range opts {
 		opt(options)
