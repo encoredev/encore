@@ -69,7 +69,7 @@ impl Serialize for ExternalError<'_> {
 }
 
 impl Error {
-    pub fn as_external(&self) -> ExternalError {
+    pub fn as_external(&self) -> ExternalError<'_> {
         ExternalError(self)
     }
 
