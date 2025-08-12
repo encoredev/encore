@@ -103,7 +103,7 @@ pub struct RequestParamsByLoc<'a> {
 }
 
 impl RequestEncoding {
-    pub fn by_loc(&self) -> RequestParamsByLoc {
+    pub fn by_loc(&self) -> RequestParamsByLoc<'_> {
         let mut by_loc = RequestParamsByLoc {
             path: vec![],
             header: vec![],

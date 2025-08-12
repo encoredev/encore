@@ -2,13 +2,12 @@ use crate::log::consolewriter::ConsoleWriter;
 use crate::log::fields::FieldConfig;
 use anyhow::Context;
 use serde_json::Value;
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::env;
 use std::fmt::Debug;
 use std::io::{IoSlice, Write};
 use std::sync::mpsc::{self, Receiver, RecvError, SyncSender, TryRecvError};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// A log writer.
@@ -129,46 +128,5 @@ impl Writer for ActorWriter {
 impl Default for ActorWriter {
     fn default() -> Self {
         Self::new(std::io::stderr())
-    }
-}
-
-/// A log writer that synchronizes writes to stderr blocking
-/// until the write is complete.
-#[derive(Debug)]
-pub struct BlockingWriter<W: Write + Sync + Send + 'static> {
-    mu: Mutex<RefCell<Box<W>>>,
-}
-
-impl<W: Write + Sync + Send + 'static> BlockingWriter<W> {
-    pub fn new(w: W) -> Self {
-        Self {
-            mu: Mutex::new(RefCell::new(Box::new(w))),
-        }
-    }
-}
-
-impl Default for BlockingWriter<std::io::Stderr> {
-    fn default() -> Self {
-        Self::new(std::io::stderr())
-    }
-}
-
-/// A Writer implementation that writes logs in JSON format.
-impl<W: Write + Sync + Send + 'static> Writer for BlockingWriter<W> {
-    fn write(&self, _: log::Level, values: &BTreeMap<String, Value>) -> anyhow::Result<()> {
-        let mut buf = Vec::with_capacity(256);
-        serde_json::to_writer(&mut buf, values)
-            .map_err(std::io::Error::from)
-            .context("serde_writer")?;
-        buf.write_all(b"\n").context("new line")?;
-
-        match self.mu.lock() {
-            Ok(guard) => {
-                let mut w = guard.try_borrow_mut().context("unable to borrow")?;
-                w.write_all(&buf).context("write")?;
-                Ok(())
-            }
-            Err(poisoned) => Err(anyhow::anyhow!("poisoned mutex: {:?}", poisoned)),
-        }
     }
 }
