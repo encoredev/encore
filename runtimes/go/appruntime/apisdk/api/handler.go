@@ -309,14 +309,14 @@ func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp *
 		}
 	}
 
-	respData, httpStatus, err, headers := d.executeEndpoint(c.execContext, invokeHandler)
+	respData, httpStatus, headers, err := d.executeEndpoint(c.execContext, invokeHandler)
 
 	resp = newRespWithHeaders(respData, httpStatus, err, headers, d.Raw, c.capturer, respCapturer, c.server.json)
 	return resp, respData
 }
 
 // executeEndpoint executes the given handler, running middleware in the process.
-func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(middleware.Request) middleware.Response) (resp Resp, httpStatus int, respErr error, headers http.Header) {
+func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(middleware.Request) middleware.Response) (resp Resp, httpStatus int, headers http.Header, respErr error) {
 	var counter int
 	var nextFn middleware.Next
 
@@ -389,17 +389,17 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	mwResp := nextFn(mwReq)
 
 	if mwResp.Err != nil {
-		return resp, mwResp.HTTPStatus, mwResp.Err, mwResp.GetHeaders()
+		return resp, mwResp.HTTPStatus, mwResp.GetHeaders(), mwResp.Err
 	} else {
 		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
-			return resp, mwResp.HTTPStatus, mwResp.Err, mwResp.GetHeaders()
+			return resp, mwResp.HTTPStatus, mwResp.GetHeaders(), mwResp.Err
 		}
 	}
 
-	return resp, 500, errs.B().Code(errs.Internal).Msgf(
+	return resp, 500, mwResp.GetHeaders(), errs.B().Code(errs.Internal).Msgf(
 		"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
 		mwResp.Payload, d.Service, d.Endpoint, resp,
-	).Err(), mwResp.GetHeaders()
+	).Err()
 }
 
 // invokeHandlerNonRaw invokes the handler for a regular (non-raw) endpoint. If the endpoint is raw, it panics.
@@ -581,7 +581,7 @@ func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req,
 		// If we want to run middleware, use the same code path as internalCall but switch out the handler
 		// to our mock.
 		if runMiddleware {
-			resp, status, err, _ := d.executeEndpoint(ec, func(mwReq middleware.Request) (mwResp middleware.Response) {
+			resp, status, _, err := d.executeEndpoint(ec, func(mwReq middleware.Request) (mwResp middleware.Response) {
 				return d.invokeHandlerNonRaw(mwReq, req, mock)
 			})
 			return resp, status, err
@@ -597,7 +597,7 @@ func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req,
 
 func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
 	return d.runCall(c, req, false, func(ec execContext, req Req) (Resp, int, error) {
-		resp, status, err, _ := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
+		resp, status, _, err := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req, d.AppHandler)
 		})
 		return resp, status, err
