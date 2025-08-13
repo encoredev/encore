@@ -533,10 +533,10 @@ func TestMiddlewareHeaders(t *testing.T) {
 			resp := next(req)
 
 			// Set various types of headers
-			resp.Headers.Set("X-Custom-Header", "custom-value")
-			resp.Headers.Add("X-Multi-Header", "value1")
-			resp.Headers.Add("X-Multi-Header", "value2")
-			resp.Headers.Set("X-Middleware-Applied", "true")
+			resp.Header().Set("X-Custom-Header", "custom-value")
+			resp.Header().Add("X-Multi-Header", "value1")
+			resp.Header().Add("X-Multi-Header", "value2")
+			resp.Header().Set("X-Middleware-Applied", "true")
 
 			return resp
 		},
@@ -622,8 +622,8 @@ func TestMiddlewareHeadersOnError(t *testing.T) {
 			resp := next(req)
 
 			// Set headers regardless of success/error
-			resp.Headers.Set("X-Error-Header", "error-value")
-			resp.Headers.Set("X-Always-Present", "always")
+			resp.Header().Set("X-Error-Header", "error-value")
+			resp.Header().Set("X-Always-Present", "always")
 
 			return resp
 		},

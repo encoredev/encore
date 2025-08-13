@@ -94,13 +94,28 @@ type Response struct {
 	// been written to the network.
 	HTTPStatus int
 
-	// Headers are HTTP headers to add to the response.
-	// These headers will be written to the HTTP response for both successful
-	// and error responses.
-	//
-	// For raw handlers middleware cannot modify this as the response has already
-	// been written to the network.
-	Headers http.Header
+	// headers are HTTP headers to add to the response, lazily initialized.
+	// Use Header() method to access.
+	headers http.Header
+}
+
+// Header returns the header map that will be sent by the response.
+// The returned map is lazily initialized on first call.
+// Changing the header map after a call to WriteHeader has no effect.
+//
+// For raw handlers middleware cannot modify headers as the response has already
+// been written to the network.
+func (r *Response) Header() http.Header {
+	if r.headers == nil {
+		r.headers = make(http.Header)
+	}
+	return r.headers
+}
+
+// GetHeaders returns the headers map, or nil if no headers have been set.
+// This method is used internally by the Encore runtime.
+func (r *Response) GetHeaders() http.Header {
+	return r.headers
 }
 
 // NewRequest constructs a new Request that returns the given context and request data.

@@ -378,7 +378,6 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 			return middleware.Response{
 				Err:        errs.B().Code(errs.Internal).Msg("middleware called next() too many times").Err(),
 				HTTPStatus: 500,
-				Headers:    make(http.Header),
 			}
 		}
 	}
@@ -390,17 +389,17 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	mwResp := nextFn(mwReq)
 
 	if mwResp.Err != nil {
-		return resp, mwResp.HTTPStatus, mwResp.Err, mwResp.Headers
+		return resp, mwResp.HTTPStatus, mwResp.Err, mwResp.GetHeaders()
 	} else {
 		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
-			return resp, mwResp.HTTPStatus, mwResp.Err, mwResp.Headers
+			return resp, mwResp.HTTPStatus, mwResp.Err, mwResp.GetHeaders()
 		}
 	}
 
 	return resp, 500, errs.B().Code(errs.Internal).Msgf(
 		"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
 		mwResp.Payload, d.Service, d.Endpoint, resp,
-	).Err(), mwResp.Headers
+	).Err(), mwResp.GetHeaders()
 }
 
 // invokeHandlerNonRaw invokes the handler for a regular (non-raw) endpoint. If the endpoint is raw, it panics.
@@ -408,9 +407,6 @@ func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData 
 	if d.Raw {
 		panic("invokeHandlerNonRaw called on Raw endpoint")
 	}
-
-	// Initialize Headers
-	mwResp.Headers = make(http.Header)
 
 	handlerResp, handlerErr := handler(mwReq.Context(), reqData)
 	if handlerErr != nil {
@@ -432,9 +428,6 @@ func (d *Desc[Req, Resp]) invokeHandlerRaw(mwReq middleware.Request, c IncomingC
 	if !d.Raw {
 		panic("invokeHandlerRaw called on non-Raw endpoint")
 	}
-
-	// Initialize Headers
-	mwResp.Headers = make(http.Header)
 
 	// Middleware can override the context, so check if the context is different
 	// and if so change the request context.
