@@ -7,6 +7,7 @@ package middleware
 
 import (
 	"context"
+	"net/http"
 
 	encore "encore.dev"
 )
@@ -92,6 +93,14 @@ type Response struct {
 	// For raw handlers middleware cannot modify this as it has already
 	// been written to the network.
 	HTTPStatus int
+
+	// Headers are HTTP headers to add to the response.
+	// These headers will be written to the HTTP response for both successful
+	// and error responses.
+	//
+	// For raw handlers middleware cannot modify this as the response has already
+	// been written to the network.
+	Headers http.Header
 }
 
 // NewRequest constructs a new Request that returns the given context and request data.

@@ -132,7 +132,7 @@ func (s *Server) handleRemoteAuthCall(w http.ResponseWriter, req *http.Request, 
 	// Call the original auth handler
 	authInfo, err := s.authHandler.Authenticate(c)
 	if err != nil {
-		returnError(originalC, err, 0)
+		returnError(originalC, err, 0, nil)
 		return
 	}
 
@@ -142,7 +142,7 @@ func (s *Server) handleRemoteAuthCall(w http.ResponseWriter, req *http.Request, 
 
 	// Write the auth info to the response
 	if err := authJSON.NewEncoder(w).Encode(authInfo.UserData); err != nil {
-		returnError(originalC, err, 0)
+		returnError(originalC, err, 0, nil)
 		return
 	}
 }
