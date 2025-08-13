@@ -171,6 +171,9 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 
 		c.w.Header().Set("Content-Type", "application/json")
 		c.w.Header().Set("X-Content-Type-Options", "nosniff")
+		if resp.HTTPStatus != 0 {
+			c.w.WriteHeader(resp.HTTPStatus)
+		}
 		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
 	}
 	c.server.finishRequest(resp)
