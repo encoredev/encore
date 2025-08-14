@@ -125,6 +125,8 @@ type ResponseEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
+	// HTTPStatusField is the name of the struct field that contains the HTTP status code, if any
+	HTTPStatusField string `json:"http_status_field,omitempty"`
 }
 
 func (r *ResponseEncoding) AllParameters() []*ParameterEncoding {
@@ -180,6 +182,30 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		return &ResponseEncoding{}
 	}
 
+	// Look for encore:"httpstatus" tag to find the HTTP status field
+	var httpStatusField string
+	for _, field := range responseStruct.Fields {
+		if !field.IsExported() {
+			continue
+		}
+		
+		for _, tag := range field.Tag.Tags() {
+			if tag.Key == "encore" && tag.Name == "httpstatus" {
+				if httpStatusField != "" {
+					errs.Add(errMultipleHTTPStatusFields.AtGoNode(field.AST))
+					return &ResponseEncoding{}
+				}
+				httpStatusField = field.Name.MustGet()
+				
+				// Validate that the field is of type int
+				if builtin, ok := field.Type.(schema.BuiltinType); !ok || builtin.Kind != schema.Int {
+					errs.Add(errHTTPStatusFieldMustBeInt.AtGoNode(field.AST))
+					return &ResponseEncoding{}
+				}
+			}
+		}
+	}
+
 	// Check for reserved header prefixes
 	for _, field := range fields[Header] {
 		if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
@@ -202,6 +228,7 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 	return &ResponseEncoding{
 		BodyParameters:   fields[Body],
 		HeaderParameters: fields[Header],
+		HTTPStatusField:  httpStatusField,
 	}
 }
 
@@ -446,6 +473,13 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 		Doc:       field.Doc,
 		Type:      field.Type,
 		WireName:  defaultWireName,
+	}
+
+	// Skip fields with encore:"httpstatus" tag - they're handled separately
+	for _, tag := range field.Tag.Tags() {
+		if tag.Key == "encore" && tag.Name == "httpstatus" {
+			return nil, true
+		}
 	}
 
 	// Determine which location we should use for this field.

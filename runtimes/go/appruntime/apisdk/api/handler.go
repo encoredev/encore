@@ -91,7 +91,7 @@ type Desc[Req, Resp any] struct {
 	AppHandler func(context.Context, Req) (Resp, error)
 	RawHandler func(http.ResponseWriter, *http.Request)
 
-	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp) error
+	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp, int) error
 	CloneResp  func(Resp) (Resp, error)
 
 	// EncodeExternalReq encodes a request, writing the payload to the stream
@@ -171,10 +171,8 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 
 		c.w.Header().Set("Content-Type", "application/json")
 		c.w.Header().Set("X-Content-Type-Options", "nosniff")
-		if resp.HTTPStatus != 0 {
-			c.w.WriteHeader(resp.HTTPStatus)
-		}
-		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
+
+		resp.Err = d.EncodeResp(c.w, c.server.json, respData, resp.HTTPStatus)
 	}
 	c.server.finishRequest(resp)
 }

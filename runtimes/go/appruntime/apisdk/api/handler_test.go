@@ -460,7 +460,7 @@ func newMockAPIDesc(access api.Access) *api.Desc[*mockReq, *mockResp] {
 		AppHandler: func(ctx context.Context, req *mockReq) (*mockResp, error) {
 			return &mockResp{Message: req.Body}, nil
 		},
-		EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *mockResp) error {
+		EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp *mockResp, status int) error {
 			data, err := json.Marshal(resp)
 			_, _ = w.Write(data)
 			return err
@@ -507,7 +507,7 @@ func newRawMockAPIDesc(access api.Access, handler http.HandlerFunc) *api.Desc[*r
 				handler.ServeHTTP(w, req)
 			}
 		},
-		EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp api.Void) error {
+		EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp api.Void, status int) error {
 			return nil
 		},
 		CloneResp: func(resp api.Void) (api.Void, error) {

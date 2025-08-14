@@ -78,4 +78,14 @@ var (
 			"thus all parameters must be sent as query strings or headers. "+
 			"See https://encore.dev/docs/develop/api-schemas#supported-types for more information."),
 	)
+
+	errMultipleHTTPStatusFields = errRange.New(
+		"Invalid response type",
+		"Only one field can be tagged with encore:\"httpstatus\" per response struct.",
+	)
+
+	errHTTPStatusFieldMustBeInt = errRange.New(
+		"Invalid response type",
+		"Fields tagged with encore:\"httpstatus\" must be of type int.",
+	)
 )
