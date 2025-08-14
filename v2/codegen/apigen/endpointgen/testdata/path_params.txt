@@ -142,7 +142,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 
 		return httpHeader, queryString, err
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp, status int) error {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp, status int) (err error) {
 		if status != 0 {
 			w.WriteHeader(status)
 		}
