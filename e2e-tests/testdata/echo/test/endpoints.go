@@ -200,35 +200,3 @@ func PathMultiSegments(ctx context.Context, bool bool, int int, string string, u
 		Wildcard: wildcard,
 	}, nil
 }
-
-// HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
-type HTTPStatusResponse struct {
-	Message string `json:"message"`
-	Status  int    `encore:"httpstatus"`
-}
-
-// CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
-//
-//encore:api public
-func CustomHTTPStatus(ctx context.Context) (*HTTPStatusResponse, error) {
-	return &HTTPStatusResponse{
-		Message: "Created successfully",
-		Status:  201, // HTTP 201 Created
-	}, nil
-}
-
-// HTTPStatusCreatedResponse demonstrates encore:"httpstatus" tag for 201 Created
-type HTTPStatusCreatedResponse struct {
-	ID     int `json:"id"`
-	Status int `encore:"httpstatus"`
-}
-
-// CreateResource returns a 201 Created status
-//
-//encore:api public method=POST path=/resources
-func CreateResource(ctx context.Context) (*HTTPStatusCreatedResponse, error) {
-	return &HTTPStatusCreatedResponse{
-		ID:     42,
-		Status: 201,
-	}, nil
-}

@@ -234,6 +234,13 @@ export namespace echo {
         Env: string[]
     }
 
+    /**
+     * HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
+     */
+    export interface HTTPStatusResponse {
+        message: string
+    }
+
     export interface HeadersData {
         Int: number
         String: string
@@ -291,6 +298,7 @@ export namespace echo {
             this.AppMeta = this.AppMeta.bind(this)
             this.BasicEcho = this.BasicEcho.bind(this)
             this.ConfigValues = this.ConfigValues.bind(this)
+            this.CustomHTTPStatus = this.CustomHTTPStatus.bind(this)
             this.Echo = this.Echo.bind(this)
             this.EmptyEcho = this.EmptyEcho.bind(this)
             this.Env = this.Env.bind(this)
@@ -325,6 +333,15 @@ export namespace echo {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("POST", `/echo.ConfigValues`)
             return await resp.json() as ConfigResponse
+        }
+
+        /**
+         * CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+         */
+        public async CustomHTTPStatus(): Promise<HTTPStatusResponse> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/echo.CustomHTTPStatus`)
+            return await resp.json() as HTTPStatusResponse
         }
 
         /**
@@ -535,20 +552,6 @@ export namespace test {
         Message: string
     }
 
-    /**
-     * HTTPStatusCreatedResponse demonstrates encore:"httpstatus" tag for 201 Created
-     */
-    export interface HTTPStatusCreatedResponse {
-        id: number
-    }
-
-    /**
-     * HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
-     */
-    export interface HTTPStatusResponse {
-        message: string
-    }
-
     export interface MarshallerTest<A> {
         HeaderBoolean: boolean
         HeaderInt: number
@@ -605,8 +608,6 @@ export namespace test {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
-            this.CreateResource = this.CreateResource.bind(this)
-            this.CustomHTTPStatus = this.CustomHTTPStatus.bind(this)
             this.GetMessage = this.GetMessage.bind(this)
             this.MarshallerTestHandler = this.MarshallerTestHandler.bind(this)
             this.Noop = this.Noop.bind(this)
@@ -617,24 +618,6 @@ export namespace test {
             this.SimpleBodyEcho = this.SimpleBodyEcho.bind(this)
             this.TestAuthHandler = this.TestAuthHandler.bind(this)
             this.UpdateMessage = this.UpdateMessage.bind(this)
-        }
-
-        /**
-         * CreateResource returns a 201 Created status
-         */
-        public async CreateResource(): Promise<HTTPStatusCreatedResponse> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/resources`)
-            return await resp.json() as HTTPStatusCreatedResponse
-        }
-
-        /**
-         * CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
-         */
-        public async CustomHTTPStatus(): Promise<HTTPStatusResponse> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/test.CustomHTTPStatus`)
-            return await resp.json() as HTTPStatusResponse
         }
 
         /**
