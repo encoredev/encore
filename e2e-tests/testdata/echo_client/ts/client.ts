@@ -540,7 +540,6 @@ export namespace test {
      */
     export interface HTTPStatusCreatedResponse {
         id: number
-        Status: number
     }
 
     /**
@@ -548,7 +547,6 @@ export namespace test {
      */
     export interface HTTPStatusResponse {
         message: string
-        Status: number
     }
 
     export interface MarshallerTest<A> {

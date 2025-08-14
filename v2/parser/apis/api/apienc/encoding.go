@@ -445,9 +445,14 @@ func formatName(location WireLoc, name string) string {
 }
 
 // IgnoreField returns true if the field name is "-" is any of the valid request or response tags
+// or if the field is marked with encore:"httpstatus" (which shouldn't appear in client types)
 func IgnoreField(field schema.StructField) bool {
 	for _, tag := range field.Tag.Tags() {
 		if _, found := requestTags[tag.Key]; found && tag.Name == "-" {
+			return true
+		}
+		// Skip fields with encore:"httpstatus" tag - they're for internal HTTP status handling only
+		if tag.Key == "encore" && tag.Name == "httpstatus" {
 			return true
 		}
 	}
