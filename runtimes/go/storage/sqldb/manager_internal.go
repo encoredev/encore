@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/shared/reqtrack"
@@ -14,20 +15,22 @@ import (
 
 // Manager manages database connections.
 type Manager struct {
-	runtime *config.Runtime
-	rt      *reqtrack.RequestTracker
-	ts      *testsupport.Manager
+	runtime    *config.Runtime
+	rt         *reqtrack.RequestTracker
+	ts         *testsupport.Manager
+	rootLogger zerolog.Logger
 
 	mu  sync.RWMutex
 	dbs map[string]*Database
 }
 
-func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager) *Manager {
+func NewManager(runtime *config.Runtime, rt *reqtrack.RequestTracker, ts *testsupport.Manager, rootLogger zerolog.Logger) *Manager {
 	return &Manager{
-		runtime: runtime,
-		rt:      rt,
-		ts:      ts,
-		dbs:     make(map[string]*Database),
+		runtime:    runtime,
+		rt:         rt,
+		ts:         ts,
+		rootLogger: rootLogger,
+		dbs:        make(map[string]*Database),
 	}
 }
 
