@@ -173,8 +173,9 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 
 		return httpHeader, queryString, err
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp, status int) error {
 		respData := []byte("null\n")
+		var err error
 		if resp != nil {
 			// Encode JSON body
 			respData, err = __serde.SerializeJSONFunc(json, func(ser *__serde.JSONSerializer) {
@@ -188,7 +189,20 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			respData = append(respData, '\n')
 		}
 
-		// Write response
+		// Set response headers
+
+		// Determine and write HTTP status code
+		var statusCode int
+		// Fallback to response status if no custom status was set
+		if statusCode == 0 && status != 0 {
+			statusCode = status
+		}
+		// Write status header if we have one
+		if statusCode != 0 {
+			w.WriteHeader(statusCode)
+		}
+
+		// Write response body
 		w.Write(respData)
 		return nil
 	},

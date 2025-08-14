@@ -52,8 +52,13 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 		Id("resp").Add(d.Type()),
-	).Params(Err().Error()).BlockFunc(func(g *Group) {
+		Id("status").Int(),
+	).Params(Error()).BlockFunc(func(g *Group) {
 		if d.ep.Response == nil {
+			// No response body, just set status if provided
+			g.If(Id("status").Op("!=").Lit(0)).Block(
+				Id("w").Dot("WriteHeader").Call(Id("status")),
+			)
 			g.Return(Nil())
 			return
 		}
@@ -67,11 +72,14 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		if len(resp.HeaderParameters) > 0 {
 			g.Var().Id("headers").Map(String()).Index().String()
 		}
+		if len(resp.BodyParameters) > 0 {
+			g.Var().Id("err").Error()
+		}
 
 		responseEncoder := CustomFunc(Options{Separator: "\n"}, func(g *Group) {
 			if len(resp.BodyParameters) > 0 {
 				g.Comment("Encode JSON body")
-				g.List(Id("respData"), Err()).Op("=").Qual("encore.dev/appruntime/shared/serde", "SerializeJSONFunc").Call(
+				g.List(Id("respData"), Id("err")).Op("=").Qual("encore.dev/appruntime/shared/serde", "SerializeJSONFunc").Call(
 					Id("json"),
 					Func().Params(
 						Id("ser").Op("*").Qual("encore.dev/appruntime/shared/serde", "JSONSerializer"),
@@ -81,8 +89,8 @@ func (d *responseDesc) EncodeResponse() *Statement {
 								g.Add(Id("ser").Dot("WriteField").Call(Lit(f.WireName), Id("resp").Dot(f.SrcName), Lit(f.OmitEmpty)))
 							}
 						}))
-				g.If(Err().Op("!=").Nil()).Block(
-					Return(Err()),
+				g.If(Id("err").Op("!=").Nil()).Block(
+					Return(Id("err")),
 				)
 				g.Id("respData").Op("=").Append(Id("respData"), LitRune('\n'))
 			}
@@ -109,7 +117,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 			g.Add(responseEncoder)
 		}
 
-		g.Line().Comment("Write response")
+		g.Line().Comment("Set response headers")
 		if len(resp.HeaderParameters) > 0 {
 			g.For(List(Id("k"), Id("vs")).Op(":=").Range().Id("headers")).Block(
 				For(List(Id("_"), Id("v")).Op(":=").Range().Id("vs")).Block(
@@ -117,7 +125,31 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				),
 			)
 		}
+
+		g.Line().Comment("Determine and write HTTP status code")
+		g.Var().Id("statusCode").Int()
+		if resp.HTTPStatusField != "" {
+			g.Comment("Use custom HTTP status from response field if available")
+			if schemautil.IsPointer(d.ep.Response) {
+				g.If(Id("resp").Op("!=").Nil()).Block(
+					Id("statusCode").Op("=").Id("resp").Dot(resp.HTTPStatusField),
+				)
+			} else {
+				g.Id("statusCode").Op("=").Id("resp").Dot(resp.HTTPStatusField)
+			}
+		}
+		g.Comment("Fallback to response status if no custom status was set")
+		g.If(Id("statusCode").Op("==").Lit(0).Op("&&").Id("status").Op("!=").Lit(0)).Block(
+			Id("statusCode").Op("=").Id("status"),
+		)
+		g.Comment("Write status header if we have one")
+		g.If(Id("statusCode").Op("!=").Lit(0)).Block(
+			Id("w").Dot("WriteHeader").Call(Id("statusCode")),
+		)
+
+		g.Line().Comment("Write response body")
 		g.Id("w").Dot("Write").Call(Id("respData"))
+
 		g.Return(Nil())
 	})
 }

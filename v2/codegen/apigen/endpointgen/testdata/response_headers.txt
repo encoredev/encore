@@ -94,7 +94,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
 		return nil, nil, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp, status int) error {
 		respData := []byte{'\n'}
 		var headers map[string][]string
 		if resp != nil {
@@ -103,12 +103,25 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			headers = map[string][]string{"x-foo": []string{__etype.MarshalOne(__etype.MarshalString, resp.Foo)}}
 		}
 
-		// Write response
+		// Set response headers
 		for k, vs := range headers {
 			for _, v := range vs {
 				w.Header().Add(k, v)
 			}
 		}
+
+		// Determine and write HTTP status code
+		var statusCode int
+		// Fallback to response status if no custom status was set
+		if statusCode == 0 && status != 0 {
+			statusCode = status
+		}
+		// Write status header if we have one
+		if statusCode != 0 {
+			w.WriteHeader(statusCode)
+		}
+
+		// Write response body
 		w.Write(respData)
 		return nil
 	},

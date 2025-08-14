@@ -362,6 +362,8 @@ export const middleware = {
 class TestServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.CreateResource = this.CreateResource.bind(this)
+        this.CustomHTTPStatus = this.CustomHTTPStatus.bind(this)
         this.GetMessage = this.GetMessage.bind(this)
         this.MarshallerTestHandler = this.MarshallerTestHandler.bind(this)
         this.Noop = this.Noop.bind(this)
@@ -372,6 +374,24 @@ class TestServiceClient {
         this.SimpleBodyEcho = this.SimpleBodyEcho.bind(this)
         this.TestAuthHandler = this.TestAuthHandler.bind(this)
         this.UpdateMessage = this.UpdateMessage.bind(this)
+    }
+
+    /**
+     * CreateResource returns a 201 Created status
+     */
+    async CreateResource() {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/resources`)
+        return await resp.json()
+    }
+
+    /**
+     * CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+     */
+    async CustomHTTPStatus() {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/test.CustomHTTPStatus`)
+        return await resp.json()
     }
 
     /**

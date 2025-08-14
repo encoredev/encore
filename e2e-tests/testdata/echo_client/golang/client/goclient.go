@@ -714,6 +714,18 @@ type TestBodyEcho struct {
 	Message string
 }
 
+// HTTPStatusCreatedResponse demonstrates encore:"httpstatus" tag for 201 Created
+type TestHTTPStatusCreatedResponse struct {
+	ID     int `json:"id"`
+	Status int `encore:"httpstatus"`
+}
+
+// HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
+type TestHTTPStatusResponse struct {
+	Message string `json:"message"`
+	Status  int    `encore:"httpstatus"`
+}
+
 type TestMarshallerTest[A any] struct {
 	HeaderBoolean bool            `header:"x-boolean"`
 	HeaderInt     int             `header:"x-int"`
@@ -768,6 +780,12 @@ type TestRestParams struct {
 // TestClient Provides you access to call public and authenticated APIs on test. The concrete implementation is testClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type TestClient interface {
+	// CreateResource returns a 201 Created status
+	CreateResource(ctx context.Context) (TestHTTPStatusCreatedResponse, error)
+
+	// CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+	CustomHTTPStatus(ctx context.Context) (TestHTTPStatusResponse, error)
+
 	// GetMessage allows us to test an API which takes no parameters,
 	// but returns data. It also tests two API's on the same path with different HTTP methods
 	GetMessage(ctx context.Context, clientID string) (TestBodyEcho, error)
@@ -810,6 +828,28 @@ type testClient struct {
 }
 
 var _ TestClient = (*testClient)(nil)
+
+// CreateResource returns a 201 Created status
+func (c *testClient) CreateResource(ctx context.Context) (resp TestHTTPStatusCreatedResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/resources", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+func (c *testClient) CustomHTTPStatus(ctx context.Context) (resp TestHTTPStatusResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/test.CustomHTTPStatus", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
 
 // GetMessage allows us to test an API which takes no parameters,
 // but returns data. It also tests two API's on the same path with different HTTP methods
