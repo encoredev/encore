@@ -716,14 +716,12 @@ type TestBodyEcho struct {
 
 // HTTPStatusCreatedResponse demonstrates encore:"httpstatus" tag for 201 Created
 type TestHTTPStatusCreatedResponse struct {
-	ID     int `json:"id"`
-	Status int `encore:"httpstatus"`
+	ID int `json:"id"`
 }
 
 // HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
 type TestHTTPStatusResponse struct {
 	Message string `json:"message"`
-	Status  int    `encore:"httpstatus"`
 }
 
 type TestMarshallerTest[A any] struct {
