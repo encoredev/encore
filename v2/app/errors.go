@@ -36,10 +36,6 @@ var (
 		"Resources can only be defined within a service.",
 	)
 
-	errETPackageUsedOutsideOfTestFile = errRange.New(
-		"Invalid use of encore.dev/et",
-		"Encore's test packages can only be used inside tests and cannot otherwise be imported.",
-	)
 	errResourceUsedOutsideService = errRange.New(
 		"Invalid resource usage",
 		"Infrastructure resources can only be referenced within services.",
