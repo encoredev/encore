@@ -92,9 +92,6 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		return nil, nil, nil
 	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp, status int) (err error) {
-		if status != 0 {
-			w.WriteHeader(status)
-		}
 		return nil
 	},
 	Endpoint:            "Foo",
@@ -159,9 +156,6 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 		return nil, nil, nil
 	},
 	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_BarResp, status int) (err error) {
-		if status != 0 {
-			w.WriteHeader(status)
-		}
 		return nil
 	},
 	Endpoint:            "Bar",

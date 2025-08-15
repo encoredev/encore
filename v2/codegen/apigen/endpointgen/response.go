@@ -55,10 +55,6 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		Id("status").Int(),
 	).Params(Err().Error()).BlockFunc(func(g *Group) {
 		if d.ep.Response == nil {
-			// No response body, just set status if provided
-			g.If(Id("status").Op("!=").Lit(0)).Block(
-				Id("w").Dot("WriteHeader").Call(Id("status")),
-			)
 			g.Return(Nil())
 			return
 		}
