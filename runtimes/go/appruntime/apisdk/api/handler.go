@@ -138,14 +138,14 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		targetAPI, _ := t.ReadMeta(calleeMetaName)
 
 		if targetAPI != fmt.Sprintf("%s.%s", d.Service, d.Endpoint) {
-			returnError(c, errs.B().Code(errs.PermissionDenied).Msg("internal call auth did not align with API").Err(), 0)
+			returnError(c, errs.B().Code(errs.PermissionDenied).Msg("internal call auth did not align with API").Err(), 0, nil)
 			return
 		}
 	}
 
 	reqData, beginErr := d.begin(c)
 	if beginErr != nil {
-		returnError(c, beginErr, 0)
+		returnError(c, beginErr, 0, nil)
 		return
 	}
 
@@ -156,12 +156,19 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 		// If the endpoint is raw it has already written its response;
 		// don't write another.
 		if !d.Raw {
-			returnError(c, resp.Err, resp.HTTPStatus)
+			returnError(c, resp.Err, resp.HTTPStatus, resp.Headers)
 		}
 		return
 	}
 
 	if !d.Raw {
+		// Apply any custom headers from middleware
+		for key, values := range resp.Headers {
+			for _, value := range values {
+				c.w.Header().Add(key, value)
+			}
+		}
+
 		c.w.Header().Set("Content-Type", "application/json")
 		c.w.Header().Set("X-Content-Type-Options", "nosniff")
 		resp.Err = d.EncodeResp(c.w, c.server.json, respData)
@@ -182,7 +189,16 @@ func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 //
 // If statusCodeToUse is 0, we will use the default status code for the error using
 // the [errs] package.
-func returnError(c IncomingContext, err error, statusCodeToUse int) {
+//
+// headers will be applied to the response if provided.
+func returnError(c IncomingContext, err error, statusCodeToUse int, headers http.Header) {
+	// Apply any custom headers from middleware
+	for key, values := range headers {
+		for _, value := range values {
+			c.w.Header().Add(key, value)
+		}
+	}
+
 	if c.callMeta.PrivateAPIAccess() {
 		// If this is an internal service to service call, we want to return the full error
 		// we'll add a header to the response to indicate that the error is a full error
@@ -293,14 +309,14 @@ func (d *Desc[Req, Resp]) handleIncoming(c IncomingContext, reqData Req) (resp *
 		}
 	}
 
-	respData, httpStatus, err := d.executeEndpoint(c.execContext, invokeHandler)
+	respData, httpStatus, headers, err := d.executeEndpoint(c.execContext, invokeHandler)
 
-	resp = newResp(respData, httpStatus, err, d.Raw, c.capturer, respCapturer, c.server.json)
+	resp = newRespWithHeaders(respData, httpStatus, err, headers, d.Raw, c.capturer, respCapturer, c.server.json)
 	return resp, respData
 }
 
 // executeEndpoint executes the given handler, running middleware in the process.
-func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(middleware.Request) middleware.Response) (resp Resp, httpStatus int, respErr error) {
+func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(middleware.Request) middleware.Response) (resp Resp, httpStatus int, headers http.Header, respErr error) {
 	var counter int
 	var nextFn middleware.Next
 
@@ -373,14 +389,14 @@ func (d *Desc[Req, Resp]) executeEndpoint(c execContext, invokeHandler func(midd
 	mwResp := nextFn(mwReq)
 
 	if mwResp.Err != nil {
-		return resp, mwResp.HTTPStatus, mwResp.Err
+		return resp, mwResp.HTTPStatus, mwResp.GetHeaders(), mwResp.Err
 	} else {
 		if resp, ok := mwResp.Payload.(Resp); ok || isVoid[Resp]() {
-			return resp, mwResp.HTTPStatus, mwResp.Err
+			return resp, mwResp.HTTPStatus, mwResp.GetHeaders(), mwResp.Err
 		}
 	}
 
-	return resp, 500, errs.B().Code(errs.Internal).Msgf(
+	return resp, 500, mwResp.GetHeaders(), errs.B().Code(errs.Internal).Msgf(
 		"invalid middleware: cannot return payload of type %T for endpoint %s.%s (expected type %T)",
 		mwResp.Payload, d.Service, d.Endpoint, resp,
 	).Err()
@@ -391,6 +407,7 @@ func (d *Desc[Req, Resp]) invokeHandlerNonRaw(mwReq middleware.Request, reqData 
 	if d.Raw {
 		panic("invokeHandlerNonRaw called on Raw endpoint")
 	}
+
 	handlerResp, handlerErr := handler(mwReq.Context(), reqData)
 	if handlerErr != nil {
 		mwResp.Err = errs.Convert(handlerErr)
@@ -564,9 +581,10 @@ func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req,
 		// If we want to run middleware, use the same code path as internalCall but switch out the handler
 		// to our mock.
 		if runMiddleware {
-			return d.executeEndpoint(ec, func(mwReq middleware.Request) (mwResp middleware.Response) {
+			resp, status, _, err := d.executeEndpoint(ec, func(mwReq middleware.Request) (mwResp middleware.Response) {
 				return d.invokeHandlerNonRaw(mwReq, req, mock)
 			})
+			return resp, status, err
 		}
 
 		respData, err := mock(ec.ctx, req)
@@ -579,9 +597,10 @@ func (d *Desc[Req, Resp]) mockedCall(c CallContext, mock reflectedAPIMethod[Req,
 
 func (d *Desc[Req, Resp]) internalCall(c CallContext, req Req) (respData Resp, respErr error) {
 	return d.runCall(c, req, false, func(ec execContext, req Req) (Resp, int, error) {
-		return d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
+		resp, status, _, err := d.executeEndpoint(ec, func(mwReq middleware.Request) middleware.Response {
 			return d.invokeHandlerNonRaw(mwReq, req, d.AppHandler)
 		})
+		return resp, status, err
 	})
 }
 
@@ -896,9 +915,17 @@ func marshalParams[Resp any](json jsoniter.API, resp Resp) []byte {
 func newResp[Resp any](respData Resp, httpStatus int, err error, isRaw bool,
 	reqCapture *rawRequestBodyCapturer, respCapture *rawResponseCapturer, json jsoniter.API,
 ) *model.Response {
+	return newRespWithHeaders(respData, httpStatus, err, nil, isRaw, reqCapture, respCapture, json)
+}
+
+// newRespWithHeaders returns an *model.Response for a response with custom headers.
+func newRespWithHeaders[Resp any](respData Resp, httpStatus int, err error, headers http.Header, isRaw bool,
+	reqCapture *rawRequestBodyCapturer, respCapture *rawResponseCapturer, json jsoniter.API,
+) *model.Response {
 	resp := &model.Response{
 		HTTPStatus: httpStatus,
 		Err:        err,
+		Headers:    headers,
 	}
 
 	if isRaw {

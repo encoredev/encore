@@ -206,6 +206,10 @@ type Response struct {
 	// AuthUID is the resolved user id if this is an auth handler.
 	AuthUID UID
 
+	// Headers are HTTP headers to add to the response, set by middleware.
+	// For non-raw endpoints, these will be merged with the standard headers.
+	Headers http.Header
+
 	// RawRequestPayload contains the captured request payload, for raw requests.
 	// It is nil if nothing was captured.
 	RawRequestPayload           []byte
