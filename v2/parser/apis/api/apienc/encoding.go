@@ -20,11 +20,12 @@ import (
 type WireLoc string
 
 const (
-	Undefined WireLoc = "undefined" // Parameter location is undefined
-	Header    WireLoc = "header"    // Parameter is placed in the HTTP header
-	Query     WireLoc = "query"     // Parameter is placed in the query string
-	Body      WireLoc = "body"      // Parameter is placed in the body
-	Cookie    WireLoc = "cookie"    // Parameter is placed in cookies
+	Undefined  WireLoc = "undefined"  // Parameter location is undefined
+	Header     WireLoc = "header"     // Parameter is placed in the HTTP header
+	Query      WireLoc = "query"      // Parameter is placed in the query string
+	Body       WireLoc = "body"       // Parameter is placed in the body
+	Cookie     WireLoc = "cookie"     // Parameter is placed in cookies
+	HTTPStatus WireLoc = "httpstatus" // Parameter represents the HTTP status code
 )
 
 var (
@@ -46,6 +47,10 @@ var (
 	CookieTag = tagDescription{
 		location:        Cookie,
 		omitEmptyOption: "omitempty",
+		overrideDefault: true,
+	}
+	HTTPStatusTag = tagDescription{
+		location:        HTTPStatus,
 		overrideDefault: true,
 	}
 )

@@ -11,6 +11,7 @@ import (
 	"encr.dev/v2/internals/pkginfo"
 	schemav2 "encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
+	"github.com/fatih/structtag"
 )
 
 func (b *builder) builtinType(typ schemav2.BuiltinType) schema.Builtin {
@@ -177,13 +178,70 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 		})
 	}
 
+	// Process encore tags
 	if enc, _ := f.Tag.Get("encore"); enc != nil {
 		ops := append([]string{enc.Name}, enc.Options...)
 		for _, o := range ops {
 			switch o {
 			case "optional":
 				field.Optional = true
+			case "httpstatus":
+				// Set WireSpec for HttpStatus fields
+				field.Wire = &schema.WireSpec{
+					Location: &schema.WireSpec_HttpStatus_{
+						HttpStatus: &schema.WireSpec_HttpStatus{},
+					},
+				}
 			}
+		}
+	}
+
+	// Set WireSpec for header fields
+	if header, _ := f.Tag.Get("header"); header != nil {
+		headerSpec := &schema.WireSpec_Header{}
+		if header.Name != "" {
+			headerSpec.Name = &header.Name
+		}
+		field.Wire = &schema.WireSpec{
+			Location: &schema.WireSpec_Header_{
+				Header: headerSpec,
+			},
+		}
+	}
+
+	getQueryTag := func() *structtag.Tag {
+		if q, _ := f.Tag.Get("query"); q != nil {
+			return q
+		}
+		if q, _ := f.Tag.Get("qs"); q != nil {
+			return q
+		}
+		return nil
+	}
+
+	// Set WireSpec for query string fields
+	if query := getQueryTag(); query != nil {
+		querySpec := &schema.WireSpec_Query{}
+		if query.Name != "" {
+			querySpec.Name = &query.Name
+		}
+		field.Wire = &schema.WireSpec{
+			Location: &schema.WireSpec_Query_{
+				Query: querySpec,
+			},
+		}
+	}
+
+	// Set WireSpec for cookie fields
+	if cookie, _ := f.Tag.Get("cookie"); cookie != nil {
+		cookieSpec := &schema.WireSpec_Cookie{}
+		if cookie.Name != "" {
+			cookieSpec.Name = &cookie.Name
+		}
+		field.Wire = &schema.WireSpec{
+			Location: &schema.WireSpec_Cookie_{
+				Cookie: cookieSpec,
+			},
 		}
 	}
 
@@ -193,7 +251,7 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 		}
 	}
 
-	if qs, _ := f.Tag.Get("qs"); qs != nil {
+	if qs := getQueryTag(); qs != nil {
 		if v := qs.Name; v != "" {
 			field.QueryStringName = v
 		}
