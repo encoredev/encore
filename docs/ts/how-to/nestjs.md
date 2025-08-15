@@ -6,9 +6,7 @@ lang: ts
 ---
 
 [Nest](https://docs.nestjs.com/) (NestJS) is a framework for building efficient, scalable TypeScript server-side
-applications. Nest aims to provide
-an application architecture out of the box which allows for effortless creation of highly testable, scalable, and
-loosely coupled and easily maintainable applications.
+applications. Nest provides an out-of-the-box application architecture for creating highly testable, scalable, loosely coupled, and maintainable applications.
 
 Encore is not opinionated when it comes to application architecture, so you can use it together with NestJS to structure
 your business logic and Encore for creating backend primitives like APIs, Databases, and Cron Jobs.
@@ -41,8 +39,7 @@ If you already have a NestJS project, you can add Encore to it by following thes
 
 ## Standalone Nest application
 
-In order for Encore to be able to provision infrastructure resources, generate API documentation etc. we need to run our
-application using Encore. This means that we need to replace the ordinary Nest bootstrapping and instead run our Nest
+To enable Encore to provision infrastructure resources and generate API documentation, we need to run the application using Encore. This means that we need to replace the ordinary Nest bootstrapping and instead run our Nest
 app as
 a [standalone application](https://docs.nestjs.com/standalone-applications). We do this by
 calling `NestFactory.createApplicationContext(AppModule)` and then selecting the modules/services we need:
@@ -161,7 +158,7 @@ above we have a `cats` service with three APIs because `cats.controller.ts` is p
 
 ## Making use of other Encore features
 
-Encore also allows you to easily make use of other backend primitives in your Nest app,
+Encore allows you to use other backend primitives in your Nest app,
 like [Databases](/docs/ts/primitives/databases), [Cron Jobs](/docs/ts/primitives/cron-jobs), [Pub/Sub & Queues](/docs/ts/primitives/pubsub)
 and [Secrets](/docs/ts/primitives/secrets).
 
@@ -176,7 +173,7 @@ After those steps we are ready to run our app locally:
 $ encore run
 ```
 
-You should see log messages about both Encore and Nest staring up. That means your local development environment is up
+You should see log messages about both Encore and Nest starting up. That means your local development environment is up
 and
 running and ready to take some requests!
 
