@@ -123,6 +123,7 @@ class EchoServiceClient {
         this.AppMeta = this.AppMeta.bind(this)
         this.BasicEcho = this.BasicEcho.bind(this)
         this.ConfigValues = this.ConfigValues.bind(this)
+        this.CustomHTTPStatus = this.CustomHTTPStatus.bind(this)
         this.Echo = this.Echo.bind(this)
         this.EmptyEcho = this.EmptyEcho.bind(this)
         this.Env = this.Env.bind(this)
@@ -156,6 +157,15 @@ class EchoServiceClient {
     async ConfigValues() {
         // Now make the actual call to the API
         const resp = await this.baseClient.callTypedAPI("POST", `/echo.ConfigValues`)
+        return await resp.json()
+    }
+
+    /**
+     * CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+     */
+    async CustomHTTPStatus() {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/echo.CustomHTTPStatus`)
         return await resp.json()
     }
 

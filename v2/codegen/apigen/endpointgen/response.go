@@ -52,6 +52,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 		Id("resp").Add(d.Type()),
+		Id("status").Int(),
 	).Params(Err().Error()).BlockFunc(func(g *Group) {
 		if d.ep.Response == nil {
 			g.Return(Nil())
@@ -109,14 +110,40 @@ func (d *responseDesc) EncodeResponse() *Statement {
 			g.Add(responseEncoder)
 		}
 
-		g.Line().Comment("Write response")
 		if len(resp.HeaderParameters) > 0 {
+			g.Line().Comment("Set response headers")
 			g.For(List(Id("k"), Id("vs")).Op(":=").Range().Id("headers")).Block(
 				For(List(Id("_"), Id("v")).Op(":=").Range().Id("vs")).Block(
 					Id("w").Dot("Header").Call().Dot("Add").Call(Id("k"), Id("v")),
 				),
 			)
 		}
+
+		g.Line().Comment("Set HTTP status code")
+		if resp.HTTPStatusField != "" {
+			g.Id("statusCode").Op(":=").Id("status")
+
+			var statusFieldCond *Statement
+			if schemautil.IsPointer(d.ep.Response) {
+				statusFieldCond = Id("resp").Op("!=").Nil().Op("&&").Id("resp").Dot(resp.HTTPStatusField).Op("!=").Lit(0)
+			} else {
+				statusFieldCond = Id("resp").Dot(resp.HTTPStatusField).Op("!=").Lit(0)
+			}
+
+			g.If(statusFieldCond).Block(
+				Id("statusCode").Op("=").Int().Call(Id("resp").Dot(resp.HTTPStatusField)),
+			)
+
+			g.If(Id("statusCode").Op("!=").Lit(0)).Block(
+				Id("w").Dot("WriteHeader").Call(Id("statusCode")),
+			)
+		} else {
+			g.If(Id("status").Op("!=").Lit(0)).Block(
+				Id("w").Dot("WriteHeader").Call(Id("status")),
+			)
+		}
+
+		g.Line().Comment("Write response body")
 		g.Id("w").Dot("Write").Call(Id("respData"))
 		g.Return(Nil())
 	})

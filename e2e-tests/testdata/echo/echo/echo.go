@@ -200,6 +200,22 @@ func Pong(ctx context.Context) (Data[string, string], error) {
 	return Data[string, string]{"woodpecker", "kingfisher"}, nil
 }
 
+// HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
+type HTTPStatusResponse struct {
+	Message string `json:"message"`
+	Status  int    `encore:"httpstatus"`
+}
+
+// CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+//
+//encore:api public
+func CustomHTTPStatus(ctx context.Context) (*HTTPStatusResponse, error) {
+	return &HTTPStatusResponse{
+		Message: "Created successfully",
+		Status:  201, // HTTP 201 Created
+	}, nil
+}
+
 type EnvResponse struct {
 	Env []string
 }

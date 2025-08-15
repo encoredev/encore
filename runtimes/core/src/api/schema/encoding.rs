@@ -139,6 +139,10 @@ impl EncodingConfig<'_, '_> {
                 Some(schema::wire_spec::Location::Cookie(c)) => {
                     WireLoc::Cookie(c.name.as_ref().unwrap_or(&f.name).clone())
                 }
+                Some(schema::wire_spec::Location::HttpStatus(_)) => {
+                    // TODO: handle http status wire spec
+                    continue;
+                }
             };
 
             // Add the field to the appropriate struct.

@@ -14,7 +14,7 @@ import (
 	"github.com/tailscale/hujson"
 
 	"encr.dev/parser/encoding"
-	"encr.dev/proto/encore/parser/meta/v1"
+	v1 "encr.dev/proto/encore/parser/meta/v1"
 )
 
 type ApiCallParams struct {
@@ -61,7 +61,7 @@ func CallAPI(ctx context.Context, run *Run, p *ApiCallParams) (map[string]any, e
 	_ = resp.Body.Close()
 
 	// Encode the body back into a Go style struct
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		body = handleResponse(proc.Meta, p, resp.Header, body)
 	}
 

@@ -20,11 +20,12 @@ import (
 type WireLoc string
 
 const (
-	Undefined WireLoc = "undefined" // Parameter location is undefined
-	Header    WireLoc = "header"    // Parameter is placed in the HTTP header
-	Query     WireLoc = "query"     // Parameter is placed in the query string
-	Body      WireLoc = "body"      // Parameter is placed in the body
-	Cookie    WireLoc = "cookie"    // Parameter is placed in cookies
+	Undefined  WireLoc = "undefined"  // Parameter location is undefined
+	Header     WireLoc = "header"     // Parameter is placed in the HTTP header
+	Query      WireLoc = "query"      // Parameter is placed in the query string
+	Body       WireLoc = "body"       // Parameter is placed in the body
+	Cookie     WireLoc = "cookie"     // Parameter is placed in cookies
+	HTTPStatus WireLoc = "httpstatus" // Parameter represents the HTTP status code
 )
 
 var (
@@ -46,6 +47,10 @@ var (
 	CookieTag = tagDescription{
 		location:        Cookie,
 		omitEmptyOption: "omitempty",
+		overrideDefault: true,
+	}
+	HTTPStatusTag = tagDescription{
+		location:        HTTPStatus,
 		overrideDefault: true,
 	}
 )
@@ -125,6 +130,8 @@ type ResponseEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
+	// HTTPStatusField is the name of the struct field that contains the HTTP status code, if any
+	HTTPStatusField string `json:"http_status_field,omitempty"`
 }
 
 func (r *ResponseEncoding) AllParameters() []*ParameterEncoding {
@@ -180,6 +187,30 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		return &ResponseEncoding{}
 	}
 
+	// Look for encore:"httpstatus" tag to find the HTTP status field
+	var httpStatusField string
+	for _, field := range responseStruct.Fields {
+		if !field.IsExported() {
+			continue
+		}
+
+		for _, tag := range field.Tag.Tags() {
+			if tag.Key == "encore" && tag.Name == "httpstatus" {
+				if httpStatusField != "" {
+					errs.Add(errMultipleHTTPStatusFields.AtGoNode(field.AST))
+					return &ResponseEncoding{}
+				}
+				httpStatusField = field.Name.MustGet()
+
+				// Validate that the field is of a type that can contain a http status code
+				if !isValidHTTPStatusType(field.Type) {
+					errs.Add(errHTTPStatusFieldMustBeInt.AtGoNode(field.AST))
+					return &ResponseEncoding{}
+				}
+			}
+		}
+	}
+
 	// Check for reserved header prefixes
 	for _, field := range fields[Header] {
 		if strings.HasPrefix(strings.ToLower(field.WireName), "x-encore-") {
@@ -202,6 +233,7 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 	return &ResponseEncoding{
 		BodyParameters:   fields[Body],
 		HeaderParameters: fields[Header],
+		HTTPStatusField:  httpStatusField,
 	}
 }
 
@@ -418,9 +450,14 @@ func formatName(location WireLoc, name string) string {
 }
 
 // IgnoreField returns true if the field name is "-" is any of the valid request or response tags
+// or if the field is marked with encore:"httpstatus" (which shouldn't appear in client types)
 func IgnoreField(field schema.StructField) bool {
 	for _, tag := range field.Tag.Tags() {
 		if _, found := requestTags[tag.Key]; found && tag.Name == "-" {
+			return true
+		}
+		// Skip fields with encore:"httpstatus" tag - they're for internal HTTP status handling only
+		if tag.Key == "encore" && tag.Name == "httpstatus" {
 			return true
 		}
 	}
@@ -446,6 +483,13 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 		Doc:       field.Doc,
 		Type:      field.Type,
 		WireName:  defaultWireName,
+	}
+
+	// Skip fields with encore:"httpstatus" tag - they're handled separately
+	for _, tag := range field.Tag.Tags() {
+		if tag.Key == "encore" && tag.Name == "httpstatus" {
+			return nil, true
+		}
 	}
 
 	// Determine which location we should use for this field.
@@ -491,4 +535,21 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 
 	param.Location = location
 	return &param, true
+}
+
+// isValidHTTPStatusType returns true if the given type is valid for HTTP status fields.
+// Valid types are integer types that can hold a http status code
+func isValidHTTPStatusType(typ schema.Type) bool {
+	builtin, ok := typ.(schema.BuiltinType)
+	if !ok {
+		return false
+	}
+
+	switch builtin.Kind {
+	case schema.Int, schema.Int16, schema.Int32, schema.Int64,
+		schema.Uint, schema.Uint16, schema.Uint32, schema.Uint64:
+		return true
+	default:
+		return false
+	}
 }

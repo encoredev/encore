@@ -287,6 +287,11 @@ type EchoEnvResponse struct {
 	Env []string
 }
 
+// HTTPStatusResponse demonstrates encore:"httpstatus" tag functionality
+type EchoHTTPStatusResponse struct {
+	Message string `json:"message"`
+}
+
 type EchoHeadersData struct {
 	Int    int    `header:"X-Int"`
 	String string `header:"X-String"`
@@ -325,6 +330,9 @@ type EchoClient interface {
 	// BasicEcho echoes back the request data.
 	BasicEcho(ctx context.Context, params EchoBasicData) (EchoBasicData, error)
 	ConfigValues(ctx context.Context) (EchoConfigResponse, error)
+
+	// CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+	CustomHTTPStatus(ctx context.Context) (EchoHTTPStatusResponse, error)
 
 	// Echo echoes back the request data.
 	Echo(ctx context.Context, params EchoData[string, int]) (EchoData[string, int], error)
@@ -388,6 +396,17 @@ func (c *echoClient) BasicEcho(ctx context.Context, params EchoBasicData) (resp 
 func (c *echoClient) ConfigValues(ctx context.Context) (resp EchoConfigResponse, err error) {
 	// Now make the actual call to the API
 	_, err = callAPI(ctx, c.base, "POST", "/echo.ConfigValues", nil, nil, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// CustomHTTPStatus allows testing of custom HTTP status codes via encore:"httpstatus" tag
+func (c *echoClient) CustomHTTPStatus(ctx context.Context) (resp EchoHTTPStatusResponse, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/echo.CustomHTTPStatus", nil, nil, &resp)
 	if err != nil {
 		return
 	}
