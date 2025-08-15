@@ -90,6 +90,8 @@ func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Clu
 		ctx, cancel := context.WithCancel(context.Background())
 		key := params.ClusterID.clusterKey()
 		passwd := genPassword()
+		secretLoader := cm.secretMgr.Load(params.ClusterID.NS.App)
+
 		c = &Cluster{
 			ID:       params.ClusterID,
 			Memfs:    params.Memfs,
@@ -105,7 +107,7 @@ func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Clu
 				if params.Memfs {
 					return false
 				}
-				secrets, err := cm.secretMgr.Load(params.ClusterID.NS.App).Get(ctx, nil)
+				secrets, err := secretLoader.Get(ctx, nil)
 				if err != nil {
 					c.log.Error().Err(err).Msg("failed to load secrets for external database check")
 					return false
