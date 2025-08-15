@@ -96,7 +96,7 @@ enum SubpathMatch<'a> {
 }
 
 impl Subpath {
-    fn matches(&self, active_conditions: &HashSet<&str>) -> Option<SubpathMatch> {
+    fn matches(&self, active_conditions: &HashSet<&str>) -> Option<SubpathMatch<'_>> {
         match self {
             Subpath::Target(path) => Some(SubpathMatch::Target(path)),
             Subpath::Exclude => Some(SubpathMatch::Exclude),
