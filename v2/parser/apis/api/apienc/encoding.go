@@ -188,7 +188,7 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		if !field.IsExported() {
 			continue
 		}
-		
+
 		for _, tag := range field.Tag.Tags() {
 			if tag.Key == "encore" && tag.Name == "httpstatus" {
 				if httpStatusField != "" {
@@ -196,9 +196,9 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 					return &ResponseEncoding{}
 				}
 				httpStatusField = field.Name.MustGet()
-				
-				// Validate that the field is of type int
-				if builtin, ok := field.Type.(schema.BuiltinType); !ok || builtin.Kind != schema.Int {
+
+				// Validate that the field is of a type that can contain a http status code
+				if !isValidHTTPStatusType(field.Type) {
 					errs.Add(errHTTPStatusFieldMustBeInt.AtGoNode(field.AST))
 					return &ResponseEncoding{}
 				}
@@ -530,4 +530,21 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 
 	param.Location = location
 	return &param, true
+}
+
+// isValidHTTPStatusType returns true if the given type is valid for HTTP status fields.
+// Valid types are integer types that can hold a http status code
+func isValidHTTPStatusType(typ schema.Type) bool {
+	builtin, ok := typ.(schema.BuiltinType)
+	if !ok {
+		return false
+	}
+
+	switch builtin.Kind {
+	case schema.Int, schema.Int16, schema.Int32, schema.Int64,
+		schema.Uint, schema.Uint16, schema.Uint32, schema.Uint64:
+		return true
+	default:
+		return false
+	}
 }

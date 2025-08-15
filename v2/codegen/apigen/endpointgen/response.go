@@ -135,7 +135,7 @@ func (d *responseDesc) EncodeResponse() *Statement {
 			}
 
 			g.If(statusFieldCond).Block(
-				Id("statusCode").Op("=").Id("resp").Dot(resp.HTTPStatusField),
+				Id("statusCode").Op("=").Int().Call(Id("resp").Dot(resp.HTTPStatusField)),
 			)
 
 			g.If(Id("statusCode").Op("!=").Lit(0)).Block(
