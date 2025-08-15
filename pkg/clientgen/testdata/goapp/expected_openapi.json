@@ -45,6 +45,7 @@
         "required": [
           "Baz"
         ],
+        "title": "BarType docs\n",
         "type": "object"
       },
       "authentication.User": {
@@ -103,8 +104,25 @@
         ],
         "type": "object"
       },
+      "svc.DocumentedUser": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "DocumentedUser represents a user in the system with profile information\n",
+        "type": "object"
+      },
       "svc.Foo": {
         "format": "int64",
+        "title": "Foo represents a documented integer type\n",
         "type": "integer"
       },
       "svc.Recursive": {
@@ -134,7 +152,12 @@
       "svc.Request": {
         "properties": {
           "Foo": {
-            "$ref": "#/components/schemas/svc.Foo"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/svc.Foo"
+              }
+            ],
+            "title": "Foo is good\n"
           },
           "HeaderBaz": {
             "type": "string"
@@ -501,6 +524,59 @@
                     "products",
                     "previous",
                     "next"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success response"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/svc.CreateDocumentedOrder": {
+      "post": {
+        "operationId": "POST:svc.CreateDocumentedOrder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "customer": {
+                    "$ref": "#/components/schemas/svc.DocumentedUser"
+                  },
+                  "order_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "customer",
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "customer": {
+                      "$ref": "#/components/schemas/svc.DocumentedUser"
+                    },
+                    "order_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "customer",
+                    "order_id"
                   ],
                   "type": "object"
                 }
