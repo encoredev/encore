@@ -86,6 +86,6 @@ var (
 
 	errHTTPStatusFieldMustBeInt = errRange.New(
 		"Invalid response type",
-		"Fields tagged with encore:\"httpstatus\" must be of an integer type."
+		"Fields tagged with encore:\"httpstatus\" must be of an integer type.",
 	)
 )
