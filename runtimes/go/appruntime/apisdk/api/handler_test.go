@@ -30,6 +30,7 @@ import (
 	"encore.dev/appruntime/shared/traceprovider/mock_trace"
 	"encore.dev/beta/errs"
 	usermetrics "encore.dev/metrics"
+	"encore.dev/middleware"
 	"encore.dev/pubsub"
 )
 
@@ -512,5 +513,151 @@ func newRawMockAPIDesc(access api.Access, handler http.HandlerFunc) *api.Desc[*r
 		CloneResp: func(resp api.Void) (api.Void, error) {
 			return resp, nil
 		},
+	}
+}
+
+// TestMiddlewareHeaders tests that middleware can set headers and they are properly
+// written to the HTTP response.
+func TestMiddlewareHeaders(t *testing.T) {
+	model.EnableTestMode(t)
+
+	server, _, _ := testServer(t, clock.New(), false)
+
+	// Create a middleware that sets headers
+	headerMiddleware := &api.Middleware{
+		ID:      "test-middleware",
+		PkgName: "test",
+		Name:    "HeaderMiddleware",
+		Global:  false,
+		Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
+			resp := next(req)
+
+			// Set various types of headers
+			resp.Header().Set("X-Custom-Header", "custom-value")
+			resp.Header().Add("X-Multi-Header", "value1")
+			resp.Header().Add("X-Multi-Header", "value2")
+			resp.Header().Set("X-Middleware-Applied", "true")
+
+			return resp
+		},
+	}
+
+	// Create API desc with the middleware
+	desc := newMockAPIDesc(api.Public)
+	desc.ServiceMiddleware = []*api.Middleware{headerMiddleware}
+
+	tests := []struct {
+		name            string
+		expectSuccess   bool
+		expectedBody    string
+		expectedHeaders map[string][]string
+	}{
+		{
+			name:          "success_with_headers",
+			expectSuccess: true,
+			expectedBody:  `{"Message":"test"}`,
+			expectedHeaders: map[string][]string{
+				"X-Custom-Header":        {"custom-value"},
+				"X-Multi-Header":         {"value1", "value2"},
+				"X-Middleware-Applied":   {"true"},
+				"Content-Type":           {"application/json"},
+				"X-Content-Type-Options": {"nosniff"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("POST", "/path/hello", strings.NewReader(`{"Body":"test"}`))
+			req.Header.Set("Content-Type", "application/json")
+			ps := api.UnnamedParams{"hello"}
+
+			desc.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
+
+			// Check status code
+			if test.expectSuccess && w.Code != 200 {
+				t.Errorf("expected success (200), got %d", w.Code)
+			}
+
+			// Check response body
+			if test.expectedBody != "" {
+				if got := w.Body.String(); got != test.expectedBody {
+					t.Errorf("got body %q, want %q", got, test.expectedBody)
+				}
+			}
+
+			// Check headers
+			for expectedHeader, expectedValues := range test.expectedHeaders {
+				gotValues := w.Header().Values(expectedHeader)
+				if len(gotValues) != len(expectedValues) {
+					t.Errorf("header %s: got %d values %v, want %d values %v",
+						expectedHeader, len(gotValues), gotValues, len(expectedValues), expectedValues)
+					continue
+				}
+				for i, expectedValue := range expectedValues {
+					if gotValues[i] != expectedValue {
+						t.Errorf("header %s[%d]: got %q, want %q",
+							expectedHeader, i, gotValues[i], expectedValue)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestMiddlewareHeadersOnError tests that middleware headers are applied even when an error occurs.
+func TestMiddlewareHeadersOnError(t *testing.T) {
+	model.EnableTestMode(t)
+
+	server, _, _ := testServer(t, clock.New(), false)
+
+	// Create a middleware that sets headers
+	headerMiddleware := &api.Middleware{
+		ID:      "test-middleware",
+		PkgName: "test",
+		Name:    "HeaderMiddleware",
+		Global:  false,
+		Invoke: func(req middleware.Request, next middleware.Next) middleware.Response {
+			resp := next(req)
+
+			// Set headers regardless of success/error
+			resp.Header().Set("X-Error-Header", "error-value")
+			resp.Header().Set("X-Always-Present", "always")
+
+			return resp
+		},
+	}
+
+	// Create API desc with the middleware that returns an error
+	desc := newMockAPIDesc(api.Public)
+	desc.ServiceMiddleware = []*api.Middleware{headerMiddleware}
+	desc.AppHandler = func(ctx context.Context, req *mockReq) (*mockResp, error) {
+		return nil, errs.B().Code(errs.Internal).Msg("test error").Err()
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/path/hello", strings.NewReader(`{"Body":"test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	ps := api.UnnamedParams{"hello"}
+
+	desc.Handle(server.NewIncomingContext(w, req, ps, api.CallMeta{}))
+
+	// Check that error status is returned
+	if w.Code != 500 {
+		t.Errorf("expected error status 500, got %d", w.Code)
+	}
+
+	// Check that middleware headers are still applied
+	expectedHeaders := map[string]string{
+		"X-Error-Header":   "error-value",
+		"X-Always-Present": "always",
+	}
+
+	for expectedHeader, expectedValue := range expectedHeaders {
+		gotValue := w.Header().Get(expectedHeader)
+		if gotValue != expectedValue {
+			t.Errorf("header %s: got %q, want %q", expectedHeader, gotValue, expectedValue)
+		}
 	}
 }
