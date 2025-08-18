@@ -114,6 +114,8 @@ func (r *Response) Header() http.Header {
 
 // GetHeaders returns the headers map, or nil if no headers have been set.
 // This method is used internally by the Encore runtime.
+//
+//publicapigen:drop
 func (r *Response) GetHeaders() http.Header {
 	return r.headers
 }
