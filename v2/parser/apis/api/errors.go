@@ -116,6 +116,11 @@ For more information on how to use APIs, see https://encore.dev/docs/primitives/
 		"Path parameter %q must be a string, bool, integer, or encore.dev/types/uuid.UUID.",
 	)
 
+	errInvalidOpenAPITag = errRange.Newf(
+		"Invalid API Directive",
+		"Invalid OpenAPI tag %q. Tags must be non-empty strings.",
+	)
+
 	ErrInvalidEndpointUsage = errRange.New(
 		"Invalid API Usage",
 		"APIs can not be referenced without being called, unless they are used as a cron job endpoint, or a PubSub subscription handler.",

@@ -149,6 +149,10 @@ message RPC {
   // If the endpoint serves static assets.
   optional StaticAssets static_assets = 19;
 
+  // OpenAPI tags for this endpoint, used for grouping in the OpenAPI specification.
+  // These are separate from middleware tags.
+  repeated string openapi_tags = 20;
+
   enum AccessType {
     PRIVATE = 0;
     PUBLIC = 1;
