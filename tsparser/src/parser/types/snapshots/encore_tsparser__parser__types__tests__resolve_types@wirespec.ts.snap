@@ -4,106 +4,33 @@ expression: result
 input_file: tsparser/src/parser/types/testdata/wirespec.ts
 ---
 {
-    "Foo": Interface(
+    "ResponseWithStatus": Interface(
         Interface {
             fields: [
                 InterfaceField {
                     name: String(
-                        "a",
+                        "data",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "status",
                     ),
                     optional: false,
                     typ: Custom(
                         WireSpec(
                             WireSpec {
-                                location: Query,
+                                location: HttpStatus,
                                 underlying: Basic(
                                     Number,
                                 ),
                                 name_override: None,
                             },
                         ),
-                    ),
-                },
-                InterfaceField {
-                    name: String(
-                        "b",
-                    ),
-                    optional: false,
-                    typ: Validated(
-                        Validated {
-                            typ: Custom(
-                                WireSpec(
-                                    WireSpec {
-                                        location: Query,
-                                        underlying: Basic(
-                                            Number,
-                                        ),
-                                        name_override: None,
-                                    },
-                                ),
-                            ),
-                            expr: Rule(
-                                MaxVal(
-                                    N(
-                                        10.0,
-                                    ),
-                                ),
-                            ),
-                        },
-                    ),
-                },
-                InterfaceField {
-                    name: String(
-                        "c",
-                    ),
-                    optional: false,
-                    typ: Validated(
-                        Validated {
-                            typ: Custom(
-                                WireSpec(
-                                    WireSpec {
-                                        location: Query,
-                                        underlying: Basic(
-                                            String,
-                                        ),
-                                        name_override: None,
-                                    },
-                                ),
-                            ),
-                            expr: Rule(
-                                MinLen(
-                                    3,
-                                ),
-                            ),
-                        },
-                    ),
-                },
-                InterfaceField {
-                    name: String(
-                        "d",
-                    ),
-                    optional: false,
-                    typ: Validated(
-                        Validated {
-                            typ: Custom(
-                                WireSpec(
-                                    WireSpec {
-                                        location: Header,
-                                        underlying: Basic(
-                                            String,
-                                        ),
-                                        name_override: Some(
-                                            "X-Header",
-                                        ),
-                                    },
-                                ),
-                            ),
-                            expr: Rule(
-                                MinLen(
-                                    3,
-                                ),
-                            ),
-                        },
                     ),
                 },
             ],

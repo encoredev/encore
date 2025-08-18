@@ -706,11 +706,11 @@ impl Ctx<'_> {
             return Type::Array(Array(Box::new(elem)));
         }
 
-        // Is this a reference to the "Header", "Query", or "Cookie" wire spec overrides?
+        // Is this a reference to the "Header", "Query", "Cookie", or "HttpStatus" wire spec overrides?
         if obj
             .name
             .as_ref()
-            .is_some_and(|s| s == "Header" || s == "Query" || s == "Cookie")
+            .is_some_and(|s| s == "Header" || s == "Query" || s == "Cookie" || s == "HttpStatus")
             && self.state.is_module_path(obj.module_id, "encore.dev/api")
         {
             if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
@@ -2178,6 +2178,7 @@ impl Ctx<'_> {
             Some("Query") => WireLocation::Query,
             Some("Attribute") => WireLocation::PubSubAttr,
             Some("Cookie") => WireLocation::Cookie,
+            Some("HttpStatus") => WireLocation::HttpStatus,
             _ => return None,
         };
 
@@ -2189,22 +2190,36 @@ impl Ctx<'_> {
             None
         }
 
-        let (underlying, name_override) = match (type_args.first(), type_args.get(1)) {
-            (None, None) => (Type::Basic(Basic::String), None),
+        let (underlying, name_override) = match &location {
+            WireLocation::HttpStatus => {
+                // HttpStatus doesn't take generic parameters and should have no type args
+                if !type_args.is_empty() {
+                    span.err("HttpStatus doesn't take generic type parameters");
+                    return None;
+                }
+                // The underlying type is the HttpStatus union itself
+                // We'll use a placeholder here since the actual HttpStatus type should be resolved elsewhere
+                (Type::Basic(Basic::Number), None)
+            }
+            _ => {
+                match (type_args.first(), type_args.get(1)) {
+                    (None, None) => (Type::Basic(Basic::String), None),
 
-            (Some(first), None) => {
-                // If we only have a single argument, check its type.
-                // If it's a string literal it's the name, otherwise it's the type.
-                match first {
-                    Type::Literal(Literal::String(lit)) => {
-                        (Type::Basic(Basic::String), Some(lit.to_string()))
+                    (Some(first), None) => {
+                        // If we only have a single argument, check its type.
+                        // If it's a string literal it's the name, otherwise it's the type.
+                        match first {
+                            Type::Literal(Literal::String(lit)) => {
+                                (Type::Basic(Basic::String), Some(lit.to_string()))
+                            }
+                            _ => (first.clone(), None),
+                        }
                     }
-                    _ => (first.clone(), None),
+
+                    (Some(typ), Some(name)) => (typ.clone(), str_lit(span, name)),
+                    (None, Some(_)) => unreachable!(),
                 }
             }
-
-            (Some(typ), Some(name)) => (typ.clone(), str_lit(span, name)),
-            (None, Some(_)) => unreachable!(),
         };
 
         Some(WireSpec {

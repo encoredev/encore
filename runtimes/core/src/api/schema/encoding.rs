@@ -1,5 +1,5 @@
 use crate::api::jsonschema;
-use crate::api::schema::{Body, Cookie, Header, Method, Path, Query};
+use crate::api::schema::{Body, Cookie, Header, HttpStatus, Method, Path, Query};
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::meta::v1::path_segment::SegmentType;
 use crate::encore::parser::schema::v1 as schema;
@@ -51,6 +51,7 @@ pub struct SchemaUnderConstruction {
     query: Option<usize>,
     header: Option<usize>,
     cookie: Option<usize>,
+    http_status: Option<HttpStatus>,
     rpc_path: Option<meta::Path>,
 }
 
@@ -62,6 +63,7 @@ impl SchemaUnderConstruction {
             query: self.query.map(|v| Query::new(reg.schema(v))),
             header: self.header.map(|v| Header::new(reg.schema(v))),
             cookie: self.cookie.map(|v| Cookie::new(reg.schema(v))),
+            http_status: self.http_status,
             path: self.rpc_path.as_ref().map(Path::from_meta).transpose()?,
         })
     }
@@ -75,6 +77,7 @@ pub struct Schema {
     pub body: Option<Body>,
     pub path: Option<Path>,
     pub cookie: Option<Cookie>,
+    pub http_status: Option<HttpStatus>,
 }
 
 impl EncodingConfig<'_, '_> {
@@ -89,6 +92,7 @@ impl EncodingConfig<'_, '_> {
                 query: None,
                 header: None,
                 cookie: None,
+                http_status: None,
                 rpc_path: self.rpc_path.cloned(),
             });
         };
@@ -115,6 +119,7 @@ impl EncodingConfig<'_, '_> {
         let mut query: Option<jsonschema::Struct> = None;
         let mut header: Option<jsonschema::Struct> = None;
         let mut cookie: Option<jsonschema::Struct> = None;
+        let mut http_status: Option<HttpStatus> = None;
 
         for f in &st.fields {
             // If it's a path field, skip it. We handle it separately in Path::from_meta.
@@ -140,7 +145,7 @@ impl EncodingConfig<'_, '_> {
                     WireLoc::Cookie(c.name.as_ref().unwrap_or(&f.name).clone())
                 }
                 Some(schema::wire_spec::Location::HttpStatus(_)) => {
-                    // TODO: handle http status wire spec
+                    http_status = Some(HttpStatus::new(f.name.clone()));
                     continue;
                 }
             };
@@ -182,6 +187,7 @@ impl EncodingConfig<'_, '_> {
             query: query.map(&mut build),
             header: header.map(&mut build),
             cookie: cookie.map(&mut build),
+            http_status,
             rpc_path: self.rpc_path.cloned(),
         })
     }
@@ -430,6 +436,7 @@ pub fn handshake_encoding(
             parse_data,
             schema: SchemaUnderConstruction {
                 combined: None,
+                http_status: None,
                 body: None,
                 query: None,
                 header: None,
@@ -471,6 +478,7 @@ pub fn request_encoding(
                 methods: vec![Method::GET],
                 schema: SchemaUnderConstruction {
                     combined: None,
+                    http_status: None,
                     body: None,
                     query: None,
                     header: None,
@@ -525,6 +533,7 @@ pub fn request_encoding(
             methods,
             schema: SchemaUnderConstruction {
                 combined: None,
+                http_status: None,
                 body: None,
                 query: None,
                 header: None,
@@ -570,6 +579,7 @@ pub fn response_encoding(
             query: None,
             header: None,
             cookie: None,
+            http_status: None,
             rpc_path: None,
         });
     };

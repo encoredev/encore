@@ -2,6 +2,7 @@ use crate::api;
 pub use body::*;
 pub use cookie::*;
 pub use header::*;
+pub use httpstatus::*;
 pub use method::*;
 pub use path::*;
 pub use query::*;
@@ -15,6 +16,7 @@ mod body;
 mod cookie;
 pub mod encoding;
 mod header;
+mod httpstatus;
 mod method;
 mod path;
 mod query;
@@ -119,6 +121,9 @@ pub struct Response {
     /// Response body, if any.
     pub body: Option<Body>,
 
+    /// HTTP status code field, if any.
+    pub http_status: Option<HttpStatus>,
+
     /// If this is a streamed response
     pub stream: bool,
 }
@@ -136,6 +141,9 @@ impl Response {
         };
         if let Some(c) = &self.cookie {
             bld = c.to_response(payload, bld)?;
+        }
+        if let Some(http_status) = &self.http_status {
+            bld = http_status.to_response(payload, bld)?;
         }
         match &self.body {
             Some(body) => body.to_response(payload, bld),

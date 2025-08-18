@@ -62,6 +62,7 @@ pub enum ParamData {
     Query { query: String },
     Body,
     Cookie,
+    HTTPStatus,
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +87,8 @@ pub struct RequestEncoding {
 pub struct ResponseEncoding {
     /// Parsed params.
     pub params: Vec<Param>,
+    /// HTTP status param
+    pub http_status: Option<Param>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +121,9 @@ impl RequestEncoding {
                 ParamData::Query { .. } => by_loc.query.push(p),
                 ParamData::Body => by_loc.body.push(p),
                 ParamData::Cookie => by_loc.cookie.push(p),
+                ParamData::HTTPStatus => {
+                    // HTTPStatus can only be set in responses
+                }
             }
         }
         by_loc
@@ -171,6 +177,10 @@ impl ResponseEncoding {
         self.params
             .iter()
             .filter(|p| matches!(p.loc, ParamData::Body))
+    }
+
+    pub fn http_status(&self) -> Option<&Param> {
+        self.http_status.as_ref()
     }
 }
 
@@ -282,7 +292,10 @@ pub fn describe_static_assets(def_span: Span, methods: Methods, path: Path) -> E
             methods,
             params: vec![],
         }],
-        resp: ResponseEncoding { params: vec![] },
+        resp: ResponseEncoding {
+            params: vec![],
+            http_status: None,
+        },
         handshake: None,
         raw_handshake_schema: None,
         raw_req_schema: None,
@@ -356,11 +369,21 @@ fn describe_resp(
     resp_schema: &Option<Sp<Type>>,
 ) -> ParseResult<(ResponseEncoding, Option<FieldMap>)> {
     let Some(resp_schema) = resp_schema else {
-        return Ok((ResponseEncoding { params: vec![] }, None));
+        return Ok((
+            ResponseEncoding {
+                params: vec![],
+                http_status: None,
+            },
+            None,
+        ));
     };
 
-    let fields =
+    let mut fields =
         iface_fields(tc, resp_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
+
+    // Extract HttpStatus field separately with validation
+    let http_status = extract_http_status(&mut fields)?;
+
     let params = extract_loc_params(&fields, ParamLocation::Body)?;
 
     let fields = if fields.is_empty() {
@@ -369,7 +392,13 @@ fn describe_resp(
         Some(fields)
     };
 
-    Ok((ResponseEncoding { params }, fields))
+    Ok((
+        ResponseEncoding {
+            params,
+            http_status,
+        },
+        fields,
+    ))
 }
 
 pub fn describe_auth_handler(
@@ -494,6 +523,38 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> ParseResult<Vec<Pa
     Ok(params)
 }
 
+fn extract_http_status(fields: &mut FieldMap) -> ParseResult<Option<Param>> {
+    let mut http_status_param = None;
+    let mut to_remove = Vec::new();
+
+    for (name, field) in fields.iter() {
+        if let Some(spec) = &field.custom {
+            if spec.location == WireLocation::HttpStatus {
+                if http_status_param.is_some() {
+                    return Err(field
+                        .range
+                        .parse_err("only one HttpStatus field is allowed per response type"));
+                }
+                http_status_param = Some(Param {
+                    name: name.clone(),
+                    loc: ParamData::HTTPStatus,
+                    typ: field.typ.clone(),
+                    optional: field.optional,
+                    range: field.range,
+                });
+                to_remove.push(name.clone());
+            }
+        }
+    }
+
+    // Remove HttpStatus fields from the main fields map
+    for name in to_remove {
+        fields.remove(&name);
+    }
+
+    Ok(http_status_param)
+}
+
 fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseResult<Vec<Param>> {
     let mut params = Vec::new();
     for f in fields.values() {
@@ -507,6 +568,10 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseRes
                     WireLocation::Query => ParamLocation::Query,
                     WireLocation::PubSubAttr => ParamLocation::Body,
                     WireLocation::Cookie => ParamLocation::Cookie,
+                    WireLocation::HttpStatus => {
+                        // HttpStatus fields are handled separately, skip them here
+                        continue;
+                    }
                 },
                 spec.name_override.clone(),
             ),
