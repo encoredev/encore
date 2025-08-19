@@ -145,34 +145,6 @@ impl PromiseHandler for APIPromiseHandler {
 
         match parse_pvalues(payload) {
             Ok(val) => {
-                // Check if we have an HttpStatus field in the response schema and extract its value
-                let http_status =
-                    if let (Some(schema), Some(payload_values)) = (&self.resp_schema, &val) {
-                        if let Some(http_status_schema) = &schema.http_status {
-                            payload_values
-                                .get(&http_status_schema.src_name)
-                                .and_then(|pval| match pval {
-                                    encore_runtime_core::api::PValue::Number(n) => n.as_u64(),
-                                    _ => None,
-                                })
-                                .and_then(|status_code| {
-                                    // Validate it's a valid HTTP status code (100-599)
-                                    if (100..=599).contains(&status_code) {
-                                        Some(status_code as u16)
-                                    } else {
-                                        None
-                                    }
-                                })
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-
-                // Use HttpStatus field value if available, otherwise use middleware status
-                let final_status = http_status.or(status);
-
                 let val = match &self.resp_schema {
                     Some(schema) => val
                         .map(|v| transform_pvalues_response(v, schema.clone()))
@@ -182,7 +154,7 @@ impl PromiseHandler for APIPromiseHandler {
                 };
                 Ok(HandlerResponseInner {
                     payload: val,
-                    status: final_status,
+                    status,
                     extra_headers: parse_header_map(extra_headers).map_err(|e| {
                         api::Error::invalid_argument("unable to parse extraHeaders", e)
                     })?,

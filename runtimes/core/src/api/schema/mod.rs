@@ -142,8 +142,8 @@ impl Response {
         if let Some(c) = &self.cookie {
             bld = c.to_response(payload, bld)?;
         }
-        if let Some(http_status) = &self.http_status {
-            bld = http_status.to_response(payload, bld)?;
+        if let Some(hs) = &self.http_status {
+            bld = hs.to_response(payload, bld)?;
         }
         match &self.body {
             Some(body) => body.to_response(payload, bld),

@@ -2197,8 +2197,6 @@ impl Ctx<'_> {
                     span.err("HttpStatus doesn't take generic type parameters");
                     return None;
                 }
-                // The underlying type is the HttpStatus union itself
-                // We'll use a placeholder here since the actual HttpStatus type should be resolved elsewhere
                 (Type::Basic(Basic::Number), None)
             }
             _ => {

@@ -66,12 +66,6 @@ pub fn transform_pvalues_response(
         }
     }
 
-    // Handle HttpStatus fields by removing them from the response payload
-    // The status code will be extracted and applied separately
-    if let Some(http_status_schema) = &schema.http_status {
-        vals.remove(&http_status_schema.src_name);
-    }
-
     Ok(vals)
 }
 
