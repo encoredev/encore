@@ -551,7 +551,6 @@ export const Bar = 5;
                     }],
                     resp: ResponseEncoding {
                         params: vec![],
-                        http_status: None,
                     },
                     path: Path::parse(DUMMY_SP, "/svc.Bar", Default::default()).unwrap(),
                     raw_handshake_schema: None,
@@ -651,7 +650,6 @@ export const Bar = 5;
                     }],
                     resp: ResponseEncoding {
                         params: vec![],
-                        http_status: None,
                     },
                     path: Path::parse(DUMMY_SP, "/svc.Bar", Default::default()).unwrap(),
                     raw_handshake_schema: None,

@@ -87,8 +87,6 @@ pub struct RequestEncoding {
 pub struct ResponseEncoding {
     /// Parsed params.
     pub params: Vec<Param>,
-    /// HTTP status param
-    pub http_status: Option<Param>,
 }
 
 #[derive(Debug, Clone)]
@@ -180,7 +178,9 @@ impl ResponseEncoding {
     }
 
     pub fn http_status(&self) -> Option<&Param> {
-        self.http_status.as_ref()
+        self.params
+            .iter()
+            .find(|p| matches!(p.loc, ParamData::HTTPStatus))
     }
 }
 
@@ -292,10 +292,7 @@ pub fn describe_static_assets(def_span: Span, methods: Methods, path: Path) -> E
             methods,
             params: vec![],
         }],
-        resp: ResponseEncoding {
-            params: vec![],
-            http_status: None,
-        },
+        resp: ResponseEncoding { params: vec![] },
         handshake: None,
         raw_handshake_schema: None,
         raw_req_schema: None,
@@ -369,20 +366,11 @@ fn describe_resp(
     resp_schema: &Option<Sp<Type>>,
 ) -> ParseResult<(ResponseEncoding, Option<FieldMap>)> {
     let Some(resp_schema) = resp_schema else {
-        return Ok((
-            ResponseEncoding {
-                params: vec![],
-                http_status: None,
-            },
-            None,
-        ));
+        return Ok((ResponseEncoding { params: vec![] }, None));
     };
 
-    let mut fields =
+    let fields =
         iface_fields(tc, resp_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
-
-    // Extract HttpStatus field separately with validation
-    let http_status = extract_http_status(&mut fields)?;
 
     let params = extract_loc_params(&fields, ParamLocation::Body)?;
 
@@ -392,13 +380,7 @@ fn describe_resp(
         Some(fields)
     };
 
-    Ok((
-        ResponseEncoding {
-            params,
-            http_status,
-        },
-        fields,
-    ))
+    Ok((ResponseEncoding { params }, fields))
 }
 
 pub fn describe_auth_handler(
@@ -523,81 +505,59 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> ParseResult<Vec<Pa
     Ok(params)
 }
 
-fn extract_http_status(fields: &mut FieldMap) -> ParseResult<Option<Param>> {
-    let mut http_status_param = None;
-    let mut to_remove = Vec::new();
-
-    for (name, field) in fields.iter() {
-        if let Some(spec) = &field.custom {
-            if spec.location == WireLocation::HttpStatus {
-                if http_status_param.is_some() {
-                    return Err(field
-                        .range
-                        .parse_err("only one HttpStatus field is allowed per response type"));
-                }
-                http_status_param = Some(Param {
-                    name: name.clone(),
-                    loc: ParamData::HTTPStatus,
-                    typ: field.typ.clone(),
-                    optional: field.optional,
-                    range: field.range,
-                });
-                to_remove.push(name.clone());
-            }
-        }
-    }
-
-    // Remove HttpStatus fields from the main fields map
-    for name in to_remove {
-        fields.remove(&name);
-    }
-
-    Ok(http_status_param)
-}
-
 fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseResult<Vec<Param>> {
     let mut params = Vec::new();
-    for f in fields.values() {
-        let name = f.name.clone();
+    let mut http_status_found = false;
 
-        // Determine the location.
-        let (loc, loc_name) = match &f.custom {
-            Some(spec) => (
-                match spec.location {
-                    WireLocation::Header => ParamLocation::Header,
-                    WireLocation::Query => ParamLocation::Query,
-                    WireLocation::PubSubAttr => ParamLocation::Body,
-                    WireLocation::Cookie => ParamLocation::Cookie,
-                    WireLocation::HttpStatus => {
-                        // HttpStatus fields are handled separately, skip them here
-                        continue;
-                    }
-                },
-                spec.name_override.clone(),
-            ),
-            None => (default_loc, None),
+    for f in fields.values() {
+        let get_name = |spec: &WireSpec, field_name: &str| -> String {
+            spec.name_override
+                .as_deref()
+                .unwrap_or(field_name)
+                .to_string()
         };
 
-        let param_data: ParamData = match loc {
-            ParamLocation::Query => ParamData::Query {
-                query: loc_name.unwrap_or_else(|| f.name.clone()),
+        // Determine the parameter data based on location
+        let param_data = match &f.custom {
+            Some(spec) => match spec.location {
+                WireLocation::Header => ParamData::Header {
+                    header: get_name(spec, &f.name),
+                },
+                WireLocation::Query => ParamData::Query {
+                    query: get_name(spec, &f.name),
+                },
+                WireLocation::PubSubAttr => ParamData::Body,
+                WireLocation::Cookie => ParamData::Cookie,
+                WireLocation::HttpStatus => {
+                    if http_status_found {
+                        return Err(f
+                            .range
+                            .parse_err("only one HttpStatus field is allowed per response type"));
+                    }
+                    http_status_found = true;
+                    ParamData::HTTPStatus
+                }
             },
-            ParamLocation::Body => ParamData::Body,
-            ParamLocation::Cookie => ParamData::Cookie,
-            ParamLocation::Header => ParamData::Header {
-                header: loc_name.unwrap_or_else(|| f.name.clone()),
+            None => match default_loc {
+                ParamLocation::Query => ParamData::Query {
+                    query: f.name.clone(),
+                },
+                ParamLocation::Body => ParamData::Body,
+                ParamLocation::Cookie => ParamData::Cookie,
+                ParamLocation::Header => ParamData::Header {
+                    header: f.name.clone(),
+                },
+                ParamLocation::Path => {
+                    return Err(f
+                        .range
+                        .to_span()
+                        .parse_err("path params are not supported as a default loc"))
+                }
             },
-
-            ParamLocation::Path => {
-                return Err(f
-                    .range
-                    .to_span()
-                    .parse_err("path params are not supported as a default loc"))
-            }
         };
 
         params.push(Param {
-            name,
+            name: f.name.clone(),
             loc: param_data,
             typ: f.typ.clone(),
             optional: f.optional,
