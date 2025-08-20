@@ -23,9 +23,9 @@ func Ping(ctx context.Context, params *PingParams) (*PingResponse, error) {
 }
 ```
 
-<GitHubLink 
-    href="https://github.com/encoredev/examples/tree/main/hello-world" 
-    desc="Hello World REST API example application." 
+<GitHubLink
+    href="https://github.com/encoredev/examples/tree/main/hello-world"
+    desc="Hello World REST API example application."
 />
 
 ## Access controls
@@ -217,7 +217,7 @@ func Login(ctx context.Context) (*LoginResponse, error) {
 }
 ````
 
-The cookies can then be read using e.g. [structured auth data](/docs/go/develop/auth#accepting-structured-auth-information). 
+The cookies can then be read using e.g. [structured auth data](/docs/go/develop/auth#accepting-structured-auth-information).
 
 ### Query parameters
 
@@ -225,7 +225,7 @@ For `GET`, `HEAD` and `DELETE` requests, parameters are read from the query stri
 The query parameter name defaults to the [snake-case](https://en.wikipedia.org/wiki/Snake_case)
 encoded name of the corresponding struct field (e.g. BlogPost becomes blog_post).
 
-The `query` field tag can be used to parse a field from the query string for other HTTP methods (e.g. POST) and to override the default parameter name. 
+The `query` field tag can be used to parse a field from the query string for other HTTP methods (e.g. POST) and to override the default parameter name.
 
 Query strings are not supported in HTTP responses and therefore `query` tags in response types are ignored.
 
@@ -404,3 +404,26 @@ GET /blog/posts/:id
 GET /user/profile/:username
 GET /user/me
 ```
+
+## Custom HTTP status codes
+
+By default, Encore automatically sets appropriate HTTP status codes for your API responses. We recommend using these default status codes, but there are situations where you might need to set a custom HTTP status code, such as when porting an existing API that clients depend on for specific status codes.
+
+To set a custom HTTP status code, use the `encore:"httpstatus"` struct tag on a field in your response type:
+
+```go
+type Response struct {
+    Message string `json:"message"`
+    Status  int    `encore:"httpstatus"`
+}
+
+//encore:api public method=GET path=/example
+func Example(ctx context.Context) (*Response, error) {
+    return &Response{
+        Message: "Hello",
+        Status:  201, // HTTP 201 Created
+    }, nil
+}
+```
+
+The field with the `encore:"httpstatus"` tag can be an integer type and should contain a valid HTTP status code value.
