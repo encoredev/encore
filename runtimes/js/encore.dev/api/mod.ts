@@ -19,71 +19,6 @@ export type Method =
   | "TRACE"
   | "CONNECT";
 
-export type HttpStatus =
-  | 100
-  | 101
-  | 102
-  | 103
-  | 200
-  | 201
-  | 202
-  | 203
-  | 204
-  | 205
-  | 206
-  | 207
-  | 208
-  | 226
-  | 300
-  | 301
-  | 302
-  | 303
-  | 304
-  | 305
-  | 306
-  | 307
-  | 308
-  | 400
-  | 401
-  | 402
-  | 403
-  | 404
-  | 405
-  | 406
-  | 407
-  | 408
-  | 409
-  | 410
-  | 411
-  | 412
-  | 413
-  | 414
-  | 415
-  | 416
-  | 417
-  | 418
-  | 421
-  | 422
-  | 423
-  | 424
-  | 425
-  | 426
-  | 428
-  | 429
-  | 431
-  | 451
-  | 500
-  | 501
-  | 502
-  | 503
-  | 504
-  | 505
-  | 506
-  | 507
-  | 508
-  | 510
-  | 511;
-
 export type Header<
   TypeOrName extends string | number | boolean | Date = string,
   Name extends string = ""
@@ -584,6 +519,11 @@ export function middleware(
 export interface CallOpts {
   /* authData?: AuthData */
 }
+
+import { HttpStatusValues } from "./httpstatus";
+export const HttpStatus = HttpStatusValues;
+export type HttpStatus =
+  (typeof HttpStatusValues)[keyof typeof HttpStatusValues];
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
