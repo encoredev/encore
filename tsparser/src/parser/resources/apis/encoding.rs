@@ -95,38 +95,7 @@ pub struct AuthHandlerEncoding {
     pub auth_data: Sp<Type>,
 }
 
-pub struct RequestParamsByLoc<'a> {
-    pub path: Vec<&'a Param>,
-    pub header: Vec<&'a Param>,
-    pub query: Vec<&'a Param>,
-    pub body: Vec<&'a Param>,
-    pub cookie: Vec<&'a Param>,
-}
-
 impl RequestEncoding {
-    pub fn by_loc(&self) -> RequestParamsByLoc<'_> {
-        let mut by_loc = RequestParamsByLoc {
-            path: vec![],
-            header: vec![],
-            query: vec![],
-            body: vec![],
-            cookie: vec![],
-        };
-        for p in &self.params {
-            match p.loc {
-                ParamData::Path { .. } => by_loc.path.push(p),
-                ParamData::Header { .. } => by_loc.header.push(p),
-                ParamData::Query { .. } => by_loc.query.push(p),
-                ParamData::Body => by_loc.body.push(p),
-                ParamData::Cookie => by_loc.cookie.push(p),
-                ParamData::HTTPStatus => {
-                    // HTTPStatus can only be set in responses
-                }
-            }
-        }
-        by_loc
-    }
-
     pub fn path(&self) -> impl Iterator<Item = &Param> {
         self.params
             .iter()
@@ -372,6 +341,23 @@ fn describe_resp(
     let fields =
         iface_fields(tc, resp_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
 
+    // Validate that maximum one field has HttpStatus location
+    let http_status_count = fields
+        .values()
+        .filter(|f| {
+            matches!(
+                f.custom.as_ref().map(|s| &s.location),
+                Some(&WireLocation::HttpStatus)
+            )
+        })
+        .count();
+
+    if http_status_count > 1 {
+        return Err(resp_schema
+            .span()
+            .parse_err("only one field can be of type HttpStatus in a response"));
+    }
+
     let params = extract_loc_params(&fields, ParamLocation::Body)?;
 
     let fields = if fields.is_empty() {
@@ -433,6 +419,7 @@ fn split_by_loc(methods: &Methods) -> Vec<(ParamLocation, Vec<Method>)> {
 
 pub type FieldMap = HashMap<String, Field>;
 
+#[derive(Debug)]
 pub struct Field {
     name: String,
     typ: Type,
@@ -507,7 +494,6 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> ParseResult<Vec<Pa
 
 fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseResult<Vec<Param>> {
     let mut params = Vec::new();
-    let mut http_status_found = false;
 
     for f in fields.values() {
         let get_name = |spec: &WireSpec, field_name: &str| -> String {
@@ -528,15 +514,7 @@ fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseRes
                 },
                 WireLocation::PubSubAttr => ParamData::Body,
                 WireLocation::Cookie => ParamData::Cookie,
-                WireLocation::HttpStatus => {
-                    if http_status_found {
-                        return Err(f
-                            .range
-                            .parse_err("only one HttpStatus field is allowed per response type"));
-                    }
-                    http_status_found = true;
-                    ParamData::HTTPStatus
-                }
+                WireLocation::HttpStatus => ParamData::HTTPStatus,
             },
             None => match default_loc {
                 ParamLocation::Query => ParamData::Query {

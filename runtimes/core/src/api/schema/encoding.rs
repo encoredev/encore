@@ -42,6 +42,7 @@ pub struct EncodingConfig<'a, 'b> {
     pub supports_query: bool,
     pub supports_header: bool,
     pub supports_path: bool,
+    pub supports_http_status: bool,
 }
 
 #[derive(Debug)]
@@ -130,13 +131,15 @@ impl EncodingConfig<'_, '_> {
             let (name, mut field) = self.registry_builder.struct_field(f)?;
             combined.fields.insert(name.to_owned(), field.clone());
 
+            let default_loc = || -> anyhow::Result<DefaultLoc> {
+                self.default_loc
+                    .with_context(|| format!("no location defined for field {}", f.name))
+            };
+
             // Resolve which location the field should be in.
             let loc = f.wire.as_ref().and_then(|w| w.location.as_ref());
             let wire_loc = match loc {
-                None => self
-                    .default_loc
-                    .with_context(|| format!("no location defined for field {}", f.name))?
-                    .into_wire_loc(),
+                None => default_loc()?.into_wire_loc(),
                 Some(schema::wire_spec::Location::Header(hdr)) => {
                     WireLoc::Header(hdr.name.as_ref().unwrap_or(&f.name).clone())
                 }
@@ -145,8 +148,12 @@ impl EncodingConfig<'_, '_> {
                     WireLoc::Cookie(c.name.as_ref().unwrap_or(&f.name).clone())
                 }
                 Some(schema::wire_spec::Location::HttpStatus(_)) => {
-                    http_status = Some(HttpStatus::new(f.name.clone()));
-                    continue;
+                    if self.supports_http_status {
+                        http_status = Some(HttpStatus::new(f.name.clone()));
+                        continue;
+                    } else {
+                        default_loc()?.into_wire_loc()
+                    }
                 }
             };
 
@@ -455,6 +462,7 @@ pub fn handshake_encoding(
         supports_query: true,
         supports_header: true,
         supports_path: true,
+        supports_http_status: false,
     };
 
     let schema = config.compute(handshake_schema)?;
@@ -497,6 +505,7 @@ pub fn request_encoding(
             supports_query: false,
             supports_header: false,
             supports_path: false,
+            supports_http_status: false,
         };
 
         let schema = config.compute(request_schema)?;
@@ -555,6 +564,7 @@ pub fn request_encoding(
             supports_query: true,
             supports_header: true,
             supports_path: true,
+            supports_http_status: false,
         };
         let schema = config.compute(request_schema)?;
         schemas.push(ReqSchemaUnderConstruction {
@@ -593,6 +603,7 @@ pub fn response_encoding(
         supports_query: false,
         supports_header: true,
         supports_path: false,
+        supports_http_status: true,
     };
     config.compute(response_schema)
 }
