@@ -216,6 +216,30 @@ export const fallback = api.raw(
 )
 ```
 
+## Custom HTTP status codes
+
+By default, Encore automatically sets appropriate HTTP status codes for your API responses. We recommend using these default status codes, but there are situations where you might need to set a custom HTTP status code, such as when porting an existing API that clients depend on for specific status codes.
+
+To set a custom HTTP status code, include an `HttpStatus` field in your response interface:
+
+```ts
+import { api, HttpStatus } from "encore.dev/api";
+
+interface Response {
+  msg: string;
+  status: HttpStatus;
+}
+
+export const endpoint = api(
+  { expose: true, method: "GET", path: "/path" },
+  async (): Promise<Response> => {
+    return { msg: "Hello", status: HttpStatus.Created };
+  }
+);
+```
+
+The `HttpStatus` enum includes all standard HTTP status codes like `HttpStatus.OK`, `HttpStatus.Created`, `HttpStatus.BadRequest`, etc.
+
 ## Raw endpoints
 
 In case you need to operate at a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request. This is often useful for things like accepting webhooks.
