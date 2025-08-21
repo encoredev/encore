@@ -283,5 +283,6 @@ type Impl interface {
 	GenUserFacing(context.Context, GenUserFacingParams) error
 	UseNewRuntimeConfig() bool
 	NeedsMeta() bool
+	TempDir() (string, error)
 	Close() error
 }

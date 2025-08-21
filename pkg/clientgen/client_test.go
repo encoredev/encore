@@ -33,7 +33,7 @@ func TestClientCodeGenerationFromGoApp(t *testing.T) {
 	c.Assert(err, qt.IsNil)
 
 	ctx := context.Background()
-	bld := v2builder.BuilderImpl{}
+	bld := v2builder.New()
 
 	for _, path := range tests {
 		path := path
