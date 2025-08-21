@@ -62,6 +62,7 @@ pub enum ParamData {
     Query { query: String },
     Body,
     Cookie,
+    HTTPStatus,
 }
 
 #[derive(Debug, Clone)]
@@ -94,35 +95,7 @@ pub struct AuthHandlerEncoding {
     pub auth_data: Sp<Type>,
 }
 
-pub struct RequestParamsByLoc<'a> {
-    pub path: Vec<&'a Param>,
-    pub header: Vec<&'a Param>,
-    pub query: Vec<&'a Param>,
-    pub body: Vec<&'a Param>,
-    pub cookie: Vec<&'a Param>,
-}
-
 impl RequestEncoding {
-    pub fn by_loc(&self) -> RequestParamsByLoc<'_> {
-        let mut by_loc = RequestParamsByLoc {
-            path: vec![],
-            header: vec![],
-            query: vec![],
-            body: vec![],
-            cookie: vec![],
-        };
-        for p in &self.params {
-            match p.loc {
-                ParamData::Path { .. } => by_loc.path.push(p),
-                ParamData::Header { .. } => by_loc.header.push(p),
-                ParamData::Query { .. } => by_loc.query.push(p),
-                ParamData::Body => by_loc.body.push(p),
-                ParamData::Cookie => by_loc.cookie.push(p),
-            }
-        }
-        by_loc
-    }
-
     pub fn path(&self) -> impl Iterator<Item = &Param> {
         self.params
             .iter()
@@ -171,6 +144,12 @@ impl ResponseEncoding {
         self.params
             .iter()
             .filter(|p| matches!(p.loc, ParamData::Body))
+    }
+
+    pub fn http_status(&self) -> Option<&Param> {
+        self.params
+            .iter()
+            .find(|p| matches!(p.loc, ParamData::HTTPStatus))
     }
 }
 
@@ -361,6 +340,24 @@ fn describe_resp(
 
     let fields =
         iface_fields(tc, resp_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
+
+    // Validate that maximum one field has HttpStatus location
+    let http_status_count = fields
+        .values()
+        .filter(|f| {
+            matches!(
+                f.custom.as_ref().map(|s| &s.location),
+                Some(&WireLocation::HttpStatus)
+            )
+        })
+        .count();
+
+    if http_status_count > 1 {
+        return Err(resp_schema
+            .span()
+            .parse_err("only one field can be of type HttpStatus in a response"));
+    }
+
     let params = extract_loc_params(&fields, ParamLocation::Body)?;
 
     let fields = if fields.is_empty() {
@@ -422,6 +419,7 @@ fn split_by_loc(methods: &Methods) -> Vec<(ParamLocation, Vec<Method>)> {
 
 pub type FieldMap = HashMap<String, Field>;
 
+#[derive(Debug)]
 pub struct Field {
     name: String,
     typ: Type,
@@ -496,43 +494,48 @@ fn extract_path_params(path: &Path, fields: &mut FieldMap) -> ParseResult<Vec<Pa
 
 fn extract_loc_params(fields: &FieldMap, default_loc: ParamLocation) -> ParseResult<Vec<Param>> {
     let mut params = Vec::new();
-    for f in fields.values() {
-        let name = f.name.clone();
 
-        // Determine the location.
-        let (loc, loc_name) = match &f.custom {
-            Some(spec) => (
-                match spec.location {
-                    WireLocation::Header => ParamLocation::Header,
-                    WireLocation::Query => ParamLocation::Query,
-                    WireLocation::PubSubAttr => ParamLocation::Body,
-                    WireLocation::Cookie => ParamLocation::Cookie,
-                },
-                spec.name_override.clone(),
-            ),
-            None => (default_loc, None),
+    for f in fields.values() {
+        let get_name = |spec: &WireSpec, field_name: &str| -> String {
+            spec.name_override
+                .as_deref()
+                .unwrap_or(field_name)
+                .to_string()
         };
 
-        let param_data: ParamData = match loc {
-            ParamLocation::Query => ParamData::Query {
-                query: loc_name.unwrap_or_else(|| f.name.clone()),
+        // Determine the parameter data based on location
+        let param_data = match &f.custom {
+            Some(spec) => match spec.location {
+                WireLocation::Header => ParamData::Header {
+                    header: get_name(spec, &f.name),
+                },
+                WireLocation::Query => ParamData::Query {
+                    query: get_name(spec, &f.name),
+                },
+                WireLocation::PubSubAttr => ParamData::Body,
+                WireLocation::Cookie => ParamData::Cookie,
+                WireLocation::HttpStatus => ParamData::HTTPStatus,
             },
-            ParamLocation::Body => ParamData::Body,
-            ParamLocation::Cookie => ParamData::Cookie,
-            ParamLocation::Header => ParamData::Header {
-                header: loc_name.unwrap_or_else(|| f.name.clone()),
+            None => match default_loc {
+                ParamLocation::Query => ParamData::Query {
+                    query: f.name.clone(),
+                },
+                ParamLocation::Body => ParamData::Body,
+                ParamLocation::Cookie => ParamData::Cookie,
+                ParamLocation::Header => ParamData::Header {
+                    header: f.name.clone(),
+                },
+                ParamLocation::Path => {
+                    return Err(f
+                        .range
+                        .to_span()
+                        .parse_err("path params are not supported as a default loc"))
+                }
             },
-
-            ParamLocation::Path => {
-                return Err(f
-                    .range
-                    .to_span()
-                    .parse_err("path params are not supported as a default loc"))
-            }
         };
 
         params.push(Param {
-            name,
+            name: f.name.clone(),
             loc: param_data,
             typ: f.typ.clone(),
             optional: f.optional,

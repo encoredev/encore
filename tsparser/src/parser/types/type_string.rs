@@ -161,16 +161,43 @@ where
 
     fn render_wire_spec(&mut self, s: &WireSpec) -> std::fmt::Result {
         match &s.location {
-            super::WireLocation::Query => self.buf.write_str("Query<")?,
-            super::WireLocation::Header => self.buf.write_str("Header<")?,
-            super::WireLocation::PubSubAttr => self.buf.write_str("Attribute<")?,
-            super::WireLocation::Cookie => self.buf.write_str("Cookie<")?,
+            super::WireLocation::Query => {
+                self.buf.write_str("Query<")?;
+                self.render_type(&s.underlying)?;
+                if let Some(name) = &s.name_override {
+                    self.buf.write_fmt(format_args!(", {name:#?}"))?;
+                }
+                self.buf.write_char('>')
+            }
+            super::WireLocation::Header => {
+                self.buf.write_str("Header<")?;
+                self.render_type(&s.underlying)?;
+                if let Some(name) = &s.name_override {
+                    self.buf.write_fmt(format_args!(", {name:#?}"))?;
+                }
+                self.buf.write_char('>')
+            }
+            super::WireLocation::PubSubAttr => {
+                self.buf.write_str("Attribute<")?;
+                self.render_type(&s.underlying)?;
+                if let Some(name) = &s.name_override {
+                    self.buf.write_fmt(format_args!(", {name:#?}"))?;
+                }
+                self.buf.write_char('>')
+            }
+            super::WireLocation::Cookie => {
+                self.buf.write_str("Cookie<")?;
+                self.render_type(&s.underlying)?;
+                if let Some(name) = &s.name_override {
+                    self.buf.write_fmt(format_args!(", {name:#?}"))?;
+                }
+                self.buf.write_char('>')
+            }
+            super::WireLocation::HttpStatus => {
+                // HttpStatus doesn't take generic parameters, it's just the union type itself
+                self.buf.write_str("HttpStatus")
+            }
         }
-        self.render_type(&s.underlying)?;
-        if let Some(name) = &s.name_override {
-            self.buf.write_fmt(format_args!(", {name:#?}"))?;
-        }
-        self.buf.write_char('>')
     }
 
     fn render_generic(&mut self, g: &Generic) -> std::fmt::Result {

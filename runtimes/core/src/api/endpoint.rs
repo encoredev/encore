@@ -370,6 +370,7 @@ pub fn endpoints_from_meta(
                 header: resp_schema.header,
                 cookie: resp_schema.cookie,
                 body: resp_schema.body,
+                http_status: resp_schema.http_status,
                 stream: ep.ep.streaming_response,
             }),
             raw,
