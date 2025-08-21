@@ -108,6 +108,7 @@ pub enum WireLocation {
     Header,
     PubSubAttr,
     Cookie,
+    HttpStatus,
 }
 
 impl WireSpec {
