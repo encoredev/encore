@@ -33,7 +33,9 @@ tokio-postgres = { version = "0.7.13", features = [
 ] }
 cidr = "0.3.1"
 tokio-util = "0.7.10"
-tokio-tungstenite = { version = "0.21.0", features = ["rustls"] }
+tokio-tungstenite = { version = "0.21.0", features = [
+    "rustls-tls-native-roots",
+] }
 futures-util = "0.3.31"
 rand = "0.8.5"
 env_logger = "0.10.1"
