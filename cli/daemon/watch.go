@@ -38,7 +38,7 @@ func (s *Server) watchApps() {
 }
 
 func (s *Server) onWatchEvent(i *apps.Instance, events []watcher.Event) {
-	if run.IgnoreEvents(events) {
+	if run.IgnoreEvents(i, events) {
 		return
 	}
 
@@ -111,7 +111,7 @@ func (s *Server) updateGitIgnore(i *apps.Instance) error {
 	}
 
 	// Find which directives are already present
-	directives := []string{"encore.gen.go", "encore.gen.cue", "/.encore", "/encore.gen"}
+	directives := []string{"encore.gen.go", "encore.gen.cue", "/.encore", "/encore.gen", "/clients"}
 	found := make([]bool, len(directives))
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {

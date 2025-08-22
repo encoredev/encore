@@ -1,6 +1,7 @@
 package run
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 // them on c.
 func (mgr *Manager) watch(run *Run) error {
 	sub, err := run.App.Watch(func(i *apps.Instance, event []watcher.Event) {
-		if IgnoreEvents(event) {
+		if IgnoreEvents(i, event) {
 			return
 		}
 
@@ -45,19 +46,24 @@ func (mgr *Manager) watch(run *Run) error {
 
 // IgnoreEvents will return true if _all_ events are on files that should be ignored
 // as the do not impact the running app, or are the result of Encore itself generating code.
-func IgnoreEvents(events []watcher.Event) bool {
+func IgnoreEvents(app *apps.Instance, events []watcher.Event) bool {
 	for _, event := range events {
-		if !ignoreEvent(event) {
+		if !ignoreEvent(app.Root(), event) {
 			return false
 		}
 	}
 	return true
 }
 
-func ignoreEvent(ev watcher.Event) bool {
+func ignoreEvent(appRoot string, ev watcher.Event) bool {
 	filename := filepath.Base(ev.Path)
 	if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") {
 		// Ignore generated code
+		return true
+	}
+
+	if strings.HasPrefix(ev.Path, fmt.Sprintf("%s/clients/", appRoot)) {
+		// Ignore generated clients
 		return true
 	}
 

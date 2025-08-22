@@ -2,3 +2,4 @@ encore.gen.go
 /.encore
 encore.gen.cue
 /encore.gen
+/clients

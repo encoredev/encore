@@ -457,15 +457,16 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 				// Service structs are not needed if there is no implementation to be generated
 				svcStruct := option.None[*codegen.VarDecl]()
 
-				buf.Reset()
-				if f, ok := userfacinggen.Gen(gg, svc, svcStruct).Get(); ok {
+				for _, f := range userfacinggen.Gen(gg, pd.appDesc, svc, svcStruct) {
+					buf.Reset()
 					if err := f.Render(&buf); err != nil {
 						errs.Addf(token.NoPos, "unable to render userfacing go code: %v", err)
 						continue
 					}
-				}
 
-				i.writeOrDeleteFile(errs, buf.Bytes(), svc.FSRoot.Join("encore.gen.go"))
+					os.MkdirAll(filepath.Dir(f.Path().ToIO()), 0755)
+					i.writeOrDeleteFile(errs, buf.Bytes(), f.Path())
+				}
 			}
 
 			// Generate the user-facing CUE code.
