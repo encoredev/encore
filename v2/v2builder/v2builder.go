@@ -464,7 +464,7 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 						continue
 					}
 
-					os.MkdirAll(filepath.Dir(f.Path().ToIO()), 0755)
+					os.MkdirAll(f.Path().Dir().ToIO(), 0755)
 					i.writeOrDeleteFile(errs, buf.Bytes(), f.Path())
 				}
 			}

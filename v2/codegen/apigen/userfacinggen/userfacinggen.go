@@ -210,15 +210,42 @@ func genClient(gen *codegen.Generator, svcName string, svc *apiframework.Service
 	// count is the number of declarations we've generated in this file
 	count := 0
 
-	// Generate response types for endpoints
+	// Generate request and response types for endpoints
+	requestTypeGenerated := make(map[string]bool)
 	responseTypeGenerated := make(map[string]bool)
 	for _, ep := range svc.Endpoints {
-		if !ep.Raw && ep.Response != nil {
-			hasResponseType := genResponseType(gen.Util, f, ep)
-			responseTypeGenerated[ep.Name] = hasResponseType
-			if hasResponseType {
+		if !ep.Raw {
+			// Always generate request type for consistency with endpointgen
+			hasRequestType := genRequestType(gen.Util, f, ep)
+			requestTypeGenerated[ep.Name] = hasRequestType
+			if hasRequestType {
 				count++
 			}
+
+			// Generate response type
+			if ep.Response != nil {
+				hasResponseType := genResponseType(gen.Util, f, ep)
+				responseTypeGenerated[ep.Name] = hasResponseType
+				if hasResponseType {
+					count++
+				}
+			}
+		}
+	}
+
+	if count > 0 {
+		f.Jen.Line()
+	}
+
+	// Generate complete API descriptor variables
+	descriptorGenerated := make(map[string]*codegen.VarDecl)
+	for _, ep := range svc.Endpoints {
+		if !ep.Raw {
+			hasRequestType := requestTypeGenerated[ep.Name]
+			hasResponseType := responseTypeGenerated[ep.Name]
+			desc := genAPIDescriptor(gen.Util, f, ep, svcName, hasRequestType, hasResponseType)
+			descriptorGenerated[ep.Name] = desc
+			count++
 		}
 	}
 
@@ -229,8 +256,10 @@ func genClient(gen *codegen.Generator, svcName string, svc *apiframework.Service
 	// Generate endpoint functions for endpoints defined on the service struct
 	for _, ep := range svc.Endpoints {
 		if !ep.Raw {
+			hasRequestType := requestTypeGenerated[ep.Name]
 			hasResponseType := responseTypeGenerated[ep.Name]
-			genClientEndpoint(gen.Util, f, ep, hasResponseType)
+			desc := descriptorGenerated[ep.Name]
+			genClientEndpoint(gen.Util, f, ep, svcName, hasRequestType, hasResponseType, desc)
 			f.Jen.Line()
 			count++
 		}
@@ -245,8 +274,9 @@ func genClient(gen *codegen.Generator, svcName string, svc *apiframework.Service
 		f.Jen.Type().Id("Interface").InterfaceFunc(func(g *Group) {
 			for _, ep := range svc.Endpoints {
 				if !ep.Raw {
+					hasRequestType := requestTypeGenerated[ep.Name]
 					hasResponseType := responseTypeGenerated[ep.Name]
-					genClientInterfaceMethod(gen.Util, g, ep, hasResponseType)
+					genClientInterfaceMethod(gen.Util, g, ep, hasRequestType, hasResponseType)
 					count++
 					g.Line()
 				}
@@ -263,27 +293,242 @@ func genClient(gen *codegen.Generator, svcName string, svc *apiframework.Service
 	}
 }
 
+func genRequestType(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint) bool {
+	// Always generate request type for consistency with endpointgen
+	typeName := "EncoreInternal_" + ep.Name + "Req"
+	f.Jen.Type().Id(typeName).StructFunc(func(g *Group) {
+		// Add request payload field if exists - use isolated types
+		if ep.Request != nil {
+			if structType := extractStructType(ep.Request); structType != nil {
+				filteredStruct := genFilteredStruct(gu, *structType)
+				if filteredStruct == nil {
+					filteredStruct = Struct() // Empty struct
+				}
+				g.Id("Payload").Add(filteredStruct)
+			} else {
+				// Non-struct type, create isolated version
+				g.Id("Payload").Interface()
+			}
+		}
+		// Add path parameter fields (P0, P1, etc.) to match endpointgen pattern
+		for i, param := range ep.Path.Params() {
+			fieldName := fmt.Sprintf("P%d", i)
+			g.Id(fieldName).Add(gu.Builtin(param.Pos(), param.ValueType))
+		}
+	})
+	return true
+}
+
 func genResponseType(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint) bool {
 	if ep.Response == nil {
 		return false
 	}
 
-	structType := extractStructType(ep.Response)
-	if structType == nil {
-		return false // Non-struct responses not supported
+	// Generate response type following endpointgen pattern but with isolated types
+	typeName := "EncoreInternal_" + ep.Name + "Resp"
+	if structType := extractStructType(ep.Response); structType != nil {
+		filteredStruct := genFilteredStruct(gu, *structType)
+		if filteredStruct == nil {
+			filteredStruct = Struct() // Empty struct
+		}
+		f.Jen.Type().Id(typeName).Add(filteredStruct)
+	} else {
+		// Non-struct type, create isolated version
+		f.Jen.Type().Id(typeName).Interface()
 	}
-
-	filteredStruct := genFilteredStruct(gu, *structType)
-	if filteredStruct == nil {
-		return false // No fields remain after filtering
-	}
-
-	typeName := ep.Name + "Response"
-	f.Jen.Type().Id(typeName).Add(filteredStruct)
 	return true
 }
 
-func genClientEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, hasResponseType bool) {
+// Handler generation functions
+func genDecodeReq(ep *api.Endpoint, reqTypeName string) *Statement {
+	return Func().Params(
+		Id("httpReq").Op("*").Qual("net/http", "Request"),
+		Id("ps").Qual("encore.dev/appruntime/apisdk/api", "UnnamedParams"),
+		Id("json").Qual("github.com/json-iterator/go", "API"),
+	).Params(
+		Id("reqData").Op("*").Id(reqTypeName),
+		Id("pathParams").Qual("encore.dev/appruntime/apisdk/api", "UnnamedParams"),
+		Err().Error(),
+	).Block(
+		Id("reqData").Op("=").New(Id(reqTypeName)),
+		Return(Id("reqData"), Nil(), Nil()),
+	)
+}
+
+func genCloneReq(reqTypeName string) *Statement {
+	return Func().Params(Id("r").Op("*").Id(reqTypeName)).Params(Op("*").Id(reqTypeName), Error()).Block(
+		Var().Id("clone").Op("*").Id(reqTypeName),
+		List(Id("bytes"), Id("err")).Op(":=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Marshal").Call(Id("r")),
+		If(Err().Op("==").Nil()).Block(
+			Err().Op("=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
+		),
+		Return(Id("clone"), Err()),
+	)
+}
+
+func genReqPath(ep *api.Endpoint, reqTypeName string) *Statement {
+	return Func().Params(
+		Id("reqData").Op("*").Id(reqTypeName),
+	).Params(
+		String(),
+		Qual("encore.dev/appruntime/apisdk/api", "UnnamedParams"),
+		Error(),
+	).Block(
+		Return(Lit(ep.Path.String()), Nil(), Nil()),
+	)
+}
+
+func genReqUserPayload(ep *api.Endpoint, reqTypeName string) *Statement {
+	return Func().Params(
+		Id("reqData").Op("*").Id(reqTypeName),
+	).Params(
+		Any(),
+	).BlockFunc(func(g *Group) {
+		if ep.Request != nil {
+			g.Return(Id("reqData").Dot("Payload"))
+		} else {
+			g.Return(Nil())
+		}
+	})
+}
+
+func genEncodeResp(respTypeName string, hasResponseType bool) *Statement {
+	var respType *Statement
+	if hasResponseType {
+		respType = Id(respTypeName)
+	} else {
+		respType = Interface()
+	}
+
+	return Func().Params(
+		Id("w").Qual("net/http", "ResponseWriter"),
+		Id("json").Qual("github.com/json-iterator/go", "API"),
+		Id("resp").Add(respType),
+		Id("status").Int(),
+	).Params(
+		Err().Error(),
+	).Block(
+		Return(Nil()),
+	)
+}
+
+func genCloneResp(respTypeName string, hasResponseType bool) *Statement {
+	if !hasResponseType {
+		return Nil()
+	}
+	return Func().Params(Id("r").Id(respTypeName)).Params(Id(respTypeName), Error()).Block(
+		Var().Id("clone").Id(respTypeName),
+		List(Id("bytes"), Id("err")).Op(":=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Marshal").Call(Id("r")),
+		If(Err().Op("==").Nil()).Block(
+			Err().Op("=").Qual("github.com/json-iterator/go", "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
+		),
+		Return(Id("clone"), Err()),
+	)
+}
+
+func genEncodeExternalReq(reqTypeName string) *Statement {
+	return Func().Params(
+		Id("reqData").Op("*").Id(reqTypeName),
+		Id("stream").Op("*").Qual("github.com/json-iterator/go", "Stream"),
+	).Params(
+		Id("httpHeader").Qual("net/http", "Header"),
+		Id("queryString").Qual("net/url", "Values"),
+		Err().Error(),
+	).Block(
+		Return(Nil(), Nil(), Nil()),
+	)
+}
+
+// genPathParamNames yields a []string literal containing the names of the path parameters
+func genPathParamNames(path *resourcepaths.Path) Code {
+	if path.NumParams() == 0 {
+		return Nil()
+	}
+	return Index().String().ValuesFunc(func(g *Group) {
+		for _, s := range path.Params() {
+			g.Lit(s.Value)
+		}
+	})
+}
+
+func genDecodeExternalResp(respTypeName string, hasResponseType bool) *Statement {
+	var respType *Statement
+	if hasResponseType {
+		respType = Id(respTypeName)
+	} else {
+		respType = Interface()
+	}
+
+	return Func().Params(
+		Id("httpResp").Op("*").Qual("net/http", "Response"),
+		Id("json").Qual("github.com/json-iterator/go", "API"),
+	).Params(
+		Id("resp").Add(respType),
+		Err().Error(),
+	).BlockFunc(func(g *Group) {
+		if hasResponseType {
+			g.Var().Id("result").Id(respTypeName)
+			g.Return(Id("result"), Nil())
+		} else {
+			g.Return(Id("resp"), Nil())
+		}
+	})
+}
+
+func genAPIDescriptor(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcName string, hasRequestType, hasResponseType bool) *codegen.VarDecl {
+	reqTypeName := "EncoreInternal_" + ep.Name + "Req"
+	respTypeName := "EncoreInternal_" + ep.Name + "Resp"
+
+	var respType *Statement
+	if hasResponseType {
+		respType = Id(respTypeName)
+	} else {
+		respType = Interface()
+	}
+
+	desc := f.VarDecl("APIDesc", ep.Name)
+	desc.Value(Op("&").Qual("encore.dev/appruntime/apisdk/api", "Desc").Types(
+		Op("*").Id(reqTypeName),
+		respType,
+	).Values(Dict{
+		Id("Service"):        Lit(svcName), // Use original service name for service discovery
+		Id("SvcNum"):         Lit(0),       // Use 0 for external services (not in hosted services list)
+		Id("Endpoint"):       Lit(ep.Name),
+		Id("Methods"):        gu.GoToJen(ep.Decl.AST.Pos(), ep.HTTPMethods),
+		Id("Raw"):            Lit(ep.Raw),
+		Id("Fallback"):       Lit(ep.Path.HasFallback()),
+		Id("Path"):           Lit(ep.Path.String()),
+		Id("RawPath"):        Lit(ep.Path.String()), // Use same as Path for clients
+		Id("DefLoc"):         Lit(uint32(0)),        // Not relevant for clients
+		Id("PathParamNames"): genPathParamNames(ep.Path),
+		Id("Tags"):           Nil(),                                              // Not relevant for clients
+		Id("Access"):         Qual("encore.dev/appruntime/apisdk/api", "Public"), // Assume public for clients
+
+		// Request handlers
+		Id("DecodeReq"):      genDecodeReq(ep, reqTypeName),
+		Id("CloneReq"):       genCloneReq(reqTypeName),
+		Id("ReqPath"):        genReqPath(ep, reqTypeName),
+		Id("ReqUserPayload"): genReqUserPayload(ep, reqTypeName),
+
+		// Response handlers
+		Id("EncodeResp"):         genEncodeResp(respTypeName, hasResponseType),
+		Id("CloneResp"):          genCloneResp(respTypeName, hasResponseType),
+		Id("EncodeExternalReq"):  genEncodeExternalReq(reqTypeName),
+		Id("DecodeExternalResp"): genDecodeExternalResp(respTypeName, hasResponseType),
+
+		// Handler (not used for clients)
+		Id("AppHandler"): Nil(),
+		Id("RawHandler"): Nil(),
+
+		// Middleware (not used for clients)
+		Id("ServiceMiddleware"):   Index().Op("*").Qual("encore.dev/appruntime/apisdk/api", "Middleware").Values(),
+		Id("GlobalMiddlewareIDs"): Index().String().Values(),
+	}))
+
+	return desc
+}
+
+func genClientEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, svcName string, hasRequestType, hasResponseType bool, desc *codegen.VarDecl) {
 	// Add the doc comment
 	if ep.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
@@ -300,6 +545,10 @@ func genClientEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, ha
 	var params []Code
 	var pathParams []string
 
+	// Add context parameter first
+	ctxParam := alloc("ctx")
+	params = append(params, Id(ctxParam).Qual("context", "Context"))
+
 	// Add path parameters
 	for _, p := range ep.Path.Params() {
 		typ := gu.Builtin(p.Pos(), p.ValueType)
@@ -312,14 +561,23 @@ func genClientEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, ha
 	var reqParam string
 	if req := ep.Request; req != nil {
 		reqParam = alloc("req")
-		params = append(params, Id(reqParam).Add(gu.Type(req)))
+		if hasRequestType {
+			requestTypeName := "EncoreInternal_" + ep.Name + "Req"
+			params = append(params, Id(reqParam).Op("*").Id(requestTypeName))
+		} else {
+			params = append(params, Id(reqParam).Add(gu.Type(req)))
+		}
 	}
 
 	// Determine return type and parameters
 	var funcParams []Code
-	if ep.Response != nil && hasResponseType {
-		responseTypeName := ep.Name + "Response"
-		funcParams = []Code{Op("*").Id(responseTypeName), Error()}
+	if ep.Response != nil {
+		if hasResponseType {
+			responseTypeName := "EncoreInternal_" + ep.Name + "Resp"
+			funcParams = []Code{Op("*").Id(responseTypeName), Error()}
+		} else {
+			funcParams = []Code{Add(gu.Type(ep.Response)), Error()}
+		}
 	} else {
 		// Only return error if no response type
 		funcParams = []Code{Error()}
@@ -327,100 +585,55 @@ func genClientEndpoint(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint, ha
 
 	// Generate the function
 	f.Jen.Func().Id(ep.Name).Params(params...).Params(funcParams...).BlockFunc(func(g *Group) {
-		// Build the URL
-		g.Id("url").Op(":=").Add(genUrlConstruction(ep, pathParams))
+		// Create call context
+		g.Id("callCtx").Op(":=").Qual("encore.dev/appruntime/apisdk/api", "NewCallContext").Call(Id(ctxParam))
 
-		// Determine HTTP method
-		method := "GET"
-		if len(ep.HTTPMethods) > 0 {
-			method = ep.HTTPMethods[0]
+		// Build request object
+		reqTypeName := "EncoreInternal_" + ep.Name + "Req"
+		var reqVar string
+		if ep.Request != nil {
+			reqVar = reqParam
+		} else {
+			g.Id("req").Op(":=").Op("&").Id(reqTypeName).Values()
+			reqVar = "req"
 		}
 
-		// Make HTTP request based on method and whether we have a request body
-		if method == "GET" || ep.Request == nil {
-			// Simple GET request
-			g.List(Id("resp"), Err()).Op(":=").Qual("net/http", "Get").Call(Id("url"))
-		} else {
-			// POST/PUT/etc. request with JSON body
-			g.List(Id("reqBody"), Err()).Op(":=").Qual("encoding/json", "Marshal").Call(Id(reqParam))
+		// Use the descriptor to make the call normally (fallback, shouldn't be reached)
+		if ep.Response != nil {
 			if hasResponseType {
+				g.List(Id("_"), Err()).Op(":=").Add(desc.Qual()).Dot("Call").Call(Id("callCtx"), Id(reqVar))
 				g.If(Err().Op("!=").Nil()).Block(Return(Nil(), Err()))
+				// Convert response to the filtered response type
+				g.Id("result").Op(":=").Op("&").Id("EncoreInternal_" + ep.Name + "Resp").Values()
+				g.Comment("TODO: Map fields from response to result")
+				g.Return(Id("result"), Nil())
 			} else {
-				g.If(Err().Op("!=").Nil()).Block(Return(Err()))
+				g.Return(Add(desc.Qual()).Dot("Call").Call(Id("callCtx"), Id(reqVar)))
 			}
-			g.Line()
-
-			g.List(Id("resp"), Err()).Op(":=").Qual("net/http", "Post").Call(
-				Id("url"),
-				Lit("application/json"),
-				Qual("bytes", "NewBuffer").Call(Id("reqBody")),
-			)
-		}
-
-		// Error check
-		if hasResponseType {
-			g.If(Err().Op("!=").Nil()).Block(Return(Nil(), Err()))
 		} else {
-			g.If(Err().Op("!=").Nil()).Block(Return(Err()))
-		}
-		g.Defer().Id("resp").Dot("Body").Dot("Close").Call()
-
-		// Handle response
-		if ep.Response != nil && hasResponseType {
-			g.Var().Id("response").Id(ep.Name + "Response")
-			g.If(Err().Op(":=").Qual("encoding/json", "NewDecoder").Call(Id("resp").Dot("Body")).Dot("Decode").Call(Op("&").Id("response")).Op(";").Err().Op("!=").Nil()).Block(
-				Return(Nil(), Err()),
-			)
-			g.Line()
-			g.Return(Op("&").Id("response"), Nil())
-		} else {
-			// No response type to decode, just return error status
-			g.Return(Nil())
+			g.List(Id("_"), Err()).Op(":=").Add(desc.Qual()).Dot("Call").Call(Id("callCtx"), Id(reqVar))
+			g.Return(Err())
 		}
 	})
 }
 
-func genUrlConstruction(ep *api.Endpoint, pathParams []string) Code {
-	// Build the URL pattern and arguments for fmt.Sprintf
-	urlPattern := "http://localhost:4000"
-	var formatArgs []Code
-
-	// Build path from segments
-	pathPattern := ""
-	paramIndex := 0
-	for _, segment := range ep.Path.Segments {
-		pathPattern += "/"
-		switch segment.Type {
-		case resourcepaths.Literal:
-			pathPattern += segment.Value
-		case resourcepaths.Param:
-			pathPattern += "%s"
-			if paramIndex < len(pathParams) {
-				formatArgs = append(formatArgs, Id(pathParams[paramIndex]))
-				paramIndex++
-			}
-		default:
-			// For other types like Wildcard, Fallback - treat as parameter
-			pathPattern += "%s"
-			if paramIndex < len(pathParams) {
-				formatArgs = append(formatArgs, Id(pathParams[paramIndex]))
-				paramIndex++
-			}
-		}
+// genApiRequestType generates the request type for the API descriptor
+func genApiRequestType(gu *genutil.Helper, ep *api.Endpoint, hasRequestType bool) Code {
+	if hasRequestType {
+		return Op("*").Id("EncoreInternal_" + ep.Name + "Req")
 	}
-
-	urlPattern += pathPattern
-
-	if len(formatArgs) == 0 {
-		return Lit(urlPattern)
-	}
-
-	args := []Code{Lit(urlPattern)}
-	args = append(args, formatArgs...)
-	return Qual("fmt", "Sprintf").Call(args...)
+	return Interface()
 }
 
-func genClientInterfaceMethod(gu *genutil.Helper, g *Group, ep *api.Endpoint, hasResponseType bool) {
+// genApiResponseType generates the response type for the API descriptor
+func genApiResponseType(gu *genutil.Helper, ep *api.Endpoint, hasResponseType bool) Code {
+	if hasResponseType {
+		return Id("EncoreInternal_" + ep.Name + "Resp")
+	}
+	return Interface()
+}
+
+func genClientInterfaceMethod(gu *genutil.Helper, g *Group, ep *api.Endpoint, hasRequestType, hasResponseType bool) {
 	// Add the doc comment
 	if ep.Doc != "" {
 		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
@@ -436,6 +649,10 @@ func genClientInterfaceMethod(gu *genutil.Helper, g *Group, ep *api.Endpoint, ha
 	// Build parameter list
 	var params []Code
 
+	// Add context parameter first
+	ctxParam := alloc("ctx")
+	params = append(params, Id(ctxParam).Qual("context", "Context"))
+
 	// Add path parameters
 	for _, p := range ep.Path.Params() {
 		typ := gu.Builtin(p.Pos(), p.ValueType)
@@ -446,14 +663,23 @@ func genClientInterfaceMethod(gu *genutil.Helper, g *Group, ep *api.Endpoint, ha
 	// Add request parameter if exists
 	if req := ep.Request; req != nil {
 		reqParam := alloc("req")
-		params = append(params, Id(reqParam).Add(gu.Type(req)))
+		if hasRequestType {
+			requestTypeName := "EncoreInternal_" + ep.Name + "Req"
+			params = append(params, Id(reqParam).Op("*").Id(requestTypeName))
+		} else {
+			params = append(params, Id(reqParam).Add(gu.Type(req)))
+		}
 	}
 
 	// Determine return type and parameters
 	var funcParams []Code
-	if ep.Response != nil && hasResponseType {
-		responseTypeName := ep.Name + "Response"
-		funcParams = []Code{Op("*").Id(responseTypeName), Error()}
+	if ep.Response != nil {
+		if hasResponseType {
+			responseTypeName := "EncoreInternal_" + ep.Name + "Resp"
+			funcParams = []Code{Op("*").Id(responseTypeName), Error()}
+		} else {
+			funcParams = []Code{Add(gu.Type(ep.Response)), Error()}
+		}
 	} else {
 		// Only return error if no response type
 		funcParams = []Code{Error()}

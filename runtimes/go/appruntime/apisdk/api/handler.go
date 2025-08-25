@@ -486,7 +486,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 		}
 	}
 
-	if cfgutil.IsHostedService(c.server.runtime, d.Service) {
+	if d.AppHandler != nil && cfgutil.IsHostedService(c.server.runtime, d.Service) {
 		// If we're calling a hosted service, we can route via the
 		// internal process
 		return d.internalCall(c, req)
@@ -495,9 +495,10 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 	// Otherwise we need to route via the service discovery mechanism
 	service, found := c.server.runtime.ServiceDiscovery[d.Service]
 	if !found {
+		msg := fmt.Sprintf("Service %s not found in %#v", d.Service, c.server.runtime.ServiceDiscovery)
 		// Any service we need to talk to should be in the service discovery map, if it is not
 		// that implies the code is doing something unexpected and we should fail fast.
-		return respData, errs.B().Code(errs.Internal).Meta("service", d.Service).Msg("no route to service found").Err()
+		return respData, errs.B().Code(errs.Internal).Meta("service", d.Service).Msg(msg).Err()
 	} else {
 		return d.externalCall(c, service, req)
 	}
