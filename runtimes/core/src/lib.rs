@@ -24,6 +24,7 @@ pub mod error;
 pub mod infracfg;
 pub mod log;
 pub mod meta;
+pub mod metrics;
 pub mod model;
 mod names;
 pub mod objects;
@@ -209,6 +210,7 @@ pub struct Runtime {
     app_meta: meta::AppMeta,
     compute: ComputeConfig,
     runtime: tokio::runtime::Runtime,
+    metrics: metrics::Manager,
 }
 
 impl Runtime {
