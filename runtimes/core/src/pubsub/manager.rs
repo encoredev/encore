@@ -15,6 +15,7 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::schema::v1 as schema;
 use crate::encore::runtime::v1 as pb;
 use crate::log::LogFromRust;
+use crate::metrics::{requests_total_counter, Counter};
 use crate::model::{PubSubRequestData, RequestData, ResponseData, SpanId, SpanKey, TraceId};
 use crate::names::EncoreName;
 use crate::pubsub::noop::NoopCluster;
@@ -154,6 +155,10 @@ impl SubscriptionObj {
                 obj: self.clone(),
                 handlers: RwLock::new(Vec::new()),
                 counter: AtomicUsize::new(0),
+                requests_total: requests_total_counter(
+                    &self.service,
+                    &format!("{}/{}", &self.topic, &self.subscription),
+                ),
             })
         });
         h.add_handler(handler);
@@ -170,6 +175,7 @@ pub struct SubHandler {
     obj: Arc<SubscriptionObj>,
     handlers: RwLock<Vec<Arc<dyn SubscriptionHandler>>>,
     counter: AtomicUsize,
+    requests_total: Counter,
 }
 
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
@@ -259,7 +265,14 @@ impl SubHandler {
                 duration: tokio::time::Instant::now().duration_since(start),
                 data: ResponseData::PubSub(result.clone()),
             };
+
+            let code = match &result {
+                Ok(_) => "ok".to_string(),
+                Err(err) => err.code.to_string(),
+            };
+
             self.obj.tracer.request_span_end(&resp, false);
+            self.requests_total.increment_with([("code", code)]);
             result
         })
     }
