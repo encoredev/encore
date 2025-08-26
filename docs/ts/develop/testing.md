@@ -72,6 +72,35 @@ If using Vitest, follow these steps:
 }
 ```
 
+As of Vitest plugin version 0.5 ([issue](https://github.com/vitest-dev/vscode/issues/306)), environment configuration requires an updated approach. The following configuration is required to ensure proper functionality:
+
+Update `settings.json` to include:
+
+```jsonc
+"vitest.nodeEnv": {
+    // generated with `encore daemon env | grep ENCORE_RUNTIME_LIB | cut -d'=' -f2`
+    "ENCORE_RUNTIME_LIB": "/opt/homebrew/Cellar/encore/1.44.5/libexec/runtimes/js/encore-runtime.node"
+}
+```
+
+When running tests within VSCode, file-level parallel execution must be disabled. Update your `vite.config.ts` as follows:
+
+```typescript
+// File vite.config.ts
+export default defineConfig({
+  resolve: {
+    alias: {
+      "~encore": path.resolve(__dirname, "./encore.gen"),
+    },
+  },
+  test: {
+    fileParallelism: false,
+  },
+});
+```
+
+To improve the performance in CI, you can re-enable the parallel execution by overwriting the config in cli `encore test --fileParallelism=true`.
+
 ## Integration Testing Best Practices
 
 Encore applications typically focus on integration tests rather than unit tests because:
