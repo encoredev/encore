@@ -18,6 +18,7 @@ use crate::api::{
 };
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
+use crate::metrics::requests_total_counter;
 use crate::trace::Tracer;
 use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
@@ -283,6 +284,7 @@ fn build_auth_handler(
     // let is_local = hosted_services.contains(&explicit.service_name);
     let is_local = true;
     let name = EndpointName::new(explicit.service_name.clone(), auth.name.clone());
+    let requests_total = requests_total_counter(&explicit.service_name, &auth.name);
 
     let auth_data = registry.schema(auth_data_schema_idx);
     let auth_handler = if is_local {
@@ -294,6 +296,7 @@ fn build_auth_handler(
                 schema,
                 handler: Default::default(),
                 tracer,
+                requests_total,
             },
         )?
     } else {
