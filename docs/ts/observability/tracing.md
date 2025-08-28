@@ -29,11 +29,3 @@ Unlike other tracing solutions, Encore understands what each trace event is and 
 * API calls
 * Database queries
 * etc.
-
-## Redacting sensitive data
-
-Encore's tracing automatically captures request and response payloads to simplify debugging.
-
-For cases where this is undesirable, such as for passwords or personally identifiable information (PII), Encore supports redacting fields marked as containing sensitive data.
-
-See the documentation on [API Schemas](/docs/ts/primitives/defining-apis#sensitive-data) for more information.
