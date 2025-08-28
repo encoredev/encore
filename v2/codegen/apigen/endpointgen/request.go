@@ -48,11 +48,11 @@ func (d *requestDesc) TypeDecl() *Statement {
 func (d *requestDesc) DecodeRequest() *Statement {
 	return Func().Params(
 		d.httpReqExpr().Op("*").Qual("net/http", "Request"),
-		d.pathParamsName().Add(apiQ("UnnamedParams")),
+		d.pathParamsName().Add(apigenutil.ApiQ("UnnamedParams")),
 		Id("json").Qual(jsonIterPkg, "API"),
 	).Params(
 		d.reqDataExpr().Add(d.Type()),
-		Id("pathParams").Add(apiQ("UnnamedParams")),
+		Id("pathParams").Add(apigenutil.ApiQ("UnnamedParams")),
 		Err().Error(),
 	).BlockFunc(func(g *Group) {
 		g.Add(d.reqDataExpr()).Op("=").New(Id(d.TypeName()))
@@ -272,7 +272,7 @@ func (d *requestDesc) ReqPath() *Statement {
 		d.reqDataExpr().Add(d.Type()),
 	).Params(
 		String(),
-		apiQ("UnnamedParams"),
+		apigenutil.ApiQ("UnnamedParams"),
 		Error(),
 	).BlockFunc(func(g *Group) {
 		pathParams := d.ep.Path.Params()
@@ -281,7 +281,7 @@ func (d *requestDesc) ReqPath() *Statement {
 			return
 		}
 
-		g.Id("params").Op(":=").Add(apiQ("UnnamedParams")).ValuesFunc(func(g *Group) {
+		g.Id("params").Op(":=").Add(apigenutil.ApiQ("UnnamedParams")).ValuesFunc(func(g *Group) {
 			for paramIdx, f := range pathParams {
 				g.Add(genutil.MarshalBuiltin(f.ValueType, d.reqDataPathParamExpr(paramIdx)))
 			}

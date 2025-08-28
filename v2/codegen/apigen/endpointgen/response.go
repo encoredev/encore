@@ -30,7 +30,7 @@ func (d *responseDesc) TypeDecl() *Statement {
 		if d.ep.Response != nil {
 			s.Add(d.gu.Type(d.ep.Response))
 		} else {
-			s.Add(apiQ("Void"))
+			s.Add(apigenutil.ApiQ("Void"))
 		}
 	})
 }
@@ -39,7 +39,7 @@ func (d *responseDesc) ZeroType() *Statement {
 	if d.ep.Response != nil {
 		return d.gu.Zero(d.ep.Response)
 	} else {
-		return apiQ("Void").Values()
+		return apigenutil.ApiQ("Void").Values()
 	}
 }
 
@@ -204,7 +204,7 @@ func (d *responseDesc) zero() *Statement {
 	if d.ep.Response != nil {
 		return d.gu.Zero(d.ep.Response)
 	} else {
-		return apiQ("Void").Values()
+		return apigenutil.ApiQ("Void").Values()
 	}
 }
 

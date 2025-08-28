@@ -2,7 +2,11 @@
 
 package api
 
-import "reflect"
+import (
+	"reflect"
+
+	"encr.dev/pkg/option"
+)
 
 func RegisterEndpoint(handler Handler, function any) {
 	Singleton.registerEndpoint(handler, function)
@@ -24,4 +28,10 @@ func RegisterAuthDataType[T any]() {
 
 func RegisterGlobalMiddleware(mw *Middleware) {
 	Singleton.registerGlobalMiddleware(mw)
+}
+
+// LookupEndpoint returns the Handler for the given service and endpoint name.
+// Returns None if the endpoint is not found.
+func LookupEndpoint(serviceName, endpointName string) option.Option[Handler] {
+	return Singleton.LookupEndpoint(serviceName, endpointName)
 }

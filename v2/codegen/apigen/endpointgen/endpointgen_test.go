@@ -22,7 +22,7 @@ func TestCodegen(t *testing.T) {
 
 			}
 
-			userfacinggen.Gen(gen, desc, svc, svcStruct)
+			userfacinggen.Gen(gen, desc, svc, svcStruct, true)
 		}
 		Gen(gen, desc, svc, svcStruct, nil)
 	}

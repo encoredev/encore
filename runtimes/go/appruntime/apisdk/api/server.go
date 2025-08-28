@@ -37,6 +37,7 @@ import (
 	"encore.dev/internal/platformauth"
 	"encore.dev/metrics"
 	"encore.dev/pubsub"
+	"encr.dev/pkg/option"
 )
 
 type Access string
@@ -115,6 +116,7 @@ type Server struct {
 	globalMiddleware    map[string]*Middleware
 	registeredHandlers  []Handler
 	functionsToHandlers map[uintptr]Handler
+	endpointLookup      map[string]map[string]Handler // service name -> endpoint name -> handler
 
 	public           *httprouter.Router
 	publicFallback   *httprouter.Router
@@ -176,6 +178,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		tracingEnabled:      rt.TracingEnabled(),
 		experiments:         experiments.FromConfig(static, runtime),
 		functionsToHandlers: make(map[uintptr]Handler),
+		endpointLookup:      make(map[string]map[string]Handler),
 
 		public:           newRouter(),
 		publicFallback:   newRouter(),
@@ -340,6 +343,13 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 
 	s.registeredHandlers = append(s.registeredHandlers, h)
 
+	// Add to lookup table
+	serviceName := h.ServiceName()
+	if s.endpointLookup[serviceName] == nil {
+		s.endpointLookup[serviceName] = make(map[string]Handler)
+	}
+	s.endpointLookup[serviceName][h.EndpointName()] = h
+
 	// Register the adapter
 	for _, m := range h.HTTPMethods() {
 		if m == "*" {
@@ -376,6 +386,17 @@ func (s *Server) ServiceExists(serviceName string) bool {
 		}
 	}
 	return false
+}
+
+// LookupEndpoint returns the Handler for the given service and endpoint name.
+// Returns None if the endpoint is not found.
+func (s *Server) LookupEndpoint(serviceName, endpointName string) option.Option[Handler] {
+	if serviceHandlers, exists := s.endpointLookup[serviceName]; exists {
+		if handler, exists := serviceHandlers[endpointName]; exists {
+			return option.Some(handler)
+		}
+	}
+	return option.None[Handler]()
 }
 
 func (s *Server) registerGlobalMiddleware(mw *Middleware) {

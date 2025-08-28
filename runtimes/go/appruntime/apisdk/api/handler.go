@@ -486,7 +486,7 @@ func (d *Desc[Req, Resp]) Call(c CallContext, req Req) (respData Resp, respErr e
 		}
 	}
 
-	if d.AppHandler != nil && cfgutil.IsHostedService(c.server.runtime, d.Service) {
+	if cfgutil.IsHostedService(c.server.runtime, d.Service) {
 		// If we're calling a hosted service, we can route via the
 		// internal process
 		return d.internalCall(c, req)

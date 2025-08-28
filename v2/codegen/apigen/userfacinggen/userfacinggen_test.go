@@ -20,7 +20,7 @@ func TestCodegen(t *testing.T) {
 				svcStruct = option.Some(decl)
 			}
 		}
-		Gen(gen, desc, svc, svcStruct)
+		Gen(gen, desc, svc, svcStruct, true)
 	}
 	codegentest.Run(t, fn)
 }

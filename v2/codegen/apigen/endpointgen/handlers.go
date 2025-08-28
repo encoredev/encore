@@ -5,6 +5,7 @@ import (
 
 	"encr.dev/pkg/option"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/parser/apis/api"
 )
@@ -14,8 +15,8 @@ type handlerDesc struct {
 	ep        *api.Endpoint
 	svcStruct option.Option[*codegen.VarDecl]
 
-	req  *requestDesc
-	resp *responseDesc
+	req  *apigenutil.RequestDesc
+	resp *apigenutil.ResponseDesc
 	desc *codegen.VarDecl
 }
 
@@ -27,7 +28,7 @@ func (h *handlerDesc) Typed() *Statement {
 
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
-		h.req.reqDataExpr().Add(h.req.Type()),
+		h.req.ReqDataExpr().Add(h.req.Type()),
 	).Params(h.resp.Type(), Error()).BlockFunc(func(g *Group) {
 		// fnExpr is the expression for the function we want to call,
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
@@ -37,7 +38,7 @@ func (h *handlerDesc) Typed() *Statement {
 		if ss, ok := h.svcStruct.Get(); ok && ep.Recv.Present() {
 			g.List(Id("svc"), Id("initErr")).Op(":=").Add(ss.Qual()).Dot("Get").Call()
 			g.If(Id("initErr").Op("!=").Nil()).Block(
-				Return(h.resp.zero(), Id("initErr")),
+				Return(h.resp.Zero(), Id("initErr")),
 			)
 			fnExpr = Id("svc").Dot(ep.Name)
 		} else {
@@ -56,12 +57,12 @@ func (h *handlerDesc) Typed() *Statement {
 				g.Add(arg)
 			}
 		})
-		g.If(Err().Op("!=").Nil()).Block(Return(h.resp.zero(), Err()))
+		g.If(Err().Op("!=").Nil()).Block(Return(h.resp.Zero(), Err()))
 
 		if ep.Response != nil {
 			g.Return(Id("resp"), Nil())
 		} else {
-			g.Return(h.resp.zero(), Nil())
+			g.Return(h.resp.Zero(), Nil())
 		}
 	})
 }

@@ -7,6 +7,7 @@ import (
 
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
 )
@@ -51,10 +52,10 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 	// Generate parameters
 	fd.Params(Id("ctx").Qual("context", "Context"))
 	for idx, param := range ep.Path.Params() {
-		addParam(handler.req.pathParamFieldName(idx), gu.Builtin(param.Pos(), param.ValueType))
+		addParam(handler.req.PathParamFieldName(idx), gu.Builtin(param.Pos(), param.ValueType))
 	}
 	if ep.Request != nil {
-		addParam(handler.req.reqDataPayloadName(), gu.Type(ep.Request))
+		addParam(handler.req.ReqDataPayloadName(), gu.Type(ep.Request))
 	}
 
 	// Generate results
@@ -73,7 +74,7 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 			}
 			g.Err()
 		}).Op(":=").Id(handler.desc.Name()).Dot("Call").CallFunc(func(g *Group) {
-			g.Add(apiQ("NewCallContext")).Call(Id("ctx"))
+			g.Add(apigenutil.ApiQ("NewCallContext")).Call(Id("ctx"))
 			g.Op("&").Id(handler.req.TypeName()).Values(DictFunc(func(d Dict) {
 				for _, p := range params {
 					d[Id(p.name)] = Id(p.name)

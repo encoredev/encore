@@ -457,7 +457,7 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 				// Service structs are not needed if there is no implementation to be generated
 				svcStruct := option.None[*codegen.VarDecl]()
 
-				for _, f := range userfacinggen.Gen(gg, pd.appDesc, svc, svcStruct) {
+				for _, f := range userfacinggen.Gen(gg, pd.appDesc, svc, svcStruct, false) {
 					buf.Reset()
 					if err := f.Render(&buf); err != nil {
 						errs.Addf(token.NoPos, "unable to render userfacing go code: %v", err)
