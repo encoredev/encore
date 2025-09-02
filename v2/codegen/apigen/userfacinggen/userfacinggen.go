@@ -226,12 +226,10 @@ func genOriginalClient(gen *codegen.Generator, svcName string, svc *apiframework
 			reqDesc := apigenutil.NewRequestDesc(gen.Util, ep)
 			respDesc := apigenutil.NewResponseDesc(gen.Util, ep)
 
-			if renderImpl {
-				// Only generate internal type declarations when rendering implementation
-				f.Add(reqDesc.TypeDecl())
-				f.Add(respDesc.TypeDecl())
-				count += 2 // Both request and response types
-			}
+			// Always generate types since service package will reference them
+			f.Add(reqDesc.TypeDecl())
+			f.Add(respDesc.TypeDecl())
+			count += 2 // Both request and response types
 
 			requestDescs[ep.Name] = reqDesc
 			responseDescs[ep.Name] = respDesc
@@ -242,7 +240,7 @@ func genOriginalClient(gen *codegen.Generator, svcName string, svc *apiframework
 		f.Jen.Line()
 	}
 
-	// Generate complete API descriptor variables only if renderImpl is true
+	// Generate APIDesc in the client package when renderImpl is true
 	descriptorGenerated := make(map[string]*codegen.VarDecl)
 	if renderImpl {
 		for _, ep := range svc.Endpoints {
@@ -251,20 +249,20 @@ func genOriginalClient(gen *codegen.Generator, svcName string, svc *apiframework
 				respDesc := responseDescs[ep.Name]
 
 				descriptor := &apigenutil.APIDescriptor{
-					ReqType:             reqDesc.Type(),
-					RespType:            respDesc.Type(),
-					DecodeReq:           reqDesc.DecodeRequest(),
-					CloneReq:            reqDesc.Clone(),
-					ReqPath:             reqDesc.ReqPath(),
-					ReqUserPayload:      reqDesc.UserPayload(),
-					AppHandler:          genClientAppHandler(gen.Util, ep, svcName, reqDesc, respDesc),
-					RawHandler:          Nil(),
-					EncodeResp:          respDesc.EncodeResponse(),
-					CloneResp:           respDesc.Clone(),
-					EncodeExternalReq:   reqDesc.EncodeExternalReq(),
-					DecodeExternalResp:  respDesc.DecodeExternalResp(),
-					ServiceMiddleware:   Nil(),
-					GlobalMiddlewareIDs: Nil(),
+					ReqType:               reqDesc.Type(),
+					RespType:              respDesc.Type(),
+					DecodeReq:             reqDesc.DecodeRequest(),
+					CloneReq:              reqDesc.Clone(),
+					ReqPath:               reqDesc.ReqPath(),
+					ReqUserPayload:        reqDesc.UserPayload(),
+					AppHandler:            genClientAppHandler(gen.Util, ep, svcName, reqDesc, respDesc),
+					RawHandler:            Nil(),
+					EncodeResp:            respDesc.EncodeResponse(),
+					CloneResp:             respDesc.Clone(),
+					EncodeExternalReq:     reqDesc.EncodeExternalReq(),
+					DecodeExternalResp:    respDesc.DecodeExternalResp(),
+					ServiceMiddleware:     Nil(),
+					GlobalMiddlewareIDs:   Nil(),
 				}
 
 				desc := apigenutil.GenAPIDesc(gen, f, app, appSvc, ep, descriptor)
@@ -319,6 +317,123 @@ func genOriginalClient(gen *codegen.Generator, svcName string, svc *apiframework
 	} else {
 		return option.Some(f)
 	}
+}
+
+// genClientAppHandler generates an AppHandler function for client-side calls
+// that uses the LookupEndpoint method to find and call the target service endpoint
+func genClientAppHandler(gu *genutil.Helper, ep *api.Endpoint, targetSvcName string, reqDesc *apigenutil.RequestDesc, respDesc *apigenutil.ResponseDesc) *Statement {
+	if ep.Raw {
+		return Nil()
+	}
+
+	return Func().Params(
+		Id("ctx").Qual("context", "Context"),
+		Id("reqData").Add(reqDesc.Type()),
+	).Params(respDesc.Type(), Error()).BlockFunc(func(g *Group) {
+		// Look up the target endpoint using the new lookup functionality
+		g.Id("handlerOpt").Op(":=").Qual("encore.dev/appruntime/apisdk/api", "LookupEndpoint").Call(Lit(targetSvcName), Lit(ep.Name))
+		
+		// Check if the handler was found
+		g.List(Id("handler"), Id("found")).Op(":=").Id("handlerOpt").Dot("Get").Call()
+		g.If(Op("!").Id("found")).BlockFunc(func(g *Group) {
+			g.Return(respDesc.Zero(), Qual("encore.dev/beta/errs", "B").Call().
+				Dot("Code").Call(Qual("encore.dev/beta/errs", "NotFound")).
+				Dot("Msgf").Call(Lit("endpoint %s.%s not found"), Lit(targetSvcName), Lit(ep.Name)).
+				Dot("Err").Call())
+		})
+		
+		// Get the AppHandler from the found handler's API descriptor
+		g.Comment("Cast handler to *Desc to access AppHandler")
+		g.Id("desc").Op(":=").Id("handler").Assert(Op("*").Qual("encore.dev/appruntime/apisdk/api", "Desc").Types(reqDesc.Type(), respDesc.Type()))
+		
+		// Check if AppHandler exists
+		g.If(Id("desc").Dot("AppHandler").Op("==").Nil()).BlockFunc(func(g *Group) {
+			g.Return(respDesc.Zero(), Qual("encore.dev/beta/errs", "B").Call().
+				Dot("Code").Call(Qual("encore.dev/beta/errs", "Unimplemented")).
+				Dot("Msgf").Call(Lit("endpoint %s.%s has no AppHandler"), Lit(targetSvcName), Lit(ep.Name)).
+				Dot("Err").Call())
+		})
+		
+		// Call the AppHandler
+		if ep.Response != nil {
+			g.Return(Id("desc").Dot("AppHandler").Call(Id("ctx"), Id("reqData")))
+		} else {
+			g.List(Id("_"), Id("err")).Op(":=").Id("desc").Dot("AppHandler").Call(Id("ctx"), Id("reqData"))
+			g.Return(respDesc.Zero(), Id("err"))
+		}
+	})
+}
+
+// genServiceAppHandler generates an AppHandler for the service that calls the actual service method
+func genServiceAppHandler(gu *genutil.Helper, ep *api.Endpoint, svcStruct option.Option[*codegen.VarDecl], reqDesc *apigenutil.RequestDesc, respDesc *apigenutil.ResponseDesc) *Statement {
+	if ep.Raw {
+		return Nil()
+	}
+
+	return Func().Params(
+		Id("ctx").Qual("context", "Context"),
+		Id("reqData").Add(reqDesc.Type()),
+	).Params(respDesc.Type(), Error()).BlockFunc(func(g *Group) {
+		if svc, ok := svcStruct.Get(); ok {
+			// Call the service struct method
+			args := []Code{Id("ctx")}
+
+			// Add path parameters
+			for i := range ep.Path.Params() {
+				args = append(args, Id("reqData").Dot(reqDesc.PathParamFieldName(i)))
+			}
+
+			// Add request payload if exists
+			if ep.Request != nil {
+				args = append(args, Id("reqData").Dot(reqDesc.ReqDataPayloadName()))
+			}
+
+			if ep.Response != nil {
+				g.Return(Add(svc.Qual()).Dot(ep.Name).Call(args...))
+			} else {
+				g.Return(respDesc.Zero(), Add(svc.Qual()).Dot(ep.Name).Call(args...))
+			}
+		} else {
+			// Call package-level function
+			args := []Code{Id("ctx")}
+
+			// Add path parameters
+			for i := range ep.Path.Params() {
+				args = append(args, Id("reqData").Dot(reqDesc.PathParamFieldName(i)))
+			}
+
+			// Add request payload if exists
+			if ep.Request != nil {
+				args = append(args, Id("reqData").Dot(reqDesc.ReqDataPayloadName()))
+			}
+
+			if ep.Response != nil {
+				g.Return(Qual(ep.Decl.File.Pkg.ImportPath.String(), ep.Name).Call(args...))
+			} else {
+				g.Return(respDesc.Zero(), Qual(ep.Decl.File.Pkg.ImportPath.String(), ep.Name).Call(args...))
+			}
+		}
+	})
+}
+
+// genServiceRawHandler generates a RawHandler for raw endpoints
+func genServiceRawHandler(gu *genutil.Helper, ep *api.Endpoint, svcStruct option.Option[*codegen.VarDecl]) *Statement {
+	if !ep.Raw {
+		return Nil()
+	}
+
+	return Func().Params(
+		Id("w").Qual("net/http", "ResponseWriter"),
+		Id("req").Op("*").Qual("net/http", "Request"),
+	).BlockFunc(func(g *Group) {
+		if svc, ok := svcStruct.Get(); ok {
+			// Call the service struct method
+			g.Add(svc.Qual()).Dot(ep.Name).Call(Id("w"), Id("req"))
+		} else {
+			// Call package-level function
+			g.Qual(ep.Decl.File.Pkg.ImportPath.String(), ep.Name).Call(Id("w"), Id("req"))
+		}
+	})
 }
 
 func genRequestType(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint) bool {
@@ -492,51 +607,6 @@ func genClientInterfaceMethod(gu *genutil.Helper, g *Group, ep *api.Endpoint, ha
 	g.Id(ep.Name).Params(params...).Params(funcParams...)
 }
 
-// genClientAppHandler generates an AppHandler function for client-side calls
-// that uses the LookupEndpoint method to find and call the target service endpoint
-func genClientAppHandler(gu *genutil.Helper, ep *api.Endpoint, targetSvcName string, reqDesc *apigenutil.RequestDesc, respDesc *apigenutil.ResponseDesc) *Statement {
-	if ep.Raw {
-		return Nil()
-	}
-
-	return Func().Params(
-		Id("ctx").Qual("context", "Context"),
-		Id("reqData").Add(reqDesc.Type()),
-	).Params(respDesc.Type(), Error()).BlockFunc(func(g *Group) {
-		// Look up the target endpoint using the new lookup functionality
-		g.Id("handlerOpt").Op(":=").Qual("encore.dev/appruntime/apisdk/api", "LookupEndpoint").Call(Lit(targetSvcName), Lit(ep.Name))
-		
-		// Check if the handler was found
-		g.List(Id("handler"), Id("found")).Op(":=").Id("handlerOpt").Dot("Get").Call()
-		g.If(Op("!").Id("found")).BlockFunc(func(g *Group) {
-			g.Return(respDesc.Zero(), Qual("encore.dev/beta/errs", "B").Call().
-				Dot("Code").Call(Qual("encore.dev/beta/errs", "NotFound")).
-				Dot("Msgf").Call(Lit("endpoint %s.%s not found"), Lit(targetSvcName), Lit(ep.Name)).
-				Dot("Err").Call())
-		})
-		
-		// Get the AppHandler from the found handler's API descriptor
-		g.Comment("Cast handler to *Desc to access AppHandler")
-		g.Id("desc").Op(":=").Id("handler").Assert(Op("*").Qual("encore.dev/appruntime/apisdk/api", "Desc").Types(reqDesc.Type(), respDesc.Type()))
-		
-		// Check if AppHandler exists
-		g.If(Id("desc").Dot("AppHandler").Op("==").Nil()).BlockFunc(func(g *Group) {
-			g.Return(respDesc.Zero(), Qual("encore.dev/beta/errs", "B").Call().
-				Dot("Code").Call(Qual("encore.dev/beta/errs", "Unimplemented")).
-				Dot("Msgf").Call(Lit("endpoint %s.%s has no AppHandler"), Lit(targetSvcName), Lit(ep.Name)).
-				Dot("Err").Call())
-		})
-		
-		// Call the AppHandler
-		if ep.Response != nil {
-			g.Return(Id("desc").Dot("AppHandler").Call(Id("ctx"), Id("reqData")))
-		} else {
-			g.List(Id("_"), Id("err")).Op(":=").Id("desc").Dot("AppHandler").Call(Id("ctx"), Id("reqData"))
-			g.Return(respDesc.Zero(), Id("err"))
-		}
-	})
-}
-
 func genResponseType(gu *genutil.Helper, f *codegen.File, ep *api.Endpoint) bool {
 	if ep.Response == nil {
 		return false
@@ -687,7 +757,7 @@ func genClientEndpointWithDescs(gu *genutil.Helper, f *codegen.File, ep *api.End
 
 	// Generate the function
 	f.Jen.Func().Id(ep.Name).Params(params...).Params(funcParams...).BlockFunc(func(g *Group) {
-		if renderImpl {
+		if renderImpl && desc != nil {
 			// Create call context
 			g.Id("callCtx").Op(":=").Qual("encore.dev/appruntime/apisdk/api", "NewCallContext").Call(Id(ctxParam))
 
@@ -715,7 +785,6 @@ func genClientEndpointWithDescs(gu *genutil.Helper, f *codegen.File, ep *api.End
 			if ep.Response != nil {
 				g.Return(gu.Zero(ep.Response), Nil())
 			} else {
-				// Just an error return
 				g.Return(Nil())
 			}
 		}
@@ -767,4 +836,3 @@ func genClientInterfaceMethodWithDescs(gu *genutil.Helper, g *Group, ep *api.End
 	// Generate the interface method signature
 	g.Id(ep.Name).Params(params...).Params(funcParams...)
 }
-
