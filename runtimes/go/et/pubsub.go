@@ -1,3 +1,5 @@
+//go:build encore_app
+
 package et
 
 import (
@@ -6,6 +8,9 @@ import (
 
 // Topic returns a TopicHelper for the given topic.
 func Topic[T any](topic *pubsub.Topic[T]) TopicHelpers[T] {
+	if Singleton.runtime.EnvType != "test" {
+		panic("et: cannot mock topic in non-test environment")
+	}
 	return pubsub.GetTestTopicInstance(topic).(TopicHelpers[T])
 }
 

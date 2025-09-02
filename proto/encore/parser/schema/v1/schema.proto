@@ -152,9 +152,10 @@ message Field {
 // WireLocation provides information about how a field should be encoded on the wire.
 message WireSpec {
   oneof location {
-    Header header = 1;
-    Query  query  = 2;
-    Cookie cookie = 3;
+    Header     header     = 1;
+    Query      query      = 2;
+    Cookie     cookie     = 3;
+    HttpStatus http_status = 4;
   }
 
   message Header {
@@ -173,6 +174,11 @@ message WireSpec {
     // The explicitly specified cookie string name.
     // If empty, the name of the field is used.
     optional string name = 1;
+  }
+
+  message HttpStatus {
+    // HttpStatus fields don't have a name parameter
+    // as they represent the HTTP status code itself
   }
 }
 

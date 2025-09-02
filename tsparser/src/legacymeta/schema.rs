@@ -363,6 +363,24 @@ impl BuilderCtx<'_, '_> {
                                 )),
                             })
                         }
+
+                        WireLocation::HttpStatus => {
+                            tags.push(schema::Tag {
+                                key: "encore".into(),
+                                name: "httpstatus".into(),
+                                options: if f.optional {
+                                    vec!["optional".into()]
+                                } else {
+                                    vec![]
+                                },
+                            });
+
+                            Some(schema::WireSpec {
+                                location: Some(schema::wire_spec::Location::HttpStatus(
+                                    schema::wire_spec::HttpStatus {},
+                                )),
+                            })
+                        }
                     },
                 )
             } else {

@@ -520,6 +520,11 @@ export interface CallOpts {
   /* authData?: AuthData */
 }
 
+import { HttpStatusValues } from "./httpstatus";
+export const HttpStatus = HttpStatusValues;
+export type HttpStatus =
+  (typeof HttpStatusValues)[keyof typeof HttpStatusValues];
+
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
 export { IterableSocket, IterableStream, Sink } from "./stream";

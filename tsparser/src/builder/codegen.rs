@@ -8,7 +8,6 @@ use crate::app::AppDesc;
 use anyhow::Context;
 use clean_path::Clean;
 use itertools::Itertools;
-use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::builder::package_mgmt::resolve_package_manager;
@@ -32,13 +31,6 @@ pub struct CodegenParams<'a> {
 pub struct CodegenResult {
     /// The path to node_modules.
     pub node_modules: PathBuf,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LinkResult {
-    /// Whether the application is linked to the local runtime,
-    /// as opposed to a published version.
-    pub uses_local_runtime: bool,
 }
 
 impl Builder<'_> {

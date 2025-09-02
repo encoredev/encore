@@ -265,6 +265,7 @@ fn build_auth_handler(
             supports_query: true,
             supports_header: true,
             supports_path: false,
+            supports_http_status: false,
         };
 
         cfg.compute(auth_params)

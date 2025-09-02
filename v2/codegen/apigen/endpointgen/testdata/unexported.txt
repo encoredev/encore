@@ -106,7 +106,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	EncodeExternalReq: func(reqData *EncoreInternal_FooReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
 		return nil, nil, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_FooResp, status int) (err error) {
 		respData := []byte("null\n")
 		if resp != nil {
 			// Encode JSON body
@@ -119,7 +119,12 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 			respData = append(respData, '\n')
 		}
 
-		// Write response
+		// Set HTTP status code
+		if status != 0 {
+			w.WriteHeader(status)
+		}
+
+		// Write response body
 		w.Write(respData)
 		return nil
 	},

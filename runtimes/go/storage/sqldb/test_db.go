@@ -34,8 +34,11 @@ func (mgr *Manager) NewTestDatabase(ctx context.Context, name string) (*Database
 	mgr.ts.AddEndCallback(func(t *testing.T) {
 		// Shut down the connection pools and attempt to drop the database.
 		clone.shutdown()
-		_, _ = db.Exec(ctx, fmt.Sprintf("DROP DATABASE %s WITH (FORCE)",
+		_, err := db.Exec(context.Background(), fmt.Sprintf("DROP DATABASE %s WITH (FORCE)",
 			pgx.Identifier{dbName}.Sanitize()))
+		if err != nil {
+			mgr.rootLogger.Error().Err(err).Str("database", dbName).Msg("failed to clean up test database")
+		}
 	})
 	return clone, nil
 }

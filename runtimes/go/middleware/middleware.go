@@ -7,6 +7,7 @@ package middleware
 
 import (
 	"context"
+	"net/http"
 
 	encore "encore.dev"
 )
@@ -92,6 +93,31 @@ type Response struct {
 	// For raw handlers middleware cannot modify this as it has already
 	// been written to the network.
 	HTTPStatus int
+
+	// headers are HTTP headers to add to the response, lazily initialized.
+	// Use Header() method to access.
+	headers http.Header
+}
+
+// Header returns the header map that will be sent by the response.
+// The returned map is lazily initialized on first call.
+// Changing the header map after a call to WriteHeader has no effect.
+//
+// For raw handlers middleware cannot modify headers as the response has already
+// been written to the network.
+func (r *Response) Header() http.Header {
+	if r.headers == nil {
+		r.headers = make(http.Header)
+	}
+	return r.headers
+}
+
+// GetHeaders returns the headers map, or nil if no headers have been set.
+// This method is used internally by the Encore runtime.
+//
+//publicapigen:drop
+func (r *Response) GetHeaders() http.Header {
+	return r.headers
 }
 
 // NewRequest constructs a new Request that returns the given context and request data.

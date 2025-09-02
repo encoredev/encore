@@ -78,7 +78,7 @@ var EncoreInternal_api_APIDesc_Tagged = &__api.Desc[*EncoreInternal_TaggedReq, E
 	EncodeExternalReq: func(reqData *EncoreInternal_TaggedReq, stream *jsoniter.Stream) (httpHeader http.Header, queryString url.Values, err error) {
 		return nil, nil, nil
 	},
-	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_TaggedResp) (err error) {
+	EncodeResp: func(w http.ResponseWriter, json jsoniter.API, resp EncoreInternal_TaggedResp, status int) (err error) {
 		return nil
 	},
 	Endpoint:            "Tagged",

@@ -13,6 +13,10 @@ import (
 //
 // It does not support setting slices and panics if given a config value that is a slice.
 func SetCfg[T any](cfg config.Value[T], newValue T) {
+	if Singleton.runtime.EnvType != "test" {
+		panic("et: cannot set config in non-test environment")
+	}
+
 	rt := reflect.TypeOf(newValue)
 	switch rt.Kind() {
 	case reflect.Slice:

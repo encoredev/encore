@@ -45,6 +45,7 @@ type Request struct {
 	Endpoint   string     // Which API endpoint is being called
 	Path       string     // What was the path made to the API server
 	PathParams PathParams // If there are path parameters, what are they?
+	Method     string     // What HTTP method was used
 
 	// Headers contains the request headers sent with the request, if any.
 	//
@@ -174,6 +175,7 @@ func (mgr *Manager) CurrentRequest() *Request {
 			result.PathParams[i].Name = param.Name
 			result.PathParams[i].Value = param.Value
 		}
+		result.Method = data.HTTPMethod
 		result.Headers = data.RequestHeaders
 
 		result.API = &APIDesc{

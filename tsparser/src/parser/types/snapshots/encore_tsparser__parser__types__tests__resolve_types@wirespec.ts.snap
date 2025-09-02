@@ -111,4 +111,38 @@ input_file: tsparser/src/parser/types/testdata/wirespec.ts
             call: None,
         },
     ),
+    "ResponseWithStatus": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "data",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "status",
+                    ),
+                    optional: false,
+                    typ: Custom(
+                        WireSpec(
+                            WireSpec {
+                                location: HttpStatus,
+                                underlying: Basic(
+                                    Number,
+                                ),
+                                name_override: None,
+                            },
+                        ),
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
 }
