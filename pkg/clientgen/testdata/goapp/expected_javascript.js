@@ -97,6 +97,7 @@ export const products = {
 class SvcServiceClient {
     constructor(baseClient) {
         this.baseClient = baseClient
+        this.CreateDocumentedOrder = this.CreateDocumentedOrder.bind(this)
         this.DummyAPI = this.DummyAPI.bind(this)
         this.FallbackPath = this.FallbackPath.bind(this)
         this.Get = this.Get.bind(this)
@@ -109,6 +110,12 @@ class SvcServiceClient {
         this.TupleInputOutput = this.TupleInputOutput.bind(this)
         this.Webhook = this.Webhook.bind(this)
         this.Webhook2 = this.Webhook2.bind(this)
+    }
+
+    async CreateDocumentedOrder(params) {
+        // Now make the actual call to the API
+        const resp = await this.baseClient.callTypedAPI("POST", `/svc.CreateDocumentedOrder`, JSON.stringify(params))
+        return await resp.json()
     }
 
     /**

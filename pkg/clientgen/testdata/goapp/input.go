@@ -50,7 +50,21 @@ type GetRequest struct {
     Baz int    `qs:"boo"`
 }
 
+// Foo represents a documented integer type
 type Foo int
+
+// DocumentedUser represents a user in the system with profile information  
+type DocumentedUser struct {
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+// DocumentedOrder represents a customer order with references
+type DocumentedOrder struct {
+    // Customer who placed this order (different from shipping recipient)
+    Customer DocumentedUser `json:"customer"`
+    OrderID  string         `json:"order_id"`
+}
 
 type Nested struct {
     Value string
@@ -159,6 +173,11 @@ func Nested(ctx context.Context, req *WithNested) (*WithNested, error) {
 //encore:api public method=POST
 func Rec(ctx context.Context, req *Recursive) (*Recursive, error) {
     return nil, nil
+}
+
+//encore:api public method=POST
+func CreateDocumentedOrder(ctx context.Context, req *DocumentedOrder) (*DocumentedOrder, error) {
+    return req, nil
 }
 -- svc/nested/nested.go --
 package nested

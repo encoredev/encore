@@ -69,7 +69,21 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 			val := g.schemaType(f.Typ)
 
 			if vv := val.Value; vv != nil {
+				// Direct schema - can set title and description directly
 				vv.Title, vv.Description = splitDoc(f.Doc)
+			} else if val.Ref != "" && f.Doc != "" {
+				// Schema reference with field documentation - use allOf pattern to add description
+				// This is the recommended workaround for OpenAPI 3.0 to add descriptions to $ref
+				// See: https://github.com/OAI/OpenAPI-Specification/issues/2033
+				// OpenAPI 3.1 supports description alongside $ref directly, but we use a library that doesn't support 3.1 yet
+				title, description := splitDoc(f.Doc)
+				val = &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						AllOf:       []*openapi3.SchemaRef{val},
+						Title:       title,
+						Description: description,
+					},
+				}
 			}
 			props[jsonName] = val
 		}
@@ -270,7 +284,21 @@ func (g *Generator) namedSchemaType(typ *schema.Named) *openapi3.SchemaRef {
 			g.seenDecls[candidate] = typ.Id
 			g.spec.Components.Schemas[candidate] = nil
 
-			g.spec.Components.Schemas[candidate] = g.schemaType(concrete)
+			// Generate the schema and add the declaration's documentation
+			schemaRef := g.schemaType(concrete)
+			if schemaRef.Value != nil {
+				// Get the declaration to access its documentation
+				if decl := g.md.Decls[typ.Id]; decl != nil && decl.Doc != "" {
+					title, description := splitDoc(decl.Doc)
+					if schemaRef.Value.Title == "" {
+						schemaRef.Value.Title = title
+					}
+					if schemaRef.Value.Description == "" {
+						schemaRef.Value.Description = description
+					}
+				}
+			}
+			g.spec.Components.Schemas[candidate] = schemaRef
 		}
 
 		return &openapi3.SchemaRef{

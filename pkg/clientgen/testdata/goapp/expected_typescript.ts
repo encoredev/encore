@@ -222,6 +222,29 @@ export namespace svc {
         Dave: A
     }
 
+    /**
+     * DocumentedOrder represents a customer order with references
+     */
+    export interface DocumentedOrder {
+        /**
+         * Customer who placed this order (different from shipping recipient)
+         */
+        customer: DocumentedUser
+
+        "order_id": string
+    }
+
+    /**
+     * DocumentedUser represents a user in the system with profile information
+     */
+    export interface DocumentedUser {
+        name: string
+        email: string
+    }
+
+    /**
+     * Foo represents a documented integer type
+     */
     export type Foo = number
 
     export interface GetRequest {
@@ -295,6 +318,7 @@ export namespace svc {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.CreateDocumentedOrder = this.CreateDocumentedOrder.bind(this)
             this.DummyAPI = this.DummyAPI.bind(this)
             this.FallbackPath = this.FallbackPath.bind(this)
             this.Get = this.Get.bind(this)
@@ -307,6 +331,12 @@ export namespace svc {
             this.TupleInputOutput = this.TupleInputOutput.bind(this)
             this.Webhook = this.Webhook.bind(this)
             this.Webhook2 = this.Webhook2.bind(this)
+        }
+
+        public async CreateDocumentedOrder(params: DocumentedOrder): Promise<DocumentedOrder> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/svc.CreateDocumentedOrder`, JSON.stringify(params))
+            return await resp.json() as DocumentedOrder
         }
 
         /**
