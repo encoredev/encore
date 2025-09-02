@@ -222,6 +222,19 @@ type SvcAllInputTypes[A any] struct {
 	Dave A         // This generic type complicates the whole thing 🙈
 }
 
+// DocumentedOrder represents a customer order with references
+type SvcDocumentedOrder struct {
+	Customer SvcDocumentedUser `json:"customer"` // Customer who placed this order (different from shipping recipient)
+	OrderID  string            `json:"order_id"`
+}
+
+// DocumentedUser represents a user in the system with profile information
+type SvcDocumentedUser struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// Foo represents a documented integer type
 type SvcFoo = int
 
 type SvcGetRequest struct {
@@ -280,6 +293,8 @@ type SvcWrapper[T any] struct {
 // SvcClient Provides you access to call public and authenticated APIs on svc. The concrete implementation is svcClient.
 // It is setup as an interface allowing you to use GoMock to create mock implementations during tests.
 type SvcClient interface {
+	CreateDocumentedOrder(ctx context.Context, params SvcDocumentedOrder) (SvcDocumentedOrder, error)
+
 	// DummyAPI is a dummy endpoint.
 	DummyAPI(ctx context.Context, params SvcRequest) error
 	FallbackPath(ctx context.Context, a string, b []string) error
@@ -303,6 +318,16 @@ type svcClient struct {
 }
 
 var _ SvcClient = (*svcClient)(nil)
+
+func (c *svcClient) CreateDocumentedOrder(ctx context.Context, params SvcDocumentedOrder) (resp SvcDocumentedOrder, err error) {
+	// Now make the actual call to the API
+	_, err = callAPI(ctx, c.base, "POST", "/svc.CreateDocumentedOrder", nil, params, &resp)
+	if err != nil {
+		return
+	}
+
+	return
+}
 
 // DummyAPI is a dummy endpoint.
 func (c *svcClient) DummyAPI(ctx context.Context, params SvcRequest) error {
