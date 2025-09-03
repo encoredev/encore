@@ -1,0 +1,33 @@
+package clientgen
+
+import (
+	"testing"
+
+	"encr.dev/pkg/option"
+	"encr.dev/v2/app"
+	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen/endpointgen"
+	"encr.dev/v2/codegen/apigen/servicestructgen"
+	"encr.dev/v2/codegen/apigen/userfacinggen"
+	"encr.dev/v2/codegen/internal/codegentest"
+)
+
+func TestCodegen(t *testing.T) {
+	fn := func(gen *codegen.Generator, desc *app.Desc) {
+		svc := desc.Services[0]
+		var svcStruct option.Option[*codegen.VarDecl]
+		if fw, ok := svc.Framework.Get(); ok {
+			if ss, ok := fw.ServiceStruct.Get(); ok {
+				decl := servicestructgen.Gen(gen, svc, ss)
+				svcStruct = option.Some(decl)
+
+			}
+
+			userfacinggen.Gen(gen, svc, svcStruct)
+		}
+		// generate endpointgen as there is dependencies to that package
+		endpointgen.Gen(gen, desc, svc, svcStruct, nil)
+		Gen(gen, desc, svc)
+	}
+	codegentest.Run(t, fn)
+}

@@ -9,6 +9,7 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/authhandlergen"
+	"encr.dev/v2/codegen/apigen/clientgen"
 	"encr.dev/v2/codegen/apigen/endpointgen"
 	"encr.dev/v2/codegen/apigen/maingen"
 	"encr.dev/v2/codegen/apigen/middlewaregen"
@@ -75,6 +76,9 @@ func Process(p Params) *config.Static {
 				svcMiddleware = middlewaregen.Gen(p.Gen, svcDesc.Middleware, svcStruct)
 				maps.Copy(gp.Middleware, svcMiddleware)
 			}
+
+			// Generate service client package
+			clientgen.Gen(p.Gen, p.Desc, svc)
 
 			eps := endpointgen.Gen(p.Gen, p.Desc, svc, svcStruct, svcMiddleware)
 			maps.Copy(gp.APIHandlers, eps)

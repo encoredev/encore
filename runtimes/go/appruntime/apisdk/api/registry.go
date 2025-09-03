@@ -2,10 +2,16 @@
 
 package api
 
-import "reflect"
+import (
+	"reflect"
+)
 
 func RegisterEndpoint(handler Handler, function any) {
 	Singleton.registerEndpoint(handler, function)
+}
+
+func LookupEndpoint(serviceName, endpointName string) (Handler, bool) {
+	return Singleton.lookupEndpoint(serviceName, endpointName)
 }
 
 func RegisterAuthHandler(handler AuthHandler) {

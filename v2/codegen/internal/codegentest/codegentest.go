@@ -68,6 +68,9 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 			overlays := gen.Overlays()
 			got := make(map[string]string, len(overlays))
 			for _, o := range overlays {
+				// fmt.Println(o.Source.ToIO())
+				// fmt.Println(string(o.Contents))
+
 				// Try to compute a reasonable display path for the file.
 				// If it's local within the main module, use that.
 				// Otherwise check if it's within the runtime module,

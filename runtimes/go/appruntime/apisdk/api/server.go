@@ -115,6 +115,7 @@ type Server struct {
 	globalMiddleware    map[string]*Middleware
 	registeredHandlers  []Handler
 	functionsToHandlers map[uintptr]Handler
+	endpointLookup      map[string]Handler // key is "serviceName/endpointName"
 
 	public           *httprouter.Router
 	publicFallback   *httprouter.Router
@@ -176,6 +177,7 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		tracingEnabled:      rt.TracingEnabled(),
 		experiments:         experiments.FromConfig(static, runtime),
 		functionsToHandlers: make(map[uintptr]Handler),
+		endpointLookup:      make(map[string]Handler),
 
 		public:           newRouter(),
 		publicFallback:   newRouter(),
@@ -340,6 +342,10 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 
 	s.registeredHandlers = append(s.registeredHandlers, h)
 
+	// Add to endpoint lookup map for efficient retrieval
+	lookupKey := h.ServiceName() + "/" + h.EndpointName()
+	s.endpointLookup[lookupKey] = h
+
 	// Register the adapter
 	for _, m := range h.HTTPMethods() {
 		if m == "*" {
@@ -366,6 +372,14 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 // HandlerForFunc returns the Handler for the given function or nil if it does not exist.
 func (s *Server) HandlerForFunc(function any) Handler {
 	return s.functionsToHandlers[reflect.ValueOf(function).Pointer()]
+}
+
+// lookupEndpoint returns the Handler for the given service and endpoint name.
+// Returns an Option containing the handler if found, or None if not found.
+func (s *Server) lookupEndpoint(serviceName, endpointName string) (Handler, bool) {
+	lookupKey := serviceName + "/" + endpointName
+	handler, found := s.endpointLookup[lookupKey]
+	return handler, found
 }
 
 // ServiceExists returns true if the given service exists and has at least one endpoint.
