@@ -76,7 +76,7 @@ As of Vitest plugin version 0.5 ([issue](https://github.com/vitest-dev/vscode/is
 
 Update `settings.json` to include:
 
-```jsonc
+```json
 "vitest.nodeEnv": {
     // generated with `encore daemon env | grep ENCORE_RUNTIME_LIB | cut -d'=' -f2`
     "ENCORE_RUNTIME_LIB": "/opt/homebrew/Cellar/encore/1.44.5/libexec/runtimes/js/encore-runtime.node"
