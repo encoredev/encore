@@ -90,6 +90,10 @@ type Handler interface {
 	Handle(c IncomingContext)
 }
 
+type Callable[Req, Resp any] interface {
+	Call(ctx context.Context, req Req) (Resp, error)
+}
+
 type requestsTotalLabels struct {
 	endpoint string // Endpoint name.
 	code     string // Human-readable HTTP status code.
@@ -115,7 +119,7 @@ type Server struct {
 	globalMiddleware    map[string]*Middleware
 	registeredHandlers  []Handler
 	functionsToHandlers map[uintptr]Handler
-	endpointLookup      map[string]Handler // key is "serviceName/endpointName"
+	endpointLookup      map[string]Handler // key is "serviceName.endpointName"
 
 	public           *httprouter.Router
 	publicFallback   *httprouter.Router
@@ -343,7 +347,7 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 	s.registeredHandlers = append(s.registeredHandlers, h)
 
 	// Add to endpoint lookup map for efficient retrieval
-	lookupKey := h.ServiceName() + "/" + h.EndpointName()
+	lookupKey := h.ServiceName() + "." + h.EndpointName()
 	s.endpointLookup[lookupKey] = h
 
 	// Register the adapter
@@ -377,7 +381,7 @@ func (s *Server) HandlerForFunc(function any) Handler {
 // lookupEndpoint returns the Handler for the given service and endpoint name.
 // Returns an Option containing the handler if found, or None if not found.
 func (s *Server) lookupEndpoint(serviceName, endpointName string) (Handler, bool) {
-	lookupKey := serviceName + "/" + endpointName
+	lookupKey := serviceName + "." + endpointName
 	handler, found := s.endpointLookup[lookupKey]
 	return handler, found
 }

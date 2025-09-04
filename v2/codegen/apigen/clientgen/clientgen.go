@@ -22,7 +22,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service) {
 			svc.Name+"client",
 			clientPkgDir,
 			fmt.Sprintf("encore_internal__%sclient.go", svc.Name),
-			"apidesc",
+			svc.Name+"client",
 		)
 
 		for _, ep := range fw.Endpoints {
@@ -114,13 +114,13 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 		fw, _ := svc.Framework.Get()
 		svcPkgPath := fw.RootPkg.ImportPath
 
-		// Cast handler to the appropriate Desc type
-		descVar := alloc("desc")
+		// Cast handler to the appropriate Callable interface
+		callableVar := alloc("callable")
 		reqTypeName := fmt.Sprintf("EncoreInternal_%sReq", ep.Name)
 		respTypeName := fmt.Sprintf("EncoreInternal_%sResp", ep.Name)
 
-		// Type assert the handler
-		g.List(Id(descVar), Id("ok")).Op(":=").Id(handlerVar).Assert(Op("*").Qual("encore.dev/appruntime/apisdk/api", "Desc").Types(
+		// Type assert the handler to Callable interface
+		g.List(Id(callableVar), Id("ok")).Op(":=").Id(handlerVar).Assert(Qual("encore.dev/appruntime/apisdk/api", "Callable").Types(
 			Op("*").Qual(string(svcPkgPath), reqTypeName),
 			Qual(string(svcPkgPath), respTypeName),
 		))
@@ -148,16 +148,13 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 			}
 		}))
 
-		// Make the call
-		callCtx := alloc("callCtx")
-		g.Id(callCtx).Op(":=").Qual("encore.dev/appruntime/apisdk/api", "NewCallContext").Call(Id(ctxName))
-
+		// Call the Call method on the callable
 		if resp := ep.Response; resp != nil {
 			respVar := alloc("resp")
-			g.List(Id(respVar), Err()).Op(":=").Id(descVar).Dot("Call").Call(Id(callCtx), Id(reqVar))
+			g.List(Id(respVar), Err()).Op(":=").Id(callableVar).Dot("Call").Call(Id(ctxName), Id(reqVar))
 			g.Return(Id(respVar), Err())
 		} else {
-			g.List(Id("_"), Err()).Op(":=").Id(descVar).Dot("Call").Call(Id(callCtx), Id(reqVar))
+			g.List(Id("_"), Err()).Op(":=").Id(callableVar).Dot("Call").Call(Id(ctxName), Id(reqVar))
 			g.Return(Err())
 		}
 	})
