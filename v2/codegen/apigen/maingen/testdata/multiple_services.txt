@@ -108,6 +108,52 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 	SvcNum:            1,
 	Tags:              nil,
 }
+-- want:clients/bar/encore_internal__barclient.go --
+package barclient
+
+import (
+	"context"
+	__api "encore.dev/appruntime/apisdk/api"
+	"errors"
+	bar "example.com/bar"
+)
+
+func Bar(ctx context.Context) error {
+	handler, ok := __api.LookupEndpoint("bar", "Bar")
+	if !ok {
+		return errors.New("no endpoint registered for bar.Bar")
+	}
+	callable, ok := handler.(__api.Callable[*bar.EncoreInternal_BarReq, bar.EncoreInternal_BarResp])
+	if !ok {
+		return errors.New("handler for bar.Bar has unexpected type")
+	}
+	reqData := &bar.EncoreInternal_BarReq{}
+	_, err := callable.Call(ctx, reqData)
+	return err
+}
+-- want:clients/foo/encore_internal__fooclient.go --
+package fooclient
+
+import (
+	"context"
+	__api "encore.dev/appruntime/apisdk/api"
+	"errors"
+	foo "example.com/foo"
+)
+
+func Foo(ctx context.Context) error {
+	handler, ok := __api.LookupEndpoint("foo", "Foo")
+	if !ok {
+		return errors.New("no endpoint registered for foo.Foo")
+	}
+	callable, ok := handler.(__api.Callable[*foo.EncoreInternal_FooReq, foo.EncoreInternal_FooResp])
+	if !ok {
+		return errors.New("handler for foo.Foo has unexpected type")
+	}
+	reqData := &foo.EncoreInternal_FooReq{}
+	_, err := callable.Call(ctx, reqData)
+	return err
+}
 -- want:encore_internal/main/main.go --
 package main
 

@@ -21,13 +21,12 @@ func Foo(ctx context.Context) error {
 	if !ok {
 		return errors.New("no endpoint registered for basic.Foo")
 	}
-	desc, ok := handler.(*__api.Desc[*examplecom.EncoreInternal_FooReq, examplecom.EncoreInternal_FooResp])
+	callable, ok := handler.(__api.Callable[*examplecom.EncoreInternal_FooReq, examplecom.EncoreInternal_FooResp])
 	if !ok {
 		return errors.New("handler for basic.Foo has unexpected type")
 	}
 	reqData := &examplecom.EncoreInternal_FooReq{}
-	callCtx := __api.NewCallContext(ctx)
-	_, err := desc.Call(callCtx, reqData)
+	_, err := callable.Call(ctx, reqData)
 	return err
 }
 -- want:encore.gen.go --
