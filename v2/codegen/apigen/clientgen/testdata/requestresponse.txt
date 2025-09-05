@@ -236,3 +236,5 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*EncoreInternal_FooReq, EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo

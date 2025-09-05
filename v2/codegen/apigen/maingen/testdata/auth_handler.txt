@@ -162,6 +162,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*codewrappers.EncoreInternal_Fo
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*codewrappers.EncoreInternal_FooReq, codewrappers.EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo
 -- want:encore_internal__authhandler.go --
 package code
 

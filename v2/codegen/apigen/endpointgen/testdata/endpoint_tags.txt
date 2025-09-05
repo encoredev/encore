@@ -106,3 +106,5 @@ var EncoreInternal_api_APIDesc_Tagged = &__api.Desc[*codewrappers.EncoreInternal
 	SvcNum:            1,
 	Tags:              []string{"bar", "foo"},
 }
+
+var _ __api.Callable[*codewrappers.EncoreInternal_TaggedReq, codewrappers.EncoreInternal_TaggedResp] = EncoreInternal_api_APIDesc_Tagged

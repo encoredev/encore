@@ -238,6 +238,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*servicewrappers.EncoreInternal
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*servicewrappers.EncoreInternal_FooReq, servicewrappers.EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo
 -- want:service/servicewrappers/wrappers.go --
 package servicewrappers
 

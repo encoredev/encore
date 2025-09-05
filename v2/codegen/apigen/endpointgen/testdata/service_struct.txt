@@ -121,6 +121,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*basicwrappers.EncoreInternal_F
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*basicwrappers.EncoreInternal_FooReq, basicwrappers.EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo
 -- want:encore_internal__svcstruct.go --
 package basic
 
