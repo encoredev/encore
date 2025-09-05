@@ -330,6 +330,10 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 		private, public = s.privateFallback, s.publicFallback
 	}
 
+	// Add to endpoint lookup map for service clients
+	lookupKey := h.ServiceName() + "." + h.EndpointName()
+	s.endpointLookup[lookupKey] = h
+
 	var adapter httprouter.Handle
 
 	switch {
@@ -345,10 +349,6 @@ func (s *Server) registerEndpoint(h Handler, function any) {
 	}
 
 	s.registeredHandlers = append(s.registeredHandlers, h)
-
-	// Add to endpoint lookup map for efficient retrieval
-	lookupKey := h.ServiceName() + "." + h.EndpointName()
-	s.endpointLookup[lookupKey] = h
 
 	// Register the adapter
 	for _, m := range h.HTTPMethods() {
