@@ -29,6 +29,9 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 			svc.Name+"client",
 		)
 
+		// Use a separate pkg for the types wrapping the request and response
+		// unless they are defined within the service.
+		// This so that one can import the client without importing the service.
 		useWrappersPkg := !apigenutil.HasInternalTypes(fw)
 
 		// Interface and struct names
