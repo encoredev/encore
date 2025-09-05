@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"encr.dev/pkg/namealloc"
 	"encr.dev/pkg/option"
@@ -29,7 +31,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 		)
 
 		// Interface and struct names
-		interfaceName := strings.Title(svc.Name) + "Client"
+		interfaceName := cases.Title(language.English).String(svc.Name) + "Client"
 		implName := svc.Name + "ClientImpl"
 
 		// Generate the interface
@@ -51,7 +53,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 		f.Jen.Line()
 
 		// Generate constructor
-		constructorName := "New" + strings.Title(svc.Name) + "Client"
+		constructorName := "New" + cases.Title(language.English).String(svc.Name) + "Client"
 		f.Jen.Comment(fmt.Sprintf("%s creates a new client for the %s service.", constructorName, svc.Name))
 		f.Jen.Func().Id(constructorName).Params().Id(interfaceName).Block(
 			Return(Op("&").Id(implName).Values()),
