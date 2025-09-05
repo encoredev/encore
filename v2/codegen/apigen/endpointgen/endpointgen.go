@@ -24,6 +24,9 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 	if fw, ok := svc.Framework.Get(); ok {
 		f := gen.File(fw.RootPkg, "api")
 
+		// Use a separate pkg for the types wrapping the request and response
+		// unless they are defined within the service.
+		// This so that one can import the client without importing the service.
 		useWrappersPkg := !apigenutil.HasInternalTypes(fw)
 
 		var handlers []*handlerDesc
