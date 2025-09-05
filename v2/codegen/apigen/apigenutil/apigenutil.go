@@ -6,6 +6,8 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/option"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
@@ -206,4 +208,35 @@ func BuildErrf(code, format string, args ...Code) *Statement {
 	p := "encore.dev/beta/errs"
 	args = append([]Code{Lit(format)}, args...)
 	return Qual(p, "B").Call().Dot("Code").Call(Qual(p, code)).Dot("Msgf").Call(args...).Dot("Err").Call()
+}
+
+func getNamed(t schema.Type) option.Option[schema.NamedType] {
+	if t == nil {
+		return option.None[schema.NamedType]()
+	}
+	if named, ok := t.(schema.NamedType); ok {
+		return option.Some(named)
+	}
+	if ptr, ok := t.(schema.PointerType); ok {
+		return getNamed(ptr.Elem)
+	}
+	return option.None[schema.NamedType]()
+}
+
+// Check if any of the types are defined within the service
+func HasInternalTypes(fw *apiframework.ServiceDesc) bool {
+	for _, ep := range fw.Endpoints {
+		if named, ok := getNamed(ep.Request).Get(); ok {
+			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
+				return true
+			}
+		}
+		if named, ok := getNamed(ep.Response).Get(); ok {
+			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
+				return true
+			}
+		}
+	}
+
+	return false
 }

@@ -11,8 +11,8 @@ import (
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/internals/resourcepaths"
-	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
@@ -24,15 +24,14 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 	if fw, ok := svc.Framework.Get(); ok {
 		f := gen.File(fw.RootPkg, "api")
 
+		useWrappersPkg := !apigenutil.HasInternalTypes(fw)
+
 		var handlers []*handlerDesc
 		for _, ep := range fw.Endpoints {
-			// Check if we should use a separate wrappers package
-			useWrappers := shouldUseWrappersPackage(fw, ep)
-
 			var wrappersFile *codegen.File
 			var wrappersPkg paths.Pkg
 
-			if useWrappers {
+			if useWrappersPkg {
 				// Create the wrappers package
 				wrappersPkg = paths.Pkg(fw.RootPkg.ImportPath).JoinSlash(paths.RelSlash(svc.Name + "wrappers"))
 				wrappersPkgDir := fw.RootPkg.FSPath.Join(svc.Name + "wrappers")
@@ -203,41 +202,6 @@ func rawPath(path *resourcepaths.Path) string {
 		nParam++
 	}
 	return b.String()
-}
-
-// shouldUseWrappersPackage determines if we should generate wrapper types in a separate package.
-// Returns true only if the endpoint has request/response types that are ALL defined outside the service package.
-// Returns false if any type is defined in the same package as the service (to avoid import cycles),
-// or if the endpoint has no request/response types at all.
-func shouldUseWrappersPackage(fw *apiframework.ServiceDesc, ep *api.Endpoint) bool {
-	hasExternalTypes := false
-
-	// Check if request type is from the same package
-	if ep.Request != nil {
-		if named, ok := ep.Request.(schema.NamedType); ok {
-			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
-				// Type is from same package, can't use wrappers
-				return false
-			}
-			// Type is external
-			hasExternalTypes = true
-		}
-	}
-
-	// Check if response type is from the same package
-	if ep.Response != nil {
-		if named, ok := ep.Response.(schema.NamedType); ok {
-			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
-				// Type is from same package, can't use wrappers
-				return false
-			}
-			// Type is external
-			hasExternalTypes = true
-		}
-	}
-
-	// Only use wrappers if we have external types
-	return hasExternalTypes
 }
 
 // pathParamNames yields a []string literal containing the names
