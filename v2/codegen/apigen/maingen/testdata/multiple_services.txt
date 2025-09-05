@@ -118,7 +118,20 @@ import (
 	bar "example.com/bar"
 )
 
-func Bar(ctx context.Context) error {
+// BarClient is the client interface for the bar service.
+type BarClient interface {
+	Bar(ctx context.Context) error
+}
+
+// barClientImpl implements the BarClient interface.
+type barClientImpl struct{}
+
+// NewBarClient creates a new client for the bar service.
+func NewBarClient() BarClient {
+	return &barClientImpl{}
+}
+
+func (c *barClientImpl) Bar(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("bar", "Bar")
 	if !ok {
 		return errors.New("no endpoint registered for bar.Bar")
@@ -142,7 +155,20 @@ import (
 	foo "example.com/foo"
 )
 
-func Foo(ctx context.Context) error {
+// FooClient is the client interface for the foo service.
+type FooClient interface {
+	Foo(ctx context.Context) error
+}
+
+// fooClientImpl implements the FooClient interface.
+type fooClientImpl struct{}
+
+// NewFooClient creates a new client for the foo service.
+func NewFooClient() FooClient {
+	return &fooClientImpl{}
+}
+
+func (c *fooClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("foo", "Foo")
 	if !ok {
 		return errors.New("no endpoint registered for foo.Foo")

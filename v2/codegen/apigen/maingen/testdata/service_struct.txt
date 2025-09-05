@@ -21,7 +21,20 @@ import (
 	examplecom "example.com"
 )
 
-func Foo(ctx context.Context) error {
+// CodeClient is the client interface for the code service.
+type CodeClient interface {
+	Foo(ctx context.Context) error
+}
+
+// codeClientImpl implements the CodeClient interface.
+type codeClientImpl struct{}
+
+// NewCodeClient creates a new client for the code service.
+func NewCodeClient() CodeClient {
+	return &codeClientImpl{}
+}
+
+func (c *codeClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("code", "Foo")
 	if !ok {
 		return errors.New("no endpoint registered for code.Foo")

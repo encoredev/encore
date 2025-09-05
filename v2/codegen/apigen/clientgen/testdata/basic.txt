@@ -16,7 +16,20 @@ import (
 	examplecom "example.com"
 )
 
-func Foo(ctx context.Context) error {
+// BasicClient is the client interface for the basic service.
+type BasicClient interface {
+	Foo(ctx context.Context) error
+}
+
+// basicClientImpl implements the BasicClient interface.
+type basicClientImpl struct{}
+
+// NewBasicClient creates a new client for the basic service.
+func NewBasicClient() BasicClient {
+	return &basicClientImpl{}
+}
+
+func (c *basicClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("basic", "Foo")
 	if !ok {
 		return errors.New("no endpoint registered for basic.Foo")

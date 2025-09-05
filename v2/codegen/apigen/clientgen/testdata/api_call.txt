@@ -20,7 +20,7 @@ package svcb
 import ("context"; svcaclient "example.com/clients/svca")
 
 //encore:api public
-func Baz(ctx context.Context) error { return svcaclient.Foo(ctx) }
+func Baz(ctx context.Context) error { return svcaclient.NewSvcaClient().Foo(ctx) }
 -- want:clients/svca/encore.gen.go --
 package svcaclient
 
@@ -31,7 +31,21 @@ import (
 	svca "example.com/svca"
 )
 
-func Foo(ctx context.Context) error {
+// SvcaClient is the client interface for the svca service.
+type SvcaClient interface {
+	Foo(ctx context.Context) error
+	Bar(ctx context.Context) error
+}
+
+// svcaClientImpl implements the SvcaClient interface.
+type svcaClientImpl struct{}
+
+// NewSvcaClient creates a new client for the svca service.
+func NewSvcaClient() SvcaClient {
+	return &svcaClientImpl{}
+}
+
+func (c *svcaClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("svca", "Foo")
 	if !ok {
 		return errors.New("no endpoint registered for svca.Foo")
@@ -46,7 +60,7 @@ func Foo(ctx context.Context) error {
 	return err
 }
 
-func Bar(ctx context.Context) error {
+func (c *svcaClientImpl) Bar(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("svca", "Bar")
 	if !ok {
 		return errors.New("no endpoint registered for svca.Bar")
