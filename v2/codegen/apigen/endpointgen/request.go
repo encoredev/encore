@@ -5,6 +5,8 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/paths"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/resourcepaths"
@@ -19,8 +21,10 @@ const jsonIterPkg = "github.com/json-iterator/go"
 // requestDesc describes the generated request type that contains the combined
 // request data + path parameters for the request.
 type requestDesc struct {
-	gu *genutil.Helper
-	ep *api.Endpoint
+	gu          *genutil.Helper
+	ep          *api.Endpoint
+	wrappersPkg paths.Pkg
+	fw          *apiframework.ServiceDesc
 }
 
 func (d *requestDesc) TypeName() string {
@@ -29,6 +33,11 @@ func (d *requestDesc) TypeName() string {
 
 func (d *requestDesc) Type() *Statement {
 	return Op("*").Id(d.TypeName())
+}
+
+// needsQualification returns true if the types need to be qualified with the package name
+func (d *requestDesc) needsQualification() bool {
+	return d.wrappersPkg != d.fw.RootPkg.ImportPath
 }
 
 func (d *requestDesc) TypeDecl() *Statement {
@@ -51,11 +60,23 @@ func (d *requestDesc) DecodeRequest() *Statement {
 		d.pathParamsName().Add(apiQ("UnnamedParams")),
 		Id("json").Qual(jsonIterPkg, "API"),
 	).Params(
-		d.reqDataExpr().Add(d.Type()),
+		d.reqDataExpr().Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Op("*").Id(d.TypeName())
+			}
+		}),
 		Id("pathParams").Add(apiQ("UnnamedParams")),
 		Err().Error(),
 	).BlockFunc(func(g *Group) {
-		g.Add(d.reqDataExpr()).Op("=").New(Id(d.TypeName()))
+		g.Add(d.reqDataExpr()).Op("=").New(Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Id(d.TypeName())
+			}
+		}))
 
 		if d.ep.Path.NumParams() == 0 && d.ep.Request == nil {
 			// Nothing to do; return an empty struct
@@ -254,10 +275,28 @@ func (d *requestDesc) decodeRequestParameters(g *Group, dec *genutil.TypeUnmarsh
 // Clone returns the function literal to clone the request.
 func (d *requestDesc) Clone() *Statement {
 	const recv = "r"
-	return Func().Params(Id(recv).Add(d.Type())).Params(d.Type(), Error()).BlockFunc(func(g *Group) {
+	return Func().Params(Id(recv).Do(func(s *Statement) {
+		if d.needsQualification() {
+			s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+		} else {
+			s.Op("*").Id(d.TypeName())
+		}
+	})).Params(Do(func(s *Statement) {
+		if d.needsQualification() {
+			s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+		} else {
+			s.Op("*").Id(d.TypeName())
+		}
+	}), Error()).BlockFunc(func(g *Group) {
 		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
 		// in the struct. For now, simply serialize it as JSON and back.
-		g.Var().Id("clone").Add(d.Type())
+		g.Var().Id("clone").Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Op("*").Id(d.TypeName())
+			}
+		})
 		g.List(Id("bytes"), Id("err")).Op(":=").Qual(jsonIterPkg, "ConfigDefault").Dot("Marshal").Call(Id(recv))
 		g.If(Err().Op("==").Nil()).Block(
 			Err().Op("=").Qual(jsonIterPkg, "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),
@@ -269,7 +308,13 @@ func (d *requestDesc) Clone() *Statement {
 // ReqPath returns the function literal to compute the request path.
 func (d *requestDesc) ReqPath() *Statement {
 	return Func().Params(
-		d.reqDataExpr().Add(d.Type()),
+		d.reqDataExpr().Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Op("*").Id(d.TypeName())
+			}
+		}),
 	).Params(
 		String(),
 		apiQ("UnnamedParams"),
@@ -311,7 +356,13 @@ func (d *requestDesc) ReqPath() *Statement {
 func (d *requestDesc) UserPayload() *Statement {
 	return Func().Params(
 		// input
-		d.reqDataExpr().Add(d.Type()),
+		d.reqDataExpr().Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Op("*").Id(d.TypeName())
+			}
+		}),
 	).Params(
 		// output
 		Any(),
@@ -326,7 +377,13 @@ func (d *requestDesc) UserPayload() *Statement {
 
 func (d *requestDesc) EncodeExternalReq() *Statement {
 	return Func().Params(
-		d.reqDataExpr().Add(d.Type()),
+		d.reqDataExpr().Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Op("*").Id(d.TypeName())
+			}
+		}),
 		d.jsonStream().Add(Op("*").Qual(jsonIterPkg, "Stream")),
 	).Params(
 		d.httpHeaderExpr().Add(Qual("net/http", "Header")),

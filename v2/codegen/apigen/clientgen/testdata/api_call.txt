@@ -1,3 +1,9 @@
+-- clients/svca/svcaclient.go --
+package svcaclient
+
+-- clients/svcb/svcbclient.go --
+package svcbclient
+
 -- svca/svca.go --
 package svca
 
@@ -11,10 +17,10 @@ func Bar(ctx context.Context) error { return Foo(ctx) }
 -- svcb/svcb.go --
 package svcb
 
-import ("context"; "example.com/svca")
+import ("context"; svcaclient "example.com/clients/svca")
 
 //encore:api public
-func Baz(ctx context.Context) error { return svca.Foo(ctx) }
+func Baz(ctx context.Context) error { return svcaclient.Foo(ctx) }
 -- want:clients/svca/encore_internal__svcaclient.go --
 package svcaclient
 
@@ -240,10 +246,3 @@ func Foo(ctx context.Context) error { return nil }
 
 //encore:api public
 func Bar(ctx context.Context) error { return EncoreInternal_apicalls_Foo(ctx) }
--- want:svcb/svcb.go --
-package svcb
-
-import ("context"; "example.com/svca")
-
-//encore:api public
-func Baz(ctx context.Context) error { return svca.EncoreInternal_apicalls_Foo(ctx) }

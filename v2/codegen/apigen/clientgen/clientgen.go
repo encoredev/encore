@@ -9,7 +9,9 @@ import (
 	"encr.dev/pkg/namealloc"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
+	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis/api"
 )
 
@@ -119,10 +121,25 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 		reqTypeName := fmt.Sprintf("EncoreInternal_%sReq", ep.Name)
 		respTypeName := fmt.Sprintf("EncoreInternal_%sResp", ep.Name)
 
+		// Check if types are defined in the same package as the service
+		useWrappers := shouldUseWrappersPackageForClient(fw, ep)
+		var reqTypeQual, respTypeQual *Statement
+		var wrappersPkgPath string
+
+		if useWrappers {
+			wrappersPkgPath = paths.Pkg(svcPkgPath).JoinSlash(paths.RelSlash(svc.Name + "wrappers")).String()
+			reqTypeQual = Op("*").Qual(wrappersPkgPath, reqTypeName)
+			respTypeQual = Qual(wrappersPkgPath, respTypeName)
+		} else {
+			wrappersPkgPath = string(svcPkgPath)
+			reqTypeQual = Op("*").Qual(string(svcPkgPath), reqTypeName)
+			respTypeQual = Qual(string(svcPkgPath), respTypeName)
+		}
+
 		// Type assert the handler to Callable interface
 		g.List(Id(callableVar), Id("ok")).Op(":=").Id(handlerVar).Assert(Qual("encore.dev/appruntime/apisdk/api", "Callable").Types(
-			Op("*").Qual(string(svcPkgPath), reqTypeName),
-			Qual(string(svcPkgPath), respTypeName),
+			reqTypeQual,
+			respTypeQual,
 		))
 		g.If(Op("!").Id("ok")).BlockFunc(func(g *Group) {
 			errMsg := fmt.Sprintf("handler for %s.%s has unexpected type", svc.Name, ep.Name)
@@ -135,7 +152,7 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 
 		// Create request struct
 		reqVar := alloc("reqData")
-		g.Id(reqVar).Op(":=").Op("&").Qual(string(svcPkgPath), reqTypeName).Values(DictFunc(func(d Dict) {
+		g.Id(reqVar).Op(":=").Op("&").Qual(wrappersPkgPath, reqTypeName).Values(DictFunc(func(d Dict) {
 			// Add path parameters
 			for i := range ep.Path.Params() {
 				fieldName := fmt.Sprintf("P%d", i)
@@ -160,4 +177,37 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 	})
 
 	f.Jen.Line()
+}
+
+// shouldUseWrappersPackageForClient determines if we should use wrapper types from a separate package.
+// This logic should match the logic in endpointgen.
+func shouldUseWrappersPackageForClient(fw *apiframework.ServiceDesc, ep *api.Endpoint) bool {
+	hasExternalTypes := false
+
+	// Check if request type is from the same package
+	if ep.Request != nil {
+		if named, ok := ep.Request.(schema.NamedType); ok {
+			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
+				// Type is from same package, can't use wrappers
+				return false
+			}
+			// Type is external
+			hasExternalTypes = true
+		}
+	}
+
+	// Check if response type is from the same package
+	if ep.Response != nil {
+		if named, ok := ep.Response.(schema.NamedType); ok {
+			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
+				// Type is from same package, can't use wrappers
+				return false
+			}
+			// Type is external
+			hasExternalTypes = true
+		}
+	}
+
+	// Only use wrappers if we have external types
+	return hasExternalTypes
 }
