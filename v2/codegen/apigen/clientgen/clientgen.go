@@ -12,9 +12,8 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
-	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
-	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/parser/apis/api"
 )
 
@@ -29,6 +28,8 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 			"encore.gen.go",
 			svc.Name+"client",
 		)
+
+		useWrappersPkg := !apigenutil.HasInternalTypes(fw)
 
 		// Interface and struct names
 		interfaceName := cases.Title(language.English).String(svc.Name) + "Client"
@@ -63,7 +64,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 
 		// Generate methods for each endpoint
 		for _, ep := range fw.Endpoints {
-			genEndpointMethod(gen, f, svc, ep, withImpl, implName)
+			genEndpointMethod(gen, f, svc, ep, withImpl, implName, useWrappersPkg)
 		}
 
 		return option.Some(f)
@@ -127,7 +128,7 @@ func genEndpointSignature(gen *codegen.Generator, g *Group, svc *app.Service, ep
 }
 
 // genEndpointMethod generates the method implementation on the struct
-func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, withImpl bool, implName string) {
+func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, withImpl bool, implName string, useWrappersPkg bool) {
 	gu := gen.Util
 
 	// Add doc comment if present
@@ -229,12 +230,10 @@ func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service
 		reqTypeName := fmt.Sprintf("EncoreInternal_%sReq", ep.Name)
 		respTypeName := fmt.Sprintf("EncoreInternal_%sResp", ep.Name)
 
-		// Check if types are defined in the same package as the service
-		useWrappers := shouldUseWrappersPackageForClient(fw, ep)
 		var reqTypeQual, respTypeQual *Statement
 		var wrappersPkgPath string
 
-		if useWrappers {
+		if useWrappersPkg {
 			wrappersPkgPath = paths.Pkg(svcPkgPath).JoinSlash(paths.RelSlash(svc.Name + "wrappers")).String()
 			reqTypeQual = Op("*").Qual(wrappersPkgPath, reqTypeName)
 			respTypeQual = Qual(wrappersPkgPath, respTypeName)
@@ -289,37 +288,4 @@ func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service
 	})
 
 	f.Jen.Line()
-}
-
-// shouldUseWrappersPackageForClient determines if we should use wrapper types from a separate package.
-// This logic should match the logic in endpointgen.
-func shouldUseWrappersPackageForClient(fw *apiframework.ServiceDesc, ep *api.Endpoint) bool {
-	hasExternalTypes := false
-
-	// Check if request type is from the same package
-	if ep.Request != nil {
-		if named, ok := ep.Request.(schema.NamedType); ok {
-			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
-				// Type is from same package, can't use wrappers
-				return false
-			}
-			// Type is external
-			hasExternalTypes = true
-		}
-	}
-
-	// Check if response type is from the same package
-	if ep.Response != nil {
-		if named, ok := ep.Response.(schema.NamedType); ok {
-			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
-				// Type is from same package, can't use wrappers
-				return false
-			}
-			// Type is external
-			hasExternalTypes = true
-		}
-	}
-
-	// Only use wrappers if we have external types
-	return hasExternalTypes
 }
