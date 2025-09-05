@@ -113,6 +113,8 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*barwrappers.EncoreInternal_Bar
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*barwrappers.EncoreInternal_BarReq, barwrappers.EncoreInternal_BarResp] = EncoreInternal_api_APIDesc_Bar
 -- want:clients/bar/encore.gen.go --
 package barclient
 
@@ -292,6 +294,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*foowrappers.EncoreInternal_Foo
 	SvcNum:            2,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*foowrappers.EncoreInternal_FooReq, foowrappers.EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo
 -- want:foo/foowrappers/wrappers.go --
 package foowrappers
 

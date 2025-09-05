@@ -141,6 +141,10 @@ func genAPIDesc(
 	}))
 
 	handler.desc = desc
+
+	// Add compile-time check that Desc implements Callable
+	f.Add(Var().Id("_").Qual("encore.dev/appruntime/apisdk/api", "Callable").Types(reqType, respType).Op("=").Add(desc.Qual()))
+
 	return handler
 }
 

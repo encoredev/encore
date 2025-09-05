@@ -115,6 +115,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*codewrappers.EncoreInternal_Fo
 	Tags:              nil,
 }
 
+var _ __api.Callable[*codewrappers.EncoreInternal_FooReq, codewrappers.EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo
+
 var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*codewrappers.EncoreInternal_BarReq, codewrappers.EncoreInternal_BarResp]{
 	Access:     __api.Public,
 	AppHandler: nil,
@@ -171,6 +173,8 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*codewrappers.EncoreInternal_Ba
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*codewrappers.EncoreInternal_BarReq, codewrappers.EncoreInternal_BarResp] = EncoreInternal_api_APIDesc_Bar
 -- want:encore_internal__svcstruct.go --
 package code
 

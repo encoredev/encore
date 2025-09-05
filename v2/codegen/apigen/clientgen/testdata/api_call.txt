@@ -171,6 +171,8 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*svcawrappers.EncoreInternal_Fo
 	Tags:              nil,
 }
 
+var _ __api.Callable[*svcawrappers.EncoreInternal_FooReq, svcawrappers.EncoreInternal_FooResp] = EncoreInternal_api_APIDesc_Foo
+
 var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*svcawrappers.EncoreInternal_BarReq, svcawrappers.EncoreInternal_BarResp]{
 	Access: __api.Public,
 	AppHandler: func(ctx context.Context, reqData *svcawrappers.EncoreInternal_BarReq) (svcawrappers.EncoreInternal_BarResp, error) {
@@ -230,6 +232,8 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*svcawrappers.EncoreInternal_Ba
 	SvcNum:            1,
 	Tags:              nil,
 }
+
+var _ __api.Callable[*svcawrappers.EncoreInternal_BarReq, svcawrappers.EncoreInternal_BarResp] = EncoreInternal_api_APIDesc_Bar
 -- want:svca/encore_internal__apicalls.go --
 package svca
 
