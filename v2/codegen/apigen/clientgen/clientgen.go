@@ -7,6 +7,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/namealloc"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
@@ -15,7 +16,7 @@ import (
 	"encr.dev/v2/parser/apis/api"
 )
 
-func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service) {
+func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl bool) option.Option[*codegen.File] {
 	if fw, ok := svc.Framework.Get(); ok {
 		clientPkgPath := paths.Pkg(appDesc.MainModule.Path).JoinSlash("clients", paths.RelSlash(svc.Name))
 		clientPkgDir := appDesc.MainModule.RootDir.Join("clients", svc.Name)
@@ -23,17 +24,21 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service) {
 			clientPkgPath,
 			svc.Name+"client",
 			clientPkgDir,
-			fmt.Sprintf("encore_internal__%sclient.go", svc.Name),
+			"encore.gen.go",
 			svc.Name+"client",
 		)
 
 		for _, ep := range fw.Endpoints {
-			genEndpointFunction(gen, f, svc, ep)
+			genEndpointFunction(gen, f, svc, ep, withImpl)
 		}
+
+		return option.Some(f)
 	}
+
+	return option.None[*codegen.File]()
 }
 
-func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint) {
+func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, withImpl bool) {
 	gu := gen.Util
 
 	// Add doc comment if present
@@ -87,6 +92,20 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 			g.Error()
 		}
 	}).BlockFunc(func(g *Group) {
+		if !withImpl {
+			// Implementation is elided
+			g.Comment("The implementation is elided here, and generated at compile-time by Encore.")
+			if ep.Raw {
+				g.Return(Nil(), Nil())
+			} else if ep.Response != nil {
+				g.Return(gu.Zero(ep.Response), Nil())
+			} else {
+				// Just an error return
+				g.Return(Nil())
+			}
+			return
+		}
+
 		// For raw endpoints, we can't make service-to-service calls
 		if ep.Raw {
 			g.Return(Nil(), Qual("errors", "New").Call(Lit("cannot call raw endpoints in service-to-service calls")))
@@ -165,13 +184,17 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 			}
 		}))
 
+		// Create CallContext from the regular context
+		callCtxVar := alloc("callCtx")
+		g.Id(callCtxVar).Op(":=").Qual("encore.dev/appruntime/apisdk/api", "Singleton").Dot("NewCallContext").Call(Id(ctxName))
+
 		// Call the Call method on the callable
 		if resp := ep.Response; resp != nil {
 			respVar := alloc("resp")
-			g.List(Id(respVar), Err()).Op(":=").Id(callableVar).Dot("Call").Call(Id(ctxName), Id(reqVar))
+			g.List(Id(respVar), Err()).Op(":=").Id(callableVar).Dot("Call").Call(Id(callCtxVar), Id(reqVar))
 			g.Return(Id(respVar), Err())
 		} else {
-			g.List(Id("_"), Err()).Op(":=").Id(callableVar).Dot("Call").Call(Id(ctxName), Id(reqVar))
+			g.List(Id("_"), Err()).Op(":=").Id(callableVar).Dot("Call").Call(Id(callCtxVar), Id(reqVar))
 			g.Return(Err())
 		}
 	})

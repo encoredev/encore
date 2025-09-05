@@ -91,7 +91,7 @@ type Handler interface {
 }
 
 type Callable[Req, Resp any] interface {
-	Call(ctx context.Context, req Req) (Resp, error)
+	Call(ctx CallContext, req Req) (Resp, error)
 }
 
 type requestsTotalLabels struct {

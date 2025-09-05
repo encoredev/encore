@@ -108,7 +108,7 @@ var EncoreInternal_api_APIDesc_Bar = &__api.Desc[*EncoreInternal_BarReq, EncoreI
 	SvcNum:            1,
 	Tags:              nil,
 }
--- want:clients/bar/encore_internal__barclient.go --
+-- want:clients/bar/encore.gen.go --
 package barclient
 
 import (
@@ -128,10 +128,11 @@ func Bar(ctx context.Context) error {
 		return errors.New("handler for bar.Bar has unexpected type")
 	}
 	reqData := &bar.EncoreInternal_BarReq{}
-	_, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	_, err := callable.Call(callCtx, reqData)
 	return err
 }
--- want:clients/foo/encore_internal__fooclient.go --
+-- want:clients/foo/encore.gen.go --
 package fooclient
 
 import (
@@ -151,7 +152,8 @@ func Foo(ctx context.Context) error {
 		return errors.New("handler for foo.Foo has unexpected type")
 	}
 	reqData := &foo.EncoreInternal_FooReq{}
-	_, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	_, err := callable.Call(callCtx, reqData)
 	return err
 }
 -- want:encore_internal/main/main.go --

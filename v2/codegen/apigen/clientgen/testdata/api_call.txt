@@ -21,7 +21,7 @@ import ("context"; svcaclient "example.com/clients/svca")
 
 //encore:api public
 func Baz(ctx context.Context) error { return svcaclient.Foo(ctx) }
--- want:clients/svca/encore_internal__svcaclient.go --
+-- want:clients/svca/encore.gen.go --
 package svcaclient
 
 import (
@@ -41,7 +41,8 @@ func Foo(ctx context.Context) error {
 		return errors.New("handler for svca.Foo has unexpected type")
 	}
 	reqData := &svca.EncoreInternal_FooReq{}
-	_, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	_, err := callable.Call(callCtx, reqData)
 	return err
 }
 
@@ -55,7 +56,8 @@ func Bar(ctx context.Context) error {
 		return errors.New("handler for svca.Bar has unexpected type")
 	}
 	reqData := &svca.EncoreInternal_BarReq{}
-	_, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	_, err := callable.Call(callCtx, reqData)
 	return err
 }
 -- want:svca/encore.gen.go --

@@ -8,7 +8,7 @@ type Service struct{}
 
 //encore:api public
 func (s *Service) Foo(ctx context.Context) error { return nil }
--- want:clients/basic/encore_internal__basicclient.go --
+-- want:clients/basic/encore.gen.go --
 package basicclient
 
 import (
@@ -28,7 +28,8 @@ func Foo(ctx context.Context) error {
 		return errors.New("handler for basic.Foo has unexpected type")
 	}
 	reqData := &examplecom.EncoreInternal_FooReq{}
-	_, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	_, err := callable.Call(callCtx, reqData)
 	return err
 }
 -- want:encore.gen.go --
