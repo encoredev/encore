@@ -3,6 +3,8 @@ package endpointgen
 import (
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/paths"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/schema"
@@ -13,8 +15,10 @@ import (
 
 // responseDesc describes the generated response type.
 type responseDesc struct {
-	gu *genutil.Helper
-	ep *api.Endpoint
+	gu          *genutil.Helper
+	ep          *api.Endpoint
+	wrappersPkg paths.Pkg
+	fw          *apiframework.ServiceDesc
 }
 
 func (d *responseDesc) TypeName() string {
@@ -23,6 +27,11 @@ func (d *responseDesc) TypeName() string {
 
 func (d *responseDesc) Type() *Statement {
 	return Id(d.TypeName())
+}
+
+// needsQualification returns true if the types need to be qualified with the package name
+func (d *responseDesc) needsQualification() bool {
+	return d.wrappersPkg != d.fw.RootPkg.ImportPath
 }
 
 func (d *responseDesc) TypeDecl() *Statement {
@@ -51,7 +60,13 @@ func (d *responseDesc) EncodeResponse() *Statement {
 	return Func().Params(
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
-		Id("resp").Add(d.Type()),
+		Id("resp").Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Id(d.TypeName())
+			}
+		}),
 		Id("status").Int(),
 	).Params(Err().Error()).BlockFunc(func(g *Group) {
 		if d.ep.Response == nil {
@@ -159,7 +174,13 @@ func (d *responseDesc) DecodeExternalResp() *Statement {
 		Id("httpResp").Op("*").Qual("net/http", "Response"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 	).Params(
-		Id("resp").Add(d.Type()),
+		Id("resp").Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Id(d.TypeName())
+			}
+		}),
 		Err().Error(),
 	).BlockFunc(func(g *Group) {
 		if d.ep.Response == nil {
@@ -218,10 +239,28 @@ func (d *responseDesc) zero() *Statement {
 // Clone returns the function literal to clone the request.
 func (d *responseDesc) Clone() *Statement {
 	const recv = "r"
-	return Func().Params(Id(recv).Add(d.Type())).Params(d.Type(), Error()).BlockFunc(func(g *Group) {
+	return Func().Params(Id(recv).Do(func(s *Statement) {
+		if d.needsQualification() {
+			s.Qual(d.wrappersPkg.String(), d.TypeName())
+		} else {
+			s.Id(d.TypeName())
+		}
+	})).Params(Do(func(s *Statement) {
+		if d.needsQualification() {
+			s.Qual(d.wrappersPkg.String(), d.TypeName())
+		} else {
+			s.Id(d.TypeName())
+		}
+	}), Error()).BlockFunc(func(g *Group) {
 		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
 		// in the struct. For now, simply serialize it as JSON and back.
-		g.Var().Id("clone").Add(d.Type())
+		g.Var().Id("clone").Do(func(s *Statement) {
+			if d.needsQualification() {
+				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			} else {
+				s.Id(d.TypeName())
+			}
+		})
 		g.List(Id("bytes"), Id("err")).Op(":=").Qual(jsonIterPkg, "ConfigDefault").Dot("Marshal").Call(Id(recv))
 		g.If(Err().Op("==").Nil()).Block(
 			Err().Op("=").Qual(jsonIterPkg, "ConfigDefault").Dot("Unmarshal").Call(Id("bytes"), Op("&").Id("clone")),

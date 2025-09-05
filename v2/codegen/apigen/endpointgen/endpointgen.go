@@ -7,10 +7,12 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
 	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/internals/resourcepaths"
+	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/middleware"
 	"encr.dev/v2/parser/apis/selector"
@@ -24,7 +26,24 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 
 		var handlers []*handlerDesc
 		for _, ep := range fw.Endpoints {
-			handler := genAPIDesc(gen, f, appDesc, svc, svcStruct, fw, ep, svcMiddleware)
+			// Check if we should use a separate wrappers package
+			useWrappers := shouldUseWrappersPackage(fw, ep)
+
+			var wrappersFile *codegen.File
+			var wrappersPkg paths.Pkg
+
+			if useWrappers {
+				// Create the wrappers package
+				wrappersPkg = paths.Pkg(fw.RootPkg.ImportPath).JoinSlash(paths.RelSlash(svc.Name + "wrappers"))
+				wrappersPkgDir := fw.RootPkg.FSPath.Join(svc.Name + "wrappers")
+				wrappersFile = gen.InjectFile(wrappersPkg, svc.Name+"wrappers", wrappersPkgDir, "wrappers.go", "wrappers")
+			} else {
+				// Use the same file as the API
+				wrappersFile = f
+				wrappersPkg = fw.RootPkg.ImportPath
+			}
+
+			handler := genAPIDesc(gen, f, wrappersFile, appDesc, svc, svcStruct, fw, ep, svcMiddleware, wrappersPkg)
 			rewriteAPICalls(gen, appDesc.Parse, svc, ep, handler)
 			epMap[ep] = handler.desc
 			handlers = append(handlers, handler)
@@ -37,22 +56,23 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 }
 
 func genAPIDesc(
-	gen *codegen.Generator, f *codegen.File, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl],
-	fw *apiframework.ServiceDesc, ep *api.Endpoint, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl,
+	gen *codegen.Generator, f *codegen.File, wrappersFile *codegen.File, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl],
+	fw *apiframework.ServiceDesc, ep *api.Endpoint, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl, wrappersPkg paths.Pkg,
 ) *handlerDesc {
 	gu := gen.Util
-	reqDesc := &requestDesc{gu: gen.Util, ep: ep}
-	respDesc := &responseDesc{gu: gen.Util, ep: ep}
+	reqDesc := &requestDesc{gu: gen.Util, ep: ep, wrappersPkg: wrappersPkg, fw: fw}
+	respDesc := &responseDesc{gu: gen.Util, ep: ep, wrappersPkg: wrappersPkg, fw: fw}
 	handler := &handlerDesc{
-		gu:        gen.Util,
-		ep:        ep,
-		svcStruct: svcStruct,
-		req:       reqDesc,
-		resp:      respDesc,
+		gu:          gen.Util,
+		ep:          ep,
+		svcStruct:   svcStruct,
+		req:         reqDesc,
+		resp:        respDesc,
+		wrappersPkg: wrappersPkg,
 	}
 
-	f.Add(reqDesc.TypeDecl())
-	f.Add(respDesc.TypeDecl())
+	wrappersFile.Add(reqDesc.TypeDecl())
+	wrappersFile.Add(respDesc.TypeDecl())
 
 	methods := ep.HTTPMethods
 	if len(methods) == 1 && methods[0] == "*" {
@@ -74,9 +94,19 @@ func genAPIDesc(
 
 	pos := ep.Decl.AST.Pos()
 	desc := f.VarDecl("APIDesc", ep.Name)
+	// If we're using the same package, don't qualify the types
+	var reqType, respType *Statement
+	if wrappersPkg == fw.RootPkg.ImportPath {
+		reqType = Op("*").Id(reqDesc.TypeName())
+		respType = Id(respDesc.TypeName())
+	} else {
+		reqType = Op("*").Qual(wrappersPkg.String(), reqDesc.TypeName())
+		respType = Qual(wrappersPkg.String(), respDesc.TypeName())
+	}
+
 	desc.Value(Op("&").Add(apiQ("Desc")).Types(
-		reqDesc.Type(),
-		respDesc.Type(),
+		reqType,
+		respType,
 	).Values(Dict{
 		Id("Service"):        Lit(svc.Name),
 		Id("SvcNum"):         Lit(svc.Num),
@@ -173,6 +203,41 @@ func rawPath(path *resourcepaths.Path) string {
 		nParam++
 	}
 	return b.String()
+}
+
+// shouldUseWrappersPackage determines if we should generate wrapper types in a separate package.
+// Returns true only if the endpoint has request/response types that are ALL defined outside the service package.
+// Returns false if any type is defined in the same package as the service (to avoid import cycles),
+// or if the endpoint has no request/response types at all.
+func shouldUseWrappersPackage(fw *apiframework.ServiceDesc, ep *api.Endpoint) bool {
+	hasExternalTypes := false
+
+	// Check if request type is from the same package
+	if ep.Request != nil {
+		if named, ok := ep.Request.(schema.NamedType); ok {
+			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
+				// Type is from same package, can't use wrappers
+				return false
+			}
+			// Type is external
+			hasExternalTypes = true
+		}
+	}
+
+	// Check if response type is from the same package
+	if ep.Response != nil {
+		if named, ok := ep.Response.(schema.NamedType); ok {
+			if named.DeclInfo != nil && named.DeclInfo.File.Pkg.ImportPath == fw.RootPkg.ImportPath {
+				// Type is from same package, can't use wrappers
+				return false
+			}
+			// Type is external
+			hasExternalTypes = true
+		}
+	}
+
+	// Only use wrappers if we have external types
+	return hasExternalTypes
 }
 
 // pathParamNames yields a []string literal containing the names

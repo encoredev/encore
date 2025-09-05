@@ -4,15 +4,17 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/option"
+	"encr.dev/pkg/paths"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/parser/apis/api"
 )
 
 type handlerDesc struct {
-	gu        *genutil.Helper
-	ep        *api.Endpoint
-	svcStruct option.Option[*codegen.VarDecl]
+	gu          *genutil.Helper
+	ep          *api.Endpoint
+	svcStruct   option.Option[*codegen.VarDecl]
+	wrappersPkg paths.Pkg
 
 	req  *requestDesc
 	resp *responseDesc
@@ -27,8 +29,20 @@ func (h *handlerDesc) Typed() *Statement {
 
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
-		h.req.reqDataExpr().Add(h.req.Type()),
-	).Params(h.resp.Type(), Error()).BlockFunc(func(g *Group) {
+		h.req.reqDataExpr().Do(func(s *Statement) {
+			if h.req.needsQualification() {
+				s.Op("*").Qual(string(h.wrappersPkg), h.req.TypeName())
+			} else {
+				s.Op("*").Id(h.req.TypeName())
+			}
+		}),
+	).Params(Do(func(s *Statement) {
+		if h.resp.needsQualification() {
+			s.Qual(string(h.wrappersPkg), h.resp.TypeName())
+		} else {
+			s.Id(h.resp.TypeName())
+		}
+	}), Error()).BlockFunc(func(g *Group) {
 		// fnExpr is the expression for the function we want to call,
 		// either just MyRPCName or svc.MyRPCName if we have a service struct.
 		var fnExpr *Statement
