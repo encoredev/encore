@@ -28,8 +28,40 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 			svc.Name+"client",
 		)
 
+		// Interface and struct names
+		interfaceName := strings.Title(svc.Name) + "Client"
+		implName := svc.Name + "ClientImpl"
+
+		// Generate the interface
+		f.Jen.Comment(fmt.Sprintf("%s is the client interface for the %s service.", interfaceName, svc.Name))
+		f.Jen.Type().Id(interfaceName).InterfaceFunc(func(g *Group) {
+			for _, ep := range fw.Endpoints {
+				genEndpointSignature(gen, g, svc, ep)
+			}
+		})
+
+		f.Jen.Line()
+
+		// Generate the implementation struct
+		f.Jen.Comment(fmt.Sprintf("%s implements the %s interface.", implName, interfaceName))
+		f.Jen.Type().Id(implName).Struct(
+		// Empty for now, but could add fields later
+		)
+
+		f.Jen.Line()
+
+		// Generate constructor
+		constructorName := "New" + strings.Title(svc.Name) + "Client"
+		f.Jen.Comment(fmt.Sprintf("%s creates a new client for the %s service.", constructorName, svc.Name))
+		f.Jen.Func().Id(constructorName).Params().Id(interfaceName).Block(
+			Return(Op("&").Id(implName).Values()),
+		)
+
+		f.Jen.Line()
+
+		// Generate methods for each endpoint
 		for _, ep := range fw.Endpoints {
-			genEndpointFunction(gen, f, svc, ep, withImpl)
+			genEndpointMethod(gen, f, svc, ep, withImpl, implName)
 		}
 
 		return option.Some(f)
@@ -38,7 +70,62 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 	return option.None[*codegen.File]()
 }
 
-func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, withImpl bool) {
+// genEndpointSignature generates the method signature for the interface
+func genEndpointSignature(gen *codegen.Generator, g *Group, svc *app.Service, ep *api.Endpoint) {
+	gu := gen.Util
+
+	// Add doc comment if present
+	if ep.Doc != "" {
+		for _, line := range strings.Split(strings.TrimSpace(ep.Doc), "\n") {
+			g.Comment(line)
+		}
+	}
+
+	// Name allocator to avoid conflicts
+	var names namealloc.Allocator
+	alloc := func(input string) string {
+		return names.Get(input)
+	}
+
+	ctxName := alloc("ctx")
+
+	// Build the method signature
+	g.Id(ep.Name).ParamsFunc(func(g *Group) {
+		// Context parameter
+		g.Id(ctxName).Qual("context", "Context")
+
+		// Path parameters
+		for _, p := range ep.Path.Params() {
+			paramName := alloc(p.Value)
+			typ := gu.Builtin(p.Pos(), p.ValueType)
+			g.Id(paramName).Add(typ)
+		}
+
+		// Request parameter
+		if ep.Raw {
+			reqName := alloc("req")
+			g.Id(reqName).Op("*").Qual("net/http", "Request")
+		} else if req := ep.Request; req != nil {
+			reqParamName := alloc("req")
+			g.Id(reqParamName).Add(gu.Type(req))
+		}
+	}).ParamsFunc(func(g *Group) {
+		// Return types
+		if ep.Raw {
+			g.Op("*").Qual("net/http", "Response")
+			g.Error()
+		} else if resp := ep.Response; resp != nil {
+			g.Add(gu.Type(resp))
+			g.Error()
+		} else {
+			// Just error
+			g.Error()
+		}
+	})
+}
+
+// genEndpointMethod generates the method implementation on the struct
+func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, withImpl bool, implName string) {
 	gu := gen.Util
 
 	// Add doc comment if present
@@ -58,8 +145,8 @@ func genEndpointFunction(gen *codegen.Generator, f *codegen.File, svc *app.Servi
 	var pathParamNames []string
 	reqParamName := ""
 
-	// Start building the function
-	f.Jen.Func().Id(ep.Name).ParamsFunc(func(g *Group) {
+	// Start building the method as a receiver function
+	f.Jen.Func().Parens(Id("c").Op("*").Id(implName)).Id(ep.Name).ParamsFunc(func(g *Group) {
 		// Context parameter
 		g.Id(ctxName).Qual("context", "Context")
 

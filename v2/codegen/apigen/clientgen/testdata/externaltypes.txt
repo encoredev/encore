@@ -26,7 +26,20 @@ import (
 	types "example.com/service/types"
 )
 
-func Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error) {
+// ServiceClient is the client interface for the service service.
+type ServiceClient interface {
+	Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error)
+}
+
+// serviceClientImpl implements the ServiceClient interface.
+type serviceClientImpl struct{}
+
+// NewServiceClient creates a new client for the service service.
+func NewServiceClient() ServiceClient {
+	return &serviceClientImpl{}
+}
+
+func (c *serviceClientImpl) Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error) {
 	handler, ok := __api.LookupEndpoint("service", "Foo")
 	if !ok {
 		return (*types.Resp)(nil), errors.New("no endpoint registered for service.Foo")

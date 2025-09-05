@@ -22,7 +22,20 @@ import (
 	examplecom "example.com"
 )
 
-func Foo(ctx context.Context, name string, req *examplecom.Req) (*examplecom.Resp, error) {
+// RequestresponseClient is the client interface for the requestresponse service.
+type RequestresponseClient interface {
+	Foo(ctx context.Context, name string, req *examplecom.Req) (*examplecom.Resp, error)
+}
+
+// requestresponseClientImpl implements the RequestresponseClient interface.
+type requestresponseClientImpl struct{}
+
+// NewRequestresponseClient creates a new client for the requestresponse service.
+func NewRequestresponseClient() RequestresponseClient {
+	return &requestresponseClientImpl{}
+}
+
+func (c *requestresponseClientImpl) Foo(ctx context.Context, name string, req *examplecom.Req) (*examplecom.Resp, error) {
 	handler, ok := __api.LookupEndpoint("requestresponse", "Foo")
 	if !ok {
 		return (*examplecom.Resp)(nil), errors.New("no endpoint registered for requestresponse.Foo")
