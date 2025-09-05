@@ -30,6 +30,7 @@ import (
 	"encr.dev/v2/app/legacymeta"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen"
+	"encr.dev/v2/codegen/apigen/clientgen"
 	"encr.dev/v2/codegen/apigen/userfacinggen"
 	"encr.dev/v2/codegen/cuegen"
 	"encr.dev/v2/codegen/infragen"
@@ -464,8 +465,17 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 						continue
 					}
 				}
-
 				i.writeOrDeleteFile(errs, buf.Bytes(), svc.FSRoot.Join("encore.gen.go"))
+
+				buf.Reset()
+				if f, ok := clientgen.Gen(gg, pd.appDesc, svc, false).Get(); ok {
+					if err := f.Render(&buf); err != nil {
+						errs.Addf(token.NoPos, "unable to render client go code: %v", err)
+						continue
+					}
+				}
+				clientPath := pd.mainModule.RootDir.Join("clients", svc.Name, "encore.gen.go")
+				i.writeOrDeleteFile(errs, buf.Bytes(), clientPath)
 			}
 
 			// Generate the user-facing CUE code.
@@ -496,6 +506,9 @@ func (i BuilderImpl) writeOrDeleteFile(errs *perr.List, data []byte, dst paths.F
 		// if it's there as it's no longer needed.
 		_ = os.Remove(dst.ToIO())
 	} else {
+		if err := os.MkdirAll(dst.Dir().ToIO(), 0755); err != nil {
+			errs.AddStd(err)
+		}
 		if err := os.WriteFile(dst.ToIO(), data, 0644); err != nil {
 			errs.AddStd(err)
 		}

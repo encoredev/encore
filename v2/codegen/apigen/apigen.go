@@ -78,7 +78,7 @@ func Process(p Params) *config.Static {
 			}
 
 			// Generate service client package
-			clientgen.Gen(p.Gen, p.Desc, svc)
+			clientgen.Gen(p.Gen, p.Desc, svc, true)
 
 			eps := endpointgen.Gen(p.Gen, p.Desc, svc, svcStruct, svcMiddleware)
 			maps.Copy(gp.APIHandlers, eps)

@@ -15,7 +15,7 @@ import ("context"; "example.com/service/types")
 
 //encore:api public path=/my/:name
 func Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error) { return nil, nil }
--- want:clients/service/encore_internal__serviceclient.go --
+-- want:clients/service/encore.gen.go --
 package serviceclient
 
 import (
@@ -39,7 +39,8 @@ func Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error) 
 		P0:      name,
 		Payload: req,
 	}
-	resp, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	resp, err := callable.Call(callCtx, reqData)
 	return resp, err
 }
 -- want:service/encore.gen.go --

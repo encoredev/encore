@@ -5,7 +5,7 @@ import "context"
 
 //encore:api
 func Foo(ctx context.Context) error { return nil }
--- want:clients/code/encore_internal__codeclient.go --
+-- want:clients/code/encore.gen.go --
 package codeclient
 
 import (
@@ -25,7 +25,8 @@ func Foo(ctx context.Context) error {
 		return errors.New("handler for code.Foo has unexpected type")
 	}
 	reqData := &examplecom.EncoreInternal_FooReq{}
-	_, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	_, err := callable.Call(callCtx, reqData)
 	return err
 }
 -- want:encore.gen.go --

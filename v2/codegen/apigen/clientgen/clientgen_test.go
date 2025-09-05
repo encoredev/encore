@@ -27,7 +27,7 @@ func TestCodegen(t *testing.T) {
 		}
 		// generate endpointgen as there is dependencies to that package
 		endpointgen.Gen(gen, desc, svc, svcStruct, nil)
-		Gen(gen, desc, svc)
+		Gen(gen, desc, svc, true)
 	}
 	codegentest.Run(t, fn)
 }

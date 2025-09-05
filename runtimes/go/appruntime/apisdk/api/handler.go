@@ -53,6 +53,9 @@ func isVoid[T any]() bool {
 	return ok
 }
 
+var _ Handler = (*Desc[any, any])(nil)
+var _ Callable[any, any] = (*Desc[any, any])(nil)
+
 // Desc is a description of an API handler.
 type Desc[Req, Resp any] struct {
 	// SvcNum is the 1-based index into the list of services.

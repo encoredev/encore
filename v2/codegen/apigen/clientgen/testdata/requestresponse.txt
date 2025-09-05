@@ -12,7 +12,7 @@ type Resp struct {
 
 //encore:api public path=/my/:name
 func Foo(ctx context.Context, name string, req *Req) (*Resp, error) { return nil, nil }
--- want:clients/requestresponse/encore_internal__requestresponseclient.go --
+-- want:clients/requestresponse/encore.gen.go --
 package requestresponseclient
 
 import (
@@ -35,7 +35,8 @@ func Foo(ctx context.Context, name string, req *examplecom.Req) (*examplecom.Res
 		P0:      name,
 		Payload: req,
 	}
-	resp, err := callable.Call(ctx, reqData)
+	callCtx := __api.Singleton.NewCallContext(ctx)
+	resp, err := callable.Call(callCtx, reqData)
 	return resp, err
 }
 -- want:encore.gen.go --
