@@ -197,7 +197,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		Gateways:       gateways,
 		DefinedSecrets: secrets,
 		SvcConfigs:     cfg.Configs,
-		IncludeMetaEnv: bld.NeedsMeta(),
+		IncludeMeta:    bld.NeedsMeta(),
 	}
 	procConf, err := configGen.AllInOneProc()
 	if err != nil {
