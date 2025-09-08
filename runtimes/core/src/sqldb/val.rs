@@ -249,7 +249,25 @@ impl ToSql for PValue {
                     Type::TEXT | Type::VARCHAR => dt.to_rfc3339().to_sql(ty, out),
                     _ => Err(format!("unsupported type for DateTime: {ty}").into()),
                 },
-                PValue::Array(arr) => arr.to_sql(ty, out),
+                PValue::Array(arr) => {
+                    if is_pgvector(ty) {
+                        let floats = arr
+                            .iter()
+                            .map(|v| match v {
+                                PValue::Number(n) => n
+                                    .as_f64()
+                                    .or_else(|| n.as_i64().map(|i| i as f64))
+                                    .or_else(|| n.as_u64().map(|u| u as f64))
+                                    .map(|f| f as f32)
+                                    .ok_or_else(|| "vector element must be a number".into()),
+                                _ => Err("vector element must be a number".into()),
+                            })
+                            .collect::<Result<Vec<f32>, Box<dyn Error + Sync + Send>>>()?;
+                        pgvector::Vector::from(floats).to_sql(ty, out)
+                    } else {
+                        arr.to_sql(ty, out)
+                    }
+                }
                 PValue::Object(_) => {
                     Err(format!("object not supported for column of type {ty}").into())
                 }
@@ -409,19 +427,15 @@ impl<'a> FromSql<'a> for PValue {
                     PValue::String(val.to_string())
                 } else if is_pgvector(ty) {
                     let val: pgvector::Vector = FromSql::from_sql(ty, raw)?;
-                    // format it into [0.1,0.2,0.3]
-                    let slice = val.as_slice();
-                    let mut result = String::new();
-                    result.push('[');
-                    for (i, n) in slice.iter().enumerate() {
-                        if i > 0 {
-                            result.push(',');
-                        }
-                        use std::fmt::Write;
-                        write!(&mut result, "{}", n).unwrap();
-                    }
-                    result.push(']');
-                    PValue::String(result)
+                    let arr = val
+                        .as_slice()
+                        .iter()
+                        .map(|n| match serde_json::Number::from_f64(*n as f64) {
+                            Some(num) => PValue::Number(num),
+                            None => PValue::Null,
+                        })
+                        .collect();
+                    PValue::Array(arr)
                 } else {
                     return Err(format!("unsupported type: {ty:?}").into());
                 }
