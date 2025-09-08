@@ -16,6 +16,10 @@ pub enum RowValue {
     Cidr(cidr::IpCidr),
 }
 
+fn is_pgvector(ty: &Type) -> bool {
+    ty.name() == "vector"
+}
+
 impl ToSql for RowValue {
     fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
     where
@@ -116,7 +120,11 @@ impl ToSql for PValue {
                         val.to_sql(ty, out)
                     }
                     _ => {
-                        if let Kind::Enum(_) = ty.kind() {
+                        if is_pgvector(ty) {
+                            let val: pgvector::Vector =
+                                serde_json::from_str(str).context("unable to parse vector")?;
+                            val.to_sql(ty, out)
+                        } else if let Kind::Enum(_) = ty.kind() {
                             str.to_sql(ty, out)
                         } else {
                             Err(format!("string not supported for column of type {ty}").into())
@@ -253,6 +261,9 @@ impl ToSql for PValue {
     }
 
     fn accepts(ty: &Type) -> bool {
+        if is_pgvector(ty) {
+            return true;
+        }
         matches!(
             *ty,
             Type::BOOL
@@ -392,7 +403,17 @@ impl<'a> FromSql<'a> for PValue {
             }
 
             _ => {
-                if let Kind::Array(_) = ty.kind() {
+                if is_pgvector(ty) {
+                    let val: pgvector::Vector = FromSql::from_sql(ty, raw)?;
+                    let val = val
+                        .as_slice()
+                        .iter()
+                        .map(|n| n.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let val = format!("[{}]", val);
+                    PValue::String(val)
+                } else if let Kind::Array(_) = ty.kind() {
                     let val: Vec<_> = FromSql::from_sql(ty, raw)?;
                     PValue::Array(val)
                 } else if let Kind::Enum(_) = ty.kind() {
@@ -410,6 +431,9 @@ impl<'a> FromSql<'a> for PValue {
     }
 
     fn accepts(ty: &Type) -> bool {
+        if is_pgvector(ty) {
+            return true;
+        }
         matches!(
             *ty,
             Type::BOOL
