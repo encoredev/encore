@@ -261,9 +261,6 @@ impl ToSql for PValue {
     }
 
     fn accepts(ty: &Type) -> bool {
-        if is_pgvector(ty) {
-            return true;
-        }
         matches!(
             *ty,
             Type::BOOL
@@ -288,6 +285,7 @@ impl ToSql for PValue {
                 | Type::NAME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
+            || is_pgvector(ty)
     }
     to_sql_checked!();
 }
@@ -403,7 +401,13 @@ impl<'a> FromSql<'a> for PValue {
             }
 
             _ => {
-                if is_pgvector(ty) {
+                if let Kind::Array(_) = ty.kind() {
+                    let val: Vec<_> = FromSql::from_sql(ty, raw)?;
+                    PValue::Array(val)
+                } else if let Kind::Enum(_) = ty.kind() {
+                    let val = std::str::from_utf8(raw)?;
+                    PValue::String(val.to_string())
+                } else if is_pgvector(ty) {
                     let val: pgvector::Vector = FromSql::from_sql(ty, raw)?;
                     // format it into [0.1,0.2,0.3]
                     let slice = val.as_slice();
@@ -418,12 +422,6 @@ impl<'a> FromSql<'a> for PValue {
                     }
                     result.push(']');
                     PValue::String(result)
-                } else if let Kind::Array(_) = ty.kind() {
-                    let val: Vec<_> = FromSql::from_sql(ty, raw)?;
-                    PValue::Array(val)
-                } else if let Kind::Enum(_) = ty.kind() {
-                    let val = std::str::from_utf8(raw)?;
-                    PValue::String(val.to_string())
                 } else {
                     return Err(format!("unsupported type: {ty:?}").into());
                 }
@@ -436,9 +434,6 @@ impl<'a> FromSql<'a> for PValue {
     }
 
     fn accepts(ty: &Type) -> bool {
-        if is_pgvector(ty) {
-            return true;
-        }
         matches!(
             *ty,
             Type::BOOL
@@ -461,6 +456,7 @@ impl<'a> FromSql<'a> for PValue {
                 | Type::NAME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as FromSql>::accepts(ty))
+            || is_pgvector(ty)
     }
 }
 
