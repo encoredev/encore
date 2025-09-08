@@ -120,12 +120,12 @@ impl ToSql for PValue {
                         val.to_sql(ty, out)
                     }
                     _ => {
-                        if is_pgvector(ty) {
+                        if let Kind::Enum(_) = ty.kind() {
+                            str.to_sql(ty, out)
+                        } else if is_pgvector(ty) {
                             let val: pgvector::Vector =
                                 serde_json::from_str(str).context("unable to parse vector")?;
                             val.to_sql(ty, out)
-                        } else if let Kind::Enum(_) = ty.kind() {
-                            str.to_sql(ty, out)
                         } else {
                             Err(format!("string not supported for column of type {ty}").into())
                         }
