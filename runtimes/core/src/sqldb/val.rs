@@ -405,14 +405,19 @@ impl<'a> FromSql<'a> for PValue {
             _ => {
                 if is_pgvector(ty) {
                     let val: pgvector::Vector = FromSql::from_sql(ty, raw)?;
-                    let val = val
-                        .as_slice()
-                        .iter()
-                        .map(|n| n.to_string())
-                        .collect::<Vec<_>>()
-                        .join(",");
-                    let val = format!("[{}]", val);
-                    PValue::String(val)
+                    // format it into [0.1,0.2,0.3]
+                    let slice = val.as_slice();
+                    let mut result = String::new();
+                    result.push('[');
+                    for (i, n) in slice.iter().enumerate() {
+                        if i > 0 {
+                            result.push(',');
+                        }
+                        use std::fmt::Write;
+                        write!(&mut result, "{}", n).unwrap();
+                    }
+                    result.push(']');
+                    PValue::String(result)
                 } else if let Kind::Array(_) = ty.kind() {
                     let val: Vec<_> = FromSql::from_sql(ty, raw)?;
                     PValue::Array(val)
