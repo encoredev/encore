@@ -2,7 +2,9 @@ package parser
 
 import (
 	"cmp"
+	"go/ast"
 	"slices"
+	"strings"
 	"sync"
 
 	"encr.dev/pkg/paths"
@@ -132,7 +134,10 @@ func (p *Parser) Parse() *Result {
 	// Add the implicit sqldb usages.
 	usageExprs = append(usageExprs, sqldb.ComputeImplicitUsage(p.c.Errs, pkgs, binds)...)
 
-	return computeResult(p.c.Errs, p.MainModule(), p.usageResolver, pkgs, resources, binds, usageExprs)
+	// Detect client method calls
+	clientUsages := p.detectClientCalls(pkgs, resources)
+
+	return computeResult(p.c.Errs, p.MainModule(), p.usageResolver, pkgs, resources, binds, usageExprs, clientUsages)
 }
 
 // allParsers are all the resource parsers we support.
@@ -252,4 +257,117 @@ func deduplicateSQLDBResources(resources []resource.Resource, binds []resource.B
 	}
 
 	return updatedResources, updatedBinds
+}
+
+// detectClientCalls scans packages for calls to generated client methods
+// and returns corresponding ClientCallUsage instances
+func (p *Parser) detectClientCalls(pkgs []*pkginfo.Package, resources []resource.Resource) []*api.ClientCallUsage {
+	// Build a map of endpoint names to endpoints for lookup
+	// We'll need to determine the service name from the client package path
+	endpointsByName := make(map[string]*api.Endpoint)
+	for _, r := range resources {
+		if ep, ok := r.(*api.Endpoint); ok {
+			endpointsByName[ep.Name] = ep
+		}
+	}
+
+	var clientUsages []*api.ClientCallUsage
+
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Files {
+			inspector := file.ASTInspector()
+			inspector.Preorder([]ast.Node{(*ast.CallExpr)(nil)}, func(n ast.Node) {
+				call := n.(*ast.CallExpr)
+
+				// Look for calls like client.MethodName(ctx, ...)
+				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+					methodName := sel.Sel.Name
+
+					// Check if this is a call on a client variable
+					if clientUsage := p.detectClientCall(file, call, sel, methodName, endpointsByName); clientUsage != nil {
+						clientUsages = append(clientUsages, clientUsage)
+					}
+				}
+			})
+		}
+	}
+
+	return clientUsages
+}
+
+// detectClientCall analyzes a method call to determine if it's a client method call
+func (p *Parser) detectClientCall(file *pkginfo.File, call *ast.CallExpr, sel *ast.SelectorExpr, methodName string, endpointsByName map[string]*api.Endpoint) *api.ClientCallUsage {
+	// Check if the selector is being called on something that looks like a client
+	// Pattern: clientVar.MethodName() where clientVar might be:
+	// 1. Direct call: clientpkg.NewServiceClient().MethodName()
+	// 2. Variable: client.MethodName() where client was assigned from NewServiceClient()
+
+	if chainCall, ok := sel.X.(*ast.CallExpr); ok {
+		// Case 1: Direct chained call like clientpkg.NewServiceClient().MethodName()
+		if chainSel, ok := chainCall.Fun.(*ast.SelectorExpr); ok {
+			constructorName := chainSel.Sel.Name
+
+			// Look for NewXXXClient() pattern
+			if strings.HasPrefix(constructorName, "New") && strings.HasSuffix(constructorName, "Client") {
+				// Extract service name from constructor
+				serviceName := strings.TrimPrefix(constructorName, "New")
+				serviceName = strings.TrimSuffix(serviceName, "Client")
+				serviceName = strings.ToLower(serviceName)
+
+				// Check if we have an endpoint with this name
+				if endpoint, ok := endpointsByName[methodName]; ok {
+					return &api.ClientCallUsage{
+						Base: usage.Base{
+							File: file,
+							Bind: nil, // Client calls don't have resource binds
+							Expr: nil, // We'd need to create a custom Expr, but for now leave nil
+						},
+						Endpoint:     endpoint,
+						ServiceName:  serviceName,
+						EndpointName: methodName,
+						ClientCall:   call,
+					}
+				}
+			}
+		}
+	}
+
+	// Case 2: Variable-based call - this is more complex and would require
+	// type analysis to determine if the variable is a client type
+	// For now, we can try to detect based on package imports
+
+	if ident, ok := sel.X.(*ast.Ident); ok {
+		// Look for variables that might be clients
+		// This would require more sophisticated analysis, but for now
+		// we can check if the package imports client packages
+		_ = ident // placeholder for more complex analysis
+
+		// Check imports for client packages
+		for impPath := range file.Imports {
+			// Look for imports like "myapp.com/clients/servicename"
+			if strings.Contains(impPath.String(), "/clients/") {
+				parts := strings.Split(impPath.String(), "/clients/")
+				if len(parts) == 2 {
+					serviceName := parts[1]
+
+					// Check if we have an endpoint with this name
+					if endpoint, ok := endpointsByName[methodName]; ok {
+						return &api.ClientCallUsage{
+							Base: usage.Base{
+								File: file,
+								Bind: nil, // Client calls don't have resource binds
+								Expr: nil, // We'd need to create a custom Expr, but for now leave nil
+							},
+							Endpoint:     endpoint,
+							ServiceName:  serviceName,
+							EndpointName: methodName,
+							ClientCall:   call,
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

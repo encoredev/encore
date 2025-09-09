@@ -13,19 +13,21 @@ import (
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/internals/posmap"
+	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/infra/sqldb"
 	"encr.dev/v2/parser/resource"
 	"encr.dev/v2/parser/resource/usage"
 )
 
 // computeResult computes the combined resource description.
-func computeResult(errs *perr.List, mainModule *pkginfo.Module, ur *usage.Resolver, appPackages []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind, usageExprs []usage.Expr) *Result {
+func computeResult(errs *perr.List, mainModule *pkginfo.Module, ur *usage.Resolver, appPackages []*pkginfo.Package, resources []resource.Resource, binds []resource.Bind, usageExprs []usage.Expr, clientUsages []*api.ClientCallUsage) *Result {
 	d := &Result{
 		mainModule:    mainModule,
 		appPackages:   appPackages,
 		resources:     resources,
 		allBinds:      binds,
 		allUsageExprs: usageExprs,
+		clientUsages:  clientUsages,
 
 		resMap:         make(map[resource.Resource]*resourceMeta),
 		byType:         make(map[reflect.Type][]resource.Resource),
@@ -37,6 +39,7 @@ func computeResult(errs *perr.List, mainModule *pkginfo.Module, ur *usage.Resolv
 	d.initResources()
 	d.initBinds(errs, binds)
 	d.initUsages(errs, ur, usageExprs)
+	d.initClientUsages(clientUsages)
 	return d
 }
 
@@ -54,6 +57,7 @@ type Result struct {
 	resources     []resource.Resource
 	allBinds      []resource.Bind
 	allUsageExprs []usage.Expr
+	clientUsages  []*api.ClientCallUsage
 
 	resMap         map[resource.Resource]*resourceMeta
 	byType         map[reflect.Type][]resource.Resource
@@ -136,6 +140,10 @@ func (d *Result) UsageFromNode(node ast.Node) option.Option[usage.Usage] {
 
 func (d *Result) UsagesInPkg(pkgPath paths.Pkg) []usage.Usage {
 	return d.usageByPkg[pkgPath]
+}
+
+func (d *Result) ClientUsages() []*api.ClientCallUsage {
+	return d.clientUsages
 }
 
 func (d *Result) rd(res resource.Resource) *resourceMeta {
@@ -262,6 +270,24 @@ func (d *Result) initUsages(errs *perr.List, ur *usage.Resolver, usageExprs []us
 	}
 
 	d.usageByPos = posmap.Build[usage.Usage](allUsages...)
+}
+
+func (d *Result) initClientUsages(clientUsages []*api.ClientCallUsage) {
+	// Add client usages to the usageByPkg mapping by treating them as regular usages
+	for _, clientUsage := range clientUsages {
+		// Find which package this call was made from by looking at the file position
+		for _, pkg := range d.appPackages {
+			for _, file := range pkg.Files {
+				// Check if the client call position is within this file
+				ast := file.AST()
+				if ast.Pos() <= clientUsage.ClientCall.Pos() && clientUsage.ClientCall.Pos() <= ast.End() {
+					// Add the client usage directly to the package's usage list
+					d.usageByPkg[pkg.ImportPath] = append(d.usageByPkg[pkg.ImportPath], clientUsage)
+					break
+				}
+			}
+		}
+	}
 }
 
 func pathKey(path resource.Path) string {

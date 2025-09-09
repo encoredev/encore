@@ -191,6 +191,9 @@ func (b *builder) Build() *meta.Data {
 				// NOTE: The legacy meta does not distinguish between calls and references,
 				// and adds both to the list of RPC calls. Replicate this behavior.
 				addRPCCall(u.Endpoint)
+			case *api.ClientCallUsage:
+				// Handle client method calls the same way as regular API calls
+				addRPCCall(u.Endpoint)
 			}
 		}
 	}

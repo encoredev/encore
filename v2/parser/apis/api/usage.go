@@ -26,6 +26,38 @@ type ReferenceUsage struct {
 	Ref ast.Expr
 }
 
+// ClientCallUsage tracks calls to generated client methods
+type ClientCallUsage struct {
+	usage.Base
+
+	// Endpoint is the endpoint being called through the client.
+	Endpoint *Endpoint
+
+	// ServiceName is the name of the target service.
+	ServiceName string
+
+	// EndpointName is the name of the endpoint method.
+	EndpointName string
+
+	// ClientCall is the client method call expression.
+	ClientCall *ast.CallExpr
+}
+
+func (c *ClientCallUsage) usage() {}
+
+// ClientReferenceUsage tracks references to client constructors
+type ClientReferenceUsage struct {
+	usage.Base
+
+	// ServiceName is the name of the service being referenced.
+	ServiceName string
+
+	// ClientRef is the client reference expression.
+	ClientRef ast.Expr
+}
+
+func (c *ClientReferenceUsage) usage() {}
+
 func ResolveEndpointUsage(data usage.ResolveData, ep *Endpoint) usage.Usage {
 	switch expr := data.Expr.(type) {
 	case *usage.FuncCall:
