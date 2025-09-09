@@ -132,6 +132,11 @@ export interface StreamOptions {
    * Defaults to false if not specified.
    */
   auth?: boolean;
+
+  /**
+   * Tags to filter endpoints when generating clients and in middlewares.
+   */
+  tags?: string[];
 }
 
 type HandlerFn<Params, Response> = Params extends void
