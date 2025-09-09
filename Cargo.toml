@@ -11,6 +11,7 @@ lto = true
 [patch.crates-io]
 tokio-postgres = { git = "https://github.com/encoredev/rust-postgres", branch = "encore-patches-sync" }
 postgres-protocol = { git = "https://github.com/encoredev/rust-postgres", branch = "encore-patches-sync" }
+postgres-types = { git = "https://github.com/encoredev/rust-postgres", branch = "encore-patches-sync" }
 swc_ecma_parser = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
 swc_ecma_ast = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }
 swc_ecma_transforms_base = { git = "https://github.com/encoredev/swc", branch = "node-resolve-exports" }

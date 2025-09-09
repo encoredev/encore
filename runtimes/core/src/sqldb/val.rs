@@ -16,6 +16,10 @@ pub enum RowValue {
     Cidr(cidr::IpCidr),
 }
 
+fn is_pgvector(ty: &Type) -> bool {
+    ty.name() == "vector"
+}
+
 impl ToSql for RowValue {
     fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>>
     where
@@ -118,6 +122,10 @@ impl ToSql for PValue {
                     _ => {
                         if let Kind::Enum(_) = ty.kind() {
                             str.to_sql(ty, out)
+                        } else if is_pgvector(ty) {
+                            let val: pgvector::Vector =
+                                serde_json::from_str(str).context("unable to parse vector")?;
+                            val.to_sql(ty, out)
                         } else {
                             Err(format!("string not supported for column of type {ty}").into())
                         }
@@ -241,7 +249,25 @@ impl ToSql for PValue {
                     Type::TEXT | Type::VARCHAR => dt.to_rfc3339().to_sql(ty, out),
                     _ => Err(format!("unsupported type for DateTime: {ty}").into()),
                 },
-                PValue::Array(arr) => arr.to_sql(ty, out),
+                PValue::Array(arr) => {
+                    if is_pgvector(ty) {
+                        let floats = arr
+                            .iter()
+                            .map(|v| match v {
+                                PValue::Number(n) => n
+                                    .as_f64()
+                                    .or_else(|| n.as_i64().map(|i| i as f64))
+                                    .or_else(|| n.as_u64().map(|u| u as f64))
+                                    .map(|f| f as f32)
+                                    .ok_or_else(|| "vector element must be a number".into()),
+                                _ => Err("vector element must be a number".into()),
+                            })
+                            .collect::<Result<Vec<f32>, Box<dyn Error + Sync + Send>>>()?;
+                        pgvector::Vector::from(floats).to_sql(ty, out)
+                    } else {
+                        arr.to_sql(ty, out)
+                    }
+                }
                 PValue::Object(_) => {
                     Err(format!("object not supported for column of type {ty}").into())
                 }
@@ -277,6 +303,7 @@ impl ToSql for PValue {
                 | Type::NAME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
+            || is_pgvector(ty)
     }
     to_sql_checked!();
 }
@@ -398,6 +425,17 @@ impl<'a> FromSql<'a> for PValue {
                 } else if let Kind::Enum(_) = ty.kind() {
                     let val = std::str::from_utf8(raw)?;
                     PValue::String(val.to_string())
+                } else if is_pgvector(ty) {
+                    let val: pgvector::Vector = FromSql::from_sql(ty, raw)?;
+                    let arr = val
+                        .as_slice()
+                        .iter()
+                        .map(|n| match serde_json::Number::from_f64(*n as f64) {
+                            Some(num) => PValue::Number(num),
+                            None => PValue::Null,
+                        })
+                        .collect();
+                    PValue::Array(arr)
                 } else {
                     return Err(format!("unsupported type: {ty:?}").into());
                 }
@@ -432,6 +470,7 @@ impl<'a> FromSql<'a> for PValue {
                 | Type::NAME
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as FromSql>::accepts(ty))
+            || is_pgvector(ty)
     }
 }
 
@@ -681,6 +720,221 @@ mod tests {
                     PValue::Number(3.into())
                 ]
             );
+        } else {
+            panic!("Expected PValue::Array");
+        }
+    }
+
+    #[test]
+    fn test_pvalue_to_sql_pgvector_from_string() {
+        // Create a mock vector type
+        let vector_type = Type::new("vector".to_string(), 0, Kind::Simple, "".to_string());
+
+        // Test valid vector string
+        let value = PValue::String("[1.0, 2.0, 3.0]".to_string());
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_ok());
+
+        // Test invalid vector string
+        let value = PValue::String("invalid".to_string());
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pvalue_to_sql_pgvector_from_array() {
+        // Create a mock vector type
+        let vector_type = Type::new("vector".to_string(), 0, Kind::Simple, "".to_string());
+
+        // Test valid array of numbers
+        let value = PValue::Array(vec![
+            PValue::Number(serde_json::Number::from_f64(1.0).unwrap()),
+            PValue::Number(serde_json::Number::from_f64(2.5).unwrap()),
+            PValue::Number(serde_json::Number::from_f64(3.75).unwrap()),
+        ]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_ok());
+
+        // Test array with integer numbers (should convert to f32)
+        let value = PValue::Array(vec![
+            PValue::Number(serde_json::Number::from(1)),
+            PValue::Number(serde_json::Number::from(2)),
+            PValue::Number(serde_json::Number::from(3)),
+        ]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_ok());
+
+        // Test array with non-number elements
+        let value = PValue::Array(vec![
+            PValue::Number(serde_json::Number::from(1)),
+            PValue::String("not a number".to_string()),
+        ]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_err());
+
+        // Test array with null
+        let value = PValue::Array(vec![
+            PValue::Number(serde_json::Number::from(1)),
+            PValue::Null,
+        ]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pvalue_from_sql_pgvector() {
+        // Create a mock vector type
+        let vector_type = Type::new("vector".to_string(), 0, Kind::Simple, "".to_string());
+
+        // Create a pgvector and serialize it
+        let vector = pgvector::Vector::from(vec![1.0f32, 2.5f32, 3.75f32]);
+        let mut buf = BytesMut::new();
+        vector.to_sql(&vector_type, &mut buf).unwrap();
+
+        // Test deserialization
+        let result = PValue::from_sql(&vector_type, &buf);
+        assert!(result.is_ok());
+
+        if let PValue::Array(arr) = result.unwrap() {
+            assert_eq!(arr.len(), 3);
+
+            // Check values (allowing for float precision)
+            if let PValue::Number(n) = &arr[0] {
+                assert_eq!(n.as_f64().unwrap(), 1.0);
+            } else {
+                panic!("Expected PValue::Number");
+            }
+
+            if let PValue::Number(n) = &arr[1] {
+                assert_eq!(n.as_f64().unwrap(), 2.5);
+            } else {
+                panic!("Expected PValue::Number");
+            }
+
+            if let PValue::Number(n) = &arr[2] {
+                assert_eq!(n.as_f64().unwrap(), 3.75);
+            } else {
+                panic!("Expected PValue::Number");
+            }
+        } else {
+            panic!("Expected PValue::Array");
+        }
+    }
+
+    #[test]
+    fn test_pgvector_roundtrip() {
+        // Create a mock vector type
+        let vector_type = Type::new("vector".to_string(), 0, Kind::Simple, "".to_string());
+
+        // Test roundtrip with array input
+        let original = PValue::Array(vec![
+            PValue::Number(serde_json::Number::from_f64(1.1).unwrap()),
+            PValue::Number(serde_json::Number::from_f64(2.2).unwrap()),
+            PValue::Number(serde_json::Number::from_f64(3.3).unwrap()),
+        ]);
+
+        // Serialize
+        let mut buf = BytesMut::new();
+        original.to_sql(&vector_type, &mut buf).unwrap();
+
+        // Deserialize
+        let deserialized = PValue::from_sql(&vector_type, &buf).unwrap();
+
+        // Verify
+        if let PValue::Array(arr) = deserialized {
+            assert_eq!(arr.len(), 3);
+            if let (PValue::Number(n1), PValue::Number(n2), PValue::Number(n3)) =
+                (&arr[0], &arr[1], &arr[2])
+            {
+                assert!((n1.as_f64().unwrap() - 1.1).abs() < 0.01);
+                assert!((n2.as_f64().unwrap() - 2.2).abs() < 0.01);
+                assert!((n3.as_f64().unwrap() - 3.3).abs() < 0.01);
+            } else {
+                panic!("Expected all elements to be numbers");
+            }
+        } else {
+            panic!("Expected PValue::Array");
+        }
+    }
+
+    #[test]
+    fn test_pgvector_edge_cases() {
+        // Create a mock vector type
+        let vector_type = Type::new("vector".to_string(), 0, Kind::Simple, "".to_string());
+
+        // Test empty vector
+        let value = PValue::Array(vec![]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_ok());
+
+        // Test single element vector
+        let value = PValue::Array(vec![PValue::Number(
+            serde_json::Number::from_f64(42.0).unwrap(),
+        )]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_ok());
+
+        // Test with special float values
+        let value = PValue::Array(vec![
+            PValue::Number(serde_json::Number::from_f64(0.0).unwrap()),
+            PValue::Number(serde_json::Number::from_f64(-1.0).unwrap()),
+            PValue::Number(serde_json::Number::from_f64(f64::MAX).unwrap()),
+        ]);
+        let mut buf = BytesMut::new();
+        let result = value.to_sql(&vector_type, &mut buf);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_pgvector_nan_infinity_handling() {
+        // Create a mock vector type
+        let vector_type = Type::new("vector".to_string(), 0, Kind::Simple, "".to_string());
+
+        // Test that NaN values result in PValue::Null when deserializing
+        let vector = pgvector::Vector::from(vec![1.0f32, f32::NAN, 3.0f32]);
+        let mut buf = BytesMut::new();
+        vector.to_sql(&vector_type, &mut buf).unwrap();
+
+        let result = PValue::from_sql(&vector_type, &buf).unwrap();
+        if let PValue::Array(arr) = result {
+            assert_eq!(arr.len(), 3);
+            assert!(matches!(&arr[0], PValue::Number(_)));
+            assert!(matches!(&arr[1], PValue::Null)); // NaN becomes Null
+            assert!(matches!(&arr[2], PValue::Number(_)));
+        } else {
+            panic!("Expected PValue::Array");
+        }
+
+        // Test positive infinity
+        let vector = pgvector::Vector::from(vec![f32::INFINITY]);
+        let mut buf = BytesMut::new();
+        vector.to_sql(&vector_type, &mut buf).unwrap();
+
+        let result = PValue::from_sql(&vector_type, &buf).unwrap();
+        if let PValue::Array(arr) = result {
+            assert_eq!(arr.len(), 1);
+            assert!(matches!(&arr[0], PValue::Null)); // Infinity becomes Null
+        } else {
+            panic!("Expected PValue::Array");
+        }
+
+        // Test negative infinity
+        let vector = pgvector::Vector::from(vec![f32::NEG_INFINITY]);
+        let mut buf = BytesMut::new();
+        vector.to_sql(&vector_type, &mut buf).unwrap();
+
+        let result = PValue::from_sql(&vector_type, &buf).unwrap();
+        if let PValue::Array(arr) = result {
+            assert_eq!(arr.len(), 1);
+            assert!(matches!(&arr[0], PValue::Null)); // Negative infinity becomes Null
         } else {
             panic!("Expected PValue::Array");
         }
