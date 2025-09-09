@@ -586,9 +586,7 @@ impl EndpointHandler {
             let logger = crate::log::root();
             logger.info(Some(&request), "starting request", None);
 
-            if trace {
-                self.shared.tracer.request_span_start(&request);
-            }
+            self.shared.tracer.request_span_start(&request, !trace);
 
             let resp: ResponseData = self.handler.call(request.clone()).await;
 
@@ -662,9 +660,7 @@ impl EndpointHandler {
                         resp_headers: encoded_resp.headers().clone(),
                     }),
                 };
-                if trace {
-                    self.shared.tracer.request_span_end(&model_resp);
-                }
+                self.shared.tracer.request_span_end(&model_resp, !trace);
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {

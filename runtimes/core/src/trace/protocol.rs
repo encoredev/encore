@@ -144,7 +144,7 @@ impl Tracer {
 
 impl Tracer {
     #[inline]
-    pub fn request_span_start(&self, req: &model::Request) {
+    pub fn request_span_start(&self, req: &model::Request, redact_details: bool) {
         let mut eb = SpanStartEventData {
             parent: Parent::from(req),
             caller_event_id: req.caller_event_id,
@@ -161,29 +161,40 @@ impl Tracer {
                 eb.str(&rpc.path);
 
                 // Encode path params. We only encode the values since the keys are known in metadata.
-                {
-                    let path_params = rpc.parsed_payload.as_ref().and_then(|p| p.path.as_ref());
-                    if let Some(path_params) = path_params {
-                        eb.uvarint(path_params.len() as u64);
-                        for (_, v) in path_params {
-                            match &v {
-                                PValue::String(s) => eb.str(s.as_str()),
-                                other => eb.str(other.to_string().as_str()),
-                            }
+                let path_params = if !redact_details {
+                    rpc.parsed_payload.as_ref().and_then(|p| p.path.as_ref())
+                } else {
+                    None
+                };
+
+                if let Some(path_params) = path_params {
+                    eb.uvarint(path_params.len() as u64);
+                    for (_, v) in path_params {
+                        match &v {
+                            PValue::String(s) => eb.str(s.as_str()),
+                            other => eb.str(other.to_string().as_str()),
                         }
-                    } else {
-                        eb.uvarint(0u64);
                     }
+                } else {
+                    eb.uvarint(0u64);
                 }
 
                 // Encode request headers. If a header has multiple values it is encoded multiple times.
-                eb.headers(&rpc.req_headers);
+                if !redact_details {
+                    eb.headers(&rpc.req_headers);
+                } else {
+                    eb.uvarint(0u64);
+                }
 
-                let payload = rpc
-                    .parsed_payload
-                    .as_ref()
-                    .and_then(|p| serde_json::to_vec_pretty(p).ok());
-                eb.opt_byte_string(payload.as_deref());
+                if !redact_details {
+                    let payload = rpc
+                        .parsed_payload
+                        .as_ref()
+                        .and_then(|p| serde_json::to_vec_pretty(p).ok());
+                    eb.opt_byte_string(payload.as_deref());
+                } else {
+                    eb.byte_string(b"<redacted>");
+                };
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(rpc.auth_user_id.as_deref());
@@ -219,29 +230,40 @@ impl Tracer {
                 eb.str(&data.path);
 
                 // Encode path params. We only encode the values since the keys are known in metadata.
-                {
-                    let path_params = data.parsed_payload.as_ref().and_then(|p| p.path.as_ref());
-                    if let Some(path_params) = path_params {
-                        eb.uvarint(path_params.len() as u64);
-                        for (_, v) in path_params {
-                            match &v {
-                                PValue::String(s) => eb.str(s.as_str()),
-                                other => eb.str(other.to_string().as_str()),
-                            }
+                let path_params = if !redact_details {
+                    data.parsed_payload.as_ref().and_then(|p| p.path.as_ref())
+                } else {
+                    None
+                };
+
+                if let Some(path_params) = path_params {
+                    eb.uvarint(path_params.len() as u64);
+                    for (_, v) in path_params {
+                        match &v {
+                            PValue::String(s) => eb.str(s.as_str()),
+                            other => eb.str(other.to_string().as_str()),
                         }
-                    } else {
-                        eb.uvarint(0u64);
                     }
+                } else {
+                    eb.uvarint(0u64);
                 }
 
                 // Encode request headers. If a header has multiple values it is encoded multiple times.
-                eb.headers(&data.req_headers);
+                if !redact_details {
+                    eb.headers(&data.req_headers);
+                } else {
+                    eb.uvarint(0u64);
+                }
 
-                let payload = data
-                    .parsed_payload
-                    .as_ref()
-                    .and_then(|p| serde_json::to_vec_pretty(p).ok());
-                eb.opt_byte_string(payload.as_deref());
+                if !redact_details {
+                    let payload = data
+                        .parsed_payload
+                        .as_ref()
+                        .and_then(|p| serde_json::to_vec_pretty(p).ok());
+                    eb.opt_byte_string(payload.as_deref());
+                } else {
+                    eb.byte_string(b"<redacted>");
+                };
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(data.auth_user_id.as_deref());
@@ -254,7 +276,7 @@ impl Tracer {
     }
 
     #[inline]
-    pub fn request_span_end(&self, resp: &model::Response) {
+    pub fn request_span_end(&self, resp: &model::Response, redact_details: bool) {
         // If the request has no span, we don't need to do anything.
         let req = resp.request.as_ref();
 
@@ -294,14 +316,21 @@ impl Tracer {
         let event_type = match &resp.data {
             model::ResponseData::RPC(resp_data) => {
                 eb.uvarint(resp_data.status_code);
-                eb.headers(&resp_data.resp_headers);
-
-                if let Some(payload) = &resp_data.resp_payload {
-                    let payload = serde_json::to_vec_pretty(payload).unwrap_or_default();
-                    eb.byte_string(&payload);
+                if !redact_details {
+                    eb.headers(&resp_data.resp_headers);
                 } else {
-                    eb.byte_string(&[]);
+                    eb.uvarint(0u64);
                 }
+
+                if !redact_details {
+                    let payload = resp_data
+                        .resp_payload
+                        .as_ref()
+                        .and_then(|p| serde_json::to_vec_pretty(p).ok());
+                    eb.opt_byte_string(payload.as_deref());
+                } else {
+                    eb.byte_string(b"<redacted>");
+                };
 
                 EventType::RequestSpanEnd
             }

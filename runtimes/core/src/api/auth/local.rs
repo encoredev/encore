@@ -87,7 +87,7 @@ impl AuthHandler for LocalAuthHandler {
             let logger = crate::log::root();
             logger.info(Some(&req), "running auth handler", None);
 
-            self.tracer.request_span_start(&req);
+            self.tracer.request_span_start(&req, false);
             let auth_response: HandlerResponse = handler.call(req.clone()).await;
             let duration = tokio::time::Instant::now().duration_since(req.start);
 
@@ -152,7 +152,7 @@ impl AuthHandler for LocalAuthHandler {
                             user_id: auth_uid.clone(),
                         })),
                     };
-                    self.tracer.request_span_end(&model_resp);
+                    self.tracer.request_span_end(&model_resp, false);
                     Ok(AuthResponse::Authenticated {
                         auth_uid,
                         auth_data,
@@ -164,7 +164,7 @@ impl AuthHandler for LocalAuthHandler {
                         duration,
                         data: model::ResponseData::Auth(Err(e.clone())),
                     };
-                    self.tracer.request_span_end(&model_resp);
+                    self.tracer.request_span_end(&model_resp, false);
                     Err(e)
                 }
             }

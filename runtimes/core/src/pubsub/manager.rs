@@ -240,7 +240,7 @@ impl SubHandler {
             let logger = crate::log::root();
             logger.info(Some(&req), "starting request", None);
 
-            self.obj.tracer.request_span_start(&req);
+            self.obj.tracer.request_span_start(&req, false);
 
             let result = {
                 // If we have a parse error, use that as the result immediately.
@@ -259,7 +259,7 @@ impl SubHandler {
                 duration: tokio::time::Instant::now().duration_since(start),
                 data: ResponseData::PubSub(result.clone()),
             };
-            self.obj.tracer.request_span_end(&resp);
+            self.obj.tracer.request_span_end(&resp, false);
             result
         })
     }
