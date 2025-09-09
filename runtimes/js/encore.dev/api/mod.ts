@@ -103,6 +103,11 @@ export interface APIOptions {
    * Tags to filter endpoints when generating clients and in middlewares.
    */
   tags?: string[];
+
+  /**
+   * Whether or not to trace this endpoint. Defaults to true if not specified.
+   */
+  trace?: boolean;
 }
 
 export interface StreamOptions {
@@ -137,6 +142,11 @@ export interface StreamOptions {
    * Tags to filter endpoints when generating clients and in middlewares.
    */
   tags?: string[];
+
+  /**
+   * Whether or not to trace this endpoint. Defaults to true if not specified.
+   */
+  trace?: boolean;
 }
 
 type HandlerFn<Params, Response> = Params extends void

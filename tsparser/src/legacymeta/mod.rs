@@ -207,6 +207,7 @@ impl MetaBuilder<'_> {
                         streaming_request: ep.streaming_request,
                         streaming_response: ep.streaming_response,
                         static_assets,
+                        trace: ep.trace,
                     };
 
                     let Some(service_idx) =
