@@ -38,7 +38,7 @@ pub struct Endpoint {
     pub raw: bool,
     pub require_auth: bool,
     pub tags: Vec<String>,
-    pub trace: bool,
+    pub sensitive: bool,
 
     /// Body limit in bytes.
     /// None means no limit.
@@ -387,7 +387,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 body_limit,
                 encoding,
                 tags: cfg.tags.unwrap_or_default(),
-                trace: cfg.trace.unwrap_or(true),
+                sensitive: cfg.sensitive.unwrap_or(false),
             }));
 
             pass.add_resource(resource.clone());
@@ -484,7 +484,7 @@ struct EndpointConfig {
     auth: Option<bool>,
     bodyLimit: Option<Nullable<u64>>,
     tags: Option<Vec<String>>,
-    trace: Option<bool>,
+    sensitive: Option<bool>,
 
     // For static assets.
     dir: Option<Sp<LocalRelPath>>,

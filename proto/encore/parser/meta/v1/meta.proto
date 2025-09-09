@@ -149,9 +149,6 @@ message RPC {
   // If the endpoint serves static assets.
   optional StaticAssets static_assets = 19;
 
-  // If the endoint should be traced.
-  bool trace = 20;
-
   enum AccessType {
     PRIVATE = 0;
     PUBLIC = 1;

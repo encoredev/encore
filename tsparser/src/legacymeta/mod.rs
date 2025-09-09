@@ -190,7 +190,7 @@ impl MetaBuilder<'_> {
                         path: Some(ep.encoding.path.to_meta()),
                         http_methods: ep.encoding.methods.to_vec(),
                         tags,
-                        sensitive: false,
+                        sensitive: ep.sensitive,
                         loc: Some(loc_from_range(self.app_root, &self.pc.file_set, ep.range)?),
                         allow_unauthenticated: !ep.require_auth,
                         body_limit: ep.body_limit,
@@ -207,7 +207,6 @@ impl MetaBuilder<'_> {
                         streaming_request: ep.streaming_request,
                         streaming_response: ep.streaming_response,
                         static_assets,
-                        trace: ep.trace,
                     };
 
                     let Some(service_idx) =

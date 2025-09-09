@@ -105,9 +105,9 @@ export interface APIOptions {
   tags?: string[];
 
   /**
-   * Whether or not to trace this endpoint. Defaults to true if not specified.
+   * When set to true, request information such as payloads and headers will be excluded from traces.
    */
-  trace?: boolean;
+  sensitive?: boolean;
 }
 
 export interface StreamOptions {
@@ -144,9 +144,9 @@ export interface StreamOptions {
   tags?: string[];
 
   /**
-   * Whether or not to trace this endpoint. Defaults to true if not specified.
+   * When set to true, request information such as payloads and headers will be excluded from traces.
    */
-  trace?: boolean;
+  sensitive?: boolean;
 }
 
 type HandlerFn<Params, Response> = Params extends void
