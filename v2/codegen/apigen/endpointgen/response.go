@@ -172,6 +172,12 @@ func (d *responseDesc) DecodeExternalResp() *Statement {
 		enc := d.ep.ResponseEncoding()
 		dec := d.gu.NewTypeUnmarshaller("dec")
 		g.Add(dec.Init())
+
+		if enc.HTTPStatusField != "" {
+			g.Line().Comment("Set HTTP status field")
+			g.Id("resp").Dot(enc.HTTPStatusField).Op("=").Id("httpResp").Dot("StatusCode")
+		}
+
 		apigenutil.DecodeHeaders(g, Id("httpResp").Dot("Header"), Id("resp"), dec, enc.HeaderParameters)
 		apigenutil.DecodeBody(g, Id("httpResp").Dot("Body"), Id("resp"), dec, enc.BodyParameters)
 
