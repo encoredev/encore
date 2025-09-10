@@ -186,7 +186,7 @@ func concretize(errs *perr.List, referencedFrom ast.Node, typ schema.Type, typeA
 		}
 	case schema.StructType:
 		result := schema.StructType{
-			AST:    nil,
+			AST:    typ.AST,
 			Fields: make([]schema.StructField, len(typ.Fields)),
 		}
 		for i, f := range typ.Fields {

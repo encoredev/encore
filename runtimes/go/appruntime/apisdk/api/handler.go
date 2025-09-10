@@ -813,7 +813,7 @@ func (d *Desc[Req, Resp]) externalCall(c CallContext, service config.Service, re
 		}
 		defer func() { _ = httpResp.Body.Close() }()
 
-		if httpResp.StatusCode != http.StatusOK {
+		if httpResp.StatusCode >= 400 {
 			return resp, unmarshalErrorResponse(httpResp)
 		}
 

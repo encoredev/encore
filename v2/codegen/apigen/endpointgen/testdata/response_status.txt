@@ -79,6 +79,9 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 	DecodeExternalResp: func(httpResp *http.Response, json jsoniter.API) (resp EncoreInternal_FooResp, err error) {
 		resp = new(Params)
 		dec := new(__etype.Unmarshaller)
+
+		// Set HTTP status field
+		resp.Int = int(httpResp.StatusCode)
 		// Decode request body
 		payload := dec.ReadBody(httpResp.Body)
 		iter := jsoniter.ParseBytes(json, payload)
