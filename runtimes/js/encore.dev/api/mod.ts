@@ -103,6 +103,11 @@ export interface APIOptions {
    * Tags to filter endpoints when generating clients and in middlewares.
    */
   tags?: string[];
+
+  /**
+   * When set to true, request information such as payloads and headers will be excluded from traces.
+   */
+  sensitive?: boolean;
 }
 
 export interface StreamOptions {
@@ -137,6 +142,11 @@ export interface StreamOptions {
    * Tags to filter endpoints when generating clients and in middlewares.
    */
   tags?: string[];
+
+  /**
+   * When set to true, request information such as payloads and headers will be excluded from traces.
+   */
+  sensitive?: boolean;
 }
 
 type HandlerFn<Params, Response> = Params extends void

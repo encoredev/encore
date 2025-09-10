@@ -179,6 +179,9 @@ pub struct Endpoint {
 
     /// The tags for this endpoint.
     pub tags: Vec<String>,
+
+    /// Treat endpoint as sensitive and redact details from traces.
+    pub sensitive: bool,
 }
 
 impl Endpoint {
@@ -379,6 +382,7 @@ pub fn endpoints_from_meta(
             body_limit: ep.ep.body_limit,
             static_assets: ep.ep.static_assets.clone(),
             tags,
+            sensitive: ep.ep.sensitive,
         };
 
         endpoint_map.insert(
@@ -556,6 +560,7 @@ impl EndpointHandler {
             };
 
             let internal_caller = request.internal_caller.clone();
+            let sensitive = self.endpoint.sensitive;
 
             // If the endpoint isn't exposed, return a 404.
             if !self.endpoint.exposed && !request.allows_private_endpoint_call() {
@@ -581,7 +586,7 @@ impl EndpointHandler {
             let logger = crate::log::root();
             logger.info(Some(&request), "starting request", None);
 
-            self.shared.tracer.request_span_start(&request);
+            self.shared.tracer.request_span_start(&request, sensitive);
 
             let resp: ResponseData = self.handler.call(request.clone()).await;
 
@@ -655,7 +660,7 @@ impl EndpointHandler {
                         resp_headers: encoded_resp.headers().clone(),
                     }),
                 };
-                self.shared.tracer.request_span_end(&model_resp);
+                self.shared.tracer.request_span_end(&model_resp, sensitive);
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {
