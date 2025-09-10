@@ -4,17 +4,15 @@ import (
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/option"
-	"encr.dev/pkg/paths"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/parser/apis/api"
 )
 
 type handlerDesc struct {
-	gu          *genutil.Helper
-	ep          *api.Endpoint
-	svcStruct   option.Option[*codegen.VarDecl]
-	wrappersPkg paths.Pkg
+	gu        *genutil.Helper
+	ep        *api.Endpoint
+	svcStruct option.Option[*codegen.VarDecl]
 
 	req  *requestDesc
 	resp *responseDesc
@@ -30,15 +28,15 @@ func (h *handlerDesc) Typed() *Statement {
 	return Func().Params(
 		Id("ctx").Qual("context", "Context"),
 		h.req.reqDataExpr().Do(func(s *Statement) {
-			if h.req.needsQualification() {
-				s.Op("*").Qual(string(h.wrappersPkg), h.req.TypeName())
+			if pkg, ok := h.req.wrappersPkg.Get(); ok {
+				s.Op("*").Qual(pkg.String(), h.req.TypeName())
 			} else {
 				s.Op("*").Id(h.req.TypeName())
 			}
 		}),
 	).Params(Do(func(s *Statement) {
-		if h.resp.needsQualification() {
-			s.Qual(string(h.wrappersPkg), h.resp.TypeName())
+		if pkg, ok := h.resp.wrappersPkg.Get(); ok {
+			s.Qual(pkg.String(), h.resp.TypeName())
 		} else {
 			s.Id(h.resp.TypeName())
 		}

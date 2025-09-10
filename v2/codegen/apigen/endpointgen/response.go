@@ -3,8 +3,8 @@ package endpointgen
 import (
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
-	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/schema"
@@ -17,8 +17,7 @@ import (
 type responseDesc struct {
 	gu          *genutil.Helper
 	ep          *api.Endpoint
-	wrappersPkg paths.Pkg
-	fw          *apiframework.ServiceDesc
+	wrappersPkg option.Option[paths.Pkg]
 }
 
 func (d *responseDesc) TypeName() string {
@@ -27,11 +26,6 @@ func (d *responseDesc) TypeName() string {
 
 func (d *responseDesc) Type() *Statement {
 	return Id(d.TypeName())
-}
-
-// needsQualification returns true if the types need to be qualified with the package name
-func (d *responseDesc) needsQualification() bool {
-	return d.wrappersPkg != d.fw.RootPkg.ImportPath
 }
 
 func (d *responseDesc) TypeDecl() *Statement {
@@ -61,8 +55,8 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		Id("w").Qual("net/http", "ResponseWriter"),
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 		Id("resp").Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Id(d.TypeName())
 			}
@@ -175,8 +169,8 @@ func (d *responseDesc) DecodeExternalResp() *Statement {
 		Id("json").Qual("github.com/json-iterator/go", "API"),
 	).Params(
 		Id("resp").Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Id(d.TypeName())
 			}
@@ -240,14 +234,14 @@ func (d *responseDesc) zero() *Statement {
 func (d *responseDesc) Clone() *Statement {
 	const recv = "r"
 	return Func().Params(Id(recv).Do(func(s *Statement) {
-		if d.needsQualification() {
-			s.Qual(d.wrappersPkg.String(), d.TypeName())
+		if pkg, ok := d.wrappersPkg.Get(); ok {
+			s.Qual(pkg.String(), d.TypeName())
 		} else {
 			s.Id(d.TypeName())
 		}
 	})).Params(Do(func(s *Statement) {
-		if d.needsQualification() {
-			s.Qual(d.wrappersPkg.String(), d.TypeName())
+		if pkg, ok := d.wrappersPkg.Get(); ok {
+			s.Qual(pkg.String(), d.TypeName())
 		} else {
 			s.Id(d.TypeName())
 		}
@@ -255,8 +249,8 @@ func (d *responseDesc) Clone() *Statement {
 		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
 		// in the struct. For now, simply serialize it as JSON and back.
 		g.Var().Id("clone").Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Id(d.TypeName())
 			}

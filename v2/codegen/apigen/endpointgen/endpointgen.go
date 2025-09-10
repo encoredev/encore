@@ -31,21 +31,23 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 
 		var handlers []*handlerDesc
 		for _, ep := range fw.Endpoints {
-			var wrappersFile *codegen.File
-			var wrappersPkg paths.Pkg
+			var wrappersFile option.Option[*codegen.File]
 
 			if useWrappersPkg {
 				// Create the wrappers package
-				wrappersPkg = paths.Pkg(fw.RootPkg.ImportPath).JoinSlash(paths.RelSlash(svc.Name + "wrappers"))
 				wrappersPkgDir := fw.RootPkg.FSPath.Join(svc.Name + "wrappers")
-				wrappersFile = gen.InjectFile(wrappersPkg, svc.Name+"wrappers", wrappersPkgDir, "wrappers.go", "wrappers")
-			} else {
-				// Use the same file as the API
-				wrappersFile = f
-				wrappersPkg = fw.RootPkg.ImportPath
+				wrappersFile = option.Some(
+					gen.InjectFile(
+						paths.Pkg(fw.RootPkg.ImportPath).JoinSlash(paths.RelSlash(svc.Name+"wrappers")),
+						svc.Name+"wrappers",
+						wrappersPkgDir,
+						"wrappers.go",
+						"wrappers",
+					),
+				)
 			}
 
-			handler := genAPIDesc(gen, f, wrappersFile, appDesc, svc, svcStruct, fw, ep, svcMiddleware, wrappersPkg)
+			handler := genAPIDesc(gen, f, wrappersFile, appDesc, svc, svcStruct, fw, ep, svcMiddleware)
 			rewriteAPICalls(gen, appDesc.Parse, svc, ep, handler)
 			epMap[ep] = handler.desc
 			handlers = append(handlers, handler)
@@ -58,23 +60,31 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, svcStruct 
 }
 
 func genAPIDesc(
-	gen *codegen.Generator, f *codegen.File, wrappersFile *codegen.File, appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl],
-	fw *apiframework.ServiceDesc, ep *api.Endpoint, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl, wrappersPkg paths.Pkg,
+	gen *codegen.Generator, f *codegen.File, wrappersFile option.Option[*codegen.File], appDesc *app.Desc, svc *app.Service, svcStruct option.Option[*codegen.VarDecl],
+	fw *apiframework.ServiceDesc, ep *api.Endpoint, svcMiddleware map[*middleware.Middleware]*codegen.VarDecl,
 ) *handlerDesc {
 	gu := gen.Util
-	reqDesc := &requestDesc{gu: gen.Util, ep: ep, wrappersPkg: wrappersPkg, fw: fw}
-	respDesc := &responseDesc{gu: gen.Util, ep: ep, wrappersPkg: wrappersPkg, fw: fw}
+
+	wrappersPkg := option.Map(wrappersFile, func(file *codegen.File) paths.Pkg {
+		return file.PkgPath()
+	})
+
+	reqDesc := &requestDesc{gu: gen.Util, ep: ep, wrappersPkg: wrappersPkg}
+	respDesc := &responseDesc{gu: gen.Util, ep: ep, wrappersPkg: wrappersPkg}
 	handler := &handlerDesc{
-		gu:          gen.Util,
-		ep:          ep,
-		svcStruct:   svcStruct,
-		req:         reqDesc,
-		resp:        respDesc,
-		wrappersPkg: wrappersPkg,
+		gu:        gen.Util,
+		ep:        ep,
+		svcStruct: svcStruct,
+		req:       reqDesc,
+		resp:      respDesc,
 	}
 
-	wrappersFile.Add(reqDesc.TypeDecl())
-	wrappersFile.Add(respDesc.TypeDecl())
+	targetFile := f
+	if wf, ok := wrappersFile.Get(); ok {
+		targetFile = wf
+	}
+	targetFile.Add(reqDesc.TypeDecl())
+	targetFile.Add(respDesc.TypeDecl())
 
 	methods := ep.HTTPMethods
 	if len(methods) == 1 && methods[0] == "*" {
@@ -98,12 +108,12 @@ func genAPIDesc(
 	desc := f.VarDecl("APIDesc", ep.Name)
 	// If we're using the same package, don't qualify the types
 	var reqType, respType *Statement
-	if wrappersPkg == fw.RootPkg.ImportPath {
+	if pkg, ok := wrappersPkg.Get(); ok {
+		reqType = Op("*").Qual(pkg.String(), reqDesc.TypeName())
+		respType = Qual(pkg.String(), respDesc.TypeName())
+	} else {
 		reqType = Op("*").Id(reqDesc.TypeName())
 		respType = Id(respDesc.TypeName())
-	} else {
-		reqType = Op("*").Qual(wrappersPkg.String(), reqDesc.TypeName())
-		respType = Qual(wrappersPkg.String(), respDesc.TypeName())
 	}
 
 	desc.Value(Op("&").Add(apiQ("Desc")).Types(

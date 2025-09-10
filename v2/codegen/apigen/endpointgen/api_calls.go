@@ -75,14 +75,14 @@ func genCallWrapper(gen *codegen.Generator, svc *app.Service, ep *api.Endpoint, 
 		}).Op(":=").Id(handler.desc.Name()).Dot("Call").CallFunc(func(g *Group) {
 			g.Add(apiQ("NewCallContext")).Call(Id("ctx"))
 			// Check if we need to qualify the type name
-			if fw.RootPkg.ImportPath == handler.wrappersPkg {
-				g.Op("&").Id(handler.req.TypeName()).Values(DictFunc(func(d Dict) {
+			if pkg, ok := handler.req.wrappersPkg.Get(); ok {
+				g.Op("&").Qual(string(pkg), handler.req.TypeName()).Values(DictFunc(func(d Dict) {
 					for _, p := range params {
 						d[Id(p.name)] = Id(p.name)
 					}
 				}))
 			} else {
-				g.Op("&").Qual(string(handler.wrappersPkg), handler.req.TypeName()).Values(DictFunc(func(d Dict) {
+				g.Op("&").Id(handler.req.TypeName()).Values(DictFunc(func(d Dict) {
 					for _, p := range params {
 						d[Id(p.name)] = Id(p.name)
 					}

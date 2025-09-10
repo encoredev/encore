@@ -5,8 +5,8 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
-	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
 	"encr.dev/v2/internals/resourcepaths"
@@ -23,8 +23,7 @@ const jsonIterPkg = "github.com/json-iterator/go"
 type requestDesc struct {
 	gu          *genutil.Helper
 	ep          *api.Endpoint
-	wrappersPkg paths.Pkg
-	fw          *apiframework.ServiceDesc
+	wrappersPkg option.Option[paths.Pkg]
 }
 
 func (d *requestDesc) TypeName() string {
@@ -33,11 +32,6 @@ func (d *requestDesc) TypeName() string {
 
 func (d *requestDesc) Type() *Statement {
 	return Op("*").Id(d.TypeName())
-}
-
-// needsQualification returns true if the types need to be qualified with the package name
-func (d *requestDesc) needsQualification() bool {
-	return d.wrappersPkg != d.fw.RootPkg.ImportPath
 }
 
 func (d *requestDesc) TypeDecl() *Statement {
@@ -61,8 +55,8 @@ func (d *requestDesc) DecodeRequest() *Statement {
 		Id("json").Qual(jsonIterPkg, "API"),
 	).Params(
 		d.reqDataExpr().Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Op("*").Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Op("*").Id(d.TypeName())
 			}
@@ -71,8 +65,8 @@ func (d *requestDesc) DecodeRequest() *Statement {
 		Err().Error(),
 	).BlockFunc(func(g *Group) {
 		g.Add(d.reqDataExpr()).Op("=").New(Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Id(d.TypeName())
 			}
@@ -276,14 +270,14 @@ func (d *requestDesc) decodeRequestParameters(g *Group, dec *genutil.TypeUnmarsh
 func (d *requestDesc) Clone() *Statement {
 	const recv = "r"
 	return Func().Params(Id(recv).Do(func(s *Statement) {
-		if d.needsQualification() {
-			s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+		if pkg, ok := d.wrappersPkg.Get(); ok {
+			s.Op("*").Qual(pkg.String(), d.TypeName())
 		} else {
 			s.Op("*").Id(d.TypeName())
 		}
 	})).Params(Do(func(s *Statement) {
-		if d.needsQualification() {
-			s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+		if pkg, ok := d.wrappersPkg.Get(); ok {
+			s.Op("*").Qual(pkg.String(), d.TypeName())
 		} else {
 			s.Op("*").Id(d.TypeName())
 		}
@@ -291,8 +285,8 @@ func (d *requestDesc) Clone() *Statement {
 		// We could optimize the clone operation if there are no reference types (pointers, maps, slices)
 		// in the struct. For now, simply serialize it as JSON and back.
 		g.Var().Id("clone").Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Op("*").Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Op("*").Id(d.TypeName())
 			}
@@ -309,8 +303,8 @@ func (d *requestDesc) Clone() *Statement {
 func (d *requestDesc) ReqPath() *Statement {
 	return Func().Params(
 		d.reqDataExpr().Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Op("*").Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Op("*").Id(d.TypeName())
 			}
@@ -357,8 +351,8 @@ func (d *requestDesc) UserPayload() *Statement {
 	return Func().Params(
 		// input
 		d.reqDataExpr().Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Op("*").Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Op("*").Id(d.TypeName())
 			}
@@ -378,8 +372,8 @@ func (d *requestDesc) UserPayload() *Statement {
 func (d *requestDesc) EncodeExternalReq() *Statement {
 	return Func().Params(
 		d.reqDataExpr().Do(func(s *Statement) {
-			if d.needsQualification() {
-				s.Op("*").Qual(d.wrappersPkg.String(), d.TypeName())
+			if pkg, ok := d.wrappersPkg.Get(); ok {
+				s.Op("*").Qual(pkg.String(), d.TypeName())
 			} else {
 				s.Op("*").Id(d.TypeName())
 			}

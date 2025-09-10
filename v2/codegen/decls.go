@@ -69,6 +69,11 @@ type File struct {
 	decls []any // ordered list of Decl or jen.Code
 }
 
+// PkgPath returns the package path of the file.
+func (f *File) PkgPath() paths.Pkg {
+	return f.pkgPath
+}
+
 // ImportAnon adds an anonymous ("_"-prefixed) import of the given packages.
 func (f *File) ImportAnon(pkgs ...paths.Pkg) {
 	f.Jen.Anon(fns.Map(pkgs, func(pkg paths.Pkg) string {
