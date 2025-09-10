@@ -130,12 +130,16 @@ type ResponseEncoding struct {
 	// Contains metadata about how to marshal an HTTP parameter
 	HeaderParameters []*ParameterEncoding `json:"header_parameters"`
 	BodyParameters   []*ParameterEncoding `json:"body_parameters"`
-	// HTTPStatusField is the name of the struct field that contains the HTTP status code, if any
-	HTTPStatusField string `json:"http_status_field,omitempty"`
+	// HTTPStatusParameter contains encoding info for the HTTP status field, if any
+	HTTPStatusParameter *ParameterEncoding `json:"http_status_parameter,omitempty"`
 }
 
 func (r *ResponseEncoding) AllParameters() []*ParameterEncoding {
-	return append(r.HeaderParameters, r.BodyParameters...)
+	params := append(r.HeaderParameters, r.BodyParameters...)
+	if r.HTTPStatusParameter != nil {
+		params = append(params, r.HTTPStatusParameter)
+	}
+	return params
 }
 
 // RequestEncoding expresses how a request should be encoded for an explicit set of HTTPMethods
@@ -187,27 +191,14 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		return &ResponseEncoding{}
 	}
 
-	// Look for encore:"httpstatus" tag to find the HTTP status field
-	var httpStatusField string
-	for _, field := range responseStruct.Fields {
-		if !field.IsExported() {
-			continue
-		}
-
-		for _, tag := range field.Tag.Tags() {
-			if tag.Key == "encore" && tag.Name == "httpstatus" {
-				if httpStatusField != "" {
-					errs.Add(errMultipleHTTPStatusFields.AtGoNode(field.AST))
-					return &ResponseEncoding{}
-				}
-				httpStatusField = field.Name.MustGet()
-
-				// Validate that the field is of a type that can contain a http status code
-				if !isValidHTTPStatusType(field.Type) {
-					errs.Add(errHTTPStatusFieldMustBeInt.AtGoNode(field.AST))
-					return &ResponseEncoding{}
-				}
-			}
+	// Extract HTTP status parameter from fields and check for multiple status fields
+	var httpStatusParameter *ParameterEncoding
+	if len(fields[HTTPStatus]) > 0 {
+		switch len(fields[HTTPStatus]) {
+		case 1:
+			httpStatusParameter = fields[HTTPStatus][0]
+		default:
+			errs.Add(errMultipleHTTPStatusFields.AtGoNode(responseStruct.ASTExpr()))
 		}
 	}
 
@@ -218,7 +209,7 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 		}
 	}
 
-	if keys := keyDiff(fields, Header, Body); len(keys) > 0 {
+	if keys := keyDiff(fields, Header, Body, HTTPStatus); len(keys) > 0 {
 		err := errResponseTypeMustOnlyBeBodyOrHeaders.AtGoNode(responseSchema.ASTExpr())
 
 		for _, k := range keys {
@@ -231,9 +222,9 @@ func DescribeResponse(errs *perr.List, responseSchema schema.Type) *ResponseEnco
 	}
 
 	return &ResponseEncoding{
-		BodyParameters:   fields[Body],
-		HeaderParameters: fields[Header],
-		HTTPStatusField:  httpStatusField,
+		BodyParameters:      fields[Body],
+		HeaderParameters:    fields[Header],
+		HTTPStatusParameter: httpStatusParameter,
 	}
 }
 
@@ -485,17 +476,27 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 		WireName:  defaultWireName,
 	}
 
-	// Skip fields with encore:"httpstatus" tag - they're handled separately
-	for _, tag := range field.Tag.Tags() {
-		if tag.Key == "encore" && tag.Name == "httpstatus" {
-			return nil, true
-		}
-	}
-
 	// Determine which location we should use for this field.
 	location := encodingHints.defaultLocation
 	var usedOverrideTag string
 	for _, tag := range field.Tag.Tags() {
+		// Handle fields with encore:"httpstatus" tag
+		if tag.Key == "encore" && tag.Name == "httpstatus" {
+			if !isValidHTTPStatusType(field.Type) {
+				errs.Add(errHTTPStatusFieldMustBeInt.AtGoNode(field.AST))
+				return nil, false
+			}
+
+			return &ParameterEncoding{
+				SrcName:   srcName,
+				WireName:  "httpstatus",
+				Location:  HTTPStatus,
+				OmitEmpty: false,
+				Doc:       field.Doc,
+				Type:      field.Type,
+			}, true
+		}
+
 		tagHint, ok := encodingHints.tags[tag.Key]
 		if !ok {
 			continue

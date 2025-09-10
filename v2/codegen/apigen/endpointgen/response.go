@@ -120,18 +120,18 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		}
 
 		g.Line().Comment("Set HTTP status code")
-		if resp.HTTPStatusField != "" {
+		if resp.HTTPStatusParameter != nil {
 			g.Id("statusCode").Op(":=").Id("status")
 
 			var statusFieldCond *Statement
 			if schemautil.IsPointer(d.ep.Response) {
-				statusFieldCond = Id("resp").Op("!=").Nil().Op("&&").Id("resp").Dot(resp.HTTPStatusField).Op("!=").Lit(0)
+				statusFieldCond = Id("resp").Op("!=").Nil().Op("&&").Id("resp").Dot(resp.HTTPStatusParameter.SrcName).Op("!=").Lit(0)
 			} else {
-				statusFieldCond = Id("resp").Dot(resp.HTTPStatusField).Op("!=").Lit(0)
+				statusFieldCond = Id("resp").Dot(resp.HTTPStatusParameter.SrcName).Op("!=").Lit(0)
 			}
 
 			g.If(statusFieldCond).Block(
-				Id("statusCode").Op("=").Int().Call(Id("resp").Dot(resp.HTTPStatusField)),
+				Id("statusCode").Op("=").Int().Call(Id("resp").Dot(resp.HTTPStatusParameter.SrcName)),
 			)
 
 			g.If(Id("statusCode").Op("!=").Lit(0)).Block(
@@ -172,6 +172,13 @@ func (d *responseDesc) DecodeExternalResp() *Statement {
 		enc := d.ep.ResponseEncoding()
 		dec := d.gu.NewTypeUnmarshaller("dec")
 		g.Add(dec.Init())
+
+		if enc.HTTPStatusParameter != nil {
+			g.Line().Comment("Set HTTP status field")
+			statusType := d.gu.Type(enc.HTTPStatusParameter.Type)
+			g.Id("resp").Dot(enc.HTTPStatusParameter.SrcName).Op("=").Add(statusType).Call(Id("httpResp").Dot("StatusCode"))
+		}
+
 		apigenutil.DecodeHeaders(g, Id("httpResp").Dot("Header"), Id("resp"), dec, enc.HeaderParameters)
 		apigenutil.DecodeBody(g, Id("httpResp").Dot("Body"), Id("resp"), dec, enc.BodyParameters)
 
