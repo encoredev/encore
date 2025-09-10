@@ -30,7 +30,6 @@ Unlike other tracing solutions, Encore understands what each trace event is and 
 * Database queries
 * etc.
 
-
 ## Redacting sensitive data
 
 Encore's tracing automatically captures request and response payloads to simplify debugging.
