@@ -190,7 +190,7 @@ impl MetaBuilder<'_> {
                         path: Some(ep.encoding.path.to_meta()),
                         http_methods: ep.encoding.methods.to_vec(),
                         tags,
-                        sensitive: false,
+                        sensitive: ep.sensitive,
                         loc: Some(loc_from_range(self.app_root, &self.pc.file_set, ep.range)?),
                         allow_unauthenticated: !ep.require_auth,
                         body_limit: ep.body_limit,
