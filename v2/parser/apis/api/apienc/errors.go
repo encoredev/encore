@@ -28,7 +28,7 @@ var (
 
 	errResponseTypeMustOnlyBeBodyOrHeaders = errRange.New(
 		"Invalid response type",
-		"API response type must only contain a body or headers parameters.",
+		"API response type must only contain a body, headers or status parameters.",
 	)
 
 	errRequestMustBeNamedStruct = errRange.New(
