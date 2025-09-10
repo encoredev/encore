@@ -244,3 +244,20 @@ The `HttpStatus` enum includes all standard HTTP status codes like `HttpStatus.O
 
 In case you need to operate at a lower abstraction level, Encore supports defining raw endpoints that let you access the underlying HTTP request. This is often useful for things like accepting webhooks.
 Learn more in the [raw endpoints guide](/docs/ts/primitives/raw-endpoints).
+
+## Sensitive data
+
+When handling sensitive information like API keys, passwords, or personally identifiable information (PII), you may want to prevent these details from appearing in traces. Encore provides the `sensitive` option for API endpoints for this purpose.
+
+To mark an endpoint as sensitive, add `sensitive: true` to the API options:
+
+```typescript
+export const processPayment = api(
+  { expose: true, method: "POST", path: "/payments", sensitive: true },
+  async (params: PaymentParams): Promise<PaymentResponse> => {
+    return { /* ... */ };
+  }
+);
+```
+
+When `sensitive: true` is set, Encore automatically redacts all request and response payloads and excludes HTTP headers from traces.
