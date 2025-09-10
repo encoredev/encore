@@ -128,8 +128,6 @@ func (d *Desc[Req, Resp]) SemanticPath() string   { return d.Path }
 func (d *Desc[Req, Resp]) HTTPRouterPath() string { return d.RawPath }
 func (d *Desc[Req, Resp]) IsFallback() bool       { return d.Fallback }
 
-// func (d *Desc[Req, Resp]) CallFunc() any          { return d.Call }
-
 func (d *Desc[Req, Resp]) Handle(c IncomingContext) {
 	if d.Raw {
 		c.capturer = newRawRequestBodyCapturer(c.req)

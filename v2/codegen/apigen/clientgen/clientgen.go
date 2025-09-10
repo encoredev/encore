@@ -12,6 +12,7 @@ import (
 	"encr.dev/pkg/option"
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/app"
+	"encr.dev/v2/app/apiframework"
 	"encr.dev/v2/codegen"
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/parser/apis/api"
@@ -42,7 +43,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 		f.Jen.Comment(fmt.Sprintf("%s is the client interface for the %s service.", interfaceName, svc.Name))
 		f.Jen.Type().Id(interfaceName).InterfaceFunc(func(g *Group) {
 			for _, ep := range fw.Endpoints {
-				genEndpointSignature(gen, g, svc, ep)
+				genEndpointSignature(gen, g, ep)
 			}
 		})
 
@@ -50,9 +51,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 
 		// Generate the implementation struct
 		f.Jen.Comment(fmt.Sprintf("%s implements the %s interface.", implName, interfaceName))
-		f.Jen.Type().Id(implName).Struct(
-		// Empty for now, but could add fields later
-		)
+		f.Jen.Type().Id(implName).Struct()
 
 		f.Jen.Line()
 
@@ -67,7 +66,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 
 		// Generate methods for each endpoint
 		for _, ep := range fw.Endpoints {
-			genEndpointMethod(gen, f, svc, ep, withImpl, implName, useWrappersPkg)
+			genEndpointMethod(gen, f, svc, ep, fw, withImpl, implName, useWrappersPkg)
 		}
 
 		return option.Some(f)
@@ -77,7 +76,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 }
 
 // genEndpointSignature generates the method signature for the interface
-func genEndpointSignature(gen *codegen.Generator, g *Group, svc *app.Service, ep *api.Endpoint) {
+func genEndpointSignature(gen *codegen.Generator, g *Group, ep *api.Endpoint) {
 	gu := gen.Util
 
 	// Add doc comment if present
@@ -124,14 +123,13 @@ func genEndpointSignature(gen *codegen.Generator, g *Group, svc *app.Service, ep
 			g.Add(gu.Type(resp))
 			g.Error()
 		} else {
-			// Just error
 			g.Error()
 		}
 	})
 }
 
 // genEndpointMethod generates the method implementation on the struct
-func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, withImpl bool, implName string, useWrappersPkg bool) {
+func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, fw *apiframework.ServiceDesc, withImpl bool, implName string, useWrappersPkg bool) {
 	gu := gen.Util
 
 	// Add doc comment if present
@@ -181,7 +179,6 @@ func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service
 			g.Add(gu.Type(resp))
 			g.Error()
 		} else {
-			// Just error
 			g.Error()
 		}
 	}).BlockFunc(func(g *Group) {
@@ -225,7 +222,6 @@ func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service
 		})
 
 		// Get the service package path
-		fw, _ := svc.Framework.Get()
 		svcPkgPath := fw.RootPkg.ImportPath
 
 		// Cast handler to the appropriate Callable interface
