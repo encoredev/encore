@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"encr.dev/pkg/namealloc"
 	"encr.dev/pkg/option"
@@ -36,11 +34,13 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 		useWrappersPkg := !apigenutil.HasInternalTypes(fw)
 
 		// Interface and struct names
-		interfaceName := cases.Title(language.English).String(svc.Name) + "Client"
+		interfaceName := "Client"
 		implName := svc.Name + "ClientImpl"
 
 		// Generate the interface
 		f.Jen.Comment(fmt.Sprintf("%s is the client interface for the %s service.", interfaceName, svc.Name))
+		f.Jen.Comment("//")
+		f.Jen.Comment(fmt.Sprintf("//encore:service_client service=%s", svc.Name))
 		f.Jen.Type().Id(interfaceName).InterfaceFunc(func(g *Group) {
 			for _, ep := range fw.Endpoints {
 				genEndpointSignature(gen, g, ep)
@@ -56,7 +56,7 @@ func Gen(gen *codegen.Generator, appDesc *app.Desc, svc *app.Service, withImpl b
 		f.Jen.Line()
 
 		// Generate constructor
-		constructorName := "New" + cases.Title(language.English).String(svc.Name) + "Client"
+		constructorName := "NewClient"
 		f.Jen.Comment(fmt.Sprintf("%s creates a new client for the %s service.", constructorName, svc.Name))
 		f.Jen.Func().Id(constructorName).Params().Id(interfaceName).Block(
 			Return(Op("&").Id(implName).Values()),
@@ -131,6 +131,9 @@ func genEndpointSignature(gen *codegen.Generator, g *Group, ep *api.Endpoint) {
 // genEndpointMethod generates the method implementation on the struct
 func genEndpointMethod(gen *codegen.Generator, f *codegen.File, svc *app.Service, ep *api.Endpoint, fw *apiframework.ServiceDesc, withImpl bool, implName string, useWrappersPkg bool) {
 	gu := gen.Util
+
+	// Add endpoint directive
+	f.Jen.Comment(fmt.Sprintf("//encore:endpoint name=%s service=%s", ep.Name, svc.Name))
 
 	// Add doc comment if present
 	if ep.Doc != "" {

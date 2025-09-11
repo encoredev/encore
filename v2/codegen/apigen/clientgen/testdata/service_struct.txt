@@ -26,19 +26,22 @@ import (
 	basicwrappers "example.com/basicwrappers"
 )
 
-// BasicClient is the client interface for the basic service.
-type BasicClient interface {
+// Client is the client interface for the basic service.
+//
+//encore:service_client service=basic
+type Client interface {
 	Foo(ctx context.Context) error
 }
 
-// basicClientImpl implements the BasicClient interface.
+// basicClientImpl implements the Client interface.
 type basicClientImpl struct{}
 
-// NewBasicClient creates a new client for the basic service.
-func NewBasicClient() BasicClient {
+// NewClient creates a new client for the basic service.
+func NewClient() Client {
 	return &basicClientImpl{}
 }
 
+//encore:endpoint name=Foo service=basic
 func (c *basicClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("basic", "Foo")
 	if !ok {

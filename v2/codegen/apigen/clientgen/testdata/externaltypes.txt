@@ -26,19 +26,22 @@ import (
 	types "example.com/service/types"
 )
 
-// ServiceClient is the client interface for the service service.
-type ServiceClient interface {
+// Client is the client interface for the service service.
+//
+//encore:service_client service=service
+type Client interface {
 	Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error)
 }
 
-// serviceClientImpl implements the ServiceClient interface.
+// serviceClientImpl implements the Client interface.
 type serviceClientImpl struct{}
 
-// NewServiceClient creates a new client for the service service.
-func NewServiceClient() ServiceClient {
+// NewClient creates a new client for the service service.
+func NewClient() Client {
 	return &serviceClientImpl{}
 }
 
+//encore:endpoint name=Foo service=service
 func (c *serviceClientImpl) Foo(ctx context.Context, name string, req *types.Req) (*types.Resp, error) {
 	handler, ok := __api.LookupEndpoint("service", "Foo")
 	if !ok {

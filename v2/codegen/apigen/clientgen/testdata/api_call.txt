@@ -20,7 +20,7 @@ package svcb
 import ("context"; svcaclient "example.com/clients/svca")
 
 //encore:api public
-func Baz(ctx context.Context) error { return svcaclient.NewSvcaClient().Foo(ctx) }
+func Baz(ctx context.Context) error { return svcaclient.NewClient().Foo(ctx) }
 -- want:clients/svca/encore.gen.go --
 package svcaclient
 
@@ -31,20 +31,23 @@ import (
 	svcawrappers "example.com/svca/svcawrappers"
 )
 
-// SvcaClient is the client interface for the svca service.
-type SvcaClient interface {
+// Client is the client interface for the svca service.
+//
+//encore:service_client service=svca
+type Client interface {
 	Foo(ctx context.Context) error
 	Bar(ctx context.Context) error
 }
 
-// svcaClientImpl implements the SvcaClient interface.
+// svcaClientImpl implements the Client interface.
 type svcaClientImpl struct{}
 
-// NewSvcaClient creates a new client for the svca service.
-func NewSvcaClient() SvcaClient {
+// NewClient creates a new client for the svca service.
+func NewClient() Client {
 	return &svcaClientImpl{}
 }
 
+//encore:endpoint name=Foo service=svca
 func (c *svcaClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("svca", "Foo")
 	if !ok {
@@ -60,6 +63,7 @@ func (c *svcaClientImpl) Foo(ctx context.Context) error {
 	return err
 }
 
+//encore:endpoint name=Bar service=svca
 func (c *svcaClientImpl) Bar(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("svca", "Bar")
 	if !ok {

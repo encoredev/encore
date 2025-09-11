@@ -125,19 +125,22 @@ import (
 	barwrappers "example.com/bar/barwrappers"
 )
 
-// BarClient is the client interface for the bar service.
-type BarClient interface {
+// Client is the client interface for the bar service.
+//
+//encore:service_client service=bar
+type Client interface {
 	Bar(ctx context.Context) error
 }
 
-// barClientImpl implements the BarClient interface.
+// barClientImpl implements the Client interface.
 type barClientImpl struct{}
 
-// NewBarClient creates a new client for the bar service.
-func NewBarClient() BarClient {
+// NewClient creates a new client for the bar service.
+func NewClient() Client {
 	return &barClientImpl{}
 }
 
+//encore:endpoint name=Bar service=bar
 func (c *barClientImpl) Bar(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("bar", "Bar")
 	if !ok {
@@ -162,19 +165,22 @@ import (
 	foowrappers "example.com/foo/foowrappers"
 )
 
-// FooClient is the client interface for the foo service.
-type FooClient interface {
+// Client is the client interface for the foo service.
+//
+//encore:service_client service=foo
+type Client interface {
 	Foo(ctx context.Context) error
 }
 
-// fooClientImpl implements the FooClient interface.
+// fooClientImpl implements the Client interface.
 type fooClientImpl struct{}
 
-// NewFooClient creates a new client for the foo service.
-func NewFooClient() FooClient {
+// NewClient creates a new client for the foo service.
+func NewClient() Client {
 	return &fooClientImpl{}
 }
 
+//encore:endpoint name=Foo service=foo
 func (c *fooClientImpl) Foo(ctx context.Context) error {
 	handler, ok := __api.LookupEndpoint("foo", "Foo")
 	if !ok {

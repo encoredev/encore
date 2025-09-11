@@ -21,14 +21,16 @@ var _ = pubsub.NewSubscription(Topic, "subscription",
 -- want:clients/code/encore.gen.go --
 package codeclient
 
-// CodeClient is the client interface for the code service.
-type CodeClient interface{}
+// Client is the client interface for the code service.
+//
+//encore:service_client service=code
+type Client interface{}
 
-// codeClientImpl implements the CodeClient interface.
+// codeClientImpl implements the Client interface.
 type codeClientImpl struct{}
 
-// NewCodeClient creates a new client for the code service.
-func NewCodeClient() CodeClient {
+// NewClient creates a new client for the code service.
+func NewClient() Client {
 	return &codeClientImpl{}
 }
 -- want:encore.gen.go --

@@ -22,19 +22,22 @@ import (
 	examplecom "example.com"
 )
 
-// RequestresponseClient is the client interface for the requestresponse service.
-type RequestresponseClient interface {
+// Client is the client interface for the requestresponse service.
+//
+//encore:service_client service=requestresponse
+type Client interface {
 	Foo(ctx context.Context, name string, req *examplecom.Req) (*examplecom.Resp, error)
 }
 
-// requestresponseClientImpl implements the RequestresponseClient interface.
+// requestresponseClientImpl implements the Client interface.
 type requestresponseClientImpl struct{}
 
-// NewRequestresponseClient creates a new client for the requestresponse service.
-func NewRequestresponseClient() RequestresponseClient {
+// NewClient creates a new client for the requestresponse service.
+func NewClient() Client {
 	return &requestresponseClientImpl{}
 }
 
+//encore:endpoint name=Foo service=requestresponse
 func (c *requestresponseClientImpl) Foo(ctx context.Context, name string, req *examplecom.Req) (*examplecom.Resp, error) {
 	handler, ok := __api.LookupEndpoint("requestresponse", "Foo")
 	if !ok {
