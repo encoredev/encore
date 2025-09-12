@@ -26,7 +26,7 @@ Copy the appropriate URL or command to your MCP host's configuration, and you're
 
 [Cursor](https://cursor.com) is one of the most popular AI powered IDE's, and it's simple to use Encore's MCP server together with Cursor. 
 
-[![Add Encore MCP to Cursor](https://img.shields.io/badge/Add%20to%20Cursor-Encore%20MCP-blue?style=for-the-badge)](cursor://anysphere.cursor-deeplink/mcp/install?name=encore-mcp&config=eyJjb21tYW5kIjoiZW5jb3JlIiwiYXJncyI6WyJtY3AiLCJydW4iLCItLWFwcD15b3VyLWFwcC1pZCJdfQ==)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=encore-mcp&config=eyJjb21tYW5kIjoiZW5jb3JlIG1jcCBydW4gLS1hcHA9eW91ci1hcHAtaWQifQ%3D%3D)
 
 After installing, update `your-app-id` in the configuration to your actual Encore app ID.
 
