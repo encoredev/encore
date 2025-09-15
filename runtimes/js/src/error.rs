@@ -48,12 +48,25 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
         })
         .unwrap_or(api::ErrCode::Internal);
 
+    // Get the cause field
+    let cause: Option<String> = obj
+        .get_named_property::<JsUnknown>("cause")
+        .and_then(|val| val.coerce_to_object())
+        .and_then(|val| val.get_named_property::<JsUnknown>("message"))
+        .and_then(|val| val.coerce_to_string())
+        .and_then(|val| env.from_js_value(val))
+        .ok();
+
+    if let Some(cause) = cause {
+        message.push_str(": ");
+        message.push_str(&cause);
+    }
+
     // Get the JS stack
     let stack = obj
         .get_named_property::<JsUnknown>("stack")
         .and_then(|val| parse_js_stack(&env, val))
-        .map(Some)
-        .unwrap_or(None);
+        .ok();
 
     let mut internal_message = None;
     if code == api::ErrCode::Internal {

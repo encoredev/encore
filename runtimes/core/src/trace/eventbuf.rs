@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::api;
+use crate::{api, error::StackTrace};
 
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -220,8 +220,18 @@ impl EventBuffer {
     }
 
     #[inline]
-    pub fn nyi_formatted_stack(&mut self) {
-        self.byte(0);
+    pub fn formatted_stack(&mut self, stack: Option<&StackTrace>) {
+        match stack {
+            Some(frames) => {
+                self.byte(frames.len().min(256) as u8);
+                for frame in frames.iter().take(256) {
+                    self.str(&frame.file);
+                    self.uvarint(frame.line);
+                    self.str(frame.function.as_deref().unwrap_or("unknown"));
+                }
+            }
+            None => self.byte(0),
+        }
     }
 }
 

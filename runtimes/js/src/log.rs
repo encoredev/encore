@@ -146,9 +146,11 @@ fn convert_error(env: Env, input: Option<napi::JsObject>) -> napi::Result<Option
 pub fn parse_js_stack(env: &Env, value: napi::JsUnknown) -> napi::Result<StackTrace> {
     let value = value.coerce_to_string()?;
     let value: String = env.from_js_value(value)?;
+    parse_stack(value)
+}
 
-    Ok(value
-        .lines()
+pub fn parse_stack(s: String) -> napi::Result<StackTrace> {
+    Ok(s.lines()
         .filter_map(extract_frame)
         .filter(|frame| !is_common_frame(frame))
         .collect::<Vec<StackFrame>>())
@@ -164,6 +166,7 @@ fn is_common_frame(frame: &StackFrame) -> bool {
     frame.file.starts_with("node:")
         || frame.file.starts_with("bun:")
         || frame.file.starts_with("deno:")
+        || frame.file.contains("node_modules/encore.dev/")
         || frame.file.is_empty()
 }
 
