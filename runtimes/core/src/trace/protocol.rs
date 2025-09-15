@@ -979,7 +979,7 @@ impl SpanEndEventData<'_> {
 
         eb.duration(self.duration);
         eb.api_err_with_legacy_stack(self.err);
-        eb.nyi_formatted_stack();
+        eb.formatted_stack(self.err.as_ref().and_then(|err| err.stack.as_ref()));
         eb.parent(self.parent.as_ref());
 
         eb
