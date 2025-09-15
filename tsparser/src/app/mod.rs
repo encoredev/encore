@@ -88,7 +88,8 @@ struct AppValidator<'a> {
 impl AppValidator<'_> {
     fn validate(&self) {
         self.validate_apis();
-        self.validate_pubsub()
+        self.validate_pubsub();
+        self.validate_sqldb();
     }
 
     fn validate_apis(&self) {
@@ -183,6 +184,22 @@ impl AppValidator<'_> {
         for res in self.parse.resources.iter() {
             if let Resource::PubSubTopic(topic) = &res {
                 self.validate_validations(&topic.message_type);
+            }
+        }
+    }
+
+    fn validate_sqldb(&self) {
+        let mut seen = std::collections::HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::SQLDatabase(db) = resource {
+                if let Some(prev_range) = seen.insert(db.name.clone(), db.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(db.span, "SQL Database with this name already defined")
+                            .span_note(prev_range, "previously defined here")
+                            .emit();
+                    })
+                }
             }
         }
     }
