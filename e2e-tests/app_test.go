@@ -82,7 +82,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		App:             app,
 		ResourceManager: rm,
 		Mgr:             mgr,
-		Builder:         v2builder.BuilderImpl{},
+		Builder:         v2builder.New(),
 	}
 
 	parse, build, configs := testBuild(c, appRoot, env)
