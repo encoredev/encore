@@ -173,6 +173,9 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                 let Some(args) = &expr.args else {
                     return Err(expr.span.parse_err("missing constructor arguments"));
                 };
+                let Some(config_arg) = args.get(CONFIG_IDX) else {
+                    return Err(expr.span.parse_err("missing config object"));
+                };
 
                 let bind_name = match extract_bind_name(path)? {
                     Some(name) => BindName::Named(name),
@@ -184,7 +187,8 @@ impl<Config: LitParser, const CONFIG_IDX: usize> ReferenceParser
                         }
                     }
                 };
-                let config = Config::parse_lit(&args[CONFIG_IDX].expr)?;
+
+                let config = Config::parse_lit(&config_arg.expr)?;
                 let doc_comment = module.preceding_comments(expr.span.lo.into());
 
                 return Ok(Some(Self {
