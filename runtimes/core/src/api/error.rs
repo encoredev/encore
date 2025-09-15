@@ -50,6 +50,14 @@ static ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS: once_cell::sync::Lazy<bool> =
             .unwrap_or(false)
     });
 
+/// Cached environment variable for whether to include internal message in all errors.
+static ENCORE_INCLUDE_STACK_ERRORS: once_cell::sync::Lazy<bool> =
+    once_cell::sync::Lazy::new(|| {
+        std::env::var("ENCORE_INCLUDE_STACK_ERRORS")
+            .map(|v| !v.is_empty() && v != "0")
+            .unwrap_or(false)
+    });
+
 impl Serialize for ExternalError<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -64,6 +72,12 @@ impl Serialize for ExternalError<'_> {
         if *ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS {
             error.serialize_field("internal_message", &self.0.internal_message)?;
         }
+
+        // Do the same for stack traces.
+        if *ENCORE_INCLUDE_STACK_ERRORS {
+            error.serialize_field("stack", &self.0.stack)?;
+        }
+
         error.end()
     }
 }
@@ -344,22 +358,22 @@ pub enum ErrCode {
 impl ErrCode {
     pub fn default_public_message(&self) -> &'static str {
         match self {
-            ErrCode::Canceled => "The operation was canceled.",
-            ErrCode::Unknown => "An unknown error occurred.",
-            ErrCode::InvalidArgument => "The request is invalid.",
-            ErrCode::DeadlineExceeded => "The operation timed out.",
-            ErrCode::NotFound => "The requested resource was not found.",
-            ErrCode::AlreadyExists => "The resource already exists.",
-            ErrCode::PermissionDenied => "The caller does not have permission to execute the specified operation.",
-            ErrCode::ResourceExhausted => "The resource has been exhausted.",
-            ErrCode::FailedPrecondition => "The operation was rejected because the system is not in a state required for the operation's execution.",
-            ErrCode::Aborted => "The operation was aborted.",
-            ErrCode::OutOfRange => "The operation was attempted past the valid range.",
-            ErrCode::Unimplemented => "The operation is not implemented or not supported/enabled in this service.",
-            ErrCode::Internal => "An internal error occurred.",
-            ErrCode::Unavailable => "The service is currently unavailable.",
-            ErrCode::DataLoss => "Unrecoverable data loss or corruption occurred.",
-            ErrCode::Unauthenticated => "The request does not have valid authentication credentials for the operation.",
+            ErrCode::Canceled => "the operation was canceled",
+            ErrCode::Unknown => "an unknown error occurred",
+            ErrCode::InvalidArgument => "the request is invalid",
+            ErrCode::DeadlineExceeded => "the operation timed out",
+            ErrCode::NotFound => "the requested resource was not found",
+            ErrCode::AlreadyExists => "the resource already exists",
+            ErrCode::PermissionDenied => "the caller does not have permission to execute the specified operation",
+            ErrCode::ResourceExhausted => "the resource has been exhausted",
+            ErrCode::FailedPrecondition => "the operation was rejected because the system is not in a state required for the operation's execution",
+            ErrCode::Aborted => "the operation was aborted",
+            ErrCode::OutOfRange => "the operation was attempted past the valid range",
+            ErrCode::Unimplemented => "the operation is not implemented or not supported/enabled in this service",
+            ErrCode::Internal => "an internal error occurred",
+            ErrCode::Unavailable => "the service is currently unavailable",
+            ErrCode::DataLoss => "unrecoverable data loss or corruption occurred",
+            ErrCode::Unauthenticated => "the request does not have valid authentication credentials for the operation",
         }
     }
 
