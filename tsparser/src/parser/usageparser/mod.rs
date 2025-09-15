@@ -4,7 +4,9 @@ use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
 use swc_ecma_ast as ast;
-use swc_ecma_visit::fields::{CallExprField, CalleeField, MemberExprField, NewExprField};
+use swc_ecma_visit::fields::{
+    CallExprField, CalleeField, MemberExprField, NewExprField, TaggedTplField,
+};
 use swc_ecma_visit::{AstNodePath, AstParentNodeRef, VisitAstPath, VisitWithPath};
 
 use crate::parser::module_loader::{Module, ModuleId, ModuleLoader};
@@ -35,6 +37,9 @@ pub enum UsageExprKind {
     /// A method on a resource being called.
     MethodCall(MethodCall),
 
+    /// A method on a resource being called, as a tagged template literal.
+    TemplateCall(TemplateCall),
+
     /// A resource being called as a function.
     Callee(Callee),
 
@@ -52,6 +57,12 @@ pub enum UsageExprKind {
 pub struct MethodCall {
     pub method: ast::Ident,
     pub call: ast::CallExpr,
+}
+
+#[derive(Debug)]
+pub struct TemplateCall {
+    pub method: ast::Ident,
+    pub tpl: ast::TaggedTpl,
 }
 
 #[derive(Debug)]
@@ -360,11 +371,10 @@ impl<'a> UsageVisitor<'a> {
                         None
                     }
                     ast::MemberProp::Ident(id) => {
-                        // bind.SomeField or bind.SomeField()
+                        // bind.SomeField or bind.SomeField() or bind.SomeField`foo`
 
-                        let call_ref = path.get(idx - 4);
                         if let Some(AstParentNodeRef::CallExpr(call, CallExprField::Callee)) =
-                            call_ref
+                            path.get(idx - 4)
                         {
                             Some(UsageExpr {
                                 range: call.span.into(),
@@ -372,6 +382,17 @@ impl<'a> UsageVisitor<'a> {
                                 kind: UsageExprKind::MethodCall(MethodCall {
                                     call: (*call).to_owned(),
                                     method: id.to_owned(),
+                                }),
+                            })
+                        } else if let Some(AstParentNodeRef::TaggedTpl(tpl, TaggedTplField::Tag)) =
+                            path.get(idx - 3)
+                        {
+                            Some(UsageExpr {
+                                range: tpl.span.into(),
+                                bind: bind.clone(),
+                                kind: UsageExprKind::TemplateCall(TemplateCall {
+                                    method: id.to_owned(),
+                                    tpl: (*tpl).to_owned(),
                                 }),
                             })
                         } else {
@@ -606,6 +627,9 @@ const _ = nested(
     })
   }
 )
+
+Bar.tpl`blah`;  // TemplateCall
+
 -- bar.ts --
 export const Bar = 5;
             ",
@@ -676,7 +700,7 @@ export const Bar = 5;
             let ur = UsageResolver::new(&pc.loader, &pc.type_checker, &resources, &bar_binds);
 
             let usages = ur.scan_usage_exprs(foo_mod);
-            assert_eq!(usages.len(), 7);
+            assert_eq!(usages.len(), 8);
 
             assert_matches!(&usages[0].kind, UsageExprKind::FieldAccess(field) if field.field.as_ref() == "field");
             assert_matches!(&usages[1].kind, UsageExprKind::MethodCall(method) if method.method.as_ref() == "method");
@@ -685,6 +709,7 @@ export const Bar = 5;
             assert_matches!(&usages[4].kind, UsageExprKind::ConstructorArg(arg) if arg.arg_idx == 0);
             assert_matches!(&usages[5].kind, UsageExprKind::Other(_));
             assert_matches!(&usages[6].kind, UsageExprKind::MethodCall(method) if method.method.as_ref() == "nested_method");
+            assert_matches!(&usages[7].kind, UsageExprKind::TemplateCall(tpl) if tpl.method.as_ref() == "tpl");
         });
     }
 }
