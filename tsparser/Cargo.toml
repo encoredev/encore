@@ -45,6 +45,7 @@ junction = "1.2.0"
 thiserror = "1.0.64"
 matchit = "0.7.3"
 semver = "1.0.24"
+pg_query = "6.1.1"
 
 [build-dependencies]
 prost-build = { version = "0.12.1" }
