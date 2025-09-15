@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::sync::Lrc;
 use swc_common::{Span, Spanned};
+use swc_ecma_ast as ast;
 
 use litparser::{report_and_continue, LitParser, Sp, ToParseErr};
 use litparser::{LocalRelPath, ParseResult};
@@ -368,8 +369,26 @@ fn parse_migrations(
 }
 
 pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> Option<Usage> {
+    if let UsageExprKind::TemplateCall(template_call) = &data.expr.kind {
+        let method = &template_call.method.sym;
+        if method == "query" || method == "queryRow" || method == "queryAll" || method == "exec" {
+            if let Some(err) = parse_template_query(&template_call.tpl) {
+                let msg = match err {
+                    pg_query::Error::Parse(msg) => msg,
+                    other => other.to_string(),
+                };
+                template_call
+                    .tpl
+                    .tpl
+                    .span
+                    .err(&format!("invalid database query: {}", msg));
+            }
+        }
+    }
+
     match &data.expr.kind {
         UsageExprKind::MethodCall(_)
+        | UsageExprKind::TemplateCall(_)
         | UsageExprKind::FieldAccess(_)
         | UsageExprKind::CallArg(_)
         | UsageExprKind::ConstructorArg(_) => Some(Usage::AccessDatabase(AccessDatabaseUsage {
@@ -388,4 +407,16 @@ pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> 
 pub struct AccessDatabaseUsage {
     pub range: Range,
     pub db: Lrc<SQLDatabase>,
+}
+
+fn parse_template_query(tpl: &ast::TaggedTpl) -> Option<pg_query::Error> {
+    let mut query = String::new();
+    for (i, q) in tpl.tpl.quasis.iter().enumerate() {
+        query.push_str(&q.raw);
+        if !q.tail {
+            query.push_str(&format!("${}", i + 1));
+        }
+    }
+
+    pg_query::parse(&query).err()
 }
