@@ -518,7 +518,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	userEnv := append([]string{
 		"ENCORE_RUNTIME_LOG=error",
 		// Always include internal messages when developing locally.
-		"ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS=1",
+		"ENCORE_API_INCLUDE_INTERNAL_MESSAGE=1",
 	}, params.Environ...)
 
 	daemonProxyAddr, err := netip.ParseAddrPort(strings.ReplaceAll(r.ListenAddr, "localhost", "127.0.0.1"))
