@@ -43,17 +43,17 @@ where
 pub struct ExternalError<'a>(&'a Error);
 
 /// Cached environment variable for whether to include internal message in all errors.
-static ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS: once_cell::sync::Lazy<bool> =
+static ENCORE_API_INCLUDE_INTERNAL_MESSAGE: once_cell::sync::Lazy<bool> =
     once_cell::sync::Lazy::new(|| {
-        std::env::var("ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS")
+        std::env::var("ENCORE_API_INCLUDE_INTERNAL_MESSAGE")
             .map(|v| !v.is_empty() && v != "0")
             .unwrap_or(false)
     });
 
-/// Cached environment variable for whether to include internal message in all errors.
-static ENCORE_INCLUDE_STACK_ERRORS: once_cell::sync::Lazy<bool> =
+/// Cached environment variable for whether to include the stack in error responses.
+static ENCORE_API_INCLUDE_ERROR_STACK: once_cell::sync::Lazy<bool> =
     once_cell::sync::Lazy::new(|| {
-        std::env::var("ENCORE_INCLUDE_STACK_ERRORS")
+        std::env::var("ENCORE_API_INCLUDE_ERROR_STACK")
             .map(|v| !v.is_empty() && v != "0")
             .unwrap_or(false)
     });
@@ -69,12 +69,12 @@ impl Serialize for ExternalError<'_> {
         error.serialize_field("details", &self.0.details)?;
 
         // Include internal message even in external errors iff the environment variable is set.
-        if *ENCORE_INCLUDE_INTERNAL_MESSAGE_ERRORS {
+        if *ENCORE_API_INCLUDE_INTERNAL_MESSAGE {
             error.serialize_field("internal_message", &self.0.internal_message)?;
         }
 
         // Do the same for stack traces.
-        if *ENCORE_INCLUDE_STACK_ERRORS {
+        if *ENCORE_API_INCLUDE_ERROR_STACK {
             error.serialize_field("stack", &self.0.stack)?;
         }
 
