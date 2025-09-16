@@ -31,12 +31,13 @@ use crate::{model, Hosted};
 use super::pvalue::{PValue, PValues};
 use super::reqauth::caller::Caller;
 
-/// Cached environment variable for whether to include internal message in all errors.
-static ENCORE_LOG_STACK_ERRORS: once_cell::sync::Lazy<bool> = once_cell::sync::Lazy::new(|| {
-    std::env::var("ENCORE_LOG_STACK_ERRORS")
-        .map(|v| !v.is_empty() && v != "0")
-        .unwrap_or(false)
-});
+/// Cached environment variable for whether to include error stacks in error response logs.
+static ENCORE_LOG_INCLUDE_ERROR_STACK: once_cell::sync::Lazy<bool> =
+    once_cell::sync::Lazy::new(|| {
+        std::env::var("ENCORE_LOG_INCLUDE_ERROR_STACK")
+            .map(|v| !v.is_empty() && v != "0")
+            .unwrap_or(false)
+    });
 
 #[derive(Debug)]
 pub struct SuccessResponse {
@@ -616,7 +617,7 @@ impl EndpointHandler {
                         );
                     }
 
-                    if *ENCORE_LOG_STACK_ERRORS {
+                    if *ENCORE_LOG_INCLUDE_ERROR_STACK {
                         if let Some(stack) = &err.stack {
                             if let Ok(value) = serde_json::to_value(stack) {
                                 fields.insert("stack".into(), value);
