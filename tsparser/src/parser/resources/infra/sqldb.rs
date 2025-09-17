@@ -369,21 +369,49 @@ fn parse_migrations(
 }
 
 pub fn resolve_database_usage(data: &ResolveUsageData, db: Lrc<SQLDatabase>) -> Option<Usage> {
-    if let UsageExprKind::TemplateCall(template_call) = &data.expr.kind {
-        let method = &template_call.method.sym;
-        if method == "query" || method == "queryRow" || method == "queryAll" || method == "exec" {
-            if let Some(err) = parse_template_query(&template_call.tpl) {
-                let msg = match err {
-                    pg_query::Error::Parse(msg) => msg,
-                    other => other.to_string(),
-                };
-                template_call
-                    .tpl
-                    .tpl
-                    .span
-                    .err(&format!("invalid database query: {}", msg));
+    // Validate database queries, when possible.
+    match &data.expr.kind {
+        UsageExprKind::TemplateCall(call) => {
+            let method = &call.method.sym;
+            if method == "query" || method == "queryRow" || method == "queryAll" || method == "exec"
+            {
+                if let Some(err) = parse_template_query(&call.tpl) {
+                    let msg = match err {
+                        pg_query::Error::Parse(msg) => msg,
+                        other => other.to_string(),
+                    };
+                    call.tpl
+                        .tpl
+                        .span
+                        .err(&format!("invalid database query: {}", msg));
+                }
             }
         }
+
+        UsageExprKind::MethodCall(call) => {
+            let method = &call.method.sym;
+            if method == "rawQuery"
+                || method == "rawQueryRow"
+                || method == "rawQueryAll"
+                || method == "rawExec"
+            {
+                // If we have string literal as the query, validate it.
+                if let Some(ast::Lit::Str(str)) =
+                    call.call.args.first().and_then(|arg| arg.expr.as_lit())
+                {
+                    if let Err(err) = pg_query::parse(str.value.as_str()) {
+                        let msg = match err {
+                            pg_query::Error::Parse(msg) => msg,
+                            other => other.to_string(),
+                        };
+                        str.span.err(&format!("invalid database query: {}", msg));
+                    }
+                }
+            }
+        }
+
+        // Ignore other usage expressions.
+        _ => {}
     }
 
     match &data.expr.kind {
