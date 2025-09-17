@@ -121,6 +121,8 @@ aws-credential-types = "1.2.1"
 regex = "1.11.1"
 email_address = "0.2.9"
 cookie = "0.18.1"
+malachite = { version = "0.6.1", features = ["floats", "enable_serde"] }
+malachite-float = { version = "0.6.1", features = ["enable_serde"] }
 
 [build-dependencies]
 prost-build = "0.12.3"

@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
+use malachite_float::ComparableFloat;
 use serde::{Serialize, Serializer};
 
 /// Represents any valid value in a request/response payload.
@@ -19,6 +20,9 @@ pub enum PValue {
 
     /// Represents a JSON number, whether integer or floating point.
     Number(serde_json::Number),
+
+    /// Represnets a decimal with arbitrary precition (and also arbitrary large numbers)
+    Decimal(ComparableFloat),
 
     /// Represents a JSON string.
     String(String),
@@ -64,6 +68,7 @@ impl PValue {
             PValue::Object(_) => "object",
             PValue::DateTime(_) => "datetime",
             PValue::Cookie(_) => "cookie",
+            PValue::Decimal(_) => "decimal",
         }
     }
 }
@@ -162,6 +167,7 @@ impl Serialize for PValue {
             PValue::Object(o) => o.serialize(serializer),
             PValue::DateTime(dt) => dt.serialize(serializer),
             PValue::Cookie(c) => serializer.serialize_str(&c.to_string()),
+            PValue::Decimal(d) => serializer.serialize_str(&d.to_string()),
         }
     }
 }
@@ -195,6 +201,7 @@ impl Display for PValue {
                 write!(f, "}}")
             }
             PValue::Cookie(c) => write!(f, "{c}"),
+            PValue::Decimal(d) => write!(f, "{d}"),
         }
     }
 }
