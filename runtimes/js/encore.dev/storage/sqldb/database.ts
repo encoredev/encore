@@ -31,6 +31,8 @@ export type Primitive =
   | Date[]
   | Record<string, any>
   | Record<string, any>[]
+  | BigInt
+  | BigInt[]
   | null
   | undefined;
 
@@ -263,7 +265,7 @@ class BaseQueryExecutor {
  * compile error to create duplicate databases.
  */
 export class SQLDatabase extends BaseQueryExecutor {
-  protected declare readonly impl: runtime.SQLDatabase;
+  declare protected readonly impl: runtime.SQLDatabase;
 
   constructor(name: string, cfg?: SQLDatabaseConfig) {
     super(runtime.RT.sqlDatabase(name));
@@ -309,7 +311,7 @@ export class SQLDatabase extends BaseQueryExecutor {
 }
 
 export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
-  protected declare readonly impl: runtime.Transaction;
+  declare protected readonly impl: runtime.Transaction;
   private done: boolean = false;
 
   constructor(impl: runtime.Transaction) {
@@ -345,7 +347,7 @@ export class Transaction extends BaseQueryExecutor implements AsyncDisposable {
  * Represents a dedicated connection to a database.
  */
 export class Connection extends BaseQueryExecutor {
-  protected declare readonly impl: runtime.SQLConn;
+  declare protected readonly impl: runtime.SQLConn;
 
   constructor(impl: runtime.SQLConn) {
     super(impl);

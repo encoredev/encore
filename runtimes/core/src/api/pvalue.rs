@@ -1,8 +1,17 @@
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
+    str::FromStr,
 };
 
+use malachite::rational::{conversion::primitive_int_from_rational, Rational};
+use malachite::{
+    base::num::conversion::{
+        string::options::ToSciOptions,
+        traits::{FromSciString, ToSci},
+    },
+    rational::conversion::primitive_float_from_rational,
+};
 use serde::{Serialize, Serializer};
 
 /// Represents any valid value in a request/response payload.
@@ -19,6 +28,9 @@ pub enum PValue {
 
     /// Represents a JSON number, whether integer or floating point.
     Number(serde_json::Number),
+
+    /// Represents a Decimal type with arbitrary precision.
+    Decimal(Decimal),
 
     /// Represents a JSON string.
     String(String),
@@ -64,6 +76,7 @@ impl PValue {
             PValue::Object(_) => "object",
             PValue::DateTime(_) => "datetime",
             PValue::Cookie(_) => "cookie",
+            PValue::Decimal(_) => "decimal",
         }
     }
 }
@@ -148,6 +161,87 @@ impl Display for SameSite {
         }
     }
 }
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Decimal(Rational);
+
+impl TryFrom<&Decimal> for i64 {
+    type Error = primitive_int_from_rational::SignedFromRationalError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        i64::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for i32 {
+    type Error = primitive_int_from_rational::SignedFromRationalError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        i32::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for i16 {
+    type Error = primitive_int_from_rational::SignedFromRationalError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        i16::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for f64 {
+    type Error = primitive_float_from_rational::FloatConversionError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        f64::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for f32 {
+    type Error = primitive_float_from_rational::FloatConversionError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        f32::try_from(&value.0)
+    }
+}
+
+impl PartialEq<f64> for &Decimal {
+    fn eq(&self, other: &f64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialOrd<f64> for &Decimal {
+    fn partial_cmp(&self, other: &f64) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
+
+impl FromStr for Decimal {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let r = Rational::from_sci_string(s)
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse decimal from string: {s}"))?;
+        Ok(Decimal(r))
+    }
+}
+
+impl Display for Decimal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut opts = ToSciOptions::default();
+        opts.set_size_complete();
+        opts.set_include_trailing_zeros(true);
+        self.0.fmt_sci(f, opts)
+    }
+}
+
+impl From<Rational> for Decimal {
+    fn from(r: Rational) -> Self {
+        Decimal(r)
+    }
+}
+
 impl Serialize for PValue {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -162,6 +256,7 @@ impl Serialize for PValue {
             PValue::Object(o) => o.serialize(serializer),
             PValue::DateTime(dt) => dt.serialize(serializer),
             PValue::Cookie(c) => serializer.serialize_str(&c.to_string()),
+            PValue::Decimal(d) => serializer.serialize_str(&d.to_string()),
         }
     }
 }
@@ -195,6 +290,7 @@ impl Display for PValue {
                 write!(f, "}}")
             }
             PValue::Cookie(c) => write!(f, "{c}"),
+            PValue::Decimal(d) => write!(f, "{d}",),
         }
     }
 }

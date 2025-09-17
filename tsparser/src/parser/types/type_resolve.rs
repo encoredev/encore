@@ -480,6 +480,7 @@ impl Ctx<'_> {
             }
 
             Type::Custom(Custom::WireSpec(spec)) => self.keyof(&spec.underlying),
+            Type::Custom(Custom::Decimal) => Type::Basic(Basic::Never),
         }
     }
 
@@ -716,6 +717,13 @@ impl Ctx<'_> {
             if let Some(wire_spec) = self.parse_wire_spec(typ.span, &obj, &type_arguments) {
                 return Type::Custom(Custom::WireSpec(wire_spec));
             }
+        }
+
+        // Is this a encore Decimal?
+        if obj.name.as_ref().is_some_and(|s| s == "Decimal")
+            && self.state.is_module_path(obj.module_id, "encore.dev/api")
+        {
+            return Type::Custom(Custom::Decimal);
         }
 
         // Is this a reference to the "Attribute" pub/sub wire spec override?
@@ -1423,6 +1431,10 @@ impl Ctx<'_> {
             Type::Custom(Custom::WireSpec(spec)) => {
                 self.resolve_member_prop(&spec.underlying, prop)
             }
+            Type::Custom(Custom::Decimal) => {
+                // Decimal has no properties accessible
+                Type::Basic(Basic::Never)
+            }
         }
     }
 
@@ -1981,6 +1993,7 @@ impl Ctx<'_> {
                 }))),
                 Same(_) => Same(typ),
             },
+            Type::Custom(Custom::Decimal) => Same(typ), // Decimal is already concrete
         }
     }
 

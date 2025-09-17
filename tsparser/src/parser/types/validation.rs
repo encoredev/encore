@@ -129,7 +129,9 @@ impl Rule {
             Self::MinLen(_) | Self::MaxLen(_) => {
                 matches!(typ, Type::Array(_) | Type::Basic(Basic::String))
             }
-            Self::MinVal(_) | Self::MaxVal(_) => matches!(typ, Type::Basic(Basic::Number)),
+            Self::MinVal(_) | Self::MaxVal(_) => {
+                matches!(typ, Type::Basic(Basic::Number) | Type::Custom(Custom::Decimal))
+            }
             Self::StartsWith(_)
             | Self::EndsWith(_)
             | Self::MatchesRegexp(_)

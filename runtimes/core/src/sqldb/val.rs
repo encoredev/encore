@@ -5,7 +5,10 @@ use std::{error::Error, str::FromStr};
 use tokio_postgres::types::{to_sql_checked, FromSql, IsNull, Kind, ToSql, Type};
 use uuid::Uuid;
 
-use crate::api::{DateTime, PValue};
+use crate::{
+    api::{DateTime, Decimal, PValue},
+    sqldb::numeric::{numeric_from_sql, numeric_to_sql, Numeric},
+};
 
 #[derive(Debug)]
 pub enum RowValue {
@@ -119,6 +122,11 @@ impl ToSql for PValue {
                         let val = cidr::IpInet::from_str(str).context("unable to parse inet")?;
                         val.to_sql(ty, out)
                     }
+                    Type::NUMERIC => {
+                        let n = Numeric::from_str(str)?;
+                        numeric_to_sql(n, out);
+                        Ok(IsNull::No)
+                    }
                     _ => {
                         if let Kind::Enum(_) = ty.kind() {
                             str.to_sql(ty, out)
@@ -229,6 +237,12 @@ impl ToSql for PValue {
                         };
                         val.map_err(Box::new)?.to_sql(ty, out)
                     }
+                    Type::NUMERIC => {
+                        let num_str = num.to_string();
+                        let n = Numeric::from_str(&num_str)?;
+                        numeric_to_sql(n, out);
+                        Ok(IsNull::No)
+                    }
                     Type::TEXT | Type::VARCHAR => self.to_string().to_sql(ty, out),
                     _ => {
                         if num.is_i64() {
@@ -241,6 +255,42 @@ impl ToSql for PValue {
                             Err(format!("unsupported number: {num:?}").into())
                         }
                     }
+                },
+                PValue::Decimal(d) => match *ty {
+                    Type::NUMERIC => {
+                        let str = &d.to_string();
+                        let n = Numeric::from_str(str)?;
+                        numeric_to_sql(n, out);
+                        Ok(IsNull::No)
+                    }
+                    Type::FLOAT4 => {
+                        let val =
+                            f32::try_from(d).map_err(|_| "Cannot convert decimal to FLOAT4")?;
+                        val.to_sql(ty, out)
+                    }
+                    Type::FLOAT8 => {
+                        let val =
+                            f64::try_from(d).map_err(|_| "Cannot convert decimal to FLOAT8")?;
+                        val.to_sql(ty, out)
+                    }
+                    Type::INT2 => {
+                        let val = i16::try_from(d).map_err(|_| "Cannot convert decimal to INT2")?;
+                        val.to_sql(ty, out)
+                    }
+                    Type::INT4 => {
+                        let val = i32::try_from(d).map_err(|_| "Cannot convert decimal to INT4")?;
+                        val.to_sql(ty, out)
+                    }
+                    Type::INT8 => {
+                        let val = i64::try_from(d).map_err(|_| "Cannot convert decimal to INT8")?;
+                        val.to_sql(ty, out)
+                    }
+                    Type::TEXT | Type::VARCHAR => {
+                        let decimal_str = d.to_string();
+                        decimal_str.to_sql(ty, out)
+                    }
+
+                    _ => Err(format!("unsupported type for Decimal: {ty}").into()),
                 },
                 PValue::DateTime(dt) => match *ty {
                     Type::DATE => dt.naive_utc().date().to_sql(ty, out),
@@ -301,6 +351,7 @@ impl ToSql for PValue {
                 | Type::INET
                 | Type::CIDR
                 | Type::NAME
+                | Type::NUMERIC
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
             || is_pgvector(ty)
@@ -393,6 +444,11 @@ impl<'a> FromSql<'a> for PValue {
                     None => PValue::Null,
                 }
             }
+            Type::NUMERIC => {
+                let n = numeric_from_sql(raw)?;
+                let d = Decimal::from_str(&n.to_string())?;
+                PValue::Decimal(d)
+            }
             Type::TIMESTAMP => {
                 let val: DateTime = FromSql::from_sql(ty, raw)?;
                 PValue::DateTime(val)
@@ -468,6 +524,7 @@ impl<'a> FromSql<'a> for PValue {
                 | Type::CIDR
                 | Type::INET
                 | Type::NAME
+                | Type::NUMERIC
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as FromSql>::accepts(ty))
             || is_pgvector(ty)
