@@ -49,6 +49,24 @@ func Foo() { bkt.SignedDownloadURL(context.Background(), "key") }
 			Want: []usage.Usage{&objects.MethodUsage{Method: "SignedDownloadURL", Perm: objects.SignedDownloadURL}},
 		},
 		{
+			Name: "attrs",
+			Code: `
+var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
+
+func Foo() { bkt.Attrs(context.Background(), "key") }
+`,
+			Want: []usage.Usage{&objects.MethodUsage{Method: "Attrs", Perm: objects.GetObjectMetadata}},
+		},
+		{
+			Name: "exists",
+			Code: `
+var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
+
+func Foo() { bkt.Exists(context.Background(), "key") }
+`,
+			Want: []usage.Usage{&objects.MethodUsage{Method: "Exists", Perm: objects.GetObjectMetadata}},
+		},
+		{
 			Name: "ref",
 			Code: `
 var bkt = objects.NewBucket("bucket", objects.BucketConfig{})
