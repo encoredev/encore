@@ -87,13 +87,12 @@ func ResolveBucketUsage(data usage.ResolveData, bkt *Bucket) usage.Usage {
 			perm = DeleteObject
 		case "PublicURL":
 			perm = GetPublicURL
-			if !bkt.Public {
-
-			}
 		case "SignedUploadURL":
 			perm = SignedUploadURL
 		case "SignedDownloadURL":
 			perm = SignedDownloadURL
+		case "Attrs", "Exists":
+			perm = GetObjectMetadata
 		default:
 			return nil
 		}
