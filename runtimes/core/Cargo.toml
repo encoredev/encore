@@ -123,6 +123,7 @@ email_address = "0.2.9"
 cookie = "0.18.1"
 malachite = { version = "0.6.1", features = ["floats", "enable_serde"] }
 malachite-float = { version = "0.6.1", features = ["enable_serde"] }
+byteorder = "1.5.0"
 
 [build-dependencies]
 prost-build = "0.12.3"
@@ -131,3 +132,4 @@ prost-build = "0.12.3"
 assert_matches = "1.5.0"
 insta = { version = "1.38.0", features = ["yaml"] }
 quickcheck = "1.0.3"
+proptest = "1.7.0"

@@ -1,11 +1,15 @@
 use anyhow::Context;
 use bytes::{BufMut, BytesMut};
+use malachite::base::num::conversion::traits::{FromSciString, ToSci};
 use serde::Serialize;
 use std::{error::Error, str::FromStr};
 use tokio_postgres::types::{to_sql_checked, FromSql, IsNull, Kind, ToSql, Type};
 use uuid::Uuid;
 
-use crate::api::{DateTime, PValue};
+use crate::{
+    api::{DateTime, PValue},
+    sqldb::numeric::{numeric_from_sql, numeric_to_sql, Numeric},
+};
 
 #[derive(Debug)]
 pub enum RowValue {
@@ -242,6 +246,16 @@ impl ToSql for PValue {
                         }
                     }
                 },
+                PValue::Decimal(d) => match *ty {
+                    Type::NUMERIC => {
+                        let str = &d.to_sci().to_string();
+                        let n = Numeric::from_str(str)?;
+                        numeric_to_sql(n, out);
+                        Ok(IsNull::No)
+                    }
+
+                    _ => Err(format!("unsupported type for Decimal: {ty}").into()),
+                },
                 PValue::DateTime(dt) => match *ty {
                     Type::DATE => dt.naive_utc().date().to_sql(ty, out),
                     Type::TIMESTAMP => dt.naive_utc().to_sql(ty, out),
@@ -301,6 +315,7 @@ impl ToSql for PValue {
                 | Type::INET
                 | Type::CIDR
                 | Type::NAME
+                | Type::NUMERIC
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as ToSql>::accepts(ty))
             || is_pgvector(ty)
@@ -393,6 +408,11 @@ impl<'a> FromSql<'a> for PValue {
                     None => PValue::Null,
                 }
             }
+            Type::NUMERIC => {
+                let n = numeric_from_sql(raw)?;
+                let m = malachite::rational::Rational::from_sci_string(&n.to_string()).unwrap();
+                PValue::Decimal(m)
+            }
             Type::TIMESTAMP => {
                 let val: DateTime = FromSql::from_sql(ty, raw)?;
                 PValue::DateTime(val)
@@ -468,6 +488,7 @@ impl<'a> FromSql<'a> for PValue {
                 | Type::CIDR
                 | Type::INET
                 | Type::NAME
+                | Type::NUMERIC
         ) || matches!(ty.kind(), Kind::Enum(_))
             || matches!(ty.kind(), Kind::Array(ty) if <PValue as FromSql>::accepts(ty))
             || is_pgvector(ty)

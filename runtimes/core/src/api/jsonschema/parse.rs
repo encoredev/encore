@@ -493,6 +493,7 @@ fn describe_json(value: &PValue) -> &'static str {
         PValue::Null => "null",
         PValue::Bool(_) => "a boolean",
         PValue::Number(_) => "a number",
+        PValue::Decimal(_) => "a decimal",
         PValue::String(_) => "a string",
         PValue::DateTime(_) => "a datetime",
         PValue::Array(_) => "an array",

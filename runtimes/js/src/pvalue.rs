@@ -103,6 +103,21 @@ impl ToNapiValue for PVal {
             PValue::Null => unsafe { Null::to_napi_value(env, Null) },
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, b) },
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
+            PValue::Decimal(d) => {
+                if d.denominator_ref() == &1 {
+                    let positive = d <= 0;
+                    let numerator = d.numerator_ref();
+                    let bi = BigInt {
+                        sign_bit: positive,
+                        words: numerator.limbs().collect(),
+                    };
+
+                    BigInt::to_napi_value(env, bi)
+                } else {
+                    // TODO handle decimals
+                    todo!("needs to be implemented")
+                }
+            }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
             PValue::Array(arr) => {
                 let env2 = Env::from_raw(env);
@@ -132,6 +147,21 @@ impl ToNapiValue for &PVal {
             PValue::Null => unsafe { Null::to_napi_value(env, Null) },
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, *b) },
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
+            PValue::Decimal(d) => {
+                if d.denominator_ref() == &1 {
+                    let positive = *d <= 0;
+                    let numerator = d.numerator_ref();
+                    let bi = BigInt {
+                        sign_bit: positive,
+                        words: numerator.limbs().collect(),
+                    };
+
+                    BigInt::to_napi_value(env, bi)
+                } else {
+                    // TODO handle decimals
+                    todo!("needs to be implemented")
+                }
+            }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
             PValue::Array(arr) => {
                 let env2 = Env::from_raw(env);

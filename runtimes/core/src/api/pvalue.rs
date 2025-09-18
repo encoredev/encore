@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use malachite_float::ComparableFloat;
+use malachite::rational::Rational;
 use serde::{Serialize, Serializer};
 
 /// Represents any valid value in a request/response payload.
@@ -22,7 +22,7 @@ pub enum PValue {
     Number(serde_json::Number),
 
     /// Represnets a decimal with arbitrary precition (and also arbitrary large numbers)
-    Decimal(ComparableFloat),
+    Decimal(Rational),
 
     /// Represents a JSON string.
     String(String),

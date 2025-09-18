@@ -187,6 +187,10 @@ impl Path {
                             let str = num.to_string();
                             path.push_str(&str);
                         }
+                        PValue::Decimal(d) => {
+                            let str = d.to_string();
+                            path.push_str(&str);
+                        }
                         PValue::DateTime(dt) => {
                             let encoded = dt.to_rfc3339();
                             path.push_str(&encoded);

@@ -320,6 +320,17 @@ fn to_reqwest_header_value(value: &PValue) -> APIResult<ReqwestHeaders> {
             })?
         }
 
+        Decimal(d) => {
+            let str = d.to_string();
+            reqwest::header::HeaderValue::from_str(&str).map_err(|e| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "unable to convert decimal to header value".to_string(),
+                internal_message: Some(format!("unable to convert decimal to header value: {e}")),
+                stack: None,
+                details: None,
+            })?
+        }
+
         Array(arr) => {
             let mut values = Vec::with_capacity(arr.len());
             for value in arr.iter() {
@@ -398,6 +409,17 @@ fn to_axum_header_value(value: &PValue) -> APIResult<AxumHeaders> {
                 code: api::ErrCode::InvalidArgument,
                 message: "unable to convert number to header value".to_string(),
                 internal_message: Some(format!("unable to convert number to header value: {e}")),
+                stack: None,
+                details: None,
+            })?
+        }
+
+        Decimal(d) => {
+            let str = d.to_string();
+            axum::http::HeaderValue::from_str(&str).map_err(|e| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: "unable to convert decimal to header value".to_string(),
+                internal_message: Some(format!("unable to convert decimal to header value: {e}")),
                 stack: None,
                 details: None,
             })?
