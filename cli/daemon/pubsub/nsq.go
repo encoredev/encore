@@ -61,6 +61,7 @@ func (n *NSQDaemon) Start() error {
 			n.Opts.TCPAddress = "127.0.0.1:0"
 			n.Opts.HTTPAddress = "127.0.0.1:0"
 			n.Opts.HTTPSAddress = "127.0.0.1:0"
+			n.Opts.MaxMsgSize = 10 * 1024 * 1024 // 10MB
 		}
 		nsq, err := nsqd.New(n.Opts)
 		if err != nil {
