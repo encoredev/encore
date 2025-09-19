@@ -51,11 +51,19 @@ pub fn coerce_to_api_error(env: Env, val: napi::JsUnknown) -> Result<api::Error,
     // Get the cause field
     let cause: Option<String> = obj
         .get_named_property::<JsUnknown>("cause")
-        .and_then(|val| val.coerce_to_object())
-        .and_then(|val| val.get_named_property::<JsUnknown>("message"))
-        .and_then(|val| val.coerce_to_string())
-        .and_then(|val| env.from_js_value(val))
-        .ok();
+        .ok()
+        .and_then(|val| {
+            let val_type = val.get_type().ok()?;
+            if val_type == napi::ValueType::Null || val_type == napi::ValueType::Undefined {
+                None
+            } else {
+                val.coerce_to_object()
+                    .and_then(|val| val.get_named_property::<JsUnknown>("message"))
+                    .and_then(|val| val.coerce_to_string())
+                    .and_then(|val| env.from_js_value(val))
+                    .ok()
+            }
+        });
 
     if let Some(cause) = cause {
         message.push_str(": ");
