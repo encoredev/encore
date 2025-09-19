@@ -166,3 +166,135 @@ The API responds with a 2xx status code on successful creation of a new rollout.
 
 On success it returns a **Rollout** object as its JSON response payload,
 representing the current state of the newly created rollout.
+
+## Member Management
+
+Encore Cloud provides APIs for managing application members, including inviting users, listing members, and updating member roles.
+
+### Member Object
+
+```typescript
+type Member = {
+  // The user's email address
+  email: string;
+
+  // The member's role in the application
+  role: "owner" | "reader" | "writer" | "none";
+
+  // When the member was invited to the application
+  invited: timestamp;
+
+  // When the member accepted the invitation
+  accepted: timestamp;
+
+  // When the membership expires
+  expires: timestamp;
+
+  // The member's username
+  username: string;
+
+  // The member's full name
+  full_name: string;
+
+  // The member's picture URL
+  picture_url: string;
+}
+```
+
+### Available Roles
+
+- **owner**: Full control over the application
+- **writer**: Can write application resources
+- **reader**: Can read application resources
+- **none**: Used to revoke access to an application
+
+### Invite Member
+
+Invite a new member to an Encore application.
+
+**Method**: `POST` <br/>
+**Path**: `/api/apps/${APP_ID}/member`
+
+#### Path Parameters
+
+| Parameter  | Description                                    |
+| ---------- | ---------------------------------------------- |
+| **APP_ID** | The id of the Encore application.             |
+
+#### JSON Request Body
+
+```typescript
+{
+  // The email address of the user to invite
+  "email": string;
+
+  // The role to assign to the invited member
+  "role": "owner" | "reader" | "writer" | "none";
+}
+```
+
+#### Response
+
+The API responds with a 2xx status code on successful invitation.
+
+On success it returns a **Member** object as its JSON response payload,
+representing the newly invited member.
+
+### List Members
+
+Retrieve a list of all members for an Encore application.
+
+**Method**: `GET` <br/>
+**Path**: `/api/apps/${APP_ID}/members`
+
+#### Path Parameters
+
+| Parameter  | Description                                    |
+| ---------- | ---------------------------------------------- |
+| **APP_ID** | The id of the Encore application.             |
+
+#### Response
+
+The API responds with a 2xx status code on success.
+
+On success it returns an array of **Member** objects as its JSON response payload,
+representing all current members and pending invites for the application.
+
+```typescript
+type Response = Member[];
+```
+
+### Update Member Role
+
+Update the role of an existing member.
+
+**Method**: `PUT` <br/>
+**Path**: `/api/apps/${APP_ID}/members`
+
+#### Path Parameters
+
+| Parameter  | Description                                    |
+| ---------- | ---------------------------------------------- |
+| **APP_ID** | The id of the Encore application.             |
+
+#### JSON Request Body
+
+```typescript
+{
+  // The email address of the member to update
+  "email": string;
+
+  // The new role to assign to the member
+  "role": "owner" | "reader" | "writer" | "none";
+}
+```
+
+#### Response
+
+The API responds with a 2xx status code on successful update.
+
+#### Error Cases
+
+- **403 Forbidden**: Insufficient permissions to manage members
+- **409 Conflict**: Attempting to remove the last owner (error detail: "last_owner")
+- **404 Not Found**: Member not found
