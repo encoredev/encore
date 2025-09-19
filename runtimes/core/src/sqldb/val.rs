@@ -123,6 +123,11 @@ impl ToSql for PValue {
                         let val = cidr::IpInet::from_str(str).context("unable to parse inet")?;
                         val.to_sql(ty, out)
                     }
+                    Type::NUMERIC => {
+                        let n = Numeric::from_str(str)?;
+                        numeric_to_sql(n, out);
+                        Ok(IsNull::No)
+                    }
                     _ => {
                         if let Kind::Enum(_) = ty.kind() {
                             str.to_sql(ty, out)

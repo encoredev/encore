@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::cookies::{cookie_to_napi_value, JsCookie};
 use chrono::TimeZone;
 use encore_runtime_core::api::{self, auth, schema, PValue, PValues};
+use malachite::{rational::Rational, Integer, Natural};
 use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
 use serde_json::Number;
 
@@ -230,10 +231,11 @@ impl FromNapiValue for PVal {
                 }
             }
             ValueType::BigInt => {
-                return Err(Error::new(
-                    Status::InvalidArg,
-                    "bigint is not yet supported",
-                ))
+                let bi = BigInt::from_napi_value(env, napi_val)?;
+                let n = Natural::from_owned_limbs_asc(bi.words);
+                let i = Integer::from_sign_and_abs(!bi.sign_bit, n);
+                let r = Rational::from_integers(i, 1.into());
+                PValue::Decimal(r)
             }
             ValueType::Null => PValue::Null,
             ValueType::Function => {
