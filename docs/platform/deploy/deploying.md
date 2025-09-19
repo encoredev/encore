@@ -37,9 +37,9 @@ encore auth login # If you've already created an Encore Cloud account
 
 Run this command from you application's root folder:
 
-```bash
+bash
 encore app init
-```
+
 
 **3. Set up Encore's git remote to enable pushing directly to Encore Cloud**
 
