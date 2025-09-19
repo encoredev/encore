@@ -39,7 +39,6 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
                 format!("{}=", self.field_config.error_field_name).cyan(),
                 format!("{err}").red()
             )
-            .map_err(std::io::Error::from)
             .context("unable to write error field value")?;
         }
 
@@ -58,7 +57,6 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
                 buf.push(b' ');
             }
             write!(buf, "{}", format!("{key}=").cyan())
-                .map_err(std::io::Error::from)
                 .context(format!("unable to write field key {key}"))?;
 
             let value = values.get(key).expect("key not found");
@@ -83,7 +81,6 @@ impl<W: Write + Sync + Send + 'static> ConsoleWriter<W> {
             };
 
             write!(buf, "{value_to_print}")
-                .map_err(std::io::Error::from)
                 .context(format!("unable to write field value {key}"))?;
         }
 
@@ -164,9 +161,7 @@ fn write_part(
             if !buf.is_empty() {
                 buf.push(b' ');
             }
-            write!(buf, "{value}")
-                .map_err(std::io::Error::from)
-                .context(format!("unable to write part {field}"))?;
+            write!(buf, "{value}").context(format!("unable to write part {field}"))?;
         }
     }
     Ok(())
@@ -204,9 +199,7 @@ fn write_level(buf: &mut Vec<u8>, level: log::Level) -> anyhow::Result<()> {
     if !buf.is_empty() {
         buf.push(b' ');
     }
-    write!(buf, "{level_str}")
-        .map_err(std::io::Error::from)
-        .context("unable to write log level")?;
+    write!(buf, "{level_str}").context("unable to write log level")?;
 
     Ok(())
 }
