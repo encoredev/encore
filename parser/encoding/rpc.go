@@ -461,6 +461,9 @@ func GetConcreteType(appDecls []*schema.Decl, originalType *schema.Type, typeArg
 	case *schema.Type_Builtin:
 		return originalType, nil
 
+	case *schema.Type_Literal:
+		return originalType, nil
+
 	default:
 		return nil, errors.Newf("unsupported type %+v", reflect.TypeOf(typ))
 	}
