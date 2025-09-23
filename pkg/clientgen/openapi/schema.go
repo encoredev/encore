@@ -373,6 +373,20 @@ func (g *Generator) typeToDefinitionName(typ *schema.Type) string {
 		default:
 			return ""
 		}
+
+	case *schema.Type_Literal:
+		switch typ.Literal.Value.(type) {
+		case *schema.Literal_Boolean:
+			return "bool"
+		case *schema.Literal_Str:
+			return "string"
+		case *schema.Literal_Null:
+			return "null"
+		case *schema.Literal_Int:
+			return "int"
+		case *schema.Literal_Float:
+			return "float64"
+		}
 	}
 
 	return ""
