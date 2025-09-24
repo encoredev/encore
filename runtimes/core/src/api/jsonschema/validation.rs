@@ -65,34 +65,7 @@ macro_rules! impl_validate {
 }
 
 impl Expr {
-    pub fn validate_pval<'a>(&'a self, val: &'a PValue) -> Result<(), Error<'a>> {
-        match self {
-            Expr::Rule(rule) => rule.validate_pval(val),
-            Expr::And(exprs) => {
-                for expr in exprs {
-                    expr.validate_pval(val)?;
-                }
-                Ok(())
-            }
-            Expr::Or(exprs) => {
-                let mut first_err = None;
-                for expr in exprs {
-                    match expr.validate_pval(val) {
-                        Ok(()) => return Ok(()),
-                        Err(err) => {
-                            if first_err.is_none() {
-                                first_err = Some(err);
-                            }
-                        }
-                    }
-                }
-                match first_err {
-                    Some(err) => Err(err),
-                    None => Ok(()),
-                }
-            }
-        }
-    }
+    impl_validate!(validate_pval, PValue);
     impl_validate!(validate_jval, serde_json::Value);
 }
 
