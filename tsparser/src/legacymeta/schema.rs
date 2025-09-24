@@ -129,9 +129,7 @@ impl BuilderCtx<'_, '_> {
                 typ: Some(styp::Typ::Literal(self.literal(tt))),
                 validation: None,
             },
-            Type::Class(_) => {
-                anyhow::bail!("class types are not yet supported in schemas")
-            }
+            Type::Class(_) => anyhow::bail!("class types are not yet supported in schemas"),
             Type::Named(tt) => {
                 let has_type_params = tt.obj.kind.type_params().count() > 0;
                 let state = self.builder.pc.type_checker.state();
