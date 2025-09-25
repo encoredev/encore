@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::ptr;
+use std::str::FromStr;
 use std::task::{Poll, RawWaker, RawWakerVTable, Waker};
 
 use anyhow::Context;
@@ -187,6 +188,10 @@ impl Path {
                             let str = num.to_string();
                             path.push_str(&str);
                         }
+                        PValue::Decimal(d) => {
+                            let str = d.to_string();
+                            path.push_str(&str);
+                        }
                         PValue::DateTime(dt) => {
                             let encoded = dt.to_rfc3339();
                             path.push_str(&encoded);
@@ -281,6 +286,18 @@ impl Path {
                                         }
                                     })?;
                                 PValue::DateTime(val)
+                            }
+
+                            Basic::Decimal => {
+                                let val =
+                                    api::Decimal::from_str(&val).map_err(|err| api::Error {
+                                        code: api::ErrCode::InvalidArgument,
+                                        message: "path parameter is not a valid decimal".into(),
+                                        internal_message: Some(err.to_string()),
+                                        stack: None,
+                                        details: None,
+                                    })?;
+                                PValue::Decimal(val)
                             }
 
                             // We shouldn't have null here, but handle it just in case.

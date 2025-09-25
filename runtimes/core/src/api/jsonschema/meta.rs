@@ -206,6 +206,7 @@ impl BuilderCtx<'_, '_> {
             Builtin::Bool => Basic::Bool,
             Builtin::String | Builtin::Bytes | Builtin::Uuid | Builtin::UserId => Basic::String,
             Builtin::Time => Basic::DateTime,
+            Builtin::Decimal => Basic::Decimal,
 
             Builtin::Int
             | Builtin::Uint

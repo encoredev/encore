@@ -543,3 +543,15 @@ export type HttpStatus =
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
 export { IterableSocket, IterableStream, Sink } from "./stream";
+
+import * as runtime from "../internal/runtime/mod";
+(runtime.Decimal.prototype as any)[Symbol.toPrimitive] = function (
+  hint: string
+) {
+  if (hint === "number") {
+    return +this.value;
+  }
+
+  return this.value;
+};
+export class Decimal extends runtime.Decimal {}

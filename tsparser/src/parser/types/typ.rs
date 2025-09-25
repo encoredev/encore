@@ -80,12 +80,16 @@ pub struct Validated {
 pub enum Custom {
     /// A specification of how the type should be encoded on the wire.
     WireSpec(WireSpec),
+    /// A Decimal type with arbitrary precision.
+    Decimal,
 }
 
 impl Custom {
     pub fn identical(&self, other: &Custom) -> bool {
         match (self, other) {
             (Custom::WireSpec(a), Custom::WireSpec(b)) => a.identical(b),
+            (Custom::Decimal, Custom::Decimal) => true,
+            _ => false,
         }
     }
 }

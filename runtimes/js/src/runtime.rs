@@ -13,6 +13,7 @@ use napi::{bindgen_prelude::*, JsObject};
 use napi::{Error, JsUnknown, Status};
 use napi_derive::napi;
 use std::future::Future;
+use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
 use std::thread;
 
@@ -386,5 +387,40 @@ impl From<api::Error> for APICallError {
             message: value.message,
             details: value.details.map(|d| PVals(*d)),
         }
+    }
+}
+
+#[napi]
+pub struct Decimal {
+    value: String,
+}
+
+#[napi]
+impl Decimal {
+    #[napi(constructor)]
+    pub fn new(value: String) -> napi::Result<Self> {
+        // Validate that the string represents a valid decimal
+        if encore_runtime_core::api::Decimal::from_str(&value).is_err() {
+            return Err(Error::new(
+                Status::InvalidArg,
+                format!("Invalid decimal format: '{}'", value),
+            ));
+        }
+        Ok(Decimal { value })
+    }
+
+    #[napi(js_name = "toJSON")]
+    pub fn to_json(&self) -> &str {
+        &self.value
+    }
+
+    #[napi(getter)]
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+
+    #[napi(getter, js_name = "__encore_decimal")]
+    pub fn __encore_decimal(&self) -> bool {
+        true
     }
 }

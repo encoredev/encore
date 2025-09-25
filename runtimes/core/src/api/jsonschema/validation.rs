@@ -1,4 +1,9 @@
-use crate::{api::PValue, encore::parser::schema::v1 as schema};
+use std::fmt::Display;
+
+use crate::{
+    api::{Decimal, PValue},
+    encore::parser::schema::v1 as schema,
+};
 use thiserror::Error;
 
 use super::BasicOrValue;
@@ -82,6 +87,21 @@ pub enum Is {
     Url,
 }
 
+#[derive(Debug)]
+pub enum Num<'a> {
+    Number(&'a serde_json::Number),
+    Decimal(&'a Decimal),
+}
+
+impl<'a> Display for Num<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Num::Number(number) => write!(f, "{number}"),
+            Num::Decimal(decimal) => write!(f, "{decimal}"),
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum Error<'a> {
     #[error("length too short (got {got}, expected at least {min})")]
@@ -90,15 +110,9 @@ pub enum Error<'a> {
     MaxLen { got: usize, max: usize },
 
     #[error("value must be at least {min} (got {got})")]
-    MinVal {
-        got: &'a serde_json::Number,
-        min: f64,
-    },
+    MinVal { got: Num<'a>, min: f64 },
     #[error("value must be at most {max} (got {got})")]
-    MaxVal {
-        got: &'a serde_json::Number,
-        max: f64,
-    },
+    MaxVal { got: Num<'a>, max: f64 },
 
     #[error("value does not match the regexp {regexp:#?}")]
     MatchesRegexp { regexp: &'a str },
@@ -190,7 +204,18 @@ impl Rule {
                     };
                     if bad {
                         Err(Error::MinVal {
-                            got: num,
+                            got: Num::Number(num),
+                            min: *min_val,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+                PValue::Decimal(d) => {
+                    let bad = d < *min_val;
+                    if bad {
+                        Err(Error::MinVal {
+                            got: Num::Decimal(d),
                             min: *min_val,
                         })
                     } else {
@@ -214,7 +239,18 @@ impl Rule {
                     };
                     if bad {
                         Err(Error::MaxVal {
-                            got: num,
+                            got: Num::Number(num),
+                            max: *max_val,
+                        })
+                    } else {
+                        Ok(())
+                    }
+                }
+                PValue::Decimal(d) => {
+                    let bad = d > *max_val;
+                    if bad {
+                        Err(Error::MaxVal {
+                            got: Num::Decimal(d),
                             max: *max_val,
                         })
                     } else {
@@ -369,7 +405,7 @@ impl Rule {
                     };
                     if bad {
                         Err(Error::MinVal {
-                            got: num,
+                            got: Num::Number(num),
                             min: *min_val,
                         })
                     } else {
@@ -393,7 +429,7 @@ impl Rule {
                     };
                     if bad {
                         Err(Error::MaxVal {
-                            got: num,
+                            got: Num::Number(num),
                             max: *max_val,
                         })
                     } else {

@@ -253,4 +253,6 @@ enum Builtin {
 
   INT     = 18;
   UINT    = 19;
+  
+  DECIMAL = 20;
 }

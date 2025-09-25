@@ -456,6 +456,7 @@ impl<V: ?Sized + Visit> VisitWith<V> for Custom {
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
             Custom::WireSpec(inner) => <WireSpec as VisitWith<V>>::visit_with(inner, visitor),
+            Custom::Decimal => {} // No children to visit
         }
     }
 }

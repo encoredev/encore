@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::fmt::Display;
 use std::marker::PhantomData;
+use std::str::FromStr;
 
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Unexpected, Visitor};
 use serde::Deserializer;
@@ -131,6 +132,7 @@ pub enum Basic {
     Number,
     String,
     DateTime,
+    Decimal,
 }
 
 impl Basic {
@@ -142,6 +144,7 @@ impl Basic {
             Basic::Number => "a number",
             Basic::String => "a string",
             Basic::DateTime => "a datetime string",
+            Basic::Decimal => "a decimal",
         }
     }
 }
@@ -334,6 +337,7 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                 Basic::Number => "a number",
                 Basic::String => "a string",
                 Basic::DateTime => "a datetime string",
+                Basic::Decimal => "a decimal",
             }),
             Value::Map(_) => formatter.write_str("a JSON object"),
             Value::Array(_) => formatter.write_str("a JSON array"),
@@ -545,6 +549,9 @@ impl<'de> Visitor<'de> for DecodeValue<'_> {
                 Basic::DateTime => api::DateTime::parse_from_rfc3339(&value)
                     .map(PValue::DateTime)
                     .map_err(|e| serde::de::Error::custom(format_args!("invalid datetime: {e}",))),
+                Basic::Decimal => api::Decimal::from_str(&value)
+                    .map(PValue::Decimal)
+                    .map_err(|e| serde::de::Error::custom(format_args!("invalid decimal: {e}",))),
                 Basic::Bool if self.cfg.coerce_strings => {
                     if value == "true" {
                         Ok(PValue::Bool(true))
@@ -1053,6 +1060,9 @@ impl DecodeValue<'_> {
                 Value::Basic(Basic::DateTime) => api::DateTime::parse_from_rfc3339(string)
                     .map(|_| ())
                     .map_err(|e| serde::de::Error::custom(format_args!("invalid datetime: {e}",))),
+                Value::Basic(Basic::Decimal) => api::Decimal::from_str(string)
+                    .map(|_| ())
+                    .map_err(|e| serde::de::Error::custom(format_args!("invalid decimal: {e}",))),
                 Value::Ref(idx) => recurse_ref!(self, idx, validate, value),
                 Value::Option(val) => {
                     recurse!(self, val, validate, value)
@@ -1417,7 +1427,13 @@ impl DecodeValue<'_> {
                         serde::de::Error::custom(format_args!("invalid datetime: {e}",))
                     })?,
 
-                // Any non-datetime basic value gets transformed into a string.
+                Value::Basic(Basic::Decimal) => api::Decimal::from_str(&str)
+                    .map(PValue::Decimal)
+                    .map_err(|e| {
+                    serde::de::Error::custom(format_args!("invalid decimal: {e}",))
+                })?,
+
+                // Any non-datetime, non-decimal basic value gets transformed into a string.
                 Value::Basic(_) => PValue::String(str),
 
                 Value::Literal(_) => PValue::String(str),

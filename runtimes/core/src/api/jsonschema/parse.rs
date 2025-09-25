@@ -493,6 +493,7 @@ fn describe_json(value: &PValue) -> &'static str {
         PValue::Null => "null",
         PValue::Bool(_) => "a boolean",
         PValue::Number(_) => "a number",
+        PValue::Decimal(_) => "a decimal",
         PValue::String(_) => "a string",
         PValue::DateTime(_) => "a datetime",
         PValue::Array(_) => "an array",
@@ -584,6 +585,16 @@ fn parse_basic_str(basic: &Basic, str: &str) -> APIResult<PValue> {
                 code: api::ErrCode::InvalidArgument,
                 message: "invalid datetime".to_string(),
                 internal_message: Some(format!("invalid datetime string {str:?}")),
+                stack: None,
+                details: None,
+            }),
+
+        Basic::Decimal => api::Decimal::from_str(str)
+            .map(PValue::Decimal)
+            .map_err(|_err| api::Error {
+                code: api::ErrCode::InvalidArgument,
+                message: format!("invalid decimal value: {str}"),
+                internal_message: None,
                 stack: None,
                 details: None,
             }),
