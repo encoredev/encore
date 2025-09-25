@@ -1,0 +1,22 @@
+{
+  "name": "encore-ts-testapp",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Encore Typescript Test app",
+  "license": "MPL-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.7",
+    "typescript": "^5.4",
+    "vitest": "^3.1.3"
+  },
+  "dependencies": {
+    "encore.dev": "1.50.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.13.0"
+  }
+}
