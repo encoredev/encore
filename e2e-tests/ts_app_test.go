@@ -203,7 +203,7 @@ func TestTSEndToEndWithApp(t *testing.T) {
 				"code":             "canceled",
 				"details":          nil,
 				"internal_message": nil,
-				"message":          "the error: Error: this is the cause: this is the cause",
+				"message":          "the error: this is the cause",
 			},
 			"with-details-with-cause": {
 				"code": "canceled",
@@ -211,7 +211,7 @@ func TestTSEndToEndWithApp(t *testing.T) {
 					"a": "detail",
 				},
 				"internal_message": nil,
-				"message":          "the error: Error: this is the cause: Error: this is the cause: this is the cause",
+				"message":          "the error: this is the cause",
 			},
 		}
 

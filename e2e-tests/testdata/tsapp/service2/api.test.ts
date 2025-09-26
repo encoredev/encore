@@ -7,7 +7,7 @@ describe("errors", () => {
       testApiError({ variant: "no-details-with-cause" })
     ).rejects.toThrow(
       expect.objectContaining({
-        message: "the error: Error: this is the cause",
+        message: "the error",
         details: undefined,
         code: "canceled",
         cause: expect.objectContaining({
@@ -48,8 +48,7 @@ describe("errors", () => {
       testApiError({ variant: "with-details-with-cause" })
     ).rejects.toThrow(
       expect.objectContaining({
-        message:
-          "the error: Error: this is the cause: Error: this is the cause",
+        message: "the error",
         details: { a: "detail" },
         code: "canceled",
         cause: expect.objectContaining({
