@@ -5,7 +5,6 @@ import { APIError } from "encore.dev/api";
 
 interface GreetingRequest {
   name: string;
-  style: "formal" | "casual" | "excited";
 }
 
 interface GreetingResponse {
@@ -13,46 +12,20 @@ interface GreetingResponse {
   timestamp: Date;
 }
 
-interface StatusResponse {
-  status: "healthy" | "busy" | "maintenance";
-  uptime: string;
-  version: string;
-}
-
 interface MessageRequest {
   message: string & MinLen<3> & MaxLen<1000>;
-  priority?: "low" | "medium" | "high";
   recipient?: string & IsEmail;
 }
 
 interface MessageResponse {
   message: string;
-  processed: boolean;
-  status: HttpStatus;
 }
 
 // Generate different greeting styles
 export const greet = api(
   { expose: true, method: "POST", path: "/greet" },
   async (req: GreetingRequest): Promise<GreetingResponse> => {
-    log.info("Generating greeting", { name: req.name, style: req.style });
-
-    let greeting: string;
-
-    switch (req.style) {
-      case "formal":
-        greeting = `Good day, ${req.name}. I trust you are well.`;
-        break;
-      case "casual":
-        greeting = `Hey ${req.name}! How's it going?`;
-        break;
-      case "excited":
-        greeting = `OMG ${req.name}!!! So great to see you!!!`;
-        break;
-      default:
-        greeting = `Hello, ${req.name}.`;
-    }
-
+    let greeting = `Hey ${req.name}! How's it going?`;
     return {
       greeting,
       timestamp: new Date()
@@ -60,34 +33,11 @@ export const greet = api(
   }
 );
 
-// Process a message with validation and different responses
-export const processMessage = api(
-  { expose: true, method: "POST", path: "/process-message" },
+export const testInputValidation = api(
+  { expose: true, method: "POST", path: "/test-validation" },
   async (req: MessageRequest): Promise<MessageResponse> => {
-    log.info("Processing message", {
-      messageLength: req.message.length,
-      priority: req.priority,
-      hasRecipient: !!req.recipient
-    });
-
-    // Simulate different processing outcomes
-    const priority = req.priority || "medium";
-    let processed = true;
-    let status: HttpStatus = HttpStatus.OK;
-
-    if (req.message.includes("error")) {
-      processed = false;
-      status = HttpStatus.BadRequest;
-    } else if (req.message.includes("urgent")) {
-      status = HttpStatus.Accepted;
-    } else {
-      status = HttpStatus.Created;
-    }
-
     return {
-      message: `Message processed with ${priority} priority`,
-      processed,
-      status
+      message: `Message processed`
     };
   }
 );

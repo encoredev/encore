@@ -172,7 +172,17 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 	// Use a randomly generated app id to avoid tests trampling on each other
 	// since we use a persistent working directory based on the app id.
 	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
-	args := []string{"./..."}
+
+	var args []string
+	switch app.Lang() {
+	case appfile.LangTS:
+		args = []string{}
+	case appfile.LangGo:
+		fallthrough
+	default:
+		args = []string{"./..."}
+	}
+
 	if app.Lang() == appfile.LangTS {
 		args = []string{}
 	}

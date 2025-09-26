@@ -75,27 +75,8 @@ func TestTSEndToEndWithApp(t *testing.T) {
 		c.Assert(response["message"], qt.Equals, "I accept!")
 	})
 
-	// Test service2 greeting endpoint directly
-	c.Run("service2 greeting - formal style", func(c *qt.C) {
-		requestBody := `{"name": "Alice", "style": "formal"}`
-		w := httptest.NewRecorder()
-		req := httptest.NewRequest("POST", "/greet", strings.NewReader(requestBody))
-		req.Header.Set("Content-Type", "application/json")
-		run.ServeHTTP(w, req)
-
-		c.Assert(w.Code, qt.Equals, 200)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		c.Assert(err, qt.IsNil)
-
-		c.Assert(response["greeting"], qt.Equals, "Good day, Alice. I trust you are well.")
-		c.Assert(response["timestamp"], qt.Not(qt.IsNil))
-	})
-
-	// Test service2 greeting endpoint - casual style
-	c.Run("service2 greeting - casual style", func(c *qt.C) {
-		requestBody := `{"name": "Bob", "style": "casual"}`
+	c.Run("service2 greeting endpoint", func(c *qt.C) {
+		requestBody := `{"name": "Bob"}`
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/greet", strings.NewReader(requestBody))
 		req.Header.Set("Content-Type", "application/json")
@@ -110,9 +91,8 @@ func TestTSEndToEndWithApp(t *testing.T) {
 		c.Assert(response["greeting"], qt.Equals, "Hey Bob! How's it going?")
 	})
 
-	// Test service-to-service call - get greeting via service1
-	c.Run("service-to-service call - get greeting", func(c *qt.C) {
-		requestBody := `{"name": "Charlie", "style": "excited"}`
+	c.Run("service-to-service greeting call", func(c *qt.C) {
+		requestBody := `{"name": "Charlie"}`
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/get-greeting", strings.NewReader(requestBody))
 		req.Header.Set("Content-Type", "application/json")
@@ -125,32 +105,29 @@ func TestTSEndToEndWithApp(t *testing.T) {
 		c.Assert(err, qt.IsNil)
 
 		c.Assert(response["message"], qt.Equals, "Greeting retrieved successfully via service-to-service call")
-		c.Assert(response["greeting"], qt.Equals, "OMG Charlie!!! So great to see you!!!")
+		c.Assert(response["greeting"], qt.Equals, "Hey Charlie! How's it going?")
 	})
 
-	// Test input validation - valid message processing
-	c.Run("service2 message processing - valid", func(c *qt.C) {
-		requestBody := `{"message": "Hello world", "priority": "high", "recipient": "test@example.com"}`
+	c.Run("service2 input validation - valid", func(c *qt.C) {
+		requestBody := `{"message": "Hello world", "recipient": "test@example.com"}`
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest("POST", "/process-message", strings.NewReader(requestBody))
+		req := httptest.NewRequest("POST", "/test-validation", strings.NewReader(requestBody))
 		req.Header.Set("Content-Type", "application/json")
 		run.ServeHTTP(w, req)
 
-		c.Assert(w.Code, qt.Equals, 201)
+		c.Assert(w.Code, qt.Equals, 200)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		c.Assert(err, qt.IsNil)
 
-		c.Assert(response["message"], qt.Equals, "Message processed with high priority")
-		c.Assert(response["processed"], qt.Equals, true)
+		c.Assert(response["message"], qt.Equals, "Message processed")
 	})
 
-	// Test input validation - message too short
-	c.Run("service2 message processing - too short", func(c *qt.C) {
+	c.Run("service2 input validation - to short", func(c *qt.C) {
 		requestBody := `{"message": "Hi"}`
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest("POST", "/process-message", strings.NewReader(requestBody))
+		req := httptest.NewRequest("POST", "/test-validation", strings.NewReader(requestBody))
 		req.Header.Set("Content-Type", "application/json")
 		run.ServeHTTP(w, req)
 
@@ -164,11 +141,10 @@ func TestTSEndToEndWithApp(t *testing.T) {
 		c.Assert(w.Code, qt.Equals, 400)
 	})
 
-	// Test input validation - invalid email
-	c.Run("service2 message processing - invalid email", func(c *qt.C) {
+	c.Run("service2 input validation - invalid email", func(c *qt.C) {
 		requestBody := `{"message": "Valid message", "recipient": "not-an-email"}`
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest("POST", "/process-message", strings.NewReader(requestBody))
+		req := httptest.NewRequest("POST", "/test-validation", strings.NewReader(requestBody))
 		req.Header.Set("Content-Type", "application/json")
 		run.ServeHTTP(w, req)
 
