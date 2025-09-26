@@ -12,16 +12,15 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 )
 
@@ -50,7 +49,7 @@ type ImageBuildConfig struct {
 }
 
 // BuildImage builds a docker image from the given spec.
-func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.Image, error) {
+func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig, log zerolog.Logger) (v1.Image, error) {
 	options := append(cfg.DockerOptions,
 		remote.WithPlatform(v1.Platform{
 			OS:           spec.OS,
@@ -67,13 +66,7 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 		return nil, errors.Wrap(err, "build image fs")
 	}
 
-	prioritizedFiles := fns.Map(spec.StargzPrioritizedFiles, func(s ImagePath) string { return string(s) })
 	layer, err := tarball.LayerFromOpener(opener,
-		tarball.WithEstargz,
-		tarball.WithEstargzOptions(
-			estargz.WithPrioritizedFiles(prioritizedFiles),
-		),
-		tarball.WithCompressedCaching,
 		tarball.WithCompressionLevel(5), // balance speed and compression
 	)
 
@@ -81,6 +74,7 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 		return nil, errors.Wrap(err, "create tarball layer")
 	}
 
+	log.Info().Msg("adding layer to base image")
 	img, err := mutate.Append(baseImg, mutate.Addendum{
 		Layer: layer,
 		History: v1.History{
