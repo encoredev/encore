@@ -1,1 +1,0 @@
-export {type AuthData, getAuthData} from "../internal/auth/auth";
