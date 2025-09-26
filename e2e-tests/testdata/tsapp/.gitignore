@@ -1,0 +1,5 @@
+encore.gen.go
+encore.gen.cue
+/.encore
+/encore.gen
+node_modules

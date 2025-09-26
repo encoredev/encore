@@ -81,7 +81,7 @@ func main() {
 		{"windows", "amd64"},
 	}
 
-	var parralelFuncs []func()
+	var parallelFuncs []func()
 	// Give them the common settings
 	for _, t := range targets {
 		if *onlyBuild != "" && !(*onlyBuild == fmt.Sprintf("%s-%s", t.OS, t.Arch) ||
@@ -106,7 +106,7 @@ func main() {
 			ArtifactsTarFile: join(*dst, "artifacts", "encore-"+*versionStr+"-"+t.OS+"_"+t.Arch+".tar.gz"),
 		}
 
-		parralelFuncs = append(parralelFuncs, b.Build)
+		parallelFuncs = append(parallelFuncs, b.Build)
 	}
 
 	defer func() {
@@ -120,7 +120,7 @@ func main() {
 		}
 	}()
 
-	buildutil.RunParallel(parralelFuncs...)
+	buildutil.RunParallel(parallelFuncs...)
 	log.Info().Msg("all distributions built successfully")
 
 	if *publishNPM {
