@@ -351,7 +351,7 @@ func (tc *tarCopier) Opener() tarball.Opener {
 
 	var dvecs []tarstream.Datavec
 	for _, e := range tc.entries {
-		log.Info().Str("file", e.header.Name).Interface("header", e.header).Msg("processing file")
+
 		// create buffer to write tar header to
 		buf := new(bytes.Buffer)
 		tw := tar.NewWriter(buf)

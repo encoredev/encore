@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -21,7 +20,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/rs/zerolog/log"
 
-	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 )
 
@@ -67,13 +65,7 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 		return nil, errors.Wrap(err, "build image fs")
 	}
 
-	prioritizedFiles := fns.Map(spec.StargzPrioritizedFiles, func(s ImagePath) string { return string(s) })
 	layer, err := tarball.LayerFromOpener(opener,
-		tarball.WithEstargz,
-		tarball.WithEstargzOptions(
-			estargz.WithPrioritizedFiles(prioritizedFiles),
-		),
-		tarball.WithCompressedCaching,
 		tarball.WithCompressionLevel(5), // balance speed and compression
 	)
 
@@ -81,6 +73,7 @@ func BuildImage(ctx context.Context, spec *ImageSpec, cfg ImageBuildConfig) (v1.
 		return nil, errors.Wrap(err, "create tarball layer")
 	}
 
+	log.Info().Msg("adding layer to base image")
 	img, err := mutate.Append(baseImg, mutate.Addendum{
 		Layer: layer,
 		History: v1.History{
