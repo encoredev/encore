@@ -267,7 +267,7 @@ func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.Docke
 	}
 
 	fetchRemote := true
-	img, err := daemon.Image(baseImgRef)
+	img, err := daemon.Image(baseImgRef, daemon.WithUnbufferedOpener())
 	if err == nil {
 		file, err := img.ConfigFile()
 		if err == nil {
