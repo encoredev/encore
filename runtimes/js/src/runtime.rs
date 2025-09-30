@@ -392,31 +392,30 @@ impl From<api::Error> for APICallError {
 
 #[napi]
 pub struct Decimal {
-    value: String,
+    inner: encore_runtime_core::api::Decimal,
 }
 
 #[napi]
 impl Decimal {
     #[napi(constructor)]
     pub fn new(value: String) -> napi::Result<Self> {
-        // Validate that the string represents a valid decimal
-        if encore_runtime_core::api::Decimal::from_str(&value).is_err() {
-            return Err(Error::new(
+        match encore_runtime_core::api::Decimal::from_str(&value) {
+            Ok(decimal) => Ok(Self { inner: decimal }),
+            Err(err) => Err(Error::new(
                 Status::InvalidArg,
-                format!("Invalid decimal format: '{}'", value),
-            ));
+                format!("Invalid decimal format: '{}'", err),
+            )),
         }
-        Ok(Decimal { value })
     }
 
     #[napi(js_name = "toJSON")]
-    pub fn to_json(&self) -> &str {
-        &self.value
+    pub fn to_json(&self) -> String {
+        self.inner.to_string()
     }
 
     #[napi(getter)]
-    pub fn value(&self) -> &str {
-        &self.value
+    pub fn value(&self) -> String {
+        self.inner.to_string()
     }
 
     #[napi(getter, js_name = "__encore_decimal")]
