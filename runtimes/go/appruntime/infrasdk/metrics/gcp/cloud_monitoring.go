@@ -64,6 +64,7 @@ func (x *Exporter) Shutdown(p *shutdown.Process) error {
 }
 
 func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetric) error {
+	fmt.Println("=== Exporting metrics to GCP Cloud Monitoring ===")
 	// Call time.Now twice so we don't get identical timestamps,
 	// which is not allowed for cumulative metrics.
 	newCounterStart := time.Now().Add(-time.Microsecond)

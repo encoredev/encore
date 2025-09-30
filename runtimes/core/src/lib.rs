@@ -24,6 +24,7 @@ pub mod error;
 pub mod infracfg;
 pub mod log;
 pub mod meta;
+pub mod metadata;
 pub mod metrics;
 pub mod model;
 mod names;
@@ -223,6 +224,7 @@ impl Runtime {
         md: metapb::Data,
         testing: bool,
     ) -> anyhow::Result<Self> {
+        let cfg_clone = cfg.clone();
         // Initialize OpenSSL system root certificates, so that libraries can find them.
         openssl_probe::init_ssl_cert_env_vars();
 
@@ -372,6 +374,9 @@ impl Runtime {
             cfg
         };
 
+        // Initialize metrics manager from runtime config
+        let metrics_manager = metrics::Manager::from_runtime_config(&cfg_clone);
+
         let api = api::ManagerConfig {
             meta: &md,
             environment: &environment,
@@ -413,6 +418,7 @@ impl Runtime {
             app_meta,
             compute,
             runtime: tokio_rt,
+            metrics: metrics_manager,
         })
     }
 
@@ -444,6 +450,11 @@ impl Runtime {
     #[inline]
     pub fn api(&self) -> &api::Manager {
         &self.api
+    }
+
+    #[inline]
+    pub fn metrics(&self) -> &metrics::Manager {
+        &self.metrics
     }
 
     #[inline]

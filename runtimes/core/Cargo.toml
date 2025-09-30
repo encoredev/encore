@@ -77,7 +77,7 @@ base32 = "0.4.0"
 openssl = { version = "0.10.57", features = ["vendored"] }
 bb8 = "0.8.3"
 bb8-postgres = "0.8.1"
-uuid = "1.7.0"
+uuid = { version = "1.7.0", features = ["v4"] }
 openssl-probe = "0.1.5"
 jsonwebtoken = "9.2.0"
 google-cloud-gax = "0.17.0"
@@ -121,6 +121,7 @@ aws-credential-types = "1.2.1"
 regex = "1.11.1"
 email_address = "0.2.9"
 cookie = "0.18.1"
+metrics = "0.23.0"
 
 [build-dependencies]
 prost-build = "0.12.3"

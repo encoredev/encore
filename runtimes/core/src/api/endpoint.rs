@@ -23,9 +23,10 @@ use crate::api::{jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1::rpc;
 use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
+use crate::metrics::{status_code_string, RequestTotalLabels};
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
-use crate::trace;
+use crate::{metrics, trace};
 use crate::{model, Hosted};
 
 use super::pvalue::{PValue, PValues};
@@ -601,7 +602,6 @@ impl EndpointHandler {
             let duration = tokio::time::Instant::now().duration_since(request.start);
 
             // If we had a request failure, log that separately.
-
             if let ResponseData::Typed(Err(err)) = &resp {
                 logger.error(Some(&request), "request failed", Some(err), {
                     let mut fields = crate::log::Fields::new();
@@ -680,11 +680,17 @@ impl EndpointHandler {
                     data: model::ResponseData::RPC(model::RPCResponseData {
                         status_code: encoded_resp.status().as_u16(),
                         resp_payload,
-                        error,
+                        error: error.clone(),
                         resp_headers: encoded_resp.headers().clone(),
                     }),
                 };
                 self.shared.tracer.request_span_end(&model_resp, sensitive);
+                // Record request metrics
+                let counter = metrics::Counter::new(RequestTotalLabels {
+                    endpoint: self.endpoint.name.to_string(),
+                    code: status_code_string(error.as_ref(), encoded_resp.status()),
+                });
+                counter.increment();
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {
