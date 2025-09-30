@@ -5,10 +5,7 @@ use std::{error::Error, str::FromStr};
 use tokio_postgres::types::{to_sql_checked, FromSql, IsNull, Kind, ToSql, Type};
 use uuid::Uuid;
 
-use crate::{
-    api::{DateTime, Decimal, PValue},
-    sqldb::numeric::{numeric_from_sql, numeric_to_sql, Numeric},
-};
+use crate::api::{DateTime, Decimal, PValue};
 
 #[derive(Debug)]
 pub enum RowValue {
@@ -123,9 +120,8 @@ impl ToSql for PValue {
                         val.to_sql(ty, out)
                     }
                     Type::NUMERIC => {
-                        let n = Numeric::from_str(str)?;
-                        numeric_to_sql(n, out);
-                        Ok(IsNull::No)
+                        let d = Decimal::from_str(str)?;
+                        d.to_sql(ty, out)
                     }
                     _ => {
                         if let Kind::Enum(_) = ty.kind() {
@@ -239,9 +235,8 @@ impl ToSql for PValue {
                     }
                     Type::NUMERIC => {
                         let num_str = num.to_string();
-                        let n = Numeric::from_str(&num_str)?;
-                        numeric_to_sql(n, out);
-                        Ok(IsNull::No)
+                        let d = Decimal::from_str(&num_str)?;
+                        d.to_sql(ty, out)
                     }
                     Type::TEXT | Type::VARCHAR => self.to_string().to_sql(ty, out),
                     _ => {
@@ -257,12 +252,7 @@ impl ToSql for PValue {
                     }
                 },
                 PValue::Decimal(d) => match *ty {
-                    Type::NUMERIC => {
-                        let str = &d.to_string();
-                        let n = Numeric::from_str(str)?;
-                        numeric_to_sql(n, out);
-                        Ok(IsNull::No)
-                    }
+                    Type::NUMERIC => d.to_sql(ty, out),
                     Type::FLOAT4 => {
                         let val =
                             f32::try_from(d).map_err(|_| "Cannot convert decimal to FLOAT4")?;
@@ -445,8 +435,7 @@ impl<'a> FromSql<'a> for PValue {
                 }
             }
             Type::NUMERIC => {
-                let n = numeric_from_sql(raw)?;
-                let d = Decimal::from_str(&n.to_string())?;
+                let d = Decimal::from_sql(ty, raw)?;
                 PValue::Decimal(d)
             }
             Type::TIMESTAMP => {

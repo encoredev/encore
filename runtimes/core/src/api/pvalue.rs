@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use bytes::BytesMut;
 use malachite::rational::{conversion::primitive_int_from_rational, Rational};
 use malachite::{
     base::num::conversion::{
@@ -13,6 +14,8 @@ use malachite::{
     rational::conversion::primitive_float_from_rational,
 };
 use serde::{Serialize, Serializer};
+
+use crate::sqldb;
 
 /// Represents any valid value in a request/response payload.
 ///
@@ -240,6 +243,34 @@ impl From<Rational> for Decimal {
     fn from(r: Rational) -> Self {
         Decimal(r)
     }
+}
+
+impl tokio_postgres::types::ToSql for Decimal {
+    fn to_sql(
+        &self,
+        _ty: &tokio_postgres::types::Type,
+        out: &mut BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        let n = sqldb::numeric::Numeric::from_str(&self.to_string())?;
+        sqldb::numeric::numeric_to_sql(n, out);
+        Ok(tokio_postgres::types::IsNull::No)
+    }
+
+    tokio_postgres::types::accepts!(NUMERIC);
+    tokio_postgres::types::to_sql_checked!();
+}
+
+impl<'a> tokio_postgres::types::FromSql<'a> for Decimal {
+    fn from_sql(
+        _ty: &tokio_postgres::types::Type,
+        raw: &[u8],
+    ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        let n = sqldb::numeric::numeric_from_sql(raw)?;
+        let d = Decimal::from_str(&n.to_string())?;
+        Ok(d)
+    }
+
+    tokio_postgres::types::accepts!(NUMERIC);
 }
 
 impl Serialize for PValue {

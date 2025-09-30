@@ -1,6 +1,6 @@
 mod client;
 mod manager;
-mod numeric;
+pub mod numeric;
 mod transaction;
 mod val;
 
