@@ -244,7 +244,7 @@ func (g *golang) generateClient(file *File, appSlug string, set clientgentypes.S
 	g.generateOptionFunc(
 		file,
 		"HTTPClient",
-		`can be used to configure the underlying HTTP client used when making API calls. 
+		`can be used to configure the underlying HTTP client used when making API calls.
 
 Defaults to http.DefaultClient`,
 		&Statement{Id("client").Id("HTTPDoer")},
@@ -886,7 +886,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 			return Qual("time", "Time")
 		case schema.Builtin_JSON:
 			return Qual("encoding/json", "RawMessage")
-		case schema.Builtin_UUID, schema.Builtin_USER_ID:
+		case schema.Builtin_UUID, schema.Builtin_USER_ID, schema.Builtin_DECIMAL:
 			// we don't want to add any custom depdancies, so these come in as strings
 			return String()
 		default:

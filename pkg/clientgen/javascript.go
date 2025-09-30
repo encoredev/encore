@@ -1123,6 +1123,8 @@ func (js *javascript) convertStringToBuiltin(typ schema.Builtin, val string) str
 		return val
 	case schema.Builtin_USER_ID:
 		return val
+	case schema.Builtin_DECIMAL:
+		return val
 	default:
 		js.errorf("unknown builtin type %v", typ)
 		return "any"

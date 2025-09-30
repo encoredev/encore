@@ -467,7 +467,7 @@ func (w *MarshallingCodeWrapper) Finalize(ifErrorBlock ...Code) []Code {
 }
 
 func (g *MarshallingCodeGenerator) shouldBeTreatedAsString(builtin schema.Builtin) bool {
-	return builtin == schema.Builtin_STRING ||
+	return builtin == schema.Builtin_STRING || builtin == schema.Builtin_DECIMAL ||
 		(g.encoreTypesAsString && builtin == schema.Builtin_UUID) ||
 		(g.encoreTypesAsString && builtin == schema.Builtin_USER_ID)
 }

@@ -248,6 +248,8 @@ func (g *Generator) builtinSchemaType(t schema.Builtin) *openapi3.Schema {
 		return openapi3.NewObjectSchema()
 	case schema.Builtin_USER_ID:
 		return openapi3.NewStringSchema()
+	case schema.Builtin_DECIMAL:
+		return openapi3.NewStringSchema()
 	default:
 		doBailout(errors.Newf("unknown builtin type %v", t))
 		panic("unreachable")
@@ -370,6 +372,8 @@ func (g *Generator) typeToDefinitionName(typ *schema.Type) string {
 			return "int"
 		case schema.Builtin_UINT:
 			return "uint"
+		case schema.Builtin_DECIMAL:
+			return "string"
 		default:
 			return ""
 		}

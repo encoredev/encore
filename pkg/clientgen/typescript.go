@@ -1660,6 +1660,8 @@ func (ts *typescript) builtinType(typ schema.Builtin) string {
 		return "string"
 	case schema.Builtin_USER_ID:
 		return "string"
+	case schema.Builtin_DECIMAL:
+		return "string"
 	default:
 		ts.errorf("unknown builtin type %v", typ)
 		return "any"
