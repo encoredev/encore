@@ -721,7 +721,7 @@ impl Ctx<'_> {
 
         // Is this a encore Decimal?
         if obj.name.as_ref().is_some_and(|s| s == "Decimal")
-            && self.state.is_module_path(obj.module_id, "encore.dev/api")
+            && self.state.is_module_path(obj.module_id, "encore.dev/types")
         {
             return Type::Custom(Custom::Decimal);
         }
