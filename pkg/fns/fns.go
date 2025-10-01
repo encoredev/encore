@@ -2,6 +2,7 @@ package fns
 
 import (
 	"cmp"
+	"context"
 	"io"
 	"maps"
 )
@@ -155,6 +156,10 @@ func MapKeys[M ~map[K]V, K comparable, V any](m M) []K {
 // Its main use is to satisfy linters.
 func CloseIgnore(c io.Closer) {
 	_ = c.Close()
+}
+
+func CloseIgnoreCtx(ctx context.Context, close func(ctx context.Context) error) {
+	_ = close(ctx)
 }
 
 // MergeMaps merges all maps into a single map.
