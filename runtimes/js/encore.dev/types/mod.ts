@@ -8,8 +8,10 @@ import * as runtime from "../internal/runtime/mod";
 export class Decimal {
   private impl: runtime.Decimal;
 
-  constructor(value: string) {
-    this.impl = new runtime.Decimal(value);
+  constructor(value: string | number) {
+    this.impl = new runtime.Decimal(
+      typeof value === "number" ? value.toString() : value
+    );
   }
 
   get value(): string {
@@ -38,5 +40,5 @@ export class Decimal {
 
 runtime.RT.registerTypeConstructor(
   Decimal.name,
-  (val: string) => new Decimal(val)
+  (val: string | number) => new Decimal(val)
 );
