@@ -1,55 +1,44 @@
 use metrics::counter;
-use serde::{Deserialize, Serialize};
 
-pub trait MetricLabels: Clone {
-    /// Convert labels to key-value pairs for metrics
-    fn to_key_labels(&self) -> Vec<(String, String)>;
-
-    /// Get the metric name for this label type
-    fn metric_name() -> &'static str;
+pub trait MetricLabels {
+    const METRIC_NAME: &'static str;
+    fn to_key_labels(self) -> Vec<(&'static str, String)>;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct RequestTotalLabels {
+pub struct Counter<T: MetricLabels> {
+    _phantom: std::marker::PhantomData<T>,
+    cached_labels: Box<[(&'static str, String)]>,
+}
+
+impl<T: MetricLabels> Counter<T> {
+    pub fn new(cfg: T) -> Self {
+        let cached_labels = cfg.to_key_labels().into_boxed_slice();
+        Self {
+            _phantom: std::marker::PhantomData,
+            cached_labels,
+        }
+    }
+
+    pub fn increment(&self) {
+        self.increment_by(1);
+    }
+
+    pub fn increment_by(&self, amount: u64) {
+        counter!(T::METRIC_NAME, self.cached_labels.as_ref()).increment(amount);
+    }
+}
+
+#[derive(Debug)]
+pub struct RequestTotal {
     pub endpoint: String,
     pub code: String,
 }
 
-impl MetricLabels for RequestTotalLabels {
-    fn to_key_labels(&self) -> Vec<(String, String)> {
-        vec![
-            ("endpoint".to_string(), self.endpoint.clone()),
-            ("code".to_string(), self.code.clone()),
-        ]
-    }
+impl MetricLabels for RequestTotal {
+    const METRIC_NAME: &'static str = "e_requests_total";
 
-    fn metric_name() -> &'static str {
-        "e_requests_total"
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Counter<L: MetricLabels> {
-    labels: L,
-}
-
-impl<L: MetricLabels> Counter<L> {
-    pub fn new(labels: L) -> Self {
-        Self { labels }
-    }
-
-    pub fn with(&self, labels: L) -> Self {
-        Self { labels }
-    }
-
-    pub fn increment(&self) {
-        self.increment_by(1u64);
-    }
-
-    pub fn increment_by<V: Into<u64>>(&self, amount: V) {
-        let amount_u64 = amount.into();
-        let label_pairs = self.labels.to_key_labels();
-        counter!(L::metric_name(), &label_pairs).increment(amount_u64);
+    fn to_key_labels(self) -> Vec<(&'static str, String)> {
+        vec![("endpoint", self.endpoint), ("code", self.code)]
     }
 }
 

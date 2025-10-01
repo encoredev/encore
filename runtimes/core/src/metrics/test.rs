@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::metrics::{Counter, Manager, RequestTotalLabels};
+    use crate::metrics::{Counter, Manager, RequestTotal};
 
     #[test]
     fn test_counter_increment_and_collect() {
@@ -8,7 +8,7 @@ mod tests {
         let manager = Manager::new();
 
         // Create a counter for requests_total
-        let labels = RequestTotalLabels {
+        let labels = RequestTotal {
             endpoint: "test_endpoint".to_string(),
             code: "200".to_string(),
         };
@@ -36,7 +36,7 @@ mod tests {
 
         // We should have at least one metric collected
         assert!(
-            metrics.len() >= 1,
+            !metrics.is_empty(),
             "Should have collected at least one metric, got {}",
             metrics.len()
         );
