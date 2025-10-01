@@ -9,20 +9,83 @@ use crate::{meta, objects, websocket_api};
 use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
-use napi::{bindgen_prelude::*, JsObject};
+use napi::{bindgen_prelude::*, JsFunction, JsObject};
 use napi::{Error, JsUnknown, Status};
+use napi::{NapiRaw, Ref};
 use napi_derive::napi;
+use std::collections::HashMap;
 use std::future::Future;
 use std::str::FromStr;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 
 // TODO: remove storing of result after `get_or_try_init` is stabilized
 static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
+// Type constructors registered from javascript so we can create those type from rust
+static TYPE_CONSTRUCTORS: OnceLock<Mutex<HashMap<RuntimeType, Ref<()>>>> = OnceLock::new();
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub enum RuntimeType {
+    Decimal,
+}
+
+impl FromStr for RuntimeType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "Decimal" => Ok(RuntimeType::Decimal),
+            _ => Err(anyhow::anyhow!("Unknown type: {}", s)),
+        }
+    }
+}
+
 #[napi]
 pub struct Runtime {
     pub(crate) runtime: Arc<encore_runtime_core::Runtime>,
+}
+
+#[napi]
+impl Runtime {
+    #[napi]
+    pub fn register_type_constructor(
+        &mut self,
+        env: Env,
+        type_name: String,
+        constructor: JsFunction,
+    ) -> napi::Result<()> {
+        let runtime_type = RuntimeType::from_str(&type_name)?;
+        let js_ref = env.create_reference(constructor)?;
+
+        TYPE_CONSTRUCTORS
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .expect("mutex poisoned")
+            .insert(runtime_type, js_ref);
+
+        Ok(())
+    }
+
+    pub fn create_type_instance<V>(env: Env, ty: RuntimeType, args: &[V]) -> napi::Result<JsUnknown>
+    where
+        V: NapiRaw,
+    {
+        let constructors = TYPE_CONSTRUCTORS.get().ok_or_else(|| {
+            Error::new(Status::GenericFailure, "Type constructors not initialized")
+        })?;
+        let constructors = constructors.lock().expect("mutex poisoned");
+
+        let constructor_ref = constructors.get(&ty).ok_or_else(|| {
+            Error::new(
+                Status::GenericFailure,
+                format!("Type constructor for {:?} not registered", ty),
+            )
+        })?;
+
+        let constructor: JsFunction = env.get_reference_value(constructor_ref)?;
+        constructor.call(None, args)
+    }
 }
 
 #[napi(object)]
@@ -408,18 +471,8 @@ impl Decimal {
         }
     }
 
-    #[napi(js_name = "toJSON")]
-    pub fn to_json(&self) -> String {
+    #[napi(js_name = "toString")]
+    pub fn js_to_string(&self) -> String {
         self.inner.to_string()
-    }
-
-    #[napi(getter)]
-    pub fn value(&self) -> String {
-        self.inner.to_string()
-    }
-
-    #[napi(getter, js_name = "__encore_decimal")]
-    pub fn __encore_decimal(&self) -> bool {
-        true
     }
 }

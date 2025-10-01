@@ -5,5 +5,5 @@ export * from "./napi/napi.cjs";
 const testMode = process.env.NODE_ENV === "test";
 
 export const RT = new Runtime({
-  testMode,
+  testMode
 });

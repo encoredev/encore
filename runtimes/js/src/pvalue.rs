@@ -1,11 +1,13 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::cookies::{cookie_to_napi_value, JsCookie};
-use crate::runtime;
+use crate::runtime::Runtime;
 use chrono::TimeZone;
 use encore_runtime_core::api::{self, auth, schema, Decimal, PValue, PValues};
 use malachite::{rational::Rational, Integer, Natural};
-use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsString, JsUnknown, NapiValue, Result};
+use napi::{
+    bindgen_prelude::*, sys, JsDate, JsObject, JsString, JsUnknown, NapiRaw, NapiValue, Result,
+};
 use serde_json::Number;
 
 #[allow(dead_code)]
@@ -106,8 +108,13 @@ impl ToNapiValue for PVal {
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, b) },
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
             PValue::Decimal(d) => {
-                let decimal_instance = runtime::Decimal::new(d.to_string())?;
-                unsafe { runtime::Decimal::to_napi_value(env, decimal_instance) }
+                let env2 = Env::from_raw(env);
+                let decimal_js = Runtime::create_type_instance(
+                    env2,
+                    crate::runtime::RuntimeType::Decimal,
+                    &[env2.create_string(&d.to_string())?],
+                )?;
+                unsafe { Ok(decimal_js.raw()) }
             }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
             PValue::Array(arr) => {
@@ -139,8 +146,13 @@ impl ToNapiValue for &PVal {
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, *b) },
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
             PValue::Decimal(d) => {
-                let decimal_instance = runtime::Decimal::new(d.to_string())?;
-                unsafe { runtime::Decimal::to_napi_value(env, decimal_instance) }
+                let env2 = Env::from_raw(env);
+                let decimal_js = Runtime::create_type_instance(
+                    env2,
+                    crate::runtime::RuntimeType::Decimal,
+                    &[env2.create_string(&d.to_string())?],
+                )?;
+                unsafe { Ok(decimal_js.raw()) }
             }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
             PValue::Array(arr) => {

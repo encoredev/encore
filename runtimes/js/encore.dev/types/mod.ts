@@ -1,15 +1,5 @@
 import * as runtime from "../internal/runtime/mod";
 
-(runtime.Decimal.prototype as any)[Symbol.toPrimitive] = function (
-  hint: string
-) {
-  if (hint === "number") {
-    return +this.value;
-  }
-
-  return this.value;
-};
-
 /**
  * A decimal type that can hold values with arbitrary precision.
  * Unlike JavaScript's native number type, this can accurately represent
@@ -22,16 +12,15 @@ export class Decimal {
     this.impl = new runtime.Decimal(value);
   }
 
-  toJSON(): string {
-    return this.impl.toJSON();
-  }
-
   get value(): string {
-    return this.impl.value;
+    return this.impl.toString();
   }
 
-  get __encore_decimal(): boolean {
-    return true;
+  toJSON(): string {
+    return this.impl.toString();
+  }
+  toString(): string {
+    return this.impl.toString();
   }
 
   [Symbol.toPrimitive](hint: string) {
@@ -41,4 +30,13 @@ export class Decimal {
 
     return this.value;
   }
+
+  private get __encore_decimal(): boolean {
+    return true;
+  }
 }
+
+runtime.RT.registerTypeConstructor(
+  Decimal.name,
+  (val: string) => new Decimal(val)
+);
