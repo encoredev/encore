@@ -106,12 +106,7 @@ impl Runtime {
         let refs = TypeConstructorRefs {
             decimal: env.create_reference(options.type_constructors.decimal)?,
         };
-        TYPE_CONSTRUCTORS.set(refs).map_err(|_| {
-            Error::new(
-                Status::GenericFailure,
-                "Type constructors already initialized",
-            )
-        })?;
+        let _ = TYPE_CONSTRUCTORS.set(refs);
 
         Ok(Self { runtime })
     }
