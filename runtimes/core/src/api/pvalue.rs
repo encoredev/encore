@@ -1,6 +1,7 @@
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
+    ops::{Add, Div, Mul, Sub},
     str::FromStr,
 };
 
@@ -168,6 +169,35 @@ impl Display for SameSite {
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Decimal(Rational);
 
+impl Add for &Decimal {
+    type Output = Decimal;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).add(&rhs.0))
+    }
+}
+impl Sub for &Decimal {
+    type Output = Decimal;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).sub(&rhs.0))
+    }
+}
+impl Mul for &Decimal {
+    type Output = Decimal;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).mul(&rhs.0))
+    }
+}
+impl Div for &Decimal {
+    type Output = Decimal;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).div(&rhs.0))
+    }
+}
+
 impl TryFrom<&Decimal> for i64 {
     type Error = primitive_int_from_rational::SignedFromRationalError;
 
@@ -235,6 +265,10 @@ impl Display for Decimal {
         let mut opts = ToSciOptions::default();
         opts.set_size_complete();
         opts.set_include_trailing_zeros(true);
+        if !self.0.fmt_sci_valid(opts) {
+            // e.g the number is 1/3
+            opts.set_scale(10);
+        }
         self.0.fmt_sci(f, opts)
     }
 }

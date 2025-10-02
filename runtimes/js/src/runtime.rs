@@ -446,4 +446,36 @@ impl Decimal {
     pub fn js_to_string(&self) -> String {
         self.inner.to_string()
     }
+
+    #[napi]
+    pub fn add(&self, other: &Decimal) -> Decimal {
+        use std::ops::Add;
+        Decimal {
+            inner: self.inner.add(&other.inner),
+        }
+    }
+
+    #[napi]
+    pub fn sub(&self, other: &Decimal) -> Decimal {
+        use std::ops::Sub;
+        Decimal {
+            inner: self.inner.sub(&other.inner),
+        }
+    }
+
+    #[napi]
+    pub fn mul(&self, other: &Decimal) -> Decimal {
+        use std::ops::Mul;
+        Decimal {
+            inner: self.inner.mul(&other.inner),
+        }
+    }
+
+    #[napi]
+    pub fn div(&self, other: &Decimal) -> Decimal {
+        use std::ops::Div;
+        Decimal {
+            inner: self.inner.div(&other.inner),
+        }
+    }
 }
