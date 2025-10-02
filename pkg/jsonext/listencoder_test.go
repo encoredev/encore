@@ -1,4 +1,4 @@
-package dash
+package jsonext
 
 import (
 	"testing"
