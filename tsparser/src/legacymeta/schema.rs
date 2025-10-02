@@ -193,6 +193,10 @@ impl BuilderCtx<'_, '_> {
             }
 
             Type::Custom(Custom::WireSpec(spec)) => self.typ(&spec.underlying)?,
+            Type::Custom(Custom::Decimal) => schema::Type {
+                typ: Some(styp::Typ::Builtin(schema::Builtin::Decimal as i32)),
+                validation: None,
+            },
         })
     }
 
@@ -216,13 +220,8 @@ impl BuilderCtx<'_, '_> {
                 })),
                 validation: None,
             },
-
-            Basic::Void
-            | Basic::Object
-            | Basic::BigInt
-            | Basic::Symbol
-            | Basic::Undefined
-            | Basic::Never => {
+            Basic::BigInt => b(schema::Builtin::Decimal),
+            Basic::Void | Basic::Object | Basic::Symbol | Basic::Undefined | Basic::Never => {
                 HANDLER.with(|h| h.err(&format!("unsupported basic type in schema: {typ:?}")));
                 b(schema::Builtin::Any)
             }

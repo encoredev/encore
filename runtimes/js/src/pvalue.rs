@@ -1,9 +1,13 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use crate::cookies::{cookie_to_napi_value, JsCookie};
+use crate::runtime::Runtime;
 use chrono::TimeZone;
-use encore_runtime_core::api::{self, auth, schema, PValue, PValues};
-use napi::{bindgen_prelude::*, sys, JsDate, JsObject, JsUnknown, NapiValue, Result};
+use encore_runtime_core::api::{self, auth, schema, Decimal, PValue, PValues};
+use malachite::{rational::Rational, Integer, Natural};
+use napi::{
+    bindgen_prelude::*, sys, JsDate, JsObject, JsString, JsUnknown, NapiRaw, NapiValue, Result,
+};
 use serde_json::Number;
 
 #[allow(dead_code)]
@@ -103,6 +107,11 @@ impl ToNapiValue for PVal {
             PValue::Null => unsafe { Null::to_napi_value(env, Null) },
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, b) },
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
+            PValue::Decimal(d) => {
+                let env2 = Env::from_raw(env);
+                let decimal_js = Runtime::create_decimal(env2, &d.to_string())?;
+                unsafe { Ok(decimal_js.raw()) }
+            }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
             PValue::Array(arr) => {
                 let env2 = Env::from_raw(env);
@@ -132,6 +141,11 @@ impl ToNapiValue for &PVal {
             PValue::Null => unsafe { Null::to_napi_value(env, Null) },
             PValue::Bool(b) => unsafe { bool::to_napi_value(env, *b) },
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
+            PValue::Decimal(d) => {
+                let env2 = Env::from_raw(env);
+                let decimal_js = Runtime::create_decimal(env2, &d.to_string())?;
+                unsafe { Ok(decimal_js.raw()) }
+            }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
             PValue::Array(arr) => {
                 let env2 = Env::from_raw(env);
@@ -195,15 +209,38 @@ impl FromNapiValue for PVal {
                         let ts = timestamp_to_dt(millis);
                         PValue::DateTime(ts)
                     } else {
-                        PValue::Object(unsafe { PVals::from_napi_value(env, napi_val)?.0 })
+                        // Check if it's a Decimal instance by checking for __encore_decimal property
+                        let obj = JsObject::from_napi_value(env, napi_val)?;
+
+                        if obj.has_property("__encore_decimal")? {
+                            let value_str = obj
+                                .get::<&str, JsString>("value")?
+                                .ok_or_else(|| {
+                                    Error::new(
+                                        Status::InvalidArg,
+                                        "Decimal object missing 'value' property".to_owned(),
+                                    )
+                                })?
+                                .into_utf8()?
+                                .into_owned()?;
+                            PValue::Decimal(Decimal::from_str(&value_str).map_err(|e| {
+                                Error::new(
+                                    Status::InvalidArg,
+                                    format!("Failed to parse Decimal value: {}", e),
+                                )
+                            })?)
+                        } else {
+                            PValue::Object(unsafe { PVals::from_napi_value(env, napi_val)?.0 })
+                        }
                     }
                 }
             }
             ValueType::BigInt => {
-                return Err(Error::new(
-                    Status::InvalidArg,
-                    "bigint is not yet supported",
-                ))
+                let bi = BigInt::from_napi_value(env, napi_val)?;
+                let n = Natural::from_owned_limbs_asc(bi.words);
+                let i = Integer::from_sign_and_abs(!bi.sign_bit, n);
+                let r = Rational::from_integers(i, 1.into());
+                PValue::Decimal(r.into())
             }
             ValueType::Null => PValue::Null,
             ValueType::Function => {

@@ -1,9 +1,22 @@
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Display},
+    ops::{Add, Div, Mul, Sub},
+    str::FromStr,
 };
 
+use bytes::BytesMut;
+use malachite::rational::{conversion::primitive_int_from_rational, Rational};
+use malachite::{
+    base::num::conversion::{
+        string::options::ToSciOptions,
+        traits::{FromSciString, ToSci},
+    },
+    rational::conversion::primitive_float_from_rational,
+};
 use serde::{Serialize, Serializer};
+
+use crate::sqldb;
 
 /// Represents any valid value in a request/response payload.
 ///
@@ -19,6 +32,9 @@ pub enum PValue {
 
     /// Represents a JSON number, whether integer or floating point.
     Number(serde_json::Number),
+
+    /// Represents a Decimal type with arbitrary precision.
+    Decimal(Decimal),
 
     /// Represents a JSON string.
     String(String),
@@ -64,6 +80,7 @@ impl PValue {
             PValue::Object(_) => "object",
             PValue::DateTime(_) => "datetime",
             PValue::Cookie(_) => "cookie",
+            PValue::Decimal(_) => "decimal",
         }
     }
 }
@@ -148,6 +165,148 @@ impl Display for SameSite {
         }
     }
 }
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Decimal(Rational);
+
+impl Add for &Decimal {
+    type Output = Decimal;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).add(&rhs.0))
+    }
+}
+impl Sub for &Decimal {
+    type Output = Decimal;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).sub(&rhs.0))
+    }
+}
+impl Mul for &Decimal {
+    type Output = Decimal;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).mul(&rhs.0))
+    }
+}
+impl Div for &Decimal {
+    type Output = Decimal;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Decimal((&self.0).div(&rhs.0))
+    }
+}
+
+impl TryFrom<&Decimal> for i64 {
+    type Error = primitive_int_from_rational::SignedFromRationalError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        i64::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for i32 {
+    type Error = primitive_int_from_rational::SignedFromRationalError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        i32::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for i16 {
+    type Error = primitive_int_from_rational::SignedFromRationalError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        i16::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for f64 {
+    type Error = primitive_float_from_rational::FloatConversionError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        f64::try_from(&value.0)
+    }
+}
+
+impl TryFrom<&Decimal> for f32 {
+    type Error = primitive_float_from_rational::FloatConversionError;
+
+    fn try_from(value: &Decimal) -> Result<Self, Self::Error> {
+        f32::try_from(&value.0)
+    }
+}
+
+impl PartialEq<f64> for &Decimal {
+    fn eq(&self, other: &f64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialOrd<f64> for &Decimal {
+    fn partial_cmp(&self, other: &f64) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
+
+impl FromStr for Decimal {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let r = Rational::from_sci_string(s)
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse decimal from string: {s}"))?;
+        Ok(Decimal(r))
+    }
+}
+
+impl Display for Decimal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut opts = ToSciOptions::default();
+        opts.set_size_complete();
+        opts.set_include_trailing_zeros(true);
+        if !self.0.fmt_sci_valid(opts) {
+            // e.g the number is 1/3
+            opts.set_scale(10);
+        }
+        self.0.fmt_sci(f, opts)
+    }
+}
+
+impl From<Rational> for Decimal {
+    fn from(r: Rational) -> Self {
+        Decimal(r)
+    }
+}
+
+impl tokio_postgres::types::ToSql for Decimal {
+    fn to_sql(
+        &self,
+        _ty: &tokio_postgres::types::Type,
+        out: &mut BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        let n = sqldb::numeric::Numeric::from_str(&self.to_string())?;
+        sqldb::numeric::numeric_to_sql(n, out);
+        Ok(tokio_postgres::types::IsNull::No)
+    }
+
+    tokio_postgres::types::accepts!(NUMERIC);
+    tokio_postgres::types::to_sql_checked!();
+}
+
+impl<'a> tokio_postgres::types::FromSql<'a> for Decimal {
+    fn from_sql(
+        _ty: &tokio_postgres::types::Type,
+        raw: &[u8],
+    ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        let n = sqldb::numeric::numeric_from_sql(raw)?;
+        let d = Decimal::from_str(&n.to_string())?;
+        Ok(d)
+    }
+
+    tokio_postgres::types::accepts!(NUMERIC);
+}
+
 impl Serialize for PValue {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -162,6 +321,7 @@ impl Serialize for PValue {
             PValue::Object(o) => o.serialize(serializer),
             PValue::DateTime(dt) => dt.serialize(serializer),
             PValue::Cookie(c) => serializer.serialize_str(&c.to_string()),
+            PValue::Decimal(d) => serializer.serialize_str(&d.to_string()),
         }
     }
 }
@@ -195,6 +355,7 @@ impl Display for PValue {
                 write!(f, "}}")
             }
             PValue::Cookie(c) => write!(f, "{c}"),
+            PValue::Decimal(d) => write!(f, "{d}",),
         }
     }
 }
