@@ -156,7 +156,10 @@ func (d *Daemon) init(ctx context.Context) {
 	d.ObjectsMgr = objects.NewClusterManager(d.NS)
 	d.PublicBuckets = objects.NewPublicBucketServer("http://"+d.ObjectStorage.ClientAddr(), d.ObjectsMgr.PersistentStoreFallback)
 
-	d.Trace = sqlite.New(ctx, d.EncoreDB)
+	traceStore := sqlite.New(d.EncoreDB)
+	go traceStore.CleanEvery(ctx, 1*time.Minute, 500, 100, 10000)
+	d.Trace = traceStore
+
 	d.RunMgr = &run.Manager{
 		RuntimePort:   d.Runtime.Port(),
 		DBProxyPort:   d.DBProxy.Port(),

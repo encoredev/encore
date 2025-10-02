@@ -1,4 +1,4 @@
-package dash
+package jsonext
 
 import (
 	"unsafe"
@@ -9,25 +9,25 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type protoEncoderExtension struct {
+type ProtoEncoderExtension struct {
 	jsoniter.DummyExtension
 	messageType reflect2.Type
 	opts        protojson.MarshalOptions
 }
 
-func newProtoEncoderExtension() *protoEncoderExtension {
+func NewProtoEncoderExtension() *ProtoEncoderExtension {
 	msgType := reflect2.TypeOfPtr((*proto.Message)(nil)).Elem()
 	opts := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: true,
 	}
-	return &protoEncoderExtension{
+	return &ProtoEncoderExtension{
 		messageType: msgType,
 		opts:        opts,
 	}
 }
 
-func (e *protoEncoderExtension) DecorateEncoder(typ reflect2.Type, encoder jsoniter.ValEncoder) jsoniter.ValEncoder {
+func (e *ProtoEncoderExtension) DecorateEncoder(typ reflect2.Type, encoder jsoniter.ValEncoder) jsoniter.ValEncoder {
 	if typ.Implements(e.messageType) {
 		return &messageEncoder{typ: typ, encoder: encoder, opts: e.opts}
 	}
@@ -59,11 +59,11 @@ func (codec *messageEncoder) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream)
 	codec.encoder.Encode(ptr, stream)
 }
 
-var protoEncoder = (func() jsoniter.API {
+var ProtoEncoder = (func() jsoniter.API {
 	enc := jsoniter.Config{}.Froze()
 	// Note: the order is important. We don't want the list encoder to process repeated fields in proto
 	// messages, so it must come first so it only applies to non-protobuf slices.
 	enc.RegisterExtension(NewListEncoderExtension())
-	enc.RegisterExtension(newProtoEncoderExtension())
+	enc.RegisterExtension(NewProtoEncoderExtension())
 	return enc
 })()

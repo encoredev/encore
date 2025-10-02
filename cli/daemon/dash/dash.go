@@ -29,6 +29,7 @@ import (
 	"encr.dev/parser/encoding"
 	"encr.dev/pkg/editors"
 	"encr.dev/pkg/errlist"
+	"encr.dev/pkg/jsonext"
 	tracepb2 "encr.dev/proto/encore/engine/trace2"
 	meta "encr.dev/proto/encore/parser/meta/v1"
 )
@@ -608,7 +609,7 @@ func (s *Server) listenTraces() {
 			continue
 		}
 
-		data, err := protoEncoder.Marshal(sp.Span)
+		data, err := jsonext.ProtoEncoder.Marshal(sp.Span)
 		if err != nil {
 			log.Error().Err(err).Msg("dash: could not marshal trace")
 			continue
@@ -743,7 +744,7 @@ func makeProtoReplier(rep jsonrpc2.Replier) jsonrpc2.Replier {
 		if err != nil {
 			return rep(ctx, nil, err)
 		}
-		jsonData, err := protoEncoder.Marshal(result)
+		jsonData, err := jsonext.ProtoEncoder.Marshal(result)
 		return rep(ctx, json.RawMessage(jsonData), err)
 	}
 }
