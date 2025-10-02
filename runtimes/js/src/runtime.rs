@@ -103,10 +103,12 @@ impl Runtime {
             .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
 
-        let refs = TypeConstructorRefs {
-            decimal: env.create_reference(options.type_constructors.decimal)?,
-        };
-        let _ = TYPE_CONSTRUCTORS.set(refs);
+        if TYPE_CONSTRUCTORS.get().is_none() {
+            let refs = TypeConstructorRefs {
+                decimal: env.create_reference(options.type_constructors.decimal)?,
+            };
+            let _ = TYPE_CONSTRUCTORS.set(refs);
+        }
 
         Ok(Self { runtime })
     }
