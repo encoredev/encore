@@ -8,6 +8,8 @@ lang: platform
 
 Encore Cloud simplifies the process of deploying applications by automatically provisioning and managing the necessary GCP infrastructure. This page provides an overview of the components involved and how they work together to support your applications.
 
+<img src="/assets/docs/gcp-diagram.png" title="Migration options" className="noshadow"/>
+
 ## Core Infrastructure Components
 
 ### Networking Architecture
@@ -35,14 +37,13 @@ Encore Cloud provisions one of two compute platforms for running your applicatio
 When using Cloud Run, Encore Cloud configures:
 
 **Service Deployments**
-  Each service is configured with optimized container settings and health check configurations to ensure reliable operation. Environment variables are automatically injected from Secret Manager to securely provide configuration values. Service discovery integration enables seamless communication between services.
+Each service is configured with optimized container settings and health check configurations to ensure reliable operation. Environment variables are automatically injected from Secret Manager to securely provide configuration values. Service discovery integration enables seamless communication between services.
 
 **Cloud Run Services**
-  Cloud Run services are configured with zero-downtime deployment strategies, ensuring your application remains available during updates. Each service is integrated with a load balancer to distribute traffic efficiently across instances. Health check grace periods are configured to allow containers adequate time to start up before receiving traffic, preventing premature termination of healthy instances.
+Cloud Run services are configured with zero-downtime deployment strategies, ensuring your application remains available during updates. Each service is integrated with a load balancer to distribute traffic efficiently across instances. Health check grace periods are configured to allow containers adequate time to start up before receiving traffic, preventing premature termination of healthy instances.
 
 **IAM Configuration**
-  Each deployment receives its own dedicated service account to ensure proper isolation and security. These service accounts are automatically configured with the minimum required permissions needed for operation. This includes access to pull container images from Google Container Registry, write application logs to Cloud Logging, and interact with assigned GCP resources like Cloud Storage buckets and Pub/Sub topics. The service accounts are also granted permission to read secrets from Secret Manager, enabling secure access to sensitive configuration values. This automated permission management ensures your services have exactly the access they need while following security best practices.
-
+Each deployment receives its own dedicated service account to ensure proper isolation and security. These service accounts are automatically configured with the minimum required permissions needed for operation. This includes access to pull container images from Google Container Registry, write application logs to Cloud Logging, and interact with assigned GCP resources like Cloud Storage buckets and Pub/Sub topics. The service accounts are also granted permission to read secrets from Secret Manager, enabling secure access to sensitive configuration values. This automated permission management ensures your services have exactly the access they need while following security best practices.
 
 ### Google Kubernetes Engine
 
@@ -67,12 +68,12 @@ When using GKE, Encore Cloud configures:
 
   This automated permission management ensures that each service operates under the principle of least privilege, having access only to the resources it explicitly needs to function. This significantly enhances your application's security posture by minimizing the potential impact of any security breach.
 
-
 All of these configurations are automatically maintained and updated by Encore Cloud as you develop your application, ensuring your infrastructure stays aligned with your application's needs.
 
 ## Managed Services
 
 ### Databases
+
 Encore Cloud provisions [GCP Cloud SQL][gcp-cloudsql] for PostgreSQL databases, providing a robust and scalable database solution:
 
 Encore Cloud provisions Cloud SQL instances running the latest PostgreSQL version, ensuring you have access to the newest features and security updates. Each instance starts with the smallest available configuration to optimize costs, while maintaining the ability to automatically scale up resources as your application's needs grow.
@@ -82,15 +83,19 @@ Data protection is a key priority, with automated daily backups retained for 7 d
 Security is enforced through strategic placement of databases in private subnets, isolating them from direct internet access. Strict access controls ensure that only authorized services and users can connect to the database instances.
 
 ### Pub/Sub
+
 Encore Cloud implements a robust messaging system using [GCP Pub/Sub][gcp-pubsub]. The system is designed with reliability and security in mind, automatically configuring dead-letter topics to capture and preserve any failed messages for later analysis and debugging. Each service in your application receives precisely scoped IAM permissions for publishing and consuming messages, ensuring secure communication between components while maintaining the principle of least privilege. Encore Cloud fully manages all subscriptions and topics, handling the complex setup and ongoing maintenance of your messaging infrastructure, allowing you to focus on your application logic rather than infrastructure management.
 
 ### Object Storage
+
 Encore Cloud leverages [Google Cloud Storage][gcp-gcs] for object storage needs. When you declare storage buckets in your application, Encore Cloud automatically provisions them with unique names in GCP. Each service that interacts with storage is configured with precisely scoped permissions, ensuring secure access to only the buckets and operations it requires. For public buckets, Encore Cloud integrates with Cloud CDN to optimize content delivery, with each bucket accessible through a unique URL. This comprehensive setup provides secure, efficient, and easily manageable object storage capabilities for your application.
 
 ### Caching
+
 Encore Cloud uses [GCP Memorystore for Redis][gcp-redis] to provide a high-performance caching solution. Each Redis instance starts with the smallest available configuration to optimize costs while maintaining the ability to automatically scale up resources as your application's caching needs grow. The instances are configured in a high-availability setup to ensure your cache remains available and performant even during infrastructure updates or zone outages. Access to the cache is secured through Redis authentication, with credentials automatically managed and rotated by Encore Cloud to maintain a strong security posture.
 
 ### Cron Jobs
+
 Encore Cloud provides a streamlined approach to scheduled task execution that prioritizes both simplicity and security. Each cron job is executed through authenticated API requests that are cryptographically signed, ensuring that only legitimate, verified requests can trigger your scheduled tasks. The system includes robust source verification that validates all requests originate from Encore Cloud's trusted cron infrastructure. This elegant implementation requires no additional infrastructure components, making it both cost-effective and easy to maintain while providing the reliability and security needed for production workloads.
 
 [gcp-vpc]: https://cloud.google.com/vpc

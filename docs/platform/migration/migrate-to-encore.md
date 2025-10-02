@@ -1,40 +1,81 @@
 ---
-title: Migrating an existing backend to Encore
+title: Migrating an existing system to Encore
 subtitle: Approaches for adopting Encore
-seotitle: How to migrate your existing backend to Encore
-seodesc: Learn how to migrate your Go backend application to Encore, and unlock Encore's powerful set of backend development tools for your team.
+seotitle: How to migrate your existing system to Encore
+seodesc: Learn how to migrate your application to Encore incrementally, and unlock Encore's powerful set of development tools for your team.
 lang: platform
 ---
 
-Encore features like [automatic infrastructure provisioning](/docs/platform/infrastructure/infra), [distributed tracing](/docs/ts/observability/tracing), [architecture diagrams](/docs/ts/observability/encore-flow), and [Service Catalog](/docs/ts/observability/service-catalog), rely on the [Encore application model](/docs/ts/concepts/application-model).
+By building your application with the Encore open-source framework, you unlock powerful features such as [automatic infrastructure provisioning](/docs/platform/infrastructure/infra), [distributed tracing](/docs/ts/observability/tracing), and [service catalog](/docs/ts/observability/service-catalog).
 
-Building your backend using Encore's declarative backend frameworks [Encore.ts](/docs/ts) and [Encore.go](/docs/go) is what enables Encore to create the application model. This doesn't mean a complete rewrite is necessary to adopt Encore, and in this guide we look at strategies for both incremental adoption and fully migrating your existing backend to Encore.
+**The good news: you don't need a complete rewrite.** This guide shows you how to adopt Encore incrementally, so you can start benefiting immediately while gradually migrating your existing system.
 
-## Get help with adopting Encore
+## Why incremental migration?
 
-If you'd like to ask questions or get advice about how to approach adopting Encore, we're happy to talk through your project. You can [join Discord](https://encore.dev/discord) to ask questions and meet other Encore developers, or you can also [book a 1:1](/book) with a member of our core team.
+Incremental migration is more reliable than a complete rewrite. Here's why:
 
-## Incremental adoption: Build or refactor a single service
+- **Immediate value** - Start benefiting from Encore's features when developing your next new service.
+- **Lower risk** - Small, controlled changes instead of a single high-stakes big-bang launch.
+- **Ship faster** - Deliver improvements incrementally rather than waiting for a complete rewrite.
 
-We recommend using Encore to build a single service to validate if it would work well for your organization. This could be a new, relatively independent project, or a current service or system that needs refactoring. With this approach you can use all Encore features from the start, and then incrementally migrate more services over time.
+## Choose your migration strategy
 
-Your Encore application will talk to your existing backend through APIs, and can be provisioned in your existing cloud account as pictured below.
+We recommend two approaches:
 
-<img src="/assets/docs/incremental.png" title="Incremental migration" className="noshadow"/>
+1. **Service by service** (Recommended) - Migrate services one at a time. Run Encore alongside your legacy system, integrated via APIs.
+2. **Forklift migration** - Move your entire application in one shot using a catch-all handler, then refactor incrementally.
 
-### 1. Create an Encore app and integrate with GitHub
+<img src="/assets/docs/migration-diagram.png" title="Migration options" className="noshadow"/>
+
+## Need help?
+
+[Email us](mailto:hello@encore.dev) to ask questions, or [book a 1:1 call](https://encore.dev/book) with our team to discuss your specific situation.
+
+**Enterprise customers**: Encore Cloud can adapt to your unique infrastructure—Kubernetes clusters, VPCs, security policies, and compliance needs—typically within days. [Contact us](https://encore.dev/book) to discuss your requirements.
+
+## Service by service migration (Recommended)
+
+Migrate services one at a time while your Encore application runs alongside your legacy system, integrated through APIs.
+
+### Key benefits
+
+- **Full Encore features immediately** - Get automatic infrastructure provisioning, distributed tracing, and architecture diagrams for each migrated service.
+- **Independent services** - Each service is self-contained with no cross-application dependencies.
+- **Simple integration** - Services communicate via APIs.
+- **Flexible deployment** - Deploy to your existing Kubernetes cluster, or let Encore Cloud set up a new project in your cloud (AWS/GCP).
+- **Better developer experience** - Start building with modern tooling right away.
+
+### Deployment options
+
+Choose how to deploy your Encore application:
+
+- **Your Kubernetes cluster** - Deploy directly to your existing Kubernetes infrastructure. Run Encore alongside legacy systems securely in the same environment.
+- **Encore-managed in your cloud account** - Let Encore handle all infrastructure provisioning and management in your AWS or GCP account, and deploy within your existing VPC and security setup.
+
+**Enterprise**: We can adapt to your specific network topology, security policies, and compliance requirements — typically within days. [Contact us](https://encore.dev/book) to discuss your requirements.
+
+_Google Cloud example architecture:_
+
+<img src="/assets/docs/gcp-diagram.png" title="Migration options" className="noshadow"/>
+
+### Which services to migrate first?
+
+Start small and build confidence:
+
+- **Low-risk, high-value** - Validate the approach before tackling complex systems.
+- **Frequently changed** - Get immediate developer experience benefits where it matters most.
+- **Clear boundaries** - Services with well-defined APIs are easier to migrate.
+- **Fewer dependencies** - Less connected to legacy infrastructure means simpler migration.
+
+### Practical steps
+
+#### 1. Create an Encore app and integrate with GitHub
 
 The first step in any project is to create an Encore app. If you've not tried Encore before, we recommend starting by following the [Quick Start Guide](/docs/ts/quick-start).
 
 Once you've created you app, [integrate it with your GitHub repository](/docs/platform/integrations/github) and you'll get automatic [Preview Environments](/docs/platform/deploy/preview-environments) for every Pull Request.
 
-### 2. Prototype your new backend system
-
-Once you've created your app, it's time to start building. If you're new to Encore, we recommend trying out some of the tutorials.
-
-If you need help or have questions, join the friendly developer community on [Discord](https://encore.dev/discord).
-
-#### Design your APIs
+#### 2. Build your services and APIs
 
 Since Encore is designed to build distributed systems, it should be straightforward to build a new system that integrates with your existing backend through APIs. See the [defining APIs documentation](/docs/ts/primitives/defining-apis) for more details.
 
@@ -42,73 +83,118 @@ Should you want to accept webhooks, that's simple to do using Encore's [Raw endp
 
 You can also generate API clients in several languages, which makes it simple to integrate with frontends or other systems. See the [Client Generation documentation](/docs/ts/cli/client-generation) for more details.
 
-#### Storing Secrets
+#### 3. Deploy alongside your existing backend
 
-When you need to store secrets, you can use Encore's built-in [secrets manager](/docs/ts/primitives/secrets).
-It lets you store and manage secrets for all environments, and will automatically provision a secret manager in your cloud account once you deploy to production.
+**Deploy to Kubernetes**
 
-#### Connect to an existing database
+Encore Cloud can deploy directly to your existing Kubernetes cluster:
 
-When you create an Encore service and add a [database](/docs/ts/primitives/databases) to it, Encore will automatically provision the necessary infrastructure for you. When migrating, it's common to also want to connect to an existing database. [See this guide](/docs/go/primitives/connect-existing-db) for instructions on how to do that with Encore.
+- Run in the same secure environment as your legacy systems
+- Services communicate within your existing VPC
+- Gradually shift traffic using your load balancer or service mesh
+- Use your current cost management and billing
+- Maintain compliance with your governance policies
 
-### 3. Deploy to your cloud account
+[Contact us](https://encore.dev/book) to discuss Kubernetes deployment.
 
-Once you're ready to deploy, you can [connect your cloud account](/docs/platform/deploy/own-cloud) (GCP or AWS) and have Encore deploy and provision your new system directly in your existing account.
+**Deploy to new Encore-managed infrastructure in your cloud**
 
-See the [infrastructure documentation](/docs/platform/infrastructure/infra#production-infrastructure) for details on how Encore provisions cloud infrastructure for each cloud provider.
+[Connect your AWS or GCP account](/docs/platform/deploy/own-cloud) to deploy in your existing environment:
 
-### Rinse and repeat
+- Same VPC as your legacy backend (or a new one)
+- Your current cost management and billing
+- Maintain compliance with your governance policies
 
-Once you're confident that Encore is a good fit, you can use this incremental migration strategy to move more services over to Encore. This will make Encore benefits like automatic provisioning, preview environments, architecture diagrams, and distributed tracing available for more parts of your system.
+See [infrastructure docs](/docs/platform/infrastructure/infra#production-infrastructure) for details.
+
+#### Integration patterns
+
+Your Encore and legacy systems communicate through APIs:
+
+- **Legacy → Encore**: Use Encore-generated API clients
+- **Encore → Legacy**: Use your existing API communication protocol (Encore is not opinionated)
+- **Authentication**: Choose to deploy an authentication gateway in front of Encore or implement authentication directly in your Encore app
+- **Events**: Use Encore's built-in Pub/Sub support for loose coupling
+
+#### 4. Expand your migration
+
+Continue migrating services incrementally. Strategies to consider:
+
+- **Related services**: Migrate services that interact frequently to maximize tracing benefits
+- **High-churn areas**: Move frequently changed services first
+- **New features**: Build new functionality in Encore from the start
+- **Critical paths**: Once confident, migrate business-critical services
 
 ## Forklift migration using a catch-all handler
 
-If your existing backend system is built with Go, you can use a forklift migration strategy and move the entire application over to Encore in one shot by wrapping your existing HTTP router in a catch-all handler.
+Should you prefer, you can use a forklift migration strategy to move your entire application to Encore in one step by wrapping your existing HTTP router in a catch-all handler.
 
-This can be relatively straightforward if your existing system is a monolith, or smaller distributed system, and does not rely on many unsupported cloud primitives.
+### When to consider this approach
 
-The benefits of this approach is that you'll get everything in one place from the start, and you'll be able to quickly use features like Encore's CI/CD system and secrets manager, for your entire backend application.
+This strategy works well when:
 
-However, you will not immediately be able to use some of the powerful Encore features, like [distributed tracing](/docs/ts/observability/tracing) and [architecture diagrams](/docs/ts/observability/encore-flow), which rely on the [Encore application model](/docs/ts/concepts/application-model).
+- Your existing system is a monolith or smaller distributed system
+- The codebase relies primarily on infrastructure primitives supported by Encore (microservices, databases, pub/sub, caching, object storage, cron jobs, and secrets)
+- You want to quickly consolidate everything in one place
+- You're prepared to incrementally refactor to unlock full Encore features like tracing and automatic API documentation
 
-Once your Encore app is up and running, you'll have something that looks like the image below. Notice how Encore doesn't have complete visibility into the inner workings of your application.
+### Trade-offs
 
-<img src="/assets/docs/forklift.png" title="Forklift migration" className="noshadow"/>
+**Benefits:**
 
-### 1. Create an app and structure your code
+- **Quick consolidation**: Get everything in one place from the start.
+- **Immediate access to core features**: Quickly use Encore's CI/CD system, secrets manager, and deployment capabilities.
+- **Single codebase**: Simplified development and deployment workflow.
 
-To start, create an Encore application and copy over the code from your existing repository. In order to run your application with Encore, it needs to follow the expected [application structure](/docs/go/primitives/app-structure), which involves placing the `encore.app` and `go.mod` files in the repository root. This should be straightforward to do with minor modifications.
+**Limitations:**
+
+- **Limited initial visibility**: Advanced features like [distributed tracing](/docs/ts/observability/tracing) and [architecture diagrams](/docs/ts/observability/encore-flow) require the [Encore application model](/docs/ts/concepts/application-model) and won't work immediately.
+- **Requires refactoring**: You'll need to incrementally break out endpoints to unlock full Encore capabilities.
+- **All-at-once risk**: Unlike service-by-service migration, this is a bigger initial change.
+
+### Practical steps
+
+Here follows a quick summary of the high-level steps of a forklift migration. Find more in-depth instructions in the full [forklift migration guide](/docs/ts/migration/express-migration#forklift-migration-quick-start).
+
+#### 1. Create an app and structure your code
+
+To start, create an Encore application and copy over the code from your existing repository. In order to run your application with Encore, it needs to follow the expected [application structure](/docs/ts/primitives/app-structure), which involves placing the `encore.app` and `package.json` files in the repository root. This should be straightforward to do with minor modifications.
 
 As an example, a single service application might look like this on disk:
 
 ```
 /my-app
-├── encore.app                       // ... and other top-level project files
+├── package.json
+├── encore.app
+├──  // ... other project files
 │
-└── hello                            // hello service (a Go package)
-    ├── migrations                   // hello service db migrations (directory)
-    │   └── 1_create_table.up.sql    // hello service db migration
-    ├── hello.go                     // hello service code
-    └── hello_test.go                // tests for hello service
+├── encore.service.ts    // defines your service root
+├── api.ts               // API endpoints
+├── db.ts                // Database definition
 ```
+
 You can also have services nested inside a `backend` folder if you prefer.
 
-### 2. Create a catch-all handler for your HTTP router
+#### 2. Create a catch-all handler for your HTTP router
 
-Now let's mount your existing HTTP router under a [Raw endpoint](/docs/go/primitives/raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
+Now let's mount your existing HTTP router under a [Raw endpoint](/docs/ts/primitives/raw-endpoints), which is an Encore API endpoint type that gives you access to the underlying HTTP request.
 
 Here's a basic code example:
 
-```
-//encore:api public raw path=/api/*path
-func MigrationHandler(w http.ResponseWriter, req *http.Request) {
-// pass request to existing router
-}
+```ts
+import { api } from "encore.dev/api";
+
+export const migrationHandler = api.raw(
+  { expose: true, method: "*", path: "/api/*path" },
+  async (req, resp) => {
+    // pass request to existing router
+  }
+);
 ```
 
-By mounting your existing HTTP router in this way, it will work as a catch-all handler for all HTTP requests and responses. This should make your application deployable through Encore with little refactoring. 
+By mounting your existing HTTP router in this way, it will work as a catch-all handler for all HTTP requests and responses. This should make your application deployable through Encore with little refactoring.
 
-### 3. Iteratively fix remaining compilation errors
+#### 3. Iteratively fix remaining compilation errors
 
 Exactly what remains to make your application deployable with Encore will depend on your specific app.
 As you run your app locally, using `encore run`, Encore will parse and compile it, and give you compilation errors to inform what needs to be adjusted.
@@ -117,6 +203,23 @@ By iteratively making adjustments, you should relatively quickly be able to get 
 
 If you need help or have questions, join the developer community on [Discord](https://encore.dev/discord) or send an email to [help@encore.dev](mailto:help@encore.dev).
 
-### Incrementally start using Encore's Backend Framework
+#### 4. Incrementally refactor to unlock Encore features
 
-Once your application is deployed, gradually break out specific endpoints using the Encore's [API declarations](/docs/ts/primitives/defining-apis) and introduce infrastructure declarations using the Encore backend frameworks. This will let Encore understand your application and unlock all Encore features.
+Once your application is deployed, gradually break out specific endpoints using Encore's [API declarations](/docs/ts/primitives/defining-apis) and introduce infrastructure declarations using the Encore backend frameworks. This incremental refactoring will:
+
+- Enable Encore to understand your application structure
+- Unlock powerful features like distributed tracing and architecture diagrams
+- Improve observability and debugging capabilities
+- Make your codebase more maintainable and easier to evolve
+
+Start with the most frequently modified endpoints or the most critical user flows to maximize the value of refactoring efforts.
+
+## Conclusion
+
+Incremental migration lets you adopt Encore without the risk of a complete rewrite.
+
+**Service by service migration** is the recommended approach—it gives you Encore's full feature set immediately while running safely alongside your existing systems.
+
+**Enterprise customers** benefit from flexible deployment options, including Kubernetes integration and customization that typically takes just days to set up.
+
+Ready to start? [Join Discord](https://encore.dev/discord) or [book a call](/book) to discuss your migration.
