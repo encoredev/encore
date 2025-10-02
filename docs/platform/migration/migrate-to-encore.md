@@ -6,7 +6,7 @@ seodesc: Learn how to migrate your application to Encore incrementally, and unlo
 lang: platform
 ---
 
-By building your application with the Encore open-source framework, you unlock powerful features such as [automatic infrastructure provisioning](/docs/platform/infrastructure/infra), [distributed tracing](/docs/ts/observability/tracing), and [service catalog](/docs/ts/observability/service-catalog).
+By building your application with the Encore open-source framework, you unlock powerful features such as the [local development tools](/docs/ts/observability/dev-dash), [automatic infrastructure provisioning](/docs/platform/infrastructure/infra), [distributed tracing](/docs/ts/observability/tracing), and [service catalog](/docs/ts/observability/service-catalog).
 
 **The good news: you don't need a complete rewrite.** This guide shows you how to adopt Encore incrementally, so you can start benefiting immediately while gradually migrating your existing system.
 
@@ -27,9 +27,11 @@ We recommend two approaches:
 
 <img src="/assets/docs/migration-diagram.png" title="Migration options" className="noshadow"/>
 
-## Need help?
+### Need help?
 
-[Email us](mailto:hello@encore.dev) to ask questions, or [book a 1:1 call](https://encore.dev/book) with our team to discuss your specific situation.
+We've helped 100+ teams adopt Encore and we're happy to answer your questions and provide advice to help you with your migration.
+
+[Email us](mailto:hello@encore.dev) to ask questions, or [book a 1:1 call](https://encore.dev/book) to discuss your specific situation.
 
 **Enterprise customers**: Encore Cloud can adapt to your unique infrastructure—Kubernetes clusters, VPCs, security policies, and compliance needs—typically within days. [Contact us](https://encore.dev/book) to discuss your requirements.
 
@@ -201,9 +203,7 @@ As you run your app locally, using `encore run`, Encore will parse and compile i
 
 By iteratively making adjustments, you should relatively quickly be able to get your application up and running with Encore.
 
-If you need help or have questions, join the developer community on [Discord](https://encore.dev/discord) or send an email to [help@encore.dev](mailto:help@encore.dev).
-
-#### 4. Incrementally refactor to unlock Encore features
+#### 4. Refactor incrementally to unlock Encore features
 
 Once your application is deployed, gradually break out specific endpoints using Encore's [API declarations](/docs/ts/primitives/defining-apis) and introduce infrastructure declarations using the Encore backend frameworks. This incremental refactoring will:
 
@@ -222,4 +222,10 @@ Incremental migration lets you adopt Encore without the risk of a complete rewri
 
 **Enterprise customers** benefit from flexible deployment options, including Kubernetes integration and customization that typically takes just days to set up.
 
-Ready to start? [Join Discord](https://encore.dev/discord) or [book a call](/book) to discuss your migration.
+### Have questions?
+
+We've helped 100+ teams adopt Encore and we're happy to answer your questions and provide advice to help you with your migration.
+
+- [Book a call](/book) to get 1:1 assistance
+- [Email us](mail:hello@encore.dev) to ask questions
+- [Join Discord](https://encore.dev/discord) to discuss with other developers using Encore

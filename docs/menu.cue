@@ -1232,12 +1232,7 @@
 			text: "Migration guides"
 			items: [{
 				kind: "basic"
-				text: "Try Encore for an existing project"
-				path: "/platform/migration/try-encore"
-				file: "platform/migration/try-encore"
-			}, {
-				kind: "basic"
-				text: "Migrate an existing backend to Encore"
+				text: "Migrate to Encore"
 				path: "/platform/migration/migrate-to-encore"
 				file: "platform/migration/migrate-to-encore"
 			}, {
