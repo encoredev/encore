@@ -9,11 +9,10 @@ use crate::{meta, objects, websocket_api};
 use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
+use napi::Ref;
 use napi::{bindgen_prelude::*, JsFunction, JsObject};
 use napi::{Error, JsUnknown, Status};
-use napi::{NapiRaw, Ref};
 use napi_derive::napi;
-use std::collections::HashMap;
 use std::future::Future;
 use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
@@ -23,11 +22,10 @@ use std::thread;
 static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
 // Type constructors registered from javascript so we can create those type from rust
-static TYPE_CONSTRUCTORS: OnceLock<HashMap<RuntimeType, Ref<()>>> = OnceLock::new();
+static TYPE_CONSTRUCTORS: OnceLock<TypeConstructorRefs> = OnceLock::new();
 
-#[derive(Debug, Hash, PartialEq, Eq)]
-pub enum RuntimeType {
-    Decimal,
+struct TypeConstructorRefs {
+    decimal: Ref<()>,
 }
 
 #[napi]
@@ -37,23 +35,13 @@ pub struct Runtime {
 
 #[napi]
 impl Runtime {
-    pub fn create_type_instance<V>(env: Env, ty: RuntimeType, args: &[V]) -> napi::Result<JsUnknown>
-    where
-        V: NapiRaw,
-    {
+    pub fn create_decimal(env: Env, val: &str) -> napi::Result<JsUnknown> {
         let constructors = TYPE_CONSTRUCTORS.get().ok_or_else(|| {
             Error::new(Status::GenericFailure, "Type constructors not initialized")
         })?;
 
-        let constructor_ref = constructors.get(&ty).ok_or_else(|| {
-            Error::new(
-                Status::GenericFailure,
-                format!("Type constructor for {:?} not registered", ty),
-            )
-        })?;
-
-        let constructor: JsFunction = env.get_reference_value(constructor_ref)?;
-        constructor.call(None, args)
+        let constructor: JsFunction = env.get_reference_value(&constructors.decimal)?;
+        constructor.call(None, &[env.create_string(val)?])
     }
 }
 
@@ -115,11 +103,15 @@ impl Runtime {
             .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
 
-        let constructors = HashMap::from([(
-            RuntimeType::Decimal,
-            env.create_reference(options.type_constructors.decimal)?,
-        )]);
-        TYPE_CONSTRUCTORS.get_or_init(|| constructors);
+        let refs = TypeConstructorRefs {
+            decimal: env.create_reference(options.type_constructors.decimal)?,
+        };
+        TYPE_CONSTRUCTORS.set(refs).map_err(|_| {
+            Error::new(
+                Status::GenericFailure,
+                "Type constructors already initialized",
+            )
+        })?;
 
         Ok(Self { runtime })
     }

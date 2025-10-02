@@ -109,11 +109,7 @@ impl ToNapiValue for PVal {
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
             PValue::Decimal(d) => {
                 let env2 = Env::from_raw(env);
-                let decimal_js = Runtime::create_type_instance(
-                    env2,
-                    crate::runtime::RuntimeType::Decimal,
-                    &[env2.create_string(&d.to_string())?],
-                )?;
+                let decimal_js = Runtime::create_decimal(env2, &d.to_string())?;
                 unsafe { Ok(decimal_js.raw()) }
             }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
@@ -147,11 +143,7 @@ impl ToNapiValue for &PVal {
             PValue::Number(n) => unsafe { Number::to_napi_value(env, n.to_owned()) },
             PValue::Decimal(d) => {
                 let env2 = Env::from_raw(env);
-                let decimal_js = Runtime::create_type_instance(
-                    env2,
-                    crate::runtime::RuntimeType::Decimal,
-                    &[env2.create_string(&d.to_string())?],
-                )?;
+                let decimal_js = Runtime::create_decimal(env2, &d.to_string())?;
                 unsafe { Ok(decimal_js.raw()) }
             }
             PValue::String(s) => unsafe { ToNapiValue::to_napi_value(env, s) },
