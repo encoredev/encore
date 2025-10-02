@@ -37,8 +37,3 @@ export class Decimal {
     return true;
   }
 }
-
-runtime.RT.registerTypeConstructor(
-  Decimal.name,
-  (val: string | number) => new Decimal(val)
-);

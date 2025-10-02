@@ -16,29 +16,18 @@ use napi_derive::napi;
 use std::collections::HashMap;
 use std::future::Future;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 use std::thread;
 
 // TODO: remove storing of result after `get_or_try_init` is stabilized
 static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
 // Type constructors registered from javascript so we can create those type from rust
-static TYPE_CONSTRUCTORS: OnceLock<Mutex<HashMap<RuntimeType, Ref<()>>>> = OnceLock::new();
+static TYPE_CONSTRUCTORS: OnceLock<HashMap<RuntimeType, Ref<()>>> = OnceLock::new();
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum RuntimeType {
     Decimal,
-}
-
-impl FromStr for RuntimeType {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "Decimal" => Ok(RuntimeType::Decimal),
-            _ => Err(anyhow::anyhow!("Unknown type: {}", s)),
-        }
-    }
 }
 
 #[napi]
@@ -48,25 +37,6 @@ pub struct Runtime {
 
 #[napi]
 impl Runtime {
-    #[napi]
-    pub fn register_type_constructor(
-        &mut self,
-        env: Env,
-        type_name: String,
-        constructor: JsFunction,
-    ) -> napi::Result<()> {
-        let runtime_type = RuntimeType::from_str(&type_name)?;
-        let js_ref = env.create_reference(constructor)?;
-
-        TYPE_CONSTRUCTORS
-            .get_or_init(|| Mutex::new(HashMap::new()))
-            .lock()
-            .expect("mutex poisoned")
-            .insert(runtime_type, js_ref);
-
-        Ok(())
-    }
-
     pub fn create_type_instance<V>(env: Env, ty: RuntimeType, args: &[V]) -> napi::Result<JsUnknown>
     where
         V: NapiRaw,
@@ -74,7 +44,6 @@ impl Runtime {
         let constructors = TYPE_CONSTRUCTORS.get().ok_or_else(|| {
             Error::new(Status::GenericFailure, "Type constructors not initialized")
         })?;
-        let constructors = constructors.lock().expect("mutex poisoned");
 
         let constructor_ref = constructors.get(&ty).ok_or_else(|| {
             Error::new(
@@ -89,9 +58,14 @@ impl Runtime {
 }
 
 #[napi(object)]
-#[derive(Default)]
+pub struct RuntimeTypeConstructors {
+    pub decimal: JsFunction,
+}
+
+#[napi(object)]
 pub struct RuntimeOptions {
     pub test_mode: Option<bool>,
+    pub type_constructors: RuntimeTypeConstructors,
 }
 
 fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
@@ -114,8 +88,7 @@ fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
 #[napi]
 impl Runtime {
     #[napi(constructor)]
-    pub fn new(options: Option<RuntimeOptions>) -> napi::Result<Self> {
-        let options = options.unwrap_or_default();
+    pub fn new(env: Env, options: RuntimeOptions) -> napi::Result<Self> {
         let test_mode = options
             .test_mode
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
@@ -141,6 +114,12 @@ impl Runtime {
         let runtime = RUNTIME
             .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
+
+        let constructors = HashMap::from([(
+            RuntimeType::Decimal,
+            env.create_reference(options.type_constructors.decimal)?,
+        )]);
+        TYPE_CONSTRUCTORS.get_or_init(|| constructors);
 
         Ok(Self { runtime })
     }
