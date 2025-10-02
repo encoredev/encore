@@ -20,12 +20,10 @@ import (
 )
 
 // New creates a new store backed by the given db.
-func New(ctx context.Context, db *sql.DB) *Store {
-	s := &Store{
+func New(db *sql.DB) *Store {
+	return &Store{
 		db: db,
 	}
-	s.startCleaner(ctx, 1*time.Minute, 500, 100, 10000)
-	return s
 }
 
 type Store struct {
@@ -49,74 +47,78 @@ func scanRows[T any](rows *sql.Rows) ([]T, error) {
 	return out, nil
 }
 
-func (s *Store) startCleaner(ctx context.Context, freq time.Duration, triggerAt, eventsToKeep, batchSize int) {
-	go func() {
-		for {
-			timer := time.NewTimer(freq)
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				log.Info().Msg("initiating trace event cleanup sweep")
-				rows, err := s.db.QueryContext(ctx, "SELECT app_id FROM trace_event GROUP BY app_id HAVING COUNT(distinct trace_id) > ?", triggerAt)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get app ids")
-					continue
-				}
-				appIDs, err := scanRows[string](rows)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to scan app ids")
-					continue
-				}
-				for _, appID := range appIDs {
-					row := s.db.QueryRowContext(ctx, `
+func (s *Store) CleanEvery(ctx context.Context, freq time.Duration, triggerAt, eventsToKeep, batchSize int) {
+	for {
+		timer := time.NewTimer(freq)
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			if err := s.DoClean(ctx, triggerAt, eventsToKeep, batchSize); err != nil {
+				log.Error().Err(err).Msg("trace cleanup failed")
+			}
+		}
+	}
+}
+
+func (s *Store) DoClean(ctx context.Context, triggerAt, eventsToKeep, batchSize int) error {
+	log.Info().Msg("initiating trace event cleanup sweep")
+	rows, err := s.db.QueryContext(ctx, "SELECT app_id FROM trace_event GROUP BY app_id HAVING COUNT(distinct trace_id) > ?", triggerAt)
+	if err != nil {
+		return errors.Wrap(err, "query app ids")
+	}
+	appIDs, err := scanRows[string](rows)
+	if err != nil {
+		return errors.Wrap(err, "scan app ids")
+	}
+
+	for _, appID := range appIDs {
+		row := s.db.QueryRowContext(ctx, `
 						WITH latest_events AS (
 							SELECT trace_id, min(id) as id FROM trace_event WHERE app_id = ? GROUP BY 1 ORDER BY 2 DESC LIMIT ?
 						) SELECT min(id) FROM latest_events;
 					`, appID, eventsToKeep)
-					var traceID int64
-					err := row.Scan(&traceID)
-					if err != nil {
-						log.Error().Err(err).Msg("failed to get trace id")
-						continue
-					}
-					rows, err := s.db.QueryContext(ctx, "SELECT DISTINCT trace_id FROM trace_event WHERE app_id = ? AND id < ? ORDER BY id DESC LIMIT ?", appID, traceID, batchSize)
-					if err != nil {
-						log.Error().Err(err).Msg("failed to get old trace ids")
-						continue
-					}
-					traceIDs, err := scanRows[string](rows)
-					if len(traceIDs) == 0 {
-						continue
-					}
-					idArgs := strings.Join(fns.Map(traceIDs, pq.QuoteLiteral), ",")
-					res, err := s.db.ExecContext(ctx, "DELETE FROM trace_event WHERE app_id = ? AND trace_id IN ("+idArgs+")", appID)
-					if err != nil {
-						log.Error().Err(err).Msg("failed to delete old trace events")
-						continue
-					}
-					rowCount, err := res.RowsAffected()
-					if err != nil {
-						log.Error().Err(err).Msg("failed to get rows affected")
-						continue
-					}
-					log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace events")
-					res, err = s.db.ExecContext(ctx, "DELETE FROM trace_span_index WHERE app_id = ? AND trace_id IN ("+idArgs+")", appID)
-					if err != nil {
-						log.Error().Err(err).Msg("failed to delete old trace spans")
-						continue
-					}
-					rowCount, err = res.RowsAffected()
-					if err != nil {
-						log.Error().Err(err).Msg("failed to get rows affected")
-						continue
-					}
-					log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace spans")
-				}
-			}
+		var traceID int64
+		err := row.Scan(&traceID)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get trace id")
+			continue
 		}
+		rows, err := s.db.QueryContext(ctx, "SELECT DISTINCT trace_id FROM trace_event WHERE app_id = ? AND id < ? ORDER BY id DESC LIMIT ?", appID, traceID, batchSize)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get old trace ids")
+			continue
+		}
+		traceIDs, err := scanRows[string](rows)
+		if len(traceIDs) == 0 {
+			continue
+		}
+		idArgs := strings.Join(fns.Map(traceIDs, pq.QuoteLiteral), ",")
+		res, err := s.db.ExecContext(ctx, "DELETE FROM trace_event WHERE app_id = ? AND trace_id IN ("+idArgs+")", appID)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to delete old trace events")
+			continue
+		}
+		rowCount, err := res.RowsAffected()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get rows affected")
+			continue
+		}
+		log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace events")
+		res, err = s.db.ExecContext(ctx, "DELETE FROM trace_span_index WHERE app_id = ? AND trace_id IN ("+idArgs+")", appID)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to delete old trace spans")
+			continue
+		}
+		rowCount, err = res.RowsAffected()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get rows affected")
+			continue
+		}
+		log.Info().Str("app_id", appID).Int64("deleted", rowCount).Msg("cleaned up old trace spans")
+	}
 
-	}()
+	return nil
 }
 
 func (s *Store) Listen(ch chan<- trace2.NewSpanEvent) {
@@ -196,7 +198,7 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 	if auth := start.GetAuth(); auth != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, 
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name,
 				endpoint_name, has_response, test_skipped
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
