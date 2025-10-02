@@ -90,6 +90,20 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	}
 
 	switch r.Method() {
+	case "db/query":
+		var p QueryRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.Query(ctx, p)
+		return reply(ctx, res, err)
+	case "db/transaction":
+		var p TransactionRequest
+		if err := unmarshal(&p); err != nil {
+			return reply(ctx, nil, err)
+		}
+		res, err := h.Transaction(ctx, p)
+		return reply(ctx, res, err)
 	case "onboarding/get":
 		state, err := onboarding.Load()
 		if err != nil {
