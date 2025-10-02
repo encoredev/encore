@@ -26,7 +26,6 @@ impl Gcp {
         monitored_resource_labels: HashMap<String, String>,
         metric_names: HashMap<String, String>,
     ) -> Self {
-        eprintln!("=== GCP NEW ===");
         Self {
             project_id,
             monitored_resource_type,

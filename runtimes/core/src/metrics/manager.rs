@@ -93,7 +93,7 @@ impl ProviderType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Manager {
     exporter: Option<std::sync::Arc<dyn Exporter>>,
     registry: Registry,
@@ -146,7 +146,7 @@ impl Manager {
             }
         }
 
-        eprintln!("=== {manager:?} ===");
+        // Manager created successfully (debug removed due to non-Debug Registry)
         manager
     }
 

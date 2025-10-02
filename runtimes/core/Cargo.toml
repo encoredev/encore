@@ -122,6 +122,7 @@ regex = "1.11.1"
 email_address = "0.2.9"
 cookie = "0.18.1"
 metrics = "0.23.0"
+metrics-util = { version = "0.17.0", features = ["registry"] }
 
 [build-dependencies]
 prost-build = "0.12.3"

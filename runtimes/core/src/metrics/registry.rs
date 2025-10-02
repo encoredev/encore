@@ -1,83 +1,83 @@
 use super::metrics::{CollectedMetric, MetricInfo};
 use metrics::{Key, KeyName, Metadata, Recorder, Unit};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use metrics_util::registry::{AtomicStorage, Registry as MetricsRegistry};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::SystemTime;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Clone)]
 pub struct Registry {
-    counters: Arc<Mutex<HashMap<String, Arc<AtomicU64>>>>,
+    inner: Arc<MetricsRegistry<Key, AtomicStorage>>,
 }
 
 impl Registry {
     pub fn new() -> Self {
         Self {
-            counters: Arc::new(Mutex::new(HashMap::new())),
+            inner: Arc::new(MetricsRegistry::atomic()),
         }
     }
 
     pub fn collect(&self) -> Vec<CollectedMetric> {
-        let counters = self.counters.lock().unwrap();
-        counters
-            .iter()
-            .map(|(key_str, atomic_value)| {
-                // Parse the key to extract name and labels
-                let (name, labels) = Self::parse_metric_key(key_str);
-                let value = atomic_value.load(Ordering::Relaxed);
-                CollectedMetric {
-                    info: MetricInfo {
-                        name,
-                        svc_num: 0,
-                    },
-                    labels,
-                    value,
-                    timestamp: SystemTime::now(),
-                }
-            })
-            .collect()
-    }
+        let mut collected_metrics = Vec::new();
+        let timestamp = SystemTime::now();
 
-    fn parse_metric_key(key_str: &str) -> (String, Vec<(String, String)>) {
-        // For now, assume the key format is "metric_name{label1=value1,label2=value2}"
-        // This is a simplified parser - in production you'd want a more robust one
-        if let Some(brace_pos) = key_str.find('{') {
-            let name = key_str[..brace_pos].to_string();
-            let labels_str = &key_str[brace_pos + 1..key_str.len() - 1]; // Remove { and }
+        // Collect counters
+        self.inner.visit_counters(|key, counter| {
+            let name = key.name().to_string();
+            let labels: Vec<(String, String)> = key
+                .labels()
+                .map(|label| (label.key().to_string(), label.value().to_string()))
+                .collect();
+            let value = counter.load(Ordering::Relaxed);
 
-            let labels = if labels_str.is_empty() {
-                Vec::new()
-            } else {
-                labels_str
-                    .split(',')
-                    .filter_map(|pair| {
-                        let mut parts = pair.split('=');
-                        if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                            Some((key.trim().to_string(), value.trim().to_string()))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            };
-            (name, labels)
-        } else {
-            (key_str.to_string(), Vec::new())
-        }
-    }
+            collected_metrics.push(CollectedMetric {
+                info: MetricInfo { name, svc_num: 0 },
+                labels,
+                value,
+                timestamp,
+            });
+        });
 
-    fn key_to_string(key: &Key) -> String {
-        let name = key.name().to_string();
-        let labels: Vec<String> = key
-            .labels()
-            .map(|label| format!("{}={}", label.key(), label.value()))
-            .collect();
+        // Collect gauges
+        self.inner.visit_gauges(|key, gauge| {
+            let name = key.name().to_string();
+            let labels: Vec<(String, String)> = key
+                .labels()
+                .map(|label| (label.key().to_string(), label.value().to_string()))
+                .collect();
+            // Gauge values are stored as f64 bits in u64, convert back for display
+            let f64_value = f64::from_bits(gauge.load(Ordering::Relaxed));
+            let value = f64_value.to_bits(); // Keep as bits for now to maintain interface
 
-        if labels.is_empty() {
-            name
-        } else {
-            format!("{}{{{}}}" , name, labels.join(","))
-        }
+            collected_metrics.push(CollectedMetric {
+                info: MetricInfo { name, svc_num: 0 },
+                labels,
+                value,
+                timestamp,
+            });
+        });
+
+        // Collect histograms
+        self.inner.visit_histograms(|key, histogram| {
+            let name = key.name().to_string();
+            let labels: Vec<(String, String)> = key
+                .labels()
+                .map(|label| (label.key().to_string(), label.value().to_string()))
+                .collect();
+
+            // TODO: Implement proper histogram data extraction
+            // For now, just report 0 as a placeholder
+            let value = 0u64;
+
+            collected_metrics.push(CollectedMetric {
+                info: MetricInfo { name, svc_num: 0 },
+                labels,
+                value,
+                timestamp,
+            });
+        });
+
+        collected_metrics
     }
 }
 
@@ -90,6 +90,7 @@ impl Recorder for Registry {
         _description: metrics::SharedString,
     ) {
     }
+
     fn describe_gauge(
         &self,
         _key: KeyName,
@@ -97,6 +98,7 @@ impl Recorder for Registry {
         _description: metrics::SharedString,
     ) {
     }
+
     fn describe_histogram(
         &self,
         _key: KeyName,
@@ -106,26 +108,23 @@ impl Recorder for Registry {
     }
 
     fn register_counter(&self, key: &Key, _metadata: &Metadata<'_>) -> metrics::Counter {
-        let key_string = Self::key_to_string(key);
-
-        // Get or create an atomic counter for this key
-        let atomic_counter = {
-            let mut counters = self.counters.lock().unwrap();
-            counters
-                .entry(key_string)
-                .or_insert_with(|| Arc::new(AtomicU64::new(0)))
-                .clone()
-        };
-
-        // Return a metrics counter that wraps our atomic counter
-        metrics::Counter::from_arc(atomic_counter)
+        let counter_handle = self.inner.get_or_create_counter(key, |c| c.clone());
+        metrics::Counter::from_arc(counter_handle)
     }
 
-    fn register_gauge(&self, _key: &Key, _metadata: &Metadata<'_>) -> metrics::Gauge {
-        metrics::Gauge::noop()
+    fn register_gauge(&self, key: &Key, _metadata: &Metadata<'_>) -> metrics::Gauge {
+        let gauge_handle = self.inner.get_or_create_gauge(key, |g| g.clone());
+        metrics::Gauge::from_arc(gauge_handle)
     }
 
-    fn register_histogram(&self, _key: &Key, _metadata: &Metadata<'_>) -> metrics::Histogram {
-        metrics::Histogram::noop()
+    fn register_histogram(&self, key: &Key, _metadata: &Metadata<'_>) -> metrics::Histogram {
+        let histogram_handle = self.inner.get_or_create_histogram(key, |h| h.clone());
+        metrics::Histogram::from_arc(histogram_handle)
+    }
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Self::new()
     }
 }
