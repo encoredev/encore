@@ -8,6 +8,8 @@ lang: platform
 
 Encore Cloud simplifies the process of deploying applications by automatically provisioning and managing the necessary GCP infrastructure. This page provides an overview of the components involved and how they work together to support your applications.
 
+_Example deployment of Encore project alongside existing legacy systems on GCP:_
+
 <img src="/assets/docs/gcp-diagram.png" title="Migration options" className="noshadow"/>
 
 ## Core Infrastructure Components
