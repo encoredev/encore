@@ -1,3 +1,5 @@
+//go:build e2e
+
 package tests
 
 import (
@@ -71,7 +73,12 @@ func doRun(t *testing.T, experiments []string) {
 					exp += extra
 				}
 
-				app := RunApp(getTB(ts), getWorkdir(ts), log, []string{"ENCORE_EXPERIMENT=" + exp})
+				env := []string{"ENCORE_EXPERIMENT=" + exp}
+				if nodePath, ok := getNodeJSPath().Get(); ok {
+					env = append(env, "PATH="+nodePath)
+				}
+
+				app := RunApp(getTB(ts), getWorkdir(ts), log, env)
 				setVal(ts, "app", app)
 				setVal(ts, "log", log)
 			},

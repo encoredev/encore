@@ -1,3 +1,5 @@
+//go:build e2e
+
 package tests
 
 import (
@@ -11,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -30,14 +33,15 @@ import (
 	"encr.dev/cli/daemon/secret"
 	. "encr.dev/internal/optracker"
 	"encr.dev/internal/version"
+	"encr.dev/pkg/appfile"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
 	"encr.dev/pkg/cueutil"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/option"
 	"encr.dev/pkg/svcproxy"
 	"encr.dev/pkg/vcs"
 	meta "encr.dev/proto/encore/parser/meta/v1"
-	"encr.dev/v2/v2builder"
 )
 
 type RunAppData struct {
@@ -71,6 +75,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 	// Use a randomly generated app id to avoid tests trampling on each other
 	// since we use a persistent working directory based on the app id.
 	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
+	bld := builderimpl.Resolve(app.Lang(), nil)
 
 	mgr := &Manager{}
 	ns := &namespace.Namespace{ID: "some-id", Name: "default"}
@@ -82,7 +87,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		App:             app,
 		ResourceManager: rm,
 		Mgr:             mgr,
-		Builder:         v2builder.BuilderImpl{},
+		Builder:         bld,
 	}
 
 	parse, build, configs := testBuild(c, appRoot, env)
@@ -167,17 +172,39 @@ func RunTests(c testing.TB, appRoot string, stdout, stderr io.Writer, environ []
 	// Use a randomly generated app id to avoid tests trampling on each other
 	// since we use a persistent working directory based on the app id.
 	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
+
+	var args []string
+	switch app.Lang() {
+	case appfile.LangTS:
+		args = []string{}
+	case appfile.LangGo:
+		fallthrough
+	default:
+		args = []string{"./..."}
+	}
+
+	if app.Lang() == appfile.LangTS {
+		args = []string{}
+	}
 	err := mgr.Test(ctx, TestParams{
 		TestSpecParams: &TestSpecParams{
 			App:        app,
 			WorkingDir: ".",
-			Args:       []string{"./..."},
+			Args:       args,
 			Environ:    environ,
 		},
 		Stdout: stdout,
 		Stderr: stderr,
 	})
 	return err
+}
+
+func getNodeJSPath() option.Option[string] {
+	path, err := exec.LookPath("node")
+	if err != nil {
+		return option.None[string]()
+	}
+	return option.Some(filepath.Dir(path))
 }
 
 // testRunLogger implements runLogger by calling t.Log.
@@ -213,13 +240,13 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		t.Fatal(err)
 	}
 
-	bld := builderimpl.Resolve("", expSet)
-	defer fns.CloseIgnore(bld)
-	ctx := context.Background()
-
 	// Use a randomly generated app id to avoid tests trampling on each other
 	// since we use a persistent working directory based on the app id.
 	app := apps.NewInstance(appRoot, uuid.Must(uuid.NewV4()).String(), "")
+
+	bld := builderimpl.Resolve(app.Lang(), expSet)
+	defer fns.CloseIgnore(bld)
+	ctx := context.Background()
 
 	vcsRevision := vcs.GetRevision(app.Root())
 	buildInfo := builder.BuildInfo{

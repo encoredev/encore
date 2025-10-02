@@ -92,10 +92,6 @@ export class APIError extends Error {
 
   // Constructs an APIError with the given error code, message, and (optionally) cause.
   constructor(code: ErrCode, msg: string, cause?: Error, details?: ErrDetails) {
-    if (cause) {
-      msg += `: ${cause}`;
-    }
-
     // extending errors causes issues after you construct them, unless you apply the following fixes
     super(msg, { cause });
     this.code = code;
