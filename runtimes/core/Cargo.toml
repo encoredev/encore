@@ -121,6 +121,8 @@ aws-credential-types = "1.2.1"
 regex = "1.11.1"
 email_address = "0.2.9"
 cookie = "0.18.1"
+malachite = "0.6.1"
+byteorder = "1.5.0"
 
 [build-dependencies]
 prost-build = "0.12.3"
@@ -129,3 +131,4 @@ prost-build = "0.12.3"
 assert_matches = "1.5.0"
 insta = { version = "1.38.0", features = ["yaml"] }
 quickcheck = "1.0.3"
+proptest = "1.7.0"

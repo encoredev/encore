@@ -337,7 +337,9 @@ impl std::fmt::Debug for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Module")
             .field("id", &self.id)
-            .field("path", &self.file_path)
+            .field("file_path", &self.file_path)
+            .field("swc_file_path", &self.swc_file_path)
+            .field("module_path", &self.module_path)
             .finish()
     }
 }

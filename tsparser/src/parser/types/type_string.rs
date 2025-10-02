@@ -156,6 +156,7 @@ where
     fn render_custom(&mut self, c: &Custom) -> std::fmt::Result {
         match c {
             Custom::WireSpec(s) => self.render_wire_spec(s),
+            Custom::Decimal => write!(self.buf, "Decimal"),
         }
     }
 

@@ -210,6 +210,8 @@ func renderBuiltinValue(buf *bytes.Buffer, b schema.Builtin, urlEncode bool) {
 		value = "{}"
 	case schema.Builtin_USER_ID:
 		value = "\"userID\""
+	case schema.Builtin_DECIMAL:
+		value = "\"0.0\""
 	default:
 		value = "<unknown>"
 	}

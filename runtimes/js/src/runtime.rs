@@ -9,25 +9,51 @@ use crate::{meta, objects, websocket_api};
 use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
-use napi::{bindgen_prelude::*, JsObject};
+use napi::Ref;
+use napi::{bindgen_prelude::*, JsFunction, JsObject};
 use napi::{Error, JsUnknown, Status};
 use napi_derive::napi;
 use std::future::Future;
+use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
 use std::thread;
 
 // TODO: remove storing of result after `get_or_try_init` is stabilized
 static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
+// Type constructors registered from javascript so we can create those type from rust
+static TYPE_CONSTRUCTORS: OnceLock<TypeConstructorRefs> = OnceLock::new();
+
+struct TypeConstructorRefs {
+    decimal: Ref<()>,
+}
+
 #[napi]
 pub struct Runtime {
     pub(crate) runtime: Arc<encore_runtime_core::Runtime>,
 }
 
+#[napi]
+impl Runtime {
+    pub fn create_decimal(env: Env, val: &str) -> napi::Result<JsUnknown> {
+        let constructors = TYPE_CONSTRUCTORS.get().ok_or_else(|| {
+            Error::new(Status::GenericFailure, "Type constructors not initialized")
+        })?;
+
+        let constructor: JsFunction = env.get_reference_value(&constructors.decimal)?;
+        constructor.call(None, &[env.create_string(val)?])
+    }
+}
+
 #[napi(object)]
-#[derive(Default)]
+pub struct RuntimeTypeConstructors {
+    pub decimal: JsFunction,
+}
+
+#[napi(object)]
 pub struct RuntimeOptions {
     pub test_mode: Option<bool>,
+    pub type_constructors: RuntimeTypeConstructors,
 }
 
 fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
@@ -50,8 +76,7 @@ fn init_runtime(test_mode: bool) -> napi::Result<encore_runtime_core::Runtime> {
 #[napi]
 impl Runtime {
     #[napi(constructor)]
-    pub fn new(options: Option<RuntimeOptions>) -> napi::Result<Self> {
-        let options = options.unwrap_or_default();
+    pub fn new(env: Env, options: RuntimeOptions) -> napi::Result<Self> {
         let test_mode = options
             .test_mode
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
@@ -77,6 +102,16 @@ impl Runtime {
         let runtime = RUNTIME
             .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
+
+        let refs = TypeConstructorRefs {
+            decimal: env.create_reference(options.type_constructors.decimal)?,
+        };
+        TYPE_CONSTRUCTORS.set(refs).map_err(|_| {
+            Error::new(
+                Status::GenericFailure,
+                "Type constructors already initialized",
+            )
+        })?;
 
         Ok(Self { runtime })
     }
@@ -385,6 +420,62 @@ impl From<api::Error> for APICallError {
             code: value.code.to_string(),
             message: value.message,
             details: value.details.map(|d| PVals(*d)),
+        }
+    }
+}
+
+#[napi]
+pub struct Decimal {
+    inner: encore_runtime_core::api::Decimal,
+}
+
+#[napi]
+impl Decimal {
+    #[napi(constructor)]
+    pub fn new(value: String) -> napi::Result<Self> {
+        match encore_runtime_core::api::Decimal::from_str(&value) {
+            Ok(decimal) => Ok(Self { inner: decimal }),
+            Err(err) => Err(Error::new(
+                Status::InvalidArg,
+                format!("Invalid decimal format: '{}'", err),
+            )),
+        }
+    }
+
+    #[napi(js_name = "toString")]
+    pub fn js_to_string(&self) -> String {
+        self.inner.to_string()
+    }
+
+    #[napi]
+    pub fn add(&self, other: &Decimal) -> Decimal {
+        use std::ops::Add;
+        Decimal {
+            inner: self.inner.add(&other.inner),
+        }
+    }
+
+    #[napi]
+    pub fn sub(&self, other: &Decimal) -> Decimal {
+        use std::ops::Sub;
+        Decimal {
+            inner: self.inner.sub(&other.inner),
+        }
+    }
+
+    #[napi]
+    pub fn mul(&self, other: &Decimal) -> Decimal {
+        use std::ops::Mul;
+        Decimal {
+            inner: self.inner.mul(&other.inner),
+        }
+    }
+
+    #[napi]
+    pub fn div(&self, other: &Decimal) -> Decimal {
+        use std::ops::Div;
+        Decimal {
+            inner: self.inner.div(&other.inner),
         }
     }
 }
