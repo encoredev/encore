@@ -7,5 +7,7 @@ const testMode = process.env.NODE_ENV === "test";
 
 export const RT = new Runtime({
   testMode,
-  typeConstructors: { decimal: (val: string | number) => new Decimal(val) }
+  typeConstructors: {
+    decimal: (val: string | number | bigint) => new Decimal(val)
+  }
 });
