@@ -15,7 +15,7 @@ In practise Encore is opinionated only in certain areas which are critical for e
 ## Accommodating for your unique requirements
 
 Many software projects end up having a few novel requirements, which are highly specific to the problem domain. To accommodate for this, Encore is designed to let you go outside of the standardized Backend Framework when you need to, for example:
-- You can drop down in abstraction level in the API framework using [raw endpoints](/docs/go/primitives/defining-apis#raw-endpoints)
+- You can drop down in abstraction level in the API framework using [raw endpoints](/docs/go/primitives/raw-endpoints).
 - You can use tools like the [Terraform provider](/docs/platform/integrations/terraform) to integrate infrastructure that is not managed by Encore
 
 ## Mitigating risk through Open Source and efficiency
