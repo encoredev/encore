@@ -1,6 +1,7 @@
 use crate::api::{new_api_handler, APIRoute, Request};
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
+use crate::napi_util::EnvMap;
 use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::pvalue::{parse_pvalues, transform_pvalues_request, PVals};
 use crate::secret::Secret;
@@ -22,7 +23,7 @@ use std::thread;
 static RUNTIME: OnceLock<napi::Result<Arc<encore_runtime_core::Runtime>>> = OnceLock::new();
 
 // Type constructors registered from javascript so we can create those type from rust
-static TYPE_CONSTRUCTORS: OnceLock<TypeConstructorRefs> = OnceLock::new();
+static TYPE_CONSTRUCTORS: EnvMap<Arc<TypeConstructorRefs>> = EnvMap::new();
 
 struct TypeConstructorRefs {
     decimal: Ref<()>,
@@ -36,7 +37,7 @@ pub struct Runtime {
 #[napi]
 impl Runtime {
     pub fn create_decimal(env: Env, val: &str) -> napi::Result<JsUnknown> {
-        let constructors = TYPE_CONSTRUCTORS.get().ok_or_else(|| {
+        let constructors = TYPE_CONSTRUCTORS.get(env).ok_or_else(|| {
             Error::new(Status::GenericFailure, "Type constructors not initialized")
         })?;
 
@@ -103,10 +104,12 @@ impl Runtime {
             .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
 
-        TYPE_CONSTRUCTORS.get_or_init(|| TypeConstructorRefs {
-            decimal: env
-                .create_reference(options.type_constructors.decimal)
-                .expect("couldn't create reference to Decimal"),
+        TYPE_CONSTRUCTORS.get_or_init(env, || {
+            Arc::new(TypeConstructorRefs {
+                decimal: env
+                    .create_reference(options.type_constructors.decimal)
+                    .expect("couldn't create reference to Decimal"),
+            })
         });
 
         Ok(Self { runtime })

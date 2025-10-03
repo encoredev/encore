@@ -1,4 +1,6 @@
 use napi::{Either, Env, JsFunction, JsObject, JsUnknown};
+use std::collections::HashMap;
+use std::sync::RwLock;
 
 pub trait PromiseHandler: Clone + Send + Sync + 'static {
     type Output: Send + 'static;
@@ -68,4 +70,73 @@ pub fn await_promise<T, H>(
         let res = outer_handler.error(env, err);
         _ = outer_tx.send(res);
     });
+}
+
+/// EnvMap is a thread-safe map that stores values associated with Env objects.
+/// It is intended for storing one value per napi_env. We need the map to work with
+/// worker pooling, where we can have multiple napi envs that each need their own copy.
+/// It uses a vector under the hood since the number of values is small (one per worker).
+pub struct EnvMap<T> {
+    map: RwLock<Vec<(usize, T)>>,
+}
+
+impl<T> EnvMap<T> {
+    pub const fn new() -> Self {
+        Self {
+            map: RwLock::new(Vec::new()),
+        }
+    }
+
+    pub fn get(&self, env: Env) -> Option<T>
+    where
+        T: Clone,
+    {
+        let elems = self.map.read().unwrap();
+        for (addr, value) in elems.iter() {
+            if *addr == env.raw().addr() {
+                return Some(value.clone());
+            }
+        }
+        None
+    }
+
+    pub fn get_or_init<F>(&self, env: Env, init: F) -> T
+    where
+        T: Clone,
+        F: FnOnce() -> T,
+    {
+        let addr = env.raw().addr();
+
+        // First try to read
+        let num_scanned = {
+            let map = self.map.read().unwrap();
+            for (key, value) in map.iter() {
+                if *key == addr {
+                    return value.clone();
+                }
+            }
+            map.len()
+        };
+
+        // If not found, get write lock and initialize
+        let mut map = self.map.write().unwrap();
+
+        // Double-check in case another thread initialized it.
+        // We only need to check from the last scanned index
+        for (key, value) in map[num_scanned..].iter() {
+            if *key == addr {
+                return value.clone();
+            }
+        }
+
+        let value = init();
+        map.push((addr, value.clone()));
+        value
+    }
+}
+
+impl<T> Default for EnvMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
