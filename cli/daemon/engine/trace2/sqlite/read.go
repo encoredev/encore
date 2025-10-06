@@ -127,7 +127,9 @@ func (s *Store) Get(ctx context.Context, appID, traceID string, iter trace2.Even
 	}
 
 	defer fns.CloseIgnore(rows)
+	hasRows := false
 	for rows.Next() {
+		hasRows = true
 		var data []byte
 		err := rows.Scan(&data)
 		if err != nil {
@@ -143,5 +145,10 @@ func (s *Store) Get(ctx context.Context, appID, traceID string, iter trace2.Even
 		}
 	}
 
-	return errors.Wrap(rows.Err(), "iterate events")
+	if err := rows.Err(); err != nil {
+		return errors.Wrap(err, "iterate events")
+	} else if !hasRows {
+		return trace2.ErrNotFound
+	}
+	return nil
 }
