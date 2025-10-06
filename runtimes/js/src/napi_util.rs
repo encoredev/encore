@@ -1,5 +1,4 @@
 use napi::{Either, Env, JsFunction, JsObject, JsUnknown};
-use std::collections::HashMap;
 use std::sync::RwLock;
 
 pub trait PromiseHandler: Clone + Send + Sync + 'static {
