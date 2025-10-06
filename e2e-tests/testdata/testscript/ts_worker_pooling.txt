@@ -1,0 +1,74 @@
+run
+call GET /hello/world ''
+checkresp '{"message": "Hello world"}'
+shutdown
+
+-- encore.app --
+{
+  "lang": "typescript",
+  "build": {
+    "worker_pooling": true
+  }
+}
+
+-- package.json --
+{
+  "name": "encore-ts-testapp",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Encore Typescript Test app",
+  "license": "MPL-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.7",
+    "typescript": "^5.4",
+    "vitest": "^3.1.3"
+  },
+  "dependencies": {
+    "encore.dev": "1.50.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.13.0"
+  }
+}
+
+-- tsconfig.json --
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "target": "ES2022",
+    "module": "ES2022",
+    "types": ["node"],
+    "paths": {
+      "~encore/*": ["./encore.gen/*"]
+    },
+    "composite": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "sourceMap": true,
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  }
+}
+
+-- myservice/encore.service.ts --
+import { Service } from "encore.dev/service";
+
+export default new Service("myservice");
+
+-- myservice/api.ts --
+import { api } from "encore.dev/api";
+
+export const hello = api(
+  { expose: true, method: "GET", path: "/hello/:name" },
+  async ({ name }: { name: string }): Promise<{ message: string }> => {
+    return { message: `Hello ${name}` };
+  }
+);
