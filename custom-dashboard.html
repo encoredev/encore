@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encore Traces - Custom Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #d1d5db;
+            --hover-bg: #f9fafb;
+            --shadow: rgba(0,0,0,0.1);
+        }
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --hover-bg: #334155;
+            --shadow: rgba(0,0,0,0.3);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); transition: all 0.3s; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--bg-secondary); padding: 16px 24px; border-radius: 8px; box-shadow: 0 1px 3px var(--shadow); }
+        .header h1 { color: var(--text-primary); font-size: 24px; }
+        .controls { display: flex; gap: 12px; align-items: center; }
+        .toggle-btn { background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+        .toggle-btn:hover { background: #2563eb; }
+        .refresh-btn { background: #10b981; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 14px; }
+        .refresh-btn:hover { background: #059669; }
+        .theme-toggle { background: #6366f1; color: white; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 14px; }
+        .theme-toggle:hover { background: #4f46e5; }
+        .app-selector { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: var(--bg-secondary); color: var(--text-primary); }
+        .traces-container { background: var(--bg-secondary); border-radius: 8px; box-shadow: 0 1px 3px var(--shadow); overflow: hidden; }
+        .trace-item { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--border-color); transition: background 0.2s; }
+        .trace-item:hover { background: var(--hover-bg); }
+        .trace-item:last-child { border-bottom: none; }
+        .timestamp { font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: var(--text-secondary); min-width: 180px; }
+        .trace-id { font-family: 'Monaco', 'Menlo', monospace; font-size: 12px; color: var(--text-primary); min-width: 120px; }
+        .service { font-weight: 500; color: var(--text-primary); min-width: 100px; }
+        .endpoint { color: var(--text-secondary); min-width: 120px; }
+        .duration { font-size: 13px; color: #059669; font-weight: 500; min-width: 80px; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; text-transform: uppercase; }
+        .status.success { background: #d1fae5; color: #065f46; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .error { text-align: center; padding: 40px; color: #dc2626; background: #fef2f2; border-radius: 8px; margin: 20px 0; }
+        .empty { text-align: center; padding: 40px; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Encore Traces</h1>
+            <div class="controls">
+                <select id="appSelector" class="app-selector">
+                    <option value="">Select App...</option>
+                </select>
+                <button id="refreshBtn" class="refresh-btn">🔄 Refresh</button>
+                <button id="themeToggle" class="theme-toggle">🌙 Dark</button>
+                <button id="toggleBtn" class="toggle-btn">
+                    <span id="toggleText">🕐 Switch to Absolute</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="traces-container">
+            <div id="tracesContent" class="loading">Loading traces...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentFormat = 'relative';
+        let currentAppId = '';
+        let ws = null;
+
+        // Dark mode toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            const btn = document.getElementById('themeToggle');
+            btn.textContent = newTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        const themeBtn = document.getElementById('themeToggle');
+        if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+
+        // Event listeners
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    </script>
+</body>
+</html>
