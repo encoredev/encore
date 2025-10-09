@@ -19,7 +19,6 @@ require (
 	github.com/charmbracelet/bubbletea v0.24.2
 	github.com/charmbracelet/lipgloss v0.7.1
 	github.com/cockroachdb/errors v1.11.1
-	github.com/containerd/stargz-snapshotter/estargz v0.14.3
 	github.com/dave/jennifer v1.7.0
 	github.com/evanw/esbuild v0.19.8
 	github.com/fatih/color v1.15.0
@@ -94,6 +93,7 @@ require (
 require (
 	cel.dev/expr v0.19.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pganalyze/pg_query_go/v6 v6.1.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
