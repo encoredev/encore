@@ -83,16 +83,14 @@ type Docker struct {
 	// in Encore's CI/CD system. If unspecified it defaults to "scratch".
 	BaseImage string `json:"base_image,omitempty"`
 
-	// BundleSource determines whether the source code of the application
-	// should be bundled into the binary, at "/workspace".
+	
 	BundleSource bool `json:"bundle_source,omitempty"`
 
 	// WorkingDir specifies the working directory to start the docker image in.
 	// If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
 	WorkingDir string `json:"working_dir,omitempty"`
 
-	// ProcessPerService specifies whether each service should run in its own process. If false,
-	// all services are run in the same process.
+	
 	ProcessPerService bool `json:"process_per_service,omitempty"`
 }
 
