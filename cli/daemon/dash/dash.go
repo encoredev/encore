@@ -218,15 +218,34 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		err := h.tr.Clear(ctx, params.AppID)
 		return reply(ctx, "ok", err)
-	case "traces/list":
-		telemetry.Send("traces.list")
+	case "traces/timestamp-format":
 		var params struct {
-			AppID      string `json:"app_id"`
-			MessageID  string `json:"message_id"`
-			TestTraces *bool  `json:"test_traces,omitempty"`
+			Format TimestampFormat `json:"format"`
 		}
 		if err := unmarshal(&params); err != nil {
 			return reply(ctx, nil, err)
+		}
+		// Store preference (in a real implementation, this would be persisted)
+		// For now, just return success
+		return reply(ctx, map[string]interface{}{
+			"format": params.Format,
+			"status": "ok",
+		}, nil)
+	case "traces/list":
+		telemetry.Send("traces.list")
+		var params struct {
+			AppID           string          `json:"app_id"`
+			MessageID       string          `json:"message_id"`
+			TestTraces      *bool           `json:"test_traces,omitempty"`
+			TimestampFormat TimestampFormat `json:"timestamp_format,omitempty"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		// Default to relative format if not specified
+		if params.TimestampFormat == "" {
+			params.TimestampFormat = TimestampRelative
 		}
 
 		query := &trace2.Query{
@@ -244,6 +263,15 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		if err != nil {
 			log.Error().Err(err).Msg("dash: could not list traces")
 		}
+
+		// Format timestamps based on preference
+		for _, span := range list {
+			if span.StartTime != nil {
+				t := time.Unix(span.StartTime.Seconds, int64(span.StartTime.Nanos))
+				span.FormattedTime = FormatTimestamp(t, params.TimestampFormat)
+			}
+		}
+
 		return reply(ctx, list, err)
 
 	case "traces/get":

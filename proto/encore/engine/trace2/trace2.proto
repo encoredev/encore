@@ -24,6 +24,7 @@ message SpanSummary {
   optional bool   test_skipped         = 14; // whether the test was skipped
   optional string src_file             = 15; // the source file where the span was started (if available)
   optional uint32 src_line             = 16; // the source line where the span was started (if available)
+  optional string formatted_time       = 17; // formatted timestamp based on user preference
 
   enum SpanType {
     UNKNOWN = 0;
