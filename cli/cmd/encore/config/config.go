@@ -1,6 +1,7 @@
-package config
+package encore
 
 import (
+	"context" // NEW: Required for the RequiredSecrets function
 	"fmt"
 	"os"
 	"strings"
@@ -8,12 +9,14 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 	"encr.dev/cli/cmd/encore/root"
 	"encr.dev/internal/userconfig"
+    // NEW: Import the internal package that defines the application structure
+	"encr.dev/internal/app/appgraph" // HYPOTHETICAL: Replace with the actual internal app graph path
 	"github.com/spf13/cobra"
 )
 
 var (
 	forceApp, forceGlobal bool
-	viewAllSettings       bool
+	viewAllSettings       bool
 )
 
 var autoCompleteConfigKeys = cmdutil.AutoCompleteFromStaticList(userconfig.Keys()...)
@@ -36,10 +39,10 @@ Available configuration settings are:
 ` + userconfig.CLIDocs()
 
 var configCmd = &cobra.Command{
-	Use:   "config <key> [<value>]",
+	Use:   "config <key> [<value>]",
 	Short: "Get or set a configuration value",
-	Long:  longDocs,
-	Args:  cobra.RangeArgs(0, 2),
+	Long:  longDocs,
+	Args:  cobra.RangeArgs(0, 2),
 
 	Run: func(cmd *cobra.Command, args []string) {
 		appRoot, _, _ := cmdutil.MaybeAppRoot()
@@ -124,4 +127,44 @@ func init() {
 // bt renders a backtick-enclosed string.
 func bt(val string) string {
 	return fmt.Sprintf("`%s`", val)
+}
+
+
+// RequiredSecrets loads the application graph and extracts all defined secret names.
+// This function acts as the public API for the secret_check command.
+//
+// NOTE: This implementation is conceptual and relies on internal/app/appgraph
+// having a function to load the app's parsed state.
+func RequiredSecrets(ctx context.Context) ([]string, error) {
+	appRoot, _, err := cmdutil.MaybeAppRoot()
+	if err != nil || appRoot == "" {
+		return nil, cmdutil.ErrNoEncoreApp
+	}
+
+	// Load the application graph to inspect its secrets requirements.
+	// You will need to find the correct internal function to load the app graph.
+	appGraph, err := appgraph.LoadCurrentApp(ctx, appRoot) // HYPOTHETICAL internal function call
+	if err != nil {
+		return nil, fmt.Errorf("failed to load application graph: %w", err)
+	}
+
+	// Extract unique secret names from the graph.
+	secretNames := make(map[string]struct{})
+	
+	// This loop represents iterating over all service definitions in the graph 
+	// and extracting the secret names defined in their var secrets struct{...}
+	for _, service := range appGraph.Services() { // HYPOTHETICAL: Assuming AppGraph has a Services() method
+		for _, secret := range service.Secrets() { // HYPOTHETICAL: Assuming Service has a Secrets() method
+			secretNames[secret.Name] = struct{}{}
+		}
+	}
+
+	// Convert map keys to a sorted slice.
+	keys := make([]string, 0, len(secretNames))
+	for k := range secretNames {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys) // Ensure deterministic output
+
+	return keys, nil
 }
