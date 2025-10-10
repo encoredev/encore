@@ -94,7 +94,7 @@ impl Server {
                             // There's no need to defer it for dynamic runtime registration.
                             let static_handler = StaticAssetsHandler::new(assets);
                             let requests_total =
-                                requests_total_counter(&ep.name.service(), &ep.name.endpoint());
+                                requests_total_counter(ep.name.service(), ep.name.endpoint());
 
                             let handler = EndpointHandler {
                                 endpoint: ep.clone(),
@@ -158,7 +158,7 @@ impl Server {
             Some(h) => {
                 let endpoint = self.endpoints.get(&endpoint_name).unwrap().to_owned();
                 let requests_total =
-                    requests_total_counter(&endpoint.name.service(), &endpoint.name.endpoint());
+                    requests_total_counter(endpoint.name.service(), endpoint.name.endpoint());
 
                 let handler = EndpointHandler {
                     endpoint,
