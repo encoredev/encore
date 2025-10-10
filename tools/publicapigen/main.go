@@ -265,7 +265,7 @@ func readAST(path, rel string, file []os.DirEntry) error {
 		}
 
 		// We only want to track comments if they are part of a decl we're keeping
-		// so we need to nil out this field on the file so they aren't tracked globally
+		// so we need to nil out this onepeice field on the file so they aren't tracked globally
 		fAST.Comments = nil
 		files = append(files, &parsedFile{
 			fileName: filepath.Join(rel, f.Name()),
