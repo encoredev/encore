@@ -21,19 +21,19 @@ import (
 	"encr.dev/cli/cmd/encore/cmdutil"
 )
 
-const (
-	codeBlue       = "#6D89FF"
-	codePurple     = "#A36C8C"
-	codeGreen      = "#B3D77E"
-	validationFail = "#CB1010"
+var (
+	codeBlue       = lipgloss.AdaptiveColor{Dark: "#00ADD8", Light: "#000000"}
+	codePurple     = lipgloss.AdaptiveColor{Dark: "#C792EA", Light: "#000000"}
+	codeGreen      = lipgloss.AdaptiveColor{Dark: "#4CAF50", Light: "#000000"}
+	validationFail = "#FF0000"
 )
 
 var (
-	inputStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeBlue, Light: codeBlue})
-	descStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeGreen, Light: codePurple})
-	docStyle     = lipgloss.NewStyle().Padding(0, 2, 0, 2)
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(validationFail))
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00C200"))
+	inputStyle   = lipgloss.NewStyle().Foreground(codeBlue).Background(lipgloss.AdaptiveColor{Dark: "#000000", Light: "#FFFFFF"})
+	descStyle    = lipgloss.NewStyle().Foreground(codeGreen).Background(lipgloss.AdaptiveColor{Dark: "#000000", Light: "#FFFFFF"})
+	docStyle     = lipgloss.NewStyle().Padding(0, 2, 0, 2).Background(lipgloss.AdaptiveColor{Dark: "#000000", Light: "#FFFFFF"})
+	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(validationFail)).Background(lipgloss.AdaptiveColor{Dark: "#000000", Light: "#FFFFFF"})
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Background(lipgloss.AdaptiveColor{Dark: "#000000", Light: "#FFFFFF"})
 )
 
 type templateItem struct {
@@ -441,8 +441,8 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 	var lang languageSelectModel
 	{
 		ls := list.NewDefaultItemStyles()
-		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		ls.SelectedTitle = ls.SelectedTitle.Foreground(codeBlue).BorderForeground(codeBlue)
+		ls.SelectedDesc = ls.SelectedDesc.Foreground(codeBlue).BorderForeground(codeBlue)
 		del := list.NewDefaultDelegate()
 		del.Styles = ls
 		del.ShowDescription = false
@@ -475,8 +475,8 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 	var templates templateListModel
 	{
 		ls := list.NewDefaultItemStyles()
-		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		ls.SelectedTitle = ls.SelectedTitle.Foreground(codeBlue).BorderForeground(codeBlue)
+		ls.SelectedDesc = ls.SelectedDesc.Foreground(codeBlue).BorderForeground(codeBlue)
 		del := list.NewDefaultDelegate()
 		del.Styles = ls
 
