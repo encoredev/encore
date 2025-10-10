@@ -32,7 +32,6 @@ type File struct {
 	// It is empty if the app is not linked to encore.dev.
 	ID string `json:"id"` // can be empty
 
-	am.
 	Experiments []experiments.Name `json:"experiments,omitempty"`
 
 	// Lang is the language the app is written in.
@@ -79,13 +78,14 @@ type Docker struct {
 	// in Encore's CI/CD system. If unspecified it defaults to "scratch".
 	BaseImage string `json:"base_image,omitempty"`
 
-	
+	// BundleSource bundles the source code into the Docker image.
 	BundleSource bool `json:"bundle_source,omitempty"`
 
-	 "/" otherwise.
+	// WorkingDir sets the working directory inside the Docker image.
+	// Defaults to "/" otherwise.
 	WorkingDir string `json:"working_dir,omitempty"`
 
-	
+	// ProcessPerService runs each Encore service in its own process.
 	ProcessPerService bool `json:"process_per_service,omitempty"`
 }
 
