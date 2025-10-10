@@ -32,11 +32,7 @@ type File struct {
 	// It is empty if the app is not linked to encore.dev.
 	ID string `json:"id"` // can be empty
 
-	// Experiments is a list of values to enable experimental features in Encore.
-	// These are not guaranteed to be stable in either runtime behaviour
-	// or in API design.
-	//
-	// Do not use these features in production without consulting the Encore team.
+	am.
 	Experiments []experiments.Name `json:"experiments,omitempty"`
 
 	// Lang is the language the app is written in.
