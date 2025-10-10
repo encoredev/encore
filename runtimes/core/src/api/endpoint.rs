@@ -23,6 +23,7 @@ use crate::api::{jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1::rpc;
 use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
+use crate::metrics::Counter;
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
 use crate::trace;
@@ -406,6 +407,7 @@ pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,
     pub handler: Arc<dyn BoxedHandler>,
     pub shared: Arc<SharedEndpointData>,
+    pub requests_total: Counter,
 }
 
 #[derive(Debug)]
@@ -427,6 +429,7 @@ impl Clone for EndpointHandler {
             endpoint: self.endpoint.clone(),
             handler: self.handler.clone(),
             shared: self.shared.clone(),
+            requests_total: self.requests_total.clone(),
         }
     }
 }
@@ -601,7 +604,6 @@ impl EndpointHandler {
             let duration = tokio::time::Instant::now().duration_since(request.start);
 
             // If we had a request failure, log that separately.
-
             if let ResponseData::Typed(Err(err)) = &resp {
                 logger.error(Some(&request), "request failed", Some(err), {
                     let mut fields = crate::log::Fields::new();
@@ -629,6 +631,12 @@ impl EndpointHandler {
                 });
             }
 
+            let code = match &resp {
+                ResponseData::Typed(Ok(_)) => "ok".to_string(),
+                ResponseData::Typed(Err(err)) => err.code.to_string(),
+                ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
+            };
+
             logger.info(Some(&request), "request completed", {
                 let mut fields = crate::log::Fields::new();
                 let dur_ms = (duration.as_secs() as f64 * 1000f64)
@@ -644,13 +652,7 @@ impl EndpointHandler {
                     )),
                 );
 
-                let code = match &resp {
-                    ResponseData::Typed(Ok(_)) => "ok".to_string(),
-                    ResponseData::Typed(Err(err)) => err.code.to_string(),
-                    ResponseData::Raw(resp) => ErrCode::from(resp.status()).to_string(),
-                };
-
-                fields.insert("code".into(), serde_json::Value::String(code));
+                fields.insert("code".into(), serde_json::Value::String(code.clone()));
                 Some(fields)
             });
 
@@ -685,6 +687,7 @@ impl EndpointHandler {
                     }),
                 };
                 self.shared.tracer.request_span_end(&model_resp, sensitive);
+                self.requests_total.increment_with([("code", code)]);
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {
