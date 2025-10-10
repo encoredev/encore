@@ -17,10 +17,7 @@ impl Counter {
     }
 
     /// Add multiple labels to the counter's base labels
-    pub fn with_labels<K, V>(
-        mut self,
-        new_labels: impl IntoIterator<Item = (K, V)>,
-    ) -> Self
+    pub fn with_labels<K, V>(mut self, new_labels: impl IntoIterator<Item = (K, V)>) -> Self
     where
         K: Into<String>,
         V: Into<String>,
