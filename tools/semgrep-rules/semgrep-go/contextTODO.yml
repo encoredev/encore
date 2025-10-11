@@ -1,9 +1,0 @@
-rules:
-  - id: context-todo
-    patterns:
-        - pattern-either:
-              - pattern: |
-                      context.TODO()
-    message: "Consider to use well-defined context"
-    languages: [go]
-    severity: WARNING
