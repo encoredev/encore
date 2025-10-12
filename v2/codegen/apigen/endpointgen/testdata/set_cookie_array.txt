@@ -79,7 +79,7 @@ var EncoreInternal_api_APIDesc_TestCookies = &__api.Desc[*EncoreInternal_TestCoo
 		dec := new(__etype.Unmarshaller)
 		// Decode headers
 		h := httpResp.Header
-		resp.Cookies = __etype.UnmarshalList(dec, __etype.UnmarshalString, h.Values("set-cookie"))
+		resp.Cookies = __etype.UnmarshalList(dec, __etype.UnmarshalString, "set-cookie", h.Values("set-cookie"), false)
 		resp.OtherHeader = __etype.UnmarshalOne(dec, __etype.UnmarshalString, "x-other", h.Get("x-other"), false)
 
 		if err := dec.Error; err != nil {
@@ -101,7 +101,7 @@ var EncoreInternal_api_APIDesc_TestCookies = &__api.Desc[*EncoreInternal_TestCoo
 		if resp != nil {
 
 			// Encode headers
-			headers = map[string][]string{"set-cookie": []string{__etype.MarshalOne(__etype.MarshalString, resp.SingleCookie)}, "x-other": []string{__etype.MarshalOne(__etype.MarshalString, resp.OtherHeader)}}
+			headers = map[string][]string{"x-other": []string{__etype.MarshalOne(__etype.MarshalString, resp.OtherHeader)}}
 		}
 
 		// Set response headers
@@ -110,9 +110,7 @@ var EncoreInternal_api_APIDesc_TestCookies = &__api.Desc[*EncoreInternal_TestCoo
 				w.Header().Add(k, v)
 			}
 		}
-
-		// Set Set-Cookie headers from arrays
-		for _, cookie := range __etype.MarshalList(__etype.MarshalString, resp.MultiCookies) {
+		for _, cookie := range __etype.MarshalList(__etype.MarshalString, resp.Cookies) {
 			w.Header().Add("Set-Cookie", cookie)
 		}
 
