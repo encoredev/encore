@@ -535,6 +535,17 @@ func describeParam(errs *perr.List, encodingHints *encodingHints, field schema.S
 	}
 
 	param.Location = location
+
+	// Validate Set-Cookie array types
+	if location == Header && strings.ToLower(param.WireName) == "set-cookie" {
+		if kind, isList, ok := schemautil.IsBuiltinOrList(param.Type); ok {
+			if isList && kind != schema.String {
+				errs.Addf(field.Type.ASTExpr().Pos(), "Set-Cookie header arrays must be []string, got []%s", kind)
+				return nil, false
+			}
+		}
+	}
+
 	return &param, true
 }
 
