@@ -1,11 +1,12 @@
 package endpointgen
 
 import (
+	"strings"
+
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
-	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
@@ -92,11 +93,25 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.Line().Comment("Encode headers")
 				g.Id("headers").Op("=").Map(String()).Index().String().Values(DictFunc(func(dict Dict) {
 					for _, f := range resp.HeaderParameters {
-						if builtin, ok := f.Type.(schema.BuiltinType); ok {
-							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(f.SrcName))
+						kind, isList, ok := schemautil.IsBuiltinOrList(f.Type)
+						if !ok {
+							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
+							continue
+						}
+
+						// Skip Set-Cookie arrays - they'll be handled separately
+						if isList && strings.ToLower(f.WireName) == "set-cookie" {
+							continue
+						}
+
+						if isList {
+							// Regular array headers
+							encExpr := genutil.MarshalBuiltinList(kind, Id("resp").Dot(f.SrcName))
 							dict[Lit(f.WireName)] = Index().String().Values(encExpr)
 						} else {
-							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
+							// Single value headers
+							encExpr := genutil.MarshalBuiltin(kind, Id("resp").Dot(f.SrcName))
+							dict[Lit(f.WireName)] = Index().String().Values(encExpr)
 						}
 					}
 				}))
@@ -117,6 +132,17 @@ func (d *responseDesc) EncodeResponse() *Statement {
 					Id("w").Dot("Header").Call().Dot("Add").Call(Id("k"), Id("v")),
 				),
 			)
+
+			// Special handling for Set-Cookie arrays
+			// g.Line().Comment("Set Set-Cookie headers from arrays")
+			for _, f := range resp.HeaderParameters {
+				if kind, isList, ok := schemautil.IsBuiltinOrList(f.Type); ok && isList && strings.ToLower(f.WireName) == "set-cookie" {
+					encExpr := genutil.MarshalBuiltinList(kind, Id("resp").Dot(f.SrcName))
+					g.For(List(Id("_"), Id("cookie")).Op(":=").Range().Add(encExpr)).Block(
+						Id("w").Dot("Header").Call().Dot("Add").Call(Lit("Set-Cookie"), Id("cookie")),
+					)
+				}
+			}
 		}
 
 		g.Line().Comment("Set HTTP status code")
