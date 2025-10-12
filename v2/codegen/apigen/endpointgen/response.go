@@ -134,7 +134,6 @@ func (d *responseDesc) EncodeResponse() *Statement {
 			)
 
 			// Special handling for Set-Cookie arrays
-			// g.Line().Comment("Set Set-Cookie headers from arrays")
 			for _, f := range resp.HeaderParameters {
 				if kind, isList, ok := schemautil.IsBuiltinOrList(f.Type); ok && isList && strings.ToLower(f.WireName) == "set-cookie" {
 					encExpr := genutil.MarshalBuiltinList(kind, Id("resp").Dot(f.SrcName))
