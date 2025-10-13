@@ -1,0 +1,96 @@
+---
+seotitle: Types in Encore.ts API schemas
+seodesc: Learn how to work with types in Encore.ts schemas
+title: Types
+subtitle: Types in API schemas
+lang: ts
+---
+
+When you define APIs in Encore.ts, the TypeScript types you use for request and response data are analyzed to generate your API schema. This schema is used for automatic validation, API documentation, and generating type-safe clients.
+
+To ensure your API schema can be properly represented and serialized, Encore.ts reduces complex TypeScript types into basic types that can be represented in JSON. This means your API schemas should use simple, serializable types like strings, numbers, booleans, objects, and arrays.
+
+## Decimal
+
+JavaScript's native `number` type uses floating-point arithmetic, which can lead to precision errors when working with decimal values. For example, `0.1 + 0.2` equals `0.30000000000000004` instead of `0.3`. Additionally, JavaScript numbers are limited to values between `Number.MIN_SAFE_INTEGER` and `Number.MAX_SAFE_INTEGER` (approximately ±9 quadrillion).
+
+To handle decimal values with arbitrary precision and arbitrarily large numbers, Encore.ts provides the `Decimal` type from `encore.dev/types`. This type is especially useful for financial calculations, prices, scientific computations, or any scenario where exact decimal precision and large number support are required.
+
+### Using Decimal in APIs
+
+The `Decimal` type can be used in your API request and response schemas just like any other type:
+
+```typescript
+import { api } from "encore.dev/api";
+import { Decimal } from "encore.dev/types";
+
+interface PaymentRequest {
+  amount: Decimal;
+  currency: string;
+}
+
+interface PaymentResponse {
+  total: Decimal;
+  tax: Decimal;
+}
+
+export const processPayment = api(
+  { expose: true, method: "POST", path: "/payments" },
+  async (req: PaymentRequest): Promise<PaymentResponse> => {
+    const taxRate = new Decimal("0.15"); // 15% tax
+    const tax = req.amount.mul(taxRate);
+    const total = req.amount.add(tax);
+
+    return { total, tax };
+  }
+);
+```
+
+### Creating Decimal values
+
+You can create a `Decimal` from strings, numbers, or bigints:
+
+```typescript
+import { Decimal } from "encore.dev/types";
+
+const price1 = new Decimal("19.99");
+const price2 = new Decimal(29.99);
+const price3 = new Decimal(100n);
+```
+
+For maximum precision, it's recommended to use string literals when creating `Decimal` values to avoid any floating-point conversion issues.
+
+### Arithmetic operations
+
+The `Decimal` type supports basic arithmetic operations:
+
+```typescript
+const a = new Decimal("10.50");
+const b = new Decimal("2.25");
+
+const sum = a.add(b);        // 12.75
+const difference = a.sub(b); // 8.25
+const product = a.mul(b);    // 23.625
+const quotient = a.div(b);   // 4.666666...
+```
+
+## Type compatibility and limitations
+
+Encore.ts analyzes your TypeScript types to generate API schemas, but TypeScript's type system is incredibly complex and supports many advanced features. While we continuously add support for new type patterns, not all TypeScript type combinations are currently supported for API schemas.
+
+### Working with ORM types
+
+A common scenario where you might encounter type compatibility issues is when using types from ORMs (Object-Relational Mappers) or database libraries directly in your API schemas. These types often use complex features from the TypeScript type system.
+
+In such cases, it's often better to create dedicated API types and convert between them and your ORM types.
+
+### Benefits of separate API types
+
+Creating dedicated API types instead of reusing ORM types can have several advantages:
+
+- **Better API design**: Your API schema doesn't have to match your database schema 1:1. You can expose only the fields that make sense for your API consumers.
+- **Security**: Avoid accidentally exposing sensitive internal fields like password hashes or soft-delete timestamps.
+- **Stability**: Changes to your database schema don't automatically affect your API contract.
+- **Type compatibility**: Avoid issues with complex ORM-specific types that may not be supported in API schemas.
+
+If you encounter a type that doesn't work in your API schema, creating a dedicated API type as shown above can be a good approach. In many cases, reusing your database types directly works fine, so use separate API types when it makes sense for your use case.

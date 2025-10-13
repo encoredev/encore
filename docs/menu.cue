@@ -729,6 +729,11 @@
 					text: "Cookies"
 					path: "/ts/primitives/cookies"
 					file: "ts/primitives/cookies"
+				}, {
+					kind: "basic"
+					text: "Types"
+					path: "/ts/primitives/types"
+					file: "ts/primitives/types"
 				}]
 			}, {
 				kind: "basic"
