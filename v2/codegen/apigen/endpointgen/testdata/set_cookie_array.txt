@@ -101,7 +101,10 @@ var EncoreInternal_api_APIDesc_TestCookies = &__api.Desc[*EncoreInternal_TestCoo
 		if resp != nil {
 
 			// Encode headers
-			headers = map[string][]string{"x-other": []string{__etype.MarshalOne(__etype.MarshalString, resp.OtherHeader)}}
+			headers = map[string][]string{
+				"set-cookie": __etype.MarshalList(__etype.MarshalString, resp.Cookies),
+				"x-other":    []string{__etype.MarshalOne(__etype.MarshalString, resp.OtherHeader)},
+			}
 		}
 
 		// Set response headers
@@ -109,9 +112,6 @@ var EncoreInternal_api_APIDesc_TestCookies = &__api.Desc[*EncoreInternal_TestCoo
 			for _, v := range vs {
 				w.Header().Add(k, v)
 			}
-		}
-		for _, cookie := range __etype.MarshalList(__etype.MarshalString, resp.Cookies) {
-			w.Header().Add("Set-Cookie", cookie)
 		}
 
 		// Set HTTP status code
