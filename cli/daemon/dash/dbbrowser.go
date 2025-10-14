@@ -183,5 +183,10 @@ func (s *handler) browserConn(ctx context.Context, appID string, dbID string) (*
 		OID:   18,
 		Codec: pgtype.TextCodec{},
 	})
+	conn.TypeMap().RegisterType(&pgtype.Type{
+		Name:  "uuid",
+		OID:   2950,
+		Codec: pgtype.TextCodec{},
+	})
 	return conn, nil
 }
