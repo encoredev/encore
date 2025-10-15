@@ -261,49 +261,57 @@ impl Logger {
         msg: &str,
         fields: &Option<Fields>,
     ) {
-        let fields = fields.as_ref().map(|fields| {
-            fields.iter().map(|(key, val)| match val {
-                serde_json::Value::Number(num) => {
-                    if num.is_i64() {
-                        LogField {
-                            key,
-                            value: model::LogFieldValue::I64(num.as_i64().unwrap()),
-                        }
-                    } else if num.is_u64() {
-                        LogField {
-                            key,
-                            value: model::LogFieldValue::U64(num.as_u64().unwrap()),
-                        }
-                    } else if num.is_f64() {
-                        LogField {
-                            key,
-                            value: model::LogFieldValue::F64(num.as_f64().unwrap()),
-                        }
-                    } else {
-                        // this can't happen as we have handle all the cases above,
-                        // but we need to handle this case for the iterator to function
-                        LogField {
-                            key,
-                            value: model::LogFieldValue::Json(&serde_json::Value::Null),
+        let fields = if !self.extra_fields.is_empty() || fields.is_some() {
+            let field_vec: Vec<_> = self
+                .extra_fields
+                .iter()
+                .chain(fields.iter().flat_map(|f| f.iter()))
+                .map(|(key, val)| match val {
+                    serde_json::Value::Number(num) => {
+                        if num.is_i64() {
+                            LogField {
+                                key,
+                                value: model::LogFieldValue::I64(num.as_i64().unwrap()),
+                            }
+                        } else if num.is_u64() {
+                            LogField {
+                                key,
+                                value: model::LogFieldValue::U64(num.as_u64().unwrap()),
+                            }
+                        } else if num.is_f64() {
+                            LogField {
+                                key,
+                                value: model::LogFieldValue::F64(num.as_f64().unwrap()),
+                            }
+                        } else {
+                            // this can't happen as we have handle all the cases above,
+                            // but we need to handle this case for the iterator to function
+                            LogField {
+                                key,
+                                value: model::LogFieldValue::Json(&serde_json::Value::Null),
+                            }
                         }
                     }
-                }
-                serde_json::Value::Bool(b) => LogField {
-                    key,
-                    value: model::LogFieldValue::Bool(b.to_owned()),
-                },
-                serde_json::Value::String(ref str) => LogField {
-                    key,
-                    value: model::LogFieldValue::String(str),
-                },
-                serde_json::Value::Array(_)
-                | serde_json::Value::Object(_)
-                | serde_json::Value::Null => LogField {
-                    key,
-                    value: model::LogFieldValue::Json(val),
-                },
-            })
-        });
+                    serde_json::Value::Bool(b) => LogField {
+                        key,
+                        value: model::LogFieldValue::Bool(*b),
+                    },
+                    serde_json::Value::String(ref str) => LogField {
+                        key,
+                        value: model::LogFieldValue::String(str),
+                    },
+                    serde_json::Value::Array(_)
+                    | serde_json::Value::Object(_)
+                    | serde_json::Value::Null => LogField {
+                        key,
+                        value: model::LogFieldValue::Json(val),
+                    },
+                })
+                .collect();
+            Some(field_vec.into_iter())
+        } else {
+            None
+        };
 
         self.tracer
             .read()
