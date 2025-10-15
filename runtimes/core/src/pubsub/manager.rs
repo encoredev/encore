@@ -15,7 +15,7 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::encore::parser::schema::v1 as schema;
 use crate::encore::runtime::v1 as pb;
 use crate::log::LogFromRust;
-use crate::metrics::{requests_total_counter, Counter};
+use crate::metrics::counter;
 use crate::model::{PubSubRequestData, RequestData, ResponseData, SpanId, SpanKey, TraceId};
 use crate::names::EncoreName;
 use crate::pubsub::noop::NoopCluster;
@@ -37,6 +37,7 @@ pub struct Manager {
     topics: Arc<RwLock<HashMap<EncoreName, Arc<TopicInner>>>>,
     subs: Arc<RwLock<HashMap<SubName, Arc<SubscriptionObj>>>>,
     push_registry: PushHandlerRegistry,
+    metrics_registry: Arc<crate::metrics::Registry>,
 }
 
 #[derive(Debug)]
@@ -141,6 +142,7 @@ pub struct SubscriptionObj {
 
     handler: OnceLock<Arc<SubHandler>>,
     subscribe_fut: OnceLock<Shared<SubscribeFut>>,
+    metrics_registry: Arc<crate::metrics::Registry>,
 }
 
 type SubscribeFut = Pin<Box<dyn Future<Output = APIResult<()>> + Send>>;
@@ -155,7 +157,8 @@ impl SubscriptionObj {
                 obj: self.clone(),
                 handlers: RwLock::new(Vec::new()),
                 counter: AtomicUsize::new(0),
-                requests_total: requests_total_counter(
+                requests_total: crate::metrics::requests_total_counter(
+                    &self.metrics_registry,
                     &self.service,
                     &format!("{}/{}", &self.topic, &self.subscription),
                 ),
@@ -175,7 +178,7 @@ pub struct SubHandler {
     obj: Arc<SubscriptionObj>,
     handlers: RwLock<Vec<Arc<dyn SubscriptionHandler>>>,
     counter: AtomicUsize,
-    requests_total: Counter,
+    requests_total: counter::Schema<u64>,
 }
 
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
@@ -272,7 +275,7 @@ impl SubHandler {
             };
 
             self.obj.tracer.request_span_end(&resp, false);
-            self.requests_total.increment_with([("code", code)]);
+            self.requests_total.with([("code", &code)]).increment();
             result
         })
     }
@@ -298,6 +301,7 @@ impl Manager {
         tracer: Tracer,
         clusters: Vec<pb::PubSubCluster>,
         md: &meta::Data,
+        metrics_registry: Arc<crate::metrics::Registry>,
     ) -> anyhow::Result<Self> {
         let (topic_cfg, sub_cfg) = make_cfg_maps(clusters, md)?;
 
@@ -309,6 +313,7 @@ impl Manager {
             topics: Arc::default(),
             subs: Arc::default(),
             push_registry: PushHandlerRegistry::new(),
+            metrics_registry,
         })
     }
 
@@ -370,6 +375,7 @@ impl Manager {
                     schema: cfg.schema.clone(),
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
+                    metrics_registry: Arc::clone(&self.metrics_registry),
                 })
             } else {
                 let inner = Arc::new(noop::NoopSubscription);
@@ -390,6 +396,7 @@ impl Manager {
 
                     handler: OnceLock::new(),
                     subscribe_fut: Default::default(),
+                    metrics_registry: Arc::clone(&self.metrics_registry),
                 })
             }
         };

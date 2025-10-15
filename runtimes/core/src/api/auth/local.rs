@@ -1,8 +1,9 @@
+use crate::metrics::counter;
+
 use crate::api::auth::{AuthHandler, AuthPayload, AuthRequest, AuthResponse};
 use crate::api::schema::encoding::Schema;
 use crate::api::{APIResult, HandlerResponse, HandlerResponseInner, PValues};
 use crate::log::LogFromRust;
-use crate::metrics::Counter;
 use crate::model::{AuthRequestData, RequestData};
 use crate::trace::Tracer;
 use crate::{api, model, EndpointName};
@@ -15,7 +16,7 @@ pub struct LocalAuthHandler {
     pub schema: Schema,
     pub handler: RwLock<Option<Arc<dyn api::TypedHandler>>>,
     pub tracer: Tracer,
-    pub requests_total: Counter,
+    pub requests_total: counter::Schema<u64>,
 }
 
 impl LocalAuthHandler {
@@ -156,7 +157,7 @@ impl AuthHandler for LocalAuthHandler {
                     };
 
                     self.tracer.request_span_end(&model_resp, false);
-                    self.requests_total.increment_with([("code", "ok")]);
+                    self.requests_total.with([("code", "ok")]).increment();
                     Ok(AuthResponse::Authenticated {
                         auth_uid,
                         auth_data,
@@ -170,7 +171,8 @@ impl AuthHandler for LocalAuthHandler {
                     };
                     self.tracer.request_span_end(&model_resp, false);
                     self.requests_total
-                        .increment_with([("code", e.code.to_string())]);
+                        .with([("code", &e.code.to_string())])
+                        .increment();
                     Err(e)
                 }
             }

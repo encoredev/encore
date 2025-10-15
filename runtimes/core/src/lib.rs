@@ -341,7 +341,7 @@ impl Runtime {
             .collect::<Result<HashMap<_, _>, anyhow::Error>>()
             .context("failed to resolve gateway push subscriptions")?;
 
-        let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md)?;
+        let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md, Arc::new(metrics_manager.registry().clone()))?;
         let objects =
             objects::Manager::new(&secrets, tracer.clone(), resources.bucket_clusters, &md);
         let sqldb = sqldb::ManagerConfig {
@@ -399,6 +399,7 @@ impl Runtime {
             runtime: tokio_rt.handle().clone(),
             testing,
             proxied_push_subs,
+            metrics: &metrics_manager,
         }
         .build()
         .context("unable to initialize api manager")?;

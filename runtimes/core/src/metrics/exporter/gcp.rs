@@ -1,17 +1,16 @@
 use crate::metadata::ContainerMetadata;
-use crate::metrics::manager::Exporter;
+use crate::metrics::exporter::Exporter;
 use crate::metrics::{CollectedMetric, MetricValue};
 use anyhow::Context;
-use dashmap::DashMap;
 use google_cloud_api::model::metric_descriptor::{MetricKind, ValueType};
 use google_cloud_api::model::{Metric, MonitoredResource};
 use google_cloud_monitoring_v3::client::MetricService;
 use google_cloud_monitoring_v3::model::{Point, TimeInterval, TimeSeries, TypedValue};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Gcp {
     client: Arc<LazyMonitoringClient>,
     project_id: String,
@@ -19,21 +18,9 @@ pub struct Gcp {
     monitored_resource_labels: HashMap<String, String>,
     metric_names: HashMap<String, String>,
     container_meta: ContainerMetadata,
-    first_seen: Arc<DashMap<u64, SystemTime>>,
 }
 
-impl std::fmt::Debug for Gcp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Gcp")
-            .field("project_id", &self.project_id)
-            .field("monitored_resource_type", &self.monitored_resource_type)
-            .field("monitored_resource_labels", &self.monitored_resource_labels)
-            .field("metric_names", &self.metric_names)
-            .field("container_meta", &self.container_meta)
-            .field("first_seen", &self.first_seen)
-            .finish()
-    }
-}
+#[derive(Debug)]
 struct LazyMonitoringClient {
     cell: tokio::sync::OnceCell<anyhow::Result<MetricService>>,
 }
@@ -65,7 +52,6 @@ impl Gcp {
         monitored_resource_labels: HashMap<String, String>,
         metric_names: HashMap<String, String>,
         container_meta: ContainerMetadata,
-        first_seen: Arc<DashMap<u64, SystemTime>>,
     ) -> Self {
         Self {
             client: Arc::new(LazyMonitoringClient::new()),
@@ -74,7 +60,6 @@ impl Gcp {
             monitored_resource_labels,
             metric_names,
             container_meta,
-            first_seen,
         }
     }
 
@@ -91,7 +76,7 @@ impl Gcp {
             }
         };
 
-        log::info!(
+        log::trace!(
             "Exporting {} metrics to GCP project {}",
             metrics.len(),
             self.project_id
@@ -99,7 +84,6 @@ impl Gcp {
 
         // Convert our metrics to Google Cloud TimeSeries format
         let time_series = self.get_metric_data(metrics);
-        // TODO(fredr): add sys-metrics
 
         // Send metrics in batches (Google Cloud allows up to 200 time series per request)
         for batch in time_series.chunks(200) {
@@ -121,26 +105,32 @@ impl Gcp {
         let container_labels_len = container_labels.len();
 
         for metric in collected {
-            let cloud_metric_name = match self.metric_names.get(&metric.name) {
+            let cloud_metric_name = match self.metric_names.get(metric.key.name()) {
                 Some(name) => name,
-                None => continue,
+                None => {
+                    log::warn!(
+                        "Skipping metric '{}' - no cloud metric name configured",
+                        metric.key.name()
+                    );
+                    continue;
+                }
             };
 
             // Pre-allocate exact capacity for labels
             let mut labels: HashMap<String, String> =
-                HashMap::with_capacity(container_labels_len + metric.labels.len());
+                HashMap::with_capacity(container_labels_len + metric.key.labels().len());
             labels.extend(container_labels.clone());
-            labels.extend(metric.labels.clone());
+            labels.extend(
+                metric
+                    .key
+                    .labels()
+                    .map(|label| (label.key().to_string(), label.value().to_string())),
+            );
 
             let (kind, value_type, typed_value, interval) = match metric.value {
-                MetricValue::Counter(val) => {
-                    let start_time: google_cloud_wkt::Timestamp = self
-                        .first_seen
-                        .get(&metric.key.get_hash())
-                        .map(|entry| *entry)
-                        .unwrap_or_else(|| end_time - Duration::from_millis(1)) // this should never happen, but just so we dont have to handle errors
-                        .try_into()
-                        .unwrap_or_default();
+                MetricValue::CounterU64(val) => {
+                    let start_time: google_cloud_wkt::Timestamp =
+                        metric.registered_at.try_into().unwrap_or_default();
 
                     (
                         MetricKind::Cumulative,
@@ -151,10 +141,35 @@ impl Gcp {
                             .set_end_time(ts_end_time),
                     )
                 }
-                MetricValue::Gauge(val) => (
+                MetricValue::CounterI64(val) => {
+                    let start_time: google_cloud_wkt::Timestamp =
+                        metric.registered_at.try_into().unwrap_or_default();
+
+                    (
+                        MetricKind::Cumulative,
+                        ValueType::Int64,
+                        TypedValue::new().set_int64_value(val),
+                        TimeInterval::new()
+                            .set_start_time(start_time)
+                            .set_end_time(ts_end_time),
+                    )
+                }
+                MetricValue::GaugeF64(val) => (
                     MetricKind::Gauge,
                     ValueType::Double,
                     TypedValue::new().set_double_value(val),
+                    TimeInterval::new().set_end_time(ts_end_time),
+                ),
+                MetricValue::GaugeU64(val) => (
+                    MetricKind::Gauge,
+                    ValueType::Int64,
+                    TypedValue::new().set_int64_value(val as i64),
+                    TimeInterval::new().set_end_time(ts_end_time),
+                ),
+                MetricValue::GaugeI64(val) => (
+                    MetricKind::Gauge,
+                    ValueType::Int64,
+                    TypedValue::new().set_int64_value(val),
                     TimeInterval::new().set_end_time(ts_end_time),
                 ),
             };
@@ -195,7 +210,6 @@ impl Gcp {
             .await
             .map_err(anyhow::Error::new)?;
 
-        log::debug!("Successfully exported metrics batch to GCP");
         Ok(())
     }
 }
