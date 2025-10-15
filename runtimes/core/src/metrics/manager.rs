@@ -1,7 +1,10 @@
 use crate::{
     encore::runtime::v1::{self as pb, Environment},
     metadata::{process_env_substitution, ContainerMetadata},
-    metrics::{exporter, registry::Registry},
+    metrics::{
+        exporter::{self, Exporter},
+        registry::Registry,
+    },
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,21 +35,19 @@ impl ProviderType {
 
     fn create_exporter(
         &self,
-        reg: &Registry,
         env: &Environment,
         http_client: &reqwest::Client,
         runtime_handle: tokio::runtime::Handle,
     ) -> Arc<dyn Exporter + Send + Sync> {
         match self {
             Self::Gcp(config) | Self::EncoreCloud(config) => {
-                runtime_handle.block_on(Self::create_gcp_exporter(config, reg, env, http_client))
+                runtime_handle.block_on(Self::create_gcp_exporter(config, env, http_client))
             }
         }
     }
 
     async fn create_gcp_exporter(
         provider_cfg: &pb::metrics_provider::GcpCloudMonitoring,
-        reg: &Registry,
         env: &Environment,
         http_client: &reqwest::Client,
     ) -> Arc<dyn Exporter + Send + Sync> {
@@ -75,7 +76,6 @@ impl ProviderType {
             labels,
             provider_cfg.metric_names.clone(),
             container_meta,
-            reg.first_seen(),
         ))
     }
 }
@@ -90,20 +90,15 @@ impl Manager {
     pub fn new() -> Self {
         let registry = Registry::new();
 
-        #[cfg(not(test))]
-        if let Err(e) = metrics::set_global_recorder(registry.clone()) {
-            log::warn!("Failed to set metrics recorder: {}", e);
-        }
-
         Self {
             exporter: None,
             registry,
         }
     }
 
-    #[cfg(test)]
-    pub fn with_local_recorder<T>(&self, f: impl FnOnce() -> T) -> T {
-        metrics::with_local_recorder(&self.registry, f)
+    /// Get direct access to the registry
+    pub fn registry(&self) -> &Registry {
+        &self.registry
     }
 
     pub fn from_runtime_config(
@@ -117,7 +112,6 @@ impl Manager {
         for metrics_provider in &observability.metrics {
             if let Some(provider_type) = ProviderType::from_config(metrics_provider) {
                 manager.exporter = Some(provider_type.create_exporter(
-                    &manager.registry,
                     environment,
                     http_client,
                     runtime_handle.clone(),
@@ -177,9 +171,4 @@ impl Default for Manager {
     fn default() -> Self {
         Self::new()
     }
-}
-
-#[async_trait::async_trait]
-pub trait Exporter: Send + Sync + std::fmt::Debug {
-    async fn export(&self, metrics: Vec<crate::metrics::CollectedMetric>);
 }

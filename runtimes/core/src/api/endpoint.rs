@@ -23,7 +23,7 @@ use crate::api::{jsonschema, schema, ErrCode, Error};
 use crate::encore::parser::meta::v1::rpc;
 use crate::encore::parser::meta::v1::{self as meta, selector};
 use crate::log::LogFromRust;
-use crate::metrics::Counter;
+use crate::metrics::counter;
 use crate::model::StreamDirection;
 use crate::names::EndpointName;
 use crate::trace;
@@ -407,7 +407,7 @@ pub(super) struct EndpointHandler {
     pub endpoint: Arc<Endpoint>,
     pub handler: Arc<dyn BoxedHandler>,
     pub shared: Arc<SharedEndpointData>,
-    pub requests_total: Counter,
+    pub requests_total: counter::Schema<u64>,
 }
 
 #[derive(Debug)]
@@ -687,7 +687,7 @@ impl EndpointHandler {
                     }),
                 };
                 self.shared.tracer.request_span_end(&model_resp, sensitive);
-                self.requests_total.increment_with([("code", code)]);
+                self.requests_total.with([("code", &code)]).increment();
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {

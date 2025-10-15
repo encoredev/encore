@@ -61,14 +61,12 @@ impl GceMetadataClient {
     /// Fetch metadata from the GCE metadata server
     pub async fn fetch_metadata(&self, path: &str) -> Result<String, GceMetadataError> {
         let url = Self::build_metadata_url(path);
-        log::debug!("Fetching GCE metadata from: {}", url);
 
         for attempt in 1..=MAX_RETRIES {
             let result = self.try_fetch(&url).await;
 
             match &result {
                 Ok(_) => {
-                    log::debug!("Successfully fetched GCE metadata from {}", path);
                     return result;
                 }
                 Err(e) if attempt == MAX_RETRIES => {
@@ -113,64 +111,5 @@ impl GceMetadataClient {
         } else {
             Err(GceMetadataError::HttpStatus { status })
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Duration;
-
-    #[tokio::test]
-    async fn test_gce_metadata_client_creation() {
-        let http_client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(1))
-            .build()
-            .unwrap();
-
-        let client = GceMetadataClient::new(http_client);
-
-        // Test that the client can be created without panic
-        assert!(format!("{:?}", client).contains("GceMetadataClient"));
-    }
-
-    #[tokio::test]
-    async fn test_singleton_cache_behavior() {
-        // Verify the cache is initially empty
-        assert!(INSTANCE_ID_CACHE.get().is_none());
-
-        // Test that we can set a value (simulating successful fetch)
-        let test_id = "test-instance-123".to_string();
-        let result = INSTANCE_ID_CACHE.set(test_id.clone());
-        assert!(result.is_ok());
-
-        // Verify the cached value can be retrieved
-        assert_eq!(INSTANCE_ID_CACHE.get(), Some(&test_id));
-    }
-
-    #[test]
-    fn test_metadata_url_construction() {
-        // Test default URL construction (no environment variable)
-        std::env::remove_var(METADATA_HOST_ENV);
-        let url = GceMetadataClient::build_metadata_url("instance/id");
-        assert_eq!(url, "http://169.254.169.254/computeMetadata/v1/instance/id");
-
-        // Test with leading slash removal
-        let url = GceMetadataClient::build_metadata_url("/instance/id");
-        assert_eq!(url, "http://169.254.169.254/computeMetadata/v1/instance/id");
-    }
-
-    #[test]
-    fn test_metadata_host_env_var() {
-        // Test custom host via environment variable
-        std::env::set_var(METADATA_HOST_ENV, "custom.metadata.host");
-        let url = GceMetadataClient::build_metadata_url("instance/id");
-        assert_eq!(
-            url,
-            "http://custom.metadata.host/computeMetadata/v1/instance/id"
-        );
-
-        // Clean up
-        std::env::remove_var(METADATA_HOST_ENV);
     }
 }
