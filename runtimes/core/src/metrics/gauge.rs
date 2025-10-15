@@ -1,29 +1,26 @@
-use malachite::base::num::basic::traits::One;
-
 use crate::metrics;
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
-pub trait CounterOps<T> {
-    fn increment(&self, value: T);
+pub trait GaugeOps<T> {
+    fn set(&self, value: T);
     fn get(&self) -> crate::metrics::MetricValue;
 }
 
-/// A typed counter that can be incremented
-/// T must be compatible with CounterOps for type-safe operations
-pub struct Counter<T> {
+/// A typed gauge that can be set, incremented, or decremented
+/// T must be compatible with GaugeOps for type-safe operations
+pub struct Gauge<T> {
     atomic: Arc<AtomicU64>,
     _phantom: PhantomData<T>,
 }
 
-impl<T> Counter<T>
+impl<T> Gauge<T>
 where
-    Arc<AtomicU64>: CounterOps<T>,
-    T: One,
+    Arc<AtomicU64>: GaugeOps<T>,
 {
-    /// Create a new counter with the given atomic storage
+    /// Create a new gauge with the given atomic storage
     /// This is typically called by Registry, not directly by users
     pub(crate) fn new(atomic: Arc<AtomicU64>) -> Self {
         Self {
@@ -32,19 +29,19 @@ where
         }
     }
 
-    /// Increment the counter by 1
-    pub fn increment(&self) {
-        CounterOps::increment(&self.atomic, T::ONE);
+    /// Set the gauge to the specified value
+    pub fn set(&self, value: T) {
+        GaugeOps::set(&self.atomic, value);
     }
 
-    /// Get the current value of the counter
+    /// Get the current value of the gauge
     pub fn get(&self) -> metrics::MetricValue {
-        CounterOps::get(&self.atomic)
+        GaugeOps::get(&self.atomic)
     }
 }
 
-/// A counter schema that defines static labels and required dynamic label keys
-/// Validates dynamic labels at increment time and creates separate time series
+/// A gauge schema that defines static labels and required dynamic label keys
+/// Validates dynamic labels at set/add/sub time and creates separate time series
 /// for each unique combination of static + dynamic labels
 #[derive(Clone, Debug)]
 pub struct Schema<T> {
@@ -57,10 +54,10 @@ pub struct Schema<T> {
 
 impl<T> Schema<T>
 where
-    Arc<AtomicU64>: CounterOps<T>,
-    T: One + Send + Sync + 'static,
+    Arc<AtomicU64>: GaugeOps<T>,
+    T: Send + Sync + 'static,
 {
-    /// Create a new counter schema
+    /// Create a new gauge schema
     pub(crate) fn new(
         name: String,
         static_labels: Vec<(String, String)>,
@@ -76,7 +73,21 @@ where
         }
     }
 
-    pub fn with<L, K, V>(&self, dynamic_labels: L) -> Counter<T>
+    /// Set the gauge value directly without dynamic labels
+    pub fn set(&self, value: T) {
+        if !self.required_dynamic_keys.is_empty() {
+            log::warn!(
+                "setting gauge '{}' without required dynamic labels, required keys: {:?}",
+                self.name,
+                self.required_dynamic_keys
+            );
+        }
+
+        self.get_or_create_gauge(HashMap::new()).set(value);
+    }
+
+    // Set the dynamic label values and return a completed Gauge
+    pub fn with<L, K, V>(&self, dynamic_labels: L) -> Gauge<T>
     where
         L: IntoIterator<Item = (K, V)>,
         K: AsRef<str>,
@@ -105,34 +116,18 @@ where
             );
         }
 
-        self.get_or_create_counter(dynamic_labels_map)
+        self.get_or_create_gauge(dynamic_labels_map)
     }
 
-    /// Increment the counter with the given dynamic labels
-    pub fn increment(&self)
-    where
-        T: One,
-    {
-        if !self.required_dynamic_keys.is_empty() {
-            log::warn!(
-                "incrementing counter '{}' without required dynamic labels, required keys: {:?}",
-                self.name,
-                self.required_dynamic_keys
-            );
-        }
-
-        self.get_or_create_counter(HashMap::new()).increment();
-    }
-
-    /// Get or create a counter for the given dynamic labels
-    fn get_or_create_counter(&self, dynamic_labels: HashMap<String, String>) -> Counter<T> {
+    /// Get or create a gauge for the given dynamic labels
+    fn get_or_create_gauge(&self, dynamic_labels: HashMap<String, String>) -> Gauge<T> {
         // Create merged labels (static + dynamic)
         let mut merged_labels = self.static_labels.clone();
         for (key, value) in dynamic_labels {
             merged_labels.push((key, value));
         }
 
-        self.registry.get_or_create_counter(
+        self.registry.get_or_create_gauge(
             &self.name,
             merged_labels.iter().map(|(k, v)| (k.as_str(), v.as_str())),
         )

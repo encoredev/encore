@@ -12,7 +12,6 @@ use crate::api::static_assets::StaticAssetsHandler;
 use crate::api::{self, ToResponse};
 use crate::api::{paths, reqauth, schema, BoxedHandler, EndpointMap};
 use crate::encore::parser::meta::v1 as meta;
-use crate::metrics::requests_total_counter;
 use crate::names::EndpointName;
 use crate::trace;
 
@@ -38,6 +37,9 @@ pub struct Server {
 
     /// Data shared between all endpoints.
     shared: Arc<SharedEndpointData>,
+
+    /// Metrics registry for creating metrics
+    metrics_registry: Arc<crate::metrics::Registry>,
 }
 
 impl Server {
@@ -48,6 +50,7 @@ impl Server {
         inbound_svc_auth: Vec<Arc<dyn svcauth::ServiceAuthMethod>>,
         tracer: trace::Tracer,
         auth_data_schemas: HashMap<String, Option<JSONSchema>>,
+        metrics_registry: Arc<crate::metrics::Registry>,
     ) -> anyhow::Result<Self> {
         // Register the routes, and track the handlers in a map so we can easily
         // set the request handler when registered.
@@ -93,8 +96,11 @@ impl Server {
                             // For static asset routes, configure the static asset handler directly.
                             // There's no need to defer it for dynamic runtime registration.
                             let static_handler = StaticAssetsHandler::new(assets);
-                            let requests_total =
-                                requests_total_counter(ep.name.service(), ep.name.endpoint());
+                            let requests_total = crate::metrics::requests_total_counter(
+                                &metrics_registry,
+                                ep.name.service(),
+                                ep.name.endpoint(),
+                            );
 
                             let handler = EndpointHandler {
                                 endpoint: ep.clone(),
@@ -134,6 +140,7 @@ impl Server {
             hosted_endpoints: Mutex::new(handler_map),
             router: Mutex::new(Some(router)),
             shared,
+            metrics_registry,
         })
     }
 
@@ -157,8 +164,11 @@ impl Server {
             None => Ok(()), // anyhow::bail!("no handler found for endpoint: {}", endpoint_name),
             Some(h) => {
                 let endpoint = self.endpoints.get(&endpoint_name).unwrap().to_owned();
-                let requests_total =
-                    requests_total_counter(endpoint.name.service(), endpoint.name.endpoint());
+                let requests_total = crate::metrics::requests_total_counter(
+                    &self.metrics_registry,
+                    endpoint.name.service(),
+                    endpoint.name.endpoint(),
+                );
 
                 let handler = EndpointHandler {
                     endpoint,
