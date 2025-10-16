@@ -1,0 +1,254 @@
+version: "3"
+
+tasks:
+  setup:
+    summary: Sets up build environment
+    cmds:
+      - mise install
+      - go mod download
+      - cargo install cargo-zigbuild
+      - mkdir -p {{.BIN_DIR}}
+      - mkdir -p runtimes
+
+  go:mod:tidy:
+    summary: Runs go mod tidy
+    internal: true
+    cmds:
+      - go mod tidy
+
+  build:rust:tsparser:
+    summary: Builds TypeScript parser
+    dir: tsparser
+    deps:
+      - task: setup
+    cmds:
+      - mkdir -p dist
+      - cargo zigbuild --bin=tsparser-encore --target={{.TARGET}} --release --target-dir dist
+    vars:
+      TARGET: "{{.TARGET}}"
+    env:
+      CC: "{{.ZIG_PATH}} cc -target {{.TARGET}}"
+      CXX: "{{.ZIG_PATH}} c++ -target {{.TARGET}}"
+
+  build:js:runtime:
+    summary: Builds encore-runtime.node for target platform
+    dir: runtimes/js
+    deps:
+      - task: setup
+    cmds:
+      - |
+        # Determine target and binary name
+        case "{{.OS}}" in
+          darwin)
+            case "{{.ARCH}}" in
+              amd64) target="x86_64-apple-darwin" ;;
+              arm64) target="aarch64-apple-darwin" ;;
+            esac
+            binary_name="libencore_js_runtime.dylib"
+            ;;
+          linux)
+            case "{{.ARCH}}" in
+              amd64) target="x86_64-unknown-linux-gnu" ;;
+              arm64) target="aarch64-unknown-linux-gnu" ;;
+            esac
+            binary_name="libencore_js_runtime.so"
+            ;;
+          windows)
+            target="x86_64-pc-windows-gnu"
+            binary_name="encore_js_runtime.dll"
+            ;;
+        esac
+
+        # Build the Rust module directly to dist directory
+        mkdir -p dist
+        cargo zigbuild --target=${target} --release --target-dir dist
+    vars:
+      OS: "{{.OS}}"
+      ARCH: "{{.ARCH}}"
+      OUTPUT_DIR: "{{.OUTPUT_DIR}}"
+    env:
+      CC: "{{.ZIG_PATH}} cc -target {{.TARGET}}"
+      CXX: "{{.ZIG_PATH}} c++ -target {{.TARGET}}"
+      ENCORE_VERSION: "{{.VERSION}}"
+      TYPE_DEF_TMP_PATH: "{{.OUTPUT_DIR}}/typedefs.ndjson"
+      ENCORE_WORKDIR: "{{.OUTPUT_DIR}}"
+
+  generate:bindings:
+    summary: Generates code bindings
+    deps:
+      - task: go:mod:tidy
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    cmds:
+      - go generate ./...
+
+  test:unit:
+    summary: Runs unit tests
+    deps:
+      - task: setup
+    cmds:
+      - go test -tags=dev_build ./...
+
+  # Linting tasks
+  lint:go:
+    summary: Runs Go linters
+    cmds:
+      - golangci-lint run
+
+  # Formatting tasks
+  fmt:go:
+    summary: Formats Go code
+    cmds:
+      - go fmt ./...
+      - goimports -w .
+
+  # Build helpers
+  build:go:binary:
+    summary: Builds a Go binary with specified parameters
+    internal: true
+    vars:
+      BUILD_CMD: go build
+      LDFLAGS: '{{.LDFLAGS | default "-s -w"}}'
+      BUILD_FLAGS: '{{.BUILD_FLAGS | default "-trimpath -tags=netgo"}}'
+      OUTPUT: "{{.OUTPUT}}"
+      PACKAGE: "{{.PACKAGE}}"
+    cmds:
+      - '{{.BUILD_CMD}} -ldflags="{{.LDFLAGS}}" {{.BUILD_FLAGS}} -o {{.OUTPUT}} {{.PACKAGE}}'
+
+  # Distribution assembly
+  assemble:distribution:
+    summary: Assembles complete distribution with all components
+    internal: true
+    vars:
+      PLATFORM: "{{.PLATFORM}}"
+      ARCHIVE_DIR: "{{.BIN_DIR}}/encore-{{.PLATFORM}}"
+      RUNTIME_PLATFORM: "{{.RUNTIME_PLATFORM}}"
+      VERSION_SUFFIX: "{{.VERSION_SUFFIX}}"
+    cmds:
+      - |
+        # Platform mapping
+        case "{{.PLATFORM}}" in
+          windows-amd64)
+            rust_target="x86_64-pc-windows-gnu"
+            js_binary="encore_js_runtime.dll"
+            ts_binary="tsparser-encore.exe"
+            cli_binary="encore{{.VERSION_SUFFIX}}.exe"
+            ;;
+          darwin-amd64)
+            rust_target="x86_64-apple-darwin"
+            js_binary="libencore_js_runtime.dylib"
+            ts_binary="tsparser-encore"
+            cli_binary="encore{{.VERSION_SUFFIX}}"
+            ;;
+          darwin-arm64)
+            rust_target="aarch64-apple-darwin"
+            js_binary="libencore_js_runtime.dylib"
+            ts_binary="tsparser-encore"
+            cli_binary="encore{{.VERSION_SUFFIX}}"
+            ;;
+          darwin-universal)
+            rust_target="x86_64-apple-darwin"  # fallback for universal
+            js_binary="libencore_js_runtime.dylib"
+            ts_binary="tsparser-encore"
+            cli_binary="encore{{.VERSION_SUFFIX}}"
+            ;;
+          linux-amd64)
+            rust_target="x86_64-unknown-linux-gnu"
+            js_binary="libencore_js_runtime.so"
+            ts_binary="tsparser-encore"
+            cli_binary="encore{{.VERSION_SUFFIX}}"
+            ;;
+          linux-arm64)
+            rust_target="aarch64-unknown-linux-gnu"
+            js_binary="libencore_js_runtime.so"
+            ts_binary="tsparser-encore"
+            cli_binary="encore{{.VERSION_SUFFIX}}"
+            ;;
+        esac
+
+        # Create distribution directory structure
+        mkdir -p {{.ARCHIVE_DIR}}/{bin,runtimes/{go,js}}
+
+        # Copy main CLI binary
+        if [ "{{.PLATFORM}}" = "windows-amd64" ]; then
+          cp {{.BIN_DIR}}/encore-windows-amd64.exe {{.ARCHIVE_DIR}}/bin/${cli_binary}
+        else
+          cp {{.BIN_DIR}}/encore-{{.PLATFORM}} {{.ARCHIVE_DIR}}/bin/${cli_binary}
+        fi
+
+        # Copy Go component binaries
+        for component in git-remote-encore tsbundler-encore; do
+          if [ "{{.PLATFORM}}" = "windows-amd64" ]; then
+            cp {{.BIN_DIR}}/${component}-windows-amd64.exe {{.ARCHIVE_DIR}}/bin/${component}.exe 2>/dev/null || true
+          else
+            cp {{.BIN_DIR}}/${component}-{{.PLATFORM}} {{.ARCHIVE_DIR}}/bin/${component} 2>/dev/null || true
+          fi
+        done
+
+        # Copy TS parser from tsparser/dist/
+        cp tsparser/dist/${rust_target}/release/${ts_binary} {{.ARCHIVE_DIR}}/bin/tsparser-encore 2>/dev/null || true
+
+        # Copy Go runtimes
+        cp -r runtimes/{{.RUNTIME_PLATFORM}}/* {{.ARCHIVE_DIR}}/runtimes/go/ 2>/dev/null || true
+
+        # Copy JS runtime from runtimes/js/dist/
+        cp runtimes/js/dist/${rust_target}/release/${js_binary} {{.ARCHIVE_DIR}}/runtimes/js/encore-runtime.node 2>/dev/null || true
+
+        # Copy documentation
+        cp LICENSE* {{.ARCHIVE_DIR}}/ 2>/dev/null || true
+        cp README* {{.ARCHIVE_DIR}}/ 2>/dev/null || true
+
+  # Package helpers
+  package:archive:
+    summary: Creates tar.gz archive from assembled distribution
+    internal: true
+    cmds:
+      - tar -C {{.ARCHIVE_DIR}} -czf {{.ARCHIVE_NAME}} .
+    vars:
+      ARCHIVE_DIR: "{{.ARCHIVE_DIR}}"
+      ARCHIVE_NAME: "{{.ARCHIVE_NAME}}"
+
+  package:zip:
+    summary: Creates zip archive from assembled distribution
+    internal: true
+    cmds:
+      - cd {{.ARCHIVE_DIR}} && zip -r {{.ARCHIVE_NAME}} .
+    vars:
+      ARCHIVE_DIR: "{{.ARCHIVE_DIR}}"
+      ARCHIVE_NAME: "{{.ARCHIVE_NAME}}"
+
+  package:create:zip:
+    summary: Creates a zip archive for Windows
+    internal: true
+    cmds:
+      - mkdir -p {{.ARCHIVE_DIR}}
+      - cp {{.BINARY}} {{.ARCHIVE_DIR}}/
+      - cp -r runtimes/{{.PLATFORM}}/* {{.ARCHIVE_DIR}}/ 2>/dev/null || true
+      - cp LICENSE* {{.ARCHIVE_DIR}}/ 2>/dev/null || true
+      - cp README* {{.ARCHIVE_DIR}}/ 2>/dev/null || true
+      - cd {{.ARCHIVE_DIR}} && zip -r {{.ARCHIVE_NAME}} .
+    vars:
+      ARCHIVE_DIR: "{{.ARCHIVE_DIR}}"
+      BINARY: "{{.BINARY}}"
+      PLATFORM: "{{.PLATFORM}}"
+      ARCHIVE_NAME: "{{.ARCHIVE_NAME}}"
+
+  package:distribution:archive:
+    summary: Creates archive from assembled distribution
+    internal: true
+    cmds:
+      - tar -C {{.ARCHIVE_DIR}} -czf {{.ARCHIVE_NAME}} .
+    vars:
+      ARCHIVE_DIR: "{{.ARCHIVE_DIR}}"
+      ARCHIVE_NAME: "{{.ARCHIVE_NAME}}"
+
+  package:distribution:zip:
+    summary: Creates zip from assembled distribution
+    internal: true
+    cmds:
+      - cd {{.ARCHIVE_DIR}} && zip -r {{.ARCHIVE_NAME}} .
+    vars:
+      ARCHIVE_DIR: "{{.ARCHIVE_DIR}}"
+      ARCHIVE_NAME: "{{.ARCHIVE_NAME}}"

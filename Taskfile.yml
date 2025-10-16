@@ -1,0 +1,105 @@
+version: "3"
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+
+vars:
+  APP_NAME: "encore"
+  BIN_DIR: "dist"
+  VERSION: '{{.VERSION | default "dev"}}'
+  ENCORE_GO_VERSION: '{{.ENCORE_GO_VERSION | default "encore-go1.23.0"}}'
+  ZIG_PATH:
+    sh: mise which zig
+
+tasks:
+  default:
+    summary: Shows available tasks
+    cmds:
+      - task --list
+
+  setup:
+    summary: Sets up development environment
+    cmds:
+      - task: common:setup
+
+  build:
+    summary: Builds Encore CLI for current platform
+    cmds:
+      - task: "{{OS}}:build"
+
+  build:cli:
+    summary: Builds only the main CLI for current platform
+    cmds:
+      - task: "{{OS}}:build:cli"
+
+  package:
+    summary: Packages Encore for current platform
+    cmds:
+      - task: "{{OS}}:package"
+
+  test:
+    summary: Runs all tests
+    cmds:
+      - task: common:test:unit
+
+  test:unit:
+    summary: Runs unit tests
+    cmds:
+      - task: common:test:unit
+
+  clean:
+    summary: Cleans build artifacts
+    cmds:
+      - rm -rf {{.BIN_DIR}}
+      - rm -rf runtimes
+      - rm -f *.tar.gz *.zip
+
+  clean:all:
+    summary: Cleans all build artifacts and caches
+    deps:
+      - task: clean
+    cmds:
+      - go clean -cache
+      - cargo clean
+
+  version:
+    summary: Shows current version
+    cmds:
+      - 'echo "Encore version: {{.VERSION}}"'
+      - 'echo "Encore-Go version: {{.ENCORE_GO_VERSION}}"'
+
+  deps:
+    summary: Downloads all dependencies
+    cmds:
+      - task: common:setup
+
+  # Development helpers
+  dev:
+    summary: Runs Encore in development mode
+    deps:
+      - task: build:cli
+    cmds:
+      - ./{{.BIN_DIR}}/encore dev
+
+  run:
+    summary: Runs built Encore binary
+    deps:
+      - task: build:cli
+    cmds:
+      - ./{{.BIN_DIR}}/encore {{.CLI_ARGS}}
+
+  # Linting and formatting
+  lint:
+    summary: Runs linters
+    cmds:
+      - task: common:lint:go
+      - task: common:lint:rust
+
+  fmt:
+    summary: Formats code
+    cmds:
+      - task: common:fmt:go
+      - task: common:fmt:rust

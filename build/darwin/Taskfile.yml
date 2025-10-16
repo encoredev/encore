@@ -1,0 +1,179 @@
+version: "3"
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds complete macOS distributions
+    deps:
+      - task: common:go:mod:tidy
+      - task: download:runtimes
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: build:amd64
+      - task: build:arm64
+      - task: create:universal
+      - task: build:components
+
+  build:tsparser:
+    summary: Builds TS parser for macOS architectures
+    deps:
+      - task: common:setup
+    cmds:
+      - task: common:build:rust:tsparser
+        vars:
+          TARGET: x86_64-apple-darwin
+      - task: common:build:rust:tsparser
+        vars:
+          TARGET: aarch64-apple-darwin
+
+
+  build:js:runtimes:
+    summary: Builds JS runtimes for macOS
+    deps:
+      - task: common:setup
+    cmds:
+      - task: common:build:js:runtime
+        vars:
+          OS: darwin
+          ARCH: amd64
+          TARGET: x86_64-apple-darwin
+          OUTPUT_DIR: "{{.BIN_DIR}}"
+      - task: common:build:js:runtime
+        vars:
+          OS: darwin
+          ARCH: arm64
+          TARGET: aarch64-apple-darwin
+          OUTPUT_DIR: "{{.BIN_DIR}}"
+
+
+  # Download macOS runtimes
+  download:runtimes:
+    summary: Downloads macOS runtimes
+    internal: true
+    cmds:
+      - |
+        runtimes=(
+          "macos_x86-64.tar.gz:macos_amd64"
+          "macos_arm64.tar.gz:macos_arm64"
+        )
+        
+        for runtime in "${runtimes[@]}"; do
+          asset="${runtime%:*}"
+          dir="${runtime#*:}"
+          
+          [ ! -d "runtimes/${dir}/encore-go" ] || continue
+          echo "Downloading encore-go for ${dir}"
+          mkdir -p "runtimes/${dir}"
+          curl --fail -L "https://github.com/encoredev/go/releases/download/{{.ENCORE_GO_VERSION}}/${asset}" | tar -C "runtimes/${dir}" -xzf -
+        done
+
+  build:cli:
+    summary: Builds only the main CLI for macOS
+    deps:
+      - task: build
+
+  build:amd64:
+    summary: Builds Encore for macOS AMD64
+    cmds:
+      - CGO_ENABLED=1 CC="{{.ZIG_PATH}} cc -target x86_64-macos.10.12" CXX="{{.ZIG_PATH}} c++ -target x86_64-macos.10.12" CGO_CFLAGS="-D_DARWIN_C_SOURCE -D__POSIX_C_SOURCE=200809L -DHAVE_GETOPT=0" CGO_LDFLAGS="" go build -ldflags="-s -w -X encr.dev/internal/version.Version={{.VERSION}}" -trimpath -tags=netgo -buildmode=pie -o {{.BIN_DIR}}/encore-darwin-amd64 ./cli/cmd/encore
+    env:
+      GOOS: darwin
+      GOARCH: amd64
+
+  build:arm64:
+    summary: Builds Encore for macOS ARM64
+    cmds:
+      - CGO_ENABLED=1 CC="{{.ZIG_PATH}} cc -target aarch64-macos.11.1" CXX="{{.ZIG_PATH}} c++ -target aarch64-macos.11.1" CGO_CFLAGS="-D_DARWIN_C_SOURCE -D__POSIX_C_SOURCE=200809L" go build -ldflags="-s -w -X encr.dev/internal/version.Version={{.VERSION}}" -trimpath -tags=netgo -buildmode=pie -o {{.BIN_DIR}}/encore-darwin-arm64 ./cli/cmd/encore
+    env:
+      GOOS: darwin
+      GOARCH: arm64
+
+  create:universal:
+    summary: Creates universal macOS binary
+    deps:
+      - task: build:amd64
+      - task: build:arm64
+    cmds:
+      - lipo -create -output {{.BIN_DIR}}/encore-darwin {{.BIN_DIR}}/encore-darwin-amd64 {{.BIN_DIR}}/encore-darwin-arm64
+      - rm {{.BIN_DIR}}/encore-darwin-amd64 {{.BIN_DIR}}/encore-darwin-arm64
+
+  # Build additional components for both architectures
+  build:components:
+    summary: Builds git-remote and tsbundler for macOS (universal)
+    cmds:
+      - |
+        # Build components for both architectures
+        for component in git-remote-encore tsbundler-encore; do
+          echo "Building ${component} for macOS..."
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -o {{.BIN_DIR}}/${component}-darwin-amd64 ./cli/cmd/${component}
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -o {{.BIN_DIR}}/${component}-darwin-arm64 ./cli/cmd/${component}
+          # Create universal binary
+          lipo -create -output {{.BIN_DIR}}/${component}-darwin {{.BIN_DIR}}/${component}-darwin-amd64 {{.BIN_DIR}}/${component}-darwin-arm64
+          rm {{.BIN_DIR}}/${component}-darwin-amd64 {{.BIN_DIR}}/${component}-darwin-arm64
+        done
+
+  package:
+    summary: Packages complete macOS distributions
+    deps:
+      - task: build
+    cmds:
+      - task: package:amd64
+      - task: package:arm64
+      - task: package:universal
+
+  package:amd64:
+    summary: Packages complete macOS AMD64 distribution
+    deps:
+      - task: build:amd64
+      - task: build:components
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: common:assemble:distribution
+        vars:
+          PLATFORM: darwin-amd64
+          RUNTIME_PLATFORM: darwin_amd64
+          VERSION_SUFFIX: ""
+      - task: common:package:archive
+        vars:
+          ARCHIVE_DIR: "{{.BIN_DIR}}/encore-darwin-amd64"
+          ARCHIVE_NAME: "{{.BIN_DIR}}/encore-{{.VERSION}}-darwin_amd64.tar.gz"
+
+  package:arm64:
+    summary: Packages complete macOS ARM64 distribution
+    deps:
+      - task: build:arm64
+      - task: build:components
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: common:assemble:distribution
+        vars:
+          PLATFORM: darwin-arm64
+          RUNTIME_PLATFORM: darwin_arm64
+          VERSION_SUFFIX: ""
+      - task: common:package:archive
+        vars:
+          ARCHIVE_DIR: "{{.BIN_DIR}}/encore-darwin-arm64"
+          ARCHIVE_NAME: "{{.BIN_DIR}}/encore-{{.VERSION}}-darwin_arm64.tar.gz"
+
+  package:universal:
+    summary: Packages complete universal macOS distribution
+    deps:
+      - task: create:universal
+      - task: build:components
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: common:assemble:distribution
+        vars:
+          PLATFORM: darwin-universal
+          RUNTIME_PLATFORM: darwin_amd64
+          VERSION_SUFFIX: ""
+      - task: common:package:archive
+        vars:
+          ARCHIVE_DIR: "{{.BIN_DIR}}/encore-darwin-universal"
+          ARCHIVE_NAME: "{{.BIN_DIR}}/encore-{{.VERSION}}-darwin_universal.tar.gz"

@@ -1,0 +1,147 @@
+version: "3"
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds complete Linux distributions
+    deps:
+      - task: common:go:mod:tidy
+      - task: download:runtimes
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: build:amd64
+      - task: build:arm64
+      - task: build:components
+
+  build:tsparser:
+    summary: Builds TS parser for Linux architectures
+    deps:
+      - task: common:setup
+    cmds:
+      - task: common:build:rust:tsparser
+        vars:
+          TARGET: x86_64-unknown-linux-gnu.2.31
+      - task: common:build:rust:tsparser
+        vars:
+          TARGET: aarch64-unknown-linux-gnu.2.31
+
+
+  build:js:runtimes:
+    summary: Builds JS runtimes for Linux
+    deps:
+      - task: common:setup
+    cmds:
+      - task: common:build:js:runtime
+        vars:
+          OS: linux
+          ARCH: amd64
+          TARGET: x86_64-unknown-linux-gnu
+          OUTPUT_DIR: "{{.BIN_DIR}}"
+      - task: common:build:js:runtime
+        vars:
+          OS: linux
+          ARCH: arm64
+          TARGET: aarch64-unknown-linux-gnu
+          OUTPUT_DIR: "{{.BIN_DIR}}"
+
+
+  # Download Linux runtimes
+  download:runtimes:
+    summary: Downloads Linux runtimes
+    internal: true
+    cmds:
+      - |
+        runtimes=(
+          "linux_x86-64.tar.gz:linux_amd64"
+          "linux_arm64.tar.gz:linux_arm64"
+        )
+
+        for runtime in "${runtimes[@]}"; do
+          asset="${runtime%:*}"
+          dir="${runtime#*:}"
+
+          [ ! -d "runtimes/${dir}/encore-go" ] || continue
+          echo "Downloading encore-go for ${dir}"
+          mkdir -p "runtimes/${dir}"
+          curl --fail -L "https://github.com/encoredev/go/releases/download/{{.ENCORE_GO_VERSION}}/${asset}" | tar -C "runtimes/${dir}" -xzf -
+        done
+
+  build:cli:
+    summary: Builds only the main CLI for Linux
+    deps:
+      - task: build
+
+  build:amd64:
+    summary: Builds Encore for Linux AMD64
+    cmds:
+      - CGO_ENABLED=1 CC="{{.ZIG_PATH}} cc -target x86_64-linux-gnu.2.31" CXX="{{.ZIG_PATH}} c++ -target x86_64-linux-gnu.2.31" go build -ldflags="-s -w -X encr.dev/internal/version.Version={{.VERSION}}" -trimpath -tags=netgo -o {{.BIN_DIR}}/encore-linux-amd64 ./cli/cmd/encore
+    env:
+      GOOS: linux
+      GOARCH: amd64
+
+  build:arm64:
+    summary: Builds Encore for Linux ARM64
+    cmds:
+      - CGO_ENABLED=1 CC="{{.ZIG_PATH}} cc -target aarch64-linux-gnu.2.31" CXX="{{.ZIG_PATH}} c++ -target aarch64-linux-gnu.2.31" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -ldflags="-s -w -X encr.dev/internal/version.Version={{.VERSION}}" -trimpath -tags=netgo -o {{.BIN_DIR}}/encore-linux-arm64 ./cli/cmd/encore
+    env:
+      GOOS: linux
+      GOARCH: arm64
+
+  # Build additional components for Linux architectures
+  build:components:
+    summary: Builds git-remote and tsbundler for Linux
+    cmds:
+      - |
+        # Build Linux components
+        for arch in amd64 arm64; do
+          echo "Building Linux ${arch} components..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=${arch} go build -trimpath -o {{.BIN_DIR}}/git-remote-encore-linux-${arch} ./cli/cmd/git-remote-encore
+          CGO_ENABLED=0 GOOS=linux GOARCH=${arch} go build -trimpath -o {{.BIN_DIR}}/tsbundler-encore-linux-${arch} ./cli/cmd/tsbundler-encore
+        done
+
+  package:
+    summary: Packages complete Linux distributions
+    deps:
+      - task: build
+    cmds:
+      - task: package:amd64
+      - task: package:arm64
+
+  package:amd64:
+    summary: Packages complete Linux AMD64 distribution
+    deps:
+      - task: build:amd64
+      - task: build:components
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: common:assemble:distribution
+        vars:
+          PLATFORM: linux-amd64
+          RUNTIME_PLATFORM: linux_amd64
+          VERSION_SUFFIX: ""
+      - task: common:package:archive
+        vars:
+          ARCHIVE_DIR: "{{.BIN_DIR}}/encore-linux-amd64"
+          ARCHIVE_NAME: "{{.BIN_DIR}}/encore-{{.VERSION}}-linux_amd64.tar.gz"
+
+  package:arm64:
+    summary: Packages complete Linux ARM64 distribution
+    deps:
+      - task: build:arm64
+      - task: build:components
+      - task: build:tsparser
+      - task: build:js:runtimes
+    cmds:
+      - task: common:assemble:distribution
+        vars:
+          PLATFORM: linux-arm64
+          RUNTIME_PLATFORM: linux_arm64
+          VERSION_SUFFIX: ""
+      - task: common:package:archive
+        vars:
+          ARCHIVE_DIR: "{{.BIN_DIR}}/encore-linux-arm64"
+          ARCHIVE_NAME: "{{.BIN_DIR}}/encore-{{.VERSION}}-linux_arm64.tar.gz"

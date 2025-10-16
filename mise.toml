@@ -1,0 +1,60 @@
+[env]
+ENCORE_RUNTIMES_PATH = "{{config_root}}/runtimes"
+# ENCORE_GOROOT = "{{mise.installs.aqua-encoredev-encore}}/encore-go"
+
+[tools]
+# Core languages
+go = "1.23"
+node = "20.19"
+rust = "stable"
+
+# Build tools
+goreleaser = "latest"
+protoc = "latest"
+task = "latest"
+
+# Development tools
+golangci-lint = "latest"
+# semgrep = "latest"
+
+# Platform-specific tools
+[tools.zig]
+os = ["linux", "windows"]
+version = "0.10.1"
+
+[tools.zig.macos]
+# Pinned for macOS compatibility
+version = "0.9.1"
+
+[tasks]
+[tasks.build]
+description = "Build Encore CLI using Task"
+run = "task build"
+
+[tasks.setup]
+description = "Setup development environment"
+run = "task setup"
+
+[tasks.test]
+description = "Run all tests"
+run = "task test"
+
+[tasks.release]
+description = "Full release using Task"
+run = "task release"
+
+[tasks.release-test]
+description = "Test release process"
+run = "task release:test"
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "task clean"
+
+[tasks.lint]
+description = "Run linters"
+run = "task lint"
+
+[tasks.cli-build]
+description = "Build Encore CLI"
+run = "go build ./cli/cmd/encore"

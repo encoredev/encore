@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build ("1.2.3")'
+        required: true
+      encorego_version:
+        description: 'Encore-Go version to use ("encore-go1.23.0")'
+        required: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { platform: linux-amd64, os: ubuntu-24.04 }
+          - { platform: linux-arm64, os: ubuntu-24.04 }
+          - { platform: windows-amd64, os: windows-latest }
+          - { platform: darwin-arm64, os: macos-11 }
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Setup Mise
+        uses: jdx/mise-action@v2
+
+      - name: Install tools
+        run: mise install
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"  # Remove 'v' prefix
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using version from tag: $VERSION"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using version from input: $VERSION"
+          fi
+        shell: bash
+
+      - name: Determine Encore-Go version
+        id: encorego
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            ENCOREGO_VERSION="encore-go1.23.0"
+            echo "encorego_version=$ENCOREGO_VERSION" >> $GITHUB_OUTPUT
+            echo "Using default Encore-Go version: $ENCOREGO_VERSION"
+          else
+            ENCOREGO_VERSION="${{ github.event.inputs.encorego_version }}"
+            echo "encorego_version=$ENCOREGO_VERSION" >> $GITHUB_OUTPUT
+            echo "Using Encore-Go version from input: $ENCOREGO_VERSION"
+          fi
+        shell: bash
+
+      - name: Build
+        run: task build:${{ matrix.platform }}
+        shell: bash
+        env:
+          VERSION: "${{ steps.version.outputs.version }}"
+          ENCORE_GO_VERSION: "${{ steps.encorego.outputs.encorego_version }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: encore-${{ matrix.platform }}
+          path: |
+            dist/encore-${{ matrix.platform }}/
+            dist/encore-*.tar.gz
+            dist/encore-*.zip
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'  # Only create releases for tags
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: encore-*
+          merge-multiple: true
+
+      - name: Find and organize release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Find the existing archives created by the Taskfile
+          # The Taskfile creates: encore-{version}-{platform}.{ext}
+          find artifacts -name "encore-${{ steps.version.outputs.version }}-*.tar.gz" -exec cp {} release-assets/ \;
+          find artifacts -name "encore-${{ steps.version.outputs.version }}-*.zip" -exec cp {} release-assets/ \;
+          
+          # List what we found for debugging
+          echo "Found release assets:"
+          ls -la release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Encore ${{ steps.version.outputs.version }}
+          body: |
+            ## Encore ${{ steps.version.outputs.version }}
+            
+            ### Installation
+            ```bash
+            # Install Encore CLI
+            curl -L https://github.com/encoredev/encore/releases/download/v${{ steps.version.outputs.version }}/install.sh | bash
+            ```
+            
+            ### Downloads
+            - **Linux AMD64**: `encore-${{ steps.version.outputs.version }}-linux_amd64.tar.gz`
+            - **Linux ARM64**: `encore-${{ steps.version.outputs.version }}-linux_arm64.tar.gz`
+            - **macOS AMD64**: `encore-${{ steps.version.outputs.version }}-darwin_amd64.tar.gz`
+            - **macOS ARM64**: `encore-${{ steps.version.outputs.version }}-darwin_arm64.tar.gz`
+            - **Windows**: `encore-${{ steps.version.outputs.version }}-windows_amd64.zip`
+            
+            ### Changelog
+            TODO: Add changelog entries
+          files: |
+            release-assets/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
