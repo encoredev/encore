@@ -26,18 +26,30 @@ export class Decimal {
       : new runtime.Decimal(String(value));
   }
 
+  /**
+   * Adds this decimal to another decimal value.
+   */
   add(d: Decimal | ToDecimal): Decimal {
     return Decimal.fromImpl(this.impl.add(this.toImpl(d)));
   }
 
+  /**
+   * Subtracts another decimal value from this decimal.
+   */
   sub(d: Decimal | ToDecimal): Decimal {
     return Decimal.fromImpl(this.impl.sub(this.toImpl(d)));
   }
 
+  /**
+   * Multiplies this decimal by another decimal value.
+   */
   mul(d: Decimal | ToDecimal): Decimal {
     return Decimal.fromImpl(this.impl.mul(this.toImpl(d)));
   }
 
+  /**
+   * Divides this decimal by another decimal value.
+   */
   div(d: Decimal | ToDecimal): Decimal {
     return Decimal.fromImpl(this.impl.div(this.toImpl(d)));
   }
