@@ -332,6 +332,13 @@ message BucketCluster {
     // as opposed to resolving using AWS's default credential chain.
     optional string access_key_id = 3;
     optional SecretData secret_access_key = 4;
+
+    // If true, use path-style bucket addressing instead of virtual-hosted-style.
+    // When enabled, the bucket name will be placed in the request path
+    // (https://endpoint/bucket/key) instead of as a subdomain
+    // (https://bucket.endpoint/key). This is useful for S3-compatible providers
+    // like MinIO or local testing endpoints.
+    bool force_path_style = 5;
   }
 
   message GCS {
