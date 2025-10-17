@@ -4,7 +4,7 @@ use super::{memory_usage_gauge_schema, Registry};
 use std::sync::Mutex;
 use sysinfo::System;
 
-/// Collector for system metrics (CPU and memory usage)
+/// Collector for system metrics
 #[derive(Debug)]
 pub struct SystemMetricsCollector {
     system: Mutex<System>,

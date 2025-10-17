@@ -90,13 +90,13 @@ where
     pub fn with<L, K, V>(&self, dynamic_labels: L) -> Gauge<T>
     where
         L: IntoIterator<Item = (K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
+        K: Into<String>,
+        V: Into<String>,
     {
         // Convert dynamic_labels to HashMap first
         let dynamic_labels_map: HashMap<String, String> = dynamic_labels
             .into_iter()
-            .map(|(k, v)| (k.as_ref().to_string(), v.as_ref().to_string()))
+            .map(|(k, v)| (k.into(), v.into()))
             .collect();
 
         // Validate required keys are present
@@ -130,6 +130,80 @@ where
         self.registry.get_or_create_gauge(
             &self.name,
             merged_labels.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+        )
+    }
+}
+
+/// Builder for creating gauge schemas with static labels and required dynamic keys
+pub struct GaugeSchemaBuilder<T> {
+    name: String,
+    static_labels: Vec<(String, String)>,
+    required_dynamic_keys: HashSet<String>,
+    registry: Arc<metrics::Registry>,
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T> GaugeSchemaBuilder<T>
+where
+    Arc<AtomicU64>: GaugeOps<T>,
+    T: Send + Sync + 'static,
+{
+    pub(crate) fn new(name: String, registry: Arc<metrics::Registry>) -> Self {
+        Self {
+            name,
+            static_labels: Vec::new(),
+            required_dynamic_keys: HashSet::new(),
+            registry,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Add static labels that are set once when the schema is created
+    pub fn static_labels<I, K, V>(mut self, labels: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        for (key, value) in labels {
+            self.static_labels
+                .push((key.as_ref().to_string(), value.as_ref().to_string()));
+        }
+        self
+    }
+
+    /// Add a single static label
+    pub fn static_label(mut self, key: &str, value: &str) -> Self {
+        self.static_labels
+            .push((key.to_string(), value.to_string()));
+        self
+    }
+
+    /// Specify required dynamic label keys that must be provided at set/add/sub time
+    pub fn require_dynamic_keys<I, K>(mut self, keys: I) -> Self
+    where
+        I: IntoIterator<Item = K>,
+        K: AsRef<str>,
+    {
+        for key in keys {
+            self.required_dynamic_keys.insert(key.as_ref().to_string());
+        }
+        self
+    }
+
+    /// Add a single required dynamic key
+    pub fn require_dynamic_key(mut self, key: &str) -> Self {
+        self.required_dynamic_keys.insert(key.to_string());
+        self
+    }
+
+    /// Build the gauge schema
+    pub fn build(self) -> Schema<T> {
+        Schema::new(
+            self.name,
+            self.static_labels,
+            self.required_dynamic_keys,
+            self.registry,
         )
     }
 }

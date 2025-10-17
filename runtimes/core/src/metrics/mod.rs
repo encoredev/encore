@@ -16,7 +16,7 @@ pub use manager::Manager;
 pub use registry::{CollectedMetric, MetricValue, Registry};
 pub use system::SystemMetricsCollector;
 
-/// Create a requests counter schema with service and endpoint static labels, requiring code as dynamic label
+/// Create a requests counter schema
 pub fn requests_total_counter(
     registry: &Registry,
     service: &str,
@@ -29,7 +29,7 @@ pub fn requests_total_counter(
         .build()
 }
 
-/// Create a memory usage gauge schema requiring type label as dynamic
+/// Create a memory usage gauge schema
 pub fn memory_usage_gauge_schema(registry: &Registry) -> gauge::Schema<u64> {
     registry
         .gauge_schema::<u64>("e_sys_memory_used_bytes")

@@ -96,7 +96,6 @@ impl Manager {
         }
     }
 
-    /// Get direct access to the registry
     pub fn registry(&self) -> &Registry {
         &self.registry
     }

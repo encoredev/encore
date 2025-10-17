@@ -687,7 +687,7 @@ impl EndpointHandler {
                     }),
                 };
                 self.shared.tracer.request_span_end(&model_resp, sensitive);
-                self.requests_total.with([("code", &code)]).increment();
+                self.requests_total.with([("code", code)]).increment();
             }
 
             if let Ok(val) = HeaderValue::from_str(request.span.0.serialize_encore().as_str()) {

@@ -82,14 +82,12 @@ impl Gcp {
             self.project_id
         );
 
-        // Convert our metrics to Google Cloud TimeSeries format
         let time_series = self.get_metric_data(metrics);
 
         // Send metrics in batches (Google Cloud allows up to 200 time series per request)
         for batch in time_series.chunks(200) {
             if let Err(e) = self.send_time_series_batch(client, batch.to_vec()).await {
                 log::error!("Failed to export metrics batch: {}", e);
-                // Continue with remaining batches even if one fails
             }
         }
 
