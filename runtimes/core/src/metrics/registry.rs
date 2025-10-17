@@ -1,18 +1,15 @@
-use crate::metrics::counter::CounterOps;
-use crate::metrics::gauge::GaugeOps;
-use crate::metrics::{counter, gauge};
+use crate::metrics::counter::{CounterOps, CounterSchemaBuilder};
+use crate::metrics::gauge::{GaugeOps, GaugeSchemaBuilder};
 
 use super::system::SystemMetricsCollector;
 use super::{Counter, Gauge};
 use dashmap::DashMap;
 use malachite::base::num::basic::traits::One;
 use metrics::{Key, Label};
-use std::collections::HashSet;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-/// Storage for a metric with its atomic value and getter closure
 struct MetricStorage {
     atomic: Arc<AtomicU64>,
     getter: Box<dyn Fn() -> MetricValue + Send + Sync>,
@@ -26,6 +23,25 @@ impl std::fmt::Debug for MetricStorage {
             .field("registered_at", &self.registered_at)
             .finish()
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MetricValue {
+    // Counter variants
+    CounterU64(u64),
+    CounterI64(i64),
+
+    // Gauge variants
+    GaugeU64(u64),
+    GaugeI64(i64),
+    GaugeF64(f64),
+}
+
+#[derive(Debug, Clone)]
+pub struct CollectedMetric {
+    pub key: Key,
+    pub value: MetricValue,
+    pub registered_at: SystemTime,
 }
 
 #[derive(Debug, Clone)]
@@ -162,172 +178,5 @@ impl Registry {
 impl Default for Registry {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum MetricValue {
-    // Counter variants
-    CounterU64(u64),
-    CounterI64(i64),
-
-    // Gauge variants
-    GaugeU64(u64),
-    GaugeI64(i64),
-    GaugeF64(f64),
-}
-
-#[derive(Debug, Clone)]
-pub struct CollectedMetric {
-    pub key: Key,
-    pub value: MetricValue,
-    pub registered_at: SystemTime,
-}
-
-/// Builder for creating counter schemas with static labels and required dynamic keys
-pub struct CounterSchemaBuilder<T> {
-    name: String,
-    static_labels: Vec<(String, String)>,
-    required_dynamic_keys: HashSet<String>,
-    registry: Arc<Registry>,
-    _phantom: std::marker::PhantomData<T>,
-}
-
-impl<T> CounterSchemaBuilder<T>
-where
-    Arc<AtomicU64>: CounterOps<T>,
-    T: One + Send + Sync + 'static,
-{
-    pub(crate) fn new(name: String, registry: Arc<Registry>) -> Self {
-        Self {
-            name,
-            static_labels: Vec::new(),
-            required_dynamic_keys: HashSet::new(),
-            registry,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Add static labels that are set once when the schema is created
-    pub fn static_labels<I, K, V>(mut self, labels: I) -> Self
-    where
-        I: IntoIterator<Item = (K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        for (key, value) in labels {
-            self.static_labels
-                .push((key.as_ref().to_string(), value.as_ref().to_string()));
-        }
-        self
-    }
-
-    /// Add a single static label
-    pub fn static_label(mut self, key: &str, value: &str) -> Self {
-        self.static_labels
-            .push((key.to_string(), value.to_string()));
-        self
-    }
-
-    /// Specify required dynamic label keys that must be provided at increment time
-    pub fn require_dynamic_keys<I, K>(mut self, keys: I) -> Self
-    where
-        I: IntoIterator<Item = K>,
-        K: AsRef<str>,
-    {
-        for key in keys {
-            self.required_dynamic_keys.insert(key.as_ref().to_string());
-        }
-        self
-    }
-
-    /// Add a single required dynamic key
-    pub fn require_dynamic_key(mut self, key: &str) -> Self {
-        self.required_dynamic_keys.insert(key.to_string());
-        self
-    }
-
-    /// Build the counter schema
-    pub fn build(self) -> counter::Schema<T> {
-        counter::Schema::new(
-            self.name,
-            self.static_labels,
-            self.required_dynamic_keys,
-            self.registry,
-        )
-    }
-}
-
-/// Builder for creating gauge schemas with static labels and required dynamic keys
-pub struct GaugeSchemaBuilder<T> {
-    name: String,
-    static_labels: Vec<(String, String)>,
-    required_dynamic_keys: HashSet<String>,
-    registry: Arc<Registry>,
-    _phantom: std::marker::PhantomData<T>,
-}
-
-impl<T> GaugeSchemaBuilder<T>
-where
-    Arc<AtomicU64>: GaugeOps<T>,
-    T: Send + Sync + 'static,
-{
-    pub(crate) fn new(name: String, registry: Arc<Registry>) -> Self {
-        Self {
-            name,
-            static_labels: Vec::new(),
-            required_dynamic_keys: HashSet::new(),
-            registry,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Add static labels that are set once when the schema is created
-    pub fn static_labels<I, K, V>(mut self, labels: I) -> Self
-    where
-        I: IntoIterator<Item = (K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        for (key, value) in labels {
-            self.static_labels
-                .push((key.as_ref().to_string(), value.as_ref().to_string()));
-        }
-        self
-    }
-
-    /// Add a single static label
-    pub fn static_label(mut self, key: &str, value: &str) -> Self {
-        self.static_labels
-            .push((key.to_string(), value.to_string()));
-        self
-    }
-
-    /// Specify required dynamic label keys that must be provided at set/add/sub time
-    pub fn require_dynamic_keys<I, K>(mut self, keys: I) -> Self
-    where
-        I: IntoIterator<Item = K>,
-        K: AsRef<str>,
-    {
-        for key in keys {
-            self.required_dynamic_keys.insert(key.as_ref().to_string());
-        }
-        self
-    }
-
-    /// Add a single required dynamic key
-    pub fn require_dynamic_key(mut self, key: &str) -> Self {
-        self.required_dynamic_keys.insert(key.to_string());
-        self
-    }
-
-    /// Build the gauge schema
-    pub fn build(self) -> gauge::Schema<T> {
-        gauge::Schema::new(
-            self.name,
-            self.static_labels,
-            self.required_dynamic_keys,
-            self.registry,
-        )
     }
 }

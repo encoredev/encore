@@ -171,7 +171,7 @@ impl AuthHandler for LocalAuthHandler {
                     };
                     self.tracer.request_span_end(&model_resp, false);
                     self.requests_total
-                        .with([("code", &e.code.to_string())])
+                        .with([("code", e.code.to_string())])
                         .increment();
                     Err(e)
                 }
