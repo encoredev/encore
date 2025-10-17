@@ -341,7 +341,12 @@ impl Runtime {
             .collect::<Result<HashMap<_, _>, anyhow::Error>>()
             .context("failed to resolve gateway push subscriptions")?;
 
-        let pubsub = pubsub::Manager::new(tracer.clone(), resources.pubsub_clusters, &md, Arc::new(metrics_manager.registry().clone()))?;
+        let pubsub = pubsub::Manager::new(
+            tracer.clone(),
+            resources.pubsub_clusters,
+            &md,
+            Arc::new(metrics_manager.registry().clone()),
+        )?;
         let objects =
             objects::Manager::new(&secrets, tracer.clone(), resources.bucket_clusters, &md);
         let sqldb = sqldb::ManagerConfig {
