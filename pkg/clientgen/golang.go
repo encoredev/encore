@@ -740,10 +740,19 @@ func (g *golang) rpcCallSite(rpc *meta.RPC) (code []Code, err error) {
 
 		enc := g.enc.NewPossibleInstance("respDecoder")
 		for _, field := range respEnc.HeaderParameters {
+			var getValue Code
+			if strings.ToLower(field.WireFormat) == "set-cookie" && field.Type.GetList() != nil {
+				// For Set-Cookie arrays, use Values() to get all cookies
+				getValue = Id(headersId).Dot("Values").Call(Lit(field.WireFormat))
+			} else {
+				// For other headers, use the standard approach
+				getValue = Id(headersId).Dot("Get").Call(Lit(field.WireFormat))
+			}
+
 			str, err := enc.FromString(
 				field.Type,
 				field.SrcName,
-				Id(headersId).Dot("Get").Call(Lit(field.WireFormat)),
+				getValue,
 				Id(headersId).Dot("Values").Call(Lit(field.WireFormat)),
 				true,
 			)

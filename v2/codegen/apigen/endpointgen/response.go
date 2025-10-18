@@ -92,15 +92,13 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.Line().Comment("Encode headers")
 				g.Id("headers").Op("=").Map(String()).Index().String().Values(DictFunc(func(dict Dict) {
 					for _, f := range resp.HeaderParameters {
-						if builtin, ok := f.Type.(schema.BuiltinType); ok {
-							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(f.SrcName))
-							dict[Lit(f.WireName)] = Index().String().Values(encExpr)
-						} else {
-							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
+						if unprocessedType := processHeaderField(f, dict); unprocessedType != nil {
+							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(unprocessedType))
 						}
 					}
 				}))
 			}
+
 		})
 
 		// If response is a ptr we need to check it's not nil
@@ -147,6 +145,30 @@ func (d *responseDesc) EncodeResponse() *Statement {
 		g.Id("w").Dot("Write").Call(Id("respData"))
 		g.Return(Nil())
 	})
+}
+
+// processHeaderField processes a single header field.
+// Returns the unsupported schema. Type if processing fails, nil if successful.
+func processHeaderField(f *apienc.ParameterEncoding, headersMap Dict) schema.Type {
+	kind, isList, ok := schemautil.IsBuiltinOrList(f.Type)
+	if !ok {
+		return f.Type
+	}
+
+	// Handling for Set-Cookie arrays
+	if f.WireName == "set-cookie" && isList && kind == schema.String {
+		headersMap[Lit(f.WireName)] = genutil.MarshalBuiltinList(kind, Id("resp").Dot(f.SrcName))
+		return nil
+	}
+
+	var encExpr Code
+	if isList {
+		encExpr = genutil.MarshalBuiltinList(kind, Id("resp").Dot(f.SrcName))
+	} else {
+		encExpr = genutil.MarshalBuiltin(kind, Id("resp").Dot(f.SrcName))
+	}
+	headersMap[Lit(f.WireName)] = Index().String().Values(encExpr)
+	return nil
 }
 
 func (d *responseDesc) DecodeExternalResp() *Statement {

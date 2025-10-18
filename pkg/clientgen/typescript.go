@@ -761,6 +761,8 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 
 	for _, headerField := range respEnc.HeaderParameters {
 		isSetCookie := strings.ToLower(headerField.WireFormat) == "set-cookie"
+		isSetCookieArray := isSetCookie && headerField.Type.GetList() != nil
+
 		if isSetCookie {
 			w.WriteString("// Skip set-cookie header in browser context as browsers doesn't have access to read it\n")
 			w.WriteString("if (!BROWSER) {\n")
@@ -768,9 +770,16 @@ func (ts *typescript) rpcCallSite(ns string, w *indentWriter, rpc *meta.RPC, rpc
 		}
 
 		ts.seenHeaderResponse = true
-		fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
 
-		w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+		if isSetCookieArray {
+			// Handle multiple Set-Cookie headers
+			fieldValue := fmt.Sprintf("resp.headers.getAll(\"%s\")", headerField.WireFormat)
+			w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), fieldValue)
+		} else {
+			// Handle single value headers (including single Set-Cookie)
+			fieldValue := fmt.Sprintf("mustBeSet(\"Header `%s`\", resp.headers.get(\"%s\"))", headerField.WireFormat, headerField.WireFormat)
+			w.WriteStringf("%s = %s\n", ts.Dot("rtn", headerField.SrcName), ts.convertStringToBuiltin(headerField.Type.GetBuiltin(), fieldValue))
+		}
 
 		if isSetCookie {
 			w = w.Dedent()
