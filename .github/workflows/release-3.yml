@@ -1,27 +1,26 @@
-name: Release
+name: Release 3
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to build ("1.2.3")'
         required: true
-      encorego_version:
-        description: 'Encore-Go version to use ("encore-go1.23.0")'
-        required: true
+
 
 jobs:
   build:
     strategy:
       matrix:
         include:
-          - { platform: linux-amd64, os: ubuntu-24.04 }
-          - { platform: linux-arm64, os: ubuntu-24.04 }
-          - { platform: windows-amd64, os: windows-latest }
-          - { platform: darwin-arm64, os: macos-11 }
+          - { platform: linux, os: ubuntu-24.04, arch: amd64 }
+          - { platform: linux, os: ubuntu-24.04, arch: arm64 }
+          - { platform: windows, os: windows-latest, arch: amd64 }
+          - { platform: darwin, os: ubuntu-24.04, arch: amd64 }
+          - { platform: darwin, os: ubuntu-24.04, arch: arm64 }
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -34,7 +33,41 @@ jobs:
       - name: Install tools
         run: mise install
 
+      - name: Setup macOS SDKs for cross-compilation
+        if: matrix.platform == 'darwin'
+        run: |
+          echo "Setting up macOS SDKs for cross-compilation on Ubuntu..."
+          
+          # Create resources directory
+          mkdir -p resources/sdks
+          
+          # Install dependencies for SDK extraction
+          sudo apt-get update
+          sudo apt-get install -y bzip2 xz-utils
+          
+          # Download and extract appropriate SDK based on architecture
+          if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+            echo "Downloading macOS 10.15 SDK for AMD64 builds..."
+            curl -L "https://github.com/alexey-lysiuk/macos-sdk/releases/download/10.15/MacOSX10.15.tar.bz2" | tar -C resources/sdks -xjf -
+            SDK_FULL_PATH="${GITHUB_WORKSPACE}/resources/sdks/MacOSX10.15.sdk"
+            echo "Using macOS 10.15 SDK for AMD64 cross-compilation"
+          else
+            echo "Downloading macOS 11.3 SDK for ARM64 builds..."
+            curl -L "https://github.com/alexey-lysiuk/macos-sdk/releases/download/11.3/MacOSX11.3.tar.bz2" | tar -C resources/sdks -xjf -
+            SDK_FULL_PATH="${GITHUB_WORKSPACE}/resources/sdks/MacOSX11.3.sdk"
+            echo "Using macOS 11.3 SDK for ARM64 cross-compilation"
+          fi
+          
+          # Set MACOS_SDK_PATH to full absolute path
+          echo "MACOS_SDK_PATH=${SDK_FULL_PATH}" >> $GITHUB_ENV
+          echo "SDKROOT=${SDK_FULL_PATH}" >> $GITHUB_ENV
+          echo "SDK path: ${SDK_FULL_PATH}"
+          
+          # Verify SDK installation
+          ls -la ${SDK_FULL_PATH}/
+
       - name: Extract version from tag
+        shell: bash
         id: version
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
@@ -47,43 +80,64 @@ jobs:
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "Using version from input: $VERSION"
           fi
-        shell: bash
 
-      - name: Determine Encore-Go version
-        id: encorego
-        run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            ENCOREGO_VERSION="encore-go1.23.0"
-            echo "encorego_version=$ENCOREGO_VERSION" >> $GITHUB_OUTPUT
-            echo "Using default Encore-Go version: $ENCOREGO_VERSION"
-          else
-            ENCOREGO_VERSION="${{ github.event.inputs.encorego_version }}"
-            echo "encorego_version=$ENCOREGO_VERSION" >> $GITHUB_OUTPUT
-            echo "Using Encore-Go version from input: $ENCOREGO_VERSION"
-          fi
+      - name: Download Encore-Go
         shell: bash
+        run: |
+          echo "Downloading latest Encore-Go fork for ${{ matrix.platform }}_${{ matrix.arch }}"
+
+          # Create encore-go directory and download the fork
+          mkdir -p encore-go
+
+          # Determine the asset name based on platform and architecture
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            if [ "${{ matrix.arch }}" = "amd64" ]; then
+              ASSET="linux_x86-64.tar.gz"
+            else
+              ASSET="linux_arm64.tar.gz"
+            fi
+          elif [ "${{ matrix.platform }}" = "windows" ]; then
+            ASSET="windows_x86-64.tar.gz"
+          elif [ "${{ matrix.platform }}" = "darwin" ]; then
+            if [ "${{ matrix.arch }}" = "amd64" ]; then
+              ASSET="macos_x86-64.tar.gz"
+            else
+              ASSET="macos_arm64.tar.gz"
+            fi
+          fi
+
+          # Download and extract the latest Go fork
+          curl -L "https://github.com/TheGB0077/encore-go/releases/latest/download/${ASSET}" | tar -C encore-go -xzf -
+
+          echo "Go fork downloaded to encore-go/"
+          ls -la encore-go/
 
       - name: Build
-        run: task build:${{ matrix.platform }}
+        run: task ${{ matrix.platform }}:build:${{ matrix.arch }}
         shell: bash
         env:
           VERSION: "${{ steps.version.outputs.version }}"
-          ENCORE_GO_VERSION: "${{ steps.encorego.outputs.encorego_version }}"
+
+      - name: Create archives
+        shell: bash
+        run: |
+          cd dist/encore-${{ matrix.platform }}-${{ matrix.arch }}
+          
+          # Create tar.gz with version in name for all platforms
+          tar -czf ../../encore-${{ steps.version.outputs.version }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz .
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: encore-${{ matrix.platform }}
+          name: encore-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            dist/encore-${{ matrix.platform }}/
-            dist/encore-*.tar.gz
-            dist/encore-*.zip
+            encore-${{ steps.version.outputs.version }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
           retention-days: 30
 
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag'  # Only create releases for tags
+    if: github.ref_type == 'tag' # Only create releases for tags
     steps:
       - name: Extract version from tag
         id: version
@@ -100,17 +154,20 @@ jobs:
           pattern: encore-*
           merge-multiple: true
 
-      - name: Find and organize release assets
+      - name: Organize release assets
         run: |
           mkdir -p release-assets
           
-          # Find the existing archives created by the Taskfile
-          # The Taskfile creates: encore-{version}-{platform}.{ext}
-          find artifacts -name "encore-${{ steps.version.outputs.version }}-*.tar.gz" -exec cp {} release-assets/ \;
-          find artifacts -name "encore-${{ steps.version.outputs.version }}-*.zip" -exec cp {} release-assets/ \;
+          # Move archives to release-assets (already correctly named)
+          mv artifacts/encore-${{ steps.version.outputs.version }}-*.tar.gz release-assets/ 2>/dev/null || true
+          mv artifacts/encore-${{ steps.version.outputs.version }}-*.zip release-assets/ 2>/dev/null || true
           
-          # List what we found for debugging
-          echo "Found release assets:"
+          # Create checksums
+          cd release-assets
+          sha256sum * > checksums.txt
+          cd ..
+          
+          echo "Release assets ready:"
           ls -la release-assets/
 
       - name: Create GitHub Release
@@ -120,20 +177,20 @@ jobs:
           name: Encore ${{ steps.version.outputs.version }}
           body: |
             ## Encore ${{ steps.version.outputs.version }}
-            
+
             ### Installation
             ```bash
             # Install Encore CLI
             curl -L https://github.com/encoredev/encore/releases/download/v${{ steps.version.outputs.version }}/install.sh | bash
             ```
-            
+
             ### Downloads
-            - **Linux AMD64**: `encore-${{ steps.version.outputs.version }}-linux_amd64.tar.gz`
-            - **Linux ARM64**: `encore-${{ steps.version.outputs.version }}-linux_arm64.tar.gz`
-            - **macOS AMD64**: `encore-${{ steps.version.outputs.version }}-darwin_amd64.tar.gz`
-            - **macOS ARM64**: `encore-${{ steps.version.outputs.version }}-darwin_arm64.tar.gz`
-            - **Windows**: `encore-${{ steps.version.outputs.version }}-windows_amd64.zip`
-            
+            - **Linux AMD64**: `encore-${{ steps.version.outputs.version }}-linux-amd64.tar.gz`
+            - **Linux ARM64**: `encore-${{ steps.version.outputs.version }}-linux-arm64.tar.gz`
+            - **macOS AMD64**: `encore-${{ steps.version.outputs.version }}-darwin-amd64.tar.gz`
+            - **macOS ARM64**: `encore-${{ steps.version.outputs.version }}-darwin-arm64.tar.gz`
+            - **Windows**: `encore-${{ steps.version.outputs.version }}-windows-amd64.tar.gz`
+
             ### Changelog
             TODO: Add changelog entries
           files: |

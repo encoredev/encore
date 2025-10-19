@@ -13,6 +13,7 @@ vars:
   ENCORE_GO_VERSION: '{{.ENCORE_GO_VERSION | default "encore-go1.23.0"}}'
   ZIG_PATH:
     sh: mise which zig
+  MACOS_SDK_PATH: '{{.MACOS_SDK_PATH | default ""}}'
 
 tasks:
   default:
@@ -35,11 +36,6 @@ tasks:
     cmds:
       - task: "{{OS}}:build:cli"
 
-  package:
-    summary: Packages Encore for current platform
-    cmds:
-      - task: "{{OS}}:package"
-
   test:
     summary: Runs all tests
     cmds:
@@ -54,7 +50,7 @@ tasks:
     summary: Cleans build artifacts
     cmds:
       - rm -rf {{.BIN_DIR}}
-      - rm -rf runtimes
+      - rm -rf encore-go
       - rm -f *.tar.gz *.zip
 
   clean:all:
@@ -63,7 +59,6 @@ tasks:
       - task: clean
     cmds:
       - go clean -cache
-      - cargo clean
 
   version:
     summary: Shows current version
@@ -96,10 +91,8 @@ tasks:
     summary: Runs linters
     cmds:
       - task: common:lint:go
-      - task: common:lint:rust
 
   fmt:
     summary: Formats code
     cmds:
       - task: common:fmt:go
-      - task: common:fmt:rust

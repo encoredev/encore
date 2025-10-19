@@ -1,26 +1,33 @@
-version: '3'
+version: "3"
 
 includes:
   common: ../Taskfile.yml
 
 tasks:
-  # Main Windows build
   build:
-    summary: Builds Encore for Windows
+    summary: Builds all Windows binaries
     deps:
-      - task: common:go:mod:tidy
-      - task: download:runtimes
-      - task: build:tsparser
-      - task: build:js:runtimes
+      - task: setup
     cmds:
       - task: build:amd64
-      - task: build:components
 
   # Windows CLI build
   build:amd64:
     summary: Builds Encore for Windows AMD64
+    deps:
+      - task: build:components
+        vars:
+          ARCH: amd64
     cmds:
-      - CGO_ENABLED=1 CC="{{.ZIG_PATH}} cc -target x86_64-windows-gnu -fno-stack-protector" CXX="{{.ZIG_PATH}} c++ -target x86_64-windows-gnu -fno-stack-protector" go build -ldflags="-s -w -X encr.dev/internal/version.Version={{.VERSION}} -H=windowsgui" -trimpath -tags=netgo -o {{.BIN_DIR}}/encore-windows-amd64.exe ./cli/cmd/encore
+      - mkdir -p {{.BIN_DIR}}/encore-windows-amd64/bin
+      - CGO_ENABLED=1 CC="{{.ZIG_PATH}} cc -target x86_64-windows-gnu -fno-stack-protector" CXX="{{.ZIG_PATH}} c++ -target x86_64-windows-gnu -fno-stack-protector" go build -ldflags="-s -w -X encr.dev/internal/version.Version={{.VERSION}} -H=windowsgui" -trimpath -tags=netgo -o {{.BIN_DIR}}/encore-windows-amd64/bin/encore.exe ./cli/cmd/encore
+      - mv {{.BIN_DIR}}/git-remote-encore-windows-amd64.exe {{.BIN_DIR}}/encore-windows-amd64/bin/git-remote-encore.exe 2>/dev/null || true
+      - mv {{.BIN_DIR}}/tsbundler-encore-windows-amd64.exe {{.BIN_DIR}}/encore-windows-amd64/bin/tsbundler-encore.exe 2>/dev/null || true
+      - cp -r encore-go/* {{.BIN_DIR}}/encore-windows-amd64/encore-go/ 2>/dev/null || true
+      - mkdir -p {{.BIN_DIR}}/encore-windows-amd64/runtimes/
+      - cp -r runtimes/* {{.BIN_DIR}}/encore-windows-amd64/runtimes/ 2>/dev/null || true
+      - cp LICENSE* {{.BIN_DIR}}/encore-windows-amd64/ 2>/dev/null || true
+      - cp README* {{.BIN_DIR}}/encore-windows-amd64/ 2>/dev/null || true
     env:
       GOOS: windows
       GOARCH: amd64
@@ -35,19 +42,14 @@ tasks:
   # TS parser for Windows
   build:tsparser:
     summary: Builds TS parser for Windows
-    deps:
-      - task: common:setup
     cmds:
       - task: common:build:rust:tsparser
         vars:
           TARGET: x86_64-pc-windows-gnu
 
-
   # JS runtime for Windows
   build:js:runtimes:
     summary: Builds JS runtime for Windows
-    deps:
-      - task: common:setup
     cmds:
       - task: common:build:js:runtime
         vars:
@@ -56,8 +58,6 @@ tasks:
           TARGET: x86_64-pc-windows-gnu
           OUTPUT_DIR: "{{.BIN_DIR}}"
 
-
-  # Windows runtime downloads
   download:runtimes:
     summary: Downloads Windows runtimes
     internal: true
@@ -66,7 +66,10 @@ tasks:
         if [ ! -d "runtimes/windows_amd64/encore-go" ]; then
           echo "Downloading encore-go for windows_amd64"
           mkdir -p runtimes/windows_amd64
-          curl --fail -L "https://github.com/encoredev/go/releases/download/{{.ENCORE_GO_VERSION}}/windows_x86-64.tar.gz" | tar -C runtimes/windows_amd64 -xzf -
+          curl --fail -L "https://github.com/encoredev/go/releases/download/{{.ENCORE_GO_VERSION}}/windows_x86-64.tar.gz" -o temp-windows.tar.gz
+          gzip -d temp-windows.tar.gz
+          tar -xf temp-windows.tar -C runtimes/windows_amd64
+          rm temp-windows.tar
         else
           echo "encore-go already exists for windows_amd64"
         fi
