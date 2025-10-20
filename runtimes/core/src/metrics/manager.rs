@@ -13,8 +13,8 @@ use std::time::Duration;
 enum ProviderType {
     Gcp(pb::metrics_provider::GcpCloudMonitoring),
     EncoreCloud(pb::metrics_provider::GcpCloudMonitoring),
+    Aws(pb::metrics_provider::AwsCloudWatch),
     // TODO(fredr) add these:
-    // - Aws(pb::metrics_provider::AwsCloudWatch),
     // - Prometheus(pb::metrics_provider::PrometheusRemoteWrite),
     // - Datadog(pb::metrics_provider::Datadog),
 }
@@ -26,6 +26,7 @@ impl ProviderType {
             Some(pb::metrics_provider::Provider::EncoreCloud(config)) => {
                 Some(Self::EncoreCloud(config.clone()))
             }
+            Some(pb::metrics_provider::Provider::Aws(config)) => Some(Self::Aws(config.clone())),
             _ => {
                 log::warn!("unsupported metrics provider: {:?}", provider.provider);
                 None
@@ -42,7 +43,20 @@ impl ProviderType {
             Self::Gcp(config) | Self::EncoreCloud(config) => {
                 Self::create_gcp_exporter(config, env, http_client)
             }
+            Self::Aws(config) => Self::create_aws_exporter(config, env, http_client),
         }
+    }
+
+    fn create_aws_exporter(
+        provider_cfg: &pb::metrics_provider::AwsCloudWatch,
+        env: &Environment,
+        http_client: &reqwest::Client,
+    ) -> Arc<dyn Exporter + Send + Sync> {
+        let container_meta_client = ContainerMetaClient::new(env.clone(), http_client.clone());
+        Arc::new(exporter::Aws::new(
+            provider_cfg.namespace.clone(),
+            container_meta_client,
+        ))
     }
 
     fn create_gcp_exporter(
