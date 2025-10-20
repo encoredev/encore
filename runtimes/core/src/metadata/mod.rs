@@ -1,9 +1,13 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
-use crate::encore::runtime::v1::{environment::Cloud, Environment};
+use crate::{
+    encore::runtime::v1::{environment::Cloud, Environment},
+    metadata::aws::AwsMetadataClient,
+};
 use anyhow::Context;
 use tokio::sync::OnceCell;
 
+mod aws;
 mod gce;
 
 #[derive(Debug)]
@@ -61,11 +65,36 @@ impl ContainerMetadata {
     pub async fn collect(env: &Environment, http_client: &reqwest::Client) -> anyhow::Result<Self> {
         match env.cloud() {
             Cloud::Gcp | Cloud::Encore => Self::collect_gcp(env, http_client).await,
-            Cloud::Aws | Cloud::Azure | Cloud::Unspecified | Cloud::Local => anyhow::bail!(
+            Cloud::Aws => Self::collect_aws(env, http_client).await,
+            Cloud::Azure | Cloud::Unspecified | Cloud::Local => anyhow::bail!(
                 "can't collect container meta in {}",
                 env.cloud().as_str_name()
             ),
         }
+    }
+
+    async fn collect_aws(env: &Environment, http_client: &reqwest::Client) -> anyhow::Result<Self> {
+        // Encore supports running on both ECS Fargate and EKS.
+        // For Fargate, we can get the metadata from the ECS metadata service.
+        // For EKS there doesn't appear to be a standard way to get the metadata, so skip it in that case.
+        let metadata_uri = std::env::var("ECS_CONTAINER_METADATA_URI_V4")
+            .map_err(|_| anyhow::anyhow!("unable to get ecs container metadata uri"))?;
+
+        let client = AwsMetadataClient::new(http_client.clone(), metadata_uri);
+        let task_meta = client.fetch_task_meta().await?;
+
+        let instance_id = task_meta
+            .task_arn
+            .get(task_meta.task_arn.len().saturating_sub(8)..)
+            .unwrap_or(&task_meta.task_arn)
+            .to_string();
+
+        Ok(Self {
+            service_id: task_meta.service_name,
+            revision_id: task_meta.revision,
+            instance_id,
+            env_name: env.env_name.clone(),
+        })
     }
 
     async fn collect_gcp(env: &Environment, http_client: &reqwest::Client) -> anyhow::Result<Self> {
@@ -112,8 +141,6 @@ impl ContainerMetadata {
             env_name: env.env_name.clone(),
         })
     }
-
-    // TODO(fredr): implement collect for aws
 }
 
 /// Process environment variable substitution in labels
