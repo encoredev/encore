@@ -1,6 +1,6 @@
 use crate::{
     encore::runtime::v1::{self as pb, Environment},
-    metadata::{process_env_substitution, ContainerMetadata},
+    metadata::{process_env_substitution, ContainerMetaClient},
     metrics::{
         exporter::{self, Exporter},
         registry::Registry,
@@ -37,37 +37,22 @@ impl ProviderType {
         &self,
         env: &Environment,
         http_client: &reqwest::Client,
-        runtime_handle: tokio::runtime::Handle,
     ) -> Arc<dyn Exporter + Send + Sync> {
         match self {
             Self::Gcp(config) | Self::EncoreCloud(config) => {
-                runtime_handle.block_on(Self::create_gcp_exporter(config, env, http_client))
+                Self::create_gcp_exporter(config, env, http_client)
             }
         }
     }
 
-    async fn create_gcp_exporter(
+    fn create_gcp_exporter(
         provider_cfg: &pb::metrics_provider::GcpCloudMonitoring,
         env: &Environment,
         http_client: &reqwest::Client,
     ) -> Arc<dyn Exporter + Send + Sync> {
-        let container_meta = ContainerMetadata::collect(env, http_client)
-            .await
-            .unwrap_or_else(|_| ContainerMetadata {
-                env_name: env.env_name.clone(),
-                ..Default::default()
-            });
+        let container_meta_client = ContainerMetaClient::new(env.clone(), http_client.clone());
 
         let mut labels = provider_cfg.monitored_resource_labels.clone();
-
-        // Add container instance ID to node_id if present
-        if let Some(node_id) = labels.get("node_id").cloned() {
-            labels.insert(
-                "node_id".to_string(),
-                format!("{}-{}", node_id, container_meta.instance_id),
-            );
-        }
-
         process_env_substitution(&mut labels);
 
         Arc::new(exporter::Gcp::new(
@@ -75,7 +60,7 @@ impl ProviderType {
             provider_cfg.monitored_resource_type.clone(),
             labels,
             provider_cfg.metric_names.clone(),
-            container_meta,
+            container_meta_client,
         ))
     }
 }
@@ -110,11 +95,7 @@ impl Manager {
 
         for metrics_provider in &observability.metrics {
             if let Some(provider_type) = ProviderType::from_config(metrics_provider) {
-                manager.exporter = Some(provider_type.create_exporter(
-                    environment,
-                    http_client,
-                    runtime_handle.clone(),
-                ));
+                manager.exporter = Some(provider_type.create_exporter(environment, http_client));
                 break; // Take the first valid provider
             }
         }

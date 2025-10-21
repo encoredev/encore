@@ -1,4 +1,4 @@
-use crate::metadata::ContainerMetadata;
+use crate::metadata::ContainerMetaClient;
 use crate::metrics::exporter::Exporter;
 use crate::metrics::{CollectedMetric, MetricValue};
 use anyhow::Context;
@@ -17,7 +17,7 @@ pub struct Gcp {
     monitored_resource_type: String,
     monitored_resource_labels: HashMap<String, String>,
     metric_names: HashMap<String, String>,
-    container_meta: ContainerMetadata,
+    container_meta_client: Arc<ContainerMetaClient>,
 }
 
 #[derive(Debug)]
@@ -51,7 +51,7 @@ impl Gcp {
         monitored_resource_type: String,
         monitored_resource_labels: HashMap<String, String>,
         metric_names: HashMap<String, String>,
-        container_meta: ContainerMetadata,
+        container_meta_client: ContainerMetaClient,
     ) -> Self {
         Self {
             client: Arc::new(LazyMonitoringClient::new()),
@@ -59,7 +59,7 @@ impl Gcp {
             monitored_resource_type,
             monitored_resource_labels,
             metric_names,
-            container_meta,
+            container_meta_client: Arc::new(container_meta_client),
         }
     }
 
@@ -82,7 +82,7 @@ impl Gcp {
             self.project_id
         );
 
-        let time_series = self.get_metric_data(metrics);
+        let time_series = self.get_metric_data(metrics).await;
 
         // Send metrics in batches (Google Cloud allows up to 200 time series per request)
         for batch in time_series.chunks(200) {
@@ -94,11 +94,13 @@ impl Gcp {
         Ok(())
     }
 
-    fn get_metric_data(&self, collected: Vec<CollectedMetric>) -> Vec<TimeSeries> {
+    async fn get_metric_data(&self, collected: Vec<CollectedMetric>) -> Vec<TimeSeries> {
         let end_time = SystemTime::now();
         let ts_end_time: google_cloud_wkt::Timestamp = end_time.try_into().unwrap_or_default();
 
         let mut data: Vec<TimeSeries> = Vec::with_capacity(collected.len());
+
+        let container_meta = self.container_meta_client.collect().await;
 
         for metric in collected {
             let cloud_metric_name = match self.metric_names.get(metric.key.name()) {
@@ -112,11 +114,11 @@ impl Gcp {
                 }
             };
 
-            let container_labels = self.container_meta.labels();
+            let container_labels = container_meta.labels();
             let container_labels_len = container_labels.len();
             let mut labels =
                 HashMap::with_capacity(container_labels_len + metric.key.labels().len());
-            labels.extend(container_labels);
+            labels.extend(container_labels.clone());
             labels.extend(
                 metric
                     .key
@@ -171,6 +173,18 @@ impl Gcp {
                 ),
             };
 
+            // Add container instance ID to node_id if present
+            let mut monitored_resource_labels = self.monitored_resource_labels.clone();
+            if let Some(node_id) = monitored_resource_labels.get("node_id") {
+                monitored_resource_labels.insert(
+                    "node_id".to_string(),
+                    format!("{}-{}", node_id, container_meta.instance_id),
+                );
+            }
+
+            let mut mr = MonitoredResource::new().set_type(&self.monitored_resource_type);
+            mr.labels = monitored_resource_labels;
+
             data.push(
                 TimeSeries::new()
                     .set_metric_kind(kind)
@@ -179,11 +193,7 @@ impl Gcp {
                             .set_type(format!("custom.googleapis.com/{}", cloud_metric_name))
                             .set_labels(labels),
                     )
-                    .set_resource(
-                        MonitoredResource::new()
-                            .set_type(&self.monitored_resource_type)
-                            .set_labels(&self.monitored_resource_labels),
-                    )
+                    .set_resource(mr)
                     .set_value_type(value_type)
                     .set_points(vec![Point::new()
                         .set_interval(interval)
