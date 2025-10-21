@@ -28,7 +28,7 @@ impl SystemMetricsCollector {
     }
 
     /// Collect and record all system metrics directly to the metrics registry
-    pub fn update(&self, registry: &Registry) {
+    pub fn update(&self, registry: &std::sync::Arc<Registry>) {
         let mut system = match self.system.try_lock() {
             Ok(guard) => guard,
             Err(_) => {

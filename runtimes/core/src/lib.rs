@@ -345,7 +345,7 @@ impl Runtime {
             tracer.clone(),
             resources.pubsub_clusters,
             &md,
-            Arc::new(metrics_manager.registry().clone()),
+            Arc::clone(metrics_manager.registry()),
         )?;
         let objects =
             objects::Manager::new(&secrets, tracer.clone(), resources.bucket_clusters, &md);

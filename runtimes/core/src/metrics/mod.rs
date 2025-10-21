@@ -10,6 +10,8 @@ pub mod gauge;
 #[cfg(test)]
 mod test;
 
+use std::sync::Arc;
+
 pub use counter::{Counter, CounterOps};
 pub use gauge::{Gauge, GaugeOps};
 pub use manager::Manager;
@@ -18,7 +20,7 @@ pub use system::SystemMetricsCollector;
 
 /// Create a requests counter schema
 pub fn requests_total_counter(
-    registry: &Registry,
+    registry: &Arc<Registry>,
     service: &str,
     endpoint: &str,
 ) -> counter::Schema<u64> {
@@ -30,7 +32,7 @@ pub fn requests_total_counter(
 }
 
 /// Create a memory usage gauge schema
-pub fn memory_usage_gauge_schema(registry: &Registry) -> gauge::Schema<u64> {
+pub fn memory_usage_gauge_schema(registry: &Arc<Registry>) -> gauge::Schema<u64> {
     registry
         .gauge_schema::<u64>("e_sys_memory_used_bytes")
         .build()
