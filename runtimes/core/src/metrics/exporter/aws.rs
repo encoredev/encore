@@ -1,4 +1,4 @@
-use crate::metadata::{ContainerMetaClient, ContainerMetadata};
+use crate::metadata::ContainerMetaClient;
 use crate::metrics::exporter::Exporter;
 use crate::metrics::{CollectedMetric, MetricValue};
 use anyhow::Context;
@@ -48,7 +48,7 @@ impl Aws {
         }
     }
 
-    async fn export_metrics(&self, metrics: Vec<CollectedMetric>) -> Result<(), anyhow::Error> {
+    async fn export_metrics(&self, metrics: Vec<CollectedMetric>) -> anyhow::Result<()> {
         if metrics.is_empty() {
             return Ok(());
         }
