@@ -17,11 +17,12 @@ To make it easy to follow along, we've laid out a trail of croissants to guide y
 Whenever you see a 🥐 it means there's something for you to do.
 
 ## 1. Install the Encore CLI
+
 To develop with Encore, you need the Encore CLI. It provisions your local environment, and runs your local development dashboard complete with tracing and API documentation.
 
 🥐 Install by running the appropriate command for your system:
 
-<InstallInstructions/>
+<InstallInstructions />
 
 ### Prerequisites
 
@@ -29,6 +30,7 @@ To develop with Encore, you need the Encore CLI. It provisions your local enviro
 - [Docker](https://www.docker.com) is required for Encore to set up local databases.
 
 ## 2. Create your app
+
 🥐 Create your app by running:
 
 ```shell
@@ -42,14 +44,16 @@ This is needed when you want Encore to manage functionality like secrets and han
 
 ### Optional: Add Encore LLM instructions
 
-To help LLM powered tools like Cursor and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+To help LLM powered tools like Cursor, Claude Code, and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
 
 🥐 Download the [ts_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/ts_llm_instructions.txt) file.
-  
-  **How to use:**
-  - Cursor: Rename the file to `.cursorrules`.
-  - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
-  - For other tools, place the file in your app root.
+
+**How to use:**
+
+- Cursor: Rename the file to `.cursorrules` and place in your app root.
+- Claude Code: Rename the file to `CLAUDE.md` and place in your app root.
+- GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
+- For other tools, place the file in your app root.
 
 ### Let's take a look at the code
 
@@ -61,14 +65,14 @@ Let's look at the code to better understand how to build applications with Encor
 You should see this:
 
 ```ts
--- hello/hello.ts --
+--hello / hello.ts--;
 import { api } from "encore.dev/api";
 
 export const world = api(
   { method: "GET", path: "/hello/:name", expose: true },
   async ({ name }: { name: string }): Promise<Response> => {
     return { message: `Hello ${name}!` };
-  },
+  }
 );
 
 interface Response {
@@ -83,7 +87,7 @@ You define an API endpoint by wrapping a regular async function in a call to `ap
 The `world` endpoint is part of the `hello` service because in the same folder you will also find a file named `encore.service.ts` which looks like this:
 
 ```ts
--- hello/encore.service.ts --
+--hello / encore.service.ts--;
 import { Service } from "encore.dev/service";
 
 export default new Service("hello");
@@ -105,7 +109,11 @@ $ encore run
 You should see this:
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/encorerun.mp4" className="w-full h-full" type="video/mp4"/>
+  <source
+    src="/assets/docs/encorerun.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 That means your local development environment is up and running!
@@ -118,7 +126,11 @@ You can now start using your [Local Development Dashboard](/docs/ts/observabilit
 🥐 Open [http://localhost:9400](http://localhost:9400) in your browser to access it.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/localdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
+  <source
+    src="/assets/docs/localdashvideo.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 The Local Development Dashboard is a powerful tool to help you move faster when you're developing new features.
@@ -133,7 +145,11 @@ a visual representation of your microservice architecture that updates in real-t
 
 🥐 While you keep the app running, call your API from the API Explorer:
 
-<img className="mx-auto w-full" src="/assets/docs/qs_call.png" title="Call API from Local Dashboard" />
+<img
+  className="mx-auto w-full"
+  src="/assets/docs/qs_call.png"
+  title="Call API from Local Dashboard"
+/>
 
 You can also open a separate terminal to call your API endpoint:
 
@@ -148,7 +164,11 @@ If you see this JSON response, you've successfully made an API call to your very
 
 You can now take a look at the trace for the request you just made by clicking on it in the right column in the local dashboard.
 
-<img className="mx-auto w-full" src="/assets/docs/qs_trace.png" title="Tracing in the Local Dashboard" />
+<img
+  className="mx-auto w-full"
+  src="/assets/docs/qs_trace.png"
+  title="Tracing in the Local Dashboard"
+/>
 
 With such a simple API, there's not much to it, just a simple request and response.
 
@@ -191,14 +211,16 @@ Now you're ready to head to the cloud!
 ### Generating Docker image
 
 You can either deploy by generating a Docker image for your app using:
+
 ```shell
 $ encore build docker MY-IMAGE:TAG
-````
+```
 
 This will compile your application using the host machine and then produce a Docker image containing the compiled application.
 You can now deploy this anywhere you like. Learn more in the [self-host docs](/docs/ts/self-host/build).
 
 ### Deploy using Encore Cloud
+
 Optionally, you can use [Encore Cloud](https://encore.dev/use-cases/devops-automation) to automatically deploy your application.
 It comes with built-in free development hosting, and for production offers fully automated deployment to your own cloud on AWS or GCP.
 
@@ -220,7 +242,11 @@ It will look something like: `https://app.encore.cloud/$APP_ID/deploys/...`
 You can now use the Cloud Dashboard to view production [traces](/docs/ts/observability/tracing), [connect your cloud account](/docs/platform/deploy/own-cloud), [integrate with GitHub](/docs/platform/integrations/github), and much more.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/webdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
+  <source
+    src="/assets/docs/webdashvideo.mp4"
+    className="w-full h-full"
+    type="video/mp4"
+  />
 </video>
 
 ## What's next?
