@@ -164,6 +164,11 @@
 				file: "go/quick-start"
 			}, {
 				kind: "basic"
+				text: "AI Integration"
+				path: "/go/ai-integration"
+				file: "go/ai-integration"
+			}, {
+				kind: "basic"
 				text: "FAQ"
 				path: "/go/faq"
 				file: "go/faq"
@@ -616,6 +621,11 @@
 				text: "Quick Start"
 				path: "/ts/quick-start"
 				file: "ts/quick-start"
+			}, {
+				kind: "basic"
+				text: "AI Integration"
+				path: "/ts/ai-integration"
+				file: "ts/ai-integration"
 			}, {
 				kind: "basic"
 				text: "FAQ"
