@@ -99,8 +99,6 @@ impl Gcp {
         let ts_end_time: google_cloud_wkt::Timestamp = end_time.try_into().unwrap_or_default();
 
         let mut data: Vec<TimeSeries> = Vec::with_capacity(collected.len());
-        let container_labels = self.container_meta.labels();
-        let container_labels_len = container_labels.len();
 
         for metric in collected {
             let cloud_metric_name = match self.metric_names.get(metric.key.name()) {
@@ -114,10 +112,11 @@ impl Gcp {
                 }
             };
 
-            // Pre-allocate exact capacity for labels
-            let mut labels: HashMap<String, String> =
+            let container_labels = self.container_meta.labels();
+            let container_labels_len = container_labels.len();
+            let mut labels =
                 HashMap::with_capacity(container_labels_len + metric.key.labels().len());
-            labels.extend(container_labels.clone());
+            labels.extend(container_labels);
             labels.extend(
                 metric
                     .key
