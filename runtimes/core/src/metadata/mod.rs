@@ -2,8 +2,43 @@ use std::collections::HashMap;
 
 use crate::encore::runtime::v1::{environment::Cloud, Environment};
 use anyhow::Context;
+use tokio::sync::OnceCell;
 
 mod gce;
+
+#[derive(Debug)]
+pub struct ContainerMetaClient {
+    cell: OnceCell<ContainerMetadata>,
+    env: Environment,
+    http_client: reqwest::Client,
+    fallback: ContainerMetadata,
+}
+
+impl ContainerMetaClient {
+    pub fn new(env: Environment, http_client: reqwest::Client) -> Self {
+        Self {
+            cell: OnceCell::new(),
+            fallback: ContainerMetadata {
+                env_name: env.env_name.clone(),
+                ..Default::default()
+            },
+            env,
+            http_client,
+        }
+    }
+
+    pub async fn collect(&self) -> &ContainerMetadata {
+        self.cell
+            .get_or_try_init(|| async {
+                ContainerMetadata::collect(&self.env, &self.http_client).await
+            })
+            .await
+            .unwrap_or_else(|err| {
+                log::warn!("failed to fetch container metadata: {err}");
+                &self.fallback
+            })
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct ContainerMetadata {
