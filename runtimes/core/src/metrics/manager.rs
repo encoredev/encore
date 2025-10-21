@@ -68,12 +68,12 @@ impl ProviderType {
 #[derive(Clone)]
 pub struct Manager {
     exporter: Option<Arc<dyn Exporter>>,
-    registry: Registry,
+    registry: Arc<Registry>,
 }
 
 impl Manager {
     pub fn new() -> Self {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         Self {
             exporter: None,
@@ -81,7 +81,7 @@ impl Manager {
         }
     }
 
-    pub fn registry(&self) -> &Registry {
+    pub fn registry(&self) -> &Arc<Registry> {
         &self.registry
     }
 

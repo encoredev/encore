@@ -44,19 +44,19 @@ pub struct CollectedMetric {
     pub registered_at: SystemTime,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Registry {
-    counters: Arc<DashMap<Key, MetricStorage>>,
-    gauges: Arc<DashMap<Key, MetricStorage>>,
-    system_metrics: Arc<SystemMetricsCollector>,
+    counters: DashMap<Key, MetricStorage>,
+    gauges: DashMap<Key, MetricStorage>,
+    system_metrics: SystemMetricsCollector,
 }
 
 impl Registry {
     pub fn new() -> Self {
         Self {
-            counters: Arc::new(DashMap::new()),
-            gauges: Arc::new(DashMap::new()),
-            system_metrics: Arc::new(SystemMetricsCollector::new()),
+            counters: DashMap::new(),
+            gauges: DashMap::new(),
+            system_metrics: SystemMetricsCollector::new(),
         }
     }
 
@@ -121,24 +121,24 @@ impl Registry {
     }
 
     /// Create a counter schema builder for defining static and dynamic labels
-    pub fn counter_schema<T>(&self, name: &str) -> CounterSchemaBuilder<T>
+    pub fn counter_schema<T>(self: &Arc<Self>, name: &str) -> CounterSchemaBuilder<T>
     where
         Arc<AtomicU64>: CounterOps<T>,
         T: One + Send + Sync + 'static,
     {
-        CounterSchemaBuilder::new(name.to_string(), Arc::new(self.clone()))
+        CounterSchemaBuilder::new(name.to_string(), Arc::clone(self))
     }
 
     /// Create a gauge schema builder for defining static and dynamic labels
-    pub fn gauge_schema<T>(&self, name: &str) -> GaugeSchemaBuilder<T>
+    pub fn gauge_schema<T>(self: &Arc<Self>, name: &str) -> GaugeSchemaBuilder<T>
     where
         Arc<AtomicU64>: GaugeOps<T>,
         T: Send + Sync + 'static,
     {
-        GaugeSchemaBuilder::new(name.to_string(), Arc::new(self.clone()))
+        GaugeSchemaBuilder::new(name.to_string(), Arc::clone(self))
     }
 
-    pub fn collect(&self) -> Vec<CollectedMetric> {
+    pub fn collect(self: &Arc<Self>) -> Vec<CollectedMetric> {
         let mut collected_metrics = Vec::new();
 
         self.system_metrics.update(self);

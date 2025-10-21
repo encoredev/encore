@@ -67,7 +67,7 @@ mod registry_tests {
 
     #[test]
     fn test_registry_collect_counters() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         let counter = registry.get_or_create_counter::<u64>("test_counter", [("label", "value")]);
         counter.increment();
@@ -92,7 +92,7 @@ mod registry_tests {
 
     #[test]
     fn test_registry_collect_gauges() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         registry
             .get_or_create_gauge::<f64>("test_gauge", [])
@@ -113,7 +113,7 @@ mod registry_tests {
 
     #[test]
     fn test_registry_registered_at() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         let before = std::time::SystemTime::now();
         registry.get_or_create_counter::<u64>("test_metric", []);
@@ -144,7 +144,7 @@ mod registry_tests {
 
     #[test]
     fn test_registry_always_collects_system_metrics() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         let collected = registry.collect();
 
@@ -508,7 +508,7 @@ mod concurrency_tests {
 
         let handles: Vec<_> = (0..num_threads)
             .map(|thread_id| {
-                let registry = registry.clone();
+                let registry = Arc::clone(registry);
                 thread::spawn(move || {
                     for i in 0..operations_per_thread {
                         let thread_id_str = thread_id.to_string();
@@ -557,13 +557,13 @@ mod concurrency_tests {
 
     #[test]
     fn test_registry_concurrent_metric_creation() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
         let num_threads = 16;
         let metrics_per_thread = 50;
 
         let handles: Vec<_> = (0..num_threads)
             .map(|thread_id| {
-                let registry = registry.clone();
+                let registry = Arc::clone(&registry);
                 thread::spawn(move || {
                     for i in 0..metrics_per_thread {
                         let metric_name = format!("metric_{}_{}", thread_id, i);
@@ -603,7 +603,7 @@ mod concurrency_tests {
         let manager = Manager::new();
         let registry = manager.registry();
 
-        let registry_clone = registry.clone();
+        let registry_clone = Arc::clone(registry);
         let manager_clone = manager.clone();
 
         let updater_handle = thread::spawn(move || {
@@ -712,7 +712,7 @@ mod manager_export_tests {
 
         let manager1 = manager.clone();
         let manager2 = manager.clone();
-        let registry_clone = registry.clone();
+        let registry_clone = Arc::clone(registry);
 
         let updater = tokio::spawn(async move {
             let counter = registry_clone.get_or_create_counter::<u64>("concurrent_export_test", []);
@@ -758,7 +758,7 @@ mod type_system_atomic_tests {
 
     #[test]
     fn test_float_precision_in_atomic_operations() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         let test_values = [
             0.0,
@@ -794,7 +794,7 @@ mod type_system_atomic_tests {
 
     #[test]
     fn test_special_float_values() {
-        let registry = Registry::new();
+        let registry = Arc::new(Registry::new());
 
         let special_values = [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, -0.0];
 

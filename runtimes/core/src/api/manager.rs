@@ -19,7 +19,7 @@ use crate::api::{
 use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as runtime;
 use crate::trace::Tracer;
-use crate::{api, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
+use crate::{api, metrics, model, pubsub, secrets, EncoreName, EndpointName, Hosted};
 
 use super::encore_routes::healthz;
 use super::websocket_client::WebSocketClient;
@@ -43,7 +43,7 @@ pub struct ManagerConfig<'a> {
     pub runtime: tokio::runtime::Handle,
     pub testing: bool,
     pub proxied_push_subs: HashMap<String, EncoreName>,
-    pub metrics: &'a crate::metrics::Manager,
+    pub metrics: &'a metrics::Manager,
 }
 
 pub struct Manager {
@@ -58,7 +58,7 @@ pub struct Manager {
 
     gateways: HashMap<EncoreName, Gateway>,
     testing: bool,
-    metrics: crate::metrics::Manager,
+    metrics: metrics::Manager,
 }
 
 impl ManagerConfig<'_> {
@@ -203,7 +203,7 @@ impl ManagerConfig<'_> {
                 inbound_svc_auth,
                 self.tracer.clone(),
                 auth_data_schemas,
-                Arc::new(self.metrics.registry().clone()),
+                Arc::clone(self.metrics.registry()),
             )
             .context("unable to create API server")?;
             Some(server)
@@ -250,7 +250,7 @@ fn build_auth_handler(
     service_registry: &ServiceRegistry,
     http_client: reqwest::Client,
     tracer: Tracer,
-    metrics_registry: &crate::metrics::Registry,
+    metrics_registry: &Arc<metrics::Registry>,
 ) -> anyhow::Result<Option<auth::Authenticator>> {
     let Some(explicit) = &gw.explicit else {
         return Ok(None);
@@ -289,11 +289,8 @@ fn build_auth_handler(
     // let is_local = hosted_services.contains(&explicit.service_name);
     let is_local = true;
     let name = EndpointName::new(explicit.service_name.clone(), auth.name.clone());
-    let requests_total = crate::metrics::requests_total_counter(
-        metrics_registry,
-        &explicit.service_name,
-        &auth.name,
-    );
+    let requests_total =
+        metrics::requests_total_counter(metrics_registry, &explicit.service_name, &auth.name);
 
     let auth_data = registry.schema(auth_data_schema_idx);
     let auth_handler = if is_local {
@@ -342,7 +339,7 @@ impl Manager {
         self.service_registry.endpoints()
     }
 
-    pub fn metrics_registry(&self) -> &crate::metrics::Registry {
+    pub fn metrics_registry(&self) -> &Arc<metrics::Registry> {
         self.metrics.registry()
     }
 
