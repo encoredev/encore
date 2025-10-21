@@ -258,6 +258,7 @@ impl Runtime {
         let metrics_manager = metrics::Manager::from_runtime_config(
             &observability,
             &environment,
+            &secrets,
             &http_client,
             tokio_rt.handle().clone(),
         );

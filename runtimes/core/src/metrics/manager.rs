@@ -5,6 +5,7 @@ use crate::{
         exporter::{self, Exporter},
         registry::Registry,
     },
+    secrets,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,9 +15,9 @@ enum ProviderType {
     Gcp(pb::metrics_provider::GcpCloudMonitoring),
     EncoreCloud(pb::metrics_provider::GcpCloudMonitoring),
     Aws(pb::metrics_provider::AwsCloudWatch),
+    Datadog(pb::metrics_provider::Datadog),
     // TODO(fredr) add these:
     // - Prometheus(pb::metrics_provider::PrometheusRemoteWrite),
-    // - Datadog(pb::metrics_provider::Datadog),
 }
 
 impl ProviderType {
@@ -27,6 +28,9 @@ impl ProviderType {
                 Some(Self::EncoreCloud(config.clone()))
             }
             Some(pb::metrics_provider::Provider::Aws(config)) => Some(Self::Aws(config.clone())),
+            Some(pb::metrics_provider::Provider::Datadog(config)) => {
+                Some(Self::Datadog(config.clone()))
+            }
             _ => {
                 log::warn!("unsupported metrics provider: {:?}", provider.provider);
                 None
@@ -37,14 +41,32 @@ impl ProviderType {
     fn create_exporter(
         &self,
         env: &Environment,
+        secrets: &secrets::Manager,
         http_client: &reqwest::Client,
-    ) -> Arc<dyn Exporter + Send + Sync> {
+    ) -> anyhow::Result<Arc<dyn Exporter + Send + Sync>> {
         match self {
             Self::Gcp(config) | Self::EncoreCloud(config) => {
-                Self::create_gcp_exporter(config, env, http_client)
+                Ok(Self::create_gcp_exporter(config, env, http_client))
             }
-            Self::Aws(config) => Self::create_aws_exporter(config, env, http_client),
+            Self::Aws(config) => Ok(Self::create_aws_exporter(config, env, http_client)),
+            Self::Datadog(config) => {
+                Self::create_datadog_exporter(config, secrets, env, http_client)
+            }
         }
+    }
+
+    fn create_datadog_exporter(
+        provider_cfg: &pb::metrics_provider::Datadog,
+        secrets: &secrets::Manager,
+        env: &Environment,
+        http_client: &reqwest::Client,
+    ) -> anyhow::Result<Arc<dyn Exporter + Send + Sync>> {
+        let container_meta_client = ContainerMetaClient::new(env.clone(), http_client.clone());
+        Ok(Arc::new(exporter::Datadog::new(
+            provider_cfg,
+            secrets,
+            container_meta_client,
+        )?))
     }
 
     fn create_aws_exporter(
@@ -102,6 +124,7 @@ impl Manager {
     pub fn from_runtime_config(
         observability: &pb::Observability,
         environment: &pb::Environment,
+        secrets: &secrets::Manager,
         http_client: &reqwest::Client,
         runtime_handle: tokio::runtime::Handle,
     ) -> Self {
@@ -109,8 +132,15 @@ impl Manager {
 
         for metrics_provider in &observability.metrics {
             if let Some(provider_type) = ProviderType::from_config(metrics_provider) {
-                manager.exporter = Some(provider_type.create_exporter(environment, http_client));
-                break; // Take the first valid provider
+                match provider_type.create_exporter(environment, secrets, http_client) {
+                    Ok(exporter) => {
+                        manager.exporter = Some(exporter);
+                        break; // Take the first valid provider
+                    }
+                    Err(err) => {
+                        log::error!("Failed to create metrics exporter: {}", err);
+                    }
+                }
             }
         }
 
