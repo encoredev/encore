@@ -16,7 +16,7 @@ package prometheus;
 
 option go_package = "encore.dev/appruntime/metrics/prometheus/prompb";
 
-import "prometheus/types.proto";
+import "prompb/types.proto";
 
 message WriteRequest {
   repeated prometheus.TimeSeries timeseries = 1;
