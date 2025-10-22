@@ -12,6 +12,7 @@ pub struct Aws {
     client: Arc<LazyCloudWatchClient>,
     namespace: String,
     container_meta_client: ContainerMetaClient,
+    container_dims: tokio::sync::OnceCell<Arc<Vec<Dimension>>>,
 }
 
 #[derive(Debug)]
@@ -45,6 +46,7 @@ impl Aws {
             client: Arc::new(LazyCloudWatchClient::new()),
             namespace,
             container_meta_client,
+            container_dims: tokio::sync::OnceCell::new(),
         }
     }
 
@@ -79,19 +81,39 @@ impl Aws {
         Ok(())
     }
 
+    async fn container_dimensions(&self) -> Arc<Vec<Dimension>> {
+        self.container_dims
+            .get_or_try_init(|| async {
+                let container_metadata = self.container_meta_client.collect().await?;
+                anyhow::Ok(Arc::new(
+                    container_metadata
+                        .labels()
+                        .into_iter()
+                        .map(|(key, value)| Dimension::builder().name(key).value(value).build())
+                        .collect(),
+                ))
+            })
+            .await
+            .map(Arc::clone)
+            .unwrap_or_else(|e| {
+                log::warn!("failed fetching container metadata: {e}, using fallback");
+                Arc::new(
+                    self.container_meta_client
+                        .fallback()
+                        .labels()
+                        .into_iter()
+                        .map(|(key, value)| Dimension::builder().name(key).value(value).build())
+                        .collect(),
+                )
+            })
+    }
+
     async fn get_metric_data(&self, collected: Vec<CollectedMetric>) -> Vec<MetricDatum> {
         let now = SystemTime::now();
         let mut data: Vec<MetricDatum> = Vec::with_capacity(collected.len());
 
-        let container_metadata_dims: Vec<Dimension> = self
-            .container_meta_client
-            .collect()
-            .await
-            .labels()
-            .into_iter()
-            .map(|(key, value)| Dimension::builder().name(key).value(value).build())
-            .collect();
-        let container_dims_len = container_metadata_dims.len();
+        let container_dims = self.container_dimensions().await;
+        let container_dims_len = container_dims.len();
 
         for metric in collected {
             let metric_name = metric.key.name().to_string();
@@ -99,7 +121,8 @@ impl Aws {
             let mut dimensions: Vec<Dimension> =
                 Vec::with_capacity(container_dims_len + metric.key.labels().count());
 
-            dimensions.extend(container_metadata_dims.clone());
+            // Add container metadata dimensions
+            dimensions.extend(container_dims.iter().cloned());
 
             for label in metric.key.labels() {
                 let value = label.value();

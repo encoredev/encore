@@ -19,6 +19,7 @@ pub struct Datadog {
     container_meta_client: ContainerMetaClient,
     last_export: Arc<Mutex<i64>>,
     last_value: Arc<DashMap<u64, f64>>,
+    container_tags: tokio::sync::OnceCell<Arc<Vec<String>>>,
 }
 
 #[derive(Clone)]
@@ -107,6 +108,7 @@ impl Datadog {
                     .as_secs() as i64,
             )),
             last_value: Arc::new(DashMap::new()),
+            container_tags: tokio::sync::OnceCell::new(),
         })
     }
 
@@ -148,6 +150,33 @@ impl Datadog {
         Ok(())
     }
 
+    async fn container_tags_vec(&self) -> Arc<Vec<String>> {
+        self.container_tags
+            .get_or_try_init(|| async {
+                let container_metadata = self.container_meta_client.collect().await?;
+                anyhow::Ok(Arc::new(
+                    container_metadata
+                        .labels()
+                        .into_iter()
+                        .map(|(key, value)| format!("{}:{}", key, value))
+                        .collect(),
+                ))
+            })
+            .await
+            .map(Arc::clone)
+            .unwrap_or_else(|e| {
+                log::warn!("failed fetching container metadata: {e}, using fallback");
+                Arc::new(
+                    self.container_meta_client
+                        .fallback()
+                        .labels()
+                        .into_iter()
+                        .map(|(key, value)| format!("{}:{}", key, value))
+                        .collect(),
+                )
+            })
+    }
+
     async fn get_metric_data(
         &self,
         collected: Vec<CollectedMetric>,
@@ -155,17 +184,8 @@ impl Datadog {
     ) -> Vec<MetricSeries> {
         let mut data: Vec<MetricSeries> = Vec::with_capacity(collected.len());
 
-        // Convert container metadata to Datadog tags (key:value format)
-        let container_metadata_tags: Vec<String> = self
-            .container_meta_client
-            .collect()
-            .await
-            .labels()
-            .into_iter()
-            .map(|(key, value)| format!("{}:{}", key, value))
-            .collect();
-
-        let container_tags_len = container_metadata_tags.len();
+        let container_tags = self.container_tags_vec().await;
+        let container_tags_len = container_tags.len();
 
         let last_export = self.last_export.lock().ok().map(|t| *t).unwrap_or(now);
         let interval = now - last_export;
@@ -176,7 +196,8 @@ impl Datadog {
             // Build tags: container metadata + metric labels
             let mut tags: Vec<String> =
                 Vec::with_capacity(container_tags_len + metric.key.labels().count());
-            tags.extend(container_metadata_tags.clone());
+            // Add container metadata tags
+            tags.extend(container_tags.iter().cloned());
 
             for label in metric.key.labels() {
                 tags.push(format!("{}:{}", label.key(), label.value()));

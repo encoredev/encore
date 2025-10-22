@@ -16,8 +16,7 @@ enum ProviderType {
     EncoreCloud(pb::metrics_provider::GcpCloudMonitoring),
     Aws(pb::metrics_provider::AwsCloudWatch),
     Datadog(pb::metrics_provider::Datadog),
-    // TODO(fredr) add these:
-    // - Prometheus(pb::metrics_provider::PrometheusRemoteWrite),
+    Prometheus(pb::metrics_provider::PrometheusRemoteWrite),
 }
 
 impl ProviderType {
@@ -31,8 +30,11 @@ impl ProviderType {
             Some(pb::metrics_provider::Provider::Datadog(config)) => {
                 Some(Self::Datadog(config.clone()))
             }
-            _ => {
-                log::warn!("unsupported metrics provider: {:?}", provider.provider);
+            Some(pb::metrics_provider::Provider::PromRemoteWrite(config)) => {
+                Some(Self::Prometheus(config.clone()))
+            }
+            None => {
+                log::warn!("no metrics provider configured");
                 None
             }
         }
@@ -52,7 +54,24 @@ impl ProviderType {
             Self::Datadog(config) => {
                 Self::create_datadog_exporter(config, secrets, env, http_client)
             }
+            Self::Prometheus(config) => {
+                Self::create_prometheus_exporter(config, secrets, env, http_client)
+            }
         }
+    }
+
+    fn create_prometheus_exporter(
+        provider_cfg: &pb::metrics_provider::PrometheusRemoteWrite,
+        secrets: &secrets::Manager,
+        env: &Environment,
+        http_client: &reqwest::Client,
+    ) -> anyhow::Result<Arc<dyn Exporter + Send + Sync>> {
+        let container_meta_client = ContainerMetaClient::new(env.clone(), http_client.clone());
+        Ok(Arc::new(exporter::Prometheus::new(
+            provider_cfg,
+            secrets,
+            container_meta_client,
+        )?))
     }
 
     fn create_datadog_exporter(
