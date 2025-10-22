@@ -9,8 +9,11 @@ use google_cloud_monitoring_v3::model::{Point, TimeInterval, TimeSeries, TypedVa
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
+use tokio::sync::OnceCell;
 
-#[derive(Clone, Debug)]
+type LabelPairs = Vec<(String, String)>;
+
+#[derive(Debug)]
 pub struct Gcp {
     client: Arc<LazyMonitoringClient>,
     project_id: String,
@@ -18,17 +21,18 @@ pub struct Gcp {
     monitored_resource_labels: HashMap<String, String>,
     metric_names: HashMap<String, String>,
     container_meta_client: Arc<ContainerMetaClient>,
+    container_labels: Arc<OnceCell<Arc<LabelPairs>>>,
 }
 
 #[derive(Debug)]
 struct LazyMonitoringClient {
-    cell: tokio::sync::OnceCell<anyhow::Result<MetricService>>,
+    cell: OnceCell<anyhow::Result<MetricService>>,
 }
 
 impl LazyMonitoringClient {
     fn new() -> Self {
         Self {
-            cell: tokio::sync::OnceCell::new(),
+            cell: OnceCell::new(),
         }
     }
 
@@ -60,6 +64,7 @@ impl Gcp {
             monitored_resource_labels,
             metric_names,
             container_meta_client: Arc::new(container_meta_client),
+            container_labels: Arc::new(OnceCell::new()),
         }
     }
 
@@ -94,13 +99,35 @@ impl Gcp {
         Ok(())
     }
 
+    async fn container_labels(&self) -> Arc<Vec<(String, String)>> {
+        self.container_labels
+            .get_or_try_init(|| async {
+                let container_metadata = self.container_meta_client.collect().await?;
+                anyhow::Ok(Arc::new(container_metadata.labels()))
+            })
+            .await
+            .map(Arc::clone)
+            .unwrap_or_else(|e| {
+                log::warn!("failed fetching container metadata: {e}, using fallback");
+                Arc::new(self.container_meta_client.fallback().labels())
+            })
+    }
+
     async fn get_metric_data(&self, collected: Vec<CollectedMetric>) -> Vec<TimeSeries> {
         let end_time = SystemTime::now();
         let ts_end_time: google_cloud_wkt::Timestamp = end_time.try_into().unwrap_or_default();
 
         let mut data: Vec<TimeSeries> = Vec::with_capacity(collected.len());
 
-        let container_meta = self.container_meta_client.collect().await;
+        let container_labels = self.container_labels().await;
+        let container_labels_len = container_labels.len();
+
+        let instance_id = &self
+            .container_meta_client
+            .collect()
+            .await
+            .unwrap_or(self.container_meta_client.fallback())
+            .instance_id;
 
         for metric in collected {
             let cloud_metric_name = match self.metric_names.get(metric.key.name()) {
@@ -114,11 +141,9 @@ impl Gcp {
                 }
             };
 
-            let container_labels = container_meta.labels();
-            let container_labels_len = container_labels.len();
             let mut labels =
                 HashMap::with_capacity(container_labels_len + metric.key.labels().len());
-            labels.extend(container_labels.clone());
+            labels.extend(container_labels.iter().cloned());
             labels.extend(
                 metric
                     .key
@@ -178,7 +203,7 @@ impl Gcp {
             if let Some(node_id) = monitored_resource_labels.get("node_id") {
                 monitored_resource_labels.insert(
                     "node_id".to_string(),
-                    format!("{}-{}", node_id, container_meta.instance_id),
+                    format!("{}-{}", node_id, instance_id),
                 );
             }
 

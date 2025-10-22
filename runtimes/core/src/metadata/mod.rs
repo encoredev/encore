@@ -27,16 +27,16 @@ impl ContainerMetaClient {
         }
     }
 
-    pub async fn collect(&self) -> &ContainerMetadata {
+    pub async fn collect(&self) -> anyhow::Result<&ContainerMetadata> {
         self.cell
             .get_or_try_init(|| async {
                 ContainerMetadata::collect(&self.env, &self.http_client).await
             })
             .await
-            .unwrap_or_else(|err| {
-                log::warn!("failed to fetch container metadata: {err}");
-                &self.fallback
-            })
+    }
+
+    pub fn fallback(&self) -> &ContainerMetadata {
+        &self.fallback
     }
 }
 
