@@ -132,6 +132,7 @@ google-cloud-wkt = "1.0.0"
 sysinfo = "0.37.2"
 aws-sdk-cloudwatch = "1.94.0"
 datadog-api-client = "0.20.0"
+snap = "1.1.1"
 
 [build-dependencies]
 prost-build = "0.12.3"
