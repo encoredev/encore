@@ -65,7 +65,7 @@ Let's look at the code to better understand how to build applications with Encor
 You should see this:
 
 ```ts
---hello / hello.ts--;
+-- hello/hello.ts --;
 import { api } from "encore.dev/api";
 
 export const world = api(
@@ -87,7 +87,7 @@ You define an API endpoint by wrapping a regular async function in a call to `ap
 The `world` endpoint is part of the `hello` service because in the same folder you will also find a file named `encore.service.ts` which looks like this:
 
 ```ts
---hello / encore.service.ts--;
+-- hello/encore.service.ts --;
 import { Service } from "encore.dev/service";
 
 export default new Service("hello");
