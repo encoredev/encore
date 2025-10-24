@@ -1,6 +1,6 @@
 use encore_runtime_core::metrics::{CollectedMetric as CoreCollectedMetric, MetricValue, MetricsCollector};
 use metrics::{Key, Label};
-use napi::{Env, NapiRaw, Ref};
+use napi::{Env, NapiRaw};
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -28,37 +28,41 @@ pub struct MetricMetadata {
 /// for custom application metrics.
 #[napi]
 pub struct MetricsRegistry {
-    buffer_ref: Ref<()>,
     buffer_ptr: Arc<BufferPtr>,
     metadata: Arc<Mutex<Vec<MetricMetadata>>>,
     next_slot: Arc<AtomicUsize>,
 }
 
-/// Thread-safe wrapper around the SharedArrayBuffer pointer.
+/// Thread-safe wrapper around a SharedArrayBuffer-backed TypedArray pointer.
 ///
 /// # Safety
 ///
-/// This struct wraps a raw pointer to a JavaScript SharedArrayBuffer and must uphold
-/// critical safety invariants:
+/// This struct wraps a raw pointer obtained from a BigUint64Array view of a JavaScript
+/// SharedArrayBuffer and must uphold critical safety invariants:
 ///
 /// ## Lifetime Invariants
-/// 1. **JavaScript Ownership**: The SharedArrayBuffer is owned by JavaScript and its
-///    lifetime is managed by V8's garbage collector.
-/// 2. **Reference Keeping**: `MetricsRegistry` holds a `Ref<()>` (`buffer_ref`) that
-///    prevents the SharedArrayBuffer from being garbage collected.
+/// 1. **JavaScript Ownership**: The underlying SharedArrayBuffer is owned by JavaScript
+///    and its lifetime is managed by V8's garbage collector.
+/// 2. **JavaScript Lifetime Management**: The SharedArrayBuffer is stored in a JavaScript
+///    module-level global variable (`globalBuffer` in mod.ts), which prevents garbage
+///    collection for the entire application lifetime.
 /// 3. **Pointer Stability**: SharedArrayBuffer backing stores do not move in memory,
-///    so the pointer remains valid as long as the buffer exists.
+///    so the pointer remains valid as long as the buffer exists. The TypedArray view's
+///    data pointer is stable and points directly to the backing store.
 ///
 /// ## Thread Safety
 /// - The pointer is `Send + Sync` because:
-///   - JavaScript uses `Atomics` operations for all writes to the buffer
+///   - JavaScript uses `Atomics` operations for all writes to the SharedArrayBuffer
 ///   - Rust uses `AtomicU64::load()` with SeqCst ordering for all reads
-///   - The buffer is explicitly designed for concurrent access (SharedArrayBuffer)
+///   - The backing SharedArrayBuffer is explicitly designed for concurrent access
+///   - Multiple TypedArray views of the same SharedArrayBuffer share the same backing store
 ///
 /// ## Usage Contract
 /// - This pointer must NEVER outlive the `MetricsRegistry` that created it
 /// - All access must be through atomic operations
 /// - Bounds checking must be performed before dereferencing
+/// - The pointer was obtained via `napi_get_typedarray_info`, which works correctly
+///   with SharedArrayBuffer-backed TypedArrays (unlike `napi_get_arraybuffer_info`)
 struct BufferPtr {
     ptr: *mut u64,
     len: usize,
@@ -70,41 +74,43 @@ unsafe impl Sync for BufferPtr {}
 #[napi]
 impl MetricsRegistry {
     #[napi(constructor)]
-    pub fn new(env: Env, buffer: napi::JsObject) -> napi::Result<Self> {
-        // Get the byte length from the SharedArrayBuffer
-        let byte_length: u32 = buffer.get_named_property("byteLength")?;
-        let len = (byte_length / 8) as usize; // Convert bytes to u64 slots
-
-        // Extract the raw pointer from the SharedArrayBuffer
-        // We use the unsafe get_arraybuffer_info to access the underlying data
-        let (ptr, _) = unsafe {
-            let mut data_ptr: *mut u8 = std::ptr::null_mut();
+    pub fn new(env: Env, typed_array: napi::JsObject) -> napi::Result<Self> {
+        // Extract the raw pointer from the TypedArray (BigUint64Array)
+        // This works with SharedArrayBuffer-backed TypedArrays
+        let (ptr, len) = unsafe {
+            let mut arraybuffer: napi::sys::napi_value = std::ptr::null_mut();
+            let mut byte_offset: usize = 0;
             let mut length: usize = 0;
-            let raw_env = env.raw();
-            let raw_value = buffer.raw();
+            let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
 
-            // Try to get the arraybuffer info directly
-            let status = napi::sys::napi_get_arraybuffer_info(
+            let raw_env = env.raw();
+            let raw_value = typed_array.raw();
+
+            // Get TypedArray info (works with SharedArrayBuffer backing)
+            let status = napi::sys::napi_get_typedarray_info(
                 raw_env,
                 raw_value,
-                &mut data_ptr as *mut *mut u8 as *mut *mut std::ffi::c_void,
+                std::ptr::null_mut(), // Don't need type
                 &mut length,
+                &mut data_ptr,
+                &mut arraybuffer,
+                &mut byte_offset,
             );
 
             if status != napi::sys::Status::napi_ok {
                 return Err(napi::Error::new(
                     napi::Status::from(status),
-                    "Failed to get SharedArrayBuffer info",
+                    "Failed to get TypedArray info",
                 ));
             }
 
-            (data_ptr as *mut u64, length)
+            let ptr = data_ptr as *mut u64;
+            // Length is already in elements (u64), not bytes
+
+            (ptr, length)
         };
 
-        let buffer_ref = env.create_reference(buffer)?;
-
         Ok(Self {
-            buffer_ref,
             buffer_ptr: Arc::new(BufferPtr { ptr, len }),
             metadata: Arc::new(Mutex::new(Vec::new())),
             next_slot: Arc::new(AtomicUsize::new(0)),

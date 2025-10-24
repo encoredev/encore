@@ -38,7 +38,9 @@ function getOrCreateRegistry(): NativeMetricsRegistry {
   if (!globalRegistry) {
     const INITIAL_SLOTS = 10_000;
     globalBuffer = new SharedArrayBuffer(INITIAL_SLOTS * 8);
-    globalRegistry = RT.createMetricsRegistry(globalBuffer);
+    // Pass TypedArray view instead of raw SharedArrayBuffer for N-API compatibility
+    const view = new BigUint64Array(globalBuffer);
+    globalRegistry = RT.createMetricsRegistry(view);
   }
   return globalRegistry;
 }
