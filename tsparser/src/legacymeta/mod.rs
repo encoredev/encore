@@ -330,7 +330,9 @@ impl MetaBuilder<'_> {
                                 if let crate::parser::types::FieldName::String(key) = &field.name {
                                     // Convert field type to builtin
                                     let field_type = match &field.typ {
-                                        crate::parser::types::Type::Basic(basic) => basic_to_proto(basic),
+                                        crate::parser::types::Type::Basic(basic) => {
+                                            basic_to_proto(basic)
+                                        }
                                         _ => Builtin::Any as i32,
                                     };
 
@@ -339,7 +341,9 @@ impl MetaBuilder<'_> {
                                         .pc
                                         .loader
                                         .module_containing_pos(field.range.start)
-                                        .and_then(|module| module.preceding_comments(field.range.start))
+                                        .and_then(|module| {
+                                            module.preceding_comments(field.range.start)
+                                        })
                                         .unwrap_or_default();
 
                                     metric.labels.push(v1::metric::Label {
@@ -830,9 +834,12 @@ fn basic_to_proto(basic: &crate::parser::types::Basic) -> i32 {
         Basic::BigInt => Builtin::Decimal,
         Basic::Any | Basic::Unknown => Builtin::Any,
         Basic::Date => Builtin::Time,
-        Basic::Null | Basic::Void | Basic::Object | Basic::Symbol | Basic::Undefined | Basic::Never => {
-            Builtin::Any
-        }
+        Basic::Null
+        | Basic::Void
+        | Basic::Object
+        | Basic::Symbol
+        | Basic::Undefined
+        | Basic::Never => Builtin::Any,
     }) as i32
 }
 
