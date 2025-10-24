@@ -64,6 +64,13 @@ pub const COUNTER_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<MetricDefinition>(&module, &names) {
             let r = report_and_continue!(r);
+
+            // Validate metric is within a service
+            if pass.service_name.is_none() {
+                r.range.err("metrics must be defined within a service");
+                continue;
+            }
+
             let object =
                 resolve_object_for_bind_name(pass.type_checker, pass.module.clone(), &r.bind_name);
 
@@ -109,6 +116,13 @@ pub const GAUGE_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<MetricDefinition>(&module, &names) {
             let r = report_and_continue!(r);
+
+            // Validate metric is within a service
+            if pass.service_name.is_none() {
+                r.range.err("metrics must be defined within a service");
+                continue;
+            }
+
             let object =
                 resolve_object_for_bind_name(pass.type_checker, pass.module.clone(), &r.bind_name);
 
