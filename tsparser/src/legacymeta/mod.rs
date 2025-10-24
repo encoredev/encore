@@ -282,8 +282,78 @@ impl MetaBuilder<'_> {
                     dependent.push(Dependent::Gateway((b, gw)));
                 }
 
-                // Metrics are not included in legacy metadata
-                Resource::Metric(_) => {}
+                Resource::Metric(m) => {
+                    use crate::encore::parser::schema::v1::Builtin;
+
+                    // Determine service name if metric is within a service
+                    let service_name = b
+                        .range
+                        .as_ref()
+                        .and_then(|range| self.service_for_range(range))
+                        .map(|svc| svc.name.clone());
+
+                    // Convert value type to builtin proto
+                    let value_type = match m.value_type.get() {
+                        crate::parser::types::Type::Basic(basic) => basic_to_proto(basic),
+                        _ => Builtin::Any as i32, // Fallback for non-basic types
+                    };
+
+                    // Build the metric proto
+                    let mut metric = v1::Metric {
+                        name: m.name.clone(),
+                        doc: m.doc.clone().unwrap_or_default(),
+                        value_type,
+                        service_name,
+                        labels: vec![],
+                        kind: match m.metric_type {
+                            crate::parser::resources::infra::metrics::MetricType::Counter
+                            | crate::parser::resources::infra::metrics::MetricType::CounterGroup => {
+                                v1::metric::MetricKind::Counter as i32
+                            }
+                            crate::parser::resources::infra::metrics::MetricType::Gauge
+                            | crate::parser::resources::infra::metrics::MetricType::GaugeGroup => {
+                                v1::metric::MetricKind::Gauge as i32
+                            }
+                        },
+                    };
+
+                    // Process labels if present
+                    if let Some(ref label_type_sp) = m.label_type {
+                        let label_type = label_type_sp.get();
+
+                        // Register the label type in the schema system
+                        let _ = self.schema.typ(label_type);
+
+                        // Extract labels from the interface type
+                        if let crate::parser::types::Type::Interface(iface) = label_type {
+                            for field in &iface.fields {
+                                if let crate::parser::types::FieldName::String(key) = &field.name {
+                                    // Convert field type to builtin
+                                    let field_type = match &field.typ {
+                                        crate::parser::types::Type::Basic(basic) => basic_to_proto(basic),
+                                        _ => Builtin::Any as i32,
+                                    };
+
+                                    // Extract doc comment for the label
+                                    let doc = self
+                                        .pc
+                                        .loader
+                                        .module_containing_pos(field.range.start)
+                                        .and_then(|module| module.preceding_comments(field.range.start))
+                                        .unwrap_or_default();
+
+                                    metric.labels.push(v1::metric::Label {
+                                        key: key.clone(),
+                                        doc,
+                                        r#type: field_type,
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    self.data.metrics.push(metric);
+                }
             }
         }
 
@@ -746,6 +816,24 @@ impl respath::Path {
                 .collect(),
         }
     }
+}
+
+/// Convert a TypeScript Basic type to a proto Builtin enum value
+fn basic_to_proto(basic: &crate::parser::types::Basic) -> i32 {
+    use crate::encore::parser::schema::v1::Builtin;
+    use crate::parser::types::Basic;
+
+    (match basic {
+        Basic::Boolean => Builtin::Bool,
+        Basic::String => Builtin::String,
+        Basic::Number => Builtin::Int64,
+        Basic::BigInt => Builtin::Decimal,
+        Basic::Any | Basic::Unknown => Builtin::Any,
+        Basic::Date => Builtin::Time,
+        Basic::Null | Basic::Void | Basic::Object | Basic::Symbol | Basic::Undefined | Basic::Never => {
+            Builtin::Any
+        }
+    }) as i32
 }
 
 fn new_meta() -> v1::Data {
