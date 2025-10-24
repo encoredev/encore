@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
+use convert_case::{Case, Casing};
 use swc_common::errors::HANDLER;
 
 use crate::encore::parser::meta::v1::{self, selector, Selector};
@@ -10,10 +11,11 @@ use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
 use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
+use crate::parser::resources::infra::metrics::MetricType;
 use crate::parser::resources::infra::pubsub_topic::TopicOperation;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
-use crate::parser::types::validation;
+use crate::parser::types::{validation, FieldName, Type};
 use crate::parser::types::{Object, ObjectId};
 use crate::parser::usageparser::Usage;
 use crate::parser::{respath, FilePath, Range};
@@ -301,6 +303,84 @@ impl MetaBuilder<'_> {
                 }
                 Resource::Gateway(gw) => {
                     dependent.push(Dependent::Gateway((b, gw)));
+                }
+
+                Resource::Metric(m) => {
+                    use crate::encore::parser::schema::v1::Builtin;
+
+                    let service_name = b
+                        .range
+                        .as_ref()
+                        .and_then(|range| self.service_for_range(range))
+                        .map(|svc| svc.name.clone());
+
+                    let value_type = match m.metric_type {
+                        MetricType::Counter | MetricType::CounterGroup => Builtin::Int64 as i32,
+                        MetricType::Gauge | MetricType::GaugeGroup => Builtin::Float64 as i32,
+                    };
+
+                    let mut metric = v1::Metric {
+                        name: m.name.clone(),
+                        doc: m.doc.clone().unwrap_or_default(),
+                        value_type,
+                        service_name,
+                        labels: vec![],
+                        kind: match m.metric_type {
+                            MetricType::Counter | MetricType::CounterGroup => {
+                                v1::metric::MetricKind::Counter as i32
+                            }
+                            MetricType::Gauge | MetricType::GaugeGroup => {
+                                v1::metric::MetricKind::Gauge as i32
+                            }
+                        },
+                    };
+
+                    // Process labels if present
+                    if let Some(ref label_type_sp) = m.label_type {
+                        use crate::parser::resources::parseutil::resolve_interface;
+
+                        // Extract the interface from either Type::Interface or Type::Named
+                        if let Some(iface) = resolve_interface(&self.pc.type_checker, label_type_sp)
+                        {
+                            for field in &iface.fields {
+                                if let FieldName::String(key) = &field.name {
+                                    let label_key = key.to_case(Case::Snake);
+
+                                    // Validate label name is not "service" (reserved)
+                                    if label_key == "service" {
+                                        field.range.err(&format!(
+                                            "invalid label name '{}': the label name 'service' is reserved and automatically added by the Encore runtime",
+                                            key
+                                        ));
+                                        continue;
+                                    }
+
+                                    let field_type = match &field.typ {
+                                        Type::Basic(basic) => basic_to_proto(basic),
+                                        _ => Builtin::Any as i32,
+                                    };
+
+                                    // Extract doc comment for the label
+                                    let doc = self
+                                        .pc
+                                        .loader
+                                        .module_containing_pos(field.range.start)
+                                        .and_then(|module| {
+                                            module.preceding_comments(field.range.start)
+                                        })
+                                        .unwrap_or_default();
+
+                                    metric.labels.push(v1::metric::Label {
+                                        key: label_key,
+                                        doc,
+                                        r#type: field_type,
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    self.data.metrics.push(metric);
                 }
             }
         }
@@ -766,6 +846,18 @@ impl respath::Path {
                 .collect(),
         }
     }
+}
+
+fn basic_to_proto(basic: &crate::parser::types::Basic) -> i32 {
+    use crate::encore::parser::schema::v1::Builtin;
+    use crate::parser::types::Basic;
+
+    (match basic {
+        Basic::Boolean => Builtin::Bool,
+        Basic::String => Builtin::String,
+        Basic::Number => Builtin::Float64,
+        _ => Builtin::Any,
+    }) as i32
 }
 
 fn new_meta() -> v1::Data {

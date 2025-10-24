@@ -1,4 +1,4 @@
-import { isMainThread, Worker } from "node:worker_threads";
+import { isMainThread, Worker, workerData } from "node:worker_threads";
 import { Gateway } from "../../api/gateway";
 import { Middleware, MiddlewareRequest, HandlerResponse } from "../../api/mod";
 import { IterableSocket, IterableStream, Sink } from "../../api/stream";
@@ -6,6 +6,11 @@ import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
 import { fileURLToPath } from "node:url";
+import {
+  __internalInitGlobalMetricsBuffer,
+  __internalSetGlobalMetricsBuffer
+} from "../../metrics/mod";
+import log from "../../log/mod";
 
 export type Handler = {
   apiRoute: runtime.ApiRoute;
@@ -28,14 +33,24 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run(entrypoint: string) {
   if (isMainThread) {
+    const metricsBuffer = __internalInitGlobalMetricsBuffer();
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {
+      log.debug(`Starting ${extraWorkers} worker threads`);
       const path = fileURLToPath(entrypoint);
       for (let i = 0; i < extraWorkers; i++) {
-        new Worker(path);
+        new Worker(path, {
+          workerData: { metricsBuffer }
+        });
       }
     }
+
     return runtime.RT.runForever();
+  }
+
+  // Worker thread: set metrics buffer from workerData
+  if (workerData && workerData.metricsBuffer) {
+    __internalSetGlobalMetricsBuffer(workerData.metricsBuffer);
   }
 
   // This is a worker thread. The runtime is already initialized, so block forever.

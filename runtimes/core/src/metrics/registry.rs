@@ -7,8 +7,14 @@ use dashmap::DashMap;
 use malachite::base::num::basic::traits::One;
 use metrics::{Key, Label};
 use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
+
+/// Trait for external metrics collectors (e.g., JS runtime, other language runtimes)
+pub trait MetricsCollector: Send + Sync {
+    /// Collect all metrics from this collector
+    fn collect(&self) -> Vec<CollectedMetric>;
+}
 
 struct MetricStorage {
     atomic: Arc<AtomicU64>,
@@ -44,11 +50,21 @@ pub struct CollectedMetric {
     pub registered_at: SystemTime,
 }
 
-#[derive(Debug)]
 pub struct Registry {
     counters: DashMap<Key, MetricStorage>,
     gauges: DashMap<Key, MetricStorage>,
     system_metrics: SystemMetricsCollector,
+    external_collectors: RwLock<Vec<Arc<dyn MetricsCollector>>>,
+}
+
+impl std::fmt::Debug for Registry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Registry")
+            .field("counters", &self.counters)
+            .field("gauges", &self.gauges)
+            .field("system_metrics", &self.system_metrics)
+            .finish()
+    }
 }
 
 impl Registry {
@@ -57,7 +73,16 @@ impl Registry {
             counters: DashMap::new(),
             gauges: DashMap::new(),
             system_metrics: SystemMetricsCollector::new(),
+            external_collectors: RwLock::new(Vec::new()),
         }
+    }
+
+    /// Register an external metrics collector (e.g., from JS runtime)
+    pub fn register_collector(&self, collector: Arc<dyn MetricsCollector>) {
+        self.external_collectors
+            .write()
+            .expect("mutex poisoned")
+            .push(collector);
     }
 
     /// Create a counter with the given name and labels
@@ -169,6 +194,12 @@ impl Registry {
                 key: key.clone(),
                 registered_at: store.registered_at,
             });
+        }
+
+        // Collect from external collectors (e.g., JS runtime)
+        let collectors = self.external_collectors.read().expect("mutex poisoned");
+        for collector in collectors.iter() {
+            collected_metrics.extend(collector.collect());
         }
 
         collected_metrics
