@@ -8,6 +8,7 @@ use crate::parser::resources::apis::authhandler::AUTHHANDLER_PARSER;
 use crate::parser::resources::apis::gateway::GATEWAY_PARSER;
 use crate::parser::resources::apis::service::SERVICE_PARSER;
 use crate::parser::resources::infra::cron::CRON_PARSER;
+use crate::parser::resources::infra::metrics::{COUNTER_PARSER, GAUGE_PARSER};
 use crate::parser::resources::infra::objects::OBJECTS_PARSER;
 use crate::parser::resources::infra::pubsub_subscription::SUBSCRIPTION_PARSER;
 use crate::parser::resources::infra::pubsub_topic::TOPIC_PARSER;
@@ -31,6 +32,7 @@ pub enum Resource {
     PubSubSubscription(Lrc<infra::pubsub_subscription::Subscription>),
     CronJob(Lrc<infra::cron::CronJob>),
     Secret(Lrc<infra::secret::Secret>),
+    Metric(Lrc<infra::metrics::Metric>),
 }
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
@@ -59,6 +61,7 @@ impl Display for Resource {
             Resource::CronJob(cron) => write!(f, "CronJob({})", cron.name),
             Resource::Secret(secret) => write!(f, "Secret({})", secret.name),
             Resource::Service(svc) => write!(f, "Service({})", svc.name),
+            Resource::Metric(metric) => write!(f, "Metric({})", metric.name),
         }
     }
 }
@@ -76,4 +79,6 @@ pub static DEFAULT_RESOURCE_PARSERS: &[&ResourceParser] = &[
     &SUBSCRIPTION_PARSER,
     &CRON_PARSER,
     &SECRET_PARSER,
+    &COUNTER_PARSER,
+    &GAUGE_PARSER,
 ];

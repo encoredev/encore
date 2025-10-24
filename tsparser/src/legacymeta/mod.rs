@@ -281,6 +281,9 @@ impl MetaBuilder<'_> {
                 Resource::Gateway(gw) => {
                     dependent.push(Dependent::Gateway((b, gw)));
                 }
+
+                // Metrics are not included in legacy metadata
+                Resource::Metric(_) => {}
             }
         }
 

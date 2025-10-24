@@ -373,6 +373,16 @@ impl Runtime {
             None => 1u32,
         }
     }
+
+    /// Creates a metrics registry for custom application metrics
+    #[napi]
+    pub fn create_metrics_registry(
+        &self,
+        env: Env,
+        buffer: JsObject,
+    ) -> napi::Result<crate::metrics::MetricsRegistry> {
+        crate::metrics::MetricsRegistry::new(env, buffer)
+    }
 }
 
 #[napi(object)]

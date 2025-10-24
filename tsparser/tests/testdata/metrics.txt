@@ -1,0 +1,39 @@
+-- svc/svc.ts --
+import { service } from "encore.dev/service";
+
+export default service("svc");
+
+-- svc/metrics.ts --
+import { Counter, CounterGroup, Gauge, GaugeGroup } from "encore.dev/metrics";
+
+// Simple counter
+const OrdersProcessed = new Counter<number>("orders_processed", {});
+
+// Counter with labels
+interface RequestLabels extends Record<string, string | number | boolean> {
+  success: boolean;
+  method: string;
+}
+
+const RequestsTotal = new CounterGroup<RequestLabels, number>("http_requests_total", {});
+
+// Simple gauge
+const MemoryUsage = new Gauge<number>("memory_usage_bytes", {});
+
+// Gauge with labels
+interface CPULabels extends Record<string, string | number | boolean> {
+  core: number;
+}
+
+const CPUUsage = new GaugeGroup<CPULabels, number>("cpu_usage_percent", {});
+
+export { OrdersProcessed, RequestsTotal, MemoryUsage, CPUUsage };
+
+-- package.json --
+{
+  "name": "metrics-test",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}
