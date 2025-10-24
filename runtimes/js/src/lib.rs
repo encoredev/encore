@@ -7,6 +7,7 @@ mod gateway;
 mod headers;
 mod log;
 mod meta;
+pub mod metrics;
 mod napi_util;
 pub mod objects;
 pub mod pubsub;

@@ -30,6 +30,8 @@ tokio-util = { version = "0.7.10", features = ["io"] }
 chrono = "0.4.38"
 num_cpus = "1.16.0"
 malachite = "0.6.1"
+metrics = "0.24.2"
+convert_case = "0.6.0"
 
 [build-dependencies]
 napi-build = "2.0.1"

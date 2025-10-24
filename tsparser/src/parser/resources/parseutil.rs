@@ -8,8 +8,9 @@ use swc_ecma_visit::VisitWithPath;
 
 use crate::parser::module_loader::Module;
 use crate::parser::resourceparser::bind::BindName;
-use crate::parser::types::{Object, TypeChecker};
+use crate::parser::types::{Basic, Interface, Object, Type, TypeChecker};
 use crate::parser::Range;
+use litparser::Sp;
 
 pub trait ReferenceParser
 where
@@ -516,4 +517,101 @@ pub fn resolve_object_for_bind_name(
             type_checker.resolve_obj(module.clone(), &ast::Expr::Ident(id.clone()))
         }
     }
+}
+
+/// Returns the interface if the type resolves to an Interface, otherwise returns None.
+pub fn resolve_interface(tc: &TypeChecker, typ: &Sp<Type>) -> Option<Interface> {
+    use crate::parser::types::unwrap_promise;
+
+    let span = typ.span();
+    let typ = unwrap_promise(tc.state(), typ);
+    match typ {
+        Type::Basic(Basic::Void) => None,
+        Type::Interface(iface) => Some(iface.clone()),
+        Type::Named(named) => {
+            let underlying = tc.underlying(named.obj.module_id, typ);
+            resolve_interface(tc, &Sp::new(span, underlying))
+        }
+        _ => None,
+    }
+}
+
+/// Validates that a resource name follows snake_case naming conventions.
+///
+/// Snake case names must:
+/// - Be between 1 and 63 characters long
+/// - Start with a lowercase letter
+/// - End with a lowercase letter or number
+/// - Only contain lowercase letters, numbers, and underscores
+/// - Not start with the reserved prefix (if provided)
+///
+/// Returns `Ok(())` if valid, or an error string if invalid.
+pub fn validate_snake_case_name(name: &str, reserved_prefix: Option<&str>) -> Result<(), String> {
+    const MAX_LENGTH: usize = 63;
+
+    // Check length
+    if name.is_empty() || name.len() > MAX_LENGTH {
+        return Err(format!(
+            "name must be between 1 and {} characters long (got {})",
+            MAX_LENGTH,
+            name.len()
+        ));
+    }
+
+    // Check snake_case format: ^[a-z]([_a-z0-9]*[a-z0-9])?$
+    let mut chars = name.chars();
+
+    // First character must be a lowercase letter
+    let first = chars.next().unwrap();
+    if !first.is_ascii_lowercase() {
+        return Err(format!(
+            "name must start with a lowercase letter (got '{}')",
+            first
+        ));
+    }
+
+    // If there's only one character, it's valid
+    if name.len() == 1 {
+        // Check reserved prefix
+        if let Some(prefix) = reserved_prefix {
+            if name.starts_with(prefix) {
+                return Err(format!(
+                    "name must not start with reserved prefix '{}' (got '{}')",
+                    prefix, name
+                ));
+            }
+        }
+        return Ok(());
+    }
+
+    // Last character must be lowercase letter or digit
+    let last = name.chars().last().unwrap();
+    if !last.is_ascii_lowercase() && !last.is_ascii_digit() {
+        return Err(format!(
+            "name must end with a lowercase letter or digit (got '{}')",
+            last
+        ));
+    }
+
+    // Middle characters must be lowercase letters, digits, or underscores
+    for (i, c) in name.chars().enumerate() {
+        if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '_' {
+            return Err(format!(
+                "name must only contain lowercase letters, numbers, and underscores (got '{}' at position {})",
+                c, i
+            ));
+        }
+    }
+
+    // Check reserved prefix
+    if let Some(prefix) = reserved_prefix {
+        if name.starts_with(prefix) {
+            return Err(format!(
+                "name must not start with reserved prefix '{}' (got '{}')",
+                prefix, name
+            ));
+        }
+    }
+
+    Ok(())
 }
