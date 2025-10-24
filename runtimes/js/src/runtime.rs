@@ -381,7 +381,13 @@ impl Runtime {
         env: Env,
         buffer: JsObject,
     ) -> napi::Result<crate::metrics::MetricsRegistry> {
-        crate::metrics::MetricsRegistry::new(env, buffer)
+        let registry = crate::metrics::MetricsRegistry::new(env, buffer)?;
+
+        // Register the JS metrics collector with the core runtime
+        let collector = Arc::new(crate::metrics::JsMetricsCollector::new(&registry));
+        self.runtime.metrics().registry().register_collector(collector);
+
+        Ok(registry)
     }
 }
 

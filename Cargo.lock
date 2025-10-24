@@ -1878,6 +1878,7 @@ dependencies = [
  "log",
  "malachite",
  "mappable-rc",
+ "metrics",
  "napi",
  "napi-build",
  "napi-derive",
