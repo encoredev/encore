@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -263,7 +264,7 @@ func (d *Desc[Req, Resp]) begin(c IncomingContext) (reqData Req, beginErr error)
 			NonRawPayload:        nonRawPayload,
 			UserID:               c.auth.UID,
 			AuthData:             c.auth.UserData,
-			RequestHeaders:       c.req.Header,
+			RequestHeaders:       headersWithHost(c.req),
 			FromEncorePlatform:   platformauth.IsEncorePlatformRequest(c.req.Context()),
 			ServiceToServiceCall: c.callMeta.IsServiceToService(),
 		},
@@ -857,6 +858,21 @@ func unmarshalErrorResponse(httpResp *http.Response) error {
 			return errs.B().Code(errs.Internal).Msgf("request failed: status %s: %s", httpResp.Status, string(bodyBytes)).Err()
 		}
 	}
+}
+
+// headersWithHost clones the request headers and adds the Host header from req.Host.
+// This is needed because Go stores the Host header in req.Host, not in req.Header.
+func headersWithHost(req *http.Request) http.Header {
+	var headers http.Header
+	if req.Header != nil {
+		headers = maps.Clone(req.Header)
+	} else {
+		headers = make(http.Header)
+	}
+	if req.Host != "" {
+		headers.Set("Host", req.Host)
+	}
+	return headers
 }
 
 // validate validates the request, and returns a validation error on failure.
