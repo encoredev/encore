@@ -139,7 +139,19 @@ async fn process_message(mut msg: NSQMessage, handler: Arc<SubHandler>) {
 
     // Signal the touch task to stop and return the message
     let _ = stop_tx.send(());
-    let msg = touch_handle.await.expect("touch task panicked");
+    let msg = match touch_handle.await {
+        Ok(msg) => msg,
+        Err(err) => {
+            log::error!(
+                "touch task failed, unable to finish or requeue message: {:?}",
+                err
+            );
+            // If the touch task failed, we can't access the message to finish or requeue it.
+            // NSQ will automatically requeue the message after the timeout expires,
+            // so we return early and let NSQ handle the requeue.
+            return;
+        }
+    };
 
     match result {
         Ok(()) => msg.finish().await,
