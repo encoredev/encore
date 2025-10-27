@@ -107,7 +107,40 @@ impl Subscription for NsqSubscription {
 
 async fn process_message(mut msg: NSQMessage, handler: Arc<SubHandler>) {
     let body: Vec<u8> = msg.body.drain(..).collect();
-    let result = handle_message(body, msg.timestamp, msg.attempt, handler).await;
+    let timestamp = msg.timestamp;
+    let attempt = msg.attempt;
+
+    // Create a channel to signal when to stop sending touch messages
+    let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
+
+    // Spawn a background task to send touch messages every 30 seconds
+    let touch_handle = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        // Skip the first tick (immediate)
+        interval.tick().await;
+
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    msg.touch().await;
+                }
+                _ = &mut stop_rx => {
+                    // Stop signal received, exit the loop
+                    break;
+                }
+            }
+        }
+
+        // Return the message so we can finish or requeue it
+        msg
+    });
+
+    let result = handle_message(body, timestamp, attempt, handler).await;
+
+    // Signal the touch task to stop and return the message
+    let _ = stop_tx.send(());
+    let msg = touch_handle.await.expect("touch task panicked");
+
     match result {
         Ok(()) => msg.finish().await,
         Err(err) => {
