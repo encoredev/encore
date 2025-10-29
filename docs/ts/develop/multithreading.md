@@ -9,11 +9,11 @@ lang: ts
 Encore.ts runs using a high-performance Rust runtime that uses multiple threads to handle incoming requests.
 The Encore.ts Rust runtime handles virtually everything outside of your core business logic:
 
-* Parsing and validating incoming requests
-* Making API calls to other services
-* Serializing and writing API responses
-* Observability integrations like distributed tracing
-* Infrastructure integrations, like executing database queries, reading and writing from object storage, publishing and consuming messages from Pub/Sub, and more
+- Parsing and validating incoming requests
+- Making API calls to other services
+- Serializing and writing API responses
+- Observability integrations like distributed tracing
+- Infrastructure integrations, like executing database queries, reading and writing from object storage, publishing and consuming messages from Pub/Sub, and more
 
 This architecture allows for much higher performance and scalability compared to traditional JavaScript frameworks.
 By offloading most of this to multithreaded Rust, the single-threaded JavaScript event loop becomes free to focus on executing your core business logic.
@@ -22,7 +22,7 @@ But for more CPU-intensive workloads, the single-threaded JavaScript event loop 
 For these use cases Encore.ts offers Worker Pooling. With Worker Pooling enabled, Encore.ts starts up multiple NodeJS event loops
 and load-balances incoming requests across them. This can provide a significant performance boost for CPU-intensive workloads.
 
-<img src="https://encore.dev/assets/blog/worker-pooling/encore-pooling.png" />
+<img src="https://encore.dev/assets/blog/worker-pooling/encore-pooling.png" className="bg-black p-3 brand-shadow mx-auto" />
 
 ## Enabling Worker Pooling
 
