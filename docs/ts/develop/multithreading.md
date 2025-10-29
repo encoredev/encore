@@ -22,7 +22,7 @@ But for more CPU-intensive workloads, the single-threaded JavaScript event loop 
 For these use cases Encore.ts offers Worker Pooling. With Worker Pooling enabled, Encore.ts starts up multiple NodeJS event loops
 and load-balances incoming requests across them. This can provide a significant performance boost for CPU-intensive workloads.
 
-<img src="https://encore.dev/assets/blog/worker-pooling/encore-pooling.png" className="bg-black p-4 brand-shadow mx-auto" />
+<img src="https://encore.dev/assets/blog/worker-pooling/encore-pooling.png" className="bg-black p-3 brand-shadow mx-auto" />
 
 ## Enabling Worker Pooling
 
