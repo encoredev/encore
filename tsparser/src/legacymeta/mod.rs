@@ -855,7 +855,7 @@ fn basic_to_proto(basic: &crate::parser::types::Basic) -> i32 {
     (match basic {
         Basic::Boolean => Builtin::Bool,
         Basic::String => Builtin::String,
-        Basic::Number => Builtin::Float64,
+        Basic::Number => Builtin::Int64,
         _ => Builtin::Any,
     }) as i32
 }
