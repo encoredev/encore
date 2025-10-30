@@ -23,7 +23,6 @@ impl SystemMetricsCollector {
     }
 
     fn refresh(system: &mut System) {
-        system.refresh_cpu_usage();
         system.refresh_memory();
     }
 
