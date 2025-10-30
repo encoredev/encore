@@ -17,6 +17,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
@@ -59,6 +60,10 @@ func init() {
 }
 
 func promptAccountCreation() {
+	// If shell is non-interactive, don't prompt
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
 	cyan := color.New(color.FgCyan)
 	red := color.New(color.FgRed)
 	// Prompt the user for creating an account if they're not logged in.
@@ -91,6 +96,11 @@ func promptAccountCreation() {
 }
 
 func promptRunApp() bool {
+	// If shell is non-interactive, don't prompt
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return false
+	}
+
 	cyan := color.New(color.FgCyan)
 	red := color.New(color.FgRed)
 	for {

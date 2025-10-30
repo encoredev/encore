@@ -17,6 +17,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tailscale/hujson"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
 )
@@ -435,6 +436,17 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (appName, template string, selectedLang language) {
 	// If we have both name and template already, return them.
 	if inputName != "" && inputTemplate != "" {
+		return inputName, inputTemplate, ""
+	}
+
+	// If shell is non-interactive, don't prompt
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		if inputName == "" {
+			cmdutil.Fatal("specify an app name")
+		}
+		if inputTemplate == "" {
+			cmdutil.Fatal("specify a template using the --example flag")
+		}
 		return inputName, inputTemplate, ""
 	}
 
