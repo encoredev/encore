@@ -41,7 +41,7 @@ impl DatadogClient {
 }
 
 struct LazyDatadogClient {
-    cell: tokio::sync::OnceCell<anyhow::Result<DatadogClient>>,
+    cell: tokio::sync::OnceCell<DatadogClient>,
     site: String,
     api_key: String,
 }
@@ -55,7 +55,7 @@ impl LazyDatadogClient {
         }
     }
 
-    async fn get(&self) -> &anyhow::Result<DatadogClient> {
+    async fn get(&self) -> &DatadogClient {
         self.cell
             .get_or_init(|| async {
                 // Create Datadog API client configuration
@@ -71,9 +71,9 @@ impl LazyDatadogClient {
                     },
                 );
 
-                Ok(DatadogClient {
+                DatadogClient {
                     config: configuration,
-                })
+                }
             })
             .await
     }
@@ -117,13 +117,7 @@ impl Datadog {
             return Ok(());
         }
 
-        let client = match self.client.get().await {
-            Ok(client) => client,
-            Err(e) => {
-                log::error!("failed to get Datadog client: {}", e);
-                return Err(anyhow::anyhow!("failed to get Datadog client: {}", e));
-            }
-        };
+        let client = self.client.get().await;
 
         log::trace!(
             "Exporting {} metrics to Datadog site {}",
