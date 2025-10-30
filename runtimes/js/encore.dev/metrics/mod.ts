@@ -269,6 +269,8 @@ export class CounterGroup<
 
   /**
    * Get a counter for the given label values.
+   *
+   * Note: Number values in labels are converted to integers using Math.floor().
    */
   with(labels: L): AtomicCounter | NoOpCounter {
     const labelKey = serializeLabels(labels);
@@ -286,7 +288,11 @@ export class CounterGroup<
       // Allocate slot for this label combination
       const labelMap: Record<string, string> = {};
       for (const [key, value] of Object.entries(labels)) {
-        labelMap[key] = String(value);
+        if (typeof value === "number") {
+          labelMap[key] = String(Math.floor(value));
+        } else {
+          labelMap[key] = String(value);
+        }
       }
 
       const labelPairs = Object.entries(labelMap);
@@ -408,6 +414,8 @@ export class GaugeGroup<L extends Record<keyof L, string | number | boolean>> {
 
   /**
    * Get a gauge for the given label values.
+   *
+   * Note: Number values in labels are converted to integers using Math.floor().
    */
   with(labels: L): AtomicGauge | NoOpGauge {
     const labelKey = serializeLabels(labels);
@@ -425,7 +433,11 @@ export class GaugeGroup<L extends Record<keyof L, string | number | boolean>> {
       // Allocate slot for this label combination
       const labelMap: Record<string, string> = {};
       for (const [key, value] of Object.entries(labels)) {
-        labelMap[key] = String(value);
+        if (typeof value === "number") {
+          labelMap[key] = String(Math.floor(value));
+        } else {
+          labelMap[key] = String(value);
+        }
       }
 
       const labelPairs = Object.entries(labelMap);
