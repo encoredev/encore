@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -94,6 +95,10 @@ func convertErr(err error) error {
 		err = errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
 	case pgx.ErrTxClosed, pgx.ErrTxCommitRollback, sql.ErrTxDone, sql.ErrConnDone:
 		err = errs.WrapCode(err, errs.Internal, "")
+	case context.DeadlineExceeded:
+		err = errs.WrapCode(err, errs.DeadlineExceeded, "")
+	case context.Canceled:
+		err = errs.WrapCode(err, errs.Canceled, "")
 	default:
 		err = errs.WrapCode(err, errs.Unavailable, "")
 	}
