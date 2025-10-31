@@ -75,12 +75,21 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 		return nil
 	}
 
-	err := x.getClient().CreateTimeSeries(ctx, &monitoringpb.CreateTimeSeriesRequest{
-		Name:       "projects/" + x.cfg.ProjectID,
-		TimeSeries: data,
-	})
-	if err != nil {
-		return fmt.Errorf("write metrics to GCP Cloud Monitoring: %v", err)
+	// Batch the time series into chunks of 200 (GCP's max per API call)
+	const maxTimeSeriesPerRequest = 200
+	client := x.getClient()
+
+	for i := 0; i < len(data); i += maxTimeSeriesPerRequest {
+		end := min(i+maxTimeSeriesPerRequest, len(data))
+		batch := data[i:end]
+
+		err := client.CreateTimeSeries(ctx, &monitoringpb.CreateTimeSeriesRequest{
+			Name:       "projects/" + x.cfg.ProjectID,
+			TimeSeries: batch,
+		})
+		if err != nil {
+			return fmt.Errorf("write metrics to GCP Cloud Monitoring: %v", err)
+		}
 	}
 	return nil
 }
