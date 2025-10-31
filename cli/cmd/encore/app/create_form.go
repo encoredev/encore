@@ -72,10 +72,14 @@ type languageSelectDone struct {
 }
 
 type languageSelectModel struct {
-	list list.Model
+	predefined language
+	list       list.Model
 }
 
 func (m languageSelectModel) Selected() language {
+	if m.predefined != "" {
+		return m.predefined
+	}
 	sel := m.list.SelectedItem()
 	if sel == nil {
 		return ""
@@ -433,10 +437,10 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (appName, template string, selectedLang language) {
+func selectTemplate(inputName, inputTemplate string, inputLang language, skipShowingTemplate bool) (appName, template string, selectedLang language) {
 	// If we have both name and template already, return them.
 	if inputName != "" && inputTemplate != "" {
-		return inputName, inputTemplate, ""
+		return inputName, inputTemplate, inputLang
 	}
 
 	// If shell is non-interactive, don't prompt
@@ -444,10 +448,7 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 		if inputName == "" {
 			cmdutil.Fatal("specify an app name")
 		}
-		if inputTemplate == "" {
-			cmdutil.Fatal("specify a template using the --example flag")
-		}
-		return inputName, inputTemplate, ""
+		return inputName, inputTemplate, inputLang
 	}
 
 	var lang languageSelectModel
@@ -479,7 +480,8 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
 		lang = languageSelectModel{
-			list: ll,
+			list:       ll,
+			predefined: inputLang,
 		}
 		lang.SetSize(0, 20)
 	}
@@ -535,6 +537,9 @@ func selectTemplate(inputName, inputTemplate string, skipShowingTemplate bool) (
 	}
 	if m.templates.predefined != "" {
 		m.step = 2 // skip to app name selection
+	} else if m.lang.predefined != "" {
+		m.templates.UpdateFilter(inputLang)
+		m.step = 1 // skip to template selection
 	}
 
 	p := tea.NewProgram(m)

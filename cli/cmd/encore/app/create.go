@@ -34,6 +34,7 @@ import (
 var (
 	createAppTemplate   string
 	createAppOnPlatform bool
+	createAppLang       string
 )
 
 var createAppCmd = &cobra.Command{
@@ -47,7 +48,7 @@ var createAppCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		if err := createApp(context.Background(), name, createAppTemplate); err != nil {
+		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang)); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},
@@ -57,6 +58,7 @@ func init() {
 	appCmd.AddCommand(createAppCmd)
 	createAppCmd.Flags().BoolVar(&createAppOnPlatform, "platform", true, "whether to create the app with the Encore Platform")
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
+	createAppCmd.Flags().StringVar(&createAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
 }
 
 func promptAccountCreation() {
@@ -126,8 +128,7 @@ func promptRunApp() bool {
 }
 
 // createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string) (err error) {
-	var lang language
+func createApp(ctx context.Context, name, template string, lang language) (err error) {
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -142,12 +143,15 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	promptAccountCreation()
 
 	if name == "" || template == "" {
-		name, template, lang = selectTemplate(name, template, false)
+		name, template, lang = selectTemplate(name, template, lang, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
 	if template == "empty" {
 		template = ""
+	}
+	if template == "" && lang == languageTS {
+		template = "ts/empty"
 	}
 
 	if err := validateName(name); err != nil {
