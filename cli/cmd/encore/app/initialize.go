@@ -28,10 +28,13 @@ const (
 `
 )
 
+var (
+	initAppLang string
+)
+
 // Create a new app from scratch: `encore app create`
 // Link an existing app to an existing repo: `encore app link <app-id>`
 // Link an existing repo to a new app: `encore app init <name>`
-
 func init() {
 	initAppCmd := &cobra.Command{
 		Use:   "init [name]",
@@ -51,6 +54,7 @@ func init() {
 	}
 
 	appCmd.AddCommand(initAppCmd)
+	initAppCmd.Flags().StringVar(&initAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
 }
 
 func initializeApp(name string) error {
@@ -68,7 +72,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang := selectTemplate(name, "", true)
+	name, _, lang := selectTemplate(name, "", language(initAppLang), true)
 
 	if err := validateName(name); err != nil {
 		return err
