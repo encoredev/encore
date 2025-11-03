@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -172,6 +173,9 @@ pub struct StaticAssets {
 
     /// Http Status Code to use when serving not_found
     pub not_found_status: Option<u32>,
+
+    /// Custom HTTP headers to apply to all static files served.
+    pub headers: Option<HashMap<String, Vec<String>>>,
 }
 
 pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
@@ -359,6 +363,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                         dir: assets_dir,
                         not_found: not_found_path,
                         not_found_status,
+                        headers: cfg.headers.as_ref().map(|h| h.0.clone()),
                     });
 
                     describe_static_assets(r.range.to_span(), methods, path)
@@ -475,6 +480,63 @@ enum EndpointKind {
     Raw,
 }
 
+/// Custom type to parse headers as Record<string, string | string[]>
+#[derive(Debug, Clone)]
+struct HeadersMap(HashMap<String, Vec<String>>);
+
+impl LitParser for HeadersMap {
+    fn parse_lit(expr: &ast::Expr) -> ParseResult<Self> {
+        let ast::Expr::Object(obj) = expr else {
+            return Err(expr.parse_err("headers must be an object"));
+        };
+
+        let mut map = HashMap::new();
+        for prop in &obj.props {
+            let ast::PropOrSpread::Prop(prop) = prop else {
+                continue;
+            };
+
+            let ast::Prop::KeyValue(kv) = prop.as_ref() else {
+                continue;
+            };
+
+            let key = match &kv.key {
+                ast::PropName::Ident(ident) => ident.sym.to_string(),
+                ast::PropName::Str(s) => s.value.to_string(),
+                _ => continue,
+            };
+
+            let values = match kv.value.as_ref() {
+                // Single string value
+                ast::Expr::Lit(ast::Lit::Str(s)) => vec![s.value.to_string()],
+                // Array of strings
+                ast::Expr::Array(arr) => {
+                    let mut values = Vec::new();
+                    for elem in arr.elems.iter().flatten() {
+                        if let ast::Expr::Lit(ast::Lit::Str(s)) = elem.expr.as_ref() {
+                            values.push(s.value.to_string());
+                        } else {
+                            return Err(elem
+                                .expr
+                                .parse_err("header value must be a string or array of strings"));
+                        }
+                    }
+                    values
+                }
+                _ => {
+                    return Err(kv
+                        .value
+                        .parse_err("header value must be a string or array of strings"))
+                }
+            };
+
+            map.insert(key, values);
+        }
+
+        Ok(HeadersMap(map))
+    }
+}
+
 #[derive(LitParser, Debug)]
 #[allow(non_snake_case)]
 struct EndpointConfig {
@@ -490,6 +552,7 @@ struct EndpointConfig {
     dir: Option<Sp<LocalRelPath>>,
     notFound: Option<Sp<LocalRelPath>>,
     notFoundStatus: Option<u32>,
+    headers: Option<HeadersMap>,
 }
 
 impl ReferenceParser for APIEndpointLiteral {

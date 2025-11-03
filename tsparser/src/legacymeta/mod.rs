@@ -157,10 +157,30 @@ impl MetaBuilder<'_> {
                                     )
                                 })
                                 .transpose()?;
+
+                            // Convert headers to protobuf format
+                            let headers = sa
+                                .headers
+                                .as_ref()
+                                .map(|h| {
+                                    h.iter()
+                                        .map(|(k, v)| {
+                                            (
+                                                k.clone(),
+                                                v1::rpc::static_assets::HeaderValues {
+                                                    values: v.clone(),
+                                                },
+                                            )
+                                        })
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+
                             Ok(v1::rpc::StaticAssets {
                                 dir_rel_path,
                                 not_found_rel_path,
                                 not_found_status: sa.not_found_status,
+                                headers,
                             })
                         })
                         .transpose()?;
