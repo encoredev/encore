@@ -57,13 +57,24 @@ func (x *Exporter) Export(ctx context.Context, collected []metrics.CollectedMetr
 	now := time.Now()
 	data := x.getMetricData(now, collected)
 	data = append(data, x.getSysMetrics(now)...)
-	_, err := x.getClient().PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
-		MetricData: data,
-		Namespace:  aws.String(x.cfg.Namespace),
-	})
-	if err != nil {
-		return fmt.Errorf("unable to send metrics to AWS CloudWatch: %v", err)
+
+	// CloudWatch has a maximum of 1000 metrics per PutMetricData request
+	const maxMetricsPerRequest = 1000
+	client := x.getClient()
+
+	for i := 0; i < len(data); i += maxMetricsPerRequest {
+		end := min(i+maxMetricsPerRequest, len(data))
+
+		batch := data[i:end]
+		_, err := client.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
+			MetricData: batch,
+			Namespace:  aws.String(x.cfg.Namespace),
+		})
+		if err != nil {
+			return fmt.Errorf("unable to send metrics to AWS CloudWatch: %v", err)
+		}
 	}
+
 	return nil
 }
 

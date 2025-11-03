@@ -17,6 +17,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/tailscale/hujson"
+	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
@@ -33,6 +34,7 @@ import (
 var (
 	createAppTemplate   string
 	createAppOnPlatform bool
+	createAppLang       string
 )
 
 var createAppCmd = &cobra.Command{
@@ -46,7 +48,7 @@ var createAppCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		if err := createApp(context.Background(), name, createAppTemplate); err != nil {
+		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang)); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},
@@ -56,9 +58,14 @@ func init() {
 	appCmd.AddCommand(createAppCmd)
 	createAppCmd.Flags().BoolVar(&createAppOnPlatform, "platform", true, "whether to create the app with the Encore Platform")
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
+	createAppCmd.Flags().StringVar(&createAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
 }
 
 func promptAccountCreation() {
+	// If shell is non-interactive, don't prompt
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
 	cyan := color.New(color.FgCyan)
 	red := color.New(color.FgRed)
 	// Prompt the user for creating an account if they're not logged in.
@@ -91,6 +98,11 @@ func promptAccountCreation() {
 }
 
 func promptRunApp() bool {
+	// If shell is non-interactive, don't prompt
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return false
+	}
+
 	cyan := color.New(color.FgCyan)
 	red := color.New(color.FgRed)
 	for {
@@ -116,8 +128,7 @@ func promptRunApp() bool {
 }
 
 // createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string) (err error) {
-	var lang language
+func createApp(ctx context.Context, name, template string, lang language) (err error) {
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -132,12 +143,15 @@ func createApp(ctx context.Context, name, template string) (err error) {
 	promptAccountCreation()
 
 	if name == "" || template == "" {
-		name, template, lang = selectTemplate(name, template, false)
+		name, template, lang = selectTemplate(name, template, lang, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
 	if template == "empty" {
 		template = ""
+	}
+	if template == "" && lang == languageTS {
+		template = "ts/empty"
 	}
 
 	if err := validateName(name); err != nil {
