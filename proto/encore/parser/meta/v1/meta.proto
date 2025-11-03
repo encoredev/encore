@@ -171,6 +171,13 @@ message RPC {
     // file is not found. It is relative to the files_rel_path directory.
     optional string not_found_rel_path = 2;
     optional uint32 not_found_status = 3;
+
+    // Custom HTTP headers to apply to all static files served.
+    // Each header can have multiple values.
+    message HeaderValues {
+      repeated string values = 1;
+    }
+    map<string, HeaderValues> headers = 4;
   }
 }
 

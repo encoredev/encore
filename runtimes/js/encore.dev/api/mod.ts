@@ -305,6 +305,19 @@ export interface StaticOptions {
    * Defaults to 404.
    */
   notFoundStatus?: number;
+
+  /**
+   * Custom HTTP headers to apply to all static files served.
+   *
+   * @example
+   * ```typescript
+   * headers: {
+   *   "Cache-Control": "public, max-age=3600",
+   *   "X-Content-Type-Options": "nosniff",
+   * }
+   * ```
+   */
+  headers?: Record<string, string | string[]>;
 }
 
 export class StaticAssets {

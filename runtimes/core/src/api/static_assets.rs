@@ -1,6 +1,6 @@
 use std::{convert::Infallible, future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
-use http::StatusCode;
+use http::{HeaderName, HeaderValue, StatusCode};
 use http_body_util::Empty;
 use std::fmt::Debug;
 use std::io;
@@ -16,6 +16,7 @@ pub struct StaticAssetsHandler {
     service: Arc<dyn FileServer>,
     not_found_handler: bool,
     not_found_status: StatusCode,
+    headers: Vec<(HeaderName, HeaderValue)>,
 }
 
 impl StaticAssetsHandler {
@@ -36,10 +37,36 @@ impl StaticAssetsHandler {
             Some(not_found) => Arc::new(service.not_found_service(not_found)),
             None => Arc::new(service),
         };
+
+        let headers: Vec<(HeaderName, HeaderValue)> = cfg
+            .headers
+            .iter()
+            .flat_map(|(key, header_values)| {
+                HeaderName::from_bytes(key.as_bytes())
+                    .inspect_err(|e| {
+                        log::error!("skipping header: '{}' - {}", key, e);
+                    })
+                    .ok()
+                    .map(|header_name| {
+                        header_values.values.iter().filter_map(move |value| {
+                            HeaderValue::from_bytes(value.as_bytes())
+                                .inspect_err(|e| {
+                                    log::error!("skipping header '{}': '{}' - {}", key, value, e);
+                                })
+                                .ok()
+                                .map(|header_value| (header_name.clone(), header_value))
+                        })
+                    })
+                    .into_iter()
+                    .flatten()
+            })
+            .collect();
+
         StaticAssetsHandler {
             service,
             not_found_handler,
             not_found_status,
+            headers,
         }
     }
 }
@@ -92,45 +119,54 @@ impl BoxedHandler for StaticAssetsHandler {
             };
 
             match self.service.serve(httpreq).await {
-                Ok(mut resp) => match resp.status() {
-                    // 1xx, 2xx, 3xx are all considered successful.
-                    code if code.is_informational()
-                        || code.is_success()
-                        || code.is_redirection() =>
-                    {
-                        ResponseData::Raw(resp.map(axum::body::Body::new))
+                Ok(mut resp) => {
+                    let resp_headers = resp.headers_mut();
+                    for (name, value) in &self.headers {
+                        resp_headers.append(name.clone(), value.clone());
                     }
-                    axum::http::StatusCode::NOT_FOUND => {
-                        // If we have a not found handler, use that directly.
-                        if self.not_found_handler {
-                            *resp.status_mut() = self.not_found_status;
+
+                    match resp.status() {
+                        // 1xx, 2xx, 3xx are all considered successful.
+                        code if code.is_informational()
+                            || code.is_success()
+                            || code.is_redirection() =>
+                        {
                             ResponseData::Raw(resp.map(axum::body::Body::new))
-                        } else {
-                            // Otherwise return our standard not found error.
-                            ResponseData::Typed(Err(Error::not_found("file not found")))
                         }
+                        axum::http::StatusCode::NOT_FOUND => {
+                            // If we have a not found handler, use that directly.
+                            if self.not_found_handler {
+                                *resp.status_mut() = self.not_found_status;
+                                ResponseData::Raw(resp.map(axum::body::Body::new))
+                            } else {
+                                // Otherwise return our standard not found error.
+                                ResponseData::Typed(Err(Error::not_found("file not found")))
+                            }
+                        }
+                        axum::http::StatusCode::METHOD_NOT_ALLOWED => {
+                            ResponseData::Typed(Err(Error {
+                                code: super::ErrCode::InvalidArgument,
+                                internal_message: None,
+                                message: "method not allowed".to_string(),
+                                stack: None,
+                                details: None,
+                            }))
+                        }
+                        axum::http::StatusCode::INTERNAL_SERVER_ERROR => {
+                            ResponseData::Typed(Err(Error {
+                                code: super::ErrCode::Internal,
+                                internal_message: None,
+                                message: "failed to serve static asset".to_string(),
+                                stack: None,
+                                details: None,
+                            }))
+                        }
+                        code => ResponseData::Typed(Err(Error::internal(anyhow::anyhow!(
+                            "failed to serve static asset: {}",
+                            code,
+                        )))),
                     }
-                    axum::http::StatusCode::METHOD_NOT_ALLOWED => ResponseData::Typed(Err(Error {
-                        code: super::ErrCode::InvalidArgument,
-                        internal_message: None,
-                        message: "method not allowed".to_string(),
-                        stack: None,
-                        details: None,
-                    })),
-                    axum::http::StatusCode::INTERNAL_SERVER_ERROR => {
-                        ResponseData::Typed(Err(Error {
-                            code: super::ErrCode::Internal,
-                            internal_message: None,
-                            message: "failed to serve static asset".to_string(),
-                            stack: None,
-                            details: None,
-                        }))
-                    }
-                    code => ResponseData::Typed(Err(Error::internal(anyhow::anyhow!(
-                        "failed to serve static asset: {}",
-                        code,
-                    )))),
-                },
+                }
                 Err(e) => ResponseData::Typed(Err(Error::internal(e))),
             }
         })
