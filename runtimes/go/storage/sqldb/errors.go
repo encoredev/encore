@@ -1,6 +1,7 @@
 package sqldb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -89,14 +90,19 @@ func convertErr(err error) error {
 		err = convertPgError(pgerr)
 	}
 
-	switch err {
-	case pgx.ErrNoRows, sql.ErrNoRows:
+	switch {
+	case errors.Is(err, pgx.ErrNoRows), errors.Is(err, sql.ErrNoRows):
 		err = errs.WrapCode(sql.ErrNoRows, errs.NotFound, "")
-	case pgx.ErrTxClosed, pgx.ErrTxCommitRollback, sql.ErrTxDone, sql.ErrConnDone:
+	case errors.Is(err, pgx.ErrTxClosed), errors.Is(err, pgx.ErrTxCommitRollback), errors.Is(err, sql.ErrTxDone), errors.Is(err, sql.ErrConnDone):
 		err = errs.WrapCode(err, errs.Internal, "")
+	case errors.Is(err, context.DeadlineExceeded):
+		err = errs.WrapCode(err, errs.DeadlineExceeded, "")
+	case errors.Is(err, context.Canceled):
+		err = errs.WrapCode(err, errs.Canceled, "")
 	default:
 		err = errs.WrapCode(err, errs.Unavailable, "")
 	}
+
 	return errs.DropStackFrame(err)
 }
 
