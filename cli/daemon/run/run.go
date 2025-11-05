@@ -770,7 +770,10 @@ func encodeSecretsEnv(secrets map[string]string) string {
 		buf.WriteByte('=')
 		buf.WriteString(base64.RawURLEncoding.EncodeToString([]byte(secrets[k])))
 	}
-	return buf.String()
+
+	gzipped := gzipBytes(buf.Bytes())
+	str := "gzip:" + base64.StdEncoding.EncodeToString(gzipped)
+	return str
 }
 
 func usesSecrets(md *meta.Data) bool {

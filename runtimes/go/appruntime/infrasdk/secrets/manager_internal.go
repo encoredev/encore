@@ -1,8 +1,11 @@
 package secrets
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"os"
@@ -46,6 +49,28 @@ func (mgr *Manager) Load(key string, inService string) string {
 
 // parse parses secrets in "key1=base64(val1),key2=base64(val2)" format into a map.
 func parse(s string) map[string]string {
+	s, isGzipped := strings.CutPrefix(s, "gzip:")
+	if isGzipped {
+		var b []byte
+		var err error
+
+		if b, err = base64.StdEncoding.DecodeString(s); err != nil {
+			b, err = base64.RawURLEncoding.DecodeString(s)
+		}
+		if err != nil {
+			log.Fatalln("encore runtime: fatal error: could not decode app secrets:", err)
+		}
+		gz, err := gzip.NewReader(bytes.NewReader(b))
+		if err != nil {
+			log.Fatalln("encore runtime: fatal error: could not unzip app secrets:", err)
+		}
+		b, err = io.ReadAll(gz)
+		if err != nil {
+			log.Fatalln("encore runtime: fatal error: could not read app secrets:", err)
+		}
+
+		s = string(b)
+	}
 	m := make(map[string]string)
 	if s == "" {
 		return m
