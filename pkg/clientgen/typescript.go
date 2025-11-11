@@ -221,7 +221,7 @@ func (ts *typescript) writeService(svc *meta.Service, p clientgentypes.ServiceSe
 				(rpc.ResponseSchema == nil && rpc.RequestSchema == nil && !hasPathParams(rpc)) {
 				continue
 			}
-			path := fmt.Sprintf("~backend/%s/%s", rpc.Loc.PkgName, strings.TrimSuffix(rpc.Loc.Filename, filepath.Ext(rpc.Loc.Filename)))
+			path := fmt.Sprintf("~backend/%s/%s", rpc.Loc.PkgPath, strings.TrimSuffix(rpc.Loc.Filename, filepath.Ext(rpc.Loc.Filename)))
 			importsByPath[path] = append(importsByPath[path], fmt.Sprintf("%s as %s", rpc.Name, rpcImportName(rpc)))
 		}
 		if len(importsByPath) > 0 {
