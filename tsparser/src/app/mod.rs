@@ -8,10 +8,13 @@ use crate::encore::parser::meta::v1;
 use crate::legacymeta::compute_meta;
 use crate::parser::parser::{ParseContext, ParseResult};
 use crate::parser::resources::apis::api::{Endpoint, Method, Methods};
+use crate::parser::resources::apis::encoding::{Param, ParamData};
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
 use crate::parser::types::visitor::VisitWith;
-use crate::parser::types::{validation, visitor, ObjectId, ResolveState, Type, Validated};
+use crate::parser::types::{
+    validation, visitor, Basic, Interface, ObjectId, ResolveState, Type, Validated,
+};
 use crate::parser::Range;
 use crate::span_err::ErrReporter;
 use litparser::Sp;
@@ -125,11 +128,79 @@ impl AppValidator<'_> {
     }
 
     fn validate_endpoint(&self, ep: &Endpoint) {
+        if let Some(req_enc) = &ep.encoding.handshake {
+            self.validate_req_params(&req_enc.params);
+        }
+        for req_enc in &ep.encoding.req {
+            self.validate_req_params(&req_enc.params);
+        }
+        self.validate_resp_params(&ep.encoding.resp.params);
+        if let Some(schema) = &ep.encoding.raw_handshake_schema {
+            self.validate_schema_type(schema);
+            self.validate_validations(schema);
+        }
         if let Some(schema) = &ep.encoding.raw_req_schema {
+            self.validate_schema_type(schema);
             self.validate_validations(schema);
         }
         if let Some(schema) = &ep.encoding.raw_resp_schema {
+            self.validate_schema_type(schema);
             self.validate_validations(schema);
+        }
+    }
+
+    fn validate_req_params(&self, params: &Vec<Param>) {
+        for param in params {
+            if let ParamData::Query { .. } = param.loc {
+                let concrete = resolve_to_concrete(self.pc.type_checker.state(), &param.typ);
+                let is_valid = matches!(concrete, Type::Basic(_))
+                    || matches!(concrete, Type::Array(ref t) if matches!(*t.0, Type::Basic(_)));
+
+                if !is_valid {
+                    HANDLER.with(|handler| {
+                        handler.span_err(param.range, "type not supported for query parameters")
+                    });
+                }
+            };
+        }
+    }
+    fn validate_resp_params(&self, params: &[Param]) {
+        let mut http_status_defined = None;
+        for param in params
+            .iter()
+            .filter(|p| matches!(p.loc, ParamData::HTTPStatus))
+        {
+            if let Some(prev_range) = http_status_defined.replace(param.range) {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            param.range,
+                            "http status can only be defined once per response type",
+                        )
+                        .span_note(prev_range, "previously defined here")
+                        .emit();
+                });
+            }
+        }
+    }
+
+    fn validate_schema_type(&self, schema: &Sp<Type>) {
+        let state = self.pc.type_checker.state();
+        let concrete = resolve_to_concrete(state, schema.get());
+
+        let error_msg = match concrete {
+            Type::Interface(Interface { index: Some(_), .. }) => {
+                Some("type index is not supported in schema types")
+            }
+            Type::Interface(Interface { call: Some(_), .. }) => {
+                Some("call signatures are not supported in schema types")
+            }
+            Type::Interface(_) | Type::Basic(Basic::Void) => None,
+            _ => Some("request and response types must be interfaces or void"),
+        };
+
+        if let Some(msg) = error_msg {
+            HANDLER.with(|handler| handler.span_err(schema.span(), msg));
         }
     }
 
@@ -202,5 +273,17 @@ impl AppValidator<'_> {
                 }
             }
         }
+    }
+}
+
+fn resolve_to_concrete(state: &ResolveState, typ: &Type) -> Type {
+    match typ {
+        Type::Optional(opt) => resolve_to_concrete(state, &opt.0),
+        Type::Validated(v) => resolve_to_concrete(state, &v.typ),
+        Type::Named(named) => {
+            let underlying = named.underlying(state);
+            resolve_to_concrete(state, &underlying)
+        }
+        _ => typ.clone(),
     }
 }

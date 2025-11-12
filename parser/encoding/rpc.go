@@ -295,7 +295,7 @@ func DescribeRPC(appMetaData *meta.Data, rpc *meta.RPC, options *Options) (*RPCE
 	// Work out the response encoding
 	encoding.ResponseEncoding, err = DescribeResponse(appMetaData, rpc.ResponseSchema, options)
 	if err != nil {
-		return nil, errors.Wrap(err, "request encoding")
+		return nil, errors.Wrap(err, "response encoding")
 	}
 
 	if encoding.RequestEncoding != nil {
