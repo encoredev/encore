@@ -115,7 +115,7 @@ message RunRequest {
 
   // debug_mode specifies the debug mode to use.
   DebugMode debug_mode = 11;
-  
+
   enum BrowserMode {
     BROWSER_AUTO = 0;
     BROWSER_NEVER = 1;
@@ -146,6 +146,10 @@ message TestRequest {
 
   // codegen_debug, if true, dumps the generated code and prints where it is located.
   bool codegen_debug = 7;
+
+  // temp_dir is a temp dir that will be cleaned up after tests have been executed
+  // to write things like app meta and runtime config etc.
+  string temp_dir = 8;
 }
 
 message TestSpecRequest {
@@ -156,6 +160,10 @@ message TestSpecRequest {
   // environ is the environment to set for the running command.
   // Each entry is a string in the format "KEY=VALUE", identical to os.Environ().
   repeated string environ = 4;
+
+  // temp_dir is a temp dir that will be cleaned up after tests have been executed
+  // to write things like app meta and runtime config etc.
+  string temp_dir = 5;
 }
 
 message TestSpecResponse {
