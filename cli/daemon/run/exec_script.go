@@ -199,7 +199,7 @@ func (mgr *Manager) ExecScript(ctx context.Context, p ExecScriptParams) (err err
 		SvcConfigs:     cfg.Configs,
 		IncludeMetaEnv: bld.NeedsMeta(),
 	}
-	procConf, err := configGen.AllInOneProc()
+	procConf, err := configGen.AllInOneProc(bld.UseNewRuntimeConfig())
 	if err != nil {
 		return err
 	}

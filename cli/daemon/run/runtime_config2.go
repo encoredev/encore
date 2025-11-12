@@ -547,7 +547,7 @@ func (g *RuntimeConfigGenerator) ProcPerService(proxy *svcproxy.SvcProxy) (servi
 	return
 }
 
-func (g *RuntimeConfigGenerator) AllInOneProc() (*ProcConfig, error) {
+func (g *RuntimeConfigGenerator) AllInOneProc(useRuntimeConfigV2 bool) (*ProcConfig, error) {
 	if err := g.initialize(); err != nil {
 		return nil, err
 	}
@@ -576,12 +576,16 @@ func (g *RuntimeConfigGenerator) AllInOneProc() (*ProcConfig, error) {
 
 	configEnvs := g.encodeConfigs(fns.Map(g.md.Svcs, func(svc *meta.Service) string { return svc.Name })...)
 
+	extraEnv := configEnvs
+	if !useRuntimeConfigV2 {
+		secretsEnv := fmt.Sprintf("%s=%s", appSecretsEnvVar, encodeSecretsEnv(g.DefinedSecrets))
+		extraEnv = append([]string{secretsEnv}, configEnvs...)
+	}
+
 	return &ProcConfig{
 		Runtime:    option.Some(conf),
 		ListenAddr: listenAddr,
-		ExtraEnv: append([]string{
-			fmt.Sprintf("%s=%s", appSecretsEnvVar, encodeSecretsEnv(g.DefinedSecrets)),
-		}, configEnvs...),
+		ExtraEnv:   extraEnv,
 	}, nil
 }
 
@@ -709,10 +713,13 @@ func (g *RuntimeConfigGenerator) ForTests(newRuntimeConf bool) (envs []string, e
 			return nil, errors.Wrap(err, "failed to marshal runtime config")
 		}
 		runtimeCfgStr = base64.RawURLEncoding.EncodeToString(runtimeCfgBytes)
+
+		envs = append(envs,
+			fmt.Sprintf("%s=%s", appSecretsEnvVar, encodeSecretsEnv(g.DefinedSecrets)),
+		)
 	}
 
 	envs = append(envs,
-		fmt.Sprintf("%s=%s", appSecretsEnvVar, encodeSecretsEnv(g.DefinedSecrets)),
 		fmt.Sprintf("%s=%s", runtimeCfgEnvVar, runtimeCfgStr),
 	)
 

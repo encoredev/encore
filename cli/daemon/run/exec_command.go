@@ -167,7 +167,7 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		SvcConfigs:     cfg.Configs,
 		IncludeMetaEnv: bld.NeedsMeta(),
 	}
-	procConf, err := configGen.AllInOneProc()
+	procConf, err := configGen.AllInOneProc(bld.UseNewRuntimeConfig())
 	if err != nil {
 		return err
 	}

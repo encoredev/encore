@@ -561,12 +561,12 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	})
 
 	if isSingleProc(params.Outputs) {
-		conf, err := p.ConfigGen.AllInOneProc()
+		entrypoint := params.Outputs[0].GetEntrypoints()[0]
+
+		conf, err := p.ConfigGen.AllInOneProc(entrypoint.UseRuntimeConfigV2)
 		if err != nil {
 			return nil, err
 		}
-
-		entrypoint := params.Outputs[0].GetEntrypoints()[0]
 
 		// Generate the environmental variables for the process
 		procEnv, err := p.ConfigGen.ProcEnvs(conf, entrypoint.UseRuntimeConfigV2)
