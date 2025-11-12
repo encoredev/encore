@@ -195,7 +195,12 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		return nil, err
 	}
 
-	runtimeConfigPath := option.Some(filepath.Join(params.TempDir, "runtime_config.pb"))
+	var runtimeConfigPath option.Option[string]
+	if bld.UseNewRuntimeConfig() {
+		runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.pb"))
+	} else {
+		runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.json"))
+	}
 
 	var metaPath option.Option[string]
 	if bld.NeedsMeta() {
