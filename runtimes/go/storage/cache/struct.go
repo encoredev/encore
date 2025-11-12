@@ -49,6 +49,16 @@ func (s *StructKeyspace[K, V]) Get(ctx context.Context, key K) (V, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
+// MultiGet gets the values stored at multiple keys.
+// For each key, the result contains an Err field indicating success or failure.
+// If Err is nil, Value contains the cached value.
+// If Err matches Miss, the key was not found.
+//
+// See https://redis.io/commands/mget/ for more information.
+func (s *StructKeyspace[K, V]) MultiGet(ctx context.Context, keys ...K) ([]Result[V], error) {
+	return s.basicKeyspace.MultiGet(ctx, keys...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
