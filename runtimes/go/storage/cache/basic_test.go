@@ -131,6 +131,30 @@ func TestFloatKeyspace(t *testing.T) {
 	}
 }
 
+func TestMultiGet(t *testing.T) {
+	kt := newStringTest(t)
+	ks, ctx := kt.ks, kt.ctx
+
+	// Set up test data
+	kt.Set("key1", "value1")
+	kt.Set("key2", "value2")
+
+	results := must(ks.MultiGet(ctx, "key1", "key2", "missing"))
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+
+	if results[0].Err != nil || results[0].Value != "value1" {
+		t.Errorf("key1: got Err=%v, Value=%q, want Err=nil, Value=%q", results[0].Err, results[0].Value, "value1")
+	}
+	if results[1].Err != nil || results[1].Value != "value2" {
+		t.Errorf("key2: got Err=%v, Value=%q, want Err=nil, Value=%q", results[1].Err, results[1].Value, "value2")
+	}
+	if !errors.Is(results[2].Err, Miss) {
+		t.Errorf("missing: got Err=%v, want Miss", results[2].Err)
+	}
+}
+
 func newStringTest(t *testing.T) *stringTester {
 	cluster, srv := newTestCluster(t)
 	ks := NewStringKeyspace[string](cluster, KeyspaceConfig{

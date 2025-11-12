@@ -135,6 +135,17 @@ var Miss = errors.New("cache miss")
 // It must be checked against with errors.Is.
 var KeyExists = errors.New("key already exists")
 
+// Result represents the result of a cache operation that may or may not have found a value.
+// If Err is nil, Value contains the cached value.
+// If Err matches Miss, the key was not found in the cache.
+// Otherwise Err contains the error that occurred.
+type Result[V any] struct {
+	// Value holds the cached value if Err is nil, otherwise the zero value.
+	Value V
+	// Err is nil on success, Miss if the key was not found, or another error.
+	Err error
+}
+
 // An WriteOption customizes the behavior of a single cache write operation.
 type WriteOption interface {
 	//publicapigen:keep
