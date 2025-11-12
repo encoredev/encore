@@ -341,23 +341,6 @@ fn describe_resp(
     let fields =
         iface_fields(tc, resp_schema).map_err(|err| err.span.parse_err(err.error.to_string()))?;
 
-    // Validate that maximum one field has HttpStatus location
-    let http_status_count = fields
-        .values()
-        .filter(|f| {
-            matches!(
-                f.custom.as_ref().map(|s| &s.location),
-                Some(&WireLocation::HttpStatus)
-            )
-        })
-        .count();
-
-    if http_status_count > 1 {
-        return Err(resp_schema
-            .span()
-            .parse_err("only one field can be of type HttpStatus in a response"));
-    }
-
     let params = extract_loc_params(&fields, ParamLocation::Body)?;
 
     let fields = if fields.is_empty() {
