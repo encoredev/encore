@@ -11,6 +11,8 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -55,6 +57,7 @@ type Run struct {
 	SvcProxy        *svcproxy.SvcProxy
 	ResourceManager *infra.ResourceManager
 	NS              *namespace.Namespace
+	TempDir         string
 
 	Builder builder.Impl
 	log     zerolog.Logger
@@ -156,6 +159,10 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		return nil, errors.Wrap(err, "failed to create service proxy")
 	}
 
+	tempDir, err := os.MkdirTemp("", "encore-run")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create temp dir")
+	}
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
@@ -166,6 +173,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		log:             logger,
 		Mgr:             mgr,
 		Params:          &params,
+		TempDir:         tempDir,
 		secrets:         mgr.Secret.Load(params.App),
 		ctx:             ctx,
 		exited:          make(chan struct{}),
@@ -207,6 +215,11 @@ func (r *Run) Close() {
 	if r.Builder != nil {
 		_ = r.Builder.Close()
 	}
+
+	if r.TempDir != "" {
+		_ = os.RemoveAll(r.TempDir)
+	}
+
 	r.SvcProxy.Close()
 	r.ResourceManager.StopAll()
 }
@@ -552,6 +565,13 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			SvcConfigs:     params.ServiceConfigs,
 			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
 			IncludeMeta:    r.Builder.NeedsMeta(),
+			MetaPath:       option.Some(filepath.Join(r.TempDir, "meta.pb")),
+			RuntimeConfigPath: option.Some(filepath.Join(r.TempDir, func() string {
+				if r.Builder.UseNewRuntimeConfig() {
+					return "runtime_config.pb"
+				}
+				return "runtime_config.json"
+			}())),
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
