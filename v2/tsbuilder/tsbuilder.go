@@ -34,9 +34,8 @@ func New() *BuilderImpl {
 }
 
 type BuilderImpl struct {
-	mu       sync.Mutex
-	cmds     map[*runningCmd]bool
-	tempDirs []string
+	mu   sync.Mutex
+	cmds map[*runningCmd]bool
 }
 
 type parseInput struct {
@@ -78,10 +77,6 @@ func (i *BuilderImpl) Close() error {
 
 	for c := range cmds {
 		_ = c.cmd.Cancel()
-	}
-
-	for _, dir := range i.tempDirs {
-		_ = os.RemoveAll(dir)
 	}
 
 	for c := range cmds {
@@ -210,14 +205,6 @@ type compileInput struct {
 	UseLocalRuntime bool              `json:"use_local_runtime"`
 	Debug           builder.DebugMode `json:"debug"`
 	NodeJSRuntime   NodeJSRuntime     `json:"nodejs_runtime"`
-}
-
-func (i *BuilderImpl) TempDir() (string, error) {
-	dir, err := os.MkdirTemp("", "encore-tsbuilder")
-	if err == nil {
-		i.tempDirs = append(i.tempDirs, dir)
-	}
-	return dir, err
 }
 
 func (i *BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {

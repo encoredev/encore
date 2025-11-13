@@ -45,15 +45,9 @@ func New() *BuilderImpl {
 	return &BuilderImpl{}
 }
 
-type BuilderImpl struct {
-	tempDirs []string
-}
+type BuilderImpl struct{}
 
 func (i *BuilderImpl) Close() error {
-	for _, dir := range i.tempDirs {
-		_ = os.RemoveAll(dir)
-	}
-
 	return nil
 }
 
@@ -216,14 +210,6 @@ func (*BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*buil
 
 		return res, nil
 	})
-}
-
-func (i *BuilderImpl) TempDir() (string, error) {
-	dir, err := os.MkdirTemp("", "encore-gobuilder")
-	if err == nil {
-		i.tempDirs = append(i.tempDirs, dir)
-	}
-	return dir, err
 }
 
 func (*BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfigsParams) (res *builder.ServiceConfigsResult, err error) {
