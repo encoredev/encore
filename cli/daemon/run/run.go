@@ -11,6 +11,8 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -55,6 +57,7 @@ type Run struct {
 	SvcProxy        *svcproxy.SvcProxy
 	ResourceManager *infra.ResourceManager
 	NS              *namespace.Namespace
+	TempDir         string
 
 	Builder builder.Impl
 	log     zerolog.Logger
@@ -156,6 +159,10 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		return nil, errors.Wrap(err, "failed to create service proxy")
 	}
 
+	tempDir, err := os.MkdirTemp("", "encore-run")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create temp dir")
+	}
 	run = &Run{
 		ID:              GenID(),
 		App:             params.App,
@@ -166,6 +173,7 @@ func (mgr *Manager) Start(ctx context.Context, params StartParams) (run *Run, er
 		log:             logger,
 		Mgr:             mgr,
 		Params:          &params,
+		TempDir:         tempDir,
 		secrets:         mgr.Secret.Load(params.App),
 		ctx:             ctx,
 		exited:          make(chan struct{}),
@@ -207,6 +215,11 @@ func (r *Run) Close() {
 	if r.Builder != nil {
 		_ = r.Builder.Close()
 	}
+
+	if r.TempDir != "" {
+		_ = os.RemoveAll(r.TempDir)
+	}
+
 	r.SvcProxy.Close()
 	r.ResourceManager.StopAll()
 }
@@ -534,24 +547,41 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		}
 	}
 
+	var runtimeConfigPath option.Option[string]
+	var metaPath option.Option[string]
+
+	if r.TempDir != "" {
+		if r.Builder.UseNewRuntimeConfig() {
+			runtimeConfigPath = option.Some(filepath.Join(r.TempDir, "runtime_config.pb"))
+		} else {
+			runtimeConfigPath = option.Some(filepath.Join(r.TempDir, "runtime_config.json"))
+		}
+
+		if r.Builder.NeedsMeta() {
+			metaPath = option.Some(filepath.Join(r.TempDir, "meta.pb"))
+		}
+	}
+
 	authKey := genAuthKey()
 	p = newProcGroup(procGroupOptions{
 		ProcID:  pid,
 		Run:     r,
 		AuthKey: authKey,
 		ConfigGen: &RuntimeConfigGenerator{
-			app:            r.App,
-			infraManager:   r.ResourceManager,
-			md:             params.Meta,
-			AppID:          option.Some(r.ID),
-			EnvID:          option.Some(pid),
-			TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
-			AuthKey:        authKey,
-			Gateways:       gateways,
-			DefinedSecrets: params.Secrets,
-			SvcConfigs:     params.ServiceConfigs,
-			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
-			IncludeMetaEnv: r.Builder.NeedsMeta(),
+			app:               r.App,
+			infraManager:      r.ResourceManager,
+			md:                params.Meta,
+			AppID:             option.Some(r.ID),
+			EnvID:             option.Some(pid),
+			TraceEndpoint:     option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
+			AuthKey:           authKey,
+			Gateways:          gateways,
+			DefinedSecrets:    params.Secrets,
+			SvcConfigs:        params.ServiceConfigs,
+			DeployID:          option.Some(fmt.Sprintf("run_%s", xid.New().String())),
+			IncludeMeta:       r.Builder.NeedsMeta(),
+			MetaPath:          metaPath,
+			RuntimeConfigPath: runtimeConfigPath,
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,
@@ -561,12 +591,12 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 	})
 
 	if isSingleProc(params.Outputs) {
-		conf, err := p.ConfigGen.AllInOneProc()
+		entrypoint := params.Outputs[0].GetEntrypoints()[0]
+
+		conf, err := p.ConfigGen.AllInOneProc(entrypoint.UseRuntimeConfigV2)
 		if err != nil {
 			return nil, err
 		}
-
-		entrypoint := params.Outputs[0].GetEntrypoints()[0]
 
 		// Generate the environmental variables for the process
 		procEnv, err := p.ConfigGen.ProcEnvs(conf, entrypoint.UseRuntimeConfigV2)

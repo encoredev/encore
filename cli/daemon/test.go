@@ -78,6 +78,7 @@ func (s *Server) Test(req *daemonpb.TestRequest, stream daemonpb.Daemon_TestServ
 				Args:         req.Args,
 				Secrets:      secrets,
 				CodegenDebug: req.CodegenDebug,
+				TempDir:      req.TempDir,
 			},
 			Stdout: slog.Stdout(false),
 			Stderr: slog.Stderr(false),
@@ -137,6 +138,7 @@ func (s *Server) TestSpec(ctx context.Context, req *daemonpb.TestSpecRequest) (r
 		Environ:    testEnv,
 		Args:       req.Args,
 		Secrets:    secrets,
+		TempDir:    req.TempDir,
 	})
 	if errors.Is(err, builder.ErrNoTests) {
 		return nil, status.Error(codes.NotFound, "no tests defined")

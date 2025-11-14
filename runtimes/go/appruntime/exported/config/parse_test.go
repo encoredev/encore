@@ -123,7 +123,7 @@ func TestGZippedContent(t *testing.T) {
 				}
 				procCfg = base64.StdEncoding.EncodeToString(rawData)
 			}
-			resp := ParseRuntime(cfgString, procCfg, "", "")
+			resp := ParseRuntime(cfgString, "", procCfg, "", "")
 			if !reflect.DeepEqual(resp, expected) {
 				t.Fatalf("expected %+v, got %+v", test.Config, resp)
 			}

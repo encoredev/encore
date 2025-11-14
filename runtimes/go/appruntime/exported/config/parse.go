@@ -125,6 +125,22 @@ func LoadInfraConfig(infraCfgPath string) (*infra.InfraConfig, error) {
 	return &envCfg, nil
 }
 
+func LoadRuntimeConfig(runtimeCfgPath string) (*Runtime, error) {
+	var cfg Runtime
+	file, err := os.Open(runtimeCfgPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open runtime config: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode runtime config: %w", err)
+	}
+	return &cfg, nil
+}
+
 func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 	var cfg Runtime
 	infraCfg, err := LoadInfraConfig(infraCfgPath)
@@ -443,12 +459,18 @@ func orDefault[T comparable](val T, def T) T {
 }
 
 // ParseRuntime parses the Encore runtime config.
-func ParseRuntime(runtimeConfig, processCfg, infraCfgPath, deployID string) *Runtime {
+func ParseRuntime(runtimeConfig, runtimeConfigPath, processCfg, infraCfgPath, deployID string) *Runtime {
 	var cfg *Runtime
 	if infraCfgPath != "" {
 		cfg = parseInfraConfigEnv(infraCfgPath)
 	} else if runtimeConfig != "" {
 		cfg = parseRuntimeConfigEnv(runtimeConfig)
+	} else if runtimeConfigPath != "" {
+		var err error
+		cfg, err = LoadRuntimeConfig(runtimeConfigPath)
+		if err != nil {
+			log.Fatalln("encore runtime: fatal error: could not load encore runtime config:", err)
+		}
 	} else {
 		log.Fatalln("encore runtime: fatal error: no encore runtime or infra config provided")
 	}

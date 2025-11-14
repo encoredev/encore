@@ -521,7 +521,17 @@ fn infra_config_from_env() -> Result<Option<runtimepb::RuntimeConfig>, ParseErro
 fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
     let cfg = match std::env::var("ENCORE_RUNTIME_CONFIG") {
         Ok(cfg) => cfg,
-        Err(std::env::VarError::NotPresent) => return Err(ParseError::EnvNotPresent),
+        Err(std::env::VarError::NotPresent) => {
+            // Not present. Check the ENCORE_RUNTIME_CONFIG_PATH environment variable.
+            match std::env::var("ENCORE_RUNTIME_CONFIG_PATH") {
+                Ok(path) => {
+                    let path = Path::new(&path);
+                    return parse_runtime_config(path);
+                }
+                Err(std::env::VarError::NotPresent) => return Err(ParseError::EnvNotPresent),
+                Err(e) => return Err(ParseError::EnvVar(e)),
+            }
+        }
         Err(e) => return Err(ParseError::EnvVar(e)),
     };
 
@@ -543,6 +553,11 @@ fn runtime_config_from_env() -> Result<runtimepb::RuntimeConfig, ParseError> {
             .map_err(ParseError::Base64)?;
         runtimepb::RuntimeConfig::decode(&decoded[..]).map_err(ParseError::Proto)
     }
+}
+
+fn parse_runtime_config(path: &Path) -> Result<runtimepb::RuntimeConfig, ParseError> {
+    let data = std::fs::read(path).map_err(ParseError::IO)?;
+    runtimepb::RuntimeConfig::decode(&data[..]).map_err(ParseError::Proto)
 }
 
 fn proc_config_from_env() -> Result<Option<proccfg::ProcessConfig>, ParseError> {

@@ -28,6 +28,7 @@ func init() {
 
 	Runtime = config.ParseRuntime(
 		encoreenv.Get("ENCORE_RUNTIME_CONFIG"),
+		encoreenv.Get("ENCORE_RUNTIME_CONFIG_PATH"),
 		encoreenv.Get("ENCORE_PROCESS_CONFIG"),
 		encoreenv.Get("ENCORE_INFRA_CONFIG_PATH"),
 		encoreenv.Get("ENCORE_DEPLOY_ID"),

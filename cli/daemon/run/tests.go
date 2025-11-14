@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -83,6 +84,9 @@ type TestSpecParams struct {
 	// CodegenDebug, if true, specifies to keep the output
 	// around for codegen debugging purposes.
 	CodegenDebug bool
+
+	// TempDir is a path to a temp dir that will be clean up by the test runner.
+	TempDir string
 }
 
 type TestSpecResponse struct {
@@ -191,22 +195,39 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		return nil, err
 	}
 
+	var runtimeConfigPath option.Option[string]
+	var metaPath option.Option[string]
+
+	if params.TempDir != "" {
+		if bld.UseNewRuntimeConfig() {
+			runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.pb"))
+		} else {
+			runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.json"))
+		}
+
+		if bld.NeedsMeta() {
+			metaPath = option.Some(filepath.Join(params.TempDir, "meta.pb"))
+		}
+	}
+
 	authKey := genAuthKey()
 	configGen := &RuntimeConfigGenerator{
-		app:            params.App,
-		infraManager:   rm,
-		md:             parse.Meta,
-		AppID:          option.Some(params.App.PlatformOrLocalID()),
-		EnvID:          option.Some("test"),
-		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
-		AuthKey:        authKey,
-		Gateways:       gateways,
-		DefinedSecrets: secrets,
-		SvcConfigs:     cfg.Configs,
-		EnvName:        option.Some("test"),
-		EnvType:        option.Some(runtimev1.Environment_TYPE_TEST),
-		DeployID:       option.Some(fmt.Sprintf("clitest_%s", xid.New().String())),
-		IncludeMetaEnv: bld.NeedsMeta(),
+		app:               params.App,
+		infraManager:      rm,
+		md:                parse.Meta,
+		AppID:             option.Some(params.App.PlatformOrLocalID()),
+		EnvID:             option.Some("test"),
+		TraceEndpoint:     option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
+		AuthKey:           authKey,
+		Gateways:          gateways,
+		DefinedSecrets:    secrets,
+		SvcConfigs:        cfg.Configs,
+		EnvName:           option.Some("test"),
+		EnvType:           option.Some(runtimev1.Environment_TYPE_TEST),
+		DeployID:          option.Some(fmt.Sprintf("clitest_%s", xid.New().String())),
+		IncludeMeta:       bld.NeedsMeta(),
+		MetaPath:          metaPath,
+		RuntimeConfigPath: runtimeConfigPath,
 	}
 
 	env, err := configGen.ForTests(bld.UseNewRuntimeConfig())

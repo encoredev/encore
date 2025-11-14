@@ -41,11 +41,17 @@ import (
 	"encr.dev/v2/parser/resource"
 )
 
+func New() *BuilderImpl {
+	return &BuilderImpl{}
+}
+
 type BuilderImpl struct{}
 
-func (BuilderImpl) Close() error { return nil }
+func (i *BuilderImpl) Close() error {
+	return nil
+}
 
-func (BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
+func (*BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
@@ -116,7 +122,7 @@ type parseData struct {
 	traceNodes    *legacymeta.TraceNodes
 }
 
-func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
+func (*BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*builder.CompileResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Compile", func(ctx context.Context) (res *builder.CompileResult, err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
@@ -206,7 +212,7 @@ func (BuilderImpl) Compile(ctx context.Context, p builder.CompileParams) (*build
 	})
 }
 
-func (i BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfigsParams) (res *builder.ServiceConfigsResult, err error) {
+func (*BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfigsParams) (res *builder.ServiceConfigsResult, err error) {
 	defer func() {
 		if l, ok := perr.CatchBailout(recover()); ok && l.Len() > 0 {
 			err = l.AsError()
@@ -224,15 +230,15 @@ func (i BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfig
 	}, nil
 }
 
-func (i BuilderImpl) UseNewRuntimeConfig() bool {
+func (*BuilderImpl) UseNewRuntimeConfig() bool {
 	return false
 }
 
-func (i BuilderImpl) NeedsMeta() bool {
+func (*BuilderImpl) NeedsMeta() bool {
 	return false
 }
 
-func (i BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) error {
+func (i *BuilderImpl) RunTests(ctx context.Context, p builder.RunTestsParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.Test", func(ctx context.Context) (err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
@@ -262,7 +268,7 @@ type testBuilderData struct {
 	pc   *parsectx.Context
 }
 
-func (i BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*builder.TestSpecResult, error) {
+func (i *BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*builder.TestSpecResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.TestSpec", func(ctx context.Context) (res *builder.TestSpecResult, err error) {
 		spec, err := i.generateTestSpec(ctx, p)
 		if err != nil {
@@ -284,7 +290,7 @@ func (i BuilderImpl) TestSpec(ctx context.Context, p builder.TestSpecParams) (*b
 	})
 }
 
-func (i BuilderImpl) generateTestSpec(ctx context.Context, p builder.TestSpecParams) (*build.TestSpec, error) {
+func (i *BuilderImpl) generateTestSpec(ctx context.Context, p builder.TestSpecParams) (*build.TestSpec, error) {
 	return etrace.Sync2(ctx, "", "v2builder.generateTestSpec", func(ctx context.Context) (res *build.TestSpec, err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
@@ -337,7 +343,7 @@ func (i BuilderImpl) generateTestSpec(ctx context.Context, p builder.TestSpecPar
 
 // testEnvVars takes a list of env vars and filters them down to the ones
 // that should be embedded within the test binary.
-func (i BuilderImpl) testEnvVarsToEmbed(args, envs []string) map[string]string {
+func (i *BuilderImpl) testEnvVarsToEmbed(args, envs []string) map[string]string {
 	if !slices.Contains(args, "-c") {
 		return nil
 	}
@@ -413,7 +419,7 @@ func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
 			path = filepath.Dir(path)
 		}
 
-		for i := 0; i < 30; i++ {
+		for range 30 {
 			base := filepath.Base(path)
 			if strings.ToLower(base) == "cue.mod" {
 				return true
@@ -439,7 +445,7 @@ func pickupConfigFiles(errs *perr.List, mainModule *pkginfo.Module) fs.FS {
 	return configFiles
 }
 
-func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingParams) error {
+func (i *BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingParams) error {
 	return etrace.Sync1(ctx, "", "v2builder.GenUserFacing", func(ctx context.Context) (err error) {
 		defer func() {
 			err, _ = perr.CatchBailoutAndPanic(err, recover())
@@ -490,7 +496,7 @@ func (i BuilderImpl) GenUserFacing(ctx context.Context, p builder.GenUserFacingP
 
 // writeOrDeleteFile writes the given data to dst. If data is empty, it will
 // instead delete the file at dst.
-func (i BuilderImpl) writeOrDeleteFile(errs *perr.List, data []byte, dst paths.FS) {
+func (i *BuilderImpl) writeOrDeleteFile(errs *perr.List, data []byte, dst paths.FS) {
 	if len(data) == 0 {
 		// No need for any generated code. Try to remove the existing file
 		// if it's there as it's no longer needed.

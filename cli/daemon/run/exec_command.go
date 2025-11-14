@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -153,21 +154,31 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		return err
 	}
 
+	tempDir, err := os.MkdirTemp("", "encore-exec")
+	if err != nil {
+		return errors.Wrap(err, "couldn't create temp dir")
+	}
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
+
 	authKey := genAuthKey()
 	configGen := &RuntimeConfigGenerator{
-		app:            p.App,
-		infraManager:   rm,
-		md:             parse.Meta,
-		AppID:          option.Some(GenID()),
-		EnvID:          option.Some(GenID()),
-		TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
-		AuthKey:        authKey,
-		Gateways:       gateways,
-		DefinedSecrets: secrets,
-		SvcConfigs:     cfg.Configs,
-		IncludeMetaEnv: bld.NeedsMeta(),
+		app:               p.App,
+		infraManager:      rm,
+		md:                parse.Meta,
+		AppID:             option.Some(GenID()),
+		EnvID:             option.Some(GenID()),
+		TraceEndpoint:     option.Some(fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort)),
+		AuthKey:           authKey,
+		Gateways:          gateways,
+		DefinedSecrets:    secrets,
+		SvcConfigs:        cfg.Configs,
+		IncludeMeta:       bld.NeedsMeta(),
+		MetaPath:          option.Some(filepath.Join(tempDir, "meta.pb")),
+		RuntimeConfigPath: option.Some(filepath.Join(tempDir, "runtime_config.pb")),
 	}
-	procConf, err := configGen.AllInOneProc()
+	procConf, err := configGen.AllInOneProc(bld.UseNewRuntimeConfig())
 	if err != nil {
 		return err
 	}

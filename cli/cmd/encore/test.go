@@ -73,11 +73,15 @@ var testCmd = &cobra.Command{
 		}
 
 		appRoot, relPath := determineAppRoot()
-		runTests(appRoot, relPath, args, traceFile, codegenDebug, prepareOnly, noColor)
+		exitCode, err := runTests(appRoot, relPath, args, traceFile, codegenDebug, prepareOnly, noColor)
+		if err != nil {
+			fatal(err)
+		}
+		os.Exit(exitCode)
 	},
 }
 
-func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug, prepareOnly, noColor bool) {
+func runTests(appRoot, testDir string, args []string, traceFile string, codegenDebug, prepareOnly, noColor bool) (int, error) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -94,6 +98,14 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 
 	daemon := setupDaemon(ctx)
 
+	tempDir, err := os.MkdirTemp("", "encore-test")
+	if err != nil {
+		return 1, fmt.Errorf("couldn't create temp dir for test: %w", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
+
 	// Is this a node package?
 	packageJsonPath := filepath.Join(appRoot, "package.json")
 	if _, err := os.Stat(packageJsonPath); err == nil || prepareOnly {
@@ -102,18 +114,19 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 			WorkingDir: testDir,
 			Args:       args,
 			Environ:    os.Environ(),
+			TempDir:    tempDir,
 		})
 		if status.Code(err) == codes.NotFound {
-			fatal("application does not define any tests.\nNote: Add a 'test' script command to package.json to run tests.")
+			return 1, errors.New("application does not define any tests.\nNote: Add a 'test' script command to package.json to run tests.")
 		} else if err != nil {
-			fatal(err)
+			return 1, err
 		}
 
 		if prepareOnly {
 			for _, ln := range spec.Environ {
 				fmt.Println(ln)
 			}
-			return
+			return 0, nil
 		}
 
 		cmd := exec.Command(spec.Command, spec.Args...)
@@ -125,12 +138,12 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		if err := cmd.Run(); err != nil {
 			var exitErr *exec.ExitError
 			if errors.As(err, &exitErr) {
-				os.Exit(exitErr.ExitCode())
+				return exitErr.ExitCode(), nil
 			} else {
-				fatal(err)
+				return 1, err
 			}
 		}
-		return
+		return 0, nil
 	}
 
 	stream, err := daemon.Test(ctx, &daemonpb.TestRequest{
@@ -140,11 +153,12 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		Environ:      os.Environ(),
 		TraceFile:    nonZeroPtr(traceFile),
 		CodegenDebug: codegenDebug,
+		TempDir:      tempDir,
 	})
 	if err != nil {
-		fatal(err)
+		return 1, err
 	}
-	os.Exit(cmdutil.StreamCommandOutput(stream, converter))
+	return cmdutil.StreamCommandOutput(stream, converter), nil
 }
 
 func init() {
