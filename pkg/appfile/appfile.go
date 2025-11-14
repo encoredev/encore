@@ -32,11 +32,6 @@ type File struct {
 	// It is empty if the app is not linked to encore.dev.
 	ID string `json:"id"` // can be empty
 
-	// Experiments is a list of values to enable experimental features in Encore.
-	// These are not guaranteed to be stable in either runtime behaviour
-	// or in API design.
-	//
-	// Do not use these features in production without consulting the Encore team.
 	Experiments []experiments.Name `json:"experiments,omitempty"`
 
 	// Lang is the language the app is written in.
@@ -83,16 +78,14 @@ type Docker struct {
 	// in Encore's CI/CD system. If unspecified it defaults to "scratch".
 	BaseImage string `json:"base_image,omitempty"`
 
-	// BundleSource determines whether the source code of the application
-	// should be bundled into the binary, at "/workspace".
+	// BundleSource bundles the source code into the Docker image.
 	BundleSource bool `json:"bundle_source,omitempty"`
 
-	// WorkingDir specifies the working directory to start the docker image in.
-	// If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
+	// WorkingDir sets the working directory inside the Docker image.
+	// Defaults to "/" otherwise.
 	WorkingDir string `json:"working_dir,omitempty"`
 
-	// ProcessPerService specifies whether each service should run in its own process. If false,
-	// all services are run in the same process.
+	// ProcessPerService runs each Encore service in its own process.
 	ProcessPerService bool `json:"process_per_service,omitempty"`
 }
 
