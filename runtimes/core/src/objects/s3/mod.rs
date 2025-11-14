@@ -52,7 +52,7 @@ impl LazyS3Client {
             .get_or_init(|| async {
                 let region = aws_config::Region::new(self.cfg.region.clone());
                 let mut builder =
-                    aws_config::defaults(aws_config::BehaviorVersion::v2024_03_28()).region(region);
+                    aws_config::defaults(aws_config::BehaviorVersion::v2025_08_07()).region(region);
                 if let Some(endpoint) = self.cfg.endpoint.as_ref() {
                     builder = builder.endpoint_url(endpoint.clone());
                 }

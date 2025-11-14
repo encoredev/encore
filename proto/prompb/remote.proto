@@ -16,13 +16,13 @@ package prometheus;
 
 option go_package = "encore.dev/appruntime/metrics/prometheus/prompb";
 
-import "types.proto";
+import "prompb/types.proto";
 
 message WriteRequest {
   repeated prometheus.TimeSeries timeseries = 1;
   // Cortex uses this field to determine the source of the write request.
   // We reserve it to avoid any compatibility issues.
-  reserved  2;
+  reserved 2;
   repeated prometheus.MetricMetadata metadata = 3;
 }
 
@@ -31,8 +31,9 @@ message ReadRequest {
   repeated Query queries = 1;
 
   enum ResponseType {
-    // Server will return a single ReadResponse message with matched series that includes list of raw samples.
-    // It's recommended to use streamed response types instead.
+    // Server will return a single ReadResponse message with matched series that
+    // includes list of raw samples. It's recommended to use streamed response
+    // types instead.
     //
     // Response headers:
     // Content-Type: "application/x-protobuf"
@@ -44,16 +45,18 @@ message ReadRequest {
     // uint32 for CRC32 Castagnoli checksum.
     //
     // Response headers:
-    // Content-Type: "application/x-streamed-protobuf; proto=prometheus.ChunkedReadResponse"
-    // Content-Encoding: ""
+    // Content-Type: "application/x-streamed-protobuf;
+    // proto=prometheus.ChunkedReadResponse" Content-Encoding: ""
     STREAMED_XOR_CHUNKS = 1;
   }
 
-  // accepted_response_types allows negotiating the content type of the response.
+  // accepted_response_types allows negotiating the content type of the
+  // response.
   //
-  // Response types are taken from the list in the FIFO order. If no response type in `accepted_response_types` is
-  // implemented by server, error is returned.
-  // For request that do not contain `accepted_response_types` field the SAMPLES response type will be used.
+  // Response types are taken from the list in the FIFO order. If no response
+  // type in `accepted_response_types` is implemented by server, error is
+  // returned. For request that do not contain `accepted_response_types` field
+  // the SAMPLES response type will be used.
   repeated ResponseType accepted_response_types = 2;
 }
 
@@ -75,13 +78,16 @@ message QueryResult {
   repeated prometheus.TimeSeries timeseries = 1;
 }
 
-// ChunkedReadResponse is a response when response_type equals STREAMED_XOR_CHUNKS.
-// We strictly stream full series after series, optionally split by time. This means that a single frame can contain
-// partition of the single series, but once a new series is started to be streamed it means that no more chunks will
-// be sent for previous one. Series are returned sorted in the same way TSDB block are internally.
+// ChunkedReadResponse is a response when response_type equals
+// STREAMED_XOR_CHUNKS. We strictly stream full series after series, optionally
+// split by time. This means that a single frame can contain partition of the
+// single series, but once a new series is started to be streamed it means that
+// no more chunks will be sent for previous one. Series are returned sorted in
+// the same way TSDB block are internally.
 message ChunkedReadResponse {
   repeated prometheus.ChunkedSeries chunked_series = 1;
 
-  // query_index represents an index of the query from ReadRequest.queries these chunks relates to.
+  // query_index represents an index of the query from ReadRequest.queries these
+  // chunks relates to.
   int64 query_index = 2;
 }
