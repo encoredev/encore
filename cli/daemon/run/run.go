@@ -547,31 +547,41 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 		}
 	}
 
+	var runtimeConfigPath option.Option[string]
+	var metaPath option.Option[string]
+
+	if r.TempDir != "" {
+		if r.Builder.UseNewRuntimeConfig() {
+			runtimeConfigPath = option.Some(filepath.Join(r.TempDir, "runtime_config.pb"))
+		} else {
+			runtimeConfigPath = option.Some(filepath.Join(r.TempDir, "runtime_config.json"))
+		}
+
+		if r.Builder.NeedsMeta() {
+			metaPath = option.Some(filepath.Join(r.TempDir, "meta.pb"))
+		}
+	}
+
 	authKey := genAuthKey()
 	p = newProcGroup(procGroupOptions{
 		ProcID:  pid,
 		Run:     r,
 		AuthKey: authKey,
 		ConfigGen: &RuntimeConfigGenerator{
-			app:            r.App,
-			infraManager:   r.ResourceManager,
-			md:             params.Meta,
-			AppID:          option.Some(r.ID),
-			EnvID:          option.Some(pid),
-			TraceEndpoint:  option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
-			AuthKey:        authKey,
-			Gateways:       gateways,
-			DefinedSecrets: params.Secrets,
-			SvcConfigs:     params.ServiceConfigs,
-			DeployID:       option.Some(fmt.Sprintf("run_%s", xid.New().String())),
-			IncludeMeta:    r.Builder.NeedsMeta(),
-			MetaPath:       option.Some(filepath.Join(r.TempDir, "meta.pb")),
-			RuntimeConfigPath: option.Some(filepath.Join(r.TempDir, func() string {
-				if r.Builder.UseNewRuntimeConfig() {
-					return "runtime_config.pb"
-				}
-				return "runtime_config.json"
-			}())),
+			app:               r.App,
+			infraManager:      r.ResourceManager,
+			md:                params.Meta,
+			AppID:             option.Some(r.ID),
+			EnvID:             option.Some(pid),
+			TraceEndpoint:     option.Some(fmt.Sprintf("http://localhost:%d/trace", r.Mgr.RuntimePort)),
+			AuthKey:           authKey,
+			Gateways:          gateways,
+			DefinedSecrets:    params.Secrets,
+			SvcConfigs:        params.ServiceConfigs,
+			DeployID:          option.Some(fmt.Sprintf("run_%s", xid.New().String())),
+			IncludeMeta:       r.Builder.NeedsMeta(),
+			MetaPath:          metaPath,
+			RuntimeConfigPath: runtimeConfigPath,
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,

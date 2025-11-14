@@ -196,15 +196,18 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 	}
 
 	var runtimeConfigPath option.Option[string]
-	if bld.UseNewRuntimeConfig() {
-		runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.pb"))
-	} else {
-		runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.json"))
-	}
-
 	var metaPath option.Option[string]
-	if bld.NeedsMeta() {
-		metaPath = option.Some(filepath.Join(params.TempDir, "meta.pb"))
+
+	if params.TempDir != "" {
+		if bld.UseNewRuntimeConfig() {
+			runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.pb"))
+		} else {
+			runtimeConfigPath = option.Some(filepath.Join(params.TempDir, "runtime_config.json"))
+		}
+
+		if bld.NeedsMeta() {
+			metaPath = option.Some(filepath.Join(params.TempDir, "meta.pb"))
+		}
 	}
 
 	authKey := genAuthKey()
