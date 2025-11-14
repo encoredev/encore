@@ -17,7 +17,9 @@ In `database.ts`, initialize the `SQLDatabase` and configure Drizzle:
 import { api } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from 'pg';
 import { users } from "./schema";
+import * as schema from './schema'; // Your entire drizzle schema
 
 // Create SQLDatabase instance with migrations configuration
 const db = new SQLDatabase("test", {
@@ -27,8 +29,12 @@ const db = new SQLDatabase("test", {
   },
 });
 
+const pool = new Pool({
+  connectionString: db.connectionString,
+});
+
 // Initialize Drizzle ORM with the connection string
-const orm = drizzle(db.connectionString);
+const orm = drizzle(pool, { schema });
 
 // Query all users
 await orm.select().from(users);
