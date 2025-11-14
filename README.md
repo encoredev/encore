@@ -5,52 +5,26 @@
 
 - **Backend Frameworks:** [Encore.ts](https://encore.dev) and [Encore.go](https://encore.dev/go) simplify creating microservices and type-safe APIs, and provide an AI-ready declarative approach to define infrastructure in code.
 - **Local Development:** Encore's CLI automatically manages local infrastructure and provides a development dashboard with tracing, service catalog, and architecture diagrams.
-- **Infrastructure Integration:** Simplified integration with cloud infrastructure using the open source CLI ([learn more](https://encore.dev/docs/ts/self-host/build)), or using the optional [Encore Cloud](https://encore.cloud) platform to automate DevOps and infrastructure provisioning in your cloud on AWS and GCP.
+- **Infrastructure Integration:** Simplified integration with cloud infrastructure using the open source CLI ([learn more](https://encore.dev/docs/ts/self-host/build)), or using the optional [Encore Cloud](https://encore.cloud) platform to automate DevOps and infrastructure provisioning in your own cloud on AWS and GCP.
 
-**⭐ Star this repository** to help spread the word.
+> **⭐ Star this repository** to help spread the word.
 
-**💿 Install Encore:**
+**Install Encore:**
 - **macOS:** `brew install encoredev/tap/encore`
 - **Linux:** `curl -L https://encore.dev/install.sh | bash`
 - **Windows:** `iwr https://encore.dev/install.ps1 | iex`
 
-**🕹 Create your first app:**
+**Create your first app:**
 - **TypeScript:** `encore app create --example=ts/hello-world`
 - **Go:** `encore app create --example=hello-world`
 
-**🤖 Add Encore LLM instructions to your app:**
+**Add Encore LLM instructions to your app:**
 - **Encore.ts:** [ts_llm_instructions.txt](./ts_llm_instructions.txt)
 - **Encore.go:** [go_llm_instructions.txt](./go_llm_instructions.txt)
 - **How to use:**
   - Cursor: Rename the file to `.cursorrules`.
   - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
   - For other tools, place the file in your app root.
- 
-**⚡️ Build your first Encore.ts app with AI using Leap.new**
-- [**Leap**](https://leap.new) is an AI developer agent for building full-stack Encore.ts applications. It's the fastest way to build your first app.
-
-**🧩 See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
-
-**🚀 See products being build with Encore:** [Showcase](https://encore.cloud/showcase)
-
-**👋 Have questions?** Join the friendly developer community on [Discord](https://encore.dev/discord).
-
-**📞 Talk to a human:** [Book a 1:1 demo](https://encore.dev/book) with one of our founders.
-
-## 🍿 Intro video
-[Watch the intro video](https://youtu.be/vvqTGfoXVsw) for a quick introduction to Encore concepts & code examples.
-
-<a href="https://youtu.be/vvqTGfoXVsw" target="_blank"><img width="589" alt="Encore Intro Video" src="https://github.com/encoredev/encore/assets/78424526/89737146-be48-429f-a83f-41bc8da37980"></a>
-
-## Introduction to Encore
-
-Building scalable applications with cloud services is powerful but often frustrating. Developers face complex setups and repetitive tasks that slow them down.
-
-Encore solves this with an all-in-one backend development toolkit, streamlining everything from local testing to cloud integration and DevOps.
-
-<p align="center">
-<img width="589" alt="Encore Overview" src="https://github.com/encoredev/encore/assets/78424526/ecb65a20-866c-449c-bf0e-e6d99c78430b">
-</p>
 
 ### How it works
 
@@ -136,6 +110,32 @@ var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
 // Publish messages by calling a method
 Signup.Publish(ctx, &User{...})
 ```
+
+--
+
+For more info:
+**See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
+
+**See products being build with Encore:** [Showcase](https://encore.cloud/showcase)
+
+**Have questions?** Join the friendly developer community on [Discord](https://encore.dev/discord).
+
+**Talk to a human:** [Book a 1:1 demo](https://encore.dev/book) with one of our founders.
+
+## Intro video
+[Watch the intro video](https://youtu.be/vvqTGfoXVsw) for a quick introduction to Encore concepts & code examples.
+
+<a href="https://youtu.be/vvqTGfoXVsw" target="_blank"><img width="589" alt="Encore Intro Video" src="https://github.com/encoredev/encore/assets/78424526/89737146-be48-429f-a83f-41bc8da37980"></a>
+
+## Introduction to Encore
+
+Building scalable applications with cloud services is powerful but often frustrating. Developers face complex setups and repetitive tasks that slow them down.
+
+Encore solves this with an all-in-one backend development toolkit, streamlining everything from local testing to cloud integration and DevOps.
+
+<p align="center">
+<img width="589" alt="Encore Overview" src="https://github.com/encoredev/encore/assets/78424526/ecb65a20-866c-449c-bf0e-e6d99c78430b">
+</p>
 
 ### Learn more in the docs
 
