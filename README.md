@@ -7,7 +7,7 @@
 - **Local Development:** Encore's CLI automatically manages local infrastructure and provides a development dashboard with tracing, service catalog, and architecture diagrams.
 - **Infrastructure Integration:** Simplified integration with cloud infrastructure using the open source CLI ([learn more](https://encore.dev/docs/ts/self-host/build)), or using the optional [Encore Cloud](https://encore.cloud) platform to automate DevOps and infrastructure provisioning in your own cloud on AWS and GCP.
 
-> **⭐ Star this repository** to help spread the word.
+**⭐ Star this repository** to help spread the word.
 
 **Install Encore:**
 - **macOS:** `brew install encoredev/tap/encore`
