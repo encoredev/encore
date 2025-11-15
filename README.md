@@ -3,15 +3,15 @@
 <b>Open Source Framework for creating type-safe distributed systems with declarative infrastructure</b><br/>
 </p>
 
-**Encore consists of three parts:**
+1. **Framework:** Available for TypeScript and Go, the Encore framework lets you define APIs, services, and infrastructure (databases, Pub/Sub, caching, buckets, cron jobs) as type-safe objects in your code. Write your application once, then deploy it anywhere without code changes by [exporting a Docker image](https://encore.dev/docs/ts/self-host/build) and supplying the infra configuration.
 
-1. **Backend Frameworks:** [Encore.ts](https://encore.dev) and [Encore.go](https://encore.dev/go) let you define APIs, services, and infrastructure (databases, Pub/Sub, caching, buckets, cron jobs) as type-safe objects in your code. Write your application once, then deploy it anywhere without code changes by [exporting a Docker image](https://encore.dev/docs/ts/self-host/build) and supplying the infra configuration.
-
-2. **Local Dev Tools:** The Encore CLI runs your app locally and automatically provisions the local infrastructure. Local dev tools like tracing, API documentation, service catalog, architecture diagrams, and database explorer are built-in.
+2. **Local Dev Tools:** The Encore CLI runs your app locally and automatically provisions the local infrastructure. Local dev tools like tracing, API documentation, service catalog, architecture diagrams, and database explorer are built-in for a productive dev workflow.
 
 3. **Optional DevOps Platform:** [Encore Cloud](https://encore.cloud) parses your application and automatically provisions the required infrastructure in your own AWS/GCP account. Other tools include Preview Environments for each PR, service catalog, distributed tracing, and metrics.
 
 **⭐ Star this repository** to help spread the word.
+
+### Get started
 
 **Install Encore:**
 
@@ -26,7 +26,7 @@
 
 **Use with AI coding assistants:**
 
-Add LLM instructions ([Encore.ts](./ts_llm_instructions.txt) / [Encore.go](./go_llm_instructions.txt)) to your project for better AI code suggestions. Optionally use the [MCP server](https://encore.dev/docs/ts/ai-integration) to give AI tools runtime context (query databases, call APIs, analyze traces). [Learn more](https://encore.dev/docs/ts/ai-integration)
+Add LLM instructions ([Encore.ts](./ts_llm_instructions.txt) / [Encore.go](./go_llm_instructions.txt)) to your project for better AI code suggestions. Use the [MCP server](https://encore.dev/docs/ts/ai-integration) to give your AI tools runtime context (query databases, call APIs, analyze traces). [Learn more](https://encore.dev/docs/ts/ai-integration)
 
 ### How it works
 
@@ -40,23 +40,21 @@ const db = new SQLDatabase("users", { migrations: "./migrations" });
 
 Encore parses your application to understand your infrastructure requirements. Then:
 
-- **Locally:** The Encore CLI sets up local infrastructure (Postgres using Docker, Pub/Sub using NSQ, etc.)
-- **AWS/GCP:** Encore Cloud automatically provisions managed services and deploys your application (RDS / Cloud SQL, SQS / Pub/Sub, S3 / Cloud Storage, etc.)
-- **Self-hosted:** Export a Docker image and supply your infra config to host anywhere
+- **Locally:** The Encore CLI sets up local infrastructure (Postgres, Pub/Sub, object storage, secrets) and provides a development dashboard with distributed tracing, API documentation, service catalog, architecture diagrams, and database explorer. Works offline, no Docker Compose needed.
 
-The same application code works everywhere without changes and makes your application portable across cloud providers.
+- **AWS/GCP:** Encore Cloud automatically provisions managed services (RDS/Cloud SQL, SQS/Pub/Sub, S3/Cloud Storage, Memorystore/ElastiCache, etc.) in your cloud account. Deploy to AWS or GCP, run on serverless (Cloud Run, Fargate) or Kubernetes, all without code changes.
 
-Encore is fully open source, there is **no proprietary code running in your application**.
+- **Self-hosted:** Export a Docker image and supply your infra config to host anywhere.
 
-#### Need some infrastructure Encore doesn't provide?
+<img width="578" style="background: #eeeee1; padding: 8px;" src="https://encore.dev/assets/docs/arch_full.png" />
 
-Encore never prevents you from using arbitrary infrastructure.
+Encore is designed to make it simple to build distributed systems:
 
-You can use any external resource as you normally would, directly integrating standard SDKs (AWS SDK, GCP client libraries, third-party APIs, etc.) using [Secrets](https://encore.dev/docs/primitives/secrets) to define per-environment settings or using Encore's environment configuration. You then provision that resource yourself as you normally would.
+- **Microservices without boilerplate:** Call APIs in other services like regular functions. Encore handles service discovery, networking, and serialization. Get cross-service type-safety and auto-complete in your IDE.
 
-#### Want to integrate with existing infrastructure?
+- **Modular monolith to microservices:** Write your application as independent services. Deploy them colocated in a single process or as distributed microservices, without changing a single line of code. Encore handles service communication whether in-process or over the network.
 
-Encore Cloud supports multiple ways of integrating existing infrastructure and systems, including deploying to existing Kubernetes clusters, importing existing databases, and provides a [Terraform provider](https://encore.dev/docs/platform/integrations/terraform) to make it simple to integrate Encore managed infrastructure with your existing infrastructure landscape.
+- **Testing built-in:** Mock API calls, get dedicated test infrastructure, and use distributed tracing for tests.
 
 ### Example: Hello World
 
@@ -134,19 +132,43 @@ var Signup = pubsub.NewTopic[*User]("signup", pubsub.TopicConfig{
 Signup.Publish(ctx, &User{...})
 ```
 
+### Need some infrastructure Encore doesn't provide?
+
+Encore never prevents you from using arbitrary infrastructure.
+
+You can use any external resource as you normally would, directly integrating standard SDKs (AWS SDK, GCP client libraries, third-party APIs, etc.). You then provision that resource yourself as you normally would.
+
+### Want to adopt Encore with an existing system?
+
+You don't need a complete rewrite, Encore supports incremental adoption.
+
+**Service-by-service migration (recommended):** Build new services with Encore and run them alongside your existing system, integrated via APIs. Then incrementally migrate existing services as needed. Each migrated service immediately gets Encore's full feature set: infrastructure provisioning, tracing, architecture diagrams.
+
+#### Deployment options:
+
+- **Your Kubernetes cluster:** Deploy directly to your existing Kubernetes infrastructure. Run Encore alongside legacy systems in the same environment.
+- **Encore-managed infrastructure:** Let Encore provision and manage infrastructure in your AWS/GCP account, deployed within your existing VPC and security setup.
+- **Terraform provider:** Encore provides a [Terraform provider](https://encore.dev/docs/platform/integrations/terraform) to make it simple to integrate Encore managed infrastructure with your existing infrastructure landscape.
+
+Start with low-risk, frequently-changed services to validate the approach. Learn more in our [migration guide](https://encore.dev/docs/platform/migration/migrate-to-encore).
+
 ---
 
 For more info:
 
 **See example apps:** [Example Apps Repo](https://github.com/encoredev/examples/)
 
-**See products already being built with Encore:** [Showcase](https://encore.cloud/showcase)
+**See products built with Encore:** [Showcase](https://encore.cloud/showcase)
 
 **Hear from teams using Encore:** [Case studies](https://encore.cloud/customers)
 
 **Have questions?** Join the friendly developer community on [Discord](https://encore.dev/discord)
 
 **Talk to a human:** [Book a 1:1 demo](https://encore.dev/book) with one of our founders
+
+**Intro video:** [Watch on YouTube](https://youtu.be/vvqTGfoXVsw) for a quick introduction to Encore concepts & code examples.
+
+<a href="https://youtu.be/vvqTGfoXVsw" target="_blank"><img width="589" alt="Encore Intro Video" src="https://github.com/encoredev/encore/assets/78424526/89737146-be48-429f-a83f-41bc8da37980"></a>
 
 ## Documentation
 
@@ -160,73 +182,17 @@ For more info:
 - **Object Storage:** [Go](https://encore.dev/docs/go/primitives/object-storage) / [TypeScript](https://encore.dev/docs/ts/primitives/object-storage)
 - **Caching:** [Go](https://encore.dev/docs/go/primitives/caching) / TypeScript (Coming soon)
 
-**Intro video:** [Watch on YouTube](https://youtu.be/vvqTGfoXVsw) for a quick introduction to Encore concepts & code examples.
+## How does Encore compare to other tools?
 
-<a href="https://youtu.be/vvqTGfoXVsw" target="_blank"><img width="589" alt="Encore Intro Video" src="https://github.com/encoredev/encore/assets/78424526/89737146-be48-429f-a83f-41bc8da37980"></a>
+| Tool                               | What it does                                                  | How Encore differs                                                                                                                                                                                                                                                           |
+| ---------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pulumi / CDK / Terraform / SST** | Infrastructure-as-Code tools for provisioning cloud resources | Other solutions define configuration for specific infra services, coupling your application to one set of infrastructure. Encore uses semantic infrastructure (services, databases, Pub/Sub), write once, deploy anywhere (AWS/GCP/local), colocated or distributed services |
+| **Serverless Framework / Chalice** | Frameworks for deploying serverless functions to AWS          | Encore supports any architecture (monolith, microservices, serverless) and any cloud (AWS, GCP, self-hosted)                                                                                                                                                                 |
+| **NestJS / Express / Fiber**       | Web frameworks for building APIs and services                 | Encore provides the same capabilities plus infrastructure primitives, local dev tooling, observability, and optional cloud deployment                                                                                                                                        |
+| **Convex / Supabase / Firebase**   | Managed backend-as-a-service platforms                        | Encore gives you similar productivity but supports microservices and event-driven systems, and deploys to your own cloud account with no vendor lock-in                                                                                                                      |
+| **Vercel / Netlify / Railway**     | Deployment platforms (primarily frontend/full-stack)          | Encore is backend-specialized with deeper primitives (Pub/Sub, cron, caching) and multi-cloud infrastructure automation                                                                                                                                                      |
 
-## Local Development & Testing
-
-### Run locally with `encore run`
-
-The CLI automatically provisions local infrastructure (Postgres, Pub/Sub, object storage, secrets) and provides a development dashboard with:
-
-- **Distributed tracing** to understand application behavior and debug issues
-- **API documentation** and client generation (Go, TypeScript, JavaScript, OpenAPI)
-- **Service catalog** with architecture diagrams
-- **Database explorer** to inspect and query your databases
-
-Works fully offline. No Docker Compose configuration needed.
-
-<p align="center">
-<img width="578" alt="Local Development" src="https://github.com/encoredev/encore/assets/78424526/6bf682bb-f57e-4a02-9c92-ff83f7fb59d2">
-</p>
-
-### Type-safety across services
-
-When building microservices with Encore, you get:
-
-- **Cross-service type-safety:** Auto-complete in your IDE when making API calls between services
-- **Type-aware infrastructure:** Infrastructure like Pub/Sub topics are type-safe objects, enabling end-to-end type-safety in event-driven applications
-
-### Testing
-
-- **Built-in mocking:** [Mock API calls](https://encore.dev/docs/go/develop/testing/mocking) and auto-generate mock objects for services
-- **Test infrastructure:** Dedicated [test infrastructure](https://encore.dev/docs/go/develop/testing#test-only-infrastructure) provisioned automatically to isolate tests
-- **Test tracing:** Distributed tracing for tests in the development dashboard
-- **Preview Environments:** Encore Cloud provisions temporary [Preview Environments](https://encore.dev/docs/platform/deploy/preview-environments) for each PR
-
-<p align="center">
-<img width="573" alt="testing" src="https://github.com/encoredev/encore/assets/78424526/516a043c-66ac-464e-a4ca-f8ecd5642d54">
-</p>
-
-## Encore Cloud (Optional DevOps Platform)
-
-Automates infrastructure provisioning and DevOps in your own AWS/GCP account. [Connect your account](https://encore.dev/docs/platform/deploy/own-cloud) and deploy, with no Terraform or YAML needed.
-
-**Provisions infrastructure:**
-
-- Compute (Cloud Run, Fargate, Kubernetes), databases (Cloud SQL, RDS), Pub/Sub (GCP Pub/Sub, SQS/SNS), caching (Memorystore, ElastiCache), storage (GCS, S3), etc.
-- Conservative defaults: scalable instances, least-privilege IAM, secure networking
-
-**Deployment flexibility (no code changes needed):**
-
-- Deploy to AWS or GCP (or switch between them)
-- Run on serverless (Cloud Run, Fargate) or Kubernetes (GKE/EKS)
-- Colocate all services in one process, or deploy each service independently
-- Different infrastructure sizing and scaling per environment
-
-**Control & tools:**
-
-- Override defaults via Encore Cloud dashboard or your AWS/GCP console
-- Approval workflows and audit logs for infrastructure changes
-- [Preview Environments](https://encore.dev/docs/platform/deploy/preview-environments) for each PR
-- [Distributed tracing](https://encore.dev/docs/ts/observability/tracing), metrics, service catalog, architecture diagrams
-
-<p align="center">
-<img width="573" alt="DevOps" src="https://github.com/encoredev/encore/assets/78424526/e00d3e92-3301-4f3a-89cc-575c4a520aae">
-</p>
-
-## Why use Encore?
+## Why teams use Encore
 
 - **Faster Development**: Encore streamlines the development process by providing guardrails, clear abstractions, and removing manual infrastructure tasks from development interations.
 - **Scalability & Performance**: Encore simplifies building large-scale microservices applications that can handle growing user bases and demands, without the normal boilerplate and complexity.
@@ -234,49 +200,17 @@ Automates infrastructure provisioning and DevOps in your own AWS/GCP account. [C
 - **Security & Compliance**: Encore Cloud helps ensure your application is secure and compliant by enforcing security standards like least privilege IAM, and provisioning infrastructure according to best practices for each cloud provider.
 - **Reduced Costs**: Encore Cloud's automatic infrastructure management removes common cloud expenses like overprovisioned test environments, and reduces DevOps workload.
 
-## How does Encore compare to other tools?
-
-| Tool                               | What it does                                                  | How Encore differs                                                                                                                                                                                           |
-| ---------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Pulumi / CDK / Terraform / SST** | Infrastructure-as-Code tools for provisioning cloud resources | IaC defines cloud-specific resources (AWS Fargate, GCP Cloud Run). Encore uses semantic infrastructure (services, databases, Pub/Sub), write once, deploy anywhere (AWS/GCP/local), colocated or distributed |
-| **Serverless Framework / Chalice** | Frameworks for deploying serverless functions to AWS          | Encore supports any architecture (monolith, microservices, serverless) and any cloud (AWS, GCP, self-hosted)                                                                                                 |
-| **NestJS / Express / Fiber**       | Web frameworks for building APIs and services                 | Encore provides the same capabilities plus infrastructure primitives, local dev tooling, and optional cloud deployment                                                                                       |
-| **Convex / Supabase / Firebase**   | Managed backend-as-a-service platforms                        | Encore gives you similar productivity but supports microservices and event-driven systems, and deploys to your own cloud account—no vendor lock-in                                                           |
-| **Vercel / Netlify / Railway**     | Deployment platforms (primarily frontend/full-stack)          | Encore is backend-specialized with deeper primitives (Pub/Sub, cron, caching) and multi-cloud infrastructure automation                                                                                      |
-
-## Common use cases
-
-Encore is designed to give teams a productive and less complex experience when solving most backend use cases. Many teams use Encore to build things like:
-
-- High-performance B2B Platforms
-- Fintech & Consumer apps
-- Global E-commerce marketplaces
-- Microservices backends for SaaS applications and mobile apps
-- And much more...
-
-## Getting started
-
-- **1. Install Encore:**
-  - **macOS:** `brew install encoredev/tap/encore`
-  - **Linux:** `curl -L https://encore.dev/install.sh | bash`
-  - **Windows:** `iwr https://encore.dev/install.ps1 | iex`
-- **2. Create your first app:**
-  - **TypeScript:** `encore app create --example=ts/introduction`
-  - **Go:** `encore app create --example=hello-world`
-- **3. Star the project** on [GitHub](https://github.com/encoredev/encore) to stay up-to-date
-- **4. Explore the [Documentation](https://encore.dev/docs)** to learn more about Encore's features
-- **5. [Join Discord](https://encore.dev/discord)** to ask questions and meet other Encore developers
-
 ## Open Source
 
 Everything needed to develop and deploy Encore applications is Open Source, including the backend frameworks, parser, compiler, runtime, and CLI.
-This includes all code needed for local development and everything that runs in your application when it is deployed.
 
-The Open Source CLI also provides a mechanism to generate a Docker images for your application, so you easily self-host your application. [Learn more in the docs](https://encore.dev/docs/ts/self-host/build).
+This includes all code needed for local development, everything that runs in your application when it is deployed, and everything needed to generate a Docker image for your application, so you easily deploy your application anywhere. [Learn more in the docs](https://encore.dev/docs/ts/self-host/build).
 
-## Join our pioneering developer community
+## Join our growing developer community
 
-Developers building with Encore are forward-thinkers who want to focus on creative programming and building great software to solve meaningful problems. It's a friendly place, great for exchanging ideas and learning new things! **Join the conversation on [Discord](https://encore.dev/discord).**
+Developers building with Encore are part of fast-moving teams that want to focus on creative programming and building great software to solve meaningful problems. It's a friendly place, great for exchanging ideas and learning new things!
+
+**Join the community on [Discord](https://encore.dev/discord).**
 
 We rely on your contributions and feedback to improve Encore for everyone who is using it.
 Here's how you can contribute:
@@ -295,19 +229,21 @@ Here's how you can contribute:
 - <a href="https://youtu.be/IwplIbwJtD0" alt="Demo video: Building and deploying a simple service" target="_blank">Demo: Building and deploying a simple Go service</a>
 - <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system in Go</a>
 
+Find more videos in our [YouTube channel](youtube.com/channel/UCvqeAqMPotfuA6SPXa4VhNQ/).
+
 ## Frequently Asked Questions (FAQ)
 
 ### Who's behind Encore?
 
-Encore was founded by long-time backend engineers from Spotify, Google, and Monzo with over 50 years of collective experience. We've lived through the challenges of building complex distributed systems with thousands of services, and scaling to hundreds of millions of users.
+Encore was founded by long-time engineers from Spotify and Google. We've lived through the challenges of building complex distributed systems with thousands of services, and scaling to hundreds of millions of users.
 
-Encore grew out of these experiences and is a solution to the frustrations that came with them: unnecessary crippling complexity and constant repetition of undifferentiated work that suffocates the developer's creativity. With Encore, we want to set developers free to achieve their creative potential.
+Encore grew out of these experiences and is a solution to the frustrations that came with them: unnecessary infrastructure complexity and tedious repetitive work that suffocates developers' productivity and creativity.
 
 ### Who is Encore for?
 
 **Individual developers:** Build cloud applications without managing infrastructure configuration. Go from idea to deployed application in minutes instead of days.
 
-**Startup teams:** Get a production-ready backend on AWS/GCP without hiring DevOps. Focus engineering time on your product instead of reinventing infrastructure patterns and building platform tooling.
+**Startup teams:** Get a production-ready backend on AWS/GCP without dedicated DevOps engineers. Focus your time on your product instead of reinventing infrastructure patterns and building platform tooling.
 
 **Large organizations:** Standardize backend development across teams. Reduce onboarding time and operational overhead. Spin up new services in minutes with consistent patterns, without needing days of back and forth between development and DevOps teams.
 
@@ -325,9 +261,9 @@ This **reduces coupling** compared to traditional Infrastructure-as-Code or clou
 
 ### What kind of support does Encore offer?
 
-Encore is fully open source and maintained by a dedicated team. Support options include:
+Encore is fully open source and maintained by a dedicated full-time team. Support options include:
 
-- **Community Support:** Free support via [GitHub Issues](https://github.com/encoredev/encore/issues) and [Discord](https://encore.dev/discord)
+- **Community Support:** Free support via [Discord](https://encore.dev/discord)
 - **Documentation:** Comprehensive guides and API references at [encore.dev/docs](https://encore.dev/docs)
 - **Paid Support:** For teams requiring guaranteed response times or dedicated support, [contact us](mailto:hello@encore.dev) about support plans
 
