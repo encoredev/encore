@@ -5,9 +5,9 @@
 
 1. **Framework:** Available for TypeScript and Go, the Encore framework lets you define APIs, services, and infrastructure (databases, Pub/Sub, caching, buckets, cron jobs) as type-safe objects in your code. Write your application once, then deploy it anywhere without code changes by [exporting a Docker image](https://encore.dev/docs/ts/self-host/build) and supplying the infra configuration.
 
-2. **Local Dev Tools:** The Encore CLI runs your app locally and automatically provisions the local infrastructure. Local dev tools like tracing, API documentation, service catalog, architecture diagrams, and database explorer are built-in for a productive dev workflow.
+2. **Local Dev Tools:** The Encore CLI runs your app locally and automatically provisions local infrastructure. Encore's local dev dashboard provides tools for a productive workflow: Tracing, API Explorer, Service Catalog, Architecture Diagrams, and Database Explorer.
 
-3. **Optional DevOps Platform:** [Encore Cloud](https://encore.cloud) parses your application and automatically provisions the required infrastructure in your own AWS/GCP account. Other tools include Preview Environments for each PR, service catalog, distributed tracing, and metrics.
+3. **Optional DevOps Platform:** [Encore Cloud](https://encore.cloud) parses your application and automatically provisions the required infrastructure in your own AWS/GCP account. Other tools include Preview Environments for each PR, Service Catalog, Distributed Tracing, Metrics, and Cost Analytics.
 
 **⭐ Star this repository** to help spread the word.
 
