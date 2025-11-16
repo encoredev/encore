@@ -267,7 +267,7 @@ export namespace svc {
     }
 
     export interface Recursive {
-        Optional?: Recursive
+        Optional?: Recursive | undefined | null
         Slice: Recursive[]
         Map: { [key: string]: Recursive }
     }
@@ -276,17 +276,17 @@ export namespace svc {
         /**
          * Foo is good
          */
-        Foo?: Foo
+        Foo?: Foo | undefined | null
 
         /**
          * Baz is better
          */
         boo: string
 
-        QueryFoo?: boolean
-        QueryBar?: string
-        HeaderBaz?: string
-        HeaderInt?: number
+        QueryFoo?: boolean | undefined | null
+        QueryBar?: string | undefined | null
+        HeaderBaz?: string | undefined | null
+        HeaderInt?: number | undefined | null
         /**
          * This is a multiline
          * comment on the raw message!
