@@ -160,6 +160,7 @@ impl AppValidator<'_> {
                         Type::Enum(_) => true,
                         Type::Array(ref t) => is_valid_query_type(state, &t.0),
                         Type::Union(ref u) => u.types.iter().all(|t| is_valid_query_type(state, t)),
+                        Type::Custom(Custom::Decimal) => true,
                         Type::Custom(Custom::WireSpec(WireSpec {
                             location: WireLocation::Query,
                             underlying: typ,
