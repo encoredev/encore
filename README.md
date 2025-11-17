@@ -28,6 +28,10 @@
 
 Add LLM instructions ([Encore.ts](./ts_llm_instructions.txt) / [Encore.go](./go_llm_instructions.txt)) to your project for better AI code suggestions. Use the [MCP server](https://encore.dev/docs/ts/ai-integration) to give your AI tools runtime context (query databases, call APIs, analyze traces). [Learn more](https://encore.dev/docs/ts/ai-integration)
 
+https://github.com/encoredev/encore/assets/78424526/4d066c76-9e6c-4c0e-b4c7-6b2ba6161dc8
+
+_Encore's local development dashboard_
+
 ## How it works
 
 Encore's open source backend frameworks, [Encore.ts](https://encore.dev/docs/ts) and [Encore.go](https://encore.dev/docs/primitives/overview), enable you to define resources like services, databases, Pub/Sub, caches, buckets, and cron jobs, as type-safe objects in your application code.
@@ -42,13 +46,15 @@ Encore parses your application to understand your infrastructure requirements, t
 
 - **Locally:** The Encore CLI sets up local infrastructure (microservices, Postgres, Pub/Sub, etc.) and provides a development dashboard with distributed tracing, API documentation, service catalog, architecture diagrams, and database explorer. Works offline, no Docker Compose needed.
 
-- **AWS/GCP:** Encore Cloud deploys to your AWS/GCP account without any Terraform or YAML needed. Automatically sets up compute instances (serverless or Kubernetes), databases (RDS/Cloud SQL), Pub/Sub (SQS/GCP Pub/Sub), storage (S3/GCS), caching (ElastiCache/Memorystore), and all required resources like security groups, IAM policies, etc.
+- **AWS/GCP:** Encore Cloud deploys to your AWS/GCP account without any Terraform or YAML needed. It automatically sets up compute instances (serverless or Kubernetes), databases (RDS/Cloud SQL), Pub/Sub (SQS/GCP Pub/Sub), storage (S3/GCS), caching (ElastiCache/Memorystore), and all other required resources like security groups and IAM policies, according to best practices.
 
 - **Self-hosted:** Use the Encore CLI to export your app as Docker images, then supply your infra config to host anywhere.
 
 <img width="578" style="background: #eeeee1; padding: 8px;" src="https://encore.dev/assets/docs/arch_full.png" />
 
-Encore makes it simple to build distributed systems:
+_Encore orchestrates infrastructure from local development and testing, to production in your cloud._
+
+#### Encore makes it simpler to build distributed systems
 
 - **Microservices without boilerplate:** Call APIs in other services like regular functions. Encore handles service discovery, networking, and serialization. Get cross-service type-safety and auto-complete in your IDE.
 
