@@ -3,13 +3,13 @@
 <b>Open Source Framework for creating type-safe distributed systems with declarative infrastructure</b><br/>
 </p>
 
-- **Framework:** Available for TypeScript and Go, the Encore framework lets you define APIs, services, and infrastructure (databases, Pub/Sub, caching, buckets, cron jobs) as type-safe objects in your code. Write your application once, then deploy it anywhere without code changes by [exporting a Docker image](https://encore.dev/docs/ts/self-host/build) and supplying the infra configuration.
+- **Framework:** The Encore framework, available for TypeScript and Go, lets you define APIs, services, and infrastructure (databases, Pub/Sub, caching, buckets, cron jobs) as type-safe objects in your code. Write your application once, then deploy it anywhere without code changes by [exporting a Docker image](https://encore.dev/docs/ts/self-host/build) and supplying the infra configuration.
 
 - **Local Dev Tools:** The Encore CLI runs your app locally and automatically provisions local infrastructure. Encore's local dev dashboard provides tools for a productive workflow: Tracing, API Explorer, Service Catalog, Architecture Diagrams, and Database Explorer.
 
-- **Optional DevOps Platform:** [Encore Cloud](https://encore.cloud) parses your application and automatically provisions the required infrastructure in your own AWS/GCP account. Other tools include Preview Environments for each PR, Service Catalog, Distributed Tracing, Metrics, and Cost Analytics.
+- **DevOps Platform (Optional):** [Encore Cloud](https://encore.cloud) parses your application and automatically provisions the required infrastructure in your own AWS/GCP account. Other tools include Preview Environments for each PR, Service Catalog, Distributed Tracing, Metrics, and Cost Analytics.
 
-**⭐ Star this repository** to help spread the word.
+**⭐ Star this repository** to help spread the word and stay up to date.
 
 ### Get started
 
@@ -32,7 +32,7 @@ Add LLM instructions ([Encore.ts](./ts_llm_instructions.txt) / [Encore.go](./go_
 
 Encore's open source backend frameworks, [Encore.ts](https://encore.dev/docs/ts) and [Encore.go](https://encore.dev/docs/primitives/overview), enable you to define resources like services, databases, Pub/Sub, caches, buckets, and cron jobs, as type-safe objects in your application code.
 
-You only define **infrastructure semantics** (_what matters for the behavior of the application_), not configuration for specific cloud services:
+You only define **infrastructure semantics** (_what matters for the behavior of the application_), not configuration for specific cloud services. Here's how you define a database in Encore.ts:
 
 ```typescript
 const db = new SQLDatabase("users", { migrations: "./migrations" });
@@ -58,7 +58,7 @@ Encore makes it simple to build distributed systems:
 
 ### Example: Hello World
 
-Defining microservices and API endpoints is incredibly simple. With less than 10 lines of code, you can create a production-ready, deployable service.
+Defining microservices and API endpoints is very simple. With less than 10 lines of code, you can create a production-ready, deployable service.
 
 **Hello World in Encore.ts**
 
@@ -173,7 +173,7 @@ Start with low-risk, frequently-changed services to validate the approach. Learn
   - <a href="https://youtu.be/ipj1HdG4dWA" alt="Demo video: Building an event-driven system" target="_blank">Demo: Building an event-driven system in Go</a>
   - Find more videos in our [YouTube channel](youtube.com/channel/UCvqeAqMPotfuA6SPXa4VhNQ/).
 
-### How does Encore compare to other tools?
+### How Encore compares to other tools
 
 | Tool                               | What it does                                                  | How Encore differs                                                                                                                                                                                                                                                           |
 | ---------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
