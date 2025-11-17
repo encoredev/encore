@@ -316,6 +316,9 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 			return err
 		}
 		llmInstructions, err := downloadLLMInstructions(lang)
+		if err != nil {
+			return err
+		}
 		err = os.WriteFile(filepath.Join(rulesDir, "encore.mdc"), fmt.Appendf(nil, mdcTemplate, lang, string(llmInstructions)), 0644)
 		if err != nil {
 			return err
