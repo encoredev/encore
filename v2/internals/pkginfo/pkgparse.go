@@ -63,7 +63,7 @@ func (l *Loader) processPkg(s loadPkgSpec, pkgs []*ast.Package, files []*File) *
 			// We're good
 		} else {
 			names := strings.Join(pkgNames[:n-1], ", ") + " and " + pkgNames[n-1]
-			l.c.Errs.Addf(s.cause, fmt.Sprintf("found multiple package names in package %s: %s", s.path, names))
+			l.c.Errs.Addf(s.cause, "%s", fmt.Sprintf("found multiple package names in package %s: %s", s.path, names))
 		}
 	} else if n == 0 {
 		// No Go files; ignore directory
