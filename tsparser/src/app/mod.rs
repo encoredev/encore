@@ -13,7 +13,8 @@ use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
 use crate::parser::types::visitor::VisitWith;
 use crate::parser::types::{
-    validation, visitor, Basic, Interface, ObjectId, ResolveState, Type, Validated,
+    validation, visitor, Basic, Custom, Interface, ObjectId, ResolveState, Type, Validated,
+    WireLocation, WireSpec,
 };
 use crate::parser::Range;
 use crate::span_err::ErrReporter;
@@ -152,11 +153,22 @@ impl AppValidator<'_> {
     fn validate_req_params(&self, params: &Vec<Param>) {
         for param in params {
             if let ParamData::Query { .. } = param.loc {
-                let concrete = resolve_to_concrete(self.pc.type_checker.state(), &param.typ);
-                let is_valid = matches!(concrete, Type::Basic(_))
-                    || matches!(concrete, Type::Array(ref t) if matches!(*t.0, Type::Basic(_)));
+                fn is_valid_query_type(state: &ResolveState, typ: &Type) -> bool {
+                    match resolve_to_concrete(state, typ) {
+                        Type::Basic(_) | Type::Literal(_) => true,
+                        Type::Enum(_) => true,
+                        Type::Array(ref t) => is_valid_query_type(state, &t.0),
+                        Type::Union(ref u) => u.types.iter().all(|t| is_valid_query_type(state, t)),
+                        Type::Custom(Custom::WireSpec(WireSpec {
+                            location: WireLocation::Query,
+                            underlying: typ,
+                            ..
+                        })) => is_valid_query_type(state, &resolve_to_concrete(state, &typ)),
+                        _ => false,
+                    }
+                }
 
-                if !is_valid {
+                if !is_valid_query_type(self.pc.type_checker.state(), &param.typ) {
                     HANDLER.with(|handler| {
                         handler.span_err(param.range, "type not supported for query parameters")
                     });
