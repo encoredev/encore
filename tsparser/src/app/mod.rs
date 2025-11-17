@@ -164,7 +164,7 @@ impl AppValidator<'_> {
                             location: WireLocation::Query,
                             underlying: typ,
                             ..
-                        })) => is_valid_query_type(state, &resolve_to_concrete(state, &typ)),
+                        })) => is_valid_query_type(state, &typ),
                         _ => false,
                     }
                 }
@@ -177,6 +177,7 @@ impl AppValidator<'_> {
             };
         }
     }
+
     fn validate_resp_params(&self, params: &[Param]) {
         let http_status_params: Vec<_> = params
             .iter()
