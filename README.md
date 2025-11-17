@@ -50,7 +50,7 @@ Encore parses your application to understand your infrastructure requirements, t
 
 - **Self-hosted:** Use the Encore CLI to export your app as Docker images, then supply your infra config to host anywhere.
 
-<img width="578" style="background: #eeeee1; padding: 8px;" src="https://encore.dev/assets/docs/arch_full.png" />
+<img width="578" alt="Encore overview" src="https://github.com/user-attachments/assets/89fb83cf-2400-4b54-969d-6f7a5911e76c" />
 
 _Encore orchestrates infrastructure from local development and testing, to production in your cloud._
 
