@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use itertools::Itertools;
 use matchit::InsertError;
 use swc_common::errors::HANDLER;
 use swc_common::Span;
@@ -177,22 +178,26 @@ impl AppValidator<'_> {
         }
     }
     fn validate_resp_params(&self, params: &[Param]) {
-        let mut http_status_defined = None;
-        for param in params
+        let http_status_params: Vec<_> = params
             .iter()
             .filter(|p| matches!(p.loc, ParamData::HTTPStatus))
-        {
-            if let Some(prev_range) = http_status_defined.replace(param.range) {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            param.range,
-                            "http status can only be defined once per response type",
-                        )
-                        .span_note(prev_range, "previously defined here")
-                        .emit();
-                });
-            }
+            .sorted_by(|a, b| a.range.cmp(&b.range))
+            .collect();
+
+        if http_status_params.len() > 1 {
+            let first = http_status_params[0];
+            HANDLER.with(|handler| {
+                let mut err = handler.struct_span_err(
+                    first.range,
+                    "http status can only be defined once per response type",
+                );
+
+                for param in &http_status_params[1..] {
+                    err.span_note(param.range, "also defined here");
+                }
+
+                err.emit();
+            });
         }
     }
 
