@@ -121,6 +121,10 @@ func (db *DB) Setup(ctx context.Context, appRoot string, dbMeta *meta.SQLDatabas
 
 		// Terminate the connections to the template database to prevent "database is being accessed by other users" errors.
 		_ = db.terminateConnectionsToDB(ctx, db.ApplicationCloudName())
+		if err := db.doDrop(ctx, tmplName); err != nil {
+			return fmt.Errorf("drop db %s: %v", tmplName, err)
+		}
+
 		if err := db.renameDB(ctx, db.ApplicationCloudName(), tmplName); err != nil {
 			return fmt.Errorf("rename db %s to %s: %v", db.ApplicationCloudName(), tmplName, err)
 		}
