@@ -180,6 +180,7 @@ func (db *DB) renameDB(ctx context.Context, from, to string) error {
 	}
 	defer func() { _ = adm.Close(context.Background()) }()
 
+	_, err = adm.Exec(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s", (pgx.Identifier{to}).Sanitize()))
 	_, err = adm.Exec(ctx, fmt.Sprintf("ALTER DATABASE %s RENAME TO %s",
 		(pgx.Identifier{from}).Sanitize(),
 		(pgx.Identifier{to}).Sanitize(),
