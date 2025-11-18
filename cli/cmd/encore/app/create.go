@@ -286,6 +286,7 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 
 	// Update to latest encore.dev release
 	if _, err := os.Stat(filepath.Join(name, appRootRelpath, "go.mod")); err == nil {
+		lang = languageGo
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
@@ -294,6 +295,7 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 		}
 		s.Stop()
 	} else if _, err := os.Stat(filepath.Join(name, appRootRelpath, "package.json")); err == nil {
+		lang = languageTS
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running npm install encore.dev@latest"
 		s.Start()
@@ -301,28 +303,6 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
-	}
-
-	switch editor {
-	case EditorCursor:
-		cursorDir := filepath.Join(name, appRootRelpath, ".cursor")
-		rulesDir := filepath.Join(cursorDir, "rules")
-		err := os.MkdirAll(rulesDir, 0755)
-		if err != nil {
-			return err
-		}
-		err = os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(mcpJSON), 0644)
-		if err != nil {
-			return err
-		}
-		llmInstructions, err := downloadLLMInstructions(lang)
-		if err != nil {
-			return err
-		}
-		err = os.WriteFile(filepath.Join(rulesDir, "encore.mdc"), fmt.Appendf(nil, mdcTemplate, lang, string(llmInstructions)), 0644)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Rewrite any existence of ENCORE_APP_ID to the allocated app id.
@@ -347,7 +327,7 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 		cmdutil.Fatalf("failed to get absolute path: %v", err)
 	}
 	daemon := cmdutil.ConnectDaemon(ctx)
-	_, err = daemon.CreateApp(ctx, &daemonpb.CreateAppRequest{
+	appResp, err := daemon.CreateApp(ctx, &daemonpb.CreateAppRequest{
 		AppRoot:  appRoot,
 		Tutorial: exCfg.Tutorial,
 		Template: template,
@@ -355,6 +335,26 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 	if err != nil {
 		color.Red("Failed to create app on daemon: %s\n", err)
 	}
+
+	switch editor {
+	case EditorCursor:
+		cursorDir := filepath.Join(name, appRootRelpath, ".cursor")
+		rulesDir := filepath.Join(cursorDir, "rules")
+		err := os.MkdirAll(rulesDir, 0755)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(strings.ReplaceAll(mcpJSON, "{{ENCORE_APP_ID}}", appResp.AppId)), 0644)
+		if err != nil {
+			return err
+		}
+		llmInstructions, err := downloadLLMInstructions(lang)
+		err = os.WriteFile(filepath.Join(rulesDir, "encore.mdc"), fmt.Appendf(nil, mdcTemplate, lang, string(llmInstructions)), 0644)
+		if err != nil {
+			return err
+		}
+	}
+
 	cmdutil.ClearTerminalExceptFirstNLines(0)
 	_, _ = green.Printf("Successfully created app %s!\n", name)
 	cyanf := cyan.SprintfFunc()
@@ -400,7 +400,7 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 	_, _ = cyan.Printf("    encore run\n")
 	fmt.Print("        Run your app locally\n\n")
 
-	if detectLang(name) == languageGo {
+	if lang == languageGo {
 		_, _ = cyan.Printf("    encore test ./...\n")
 	} else {
 		_, _ = cyan.Printf("    encore test\n")
@@ -417,7 +417,7 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 }
 
 func downloadLLMInstructions(lang language) (string, error) {
-	fmt.Println("Downloading LLM...")
+	fmt.Println("Downloading LLM Instructions...")
 	var url string
 	switch lang {
 	case languageGo:
@@ -647,7 +647,7 @@ func rewritePlaceholders(basePath string, app *platform.App) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if !info.Type().IsRegular() {
 			return nil
 		}
 		if err := rewritePlaceholder(path, info, app); err != nil {
