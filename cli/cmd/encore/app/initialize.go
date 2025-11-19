@@ -29,8 +29,7 @@ const (
 )
 
 var (
-	initAppLang     string
-	initAppLLMRules = createAppLLMRules
+	initAppLang string
 )
 
 // Create a new app from scratch: `encore app create`
@@ -56,7 +55,6 @@ func init() {
 
 	appCmd.AddCommand(initAppCmd)
 	initAppCmd.Flags().StringVar(&initAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
-	initAppLLMRules.AddFlag(initAppCmd)
 }
 
 func initializeApp(name string) error {
@@ -74,7 +72,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang, llmRules := createAppModel(name, "", language(initAppLang), llmRules(initAppLLMRules.Value), true)
+	name, _, lang, _ := createAppModel(name, "", language(initAppLang), LLMRulesNone, true)
 
 	if err := validateName(name); err != nil {
 		return err
@@ -132,10 +130,6 @@ func initializeApp(name string) error {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
-	}
-
-	if err := setupLLMRules(llmRules, lang, ".", appSlug); err != nil {
-		color.Red("Failed to setup LLM rules: %s\n", err)
 	}
 
 	green := color.New(color.FgGreen)

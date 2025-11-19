@@ -67,7 +67,7 @@ type createFormModel struct {
 	appName   appNameModel
 	llmRules  simpleSelectModel[llmRules, llmRuleItem]
 
-	skipShowingTemplate bool
+	initExistingApp bool
 
 	width   int
 	height  int
@@ -360,9 +360,6 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case simpleSelectDone[language]:
 		m.removeStep(CreateStepLang)
-		if m.skipShowingTemplate {
-			m.removeStep(CreateStepTemplate)
-		}
 		m.templates.UpdateFilter(msg.selected)
 		m.SetSize(m.width, m.height)
 
@@ -451,7 +448,7 @@ func (m createFormModel) doneView() string {
 	if m.templates.predefined == "" && !m.hasStep(CreateStepLang) {
 		renderLangDone()
 	}
-	if !m.skipShowingTemplate {
+	if !m.initExistingApp {
 		if m.templates.predefined != "" || !m.hasStep(CreateStepTemplate) {
 			renderTemplateDone()
 		}
@@ -511,7 +508,7 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func createAppModel(inputName, inputTemplate string, inputLang language, inputLLMRules llmRules, skipShowingTemplate bool) (appName, template string, selectedLang language, selectedRules llmRules) {
+func createAppModel(inputName, inputTemplate string, inputLang language, inputLLMRules llmRules, initExistingApp bool) (appName, template string, selectedLang language, selectedRules llmRules) {
 	// If all is set, just return
 	if inputName != "" && inputTemplate != "" && inputLLMRules != "" {
 		return inputName, inputTemplate, inputLang, inputLLMRules
@@ -629,28 +626,34 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 
 	// Setup what steps and in what order they should be presented
 	var steps []CreateStep
-	if templateModel.predefined == "" {
+	if initExistingApp {
 		if langModel.predefined == "" {
 			steps = append(steps, CreateStepLang)
-		} else {
-			templateModel.UpdateFilter(inputLang)
 		}
-		steps = append(steps, CreateStepTemplate)
-	}
-	if llmRulesModel.predefined == "" {
-		steps = append(steps, CreateStepLLMRules)
+	} else {
+		if templateModel.predefined == "" {
+			if langModel.predefined == "" {
+				steps = append(steps, CreateStepLang)
+			} else {
+				templateModel.UpdateFilter(inputLang)
+			}
+			steps = append(steps, CreateStepTemplate)
+		}
+		if llmRulesModel.predefined == "" {
+			steps = append(steps, CreateStepLLMRules)
+		}
 	}
 	if nameModel.predefined == "" {
 		steps = append(steps, CreateStepAppName)
 	}
 
 	m := createFormModel{
-		steps:               steps,
-		lang:                langModel,
-		templates:           templateModel,
-		llmRules:            llmRulesModel,
-		appName:             nameModel,
-		skipShowingTemplate: skipShowingTemplate,
+		steps:           steps,
+		lang:            langModel,
+		templates:       templateModel,
+		llmRules:        llmRulesModel,
+		appName:         nameModel,
+		initExistingApp: initExistingApp,
 	}
 
 	// If we have a name, start the list without any selection.
@@ -679,7 +682,7 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 
 	if template == "" {
 		sel, ok := res.templates.SelectedItem()
-		if !ok && !skipShowingTemplate {
+		if !ok && !initExistingApp {
 			cmdutil.Fatal("no template selected")
 		}
 		template = sel.Template
