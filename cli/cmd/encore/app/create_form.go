@@ -452,10 +452,10 @@ func (m createFormModel) doneView() string {
 		if m.templates.predefined != "" || !m.hasStep(CreateStepTemplate) {
 			renderTemplateDone()
 		}
-	}
-	if m.llmRules.predefined == "" && !m.hasStep(CreateStepLLMRules) {
-		if m.llmRules.Selected() != LLMRulesNone {
-			renderLLMRulesDone()
+		if m.llmRules.predefined != "" || !m.hasStep(CreateStepLLMRules) {
+			if m.llmRules.Selected() != LLMRulesNone {
+				renderLLMRulesDone()
+			}
 		}
 	}
 	if m.appName.predefined == "" && !m.hasStep(CreateStepAppName) {
@@ -607,7 +607,7 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 
 		llmRulesModel = simpleSelectModel[llmRules, llmRuleItem]{
 			list:       ll,
-			predefined: LLMRulesNone,
+			predefined: inputLLMRules,
 		}
 		llmRulesModel.SetSize(0, 20)
 
