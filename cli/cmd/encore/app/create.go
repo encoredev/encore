@@ -176,6 +176,33 @@ func promptRunApp() bool {
 	}
 }
 
+func setupLLMRules(llmRules llmRules, lang language, appRootRelpath string, appSlug string) error {
+	switch llmRules {
+	case LLMRulesCursor:
+		cursorDir := filepath.Join(appRootRelpath, ".cursor")
+		rulesDir := filepath.Join(cursorDir, "rules")
+		err := os.MkdirAll(rulesDir, 0755)
+		if err != nil {
+			return err
+		}
+
+		if appSlug != "" {
+			err = os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(strings.ReplaceAll(mcpJSON, "{{ENCORE_APP_ID}}", appSlug)), 0644)
+			if err != nil {
+				return err
+			}
+		}
+
+		llmInstructions, err := downloadLLMInstructions(lang)
+		err = os.WriteFile(filepath.Join(rulesDir, "encore.mdc"), fmt.Appendf(nil, mdcTemplate, lang, string(llmInstructions)), 0644)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // createApp is the implementation of the "encore app create" command.
 func createApp(ctx context.Context, name, template string, lang language, llmRules llmRules) (err error) {
 	defer func() {
@@ -350,23 +377,8 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		color.Red("Failed to create app on daemon: %s\n", err)
 	}
 
-	switch llmRules {
-	case LLMRulesCursor:
-		cursorDir := filepath.Join(name, appRootRelpath, ".cursor")
-		rulesDir := filepath.Join(cursorDir, "rules")
-		err := os.MkdirAll(rulesDir, 0755)
-		if err != nil {
-			return err
-		}
-		err = os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(strings.ReplaceAll(mcpJSON, "{{ENCORE_APP_ID}}", appResp.AppId)), 0644)
-		if err != nil {
-			return err
-		}
-		llmInstructions, err := downloadLLMInstructions(lang)
-		err = os.WriteFile(filepath.Join(rulesDir, "encore.mdc"), fmt.Appendf(nil, mdcTemplate, lang, string(llmInstructions)), 0644)
-		if err != nil {
-			return err
-		}
+	if err := setupLLMRules(llmRules, lang, filepath.Join(name, appRootRelpath), appResp.AppId); err != nil {
+		color.Red("Failed to setup LLM rules: %s\n", err)
 	}
 
 	cmdutil.ClearTerminalExceptFirstNLines(0)
