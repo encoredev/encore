@@ -321,7 +321,7 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		clusterType := sqldb.Run
 		cluster, ok := h.run.ClusterMgr.Get(sqldb.GetClusterID(app, clusterType, namespace))
 		if !ok {
-			return reply(ctx, nil, fmt.Errorf("failed to get database cluster of type %s", clusterType))
+			return reply(ctx, []dbMigrationHistory{}, nil)
 		}
 
 		status := buildDbMigrationStatus(ctx, appMeta, cluster)
