@@ -55,21 +55,35 @@ var (
 	createAppTemplate   string
 	createAppOnPlatform bool
 	createAppLang       string
-	createAppEditor     = cmdutil.Oneof{
+	createAppLLMRules   = cmdutil.Oneof{
 		Value:     "",
 		Allowed:   []string{"cursor"},
-		Flag:      "editor",
-		FlagShort: "", // no short flag
-		Desc:      "Initialize the app for a cursor-based editor",
+		Flag:      "llm-rules",
+		FlagShort: "r",
+		Desc:      "Initialize the app with llm rules for a specific tool",
 		TypeDesc:  "string",
 	}
 )
 
-type editor string
+type llmRules string
 
 const (
-	EditorCursor editor = "cursor"
+	LLMRulesNone   llmRules = ""
+	LLMRulesCursor llmRules = "cursor"
 )
+
+func (e llmRules) Display() string {
+	switch e {
+	case LLMRulesCursor:
+		return "Cursor"
+	default:
+		return ""
+	}
+}
+
+func (e llmRules) SelectPrompt() string {
+	return "Select tool you want to generate llm rules for"
+}
 
 var createAppCmd = &cobra.Command{
 	Use:   "create [name]",
@@ -82,7 +96,7 @@ var createAppCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang), editor(createAppEditor.Value)); err != nil {
+		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang), llmRules(createAppLLMRules.Value)); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},
@@ -93,7 +107,7 @@ func init() {
 	createAppCmd.Flags().BoolVar(&createAppOnPlatform, "platform", true, "whether to create the app with the Encore Platform")
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
 	createAppCmd.Flags().StringVar(&createAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
-	createAppEditor.AddFlag(createAppCmd)
+	createAppLLMRules.AddFlag(createAppCmd)
 }
 
 func promptAccountCreation() {
@@ -163,7 +177,7 @@ func promptRunApp() bool {
 }
 
 // createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string, lang language, editor editor) (err error) {
+func createApp(ctx context.Context, name, template string, lang language, llmRulesTool llmRules) (err error) {
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -204,6 +218,8 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 			return err
 		}
 	}
+
+	llmRulesTool = selectLLMRules(llmRulesTool)
 
 	if err := os.Mkdir(name, 0755); err != nil {
 		return err
@@ -336,8 +352,8 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 		color.Red("Failed to create app on daemon: %s\n", err)
 	}
 
-	switch editor {
-	case EditorCursor:
+	switch llmRulesTool {
+	case LLMRulesCursor:
 		cursorDir := filepath.Join(name, appRootRelpath, ".cursor")
 		rulesDir := filepath.Join(cursorDir, "rules")
 		err := os.MkdirAll(rulesDir, 0755)
@@ -364,8 +380,8 @@ func createApp(ctx context.Context, name, template string, lang language, editor
 		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
 	}
 	fmt.Printf("App Root: %s\n", cyanf(appRoot))
-	switch editor {
-	case EditorCursor:
+	switch llmRulesTool {
+	case LLMRulesCursor:
 		fmt.Printf("MCP:      %s\n", cyanf("Configured in Cursor"))
 		fmt.Println()
 		fmt.Println("Try these prompts in Cursor:")

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/pkg/option"
 )
 
 const (
@@ -48,16 +50,42 @@ func (i templateItem) Title() string       { return i.ItemTitle }
 func (i templateItem) Description() string { return i.Desc }
 func (i templateItem) FilterValue() string { return i.ItemTitle }
 
-type createFormModel struct {
-	step int // 0, 1, 2, 3
+type CreateStep int
 
-	lang      languageSelectModel
+const (
+	CreateStepLang CreateStep = iota
+	CreateStepTemplate
+	CreateStepAppName
+	CreateStepLLMRules
+)
+
+type createFormModel struct {
+	steps []CreateStep
+
+	lang      simpleSelectModel[language, langItem]
 	templates templateListModel
 	appName   appNameModel
 
 	skipShowingTemplate bool
 
 	aborted bool
+}
+
+func (m createFormModel) nextStep() option.Option[CreateStep] {
+	if len(m.steps) == 0 {
+		return option.None[CreateStep]()
+	}
+	return option.Some(m.steps[0])
+}
+
+func (m createFormModel) hasStep(s CreateStep) bool {
+	return slices.Contains(m.steps, s)
+}
+
+func (m *createFormModel) removeStep(s CreateStep) {
+	m.steps = slices.DeleteFunc(m.steps, func(step CreateStep) bool {
+		return step == s
+	})
 }
 
 func (m createFormModel) Init() tea.Cmd {
@@ -67,38 +95,49 @@ func (m createFormModel) Init() tea.Cmd {
 	)
 }
 
-type languageSelectDone struct {
-	lang language
+type SelectedID[T any] interface {
+	SelectedID() T
 }
 
-type languageSelectModel struct {
-	predefined language
+// Selectable types can provide a prompt for selection
+type Selectable interface {
+	comparable
+	SelectPrompt() string
+}
+
+type simpleSelectDone[T any] struct {
+	selected T
+}
+
+type simpleSelectModel[T Selectable, S SelectedID[T]] struct {
+	predefined T
 	list       list.Model
 }
 
-func (m languageSelectModel) Selected() language {
-	if m.predefined != "" {
+func (m simpleSelectModel[T, S]) Selected() T {
+	var empty T
+	if m.predefined != empty {
 		return m.predefined
 	}
 	sel := m.list.SelectedItem()
 	if sel == nil {
-		return ""
+		return empty
 	}
-	return sel.(langItem).lang
+	return sel.(S).SelectedID()
 }
 
-func (m languageSelectModel) Update(msg tea.Msg) (languageSelectModel, tea.Cmd) {
+func (m simpleSelectModel[T, I]) Update(msg tea.Msg) (simpleSelectModel[T, I], tea.Cmd) {
 	var c tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			// Have we selected a language?
+			// Have we selected an item?
 			if idx := m.list.Index(); idx >= 0 {
 				return m, func() tea.Msg {
-					return languageSelectDone{
-						lang: m.Selected(),
+					return simpleSelectDone[T]{
+						selected: m.Selected(),
 					}
 				}
 			}
@@ -109,16 +148,21 @@ func (m languageSelectModel) Update(msg tea.Msg) (languageSelectModel, tea.Cmd) 
 	return m, c
 }
 
-func (m *languageSelectModel) SetSize(width, height int) {
+func (m *simpleSelectModel[T, I]) SetSize(width, height int) {
 	m.list.SetWidth(width)
 	m.list.SetHeight(max(height-1, 0))
 }
 
 const checkmark = "✔"
 
-func (m languageSelectModel) View() string {
+func (m simpleSelectModel[T, I]) View() string {
 	var b strings.Builder
-	b.WriteString(inputStyle.Render("Select language for your application"))
+
+	// Get the prompt from the type T
+	var zero T
+	prompt := zero.SelectPrompt()
+
+	b.WriteString(inputStyle.Render(prompt))
 	b.WriteString(descStyle.Render(" [Use arrows to move]"))
 	b.WriteString("\n")
 	b.WriteString(m.list.View())
@@ -219,7 +263,7 @@ func (m templateListModel) Update(msg tea.Msg) (templateListModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			// Have we selected a language?
+			// Have we selected a template?
 			if idx := m.list.Index(); idx >= 0 {
 				return m, func() tea.Msg { return templateSelectDone{} }
 			}
@@ -293,42 +337,47 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		switch m.step {
-		case 0:
-			m.lang, c = m.lang.Update(msg)
-			cmds = append(cmds, c)
-		case 1:
-			m.templates, c = m.templates.Update(msg)
-			cmds = append(cmds, c)
-		case 2:
-			m.appName, c = m.appName.Update(msg)
-			cmds = append(cmds, c)
+		if step, ok := m.nextStep().Get(); ok {
+			switch step {
+			case CreateStepLang:
+				m.lang, c = m.lang.Update(msg)
+				cmds = append(cmds, c)
+			case CreateStepTemplate:
+				m.templates, c = m.templates.Update(msg)
+				cmds = append(cmds, c)
+			case CreateStepAppName:
+				m.appName, c = m.appName.Update(msg)
+				cmds = append(cmds, c)
+			case CreateStepLLMRules:
+				// TODO
+			}
 		}
 		return m, tea.Batch(cmds...)
 
-	case languageSelectDone:
-		m.step = 1
+	case simpleSelectDone[language]:
+		m.removeStep(CreateStepLang)
 		if m.skipShowingTemplate {
-			m.step = 2
+			m.removeStep(CreateStepTemplate)
 		}
-		m.templates.UpdateFilter(msg.lang)
+		m.templates.UpdateFilter(msg.selected)
 
 	case templateSelectDone:
+		m.removeStep(CreateStepTemplate)
 		if m.appName.predefined != "" {
-			// We're done.
-			m.step = 3
-			cmds = append(cmds, tea.Quit)
-		} else {
-			m.step = 2
+			m.removeStep(CreateStepAppName)
 		}
 
 	case appNameDone:
-		cmds = append(cmds, tea.Quit)
-		m.step = 3
+		m.removeStep(CreateStepAppName)
 
 	case tea.WindowSizeMsg:
 		m.SetSize(msg.Width, msg.Height)
 		return m, nil
+	}
+
+	// No more steps, quit
+	if !m.nextStep().Present() {
+		cmds = append(cmds, tea.Quit)
 	}
 
 	// Update all submodels for other messages.
@@ -338,23 +387,22 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, c)
 	m.appName, c = m.appName.Update(msg)
 	cmds = append(cmds, c)
+	// TODO add llm rules
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m *createFormModel) SetSize(width, height int) {
-	// Step 1
 	doneHeight := lipgloss.Height(m.doneView())
-	{
-		availHeight := height - doneHeight
-		m.lang.SetSize(width, availHeight)
-	}
+	availHeight := height - doneHeight
 
-	// Step 2
-	{
-		availHeight := height - doneHeight
-		m.templates.SetSize(width, availHeight)
-	}
+	// CreateStepLang
+	m.lang.SetSize(width, availHeight)
+
+	// CreateStepTemplate
+	m.templates.SetSize(width, availHeight)
+
+	// TODO llm rules
 }
 
 func (m createFormModel) doneView() string {
@@ -381,17 +429,19 @@ func (m createFormModel) doneView() string {
 	if m.appName.predefined != "" {
 		renderNameDone()
 	}
-	if m.templates.predefined == "" && m.step > 0 {
+	if m.templates.predefined == "" && !m.hasStep(CreateStepLang) {
 		renderLangDone()
 	}
 	if !m.skipShowingTemplate {
-		if m.templates.predefined != "" || m.step > 1 {
+		if m.templates.predefined != "" || !m.hasStep(CreateStepTemplate) {
 			renderTemplateDone()
 		}
 	}
-	if m.appName.predefined == "" && m.step > 2 {
+	if m.appName.predefined == "" && !m.hasStep(CreateStepAppName) {
 		renderNameDone()
 	}
+
+	// TODO llm rules
 
 	return b.String()
 }
@@ -406,16 +456,20 @@ func (m createFormModel) View() string {
 		b.WriteByte('\n')
 	}
 
-	if m.step == 0 {
-		b.WriteString(m.lang.View())
-	}
+	if step, ok := m.nextStep().Get(); ok {
+		if step == CreateStepLang {
+			b.WriteString(m.lang.View())
+		}
 
-	if m.step == 1 {
-		b.WriteString(m.templates.View())
-	}
+		if step == CreateStepTemplate {
+			b.WriteString(m.templates.View())
+		}
 
-	if m.step == 2 {
-		b.WriteString(m.appName.View())
+		if step == CreateStepAppName {
+			b.WriteString(m.appName.View())
+		}
+
+		// TODO llm rules
 	}
 
 	return docStyle.Render(b.String())
@@ -437,6 +491,48 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
+func selectLLMRules(inputTool llmRules) llmRules {
+	// TODO: add to app create
+	// TODO: add to user settings
+
+	if inputTool != LLMRulesNone {
+		return inputTool
+	}
+
+	var llmRulesSelectModel simpleSelectModel[llmRules, editorItem]
+
+	// If shell is non-interactive, don't prompt
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return LLMRulesNone
+	}
+
+	ls := list.NewDefaultItemStyles()
+	ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+	ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+	del := list.NewDefaultDelegate()
+	del.Styles = ls
+	del.ShowDescription = false
+	del.SetSpacing(0)
+
+	items := []list.Item{editorItem{LLMRulesCursor}}
+
+	ll := list.New(items, del, 0, 0)
+	ll.SetShowTitle(false)
+	ll.SetShowHelp(false)
+	ll.SetShowPagination(true)
+	ll.SetShowFilter(false)
+	ll.SetFilteringEnabled(false)
+	ll.SetShowStatusBar(false)
+
+	llmRulesSelectModel = simpleSelectModel[llmRules, editorItem]{
+		list:       ll,
+		predefined: LLMRulesNone,
+	}
+	llmRulesSelectModel.SetSize(0, 20)
+
+	return llmRulesSelectModel.Selected()
+}
+
 func selectTemplate(inputName, inputTemplate string, inputLang language, skipShowingTemplate bool) (appName, template string, selectedLang language) {
 	// If we have both name and template already, return them.
 	if inputName != "" && inputTemplate != "" {
@@ -451,7 +547,7 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		return inputName, inputTemplate, inputLang
 	}
 
-	var lang languageSelectModel
+	var lang simpleSelectModel[language, langItem]
 	{
 		ls := list.NewDefaultItemStyles()
 		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
@@ -479,7 +575,7 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		ll.SetShowFilter(false)
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
-		lang = languageSelectModel{
+		lang = simpleSelectModel[language, langItem]{
 			list:       ll,
 			predefined: inputLang,
 		}
@@ -523,8 +619,19 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		nameModel = appNameModel{predefined: inputName, text: text}
 	}
 
+	var steps []CreateStep
+	if templates.predefined == "" {
+		if lang.predefined == "" {
+			steps = append(steps, CreateStepLang)
+			templates.UpdateFilter(inputLang)
+		}
+		steps = append(steps, CreateStepTemplate)
+	}
+	// steps = append(steps, CreateStepLLMRules) // TODO: check predefined
+	steps = append(steps, CreateStepAppName)
+
 	m := createFormModel{
-		step:                0,
+		steps:               steps,
 		lang:                lang,
 		templates:           templates,
 		appName:             nameModel,
@@ -534,12 +641,6 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 	// If we have a name, start the list without any selection.
 	if m.appName.predefined != "" {
 		m.templates.list.Select(-1)
-	}
-	if m.templates.predefined != "" {
-		m.step = 2 // skip to app name selection
-	} else if m.lang.predefined != "" {
-		m.templates.UpdateFilter(inputLang)
-		m.step = 1 // skip to template selection
 	}
 
 	p := tea.NewProgram(m)
@@ -572,18 +673,24 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 	return appName, template, res.lang.Selected()
 }
 
+type editorItem struct {
+	name llmRules
+}
+
+func (i editorItem) FilterValue() string  { return i.name.Display() }
+func (i editorItem) Title() string        { return i.FilterValue() }
+func (i editorItem) Description() string  { return "" }
+func (i editorItem) SelectedID() llmRules { return i.name }
+
 type langItem struct {
 	lang language
 	desc string
 }
 
-func (i langItem) FilterValue() string {
-	return i.lang.Display()
-}
-func (i langItem) Title() string {
-	return i.FilterValue()
-}
-func (i langItem) Description() string { return "" }
+func (i langItem) FilterValue() string  { return i.lang.Display() }
+func (i langItem) Title() string        { return i.FilterValue() }
+func (i langItem) Description() string  { return "" }
+func (i langItem) SelectedID() language { return i.lang }
 
 type language string
 
@@ -601,6 +708,10 @@ func (lang language) Display() string {
 	default:
 		return string(lang)
 	}
+}
+
+func (lang language) SelectPrompt() string {
+	return "Select language for your application"
 }
 
 type loadedTemplates []templateItem
