@@ -103,6 +103,16 @@ Then in the **Sending metrics data** section, select your Grafana Cloud Stack fr
 
 That's it! After your next deploy, Encore will start sending metrics data to your Grafana Cloud Stack.
 
+<Callout type="info">
+
+To configure Encore to export metrics to Grafana Cloud, create a token with the following steps:
+
+1. In Grafana, navigate to **Administration > Users and access > Cloud access policies**
+2. Click **Create access policy**, select **metrics:read** and **metrics:write** scopes, then click **Create**
+3. On the newly created access policy, click **Add token**, then **Create** to generate the token
+
+</Callout>
+
 ### Datadog
 
 To send metrics data to Datadog, you first need to add a Datadog Account to your application.
