@@ -30,14 +30,7 @@ const (
 
 var (
 	initAppLang     string
-	initAppLLMRules = cmdutil.Oneof{
-		Value:     "",
-		Allowed:   []string{"cursor"},
-		Flag:      "llm-rules",
-		FlagShort: "r",
-		Desc:      "Initialize the app with llm rules for a specific tool",
-		TypeDesc:  "string",
-	}
+	initAppLLMRules = createAppLLMRules
 )
 
 // Create a new app from scratch: `encore app create`

@@ -679,7 +679,7 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 
 	if template == "" {
 		sel, ok := res.templates.SelectedItem()
-		if !ok {
+		if !ok && !skipShowingTemplate {
 			cmdutil.Fatal("no template selected")
 		}
 		template = sel.Template
