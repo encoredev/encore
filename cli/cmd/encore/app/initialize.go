@@ -55,6 +55,7 @@ func init() {
 
 	appCmd.AddCommand(initAppCmd)
 	initAppCmd.Flags().StringVar(&initAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
+	// TODO add flag for llm rules
 }
 
 func initializeApp(name string) error {
@@ -64,7 +65,7 @@ func initializeApp(name string) error {
 		// expected
 	} else if err != nil {
 		cmdutil.Fatal(err)
-	} else if err == nil {
+	} else {
 		// There is already an app here or in a parent directory.
 		cmdutil.Fatal("an encore.app file already exists (here or in a parent directory)")
 	}
@@ -72,7 +73,8 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang := selectTemplate(name, "", language(initAppLang), true)
+	name, _, lang, _ /* TODO */ := createAppModel(name, "", language(initAppLang), LLMRulesNone, true)
+	// TODO handle llm rules
 
 	if err := validateName(name); err != nil {
 		return err

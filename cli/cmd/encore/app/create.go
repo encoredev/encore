@@ -77,7 +77,7 @@ func (e llmRules) Display() string {
 	case LLMRulesCursor:
 		return "Cursor"
 	default:
-		return ""
+		return "None"
 	}
 }
 
@@ -177,7 +177,7 @@ func promptRunApp() bool {
 }
 
 // createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string, lang language, llmRulesTool llmRules) (err error) {
+func createApp(ctx context.Context, name, template string, lang language, llmRules llmRules) (err error) {
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -191,8 +191,8 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 
 	promptAccountCreation()
 
-	if name == "" || template == "" {
-		name, template, lang = selectTemplate(name, template, lang, false)
+	if name == "" || template == "" || llmRules == "" {
+		name, template, lang, llmRules = createAppModel(name, template, lang, llmRules, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
@@ -218,8 +218,6 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 			return err
 		}
 	}
-
-	llmRulesTool = selectLLMRules(llmRulesTool)
 
 	if err := os.Mkdir(name, 0755); err != nil {
 		return err
@@ -352,7 +350,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		color.Red("Failed to create app on daemon: %s\n", err)
 	}
 
-	switch llmRulesTool {
+	switch llmRules {
 	case LLMRulesCursor:
 		cursorDir := filepath.Join(name, appRootRelpath, ".cursor")
 		rulesDir := filepath.Join(cursorDir, "rules")
@@ -380,7 +378,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
 	}
 	fmt.Printf("App Root: %s\n", cyanf(appRoot))
-	switch llmRulesTool {
+	switch llmRules {
 	case LLMRulesCursor:
 		fmt.Printf("MCP:      %s\n", cyanf("Configured in Cursor"))
 		fmt.Println()

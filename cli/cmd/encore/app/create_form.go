@@ -65,9 +65,12 @@ type createFormModel struct {
 	lang      simpleSelectModel[language, langItem]
 	templates templateListModel
 	appName   appNameModel
+	llmRules  simpleSelectModel[llmRules, llmRuleItem]
 
 	skipShowingTemplate bool
 
+	width   int
+	height  int
 	aborted bool
 }
 
@@ -349,7 +352,8 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.appName, c = m.appName.Update(msg)
 				cmds = append(cmds, c)
 			case CreateStepLLMRules:
-				// TODO
+				m.llmRules, c = m.llmRules.Update(msg)
+				cmds = append(cmds, c)
 			}
 		}
 		return m, tea.Batch(cmds...)
@@ -360,17 +364,26 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.removeStep(CreateStepTemplate)
 		}
 		m.templates.UpdateFilter(msg.selected)
+		m.SetSize(m.width, m.height)
+
+	case simpleSelectDone[llmRules]:
+		m.removeStep(CreateStepLLMRules)
+		m.SetSize(m.width, m.height)
 
 	case templateSelectDone:
 		m.removeStep(CreateStepTemplate)
 		if m.appName.predefined != "" {
 			m.removeStep(CreateStepAppName)
 		}
+		m.SetSize(m.width, m.height)
 
 	case appNameDone:
 		m.removeStep(CreateStepAppName)
+		m.SetSize(m.width, m.height)
 
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 		m.SetSize(msg.Width, msg.Height)
 		return m, nil
 	}
@@ -385,9 +398,10 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, c)
 	m.templates, c = m.templates.Update(msg)
 	cmds = append(cmds, c)
+	m.llmRules, c = m.llmRules.Update(msg)
+	cmds = append(cmds, c)
 	m.appName, c = m.appName.Update(msg)
 	cmds = append(cmds, c)
-	// TODO add llm rules
 
 	return m, tea.Batch(cmds...)
 }
@@ -402,7 +416,8 @@ func (m *createFormModel) SetSize(width, height int) {
 	// CreateStepTemplate
 	m.templates.SetSize(width, availHeight)
 
-	// TODO llm rules
+	// CreateStepLLMRules
+	m.llmRules.SetSize(width, availHeight)
 }
 
 func (m createFormModel) doneView() string {
@@ -426,6 +441,10 @@ func (m createFormModel) doneView() string {
 		renderDone("Template", m.templates.Selected())
 	}
 
+	renderLLMRulesDone := func() {
+		renderDone("LLM Rules", m.llmRules.Selected().Display())
+	}
+
 	if m.appName.predefined != "" {
 		renderNameDone()
 	}
@@ -437,11 +456,14 @@ func (m createFormModel) doneView() string {
 			renderTemplateDone()
 		}
 	}
+	if m.llmRules.predefined == "" && !m.hasStep(CreateStepLLMRules) {
+		if m.llmRules.Selected() != LLMRulesNone {
+			renderLLMRulesDone()
+		}
+	}
 	if m.appName.predefined == "" && !m.hasStep(CreateStepAppName) {
 		renderNameDone()
 	}
-
-	// TODO llm rules
 
 	return b.String()
 }
@@ -469,14 +491,12 @@ func (m createFormModel) View() string {
 			b.WriteString(m.appName.View())
 		}
 
-		// TODO llm rules
+		if step == CreateStepLLMRules {
+			b.WriteString(m.llmRules.View())
+		}
 	}
 
 	return docStyle.Render(b.String())
-}
-
-func (m templateListModel) templatesLoading() bool {
-	return len(m.list.Items()) == 0
 }
 
 func (m templateListModel) SelectedItem() (templateItem, bool) {
@@ -491,52 +511,10 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func selectLLMRules(inputTool llmRules) llmRules {
-	// TODO: add to app create
-	// TODO: add to user settings
-
-	if inputTool != LLMRulesNone {
-		return inputTool
-	}
-
-	var llmRulesSelectModel simpleSelectModel[llmRules, editorItem]
-
-	// If shell is non-interactive, don't prompt
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return LLMRulesNone
-	}
-
-	ls := list.NewDefaultItemStyles()
-	ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-	ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-	del := list.NewDefaultDelegate()
-	del.Styles = ls
-	del.ShowDescription = false
-	del.SetSpacing(0)
-
-	items := []list.Item{editorItem{LLMRulesCursor}}
-
-	ll := list.New(items, del, 0, 0)
-	ll.SetShowTitle(false)
-	ll.SetShowHelp(false)
-	ll.SetShowPagination(true)
-	ll.SetShowFilter(false)
-	ll.SetFilteringEnabled(false)
-	ll.SetShowStatusBar(false)
-
-	llmRulesSelectModel = simpleSelectModel[llmRules, editorItem]{
-		list:       ll,
-		predefined: LLMRulesNone,
-	}
-	llmRulesSelectModel.SetSize(0, 20)
-
-	return llmRulesSelectModel.Selected()
-}
-
-func selectTemplate(inputName, inputTemplate string, inputLang language, skipShowingTemplate bool) (appName, template string, selectedLang language) {
-	// If we have both name and template already, return them.
-	if inputName != "" && inputTemplate != "" {
-		return inputName, inputTemplate, inputLang
+func createAppModel(inputName, inputTemplate string, inputLang language, inputLLMRules llmRules, skipShowingTemplate bool) (appName, template string, selectedLang language, selectedRules llmRules) {
+	// If all is set, just return
+	if inputName != "" && inputTemplate != "" && inputLLMRules != "" {
+		return inputName, inputTemplate, inputLang, inputLLMRules
 	}
 
 	// If shell is non-interactive, don't prompt
@@ -544,10 +522,10 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		if inputName == "" {
 			cmdutil.Fatal("specify an app name")
 		}
-		return inputName, inputTemplate, inputLang
+		return inputName, inputTemplate, inputLang, inputLLMRules
 	}
 
-	var lang simpleSelectModel[language, langItem]
+	var langModel simpleSelectModel[language, langItem]
 	{
 		ls := list.NewDefaultItemStyles()
 		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
@@ -575,14 +553,14 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		ll.SetShowFilter(false)
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
-		lang = simpleSelectModel[language, langItem]{
+		langModel = simpleSelectModel[language, langItem]{
 			list:       ll,
 			predefined: inputLang,
 		}
-		lang.SetSize(0, 20)
+		langModel.SetSize(0, 20)
 	}
 
-	var templates templateListModel
+	var templateModel templateListModel
 	{
 		ls := list.NewDefaultItemStyles()
 		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
@@ -601,11 +579,41 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		sp := spinner.New()
 		sp.Spinner = spinner.Dot
 		sp.Style = inputStyle.Copy().Inline(true)
-		templates = templateListModel{
+		templateModel = templateListModel{
 			predefined: inputTemplate,
 			list:       ll,
 			loading:    sp,
 		}
+	}
+	var llmRulesModel simpleSelectModel[llmRules, llmRuleItem]
+	{
+		ls := list.NewDefaultItemStyles()
+		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		del := list.NewDefaultDelegate()
+		del.Styles = ls
+		del.ShowDescription = false
+		del.SetSpacing(0)
+
+		items := []list.Item{
+			llmRuleItem{LLMRulesNone},
+			llmRuleItem{LLMRulesCursor},
+		}
+
+		ll := list.New(items, del, 0, 0)
+		ll.SetShowTitle(false)
+		ll.SetShowHelp(false)
+		ll.SetShowPagination(true)
+		ll.SetShowFilter(false)
+		ll.SetFilteringEnabled(false)
+		ll.SetShowStatusBar(false)
+
+		llmRulesModel = simpleSelectModel[llmRules, llmRuleItem]{
+			list:       ll,
+			predefined: LLMRulesNone,
+		}
+		llmRulesModel.SetSize(0, 20)
+
 	}
 
 	var nameModel appNameModel
@@ -619,21 +627,28 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		nameModel = appNameModel{predefined: inputName, text: text}
 	}
 
+	// Setup what steps and in what order they should be presented
 	var steps []CreateStep
-	if templates.predefined == "" {
-		if lang.predefined == "" {
+	if templateModel.predefined == "" {
+		if langModel.predefined == "" {
 			steps = append(steps, CreateStepLang)
-			templates.UpdateFilter(inputLang)
+		} else {
+			templateModel.UpdateFilter(inputLang)
 		}
 		steps = append(steps, CreateStepTemplate)
 	}
-	// steps = append(steps, CreateStepLLMRules) // TODO: check predefined
-	steps = append(steps, CreateStepAppName)
+	if llmRulesModel.predefined == "" {
+		steps = append(steps, CreateStepLLMRules)
+	}
+	if nameModel.predefined == "" {
+		steps = append(steps, CreateStepAppName)
+	}
 
 	m := createFormModel{
 		steps:               steps,
-		lang:                lang,
-		templates:           templates,
+		lang:                langModel,
+		templates:           templateModel,
+		llmRules:            llmRulesModel,
 		appName:             nameModel,
 		skipShowingTemplate: skipShowingTemplate,
 	}
@@ -670,17 +685,17 @@ func selectTemplate(inputName, inputTemplate string, inputLang language, skipSho
 		template = sel.Template
 	}
 
-	return appName, template, res.lang.Selected()
+	return appName, template, res.lang.Selected(), res.llmRules.Selected()
 }
 
-type editorItem struct {
+type llmRuleItem struct {
 	name llmRules
 }
 
-func (i editorItem) FilterValue() string  { return i.name.Display() }
-func (i editorItem) Title() string        { return i.FilterValue() }
-func (i editorItem) Description() string  { return "" }
-func (i editorItem) SelectedID() llmRules { return i.name }
+func (i llmRuleItem) FilterValue() string  { return i.name.Display() }
+func (i llmRuleItem) Title() string        { return i.FilterValue() }
+func (i llmRuleItem) Description() string  { return "" }
+func (i llmRuleItem) SelectedID() llmRules { return i.name }
 
 type langItem struct {
 	lang language
