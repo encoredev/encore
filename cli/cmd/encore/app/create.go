@@ -54,10 +54,17 @@ alwaysApply: true
 var (
 	createAppTemplate   string
 	createAppOnPlatform bool
-	createAppLang       string
-	createAppLLMRules   = cmdutil.Oneof{
+	createAppLang       = cmdutil.Oneof{
 		Value:     "",
-		Allowed:   []string{"cursor"},
+		Allowed:   languageFlagValues(),
+		Flag:      "lang",
+		FlagShort: "l",
+		Desc:      "Programming language to use for the app.",
+		TypeDesc:  "string",
+	}
+	createAppLLMRules = cmdutil.Oneof{
+		Value:     "",
+		Allowed:   llmRulesFlagValues(),
 		Flag:      "llm-rules",
 		FlagShort: "r",
 		Desc:      "Initialize the app with llm rules for a specific tool",
@@ -71,6 +78,19 @@ const (
 	LLMRulesNone   llmRules = ""
 	LLMRulesCursor llmRules = "cursor"
 )
+
+// all available options exept for None
+var allLLMRules = []llmRules{
+	LLMRulesCursor,
+}
+
+func llmRulesFlagValues() []string {
+	result := make([]string, 0, len(allLLMRules))
+	for _, r := range allLLMRules {
+		result = append(result, string(r))
+	}
+	return result
+}
 
 func (e llmRules) Display() string {
 	switch e {
@@ -96,7 +116,7 @@ var createAppCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang), llmRules(createAppLLMRules.Value)); err != nil {
+		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang.Value), llmRules(createAppLLMRules.Value)); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},
@@ -106,7 +126,7 @@ func init() {
 	appCmd.AddCommand(createAppCmd)
 	createAppCmd.Flags().BoolVar(&createAppOnPlatform, "platform", true, "whether to create the app with the Encore Platform")
 	createAppCmd.Flags().StringVar(&createAppTemplate, "example", "", "URL to example code to use.")
-	createAppCmd.Flags().StringVar(&createAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
+	createAppLang.AddFlag(createAppCmd)
 	createAppLLMRules.AddFlag(createAppCmd)
 }
 
@@ -219,7 +239,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 	promptAccountCreation()
 
 	if name == "" || template == "" || llmRules == "" {
-		name, template, lang, llmRules = createAppModel(name, template, lang, llmRules, false)
+		name, template, lang, llmRules = createAppForm(name, template, lang, llmRules, false)
 	}
 	// Treat the special name "empty" as the empty app template
 	// (the rest of the code assumes that's the empty string).
@@ -390,16 +410,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
 	}
 	fmt.Printf("App Root: %s\n", cyanf(appRoot))
-	switch llmRules {
-	case LLMRulesCursor:
-		fmt.Printf("MCP:      %s\n", cyanf("Configured in Cursor"))
-		fmt.Println()
-		fmt.Println("Try these prompts in Cursor:")
-		fmt.Println("→ \"add image uploads to my hello world app\"")
-		fmt.Println("→ \"add a SQL database for storing user profiles\"")
-		fmt.Println("→ \"add a pub/sub topic for sending notifications\"")
-	}
-	fmt.Println()
+	printLLMRulesInfo(llmRules)
 	greenBoldF := green.Add(color.Bold).SprintfFunc()
 	fmt.Printf("Run your app with: %s\n", greenBoldF("cd %s && encore run", filepath.Join(name, appRootRelpath)))
 	fmt.Println()
@@ -440,6 +451,21 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 
 	fmt.Printf("Get started now: %s\n", greenBoldF("cd %s && encore run", filepath.Join(name, appRootRelpath)))
 	return nil
+}
+
+func printLLMRulesInfo(llmRules llmRules) {
+	cyan := color.New(color.FgCyan)
+	cyanf := cyan.SprintfFunc()
+	switch llmRules {
+	case LLMRulesCursor:
+		fmt.Printf("MCP:      %s\n", cyanf("Configured in Cursor"))
+		fmt.Println()
+		fmt.Println("Try these prompts in Cursor:")
+		fmt.Println("→ \"add image uploads to my hello world app\"")
+		fmt.Println("→ \"add a SQL database for storing user profiles\"")
+		fmt.Println("→ \"add a pub/sub topic for sending notifications\"")
+	}
+	fmt.Println()
 }
 
 func downloadLLMInstructions(lang language) (string, error) {

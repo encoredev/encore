@@ -29,7 +29,14 @@ const (
 )
 
 var (
-	initAppLang string
+	initAppLang = cmdutil.Oneof{
+		Value:     "",
+		Allowed:   languageFlagValues(),
+		Flag:      "lang",
+		FlagShort: "l",
+		Desc:      "Programming language to use for the app.",
+		TypeDesc:  "string",
+	}
 )
 
 // Create a new app from scratch: `encore app create`
@@ -54,7 +61,7 @@ func init() {
 	}
 
 	appCmd.AddCommand(initAppCmd)
-	initAppCmd.Flags().StringVar(&initAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
+	initAppLang.AddFlag(initAppCmd)
 }
 
 func initializeApp(name string) error {
@@ -72,7 +79,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang, _ := createAppModel(name, "", language(initAppLang), LLMRulesNone, true)
+	name, _, lang, _ := createAppForm(name, "", language(initAppLang.Value), LLMRulesNone, true)
 
 	if err := validateName(name); err != nil {
 		return err

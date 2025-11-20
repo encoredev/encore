@@ -102,7 +102,6 @@ type SelectedID[T any] interface {
 	SelectedID() T
 }
 
-// Selectable types can provide a prompt for selection
 type Selectable interface {
 	comparable
 	SelectPrompt() string
@@ -334,8 +333,8 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc, 'q':
+		switch msg.String() {
+		case "ctrl+c", "esc", "q":
 			m.aborted = true
 			return m, tea.Quit
 		}
@@ -508,7 +507,7 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func createAppModel(inputName, inputTemplate string, inputLang language, inputLLMRules llmRules, initExistingApp bool) (appName, template string, selectedLang language, selectedRules llmRules) {
+func createAppForm(inputName, inputTemplate string, inputLang language, inputLLMRules llmRules, initExistingApp bool) (appName, template string, selectedLang language, selectedRules llmRules) {
 	// If all is set, just return
 	if inputName != "" && inputTemplate != "" && inputLLMRules != "" {
 		return inputName, inputTemplate, inputLang, inputLLMRules
@@ -550,6 +549,7 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 		ll.SetShowFilter(false)
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
+		ll.DisableQuitKeybindings() // quit handled by createFormModel
 		langModel = simpleSelectModel[language, langItem]{
 			list:       ll,
 			predefined: inputLang,
@@ -572,6 +572,7 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 		ll.SetShowFilter(false)
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
+		ll.DisableQuitKeybindings() // quit handled by createFormModel
 
 		sp := spinner.New()
 		sp.Spinner = spinner.Dot
@@ -592,9 +593,10 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 		del.ShowDescription = false
 		del.SetSpacing(0)
 
-		items := []list.Item{
-			llmRuleItem{LLMRulesNone},
-			llmRuleItem{LLMRulesCursor},
+		items := make([]list.Item, 0, len(allLLMRules)+1)
+		items = append(items, llmRuleItem{LLMRulesNone})
+		for _, rule := range allLLMRules {
+			items = append(items, llmRuleItem{rule})
 		}
 
 		ll := list.New(items, del, 0, 0)
@@ -604,6 +606,7 @@ func createAppModel(inputName, inputTemplate string, inputLang language, inputLL
 		ll.SetShowFilter(false)
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
+		ll.DisableQuitKeybindings() // quit handled by createFormModel
 
 		llmRulesModel = simpleSelectModel[llmRules, llmRuleItem]{
 			list:       ll,
@@ -716,6 +719,19 @@ const (
 	languageGo language = "go"
 	languageTS language = "ts"
 )
+
+var allLanguages = []language{
+	languageGo,
+	languageTS,
+}
+
+func languageFlagValues() []string {
+	result := make([]string, 0, len(allLanguages))
+	for _, r := range allLanguages {
+		result = append(result, string(r))
+	}
+	return result
+}
 
 func (lang language) Display() string {
 	switch lang {
