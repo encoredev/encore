@@ -360,9 +360,6 @@ impl PackageManager for PnpmPackageManager {
                 "pnpm".to_string(),
                 "run".to_string(),
                 "test".to_string(),
-                // Specify '--' so that additional arguments added from the test runner
-                // aren't interpreted by npm.
-                "--".to_string(),
             ],
             env: vec![],
             prioritized_files: vec![],
