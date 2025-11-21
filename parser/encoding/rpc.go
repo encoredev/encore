@@ -439,6 +439,27 @@ func GetConcreteType(appDecls []*schema.Decl, originalType *schema.Type, typeArg
 		// replace any type parameters with the type argument
 		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Pointer{Pointer: pointer}}, typeArgs), nil
 
+	case *schema.Type_Option:
+		// If there are no type arguments, we've got a concrete type
+		if len(typeArgs) == 0 {
+			return originalType, nil
+		}
+
+		// Deep copy the original struct
+		option, ok := proto.Clone(typ.Option).(*schema.Option)
+		if !ok {
+			return nil, errors.New("failed to clone option type")
+		}
+
+		var err error
+		option.Value, err = GetConcreteType(appDecls, option.Value, typeArgs)
+		if err != nil {
+			return nil, err
+		}
+
+		// replace any type parameters with the type argument
+		return resolveTypeParams(&schema.Type{Typ: &schema.Type_Option{Option: option}}, typeArgs), nil
+
 	case *schema.Type_Config:
 		// If there are no type arguments, we've got a concrete type
 		if len(typeArgs) == 0 {
@@ -494,6 +515,9 @@ func resolveTypeParams(typ *schema.Type, typeArgs []*schema.Type) *schema.Type {
 	case *schema.Type_Pointer:
 		t.Pointer.Base = resolveTypeParams(t.Pointer.Base, typeArgs)
 
+	case *schema.Type_Option:
+		t.Option.Value = resolveTypeParams(t.Option.Value, typeArgs)
+
 	case *schema.Type_Named:
 		for i, param := range t.Named.TypeArguments {
 			t.Named.TypeArguments[i] = resolveTypeParams(param, typeArgs)
@@ -508,16 +532,10 @@ func resolveTypeParams(typ *schema.Type, typeArgs []*schema.Type) *schema.Type {
 // then is a selection of methods and POST is one of them. If POST is not allowed as a method then
 // we will use the first specified method.
 func DefaultClientHttpMethod(rpc *meta.RPC) string {
-	if rpc.HttpMethods[0] == "*" {
+	// Default to POST if we have a wildcard method or if POST is one of the allowed methods.
+	if rpc.HttpMethods[0] == "*" || slices.Contains(rpc.HttpMethods, "POST") {
 		return "POST"
 	}
-
-	for _, httpMethod := range rpc.HttpMethods {
-		if httpMethod == "POST" {
-			return "POST"
-		}
-	}
-
 	return rpc.HttpMethods[0]
 
 }

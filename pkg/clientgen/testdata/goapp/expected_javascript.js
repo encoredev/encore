@@ -163,9 +163,10 @@ class SvcServiceClient {
         })
 
         const query = makeRecord({
-            Bob:  params.B.map((v) => String(v)),
-            c:    String(params["Charlies-Bool"]),
-            dave: String(params.Dave),
+            Bob:      params.B.map((v) => String(v)),
+            c:        String(params["Charlies-Bool"]),
+            dave:     String(params.Dave),
+            optional: params.optional === undefined ? undefined : String(params.optional),
         })
 
         // Now make the actual call to the API
@@ -182,21 +183,23 @@ class SvcServiceClient {
         rtn.Json = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
         rtn.UUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
         rtn.UserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
+        rtn.Optional = mustBeSet("Header `x-optional`", resp.headers.get("x-optional"))
         return rtn
     }
 
     async HeaderOnlyRequest(params) {
         // Convert our params into the objects we need for the request
         const headers = makeRecord({
-            "x-boolean": String(params.Boolean),
-            "x-bytes":   String(params.Bytes),
-            "x-float":   String(params.Float),
-            "x-int":     String(params.Int),
-            "x-json":    JSON.stringify(params.Json),
-            "x-string":  params.String,
-            "x-time":    String(params.Time),
-            "x-user-id": String(params.UserID),
-            "x-uuid":    String(params.UUID),
+            "x-boolean":  String(params.Boolean),
+            "x-bytes":    String(params.Bytes),
+            "x-float":    String(params.Float),
+            "x-int":      String(params.Int),
+            "x-json":     JSON.stringify(params.Json),
+            "x-optional": params.Optional === undefined ? undefined : String(params.Optional),
+            "x-string":   params.String,
+            "x-time":     String(params.Time),
+            "x-user-id":  String(params.UserID),
+            "x-uuid":     String(params.UUID),
         })
 
         await this.baseClient.callTypedAPI("GET", `/svc.HeaderOnlyRequest`, undefined, {headers})
@@ -232,6 +235,7 @@ class SvcServiceClient {
         const body = {
             "Charlies-Bool": params["Charlies-Bool"],
             Dave:            params.Dave,
+            optional:        params.optional,
         }
 
         // Now make the actual call to the API

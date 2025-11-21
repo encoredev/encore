@@ -110,7 +110,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 
 		// Encode query string
 		queryString = make(url.Values, 2)
-		queryString.Set("foo", __etype.MarshalOne(__etype.MarshalString, params.Foo))
+		queryString["foo"] = __etype.MarshalOneAsList(__etype.MarshalString, params.Foo)
 		queryString["ints"] = __etype.MarshalList(__etype.MarshalInt, params.Ints)
 
 		return httpHeader, queryString, err

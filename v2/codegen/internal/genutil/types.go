@@ -40,6 +40,8 @@ func (g *Helper) Type(typ schema.Type) *Statement {
 		return Index().Add(elem)
 	case schema.PointerType:
 		return Op("*").Add(g.Type(typ.Elem))
+	case schema.OptionType:
+		return Qual("encore.dev/types/option", "Option").Types(g.Type(typ.Value))
 	case schema.BuiltinType:
 		return g.Builtin(typ.AST.Pos(), typ.Kind)
 	case schema.InterfaceType:

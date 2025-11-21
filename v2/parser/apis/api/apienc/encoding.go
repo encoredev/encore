@@ -296,7 +296,7 @@ func DescribeRequest(errs *perr.List, requestAST schema.Param, requestSchema sch
 				errs.Add(errReservedHeaderPrefix.AtGoNode(field.Type.ASTExpr()))
 			}
 
-			if _, _, ok := schemautil.IsBuiltinOrList(field.Type); !ok {
+			if !schemautil.IsValidHeaderType(field.Type) {
 				errs.Add(
 					errInvalidHeaderType(field.Type.String()).
 						AtGoNode(field.Type.ASTExpr(), errors.AsError("unsupported type")).
@@ -307,7 +307,7 @@ func DescribeRequest(errs *perr.List, requestAST schema.Param, requestSchema sch
 
 		// Check for invalid datatype in query parameters
 		for _, field := range fields[Query] {
-			if _, _, ok := schemautil.IsBuiltinOrList(field.Type); !ok {
+			if !schemautil.IsValidQueryType(field.Type) {
 				err := errInvalidQueryStringType(field.Type.String()).
 					AtGoNode(field.Type.ASTExpr(), errors.AsError("unsupported type")).
 					AtGoNode(requestAST.AST, errors.AsHelp("used here"))

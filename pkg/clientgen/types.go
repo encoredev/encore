@@ -82,6 +82,9 @@ func (v *typeRegistry) Visit(typ *schema.Type) {
 	case *schema.Type_Pointer:
 		v.Visit(t.Pointer.Base)
 
+	case *schema.Type_Option:
+		v.Visit(t.Option.Value)
+
 	case *schema.Type_Config:
 		v.Visit(t.Config.Elem)
 

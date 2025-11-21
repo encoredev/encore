@@ -13,10 +13,11 @@ import (
 
     "encore.dev/beta/auth"
     "encore.dev/types/uuid"
+    "encore.dev/types/option"
 )
 
 type UnusedType struct {
-Foo Foo
+	Foo Foo
 }
 
 type Wrapper[T any] struct { Value T }
@@ -24,8 +25,8 @@ type Wrapper[T any] struct { Value T }
 // Tuple is a generic type which allows us to
 // return two values of two different types
 type Tuple[A any, B any] struct {
-  A A
-  B B
+	A A
+	B B
 }
 
 type Request struct {
@@ -53,7 +54,7 @@ type GetRequest struct {
 // Foo represents a documented integer type
 type Foo int
 
-// DocumentedUser represents a user in the system with profile information  
+// DocumentedUser represents a user in the system with profile information
 type DocumentedUser struct {
     Name  string `json:"name"`
     Email string `json:"email"`
@@ -64,6 +65,9 @@ type DocumentedOrder struct {
     // Customer who placed this order (different from shipping recipient)
     Customer DocumentedUser `json:"customer"`
     OrderID  string         `json:"order_id"`
+
+    OptionalRef option.Option[DocumentedUser] `json:"opt_ref"`
+    RequiredRef *DocumentedUser `json:"req_ref"`
 }
 
 type Nested struct {
@@ -75,6 +79,8 @@ type AllInputTypes[A any] struct {
     B []int     `query:"Bob"`                    // Specify this comes from a query string
     C bool      `json:"Charlies-Bool,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
     Dave A                                       // This generic type complicates the whole thing 🙈
+
+    Optional option.Option[A] `json:"optional"` // An optional generic type
 
     // Tags named "-" are ignored in schemas
     Ignore1 string `header:"-"`
@@ -96,12 +102,15 @@ type HeaderOnlyStruct struct {
     Json    json.RawMessage `header:"x-json"`
     UUID    uuid.UUID       `header:"x-uuid"`
     UserID  auth.UID        `header:"x-user-id"`
+    Optional option.Option[string] `header:"x-optional"`
 }
 
 type Recursive struct {
     Optional *Recursive `encore:"optional"`
     Slice   []Recursive
+    SliceOfOptional   []option.Option[*Recursive]
     Map map[string]Recursive
+    MapOfOptional map[string]option.Option[*Recursive]
 }
 
 -- svc/api.go --

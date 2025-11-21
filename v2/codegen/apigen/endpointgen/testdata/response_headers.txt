@@ -100,7 +100,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 		if resp != nil {
 
 			// Encode headers
-			headers = map[string][]string{"x-foo": []string{__etype.MarshalOne(__etype.MarshalString, resp.Foo)}}
+			headers = map[string][]string{"x-foo": __etype.MarshalOneAsList(__etype.MarshalString, resp.Foo)}
 		}
 
 		// Set response headers

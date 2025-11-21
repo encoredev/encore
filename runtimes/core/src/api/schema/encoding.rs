@@ -350,6 +350,20 @@ impl<'a> TypeArgResolver<'a> {
                 self.resolve(typ)
             }
 
+            Typ::Option(opt) => {
+                let value = opt.value.as_ref().context("option without value")?;
+                let inner = value.typ.as_ref().context("value without type")?;
+                match self.resolve(inner)? {
+                    Cow::Borrowed(_) => Ok(Cow::Borrowed(typ)),
+                    Cow::Owned(inner) => Ok(Cow::Owned(Typ::Option(Box::new(schema::Option {
+                        value: Some(Box::new(schema::Type {
+                            typ: Some(inner),
+                            validation: value.validation.clone(),
+                        })),
+                    })))),
+                }
+            }
+
             Typ::TypeParameter(param) => {
                 let idx = param.param_idx as usize;
                 let typ = &self.resolved_args[idx];

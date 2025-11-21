@@ -557,6 +557,7 @@ fn message_attr_fields(
         | Typ::List(_)
         | Typ::Builtin(_)
         | Typ::Pointer(_)
+        | Typ::Option(_)
         | Typ::Union(_)
         | Typ::Literal(_)
         | Typ::TypeParameter(_)

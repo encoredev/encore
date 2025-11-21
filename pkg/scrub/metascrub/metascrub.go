@@ -163,6 +163,9 @@ func (p *typeParser) typ(typ *schema.Type) declResult {
 	case *schema.Type_Pointer:
 		return p.typ(t.Pointer.Base)
 
+	case *schema.Type_Option:
+		return p.typ(t.Option.Value)
+
 	case *schema.Type_List:
 		return p.typ(t.List.Elem)
 

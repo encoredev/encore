@@ -5,6 +5,7 @@ import (
 
 	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/schema"
+	"encr.dev/v2/internals/schema/schemautil"
 )
 
 // MarshalBuiltin generates the code to marshal a builtin type.
@@ -23,6 +24,46 @@ func MarshalBuiltinList(kind schema.BuiltinKind, value *Statement) Code {
 		Qual("encore.dev/appruntime/shared/etype", "Marshal"+builtinToName(kind)),
 		value.Clone(),
 	)
+}
+
+// MarshalQueryOrHeader generates the code to marshal a supported query value.
+// The resulting code is an expression of type []string.
+func MarshalQueryOrHeader(typ schema.Type, value *Statement) (code Code, ok bool) {
+	if list, ok := typ.(schema.ListType); ok {
+		marshaller, ok := getQueryOrHeaderMarshaller(list.Elem)
+		if !ok {
+			return nil, false
+		}
+
+		return Qual("encore.dev/appruntime/shared/etype", "MarshalList").Call(
+			marshaller,
+			value.Clone(),
+		), true
+	}
+
+	marshaller, ok := getQueryOrHeaderMarshaller(typ)
+	if !ok {
+		return nil, false
+	}
+
+	return Qual("encore.dev/appruntime/shared/etype", "MarshalOneAsList").Call(
+		marshaller,
+		value.Clone(),
+	), true
+}
+
+func getQueryOrHeaderMarshaller(typ schema.Type) (s *Statement, ok bool) {
+	switch typ := typ.(type) {
+	case schema.BuiltinType:
+		return Qual("encore.dev/appruntime/shared/etype", "Marshal"+builtinToName(typ.Kind)), true
+	case schema.OptionType:
+		inner, ok := getQueryOrHeaderMarshaller(typ.Value)
+		return Qual("encore.dev/appruntime/shared/etype", "OptionMarshaller").Call(
+			inner,
+		), ok
+	default:
+		return Nil(), false
+	}
 }
 
 type TypeUnmarshaller struct {
@@ -78,29 +119,44 @@ func (u *TypeUnmarshaller) UnmarshalBuiltin(kind schema.BuiltinKind, fieldName s
 	)
 }
 
-// UnmarshalBuiltinList unmarshals a list of builtins.
-func (u *TypeUnmarshaller) UnmarshalBuiltinList(kind schema.BuiltinKind, fieldName string, value *Statement, required bool) *Statement {
-	return Qual("encore.dev/appruntime/shared/etype", "UnmarshalList").Call(
+// UnmarshalQueryOrHeader returns the code to unmarshal a supported type.
+func (u *TypeUnmarshaller) UnmarshalQueryOrHeader(typ schema.Type, fieldName string, singleValue, listOfValues *Statement) *Statement {
+	if !schemautil.IsValidHeaderType(typ) {
+		u.errs.Addf(typ.ASTExpr().Pos(), "cannot unmarshal string to type %s", typ)
+		return Null()
+	}
+
+	if list, ok := typ.(schema.ListType); ok {
+		return Qual("encore.dev/appruntime/shared/etype", "UnmarshalList").Call(
+			u.unmarshallerExpr.Clone(),
+			u.getQueryOrHeaderUnmarshaller(list.Elem),
+			Lit(fieldName),
+			listOfValues,
+			Lit(false), // not required
+		)
+	}
+
+	return Qual("encore.dev/appruntime/shared/etype", "UnmarshalOne").Call(
 		u.unmarshallerExpr.Clone(),
-		Qual("encore.dev/appruntime/shared/etype", "Unmarshal"+builtinToName(kind)),
+		u.getQueryOrHeaderUnmarshaller(typ),
 		Lit(fieldName),
-		value.Clone(),
-		Lit(required),
+		singleValue,
+		Lit(false), // not required
 	)
 }
 
-// UnmarshalSingleOrList returns the code to unmarshal a supported type.
-// The type must be a builtin or a list of builtins.
-func (u *TypeUnmarshaller) UnmarshalSingleOrList(typ schema.Type, fieldName string, singleValue, listOfValues *Statement, required bool) *Statement {
-	if builtin, ok := typ.(schema.BuiltinType); ok {
-		return u.UnmarshalBuiltin(builtin.Kind, fieldName, singleValue, required)
-	} else if list, ok := typ.(schema.ListType); ok {
-		if builtin, ok := list.Elem.(schema.BuiltinType); ok {
-			return u.UnmarshalBuiltinList(builtin.Kind, fieldName, listOfValues, required)
-		}
+func (u *TypeUnmarshaller) getQueryOrHeaderUnmarshaller(typ schema.Type) *Statement {
+	switch typ := typ.(type) {
+	case schema.BuiltinType:
+		return Qual("encore.dev/appruntime/shared/etype", "Unmarshal"+builtinToName(typ.Kind))
+	case schema.OptionType:
+		return Qual("encore.dev/appruntime/shared/etype", "OptionUnmarshaller").Call(
+			u.getQueryOrHeaderUnmarshaller(typ.Value),
+		)
+	default:
+		u.errs.Addf(typ.ASTExpr().Pos(), "cannot unmarshal string to type %s", typ)
+		return Null()
 	}
-	u.errs.Addf(typ.ASTExpr().Pos(), "cannot unmarshal string to type %s", typ)
-	return Null()
 }
 
 // ReadBody returns an expression to read the full request body into a []byte.
