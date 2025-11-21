@@ -5,9 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,24 +31,6 @@ import (
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
-const mcpJSON string = `{
-    "mcpServers": {
-        "encore-mcp": {
-            "command": "encore",
-            "args": ["mcp", "run", "--app={{ENCORE_APP_ID}}"]
-        }
-    }
-}
-`
-
-const mdcTemplate string = `---
-description: Encore %s rules
-globs:
-alwaysApply: true
----
-%s
-`
-
 var (
 	createAppTemplate   string
 	createAppOnPlatform bool
@@ -72,39 +52,6 @@ var (
 	}
 )
 
-type llmRules string
-
-const (
-	LLMRulesNone   llmRules = ""
-	LLMRulesCursor llmRules = "cursor"
-)
-
-// all available options exept for None
-var allLLMRules = []llmRules{
-	LLMRulesCursor,
-}
-
-func llmRulesFlagValues() []string {
-	result := make([]string, 0, len(allLLMRules))
-	for _, r := range allLLMRules {
-		result = append(result, string(r))
-	}
-	return result
-}
-
-func (e llmRules) Display() string {
-	switch e {
-	case LLMRulesCursor:
-		return "Cursor"
-	default:
-		return "None"
-	}
-}
-
-func (e llmRules) SelectPrompt() string {
-	return "Select tool you want to generate llm rules for"
-}
-
 var createAppCmd = &cobra.Command{
 	Use:   "create [name]",
 	Short: "Create a new Encore app",
@@ -116,7 +63,7 @@ var createAppCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang.Value), llmRules(createAppLLMRules.Value)); err != nil {
+		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang.Value), llmRulesTool(createAppLLMRules.Value)); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},
@@ -196,35 +143,8 @@ func promptRunApp() bool {
 	}
 }
 
-func setupLLMRules(llmRules llmRules, lang language, appRootRelpath string, appSlug string) error {
-	switch llmRules {
-	case LLMRulesCursor:
-		cursorDir := filepath.Join(appRootRelpath, ".cursor")
-		rulesDir := filepath.Join(cursorDir, "rules")
-		err := os.MkdirAll(rulesDir, 0755)
-		if err != nil {
-			return err
-		}
-
-		if appSlug != "" {
-			err = os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(strings.ReplaceAll(mcpJSON, "{{ENCORE_APP_ID}}", appSlug)), 0644)
-			if err != nil {
-				return err
-			}
-		}
-
-		llmInstructions, err := downloadLLMInstructions(lang)
-		err = os.WriteFile(filepath.Join(rulesDir, "encore.mdc"), fmt.Appendf(nil, mdcTemplate, lang, string(llmInstructions)), 0644)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string, lang language, llmRules llmRules) (err error) {
+func createApp(ctx context.Context, name, template string, lang language, llmRules llmRulesTool) (err error) {
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -451,50 +371,6 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 
 	fmt.Printf("Get started now: %s\n", greenBoldF("cd %s && encore run", filepath.Join(name, appRootRelpath)))
 	return nil
-}
-
-func printLLMRulesInfo(llmRules llmRules) {
-	cyan := color.New(color.FgCyan)
-	cyanf := cyan.SprintfFunc()
-	switch llmRules {
-	case LLMRulesCursor:
-		fmt.Printf("MCP:      %s\n", cyanf("Configured in Cursor"))
-		fmt.Println()
-		fmt.Println("Try these prompts in Cursor:")
-		fmt.Println("→ \"add image uploads to my hello world app\"")
-		fmt.Println("→ \"add a SQL database for storing user profiles\"")
-		fmt.Println("→ \"add a pub/sub topic for sending notifications\"")
-	}
-	fmt.Println()
-}
-
-func downloadLLMInstructions(lang language) (string, error) {
-	fmt.Println("Downloading LLM Instructions...")
-	var url string
-	switch lang {
-	case languageGo:
-		url = "https://raw.githubusercontent.com/encoredev/encore/refs/heads/main/go_llm_instructions.txt"
-	case languageTS:
-		url = "https://raw.githubusercontent.com/encoredev/encore/refs/heads/main/ts_llm_instructions.txt"
-	default:
-		return "", fmt.Errorf("unsupported language")
-	}
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Prefix = "Downloading LLM instructions..."
-	s.Start()
-	defer s.Stop()
-	resp, err := http.Get(url)
-	if err != nil {
-		s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
-		return "", err
-	}
-	return string(body), nil
 }
 
 // detectLang attempts to detect the application language for an Encore application

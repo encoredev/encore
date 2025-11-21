@@ -65,7 +65,7 @@ type createFormModel struct {
 	lang      simpleSelectModel[language, langItem]
 	templates templateListModel
 	appName   appNameModel
-	llmRules  simpleSelectModel[llmRules, llmRuleItem]
+	llmRules  simpleSelectModel[llmRulesTool, llmRuleItem]
 
 	initExistingApp bool
 
@@ -362,7 +362,7 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.templates.UpdateFilter(msg.selected)
 		m.SetSize(m.width, m.height)
 
-	case simpleSelectDone[llmRules]:
+	case simpleSelectDone[llmRulesTool]:
 		m.removeStep(CreateStepLLMRules)
 		m.SetSize(m.width, m.height)
 
@@ -452,7 +452,7 @@ func (m createFormModel) doneView() string {
 			renderTemplateDone()
 		}
 		if m.llmRules.predefined != "" || !m.hasStep(CreateStepLLMRules) {
-			if m.llmRules.Selected() != LLMRulesNone {
+			if m.llmRules.Selected() != LLMRulesToolNone {
 				renderLLMRulesDone()
 			}
 		}
@@ -507,7 +507,7 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func createAppForm(inputName, inputTemplate string, inputLang language, inputLLMRules llmRules, initExistingApp bool) (appName, template string, selectedLang language, selectedRules llmRules) {
+func createAppForm(inputName, inputTemplate string, inputLang language, inputLLMRules llmRulesTool, initExistingApp bool) (appName, template string, selectedLang language, selectedRules llmRulesTool) {
 	// If all is set, just return
 	if inputName != "" && inputTemplate != "" && inputLLMRules != "" {
 		return inputName, inputTemplate, inputLang, inputLLMRules
@@ -583,7 +583,7 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 			loading:    sp,
 		}
 	}
-	var llmRulesModel simpleSelectModel[llmRules, llmRuleItem]
+	var llmRulesModel simpleSelectModel[llmRulesTool, llmRuleItem]
 	{
 		ls := list.NewDefaultItemStyles()
 		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
@@ -594,7 +594,7 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 		del.SetSpacing(0)
 
 		items := make([]list.Item, 0, len(allLLMRules)+1)
-		items = append(items, llmRuleItem{LLMRulesNone})
+		items = append(items, llmRuleItem{LLMRulesToolNone})
 		for _, rule := range allLLMRules {
 			items = append(items, llmRuleItem{rule})
 		}
@@ -608,7 +608,7 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 		ll.SetShowStatusBar(false)
 		ll.DisableQuitKeybindings() // quit handled by createFormModel
 
-		llmRulesModel = simpleSelectModel[llmRules, llmRuleItem]{
+		llmRulesModel = simpleSelectModel[llmRulesTool, llmRuleItem]{
 			list:       ll,
 			predefined: inputLLMRules,
 		}
@@ -695,13 +695,13 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 }
 
 type llmRuleItem struct {
-	name llmRules
+	name llmRulesTool
 }
 
-func (i llmRuleItem) FilterValue() string  { return i.name.Display() }
-func (i llmRuleItem) Title() string        { return i.FilterValue() }
-func (i llmRuleItem) Description() string  { return "" }
-func (i llmRuleItem) SelectedID() llmRules { return i.name }
+func (i llmRuleItem) FilterValue() string      { return i.name.Display() }
+func (i llmRuleItem) Title() string            { return i.FilterValue() }
+func (i llmRuleItem) Description() string      { return "" }
+func (i llmRuleItem) SelectedID() llmRulesTool { return i.name }
 
 type langItem struct {
 	lang language

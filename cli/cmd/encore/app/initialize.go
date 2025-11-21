@@ -79,7 +79,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang, _ := createAppForm(name, "", language(initAppLang.Value), LLMRulesNone, true)
+	name, _, lang, _ := createAppForm(name, "", language(initAppLang.Value), LLMRulesToolNone, true)
 
 	if err := validateName(name); err != nil {
 		return err

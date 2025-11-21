@@ -33,7 +33,7 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := initLLMRules(llmRules(initLLMRulesTool.Value)); err != nil {
+			if err := initLLMRules(llmRulesTool(initLLMRulesTool.Value)); err != nil {
 				cmdutil.Fatal(err)
 			}
 		},
@@ -43,9 +43,9 @@ func init() {
 	initLLMRulesTool.AddFlag(initLLMRules)
 }
 
-func initLLMRules(tool llmRules) error {
+func initLLMRules(tool llmRulesTool) error {
 	if tool == "" {
-		var llmRulesModel simpleSelectModel[llmRules, llmRuleItem]
+		var llmRulesModel simpleSelectModel[llmRulesTool, llmRuleItem]
 		{
 			ls := list.NewDefaultItemStyles()
 			ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
@@ -69,9 +69,9 @@ func initLLMRules(tool llmRules) error {
 			ll.SetShowStatusBar(false)
 			ll.DisableQuitKeybindings() // quit handled by toolSelectModel
 
-			llmRulesModel = simpleSelectModel[llmRules, llmRuleItem]{
+			llmRulesModel = simpleSelectModel[llmRulesTool, llmRuleItem]{
 				list:       ll,
-				predefined: LLMRulesNone,
+				predefined: LLMRulesToolNone,
 			}
 			llmRulesModel.SetSize(0, 20)
 
@@ -128,7 +128,7 @@ func initLLMRules(tool llmRules) error {
 }
 
 type toolSelectorModel struct {
-	toolModel simpleSelectModel[llmRules, llmRuleItem]
+	toolModel simpleSelectModel[llmRulesTool, llmRuleItem]
 	aborted   bool
 }
 
@@ -154,7 +154,7 @@ func (t toolSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, c)
 		return t, tea.Batch(cmds...)
 
-	case simpleSelectDone[llmRules]:
+	case simpleSelectDone[llmRulesTool]:
 		cmds = append(cmds, tea.Quit)
 	}
 
