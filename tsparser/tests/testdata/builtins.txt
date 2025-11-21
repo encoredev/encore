@@ -1,7 +1,9 @@
 -- foo/foo.ts --
 import { api } from "encore.dev/api";
 
-type Params = Record<string, string>;
+type Params = {
+    field: Record<string, string>;
+};
 
 export const ping = api<Params, void>({}, () => {});
 
