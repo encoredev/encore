@@ -10,6 +10,7 @@ use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
 use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
+use crate::parser::resources::infra::pubsub_topic::TopicOperation;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
 use crate::parser::types::validation;
@@ -453,26 +454,28 @@ impl MetaBuilder<'_> {
         let mut bucket_perms = HashMap::new();
         for u in &self.parse.usages {
             match u {
-                Usage::PublishTopic(publish) => {
-                    let svc =
-                        self.service_for_range(&publish.range)
-                            .ok_or(publish.range.parse_err(
-                                "unable to determine which service this 'publish' call is within",
-                            ))?;
+                Usage::Topic(access) => {
+                    if access.ops.contains(&TopicOperation::Publish) {
+                        let svc =
+                            self.service_for_range(&access.range)
+                                .ok_or(access.range.parse_err(
+                                    "cannot determine which service is accessing this topic",
+                                ))?;
 
-                    // Add the publisher if it hasn't already been seen.
-                    let key = (svc.name.clone(), publish.topic.name.clone());
-                    if seen_publishers.insert(key) {
-                        let service_name = svc.name.clone();
+                        // Add the publisher if it hasn't already been seen.
+                        let key = (svc.name.clone(), access.topic.name.clone());
+                        if seen_publishers.insert(key) {
+                            let service_name = svc.name.clone();
 
-                        let idx = topic_by_name
-                            .get(&publish.topic.name)
-                            .ok_or(publish.range.parse_err("could not resolve topic"))?
-                            .to_owned();
-                        let topic = &mut self.data.pubsub_topics[idx];
-                        topic
-                            .publishers
-                            .push(v1::pub_sub_topic::Publisher { service_name });
+                            let idx = topic_by_name
+                                .get(&access.topic.name)
+                                .ok_or(access.range.parse_err("could not resolve topic"))?
+                                .to_owned();
+                            let topic = &mut self.data.pubsub_topics[idx];
+                            topic
+                                .publishers
+                                .push(v1::pub_sub_topic::Publisher { service_name });
+                        }
                     }
                 }
                 Usage::AccessDatabase(access) => {

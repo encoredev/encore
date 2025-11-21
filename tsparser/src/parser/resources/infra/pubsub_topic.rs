@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
 use swc_ecma_ast as ast;
@@ -13,8 +15,8 @@ use crate::parser::resources::parseutil::{
     ReferenceParser, TrackedNames,
 };
 use crate::parser::resources::Resource;
-use crate::parser::types::Type;
-use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
+use crate::parser::types::{Generic, Type};
+use crate::parser::usageparser::{MethodCall, ResolveUsageData, Usage, UsageExprKind};
 use crate::parser::Range;
 use crate::span_err::ErrReporter;
 
@@ -128,18 +130,38 @@ impl ReferenceParser for PubSubTopicDefinition {
 }
 
 #[derive(Debug)]
-pub struct PublishUsage {
+pub struct TopicUsage {
     pub range: Range,
     pub topic: Lrc<Topic>,
+    pub ops: Vec<TopicOperation>,
 }
 
 pub fn resolve_topic_usage(data: &ResolveUsageData, topic: Lrc<Topic>) -> Option<Usage> {
     match &data.expr.kind {
-        UsageExprKind::MethodCall(method) => {
-            if method.method.as_ref() == "publish" {
-                Some(Usage::PublishTopic(PublishUsage {
+        UsageExprKind::MethodCall(call) => {
+            if call.method.as_ref() == "ref" {
+                let Some(type_args) = call.call.type_args.as_deref() else {
+                    call.call
+                        .span
+                        .err("expected a type argument in call to Topic.ref");
+                    return None;
+                };
+
+                let Some(type_arg) = type_args.params.first() else {
+                    call.call
+                        .span
+                        .err("expected a type argument in call to Topic.ref");
+                    return None;
+                };
+
+                return parse_topic_ref(data, topic, call, type_arg);
+            }
+
+            if call.method.as_ref() == "publish" {
+                Some(Usage::Topic(TopicUsage {
                     range: data.expr.range,
                     topic,
+                    ops: vec![TopicOperation::Publish],
                 }))
             } else {
                 None
@@ -154,4 +176,97 @@ pub fn resolve_topic_usage(data: &ResolveUsageData, topic: Lrc<Topic>) -> Option
             None
         }
     }
+}
+
+fn parse_topic_ref(
+    data: &ResolveUsageData,
+    topic: Lrc<Topic>,
+    _call: &MethodCall,
+    type_arg: &ast::TsType,
+) -> Option<Usage> {
+    fn process_type(
+        data: &ResolveUsageData,
+        sp: &swc_common::Span,
+        t: &Type,
+        depth: usize,
+    ) -> Option<Vec<TopicOperation>> {
+        if depth > 10 {
+            // Prevent infinite recursion.
+            return None;
+        }
+
+        match t {
+            Type::Named(named) => {
+                let ops = match named.obj.name.as_deref() {
+                    Some("Publisher") => vec![TopicOperation::Publish],
+                    _ => {
+                        let underlying = data.type_checker.resolve_obj_type(&named.obj);
+                        return process_type(data, sp, &underlying, depth + 1);
+                    }
+                };
+
+                Some(ops)
+            }
+
+            Type::Class(cls) => {
+                let ops = cls
+                    .methods
+                    .iter()
+                    .filter_map(|method| {
+                        let op = match method.as_str() {
+                            "publish" => TopicOperation::Publish,
+                            _ => {
+                                // Ignore other methods.
+                                return None;
+                            }
+                        };
+
+                        Some(op)
+                    })
+                    .collect();
+                Some(ops)
+            }
+
+            Type::Generic(Generic::Intersection(int)) => {
+                let mut result = Vec::new();
+                for t in &[&int.x, &int.y] {
+                    if let Some(ops) = process_type(data, sp, t, depth + 1) {
+                        result.extend(ops);
+                    }
+                }
+
+                if result.is_empty() {
+                    None
+                } else {
+                    Some(result)
+                }
+            }
+
+            _ => {
+                sp.err(&format!("unsupported topic permission type {t:#?}"));
+                None
+            }
+        }
+    }
+
+    let typ = data
+        .type_checker
+        .resolve_type(data.module.clone(), type_arg);
+
+    if let Some(ops) = process_type(data, &typ.span(), typ.deref(), 0) {
+        Some(Usage::Topic(TopicUsage {
+            range: data.expr.range,
+            topic,
+            ops,
+        }))
+    } else {
+        typ.err("no topic permissions found in type argument");
+        None
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopicOperation {
+    /// Publishing messages to the topic.
+    Publish,
 }
