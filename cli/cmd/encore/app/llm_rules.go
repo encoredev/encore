@@ -24,19 +24,19 @@ alwaysApply: true
 type llmRulesTool string
 
 const (
-	LLMRulesToolNone          llmRulesTool = ""
-	LLMRulesToolCursor        llmRulesTool = "cursor"
-	LLMRulesToolClaudCode     llmRulesTool = "claudecode"
-	LLMRulesToolVSCodeCopilot llmRulesTool = "vscodecopilot"
-	LLMRulesToolAgentsMD      llmRulesTool = "agentsmd"
-	LLMRulesToolZed           llmRulesTool = "zed"
+	LLMRulesToolNone      llmRulesTool = ""
+	LLMRulesToolCursor    llmRulesTool = "cursor"
+	LLMRulesToolClaudCode llmRulesTool = "claudecode"
+	LLMRulesToolVSCode    llmRulesTool = "vscode"
+	LLMRulesToolAgentsMD  llmRulesTool = "agentsmd"
+	LLMRulesToolZed       llmRulesTool = "zed"
 )
 
 // all available options exept for None
 var allLLMRules = []llmRulesTool{
 	LLMRulesToolCursor,
 	LLMRulesToolClaudCode,
-	LLMRulesToolVSCodeCopilot,
+	LLMRulesToolVSCode,
 	LLMRulesToolAgentsMD,
 	LLMRulesToolZed,
 }
@@ -47,8 +47,8 @@ func llmRulesToolFromString(s string) llmRulesTool {
 		return LLMRulesToolCursor
 	case string(LLMRulesToolClaudCode):
 		return LLMRulesToolClaudCode
-	case string(LLMRulesToolVSCodeCopilot):
-		return LLMRulesToolVSCodeCopilot
+	case string(LLMRulesToolVSCode):
+		return LLMRulesToolVSCode
 	case string(LLMRulesToolAgentsMD):
 		return LLMRulesToolAgentsMD
 	case string(LLMRulesToolZed):
@@ -72,8 +72,8 @@ func (e llmRulesTool) Display() string {
 		return "Cursor"
 	case LLMRulesToolClaudCode:
 		return "Claude Code"
-	case LLMRulesToolVSCodeCopilot:
-		return "VS Code w/ Copilot"
+	case LLMRulesToolVSCode:
+		return "VS Code"
 	case LLMRulesToolAgentsMD:
 		return "AGENTS.md"
 	case LLMRulesToolZed:
@@ -149,7 +149,7 @@ func setupLLMRules(llmRules llmRulesTool, lang language, appRootRelpath string, 
 			return err
 		}
 
-	case LLMRulesToolVSCodeCopilot:
+	case LLMRulesToolVSCode:
 		githubDir := filepath.Join(appRootRelpath, ".github")
 		if err := os.MkdirAll(githubDir, 0755); err != nil {
 			return err
@@ -230,21 +230,12 @@ func printLLMRulesInfo(tool llmRulesTool) {
 	cyanf := cyan.SprintfFunc()
 
 	switch tool {
-	case LLMRulesToolCursor:
-		fmt.Printf("MCP:      %s\n", cyanf("Configured in Cursor"))
-		fmt.Println()
-	case LLMRulesToolClaudCode:
-		fmt.Printf("MCP:      %s\n", cyanf("Configured in Claude Code"))
-		fmt.Println()
-	case LLMRulesToolVSCodeCopilot:
-		fmt.Printf("MCP:      %s\n", cyanf("Configured in VSCode"))
-		fmt.Println()
-	case LLMRulesToolZed:
-		fmt.Printf("MCP:      %s\n", cyanf("Configured in Zed"))
+	case LLMRulesToolCursor, LLMRulesToolClaudCode, LLMRulesToolVSCode, LLMRulesToolZed:
+		fmt.Printf("MCP:      %s\n", cyanf("Configured in %s", tool.Display()))
 		fmt.Println()
 	}
 
-	fmt.Println("Try these prompts in Cursor:")
+	fmt.Printf("Try these prompts in %s:\n", tool.Display())
 	fmt.Println("→ \"add image uploads to my hello world app\"")
 	fmt.Println("→ \"add a SQL database for storing user profiles\"")
 	fmt.Println("→ \"add a pub/sub topic for sending notifications\"")
