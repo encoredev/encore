@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/internal/userconfig"
 	"encr.dev/pkg/appfile"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,7 +34,19 @@ func init() {
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := initLLMRules(llmRulesTool(initLLMRulesTool.Value)); err != nil {
+
+			var tool llmRulesTool
+			if initLLMRulesTool.Value == "" {
+				cfg, err := userconfig.Global().Get()
+				if err != nil {
+					cmdutil.Fatalf("Couldn't read user config: %s", err)
+				}
+				tool = llmRulesTool(cfg.LLMRules)
+			} else {
+				tool = llmRulesTool(initLLMRulesTool.Value)
+			}
+
+			if err := initLLMRules(tool); err != nil {
 				cmdutil.Fatal(err)
 			}
 		},

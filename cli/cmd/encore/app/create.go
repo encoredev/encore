@@ -25,6 +25,7 @@ import (
 	"encr.dev/cli/internal/telemetry"
 	"encr.dev/internal/conf"
 	"encr.dev/internal/env"
+	"encr.dev/internal/userconfig"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/github"
 	"encr.dev/pkg/xos"
@@ -63,7 +64,19 @@ var createAppCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang.Value), llmRulesTool(createAppLLMRules.Value)); err != nil {
+
+		var tool llmRulesTool
+		if createAppLLMRules.Value == "" {
+			cfg, err := userconfig.Global().Get()
+			if err != nil {
+				cmdutil.Fatalf("Couldn't read user config: %s", err)
+			}
+			tool = llmRulesTool(cfg.LLMRules)
+		} else {
+			tool = llmRulesTool(createAppLLMRules.Value)
+		}
+
+		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang.Value), tool); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},

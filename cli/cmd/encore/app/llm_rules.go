@@ -41,6 +41,23 @@ var allLLMRules = []llmRulesTool{
 	LLMRulesToolZed,
 }
 
+func llmRulesToolFromString(s string) llmRulesTool {
+	switch s {
+	case string(LLMRulesToolCursor):
+		return LLMRulesToolCursor
+	case string(LLMRulesToolClaudCode):
+		return LLMRulesToolClaudCode
+	case string(LLMRulesToolVSCodeCopilot):
+		return LLMRulesToolVSCodeCopilot
+	case string(LLMRulesToolAgentsMD):
+		return LLMRulesToolAgentsMD
+	case string(LLMRulesToolZed):
+		return LLMRulesToolZed
+	default:
+		return LLMRulesToolNone
+	}
+}
+
 func llmRulesFlagValues() []string {
 	result := make([]string, 0, len(allLLMRules))
 	for _, r := range allLLMRules {
