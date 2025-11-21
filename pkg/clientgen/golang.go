@@ -887,7 +887,7 @@ func (g *golang) getType(typ *schema.Type) Code {
 		case schema.Builtin_JSON:
 			return Qual("encoding/json", "RawMessage")
 		case schema.Builtin_UUID, schema.Builtin_USER_ID, schema.Builtin_DECIMAL:
-			// we don't want to add any custom depdancies, so these come in as strings
+			// we don't want to add any custom deps, so these come in as strings
 			return String()
 		default:
 			return Any()
@@ -895,6 +895,17 @@ func (g *golang) getType(typ *schema.Type) Code {
 
 	case *schema.Type_Pointer:
 		return Op("*").Add(g.getType(typ.Pointer.Base))
+
+	case *schema.Type_Option:
+		// Avoid the dependency by using a pointer type instead of encore.dev/types/option.Option.
+		value := typ.Option.Value
+
+		// Avoid double pointer
+		for ptr := value.GetPointer(); ptr != nil; ptr = value.GetPointer() {
+			value = ptr.Base
+		}
+
+		return Op("*").Add(g.getType(value))
 
 	case *schema.Type_Struct:
 		fields := make([]Code, 0, len(typ.Struct.Fields))
@@ -1447,6 +1458,25 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 							Id("v"),
 						),
 					), Line())
+				} else if opt := field.Type.GetOption(); opt != nil {
+					// We encode options as *T, so check if it's non-nil.
+					enc.Add(If(
+						Id("val").Op(":=").Add(Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase))),
+						Id("val").Op("!=").Nil(),
+					).BlockFunc(func(g *Group) {
+						val, err := enc.ToString(
+							field.Type,
+							Id("val"),
+						)
+						if err != nil {
+							err = errors.Wrapf(err, "unable to encode query field %s", field.SrcName)
+							return
+						}
+						g.Add(Id("query").Dot("Set").Call(
+							Lit(field.WireFormat),
+							val,
+						), Line())
+					}))
 				} else {
 					// Otherwise, we can just append the field
 					val, err := enc.ToString(
@@ -1474,20 +1504,58 @@ func (g *golang) addAuthData(grp *Group) (err error) {
 
 			// Check the request schema for fields we can put in the query string
 			for _, field := range auth.HeaderParameters {
-				// Otherwise, we can just append the field
-				val, err := enc.ToString(
-					field.Type,
-					Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
-				)
-				if err != nil {
-					err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
-					return
-				}
+				if field.Type.GetList() != nil {
+					// If we have a slice, we need to encode each bit
+					slice, err := enc.ToStringSlice(
+						field.Type,
+						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
+					)
+					if err != nil {
+						err = errors.Wrapf(err, "unable to encode header fields %s", field.SrcName)
+						return
+					}
 
-				enc.Add(Id("req").Dot("Header").Dot("Set").Call(
-					Lit(field.WireFormat),
-					val,
-				), Line())
+					enc.Add(For(List(Id("_"), Id("v")).Op(":=").Range().Add(slice)).Block(
+						Id("req").Dot("Header").Dot("Add").Call(
+							Lit(field.WireFormat),
+							Id("v"),
+						),
+					), Line())
+				} else if opt := field.Type.GetOption(); opt != nil {
+					// We encode options as *T, so check if it's non-nil.
+					enc.Add(If(
+						Id("val").Op(":=").Add(Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase))),
+						Id("val").Op("!=").Nil(),
+					).BlockFunc(func(g *Group) {
+						val, err := enc.ToString(
+							field.Type,
+							Id("val"),
+						)
+						if err != nil {
+							err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+							return
+						}
+						enc.Add(Id("req").Dot("Header").Dot("Set").Call(
+							Lit(field.WireFormat),
+							val,
+						), Line())
+					}))
+				} else {
+					// Otherwise, we can just append the field
+					val, err := enc.ToString(
+						field.Type,
+						Id("authData").Dot(idents.Convert(field.SrcName, idents.PascalCase)),
+					)
+					if err != nil {
+						err = errors.Wrapf(err, "unable to encode header field %s", field.SrcName)
+						return
+					}
+
+					enc.Add(Id("req").Dot("Header").Dot("Set").Call(
+						Lit(field.WireFormat),
+						val,
+					), Line())
+				}
 			}
 		}
 

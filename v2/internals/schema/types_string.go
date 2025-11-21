@@ -38,9 +38,9 @@ const _BuiltinKind_name = "unsupportedInvalidAnyBoolIntInt8Int16Int32Int64UintUi
 var _BuiltinKind_index = [...]uint8{0, 11, 18, 21, 25, 28, 32, 37, 42, 47, 51, 56, 62, 68, 74, 81, 88, 94, 99, 103, 107, 111, 117, 122}
 
 func (i BuiltinKind) String() string {
-	i -= -1
-	if i < 0 || i >= BuiltinKind(len(_BuiltinKind_index)-1) {
-		return "BuiltinKind(" + strconv.FormatInt(int64(i+-1), 10) + ")"
+	idx := int(i) - -1
+	if i < -1 || idx >= len(_BuiltinKind_index)-1 {
+		return "BuiltinKind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _BuiltinKind_name[_BuiltinKind_index[i]:_BuiltinKind_index[i+1]]
+	return _BuiltinKind_name[_BuiltinKind_index[idx]:_BuiltinKind_index[idx+1]]
 }

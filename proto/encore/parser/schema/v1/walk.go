@@ -34,6 +34,8 @@ func walk(decls []*Decl, node any, visitor func(node any) error, namedChain []ui
 			return walk(decls, v.Builtin, visitor, namedChain)
 		case *Type_Pointer:
 			return walk(decls, v.Pointer, visitor, namedChain)
+		case *Type_Option:
+			return walk(decls, v.Option, visitor, namedChain)
 		case *Type_TypeParameter:
 			return walk(decls, v.TypeParameter, visitor, namedChain)
 		case *Type_Literal:
@@ -88,6 +90,8 @@ func walk(decls []*Decl, node any, visitor func(node any) error, namedChain []ui
 		return nil
 	case *Pointer:
 		return walk(decls, node.Base, visitor, namedChain)
+	case *Option:
+		return walk(decls, node.Value, visitor, namedChain)
 	case *TypeParameterRef:
 		return nil
 	case *Literal:

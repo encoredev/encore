@@ -1,0 +1,18 @@
+parse
+
+-- svc/svc.go --
+package svc
+
+import (
+	"context"
+	"encore.dev/types/option"
+)
+
+type MyParams struct {
+    Query option.Option[string] `query:"foo"`
+    Header option.Option[string] `header:"foo"`
+    Body option.Option[string]
+}
+
+//encore:api public path=/str
+func Str(ctx context.Context, p *MyParams) (*MyParams, error) { return nil, nil }

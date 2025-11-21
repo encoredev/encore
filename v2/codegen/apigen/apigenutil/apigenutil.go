@@ -26,7 +26,7 @@ func DecodeHeaders(g *Group, httpHeaderExpr, paramExpr *Statement, dec *genutil.
 	for _, f := range params {
 		singleValExpr := Id("h").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("h").Dot("Values").Call(Lit(f.WireName))
-		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.WireName, singleValExpr, listValExpr, false)
+		decodeExpr := dec.UnmarshalQueryOrHeader(f.Type, f.WireName, singleValExpr, listValExpr)
 		g.Add(paramExpr.Clone().Dot(f.SrcName).Op("=").Add(decodeExpr))
 	}
 	g.Line()
@@ -43,7 +43,7 @@ func DecodeQuery(g *Group, urlValuesExpr, paramExpr *Statement, dec *genutil.Typ
 	for _, f := range params {
 		singleValExpr := Id("qs").Dot("Get").Call(Lit(f.WireName))
 		listValExpr := Id("qs").Index(Lit(f.WireName))
-		decodeExpr := dec.UnmarshalSingleOrList(f.Type, f.WireName, singleValExpr, listValExpr, false)
+		decodeExpr := dec.UnmarshalQueryOrHeader(f.Type, f.WireName, singleValExpr, listValExpr)
 		g.Add(paramExpr.Clone()).Dot(f.SrcName).Op("=").Add(decodeExpr)
 	}
 	g.Line()
@@ -115,22 +115,22 @@ func EncodeHeaders(errs *perr.List, g *Group, httpHeaderExpr, paramExpr *Stateme
 	g.Add(httpHeaderExpr.Clone().Op("=").Make(Qual("net/http", "Header"), Lit(len(params))))
 
 	for _, f := range params {
-		kind, isList, ok := schemautil.IsBuiltinOrList(f.Type)
-		if !ok {
-			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to string", f.Type)
+		if !schemautil.IsValidHeaderType(f.Type) {
+			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to header", f.Type)
 			continue
 		}
 
-		if isList {
-			strVals := genutil.MarshalBuiltinList(kind, paramExpr.Clone().Dot(f.SrcName))
-			g.Add(httpHeaderExpr.Clone()).Index(
-				Qual("net/textproto", "CanonicalMIMEHeaderKey").Call(Lit(f.WireName)),
-			).Op("=").Add(strVals)
-		} else {
-			strVal := genutil.MarshalBuiltin(kind, paramExpr.Clone().Dot(f.SrcName))
-			g.Add(httpHeaderExpr.Clone().Dot("Set").Call(Lit(f.WireName), strVal))
+		strVals, ok := genutil.MarshalQueryOrHeader(f.Type, paramExpr.Clone().Dot(f.SrcName))
+		if !ok {
+			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to header", f.Type)
+			continue
 		}
+
+		g.Add(httpHeaderExpr.Clone()).Index(
+			Qual("net/textproto", "CanonicalMIMEHeaderKey").Call(Lit(f.WireName)),
+		).Op("=").Add(strVals)
 	}
+
 	g.Line()
 }
 
@@ -145,20 +145,19 @@ func EncodeQuery(errs *perr.List, g *Group, urlValuesExpr, paramExpr *Statement,
 	g.Add(urlValuesExpr.Clone().Op("=").Make(Qual("net/url", "Values"), Lit(len(params))))
 
 	for _, f := range params {
-		kind, isList, ok := schemautil.IsBuiltinOrList(f.Type)
-		if !ok {
-			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to string", f.Type)
+		if !schemautil.IsValidQueryType(f.Type) {
+			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to query string", f.Type)
 			continue
 		}
 
-		if isList {
-			strVals := genutil.MarshalBuiltinList(kind, paramExpr.Clone().Dot(f.SrcName))
-			g.Add(urlValuesExpr.Clone()).Index(Lit(f.WireName)).Op("=").Add(strVals)
-		} else {
-			strVal := genutil.MarshalBuiltin(kind, paramExpr.Clone().Dot(f.SrcName))
-			g.Add(urlValuesExpr.Clone().Dot("Set").Call(Lit(f.WireName), strVal))
+		strVals, ok := genutil.MarshalQueryOrHeader(f.Type, paramExpr.Clone().Dot(f.SrcName))
+		if !ok {
+			errs.Addf(f.Type.ASTExpr().Pos(), "cannot marshal %s to query string", f.Type)
+			continue
 		}
+		g.Add(urlValuesExpr.Clone()).Index(Lit(f.WireName)).Op("=").Add(strVals)
 	}
+
 	g.Line()
 }
 

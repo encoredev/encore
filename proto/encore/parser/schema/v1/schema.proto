@@ -20,6 +20,7 @@ message Type {
     Pointer          pointer        =  8; // The type is a pointer
     Union            union          =  9; // The type is a union
     Literal          literal        =  10; // The type is a literal
+    Option           option         =  11; // The type is an option type
 
     /* Abstract Types */
     TypeParameterRef type_parameter =  6; // This is placeholder for a unknown type within the declaration block
@@ -204,6 +205,11 @@ message Pointer {
   Type base = 1; // The type of the pointer
 }
 
+// Option represents an option type.
+message Option {
+  Type value = 1; // The value it may contain.
+}
+
 // Union represents a union type.
 message Union {
   repeated Type types = 1; // The types that make up the union
@@ -253,6 +259,6 @@ enum Builtin {
 
   INT     = 18;
   UINT    = 19;
-  
+
   DECIMAL = 20;
 }

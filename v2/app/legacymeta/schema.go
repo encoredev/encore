@@ -131,6 +131,13 @@ func (b *builder) schemaType(typ schemav2.Type) *schema.Type {
 			},
 		}}
 
+	case schemav2.OptionType:
+		return &schema.Type{Typ: &schema.Type_Option{
+			Option: &schema.Option{
+				Value: b.schemaType(typ.Value),
+			},
+		}}
+
 	case schemav2.TypeParamRefType:
 		return &schema.Type{Typ: &schema.Type_TypeParameter{
 			TypeParameter: &schema.TypeParameterRef{
@@ -194,6 +201,11 @@ func (b *builder) structField(f schemav2.StructField) *schema.Field {
 				}
 			}
 		}
+	}
+
+	// Treat option types as optional.
+	if schemautil.IsOption(f.Type) {
+		field.Optional = true
 	}
 
 	// Set WireSpec for header fields
@@ -297,10 +309,6 @@ func (b *builder) configValue(typ schemav2.NamedType) *schema.Type {
 
 func (b *builder) schemaTypes(typs ...schemav2.Type) []*schema.Type {
 	return fns.Map(typs, b.schemaType)
-}
-
-func (b *builder) declInfo(info *pkginfo.PkgDeclInfo) uint32 {
-	return b.declKey(info.File.Pkg.ImportPath, info.Name)
 }
 
 func (b *builder) decl(decl schemav2.Decl) uint32 {

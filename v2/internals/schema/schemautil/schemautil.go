@@ -33,14 +33,18 @@ func IsPointer(t schema.Type) bool {
 	return ok
 }
 
+// IsOption reports whether t is an option type.
+func IsOption(t schema.Type) bool {
+	_, ok := t.(schema.OptionType)
+	return ok
+}
+
 // IsBuiltinKind reports whether the given type is a builtin
 // of one of the given kinds.
 func IsBuiltinKind(t schema.Type, kinds ...schema.BuiltinKind) bool {
 	if b, ok := t.(schema.BuiltinType); ok {
-		for _, k := range kinds {
-			if b.Kind == k {
-				return true
-			}
+		if slices.Contains(kinds, b.Kind) {
+			return true
 		}
 	}
 	return false
@@ -58,6 +62,44 @@ func IsBuiltinOrList(t schema.Type) (kind schema.BuiltinKind, isList bool, ok bo
 		}
 	}
 	return schema.Invalid, false, false
+}
+
+// IsValidHeaderType reports whether the given type is valid for use as an HTTP header value.
+func IsValidHeaderType(t schema.Type) bool {
+	if list, ok := t.(schema.ListType); ok {
+		return isValidHeaderTypeValue(list.Elem)
+	}
+	return isValidHeaderTypeValue(t)
+}
+
+func isValidHeaderTypeValue(t schema.Type) bool {
+	switch t := t.(type) {
+	case schema.BuiltinType:
+		return true
+	case schema.OptionType:
+		return isValidHeaderTypeValue(t.Value)
+	default:
+		return false
+	}
+}
+
+// IsValidQueryType reports whether the given type is valid for use as a query parameter value.
+func IsValidQueryType(t schema.Type) bool {
+	if list, ok := t.(schema.ListType); ok {
+		return isValidQueryTypeValue(list.Elem)
+	}
+	return isValidQueryTypeValue(t)
+}
+
+func isValidQueryTypeValue(t schema.Type) bool {
+	switch t := t.(type) {
+	case schema.BuiltinType:
+		return true
+	case schema.OptionType:
+		return isValidHeaderTypeValue(t.Value)
+	default:
+		return false
+	}
 }
 
 var Signed = []schema.BuiltinKind{
@@ -176,6 +218,8 @@ func concretize(errs *perr.List, referencedFrom ast.Node, typ schema.Type, typeA
 		return typ
 	case schema.PointerType:
 		return schema.PointerType{AST: typ.AST, Elem: concretize(errs, typ.AST, typ.Elem, typeArgs, seenDecls)}
+	case schema.OptionType:
+		return schema.OptionType{AST: typ.AST, Value: concretize(errs, typ.AST, typ.Value, typeArgs, seenDecls)}
 	case schema.ListType:
 		return schema.ListType{AST: typ.AST, Elem: concretize(errs, typ.AST.Elt, typ.Elem, typeArgs, seenDecls), Len: typ.Len}
 	case schema.MapType:
@@ -304,6 +348,8 @@ func walk(node schema.Type, visitor func(typ schema.Type) bool, declChain []pkgD
 		return true // keep going elsewhere
 	case schema.PointerType:
 		return walk(node.Elem, visitor, declChain)
+	case schema.OptionType:
+		return walk(node.Value, visitor, declChain)
 	case schema.FuncType:
 		for _, part := range [...][]schema.Param{node.Params, node.Results} {
 			for _, p := range part {
@@ -380,6 +426,11 @@ func hashType(buf *bytes.Buffer, t schema.Type) {
 	case schema.PointerType:
 		buf.WriteString("*")
 		hashType(buf, t.Elem)
+
+	case schema.OptionType:
+		buf.WriteString("Option[")
+		hashType(buf, t.Value)
+		buf.WriteString("]")
 
 	case schema.FuncType:
 		buf.WriteString("func(")

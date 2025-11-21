@@ -21,6 +21,7 @@ const (
 	List
 	Builtin
 	Pointer
+	Option
 	Func
 	Interface
 	TypeParamRef
@@ -113,6 +114,12 @@ type PointerType struct {
 	Elem Type
 }
 
+// OptionType represents an option.Option[T] type.
+type OptionType struct {
+	AST   ast.Expr
+	Value Type
+}
+
 type BuiltinType struct {
 	AST  ast.Expr
 	Kind BuiltinKind
@@ -152,7 +159,7 @@ type TypeParamRefType struct {
 
 type BuiltinKind int
 
-//go:generate stringer -type=BuiltinKind -output=types_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=BuiltinKind -output=types_string.go
 
 const (
 	Invalid BuiltinKind = iota
@@ -194,6 +201,7 @@ var _ Type = StructType{}
 var _ Type = MapType{}
 var _ Type = ListType{}
 var _ Type = PointerType{}
+var _ Type = OptionType{}
 var _ Type = BuiltinType{}
 var _ Type = FuncType{}
 var _ Type = InterfaceType{}
@@ -204,6 +212,7 @@ func (StructType) Family() TypeFamily       { return Struct }
 func (MapType) Family() TypeFamily          { return Map }
 func (ListType) Family() TypeFamily         { return List }
 func (PointerType) Family() TypeFamily      { return Pointer }
+func (OptionType) Family() TypeFamily       { return Option }
 func (BuiltinType) Family() TypeFamily      { return Builtin }
 func (FuncType) Family() TypeFamily         { return Func }
 func (InterfaceType) Family() TypeFamily    { return Interface }
@@ -214,6 +223,7 @@ func (t StructType) ASTExpr() ast.Expr       { return t.AST }
 func (t MapType) ASTExpr() ast.Expr          { return t.AST }
 func (t ListType) ASTExpr() ast.Expr         { return t.AST }
 func (t PointerType) ASTExpr() ast.Expr      { return t.AST }
+func (t OptionType) ASTExpr() ast.Expr       { return t.AST }
 func (t BuiltinType) ASTExpr() ast.Expr      { return t.AST }
 func (t FuncType) ASTExpr() ast.Expr         { return t.AST }
 func (t InterfaceType) ASTExpr() ast.Expr    { return t.AST }
@@ -237,6 +247,7 @@ func (t StructType) String() string       { return "struct" }
 func (t MapType) String() string          { return "map[" + t.Key.String() + "]" + t.Value.String() }
 func (t ListType) String() string         { return "[]" + t.Elem.String() }
 func (t PointerType) String() string      { return "*" + t.Elem.String() }
+func (t OptionType) String() string       { return "Option[" + t.Value.String() + "]" }
 func (t BuiltinType) String() string      { return types.ExprString(t.AST) }
 func (t FuncType) String() string         { return "function" }
 func (t InterfaceType) String() string    { return "interface" }

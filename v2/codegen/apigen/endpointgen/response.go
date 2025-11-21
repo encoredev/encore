@@ -5,7 +5,6 @@ import (
 
 	"encr.dev/v2/codegen/apigen/apigenutil"
 	"encr.dev/v2/codegen/internal/genutil"
-	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/schema/schemautil"
 	"encr.dev/v2/parser/apis/api"
 	"encr.dev/v2/parser/apis/api/apienc"
@@ -92,12 +91,12 @@ func (d *responseDesc) EncodeResponse() *Statement {
 				g.Line().Comment("Encode headers")
 				g.Id("headers").Op("=").Map(String()).Index().String().Values(DictFunc(func(dict Dict) {
 					for _, f := range resp.HeaderParameters {
-						if builtin, ok := f.Type.(schema.BuiltinType); ok {
-							encExpr := genutil.MarshalBuiltin(builtin.Kind, Id("resp").Dot(f.SrcName))
-							dict[Lit(f.WireName)] = Index().String().Values(encExpr)
-						} else {
+						encExpr, ok := genutil.MarshalQueryOrHeader(f.Type, Id("resp").Dot(f.SrcName))
+						if !ok {
 							d.gu.Errs.Addf(f.Type.ASTExpr().Pos(), "unsupported type in header: %s", d.gu.TypeToString(f.Type))
+							continue
 						}
+						dict[Lit(f.WireName)] = encExpr
 					}
 				}))
 			}
