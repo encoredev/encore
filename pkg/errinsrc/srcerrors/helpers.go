@@ -150,6 +150,9 @@ func schemaType(typ *schema.Type) string {
 	case *schema.Type_Pointer:
 		return "a pointer to " + schemaType(tt.Pointer.Base)
 
+	case *schema.Type_Option:
+		return "an optional " + schemaType(tt.Option.Value)
+
 	case *schema.Type_TypeParameter:
 		return "a type parameter"
 

@@ -13,6 +13,10 @@ func Ptr(elem schema.Type) schema.Type {
 	return schema.PointerType{Elem: elem}
 }
 
+func Option(elem schema.Type) schema.Type {
+	return schema.OptionType{Value: elem}
+}
+
 func Builtin(kind schema.BuiltinKind) schema.BuiltinType {
 	return schema.BuiltinType{Kind: kind}
 }

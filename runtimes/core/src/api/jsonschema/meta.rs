@@ -122,6 +122,7 @@ impl BuilderCtx<'_, '_> {
             }
 
             Typ::Pointer(ptr) => self.ptr(ptr),
+            Typ::Option(opt) => self.option(opt),
             Typ::Struct(st) => Ok(Value::Struct(self.struct_val(st)?)),
             Typ::Map(map) => self.map(map),
             Typ::List(list) => self.list(list),
@@ -196,6 +197,15 @@ impl BuilderCtx<'_, '_> {
     #[inline]
     fn ptr(&mut self, ptr: &schema::Pointer) -> Result<Value> {
         self.typ(&ptr.base)
+    }
+
+    #[inline]
+    fn option(&mut self, opt: &schema::Option) -> Result<Value> {
+        let value = self.typ(&opt.value)?;
+        Ok(Value::Union(vec![
+            self.bov(value),
+            BasicOrValue::Basic(Basic::Null),
+        ]))
     }
 
     #[inline]

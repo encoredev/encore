@@ -83,6 +83,12 @@ func TestParser_ParseType(t *testing.T) {
 			want:    BuiltinType{Kind: UUID, AST: ast.NewIdent("uuid.UUID")},
 		},
 		{
+			name:    "encore_option",
+			imports: []string{"encore.dev/types/option", "encore.dev/types/uuid"},
+			typ:     "option.Option[uuid.UUID]",
+			want:    OptionType{AST: ast.NewIdent("option.Option"), Value: BuiltinType{Kind: UUID, AST: ast.NewIdent("uuid.UUID")}},
+		},
+		{
 			name:    "builtin_encore_userid",
 			imports: []string{"encore.dev/beta/auth"},
 			typ:     "auth.UID",

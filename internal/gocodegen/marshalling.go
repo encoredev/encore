@@ -35,6 +35,7 @@ type methodKey struct {
 	fromString bool
 	builtin    schema.Builtin
 	slice      bool
+	option     bool
 }
 
 type methodDescription struct {
@@ -43,6 +44,7 @@ type methodDescription struct {
 	Input      Code
 	Result     Code
 	IsList     bool
+	IsOption   bool
 	Block      []Code
 }
 
@@ -88,11 +90,13 @@ func (g *MarshallingCodeGenerator) NewPossibleInstance(instanceName string) *Mar
 func (g *MarshallingCodeGenerator) GenerateAll() {
 	for _, val := range schema.Builtin_value {
 		b := schema.Builtin(val)
-		_, _ = g.builtinToString(b, true)
-		_, _ = g.builtinToString(b, false)
-		_, _ = g.builtinFromString(b, true)
-		_, _ = g.builtinFromString(b, false)
+		for _, slice := range []bool{false, true} {
+			for _, option := range []bool{false, true} {
+				_, _ = g.builtinToString(b, slice, option)
+			}
+		}
 	}
+
 	g.usedBody = true
 	g.usedJson = true
 }
@@ -127,6 +131,8 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 				} else {
 					g.If(Op("!").Id("required").Op("&&").Id("s").Op("==").Lit("")).Block(Return())
 				}
+			} else if desc.IsOption {
+				g.If(Id("s").Op("==").Nil()).Block(Return(Nil()))
 			}
 			g.Id("e").Dot(nonEmptyValuesField).Op("++")
 			for _, s := range desc.Block {
@@ -170,13 +176,13 @@ func (g *MarshallingCodeGenerator) WriteToFile(f *File) {
 	f.Line()
 }
 
-func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice bool) (string, error) {
-	key := methodKey{builtin: t, slice: slice, fromString: true}
+func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice, option bool) (string, error) {
+	key := methodKey{builtin: t, slice: slice, option: option, fromString: true}
 	if n, ok := b.seenBuiltins[key]; ok {
 		return n.Method, nil
 	} else if slice {
-		k2 := methodKey{builtin: t, fromString: true}
-		if _, err := b.builtinFromString(t, false); err != nil {
+		k2 := methodKey{builtin: t, fromString: true, slice: false, option: option}
+		if _, err := b.builtinFromString(t, false, option); err != nil {
 			return "", err
 		}
 		desc := b.seenBuiltins[k2]
@@ -197,42 +203,64 @@ func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice boo
 		b.seenBuiltins[key] = fn
 		b.builtins = append(b.builtins, fn)
 		return fn.Method, nil
+	} else if option {
+		k2 := methodKey{builtin: t, fromString: true, slice: false, option: false}
+		if _, err := b.builtinFromString(t, false, false); err != nil {
+			return "", err
+		}
+		desc := b.seenBuiltins[k2]
+		name := desc.Method + "Option"
+		fn := methodDescription{
+			FromString: true,
+			Method:     name,
+			Input:      String(),
+			Result:     Op("*").Add(desc.Result),
+			IsList:     false,
+			IsOption:   true,
+			Block: []Code{
+				Id("val").Op(":=").Id("e").Dot(desc.Method).Call(Id("field"), Id("s"), Id("required")),
+				Return(Op("&").Id("val")),
+			},
+		}
+		b.seenBuiltins[key] = fn
+		b.builtins = append(b.builtins, fn)
+		return fn.Method, nil
 	}
 
 	var fn methodDescription
 	switch t {
 	case schema.Builtin_STRING:
-		fn = methodDescription{true, "ToString", String(), String(), false, []Code{Return(Id("s"))}}
+		fn = methodDescription{true, "ToString", String(), String(), false, false, []Code{Return(Id("s"))}}
 	case schema.Builtin_BYTES:
-		fn = methodDescription{true, "ToBytes", String(), Index().Byte(), false, []Code{
+		fn = methodDescription{true, "ToBytes", String(), Index().Byte(), false, false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("encoding/base64", "URLEncoding").Dot("DecodeString").Call(Id("s")),
 			Id("e").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_BOOL:
-		fn = methodDescription{true, "ToBool", String(), Bool(), false, []Code{
+		fn = methodDescription{true, "ToBool", String(), Bool(), false, false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("strconv", "ParseBool").Call(Id("s")),
 			Id("e").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_UUID:
-		fn = methodDescription{true, "ToUUID", String(), Qual("encore.dev/types/uuid", "UUID"), false, []Code{
+		fn = methodDescription{true, "ToUUID", String(), Qual("encore.dev/types/uuid", "UUID"), false, false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("encore.dev/types/uuid", "FromString").Call(Id("s")),
 			Id("e").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_TIME:
-		fn = methodDescription{true, "ToTime", String(), Qual("time", "Time"), false, []Code{
+		fn = methodDescription{true, "ToTime", String(), Qual("time", "Time"), false, false, []Code{
 			List(Id("v"), Err()).Op(":=").Qual("time", "Parse").Call(Qual("time", "RFC3339"), Id("s")),
 			Id("e").Dot("setErr").Call(Lit("invalid parameter"), Id("field"), Err()),
 			Return(Id("v")),
 		}}
 	case schema.Builtin_USER_ID:
-		fn = methodDescription{true, "ToUserID", String(), Qual("encore.dev/beta/auth", "UID"), false, []Code{
+		fn = methodDescription{true, "ToUserID", String(), Qual("encore.dev/beta/auth", "UID"), false, false, []Code{
 			Return(Qual("encore.dev/beta/auth", "UID").Call(Id("s"))),
 		}}
 	case schema.Builtin_JSON:
-		fn = methodDescription{true, "ToJSON", String(), Qual("encoding/json", "RawMessage"), false, []Code{
+		fn = methodDescription{true, "ToJSON", String(), Qual("encoding/json", "RawMessage"), false, false, []Code{
 			Return(Qual("encoding/json", "RawMessage").Call(Id("s"))),
 		}}
 	default:
@@ -268,7 +296,7 @@ func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice boo
 
 		cast := def.typ != "int64" && def.typ != "uint64" && def.typ != "float64"
 		var err error
-		fn = methodDescription{true, "To" + strings.Title(def.typ), String(), Id(def.typ), false, []Code{
+		fn = methodDescription{true, "To" + strings.Title(def.typ), String(), Id(def.typ), false, false, []Code{
 			List(Id("x"), Err()).Op(":=").Do(func(s *Statement) {
 				switch def.kind {
 				case unsigned:
@@ -300,15 +328,15 @@ func (b *MarshallingCodeGenerator) builtinFromString(t schema.Builtin, slice boo
 	return fn.Method, nil
 }
 
-func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool) (string, error) {
-	key := methodKey{builtin: t, slice: slice, fromString: false}
+func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice, option bool) (string, error) {
+	key := methodKey{builtin: t, slice: slice, option: option, fromString: false}
 	if fn, ok := b.seenBuiltins[key]; ok {
 		return fn.Method, nil
 	}
 
 	if slice {
-		k2 := methodKey{builtin: t, fromString: false}
-		if _, err := b.builtinToString(t, false); err != nil {
+		k2 := methodKey{builtin: t, fromString: false, slice: false, option: option}
+		if _, err := b.builtinToString(t, false, option); err != nil {
 			return "", err
 		}
 		desc := b.seenBuiltins[k2]
@@ -329,34 +357,54 @@ func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool)
 		b.seenBuiltins[key] = fn
 		b.builtins = append(b.builtins, fn)
 		return fn.Method, nil
+	} else if option {
+		k2 := methodKey{builtin: t, fromString: false, slice: false, option: false}
+		if _, err := b.builtinToString(t, false, false); err != nil {
+			return "", err
+		}
+		desc := b.seenBuiltins[k2]
+		name := desc.Method + "Option"
+		fn := methodDescription{
+			FromString: false,
+			Method:     name,
+			Input:      Op("*").Add(desc.Input),
+			Result:     Index().String(),
+			IsOption:   true,
+			Block: []Code{
+				Return(Index().String().Values(Id("e").Dot(desc.Method).Call(Op("*").Id("s")))),
+			},
+		}
+		b.seenBuiltins[key] = fn
+		b.builtins = append(b.builtins, fn)
+		return fn.Method, nil
 	}
 
 	var fn methodDescription
 	switch t {
 	case schema.Builtin_STRING:
-		fn = methodDescription{false, "FromString", String(), String(), false, []Code{Return(Id("s"))}}
+		fn = methodDescription{false, "FromString", String(), String(), false, false, []Code{Return(Id("s"))}}
 	case schema.Builtin_BYTES:
-		fn = methodDescription{false, "FromBytes", Index().Byte(), String(), false, []Code{
+		fn = methodDescription{false, "FromBytes", Index().Byte(), String(), false, false, []Code{
 			Return(Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(Id("s"))),
 		}}
 	case schema.Builtin_BOOL:
-		fn = methodDescription{false, "FromBool", Bool(), String(), false, []Code{
+		fn = methodDescription{false, "FromBool", Bool(), String(), false, false, []Code{
 			Return(Qual("strconv", "FormatBool").Call(Id("s"))),
 		}}
 	case schema.Builtin_UUID:
-		fn = methodDescription{false, "FromUUID", Qual("encore.dev/types/uuid", "UUID"), String(), false, []Code{
+		fn = methodDescription{false, "FromUUID", Qual("encore.dev/types/uuid", "UUID"), String(), false, false, []Code{
 			Return(Id("s").Dot("String").Call()),
 		}}
 	case schema.Builtin_TIME:
-		fn = methodDescription{false, "FromTime", Qual("time", "Time"), String(), false, []Code{
+		fn = methodDescription{false, "FromTime", Qual("time", "Time"), String(), false, false, []Code{
 			Return(Id("s").Dot("Format").Call(Qual("time", "RFC3339"))),
 		}}
 	case schema.Builtin_USER_ID:
-		fn = methodDescription{false, "FromUserID", Qual("encore.dev/beta/auth", "UID"), String(), false, []Code{
+		fn = methodDescription{false, "FromUserID", Qual("encore.dev/beta/auth", "UID"), String(), false, false, []Code{
 			Return(String().Call(Id("s"))),
 		}}
 	case schema.Builtin_JSON:
-		fn = methodDescription{false, "FromJSON", Qual("encoding/json", "RawMessage"), String(), false, []Code{
+		fn = methodDescription{false, "FromJSON", Qual("encoding/json", "RawMessage"), String(), false, false, []Code{
 			Return(String().Call(Id("s"))),
 		}}
 	default:
@@ -392,7 +440,7 @@ func (b *MarshallingCodeGenerator) builtinToString(t schema.Builtin, slice bool)
 		}
 
 		var err error
-		fn = methodDescription{false, "From" + strings.Title(def.typ), Id(def.typ), String(), false, []Code{
+		fn = methodDescription{false, "From" + strings.Title(def.typ), Id(def.typ), String(), false, false, []Code{
 			Return(Do(func(s *Statement) {
 				id := Id("s")
 				if def.typ != def.castTyp {
@@ -489,7 +537,7 @@ func (w *MarshallingCodeWrapper) FromStringToBuiltin(builtin schema.Builtin, fie
 		return getAsString, nil
 	}
 
-	funcName, err = w.g.builtinFromString(builtin, false)
+	funcName, err = w.g.builtinFromString(builtin, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -520,7 +568,7 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 				builtin = schema.Builtin_STRING
 			}
 
-			funcName, err = w.g.builtinFromString(builtin, true)
+			funcName, err = w.g.builtinFromString(builtin, true, false)
 			srcCode = getAsStringSlice
 			if err != nil {
 				return nil, err
@@ -528,6 +576,23 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 		} else {
 			return nil, errors.Newf("unsupported list type %T", t.List.Elem.Typ)
 		}
+
+	case *schema.Type_Option:
+		if bt, ok := t.Option.Value.Typ.(*schema.Type_Builtin); ok {
+			// If the list is uuids or userids, treat it as string
+			builtin := bt.Builtin
+			if w.g.shouldBeTreatedAsString(bt.Builtin) {
+				builtin = schema.Builtin_STRING
+			}
+
+			funcName, err = w.g.builtinFromString(builtin, false, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, errors.Newf("unsupported option type %T", t.Option.Value.Typ)
+		}
+
 	case *schema.Type_Builtin:
 		// If it's uuid, userid then treat it as string
 		builtin := t.Builtin
@@ -535,10 +600,11 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 			builtin = schema.Builtin_STRING
 		}
 
-		funcName, err = w.g.builtinFromString(builtin, false)
+		funcName, err = w.g.builtinFromString(builtin, false, false)
 		if err != nil {
 			return nil, err
 		}
+
 	default:
 		return nil, errors.Newf("unsupported type for deserialization: %T", t)
 	}
@@ -560,7 +626,7 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 				builtin = schema.Builtin_STRING
 			}
 
-			funcName, err = w.g.builtinToString(builtin, true)
+			funcName, err = w.g.builtinToString(builtin, true, false)
 			if err != nil {
 				return nil, err
 			}
@@ -570,21 +636,41 @@ func (w *MarshallingCodeWrapper) ToStringSlice(sourceType *schema.Type, sourceVa
 		} else {
 			return nil, errors.Newf("unsupported list type %T", t.List.Elem.Typ)
 		}
+
+	case *schema.Type_Option:
+		if bt, ok := t.Option.Value.Typ.(*schema.Type_Builtin); ok {
+			builtin := bt.Builtin
+			if w.g.shouldBeTreatedAsString(bt.Builtin) {
+				builtin = schema.Builtin_STRING
+			}
+
+			funcName, err = w.g.builtinToString(builtin, false, true)
+			if err != nil {
+				return nil, err
+			}
+
+			w.used = true
+			return Id(w.instanceName).Dot(funcName).Call(sourceValue), nil
+		} else {
+			return nil, errors.Newf("unsupported option type %T", t.Option.Value.Typ)
+		}
+
 	case *schema.Type_Builtin:
 		builtin := t.Builtin
 		if w.g.shouldBeTreatedAsString(t.Builtin) {
 			builtin = schema.Builtin_STRING
 		}
 
-		funcName, err = w.g.builtinToString(builtin, false)
+		funcName, err = w.g.builtinToString(builtin, false, false)
 		if err != nil {
 			return nil, err
 		}
 
 		w.used = true
 		return Values(Id(w.instanceName).Dot(funcName).Call(sourceValue)), nil
+
 	default:
-		return nil, errors.Newf("unsupported type for deserialization: %T", t)
+		return nil, errors.Newf("unsupported type for serialization: %T", t)
 	}
 }
 
@@ -599,13 +685,32 @@ func (w *MarshallingCodeWrapper) ToString(sourceType *schema.Type, sourceValue C
 			builtin = schema.Builtin_STRING
 		}
 
-		funcName, err = w.g.builtinToString(builtin, false)
+		funcName, err = w.g.builtinToString(builtin, false, false)
 		if err != nil {
 			return nil, err
 		}
 
 		w.used = true
 		return Id(w.instanceName).Dot(funcName).Call(sourceValue), nil
+
+	case *schema.Type_Option:
+		if bt, ok := t.Option.Value.Typ.(*schema.Type_Builtin); ok {
+			builtin := bt.Builtin
+			if w.g.shouldBeTreatedAsString(bt.Builtin) {
+				builtin = schema.Builtin_STRING
+			}
+
+			funcName, err = w.g.builtinToString(builtin, false, true)
+			if err != nil {
+				return nil, err
+			}
+
+			w.used = true
+			return Id(w.instanceName).Dot(funcName).Call(sourceValue), nil
+		} else {
+			return nil, errors.Newf("unsupported option type %T", t.Option.Value.Typ)
+		}
+
 	default:
 		return nil, errors.Newf("unsupported type for serialization: %T", t)
 	}

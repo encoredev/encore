@@ -734,35 +734,38 @@ type TestBodyEcho struct {
 }
 
 type TestMarshallerTest[A any] struct {
-	HeaderBoolean bool            `header:"x-boolean"`
-	HeaderInt     int             `header:"x-int"`
-	HeaderFloat   float64         `header:"x-float"`
-	HeaderString  string          `header:"x-string"`
-	HeaderBytes   []byte          `header:"x-bytes"`
-	HeaderTime    time.Time       `header:"x-time"`
-	HeaderJson    json.RawMessage `header:"x-json"`
-	HeaderUUID    string          `header:"x-uuid"`
-	HeaderUserID  string          `header:"x-user-id"`
-	QueryBoolean  bool            `qs:"boolean"`
-	QueryInt      int             `qs:"int"`
-	QueryFloat    float64         `qs:"float"`
-	QueryString   string          `qs:"string"`
-	QueryBytes    []byte          `qs:"bytes"`
-	QueryTime     time.Time       `qs:"time"`
-	QueryJson     json.RawMessage `qs:"json"`
-	QueryUUID     string          `qs:"uuid"`
-	QueryUserID   string          `qs:"user-id"`
-	QuerySlice    []A             `qs:"slice"`
-	BodyBoolean   bool            `json:"boolean"`
-	BodyInt       int             `json:"int"`
-	BodyFloat     float64         `json:"float"`
-	BodyString    string          `json:"string"`
-	BodyBytes     []byte          `json:"bytes"`
-	BodyTime      time.Time       `json:"time"`
-	BodyJson      json.RawMessage `json:"json"`
-	BodyUUID      string          `json:"uuid"`
-	BodyUserID    string          `json:"user-id"`
-	BodySlice     []A             `json:"slice"`
+	HeaderBoolean   bool            `header:"x-boolean"`
+	HeaderInt       int             `header:"x-int"`
+	HeaderFloat     float64         `header:"x-float"`
+	HeaderString    string          `header:"x-string"`
+	HeaderBytes     []byte          `header:"x-bytes"`
+	HeaderTime      time.Time       `header:"x-time"`
+	HeaderJson      json.RawMessage `header:"x-json"`
+	HeaderUUID      string          `header:"x-uuid"`
+	HeaderUserID    string          `header:"x-user-id"`
+	HeaderOption    *string         `header:"x-option"`
+	QueryBoolean    bool            `qs:"boolean"`
+	QueryInt        int             `qs:"int"`
+	QueryFloat      float64         `qs:"float"`
+	QueryString     string          `qs:"string"`
+	QueryBytes      []byte          `qs:"bytes"`
+	QueryTime       time.Time       `qs:"time"`
+	QueryJson       json.RawMessage `qs:"json"`
+	QueryUUID       string          `qs:"uuid"`
+	QueryUserID     string          `qs:"user-id"`
+	QuerySlice      []A             `qs:"slice"`
+	BodyBoolean     bool            `json:"boolean"`
+	BodyInt         int             `json:"int"`
+	BodyFloat       float64         `json:"float"`
+	BodyString      string          `json:"string"`
+	BodyBytes       []byte          `json:"bytes"`
+	BodyTime        time.Time       `json:"time"`
+	BodyJson        json.RawMessage `json:"json"`
+	BodyUUID        string          `json:"uuid"`
+	BodyUserID      string          `json:"user-id"`
+	BodySlice       []A             `json:"slice"`
+	BodyOption      *A              `json:"option"`
+	BodyOptionSlice []*A            `json:"option-slice"`
 }
 
 type TestMultiPathSegment struct {
@@ -854,6 +857,7 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 		"x-float":   {reqEncoder.FromFloat64(params.HeaderFloat)},
 		"x-int":     {reqEncoder.FromInt(params.HeaderInt)},
 		"x-json":    {reqEncoder.FromJSON(params.HeaderJson)},
+		"x-option":  reqEncoder.FromStringOption(params.HeaderOption),
 		"x-string":  {reqEncoder.FromString(params.HeaderString)},
 		"x-time":    {reqEncoder.FromTime(params.HeaderTime)},
 		"x-user-id": {reqEncoder.FromString(params.HeaderUserID)},
@@ -880,52 +884,58 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		BodyBoolean bool            `json:"boolean"`
-		BodyInt     int             `json:"int"`
-		BodyFloat   float64         `json:"float"`
-		BodyString  string          `json:"string"`
-		BodyBytes   []byte          `json:"bytes"`
-		BodyTime    time.Time       `json:"time"`
-		BodyJson    json.RawMessage `json:"json"`
-		BodyUUID    string          `json:"uuid"`
-		BodyUserID  string          `json:"user-id"`
-		BodySlice   []int           `json:"slice"`
+		BodyBoolean     bool            `json:"boolean"`
+		BodyInt         int             `json:"int"`
+		BodyFloat       float64         `json:"float"`
+		BodyString      string          `json:"string"`
+		BodyBytes       []byte          `json:"bytes"`
+		BodyTime        time.Time       `json:"time"`
+		BodyJson        json.RawMessage `json:"json"`
+		BodyUUID        string          `json:"uuid"`
+		BodyUserID      string          `json:"user-id"`
+		BodySlice       []int           `json:"slice"`
+		BodyOption      *int            `json:"option"`
+		BodyOptionSlice []*int          `json:"option-slice"`
 	}{
-		BodyBoolean: params.BodyBoolean,
-		BodyBytes:   params.BodyBytes,
-		BodyFloat:   params.BodyFloat,
-		BodyInt:     params.BodyInt,
-		BodyJson:    params.BodyJson,
-		BodySlice:   params.BodySlice,
-		BodyString:  params.BodyString,
-		BodyTime:    params.BodyTime,
-		BodyUUID:    params.BodyUUID,
-		BodyUserID:  params.BodyUserID,
+		BodyBoolean:     params.BodyBoolean,
+		BodyBytes:       params.BodyBytes,
+		BodyFloat:       params.BodyFloat,
+		BodyInt:         params.BodyInt,
+		BodyJson:        params.BodyJson,
+		BodyOption:      params.BodyOption,
+		BodyOptionSlice: params.BodyOptionSlice,
+		BodySlice:       params.BodySlice,
+		BodyString:      params.BodyString,
+		BodyTime:        params.BodyTime,
+		BodyUUID:        params.BodyUUID,
+		BodyUserID:      params.BodyUserID,
 	}
 
 	// We only want the response body to marshal into these fields and none of the header fields,
 	// so we'll construct a new struct with only those fields.
 	respBody := struct {
-		QueryBoolean bool            `json:"QueryBoolean"`
-		QueryInt     int             `json:"QueryInt"`
-		QueryFloat   float64         `json:"QueryFloat"`
-		QueryString  string          `json:"QueryString"`
-		QueryBytes   []byte          `json:"QueryBytes"`
-		QueryTime    time.Time       `json:"QueryTime"`
-		QueryJson    json.RawMessage `json:"QueryJson"`
-		QueryUUID    string          `json:"QueryUUID"`
-		QueryUserID  string          `json:"QueryUserID"`
-		QuerySlice   []int           `json:"QuerySlice"`
-		BodyBoolean  bool            `json:"boolean"`
-		BodyInt      int             `json:"int"`
-		BodyFloat    float64         `json:"float"`
-		BodyString   string          `json:"string"`
-		BodyBytes    []byte          `json:"bytes"`
-		BodyTime     time.Time       `json:"time"`
-		BodyJson     json.RawMessage `json:"json"`
-		BodyUUID     string          `json:"uuid"`
-		BodyUserID   string          `json:"user-id"`
-		BodySlice    []int           `json:"slice"`
+		QueryBoolean    bool            `json:"QueryBoolean"`
+		QueryInt        int             `json:"QueryInt"`
+		QueryFloat      float64         `json:"QueryFloat"`
+		QueryString     string          `json:"QueryString"`
+		QueryBytes      []byte          `json:"QueryBytes"`
+		QueryTime       time.Time       `json:"QueryTime"`
+		QueryJson       json.RawMessage `json:"QueryJson"`
+		QueryUUID       string          `json:"QueryUUID"`
+		QueryUserID     string          `json:"QueryUserID"`
+		QuerySlice      []int           `json:"QuerySlice"`
+		BodyBoolean     bool            `json:"boolean"`
+		BodyInt         int             `json:"int"`
+		BodyFloat       float64         `json:"float"`
+		BodyString      string          `json:"string"`
+		BodyBytes       []byte          `json:"bytes"`
+		BodyTime        time.Time       `json:"time"`
+		BodyJson        json.RawMessage `json:"json"`
+		BodyUUID        string          `json:"uuid"`
+		BodyUserID      string          `json:"user-id"`
+		BodySlice       []int           `json:"slice"`
+		BodyOption      *int            `json:"option"`
+		BodyOptionSlice []*int          `json:"option-slice"`
 	}{}
 
 	// Now make the actual call to the API
@@ -947,6 +957,7 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 	resp.HeaderJson = respDecoder.ToJSON("HeaderJson", respHeaders.Get("x-json"), true)
 	resp.HeaderUUID = respDecoder.ToString("HeaderUUID", respHeaders.Get("x-uuid"), true)
 	resp.HeaderUserID = respDecoder.ToString("HeaderUserID", respHeaders.Get("x-user-id"), true)
+	resp.HeaderOption = respDecoder.ToStringOption("HeaderOption", respHeaders.Get("x-option"), true)
 	resp.QueryBoolean = respBody.QueryBoolean
 	resp.QueryInt = respBody.QueryInt
 	resp.QueryFloat = respBody.QueryFloat
@@ -967,6 +978,8 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 	resp.BodyUUID = respBody.BodyUUID
 	resp.BodyUserID = respBody.BodyUserID
 	resp.BodySlice = respBody.BodySlice
+	resp.BodyOption = respBody.BodyOption
+	resp.BodyOptionSlice = respBody.BodyOptionSlice
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
@@ -1590,6 +1603,14 @@ func (e *serde) FromJSON(s json.RawMessage) (v string) {
 	return string(s)
 }
 
+func (e *serde) FromStringOption(s *string) (v []string) {
+	if s == nil {
+		return nil
+	}
+	e.NonEmptyValues++
+	return []string{e.FromString(*s)}
+}
+
 func (e *serde) FromIntList(s []int) (v []string) {
 	e.NonEmptyValues++
 	for _, x := range s {
@@ -1644,6 +1665,15 @@ func (e *serde) ToJSON(field string, s string, required bool) (v json.RawMessage
 	}
 	e.NonEmptyValues++
 	return json.RawMessage(s)
+}
+
+func (e *serde) ToStringOption(field string, s string, required bool) (v *string) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	val := e.ToString(field, s, required)
+	return &val
 }
 
 // setErr sets the last error within the object if one is not already set

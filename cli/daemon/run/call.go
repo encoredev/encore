@@ -178,16 +178,27 @@ func handleResponse(md *v1.Data, p *ApiCallParams, headers http.Header, body []b
 	members := make([]hujson.ObjectMember, 0)
 	if rpcEncoding.ResponseEncoding != nil {
 		for i, m := range rpcEncoding.ResponseEncoding.HeaderParameters {
-			value := headers.Get(m.Name)
+			values := headers.Values(m.Name)
 
 			var beforeExtra []byte
 			if i == 0 {
 				beforeExtra = []byte("\n    // HTTP Headers\n    ")
 			}
 
+			var val hujson.Value
+			if len(values) == 1 {
+				val = hujson.Value{Value: hujson.String(values[0])}
+			} else {
+				arr := &hujson.Array{}
+				for _, v := range values {
+					arr.Elements = append(arr.Elements, hujson.Value{Value: hujson.String(v)})
+				}
+				val = hujson.Value{Value: arr}
+			}
+
 			members = append(members, hujson.ObjectMember{
 				Name:  hujson.Value{Value: hujson.String(m.Name), BeforeExtra: beforeExtra},
-				Value: hujson.Value{Value: hujson.String(value)},
+				Value: val,
 			})
 		}
 

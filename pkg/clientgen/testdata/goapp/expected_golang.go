@@ -216,16 +216,19 @@ func (c *productsClient) List(ctx context.Context) (resp ProductsProductListing,
 }
 
 type SvcAllInputTypes[A any] struct {
-	A    time.Time `header:"X-Alice"`               // Specify this comes from a header field
-	B    []int     `query:"Bob"`                    // Specify this comes from a query string
-	C    bool      `json:"Charlies-Bool,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
-	Dave A         // This generic type complicates the whole thing 🙈
+	A        time.Time `header:"X-Alice"`               // Specify this comes from a header field
+	B        []int     `query:"Bob"`                    // Specify this comes from a query string
+	C        bool      `json:"Charlies-Bool,omitempty"` // This can come from anywhere, but if it comes from the payload in JSON it must be called Charile
+	Dave     A         // This generic type complicates the whole thing 🙈
+	Optional *A        `json:"optional"` // An optional generic type
 }
 
 // DocumentedOrder represents a customer order with references
 type SvcDocumentedOrder struct {
-	Customer SvcDocumentedUser `json:"customer"` // Customer who placed this order (different from shipping recipient)
-	OrderID  string            `json:"order_id"`
+	Customer    SvcDocumentedUser  `json:"customer"` // Customer who placed this order (different from shipping recipient)
+	OrderID     string             `json:"order_id"`
+	OptionalRef *SvcDocumentedUser `json:"opt_ref"`
+	RequiredRef *SvcDocumentedUser `json:"req_ref"`
 }
 
 // DocumentedUser represents a user in the system with profile information
@@ -243,21 +246,24 @@ type SvcGetRequest struct {
 
 // HeaderOnlyStruct contains all types we support in headers
 type SvcHeaderOnlyStruct struct {
-	Boolean bool            `header:"x-boolean"`
-	Int     int             `header:"x-int"`
-	Float   float64         `header:"x-float"`
-	String  string          `header:"x-string"`
-	Bytes   []byte          `header:"x-bytes"`
-	Time    time.Time       `header:"x-time"`
-	Json    json.RawMessage `header:"x-json"`
-	UUID    string          `header:"x-uuid"`
-	UserID  string          `header:"x-user-id"`
+	Boolean  bool            `header:"x-boolean"`
+	Int      int             `header:"x-int"`
+	Float    float64         `header:"x-float"`
+	String   string          `header:"x-string"`
+	Bytes    []byte          `header:"x-bytes"`
+	Time     time.Time       `header:"x-time"`
+	Json     json.RawMessage `header:"x-json"`
+	UUID     string          `header:"x-uuid"`
+	UserID   string          `header:"x-user-id"`
+	Optional *string         `header:"x-optional"`
 }
 
 type SvcRecursive struct {
-	Optional *SvcRecursive `encore:"optional"`
-	Slice    []SvcRecursive
-	Map      map[string]SvcRecursive
+	Optional        *SvcRecursive `encore:"optional"`
+	Slice           []SvcRecursive
+	SliceOfOptional []*SvcRecursive
+	Map             map[string]SvcRecursive
+	MapOfOptional   map[string]*SvcRecursive
 }
 
 type SvcRequest struct {
@@ -389,9 +395,10 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	headers := http.Header{"x-alice": {reqEncoder.FromTime(params.A)}}
 
 	queryString := url.Values{
-		"Bob":  reqEncoder.FromIntList(params.B),
-		"c":    {reqEncoder.FromBool(params.C)},
-		"dave": {reqEncoder.FromInt(params.Dave)},
+		"Bob":      reqEncoder.FromIntList(params.B),
+		"c":        {reqEncoder.FromBool(params.C)},
+		"dave":     {reqEncoder.FromInt(params.Dave)},
+		"optional": reqEncoder.FromIntOption(params.Optional),
 	}
 
 	if reqEncoder.LastError != nil {
@@ -418,6 +425,7 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	resp.Json = respDecoder.ToJSON("Json", respHeaders.Get("x-json"), true)
 	resp.UUID = respDecoder.ToString("UUID", respHeaders.Get("x-uuid"), true)
 	resp.UserID = respDecoder.ToString("UserID", respHeaders.Get("x-user-id"), true)
+	resp.Optional = respDecoder.ToStringOption("Optional", respHeaders.Get("x-optional"), true)
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
@@ -432,15 +440,16 @@ func (c *svcClient) HeaderOnlyRequest(ctx context.Context, params SvcHeaderOnlyS
 	reqEncoder := &serde{}
 
 	headers := http.Header{
-		"x-boolean": {reqEncoder.FromBool(params.Boolean)},
-		"x-bytes":   {reqEncoder.FromBytes(params.Bytes)},
-		"x-float":   {reqEncoder.FromFloat64(params.Float)},
-		"x-int":     {reqEncoder.FromInt(params.Int)},
-		"x-json":    {reqEncoder.FromJSON(params.Json)},
-		"x-string":  {reqEncoder.FromString(params.String)},
-		"x-time":    {reqEncoder.FromTime(params.Time)},
-		"x-user-id": {reqEncoder.FromString(params.UserID)},
-		"x-uuid":    {reqEncoder.FromString(params.UUID)},
+		"x-boolean":  {reqEncoder.FromBool(params.Boolean)},
+		"x-bytes":    {reqEncoder.FromBytes(params.Bytes)},
+		"x-float":    {reqEncoder.FromFloat64(params.Float)},
+		"x-int":      {reqEncoder.FromInt(params.Int)},
+		"x-json":     {reqEncoder.FromJSON(params.Json)},
+		"x-optional": reqEncoder.FromStringOption(params.Optional),
+		"x-string":   {reqEncoder.FromString(params.String)},
+		"x-time":     {reqEncoder.FromTime(params.Time)},
+		"x-user-id":  {reqEncoder.FromString(params.UserID)},
+		"x-uuid":     {reqEncoder.FromString(params.UUID)},
 	}
 
 	if reqEncoder.LastError != nil {
@@ -491,19 +500,22 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 
 	// Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
 	body := struct {
-		C    bool   `json:"Charlies-Bool,omitempty"`
-		Dave string `json:"Dave"`
+		C        bool    `json:"Charlies-Bool,omitempty"`
+		Dave     string  `json:"Dave"`
+		Optional *string `json:"optional"`
 	}{
-		C:    params.C,
-		Dave: params.Dave,
+		C:        params.C,
+		Dave:     params.Dave,
+		Optional: params.Optional,
 	}
 
 	// We only want the response body to marshal into these fields and none of the header fields,
 	// so we'll construct a new struct with only those fields.
 	respBody := struct {
-		B    []int   `json:"B"`
-		C    bool    `json:"Charlies-Bool,omitempty"`
-		Dave float64 `json:"Dave"`
+		B        []int    `json:"B"`
+		C        bool     `json:"Charlies-Bool,omitempty"`
+		Dave     float64  `json:"Dave"`
+		Optional *float64 `json:"optional"`
 	}{}
 
 	// Now make the actual call to the API
@@ -520,6 +532,7 @@ func (c *svcClient) RequestWithAllInputTypes(ctx context.Context, params SvcAllI
 	resp.B = respBody.B
 	resp.C = respBody.C
 	resp.Dave = respBody.Dave
+	resp.Optional = respBody.Optional
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)
@@ -990,6 +1003,14 @@ func (e *serde) FromIntList(s []int) (v []string) {
 	return v
 }
 
+func (e *serde) FromIntOption(s *int) (v []string) {
+	if s == nil {
+		return nil
+	}
+	e.NonEmptyValues++
+	return []string{e.FromInt(*s)}
+}
+
 func (e *serde) ToBool(field string, s string, required bool) (v bool) {
 	if !required && s == "" {
 		return
@@ -1056,6 +1077,15 @@ func (e *serde) ToJSON(field string, s string, required bool) (v json.RawMessage
 	return json.RawMessage(s)
 }
 
+func (e *serde) ToStringOption(field string, s string, required bool) (v *string) {
+	if !required && s == "" {
+		return
+	}
+	e.NonEmptyValues++
+	val := e.ToString(field, s, required)
+	return &val
+}
+
 func (e *serde) FromFloat64(s float64) (v string) {
 	e.NonEmptyValues++
 	return strconv.FormatFloat(s, uint8(0x66), -1, 64)
@@ -1069,6 +1099,14 @@ func (e *serde) FromBytes(s []byte) (v string) {
 func (e *serde) FromJSON(s json.RawMessage) (v string) {
 	e.NonEmptyValues++
 	return string(s)
+}
+
+func (e *serde) FromStringOption(s *string) (v []string) {
+	if s == nil {
+		return nil
+	}
+	e.NonEmptyValues++
+	return []string{e.FromString(*s)}
 }
 
 // setErr sets the last error within the object if one is not already set

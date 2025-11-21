@@ -406,6 +406,7 @@ class TestServiceClient {
             "x-float":   String(params.HeaderFloat),
             "x-int":     String(params.HeaderInt),
             "x-json":    JSON.stringify(params.HeaderJson),
+            "x-option":  params.HeaderOption === undefined ? undefined : String(params.HeaderOption),
             "x-string":  params.HeaderString,
             "x-time":    String(params.HeaderTime),
             "x-user-id": String(params.HeaderUserID),
@@ -427,16 +428,18 @@ class TestServiceClient {
 
         // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
         const body = {
-            boolean:   params.boolean,
-            bytes:     params.bytes,
-            float:     params.float,
-            int:       params.int,
-            json:      params.json,
-            slice:     params.slice,
-            string:    params.string,
-            time:      params.time,
-            "user-id": params["user-id"],
-            uuid:      params.uuid,
+            boolean:        params.boolean,
+            bytes:          params.bytes,
+            float:          params.float,
+            int:            params.int,
+            json:           params.json,
+            option:         params.option,
+            "option-slice": params["option-slice"],
+            slice:          params.slice,
+            string:         params.string,
+            time:           params.time,
+            "user-id":      params["user-id"],
+            uuid:           params.uuid,
         }
 
         // Now make the actual call to the API
@@ -453,6 +456,7 @@ class TestServiceClient {
         rtn.HeaderJson = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
         rtn.HeaderUUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
         rtn.HeaderUserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
+        rtn.HeaderOption = mustBeSet("Header `x-option`", resp.headers.get("x-option"))
         return rtn
     }
 

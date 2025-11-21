@@ -111,7 +111,7 @@ var EncoreInternal_api_APIDesc_Foo = &__api.Desc[*EncoreInternal_FooReq, EncoreI
 
 		// Encode headers
 		httpHeader = make(http.Header, 2)
-		httpHeader.Set("x-foo", __etype.MarshalOne(__etype.MarshalString, params.Foo))
+		httpHeader[textproto.CanonicalMIMEHeaderKey("x-foo")] = __etype.MarshalOneAsList(__etype.MarshalString, params.Foo)
 		httpHeader[textproto.CanonicalMIMEHeaderKey("x-strings")] = __etype.MarshalList(__etype.MarshalString, params.Strings)
 
 		return httpHeader, queryString, err

@@ -11,6 +11,7 @@ import (
 	encore "encore.dev"
 	"encore.dev/beta/auth"
 	"encore.dev/beta/errs"
+	"encore.dev/types/option"
 	"encore.dev/types/uuid"
 )
 
@@ -98,35 +99,38 @@ func RestStyleAPI(ctx context.Context, objType int, name string, params *RestPar
 }
 
 type MarshallerTest[A any] struct {
-	HeaderBoolean bool            `header:"x-boolean"`
-	HeaderInt     int             `header:"x-int"`
-	HeaderFloat   float64         `header:"x-float"`
-	HeaderString  string          `header:"x-string"`
-	HeaderBytes   []byte          `header:"x-bytes"`
-	HeaderTime    time.Time       `header:"x-time"`
-	HeaderJson    json.RawMessage `header:"x-json"`
-	HeaderUUID    uuid.UUID       `header:"x-uuid"`
-	HeaderUserID  auth.UID        `header:"x-user-id"`
-	QueryBoolean  bool            `qs:"boolean"`
-	QueryInt      int             `qs:"int"`
-	QueryFloat    float64         `qs:"float"`
-	QueryString   string          `qs:"string"`
-	QueryBytes    []byte          `qs:"bytes"`
-	QueryTime     time.Time       `qs:"time"`
-	QueryJson     json.RawMessage `qs:"json"`
-	QueryUUID     uuid.UUID       `qs:"uuid"`
-	QueryUserID   auth.UID        `qs:"user-id"`
-	QuerySlice    []A             `qs:"slice"`
-	BodyBoolean   bool            `json:"boolean"`
-	BodyInt       int             `json:"int"`
-	BodyFloat     float64         `json:"float"`
-	BodyString    string          `json:"string"`
-	BodyBytes     []byte          `json:"bytes"`
-	BodyTime      time.Time       `json:"time"`
-	BodyJson      json.RawMessage `json:"json"`
-	BodyUUID      uuid.UUID       `json:"uuid"`
-	BodyUserID    auth.UID        `json:"user-id"`
-	BodySlice     []A             `json:"slice"`
+	HeaderBoolean   bool                  `header:"x-boolean"`
+	HeaderInt       int                   `header:"x-int"`
+	HeaderFloat     float64               `header:"x-float"`
+	HeaderString    string                `header:"x-string"`
+	HeaderBytes     []byte                `header:"x-bytes"`
+	HeaderTime      time.Time             `header:"x-time"`
+	HeaderJson      json.RawMessage       `header:"x-json"`
+	HeaderUUID      uuid.UUID             `header:"x-uuid"`
+	HeaderUserID    auth.UID              `header:"x-user-id"`
+	HeaderOption    option.Option[string] `header:"x-option"`
+	QueryBoolean    bool                  `qs:"boolean"`
+	QueryInt        int                   `qs:"int"`
+	QueryFloat      float64               `qs:"float"`
+	QueryString     string                `qs:"string"`
+	QueryBytes      []byte                `qs:"bytes"`
+	QueryTime       time.Time             `qs:"time"`
+	QueryJson       json.RawMessage       `qs:"json"`
+	QueryUUID       uuid.UUID             `qs:"uuid"`
+	QueryUserID     auth.UID              `qs:"user-id"`
+	QuerySlice      []A                   `qs:"slice"`
+	BodyBoolean     bool                  `json:"boolean"`
+	BodyInt         int                   `json:"int"`
+	BodyFloat       float64               `json:"float"`
+	BodyString      string                `json:"string"`
+	BodyBytes       []byte                `json:"bytes"`
+	BodyTime        time.Time             `json:"time"`
+	BodyJson        json.RawMessage       `json:"json"`
+	BodyUUID        uuid.UUID             `json:"uuid"`
+	BodyUserID      auth.UID              `json:"user-id"`
+	BodySlice       []A                   `json:"slice"`
+	BodyOption      option.Option[A]      `json:"option"`
+	BodyOptionSlice []option.Option[A]    `json:"option-slice"`
 }
 
 // MarshallerTestHandler allows us to test marshalling of all the inbuilt types in all

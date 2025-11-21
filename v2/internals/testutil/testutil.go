@@ -55,6 +55,7 @@ module test
 go 1.20
 
 require encore.dev v1.13.4
+
 -- fakesvcfortest/test.go --
 // this service only exists to suppress the "no services found error"
 package fakesvcfortest
@@ -168,7 +169,7 @@ func (c *Context) DeferExpectError(matches ...string) {
 		c.TestC.Fatalf("expected %d errors, got %d: %s", len(matches), n, l.FormatErrors())
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		err := l.At(i)
 		re := regexp.MustCompile(matches[i])
 		errMsg := err.Error()

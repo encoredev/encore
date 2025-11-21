@@ -340,6 +340,7 @@ func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, indexExpr, ex
 	}
 
 	named := baseType.(NamedType)
+
 	named.AST = indexExpr // Use the index expression as the AST for the named type as we've resolved the type arguments.
 	decl := named.Decl()
 	if len(decl.TypeParams) != len(typeArgs) {
@@ -352,12 +353,23 @@ func (r *typeResolver) resolveTypeWithTypeArgs(file *pkginfo.File, indexExpr, ex
 	for idx, expr := range typeArgs {
 		named.TypeArgs[idx] = r.parseType(file, expr)
 	}
+
+	// Is this an option.Option type? If so, we return an OptionType instead.
+	if info := named.DeclInfo.QualifiedName(); info.PkgPath == optionImportPath && info.Name == "Option" {
+		if len(named.TypeArgs) != 1 {
+			r.errs.Addf(expr.Pos(), "option.Option must have exactly one type argument, got %d", len(named.TypeArgs))
+			return named
+		}
+		return OptionType{AST: expr, Value: named.TypeArgs[0]}
+	}
+
 	return named
 }
 
 const (
-	uuidImportPath paths.Pkg = "encore.dev/types/uuid"
-	authImportPath paths.Pkg = "encore.dev/beta/auth"
+	uuidImportPath   paths.Pkg = "encore.dev/types/uuid"
+	optionImportPath paths.Pkg = "encore.dev/types/option"
+	authImportPath   paths.Pkg = "encore.dev/beta/auth"
 )
 
 // parseRecv parses a receiver AST into a Receiver.
