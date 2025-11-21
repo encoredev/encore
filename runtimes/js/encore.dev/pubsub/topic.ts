@@ -1,17 +1,22 @@
 import { getCurrentRequest } from "../internal/reqtrack/mod";
 import type { AttributesOf } from "./mod";
 import * as runtime from "../internal/runtime/mod";
+import { Publisher, TopicPerms } from "./refs";
 
 /**
  * A topic is a resource to which you can publish messages
  * to be delivered to subscribers of that topic.
  */
-export class Topic<Msg extends object> {
+export class Topic<Msg extends object>
+  extends TopicPerms
+  implements Publisher<Msg>
+{
   public readonly name: string;
   public readonly cfg: TopicConfig<Msg>;
   private impl: runtime.PubSubTopic;
 
   constructor(name: string, cfg: TopicConfig<Msg>) {
+    super();
     this.name = name;
     this.cfg = cfg;
     this.impl = runtime.RT.pubsubTopic(name);
@@ -20,6 +25,10 @@ export class Topic<Msg extends object> {
   public async publish(msg: Msg): Promise<string> {
     const source = getCurrentRequest();
     return this.impl.publish(msg, source);
+  }
+
+  public ref<P extends TopicPerms>(): P {
+    return this as unknown as P;
   }
 }
 
