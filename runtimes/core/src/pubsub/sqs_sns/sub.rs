@@ -320,7 +320,7 @@ struct SNSMessageWrapper {
     signing_cert_url: String,
     #[serde(rename = "UnsubscribeURL")]
     unsubscribe_url: String,
-    #[serde(rename = "MessageAttributes")]
+    #[serde(rename = "MessageAttributes", default)]
     message_attributes: HashMap<String, MessageAttribute>,
 }
 
