@@ -694,15 +694,6 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 	return appName, template, res.lang.Selected(), res.llmRules.Selected()
 }
 
-type llmRuleItem struct {
-	name llmRulesTool
-}
-
-func (i llmRuleItem) FilterValue() string      { return i.name.Display() }
-func (i llmRuleItem) Title() string            { return i.FilterValue() }
-func (i llmRuleItem) Description() string      { return "" }
-func (i llmRuleItem) SelectedID() llmRulesTool { return i.name }
-
 type langItem struct {
 	lang language
 	desc string

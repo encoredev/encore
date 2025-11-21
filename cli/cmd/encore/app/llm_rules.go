@@ -23,6 +23,7 @@ alwaysApply: true
 
 type llmRulesTool string
 
+// NOTE: changes to these values should also be reflected in userconfig
 const (
 	LLMRulesToolNone      llmRulesTool = ""
 	LLMRulesToolCursor    llmRulesTool = "cursor"
@@ -39,23 +40,6 @@ var allLLMRules = []llmRulesTool{
 	LLMRulesToolVSCode,
 	LLMRulesToolAgentsMD,
 	LLMRulesToolZed,
-}
-
-func llmRulesToolFromString(s string) llmRulesTool {
-	switch s {
-	case string(LLMRulesToolCursor):
-		return LLMRulesToolCursor
-	case string(LLMRulesToolClaudCode):
-		return LLMRulesToolClaudCode
-	case string(LLMRulesToolVSCode):
-		return LLMRulesToolVSCode
-	case string(LLMRulesToolAgentsMD):
-		return LLMRulesToolAgentsMD
-	case string(LLMRulesToolZed):
-		return LLMRulesToolZed
-	default:
-		return LLMRulesToolNone
-	}
 }
 
 func llmRulesFlagValues() []string {
@@ -86,6 +70,15 @@ func (e llmRulesTool) Display() string {
 func (e llmRulesTool) SelectPrompt() string {
 	return "Select a tool to generate LLM rules for"
 }
+
+type llmRuleItem struct {
+	tool llmRulesTool
+}
+
+func (i llmRuleItem) FilterValue() string      { return i.tool.Display() }
+func (i llmRuleItem) Title() string            { return i.FilterValue() }
+func (i llmRuleItem) Description() string      { return "" }
+func (i llmRuleItem) SelectedID() llmRulesTool { return i.tool }
 
 func setupLLMRules(llmRules llmRulesTool, lang language, appRootRelpath string, appSlug string) error {
 	llmInstructions, err := downloadLLMInstructions(lang)

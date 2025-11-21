@@ -8,5 +8,5 @@ type Config struct {
 
 	// Always choose this tool when creating an app or when initializing llm tools
 	// for an existing app, unless overriden via --llm-rules flag on command line.
-	LLMRules string `koanf:"llm_rules" default:""`
+	LLMRules string `koanf:"llm_rules" oneof:",cursor,claudcode,vscode,agentsmd,zed" default:""`
 }
