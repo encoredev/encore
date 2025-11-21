@@ -4,6 +4,8 @@ export type { TopicConfig, DeliveryGuarantee } from "./topic";
 export { Subscription } from "./subscription";
 export type { SubscriptionConfig } from "./subscription";
 
+export type { TopicPerms, Publisher } from "./refs";
+
 /**
  * Attribute represents a field on a message that should be sent
  * as an attribute in a PubSub message, rather than in the message
@@ -47,8 +49,8 @@ export type Attribute<T extends string | number | boolean> =
 export type AttributesOf<T extends object> = keyof {
   [Key in keyof // for (const Key in T)
   T as Extract<T[Key], allBrandedTypes> extends never //  if (typeof T[Key] !== oneof(allBrandedTypes))
-  ? never // drop the key
-  : Key]: never; // else keep the key
+    ? never // drop the key
+    : Key]: never; // else keep the key
 };
 
 /**

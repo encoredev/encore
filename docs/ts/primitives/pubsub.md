@@ -202,3 +202,37 @@ async function example() {
 	await cartEvents.publish({shoppingCartID: 2, event: "item_added"});
 }
 ```
+
+## Topic references
+
+Encore uses static analysis to determine which services are accessing each Pub/Sub topic,
+and what operations each service is performing.
+
+That information is used for features such as rendering architecture diagrams, and is used by Encore Cloud to provision infrastructure correctly and configure IAM permissions.
+
+This means `Topic` objects can't be passed around however you like,
+as it makes static analysis impossible in many cases. To simplify your workflow, given these restrictions,
+Encore supports defining a "reference" to a topic that can be passed around any way you want.
+
+### Using topic references
+
+Define a topic reference by calling `topic.ref<DesiredPermissions>()` from within a service, where `DesiredPermissions` is one of the pre-defined permission types defined in the `encore.dev/pubsub` module. 
+
+This means you're effectively pre-declaring the permissions you need, and only the methods that
+are allowed by those permissions are available on the returned reference object.
+
+For example, to get a reference to a topic that can publish messages:
+
+```typescript
+import { Publisher } from "encore.dev/pubsub";
+const ref = cartEvents.ref<Publisher>();
+
+// You can now freely pass around `ref`, and you can use
+// `ref.publish()` just like you would `cartEvents.publish()`.
+```
+
+To ensure Encore still is aware of which permissions each service needs, the call to `topic.ref`
+must be made from within a service, so that Encore knows which service to associate the permissions with.
+
+Currently, the only permission type is `Publisher`, which allows publishing events to the topic.
+We plan to add more permission types in the future.
