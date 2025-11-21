@@ -1,4 +1,4 @@
-package app
+package llm_rules
 
 import (
 	"os"
@@ -18,7 +18,7 @@ import (
 var (
 	llmRulesToolFlag = cmdutil.Oneof{
 		Value:     "",
-		Allowed:   llmRulesFlagValues(),
+		Allowed:   LLMRulesFlagValues(),
 		Flag:      "llm-rules",
 		FlagShort: "r",
 		Desc:      "Initialize the app with llm rules for a specific tool",
@@ -28,22 +28,22 @@ var (
 
 func init() {
 	llmRules := &cobra.Command{
-		Use:   "llm-rules",
+		Use:   "init",
 		Short: "Initialize llm rules for this project",
 		Args:  cobra.ExactArgs(0),
 
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 
-			var tool llmRulesTool
+			var tool Tool
 			if llmRulesToolFlag.Value == "" {
 				cfg, err := userconfig.Global().Get()
 				if err != nil {
 					cmdutil.Fatalf("Couldn't read user config: %s", err)
 				}
-				tool = llmRulesTool(cfg.LLMRules)
+				tool = Tool(cfg.LLMRules)
 			} else {
-				tool = llmRulesTool(llmRulesToolFlag.Value)
+				tool = Tool(llmRulesToolFlag.Value)
 			}
 
 			if err := initLLMRules(tool); err != nil {
@@ -52,25 +52,25 @@ func init() {
 		},
 	}
 
-	appCmd.AddCommand(llmRules)
+	llmRulesCmd.AddCommand(llmRules)
 	llmRulesToolFlag.AddFlag(llmRules)
 }
 
-func initLLMRules(tool llmRulesTool) error {
+func initLLMRules(tool Tool) error {
 	if tool == "" {
-		var llmRulesModel simpleSelectModel[llmRulesTool, llmRuleItem]
+		var llmRulesModel ToolSelectModel
 		{
 			ls := list.NewDefaultItemStyles()
-			ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-			ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+			ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
+			ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
 			del := list.NewDefaultDelegate()
 			del.Styles = ls
 			del.ShowDescription = false
 			del.SetSpacing(0)
 
-			items := make([]list.Item, 0, len(allLLMRules))
-			for _, rule := range allLLMRules {
-				items = append(items, llmRuleItem{rule})
+			items := make([]list.Item, 0, len(AllLLMRules))
+			for _, rule := range AllLLMRules {
+				items = append(items, ToolItem{rule})
 			}
 
 			ll := list.New(items, del, 0, 0)
@@ -82,9 +82,9 @@ func initLLMRules(tool llmRulesTool) error {
 			ll.SetShowStatusBar(false)
 			ll.DisableQuitKeybindings() // quit handled by toolSelectModel
 
-			llmRulesModel = simpleSelectModel[llmRulesTool, llmRuleItem]{
-				list:       ll,
-				predefined: LLMRulesToolNone,
+			llmRulesModel = ToolSelectModel{
+				List:       ll,
+				Predefined: LLMRulesToolNone,
 			}
 			llmRulesModel.SetSize(0, 20)
 
@@ -123,25 +123,25 @@ func initLLMRules(tool llmRulesTool) error {
 		cmdutil.Fatalf("couldn't parse encore.app: %s", err)
 	}
 
-	var lang language
+	var lang cmdutil.Language
 	switch encoreApp.Lang {
 	case appfile.LangGo:
-		lang = languageGo
+		lang = cmdutil.LanguageGo
 	case appfile.LangTS:
-		lang = languageTS
+		lang = cmdutil.LanguageTS
 	}
 
-	if err := setupLLMRules(tool, lang, root, encoreApp.ID); err != nil {
+	if err := SetupLLMRules(tool, lang, root, encoreApp.ID); err != nil {
 		cmdutil.Fatal(err)
 	}
 
-	printLLMRulesInfo(tool)
+	PrintLLMRulesInfo(tool)
 
 	return nil
 }
 
 type toolSelectorModel struct {
-	toolModel simpleSelectModel[llmRulesTool, llmRuleItem]
+	toolModel ToolSelectModel
 	aborted   bool
 }
 
@@ -167,7 +167,7 @@ func (t toolSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, c)
 		return t, tea.Batch(cmds...)
 
-	case simpleSelectDone[llmRulesTool]:
+	case ToolSelectDone:
 		cmds = append(cmds, tea.Quit)
 	}
 
@@ -183,7 +183,7 @@ func (t toolSelectorModel) Init() tea.Cmd {
 func (t toolSelectorModel) View() string {
 	var b strings.Builder
 	b.WriteString(t.toolModel.View())
-	return docStyle.Render(b.String())
+	return cmdutil.DocStyle.Render(b.String())
 }
 
 func (t *toolSelectorModel) SetSize(width, height int) {

@@ -21,29 +21,15 @@ import (
 	"golang.org/x/term"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/llm_rules"
 	"encr.dev/pkg/option"
 )
 
-const (
-	codeBlue       = "#6D89FF"
-	codePurple     = "#A36C8C"
-	codeGreen      = "#B3D77E"
-	validationFail = "#CB1010"
-)
-
-var (
-	inputStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeBlue, Light: codeBlue})
-	descStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: codeGreen, Light: codePurple})
-	docStyle     = lipgloss.NewStyle().Padding(0, 2, 0, 2)
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(validationFail))
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00C200"))
-)
-
 type templateItem struct {
-	ItemTitle string   `json:"title"`
-	Desc      string   `json:"desc"`
-	Template  string   `json:"template"`
-	Lang      language `json:"lang"`
+	ItemTitle string           `json:"title"`
+	Desc      string           `json:"desc"`
+	Template  string           `json:"template"`
+	Lang      cmdutil.Language `json:"lang"`
 }
 
 func (i templateItem) Title() string       { return i.ItemTitle }
@@ -62,10 +48,10 @@ const (
 type createFormModel struct {
 	steps []CreateStep
 
-	lang      simpleSelectModel[language, langItem]
+	lang      langSelectModel
 	templates templateListModel
 	appName   appNameModel
-	llmRules  simpleSelectModel[llmRulesTool, llmRuleItem]
+	llmRules  llm_rules.ToolSelectModel
 
 	initExistingApp bool
 
@@ -98,79 +84,7 @@ func (m createFormModel) Init() tea.Cmd {
 	)
 }
 
-type SelectedID[T any] interface {
-	SelectedID() T
-}
-
-type Selectable interface {
-	comparable
-	SelectPrompt() string
-}
-
-type simpleSelectDone[T any] struct {
-	selected T
-}
-
-type simpleSelectModel[T Selectable, S SelectedID[T]] struct {
-	predefined T
-	list       list.Model
-}
-
-func (m simpleSelectModel[T, S]) Selected() T {
-	var empty T
-	if m.predefined != empty {
-		return m.predefined
-	}
-	sel := m.list.SelectedItem()
-	if sel == nil {
-		return empty
-	}
-	return sel.(S).SelectedID()
-}
-
-func (m simpleSelectModel[T, I]) Update(msg tea.Msg) (simpleSelectModel[T, I], tea.Cmd) {
-	var c tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter:
-			// Have we selected an item?
-			if idx := m.list.Index(); idx >= 0 {
-				return m, func() tea.Msg {
-					return simpleSelectDone[T]{
-						selected: m.Selected(),
-					}
-				}
-			}
-		}
-	}
-
-	m.list, c = m.list.Update(msg)
-	return m, c
-}
-
-func (m *simpleSelectModel[T, I]) SetSize(width, height int) {
-	m.list.SetWidth(width)
-	m.list.SetHeight(max(height-1, 0))
-}
-
 const checkmark = "✔"
-
-func (m simpleSelectModel[T, I]) View() string {
-	var b strings.Builder
-
-	// Get the prompt from the type T
-	var zero T
-	prompt := zero.SelectPrompt()
-
-	b.WriteString(inputStyle.Render(prompt))
-	b.WriteString(descStyle.Render(" [Use arrows to move]"))
-	b.WriteString("\n")
-	b.WriteString(m.list.View())
-
-	return b.String()
-}
 
 type appNameDone struct{}
 
@@ -222,12 +136,12 @@ func (m appNameModel) Update(msg tea.Msg) (appNameModel, tea.Cmd) {
 func (m appNameModel) View() string {
 	var b strings.Builder
 	if m.text.Focused() {
-		b.WriteString(inputStyle.Render("App Name"))
-		b.WriteString(descStyle.Render(" [Use only lowercase letters, digits, and dashes]"))
+		b.WriteString(cmdutil.InputStyle.Render("App Name"))
+		b.WriteString(cmdutil.DescStyle.Render(" [Use only lowercase letters, digits, and dashes]"))
 		b.WriteByte('\n')
 		b.WriteString(m.text.View())
 		if m.dirExists {
-			b.WriteString(errorStyle.Render(" error: dir already exists"))
+			b.WriteString(cmdutil.ErrorStyle.Render(" error: dir already exists"))
 		}
 	} else {
 		fmt.Fprintf(&b, "%s App Name: %s", checkmark, m.text.Value())
@@ -238,7 +152,7 @@ func (m appNameModel) View() string {
 
 type templateListModel struct {
 	predefined string
-	filter     language
+	filter     cmdutil.Language
 
 	all     []templateItem
 	list    list.Model
@@ -289,7 +203,7 @@ func (m templateListModel) Update(msg tea.Msg) (templateListModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *templateListModel) UpdateFilter(lang language) {
+func (m *templateListModel) UpdateFilter(lang cmdutil.Language) {
 	m.filter = lang
 	m.refreshFilter()
 }
@@ -306,8 +220,8 @@ func (m *templateListModel) refreshFilter() {
 
 func (m templateListModel) View() string {
 	var b strings.Builder
-	b.WriteString(inputStyle.Render("Template"))
-	b.WriteString(descStyle.Render(" [Use arrows to move]"))
+	b.WriteString(cmdutil.InputStyle.Render("Template"))
+	b.WriteString(cmdutil.DescStyle.Render(" [Use arrows to move]"))
 	b.WriteByte('\n')
 	b.WriteString(m.list.View())
 
@@ -357,12 +271,12 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
-	case simpleSelectDone[language]:
+	case langSelectDone:
 		m.removeStep(CreateStepLang)
-		m.templates.UpdateFilter(msg.selected)
+		m.templates.UpdateFilter(msg.Selected)
 		m.SetSize(m.width, m.height)
 
-	case simpleSelectDone[llmRulesTool]:
+	case llm_rules.ToolSelectDone:
 		m.removeStep(CreateStepLLMRules)
 		m.SetSize(m.width, m.height)
 
@@ -420,7 +334,7 @@ func (m createFormModel) doneView() string {
 	var b strings.Builder
 
 	renderDone := func(title, value string) {
-		b.WriteString(successStyle.Render(fmt.Sprintf("%s %s: ", checkmark, title)))
+		b.WriteString(cmdutil.SuccessStyle.Render(fmt.Sprintf("%s %s: ", checkmark, title)))
 		b.WriteString(value)
 		b.WriteByte('\n')
 	}
@@ -451,8 +365,8 @@ func (m createFormModel) doneView() string {
 		if m.templates.predefined != "" || !m.hasStep(CreateStepTemplate) {
 			renderTemplateDone()
 		}
-		if m.llmRules.predefined != "" || !m.hasStep(CreateStepLLMRules) {
-			if m.llmRules.Selected() != LLMRulesToolNone {
+		if m.llmRules.Predefined != "" || !m.hasStep(CreateStepLLMRules) {
+			if m.llmRules.Selected() != llm_rules.LLMRulesToolNone {
 				renderLLMRulesDone()
 			}
 		}
@@ -492,7 +406,7 @@ func (m createFormModel) View() string {
 		}
 	}
 
-	return docStyle.Render(b.String())
+	return cmdutil.DocStyle.Render(b.String())
 }
 
 func (m templateListModel) SelectedItem() (templateItem, bool) {
@@ -507,7 +421,7 @@ func (m templateListModel) SelectedItem() (templateItem, bool) {
 	return templateItem{}, false
 }
 
-func createAppForm(inputName, inputTemplate string, inputLang language, inputLLMRules llmRulesTool, initExistingApp bool) (appName, template string, selectedLang language, selectedRules llmRulesTool) {
+func createAppForm(inputName, inputTemplate string, inputLang cmdutil.Language, inputLLMRules llm_rules.Tool, initExistingApp bool) (appName, template string, selectedLang cmdutil.Language, selectedRules llm_rules.Tool) {
 	// If all is set, just return
 	if inputName != "" && inputTemplate != "" && inputLLMRules != "" {
 		return inputName, inputTemplate, inputLang, inputLLMRules
@@ -521,11 +435,11 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 		return inputName, inputTemplate, inputLang, inputLLMRules
 	}
 
-	var langModel simpleSelectModel[language, langItem]
+	var langModel langSelectModel
 	{
 		ls := list.NewDefaultItemStyles()
-		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
+		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
 		del := list.NewDefaultDelegate()
 		del.Styles = ls
 		del.ShowDescription = false
@@ -533,11 +447,11 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 
 		items := []list.Item{
 			langItem{
-				lang: languageGo,
+				lang: cmdutil.LanguageGo,
 				desc: "Build performant and scalable backends with Go",
 			},
 			langItem{
-				lang: languageTS,
+				lang: cmdutil.LanguageTS,
 				desc: "Build backend and full-stack applications with TypeScript",
 			},
 		}
@@ -550,9 +464,9 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 		ll.SetFilteringEnabled(false)
 		ll.SetShowStatusBar(false)
 		ll.DisableQuitKeybindings() // quit handled by createFormModel
-		langModel = simpleSelectModel[language, langItem]{
-			list:       ll,
-			predefined: inputLang,
+		langModel = langSelectModel{
+			List:       ll,
+			Predefined: inputLang,
 		}
 		langModel.SetSize(0, 20)
 	}
@@ -560,8 +474,8 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 	var templateModel templateListModel
 	{
 		ls := list.NewDefaultItemStyles()
-		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
+		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
 		del := list.NewDefaultDelegate()
 		del.Styles = ls
 
@@ -576,27 +490,27 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 
 		sp := spinner.New()
 		sp.Spinner = spinner.Dot
-		sp.Style = inputStyle.Copy().Inline(true)
+		sp.Style = cmdutil.InputStyle.Copy().Inline(true)
 		templateModel = templateListModel{
 			predefined: inputTemplate,
 			list:       ll,
 			loading:    sp,
 		}
 	}
-	var llmRulesModel simpleSelectModel[llmRulesTool, llmRuleItem]
+	var llmRulesModel llm_rules.ToolSelectModel
 	{
 		ls := list.NewDefaultItemStyles()
-		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
-		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(codeBlue)).BorderForeground(lipgloss.Color(codeBlue))
+		ls.SelectedTitle = ls.SelectedTitle.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
+		ls.SelectedDesc = ls.SelectedDesc.Foreground(lipgloss.Color(cmdutil.CodeBlue)).BorderForeground(lipgloss.Color(cmdutil.CodeBlue))
 		del := list.NewDefaultDelegate()
 		del.Styles = ls
 		del.ShowDescription = false
 		del.SetSpacing(0)
 
-		items := make([]list.Item, 0, len(allLLMRules)+1)
-		items = append(items, llmRuleItem{LLMRulesToolNone})
-		for _, rule := range allLLMRules {
-			items = append(items, llmRuleItem{rule})
+		items := make([]list.Item, 0, len(llm_rules.AllLLMRules)+1)
+		items = append(items, llm_rules.NewLLMRulesItem(llm_rules.LLMRulesToolNone))
+		for _, rule := range llm_rules.AllLLMRules {
+			items = append(items, llm_rules.NewLLMRulesItem(rule))
 		}
 
 		ll := list.New(items, del, 0, 0)
@@ -608,9 +522,9 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 		ll.SetShowStatusBar(false)
 		ll.DisableQuitKeybindings() // quit handled by createFormModel
 
-		llmRulesModel = simpleSelectModel[llmRulesTool, llmRuleItem]{
-			list:       ll,
-			predefined: inputLLMRules,
+		llmRulesModel = llm_rules.ToolSelectModel{
+			List:       ll,
+			Predefined: inputLLMRules,
 		}
 		llmRulesModel.SetSize(0, 20)
 
@@ -630,19 +544,19 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 	// Setup what steps and in what order they should be presented
 	var steps []CreateStep
 	if initExistingApp {
-		if langModel.predefined == "" {
+		if langModel.Predefined == "" {
 			steps = append(steps, CreateStepLang)
 		}
 	} else {
 		if templateModel.predefined == "" {
-			if langModel.predefined == "" {
+			if langModel.Predefined == "" {
 				steps = append(steps, CreateStepLang)
 			} else {
 				templateModel.UpdateFilter(inputLang)
 			}
 			steps = append(steps, CreateStepTemplate)
 		}
-		if llmRulesModel.predefined == "" {
+		if llmRulesModel.Predefined == "" {
 			steps = append(steps, CreateStepLLMRules)
 		}
 	}
@@ -695,49 +609,17 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 }
 
 type langItem struct {
-	lang language
+	lang cmdutil.Language
 	desc string
 }
 
-func (i langItem) FilterValue() string  { return i.lang.Display() }
-func (i langItem) Title() string        { return i.FilterValue() }
-func (i langItem) Description() string  { return "" }
-func (i langItem) SelectedID() language { return i.lang }
+func (i langItem) FilterValue() string          { return i.lang.Display() }
+func (i langItem) Title() string                { return i.FilterValue() }
+func (i langItem) Description() string          { return "" }
+func (i langItem) SelectedID() cmdutil.Language { return i.lang }
 
-type language string
-
-const (
-	languageGo language = "go"
-	languageTS language = "ts"
-)
-
-var allLanguages = []language{
-	languageGo,
-	languageTS,
-}
-
-func languageFlagValues() []string {
-	result := make([]string, 0, len(allLanguages))
-	for _, r := range allLanguages {
-		result = append(result, string(r))
-	}
-	return result
-}
-
-func (lang language) Display() string {
-	switch lang {
-	case languageGo:
-		return "Go"
-	case languageTS:
-		return "TypeScript"
-	default:
-		return string(lang)
-	}
-}
-
-func (lang language) SelectPrompt() string {
-	return "Select language for your application"
-}
+type langSelectModel = cmdutil.SimpleSelectModel[cmdutil.Language, langItem]
+type langSelectDone = cmdutil.SimpleSelectDone[cmdutil.Language]
 
 type loadedTemplates []templateItem
 

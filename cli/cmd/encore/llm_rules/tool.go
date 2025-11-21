@@ -1,4 +1,4 @@
-package app
+package llm_rules
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"encr.dev/cli/cmd/encore/cmdutil"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 )
@@ -21,20 +22,20 @@ alwaysApply: true
 %s
 `
 
-type llmRulesTool string
+type Tool string
 
 // NOTE: changes to these values should also be reflected in userconfig
 const (
-	LLMRulesToolNone      llmRulesTool = ""
-	LLMRulesToolCursor    llmRulesTool = "cursor"
-	LLMRulesToolClaudCode llmRulesTool = "claudecode"
-	LLMRulesToolVSCode    llmRulesTool = "vscode"
-	LLMRulesToolAgentsMD  llmRulesTool = "agentsmd"
-	LLMRulesToolZed       llmRulesTool = "zed"
+	LLMRulesToolNone      Tool = ""
+	LLMRulesToolCursor    Tool = "cursor"
+	LLMRulesToolClaudCode Tool = "claudecode"
+	LLMRulesToolVSCode    Tool = "vscode"
+	LLMRulesToolAgentsMD  Tool = "agentsmd"
+	LLMRulesToolZed       Tool = "zed"
 )
 
 // all available options exept for None
-var allLLMRules = []llmRulesTool{
+var AllLLMRules = []Tool{
 	LLMRulesToolCursor,
 	LLMRulesToolClaudCode,
 	LLMRulesToolVSCode,
@@ -42,15 +43,15 @@ var allLLMRules = []llmRulesTool{
 	LLMRulesToolZed,
 }
 
-func llmRulesFlagValues() []string {
-	result := make([]string, 0, len(allLLMRules))
-	for _, r := range allLLMRules {
+func LLMRulesFlagValues() []string {
+	result := make([]string, 0, len(AllLLMRules))
+	for _, r := range AllLLMRules {
 		result = append(result, string(r))
 	}
 	return result
 }
 
-func (e llmRulesTool) Display() string {
+func (e Tool) Display() string {
 	switch e {
 	case LLMRulesToolCursor:
 		return "Cursor"
@@ -67,20 +68,27 @@ func (e llmRulesTool) Display() string {
 	}
 }
 
-func (e llmRulesTool) SelectPrompt() string {
+func (e Tool) SelectPrompt() string {
 	return "Select a tool to generate LLM rules for"
 }
 
-type llmRuleItem struct {
-	tool llmRulesTool
+type ToolItem struct {
+	tool Tool
 }
 
-func (i llmRuleItem) FilterValue() string      { return i.tool.Display() }
-func (i llmRuleItem) Title() string            { return i.FilterValue() }
-func (i llmRuleItem) Description() string      { return "" }
-func (i llmRuleItem) SelectedID() llmRulesTool { return i.tool }
+func NewLLMRulesItem(tool Tool) ToolItem {
+	return ToolItem{tool: tool}
+}
 
-func setupLLMRules(llmRules llmRulesTool, lang language, appRootRelpath string, appSlug string) error {
+func (i ToolItem) FilterValue() string { return i.tool.Display() }
+func (i ToolItem) Title() string       { return i.FilterValue() }
+func (i ToolItem) Description() string { return "" }
+func (i ToolItem) SelectedID() Tool    { return i.tool }
+
+type ToolSelectModel = cmdutil.SimpleSelectModel[Tool, ToolItem]
+type ToolSelectDone = cmdutil.SimpleSelectDone[Tool]
+
+func SetupLLMRules(llmRules Tool, lang cmdutil.Language, appRootRelpath string, appSlug string) error {
 	llmInstructions, err := downloadLLMInstructions(lang)
 	if err != nil {
 		return err
@@ -214,7 +222,7 @@ func setupLLMRules(llmRules llmRulesTool, lang language, appRootRelpath string, 
 	return nil
 }
 
-func printLLMRulesInfo(tool llmRulesTool) {
+func PrintLLMRulesInfo(tool Tool) {
 	if tool == LLMRulesToolNone {
 		return
 	}
@@ -286,13 +294,13 @@ func writeNewFileOrSkip(filePath string, data []byte) error {
 	return nil
 }
 
-func downloadLLMInstructions(lang language) (string, error) {
+func downloadLLMInstructions(lang cmdutil.Language) (string, error) {
 	fmt.Println("Downloading LLM Instructions...")
 	var url string
 	switch lang {
-	case languageGo:
+	case cmdutil.LanguageGo:
 		url = "https://raw.githubusercontent.com/encoredev/encore/refs/heads/main/go_llm_instructions.txt"
-	case languageTS:
+	case cmdutil.LanguageTS:
 		url = "https://raw.githubusercontent.com/encoredev/encore/refs/heads/main/ts_llm_instructions.txt"
 	default:
 		return "", fmt.Errorf("unsupported language")

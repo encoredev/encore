@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/llm_rules"
 	"encr.dev/internal/conf"
 	"encr.dev/pkg/xos"
 )
@@ -31,7 +32,7 @@ const (
 var (
 	initAppLang = cmdutil.Oneof{
 		Value:     "",
-		Allowed:   languageFlagValues(),
+		Allowed:   cmdutil.LanguageFlagValues(),
 		Flag:      "lang",
 		FlagShort: "l",
 		Desc:      "Programming language to use for the app.",
@@ -79,7 +80,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang, _ := createAppForm(name, "", language(initAppLang.Value), LLMRulesToolNone, true)
+	name, _, lang, _ := createAppForm(name, "", cmdutil.Language(initAppLang.Value), llm_rules.LLMRulesToolNone, true)
 
 	if err := validateName(name); err != nil {
 		return err
@@ -120,7 +121,7 @@ func initializeApp(name string) error {
 
 	// Update to latest encore.dev release
 	if _, err := os.Stat("go.mod"); err == nil {
-		lang = languageGo
+		lang = cmdutil.LanguageGo
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
@@ -129,7 +130,7 @@ func initializeApp(name string) error {
 		}
 		s.Stop()
 	} else if _, err := os.Stat("package.json"); err == nil {
-		lang = languageTS
+		lang = cmdutil.LanguageTS
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running npm install encore.dev@latest"
 		s.Start()

@@ -21,6 +21,7 @@ import (
 
 	"encr.dev/cli/cmd/encore/auth"
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/llm_rules"
 	"encr.dev/cli/internal/platform"
 	"encr.dev/cli/internal/telemetry"
 	"encr.dev/internal/conf"
@@ -37,7 +38,7 @@ var (
 	createAppOnPlatform bool
 	createAppLang       = cmdutil.Oneof{
 		Value:     "",
-		Allowed:   languageFlagValues(),
+		Allowed:   cmdutil.LanguageFlagValues(),
 		Flag:      "lang",
 		FlagShort: "l",
 		Desc:      "Programming language to use for the app.",
@@ -45,7 +46,7 @@ var (
 	}
 	createAppLLMRules = cmdutil.Oneof{
 		Value:     "",
-		Allowed:   llmRulesFlagValues(),
+		Allowed:   llm_rules.LLMRulesFlagValues(),
 		Flag:      "llm-rules",
 		FlagShort: "r",
 		Desc:      "Initialize the app with llm rules for a specific tool",
@@ -65,18 +66,18 @@ var createAppCmd = &cobra.Command{
 			name = args[0]
 		}
 
-		var tool llmRulesTool
+		var tool llm_rules.Tool
 		if createAppLLMRules.Value == "" {
 			cfg, err := userconfig.Global().Get()
 			if err != nil {
 				cmdutil.Fatalf("Couldn't read user config: %s", err)
 			}
-			tool = llmRulesTool(cfg.LLMRules)
+			tool = llm_rules.Tool(cfg.LLMRules)
 		} else {
-			tool = llmRulesTool(createAppLLMRules.Value)
+			tool = llm_rules.Tool(createAppLLMRules.Value)
 		}
 
-		if err := createApp(context.Background(), name, createAppTemplate, language(createAppLang.Value), tool); err != nil {
+		if err := createApp(context.Background(), name, createAppTemplate, cmdutil.Language(createAppLang.Value), tool); err != nil {
 			cmdutil.Fatal(err)
 		}
 	},
@@ -157,7 +158,7 @@ func promptRunApp() bool {
 }
 
 // createApp is the implementation of the "encore app create" command.
-func createApp(ctx context.Context, name, template string, lang language, llmRules llmRulesTool) (err error) {
+func createApp(ctx context.Context, name, template string, lang cmdutil.Language, llmRules llm_rules.Tool) (err error) {
 	defer func() {
 		// We need to send the telemetry synchronously to ensure it's sent before the command exits.
 		telemetry.SendSync("app.create", map[string]any{
@@ -179,7 +180,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 	if template == "empty" {
 		template = ""
 	}
-	if template == "" && lang == languageTS {
+	if template == "" && lang == cmdutil.LanguageTS {
 		template = "ts/empty"
 	}
 
@@ -280,7 +281,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 
 	// Update to latest encore.dev release
 	if _, err := os.Stat(filepath.Join(name, appRootRelpath, "go.mod")); err == nil {
-		lang = languageGo
+		lang = cmdutil.LanguageGo
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
@@ -289,7 +290,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		}
 		s.Stop()
 	} else if _, err := os.Stat(filepath.Join(name, appRootRelpath, "package.json")); err == nil {
-		lang = languageTS
+		lang = cmdutil.LanguageTS
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running npm install encore.dev@latest"
 		s.Start()
@@ -330,7 +331,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		color.Red("Failed to create app on daemon: %s\n", err)
 	}
 
-	if err := setupLLMRules(llmRules, lang, filepath.Join(name, appRootRelpath), appResp.AppId); err != nil {
+	if err := llm_rules.SetupLLMRules(llmRules, lang, filepath.Join(name, appRootRelpath), appResp.AppId); err != nil {
 		color.Red("Failed to setup LLM rules: %s\n", err)
 	}
 
@@ -343,7 +344,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 		fmt.Printf("Web URL:  %s%s", cyanf("https://app.encore.cloud/"+app.Slug), cmdutil.Newline)
 	}
 	fmt.Printf("App Root: %s\n", cyanf(appRoot))
-	printLLMRulesInfo(llmRules)
+	llm_rules.PrintLLMRulesInfo(llmRules)
 	greenBoldF := green.Add(color.Bold).SprintfFunc()
 	fmt.Printf("Run your app with: %s\n", greenBoldF("cd %s && encore run", filepath.Join(name, appRootRelpath)))
 	fmt.Println()
@@ -370,7 +371,7 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 	_, _ = cyan.Printf("    encore run\n")
 	fmt.Print("        Run your app locally\n\n")
 
-	if lang == languageGo {
+	if lang == cmdutil.LanguageGo {
 		_, _ = cyan.Printf("    encore test ./...\n")
 	} else {
 		_, _ = cyan.Printf("    encore test\n")
@@ -388,13 +389,13 @@ func createApp(ctx context.Context, name, template string, lang language, llmRul
 
 // detectLang attempts to detect the application language for an Encore application
 // situated at appRoot.
-func detectLang(appRoot string) language {
+func detectLang(appRoot string) cmdutil.Language {
 	if _, err := os.Stat(filepath.Join(appRoot, "go.mod")); err == nil {
-		return languageGo
+		return cmdutil.LanguageGo
 	} else if _, err := os.Stat(filepath.Join(appRoot, "package.json")); err == nil {
-		return languageTS
+		return cmdutil.LanguageTS
 	}
-	return languageGo
+	return cmdutil.LanguageGo
 }
 
 func validateName(name string) error {
