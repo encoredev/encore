@@ -683,9 +683,9 @@ func createAppForm(inputName, inputTemplate string, inputLang language, inputLLM
 		appName = res.appName.text.Value()
 	}
 
-	if template == "" {
+	if template == "" && !initExistingApp {
 		sel, ok := res.templates.SelectedItem()
-		if !ok && !initExistingApp {
+		if !ok {
 			cmdutil.Fatal("no template selected")
 		}
 		template = sel.Template
