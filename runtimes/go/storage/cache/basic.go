@@ -37,6 +37,16 @@ func (s *StringKeyspace[K]) Get(ctx context.Context, key K) (string, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
+// MultiGet gets the values stored at multiple keys.
+// For each key, the result contains an Err field indicating success or failure.
+// If Err is nil, Value contains the cached value.
+// If Err matches Miss, the key was not found.
+//
+// See https://redis.io/commands/mget/ for more information.
+func (s *StringKeyspace[K]) MultiGet(ctx context.Context, keys ...K) ([]Result[string], error) {
+	return s.basicKeyspace.MultiGet(ctx, keys...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
@@ -230,6 +240,16 @@ func (s *IntKeyspace[K]) Get(ctx context.Context, key K) (int64, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
+// MultiGet gets the values stored at multiple keys.
+// For each key, the result contains an Err field indicating success or failure.
+// If Err is nil, Value contains the cached value.
+// If Err matches Miss, the key was not found.
+//
+// See https://redis.io/commands/mget/ for more information.
+func (s *IntKeyspace[K]) MultiGet(ctx context.Context, keys ...K) ([]Result[int64], error) {
+	return s.basicKeyspace.MultiGet(ctx, keys...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
@@ -371,6 +391,16 @@ func (s *FloatKeyspace[K]) Get(ctx context.Context, key K) (float64, error) {
 	return s.basicKeyspace.Get(ctx, key)
 }
 
+// MultiGet gets the values stored at multiple keys.
+// For each key, the result contains an Err field indicating success or failure.
+// If Err is nil, Value contains the cached value.
+// If Err matches Miss, the key was not found.
+//
+// See https://redis.io/commands/mget/ for more information.
+func (s *FloatKeyspace[K]) MultiGet(ctx context.Context, keys ...K) ([]Result[float64], error) {
+	return s.basicKeyspace.MultiGet(ctx, keys...)
+}
+
 // Set updates the value stored at key to val.
 //
 // See https://redis.io/commands/set/ for more information.
@@ -496,6 +526,43 @@ func (s *basicKeyspace[K, V]) Get(ctx context.Context, key K) (val V, err error)
 	}
 	err = toErr(err, op, k)
 	return val, err
+}
+
+func (s *basicKeyspace[K, V]) MultiGet(ctx context.Context, keys ...K) ([]Result[V], error) {
+	const op = "multi get"
+	ks, err := s.keys(keys, op)
+	endTrace := s.doTrace(op, false, ks...)
+	defer func() { endTrace(err) }()
+	if err != nil {
+		return nil, err
+	}
+	var firstKey string
+	if len(ks) > 0 {
+		firstKey = ks[0]
+	}
+	res, err := s.redis.MGet(ctx, ks...).Result()
+	if err != nil {
+		return nil, toErr(err, op, firstKey)
+	}
+	results := make([]Result[V], 0, len(res))
+	for i, r := range res {
+		if r == nil {
+			results = append(results, Result[V]{Err: toErr(Miss, op, ks[i])})
+			continue
+		}
+		strVal, ok := r.(string)
+		if !ok {
+			results = append(results, Result[V]{Err: toErr(errors.New("invalid redis value type"), op, ks[i])})
+			continue
+		}
+		val, fromRedisErr := s.fromRedis(strVal)
+		if fromRedisErr != nil {
+			results = append(results, Result[V]{Err: toErr(fromRedisErr, op, ks[i])})
+			continue
+		}
+		results = append(results, Result[V]{Value: val})
+	}
+	return results, nil
 }
 
 func (s *basicKeyspace[K, V]) Set(ctx context.Context, key K, val V) error {
