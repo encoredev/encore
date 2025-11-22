@@ -23,7 +23,10 @@ func TestScrub(t *testing.T) {
 	md := testParse(c, `
 -- svc/svc.go --
 package svc
-import "context"
+import (
+	"context"
+	"encore.dev/types/option"
+)
 
 type Params struct {
 	Foo string SCRUB
@@ -47,6 +50,9 @@ type Params struct {
 	GenScrub Generic[string] SCRUB
 	GenInner Generic[Bar]
 	Multi    NestedGeneric[string, Bar]
+
+	Option option.Option[Generic[string]]
+	OptionScrub option.Option[Generic[string]] SCRUB
 
 	MapOne map[Generic[Bar]]NestedGeneric[string, Bar]
 	MapTwo GenericMap[Bar, NestedGeneric[string, Bar]]
@@ -109,6 +115,9 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 		{f("Multi"), f("One"), f("Alpha"), f("Scrub")},
 		{f("Multi"), f("Two"), f("Scrub")},
 
+		{f("Option"), f("FooScrub")},
+		{f("OptionScrub")},
+
 		{f("MapOne"), mapKey, f("FooScrub")},
 		{f("MapOne"), mapKey, f("Foo"), f("Scrub")},
 		{f("MapOne"), mapVal, f("One"), f("Alpha"), f("Scrub")},
@@ -158,7 +167,7 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 }
 
 func testParse(c *qt.C, code string) *meta.Data {
-	code = strings.Replace(code, "SCRUB", "`encore:\"sensitive\"`", -1)
+	code = strings.ReplaceAll(code, "SCRUB", "`encore:\"sensitive\"`")
 	ar := txtar.Parse([]byte(code))
 	ar.Files = append(ar.Files, txtar.File{Name: "go.mod", Data: []byte("module test")})
 

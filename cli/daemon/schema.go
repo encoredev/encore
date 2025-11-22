@@ -49,6 +49,8 @@ func (r *schemaRenderer) renderType(typ *schema.Type) {
 		r.renderNamed(typ.Named)
 	case *schema.Type_Pointer:
 		r.renderType(typ.Pointer.Base)
+	case *schema.Type_Option:
+		r.WriteNil()
 	case *schema.Type_Union:
 		r.renderType(typ.Union.Types[0])
 	case *schema.Type_Literal:

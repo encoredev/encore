@@ -133,6 +133,12 @@
             },
             "type": "object"
           },
+          "MapOfOptional": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/svc.Recursive"
+            },
+            "type": "object"
+          },
           "Optional": {
             "$ref": "#/components/schemas/svc.Recursive"
           },
@@ -141,11 +147,19 @@
               "$ref": "#/components/schemas/svc.Recursive"
             },
             "type": "array"
+          },
+          "SliceOfOptional": {
+            "items": {
+              "$ref": "#/components/schemas/svc.Recursive"
+            },
+            "type": "array"
           }
         },
         "required": [
           "Slice",
-          "Map"
+          "SliceOfOptional",
+          "Map",
+          "MapOfOptional"
         ],
         "type": "object"
       },
@@ -548,13 +562,20 @@
                   "customer": {
                     "$ref": "#/components/schemas/svc.DocumentedUser"
                   },
+                  "opt_ref": {
+                    "$ref": "#/components/schemas/svc.DocumentedUser"
+                  },
                   "order_id": {
                     "type": "string"
+                  },
+                  "req_ref": {
+                    "$ref": "#/components/schemas/svc.DocumentedUser"
                   }
                 },
                 "required": [
                   "customer",
-                  "order_id"
+                  "order_id",
+                  "req_ref"
                 ],
                 "type": "object"
               }
@@ -570,13 +591,20 @@
                     "customer": {
                       "$ref": "#/components/schemas/svc.DocumentedUser"
                     },
+                    "opt_ref": {
+                      "$ref": "#/components/schemas/svc.DocumentedUser"
+                    },
                     "order_id": {
                       "type": "string"
+                    },
+                    "req_ref": {
+                      "$ref": "#/components/schemas/svc.DocumentedUser"
                     }
                   },
                   "required": [
                     "customer",
-                    "order_id"
+                    "order_id",
+                    "req_ref"
                   ],
                   "type": "object"
                 }
@@ -758,6 +786,18 @@
               "type": "integer"
             },
             "style": "form"
+          },
+          {
+            "allowEmptyValue": true,
+            "description": "An optional generic type\n",
+            "explode": true,
+            "in": "query",
+            "name": "optional",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "style": "form"
           }
         ],
         "responses": {
@@ -808,6 +848,14 @@
                 "required": true,
                 "schema": {
                   "type": "object"
+                },
+                "style": "simple"
+              },
+              "x-optional": {
+                "allowEmptyValue": true,
+                "explode": true,
+                "schema": {
+                  "type": "string"
                 },
                 "style": "simple"
               },
@@ -963,6 +1011,16 @@
               "type": "string"
             },
             "style": "simple"
+          },
+          {
+            "allowEmptyValue": true,
+            "explode": true,
+            "in": "header",
+            "name": "x-optional",
+            "schema": {
+              "type": "string"
+            },
+            "style": "simple"
           }
         ],
         "responses": {
@@ -1034,6 +1092,12 @@
                     },
                     "type": "object"
                   },
+                  "MapOfOptional": {
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/svc.Recursive"
+                    },
+                    "type": "object"
+                  },
                   "Optional": {
                     "$ref": "#/components/schemas/svc.Recursive"
                   },
@@ -1042,11 +1106,19 @@
                       "$ref": "#/components/schemas/svc.Recursive"
                     },
                     "type": "array"
+                  },
+                  "SliceOfOptional": {
+                    "items": {
+                      "$ref": "#/components/schemas/svc.Recursive"
+                    },
+                    "type": "array"
                   }
                 },
                 "required": [
                   "Slice",
-                  "Map"
+                  "SliceOfOptional",
+                  "Map",
+                  "MapOfOptional"
                 ],
                 "type": "object"
               }
@@ -1065,6 +1137,12 @@
                       },
                       "type": "object"
                     },
+                    "MapOfOptional": {
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/svc.Recursive"
+                      },
+                      "type": "object"
+                    },
                     "Optional": {
                       "$ref": "#/components/schemas/svc.Recursive"
                     },
@@ -1073,11 +1151,19 @@
                         "$ref": "#/components/schemas/svc.Recursive"
                       },
                       "type": "array"
+                    },
+                    "SliceOfOptional": {
+                      "items": {
+                        "$ref": "#/components/schemas/svc.Recursive"
+                      },
+                      "type": "array"
                     }
                   },
                   "required": [
                     "Slice",
-                    "Map"
+                    "SliceOfOptional",
+                    "Map",
+                    "MapOfOptional"
                   ],
                   "type": "object"
                 }
@@ -1137,6 +1223,10 @@
                   "Dave": {
                     "title": "This generic type complicates the whole thing 🙈\n",
                     "type": "string"
+                  },
+                  "optional": {
+                    "title": "An optional generic type\n",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -1168,6 +1258,10 @@
                     },
                     "Dave": {
                       "title": "This generic type complicates the whole thing 🙈\n",
+                      "type": "number"
+                    },
+                    "optional": {
+                      "title": "An optional generic type\n",
                       "type": "number"
                     }
                   },

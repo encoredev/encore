@@ -109,6 +109,9 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 	case *schema.Type_Pointer:
 		return g.schemaType(t.Pointer.Base)
 
+	case *schema.Type_Option:
+		return g.schemaType(t.Option.Value)
+
 	case *schema.Type_Literal:
 		switch tt := t.Literal.Value.(type) {
 		case *schema.Literal_Str:
@@ -328,6 +331,8 @@ func (g *Generator) typeToDefinitionName(typ *schema.Type) string {
 		return "Map_" + g.typeToDefinitionName(typ.Map.Key) + "_" + g.typeToDefinitionName(typ.Map.Value)
 	case *schema.Type_Pointer:
 		return g.typeToDefinitionName(typ.Pointer.Base)
+	case *schema.Type_Option:
+		return "Option_" + g.typeToDefinitionName(typ.Option.Value)
 	case *schema.Type_Config:
 		return g.typeToDefinitionName(typ.Config.Elem)
 	case *schema.Type_Builtin:

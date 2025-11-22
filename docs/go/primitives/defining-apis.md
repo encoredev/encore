@@ -284,22 +284,29 @@ type CreateBlogPost struct {
 }
 ```
 
+### Optional types
+
+Encore supports optional types using the `option.Option[T]` type from the `encore.dev/types/option` package.
+This can be used in request and response schemas to indicate that the value is not always set.
+
+See the [package documentation](https://pkg.go.dev/encore.dev/types/option) for more information on usage.
+
 ### Supported types
 The table below lists the data types supported by each HTTP message location.
 
-| Type            | Header | Path | Query | Body |
-| --------------- | ------ | ---- | ----- | ---- |
-| bool            | X      | X    | X     | X    |
-| numeric         | X      | X    | X     | X    |
-| string          | X      | X    | X     | X    |
-| time.Time       | X      | X    | X     | X    |
-| uuid.UUID       | X      | X    | X     | X    |
-| json.RawMessage | X      | X    | X     | X    |
-| list            |        |      | X     | X    |
-| struct          |        |      |       | X    |
-| map             |        |      |       | X    |
-| pointer         |        |      |       | X    |
-
+| Type             | Header | Path | Query | Body |
+| ---------------- | ------ | ---- | ----- | ---- |
+| bool             | X      | X    | X     | X    |
+| numeric          | X      | X    | X     | X    |
+| string           | X      | X    | X     | X    |
+| time.Time        | X      | X    | X     | X    |
+| uuid.UUID        | X      | X    | X     | X    |
+| json.RawMessage  | X      | X    | X     | X    |
+| option.Option[T] | X      |      | X     | X    |
+| pointer          | X      |      | X     | X    |
+| list             | X      |      | X     | X    |
+| struct           |        |      |       | X    |
+| map              |        |      |       | X    |
 
 ## Sensitive data
 

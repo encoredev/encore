@@ -11,6 +11,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 
 	"encore.dev/beta/auth"
+	"encore.dev/types/option"
 	"encore.dev/types/uuid"
 )
 
@@ -44,6 +45,17 @@ func UnmarshalList[T any](u *Unmarshaller, fn ElemUnmarshaller[T], field string,
 		list = append(list, val)
 	}
 	return list
+}
+
+// OptionUnmarshaller wraps an ElemUnmarshaller to produce an ElemUnmarshaller for option.Option types.
+func OptionUnmarshaller[T any](inner ElemUnmarshaller[T]) ElemUnmarshaller[option.Option[T]] {
+	return func(s string) (option.Option[T], error) {
+		v, err := inner(s)
+		if err != nil {
+			return option.None[T](), err
+		}
+		return option.Some(v), nil
+	}
 }
 
 // IncNonEmpty increments the number of non-empty values this decoder has decoded.
