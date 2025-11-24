@@ -8,9 +8,9 @@
  * ```typescript
  * import { Counter } from 'encore.dev/metrics';
  *
- * export const OrdersProcessed = new Counter("orders_processed");
+ * export const ordersProcessed = new Counter("orders_processed");
  *
- * OrdersProcessed.increment();
+ * ordersProcessed.increment();
  * ```
  *
  * @example Counter with labels
