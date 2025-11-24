@@ -21,9 +21,9 @@
  *   success: boolean;
  * }
  *
- * export const OrdersProcessed = new CounterGroup<Labels>("orders_processed");
+ * export const ordersProcessed = new CounterGroup<Labels>("orders_processed");
  *
- * OrdersProcessed.with({ success: true }).increment();
+ * ordersProcessed.with({ success: true }).increment();
  * ```
  */
 
