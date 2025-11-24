@@ -36,7 +36,6 @@ export async function run(entrypoint: string) {
     const metricsBuffer = __internalInitGlobalMetricsBuffer();
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {
-      log.debug(`Starting ${extraWorkers} worker threads`);
       const path = fileURLToPath(entrypoint);
       for (let i = 0; i < extraWorkers; i++) {
         new Worker(path, {
