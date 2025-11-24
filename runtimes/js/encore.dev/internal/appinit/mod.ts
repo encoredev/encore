@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   __internalInitGlobalMetricsBuffer,
   __internalSetGlobalMetricsBuffer
-} from "../../internal/metrics/registry";
+} from "../metrics/registry";
 import log from "../../log/mod";
 
 export type Handler = {
