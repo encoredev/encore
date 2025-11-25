@@ -7,8 +7,8 @@ import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
 import { fileURLToPath } from "node:url";
 import {
-  __internalInitGlobalMetricsBuffer,
-  __internalSetGlobalMetricsBuffer
+  initGlobalMetricsBuffer,
+  setGlobalMetricsBuffer
 } from "../metrics/registry";
 import log from "../../log/mod";
 
@@ -33,7 +33,7 @@ export function registerGateways(gateways: Gateway[]) {
 
 export async function run(entrypoint: string) {
   if (isMainThread) {
-    const metricsBuffer = __internalInitGlobalMetricsBuffer();
+    const metricsBuffer = initGlobalMetricsBuffer();
     const extraWorkers = runtime.RT.numWorkerThreads() - 1;
     if (extraWorkers > 0) {
       const path = fileURLToPath(entrypoint);
@@ -49,7 +49,7 @@ export async function run(entrypoint: string) {
 
   // Worker thread: set metrics buffer from workerData
   if (workerData && workerData.metricsBuffer) {
-    __internalSetGlobalMetricsBuffer(workerData.metricsBuffer);
+    setGlobalMetricsBuffer(workerData.metricsBuffer);
   }
 
   // This is a worker thread. The runtime is already initialized, so block forever.
