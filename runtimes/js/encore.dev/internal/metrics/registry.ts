@@ -12,9 +12,7 @@ const testMode = process.env.NODE_ENV === "test";
  * Called during encores initialization
  * @internal
  */
-export function __internalSetGlobalMetricsBuffer(
-  buffer: SharedArrayBuffer
-): void {
+export function setGlobalMetricsBuffer(buffer: SharedArrayBuffer): void {
   globalBuffer = buffer;
   globalRegistry = RT.getMetricsRegistry();
 }
@@ -23,12 +21,12 @@ export function __internalSetGlobalMetricsBuffer(
  * Called during encores initialization, should be called on the main thread
  * @internal
  */
-export function __internalInitGlobalMetricsBuffer(): SharedArrayBuffer {
+export function initGlobalMetricsBuffer(): SharedArrayBuffer {
   const INITIAL_METRICS_SLOTS = 10_000;
   const metricsBuffer = new SharedArrayBuffer(INITIAL_METRICS_SLOTS * 8);
   const view = new BigUint64Array(metricsBuffer);
   runtime.RT.createMetricsRegistry(view);
-  __internalSetGlobalMetricsBuffer(metricsBuffer);
+  setGlobalMetricsBuffer(metricsBuffer);
 
   return metricsBuffer;
 }
