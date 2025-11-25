@@ -226,7 +226,7 @@ export namespace echo {
 
     export interface EmptyData {
         OmitEmpty: Data<string, string>
-        NullPtr: string
+        NullPtr: string | null
         Zero: Data<string, string>
     }
 
@@ -256,16 +256,16 @@ export namespace echo {
         /**
          * Body
          */
-        Struct: Data<Data<string, string>, number>
+        Struct: Data<Data<string, string> | null, number>
 
-        StructPtr: Data<number, number>
-        StructSlice: Data<string, string>[]
-        StructMap: { [key: string]: Data<string, number> }
-        StructMapPtr: { [key: string]: Data<string, string> }
+        StructPtr: Data<number, number> | null
+        StructSlice: (Data<string, string> | null)[]
+        StructMap: { [key: string]: Data<string, number> | null }
+        StructMapPtr: { [key: string]: Data<string, string> | null } | null
         AnonStruct: {
             AnonBird: string
         }
-        "formatted_nest": Data<string, number>
+        "formatted_nest": Data<string, number> | null
         RawStruct: JSONValue
         /**
          * Query

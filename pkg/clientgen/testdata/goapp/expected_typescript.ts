@@ -150,11 +150,11 @@ export namespace products {
         name: string
         description: string
         "created_at": string
-        "created_by": authentication.User
+        "created_by": authentication.User | null
     }
 
     export interface ProductListing {
-        products: Product[]
+        products: (Product | null)[]
         previous: {
             cursor: string
             exists: boolean
@@ -267,7 +267,7 @@ export namespace svc {
     }
 
     export interface Recursive {
-        Optional?: Recursive
+        Optional?: Recursive | null
         Slice: Recursive[]
         Map: { [key: string]: Recursive }
     }
@@ -304,7 +304,7 @@ export namespace svc {
     }
 
     export interface WithNested {
-        Nested: nested.Type
+        Nested: nested.Type | null
     }
 
     export type WrappedRequest = Wrapper<Request>

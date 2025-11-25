@@ -1746,7 +1746,8 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 	case *schema.Type_List:
 		elem := typ.List.Elem
 		union, isUnion := elem.Typ.(*schema.Type_Union)
-		paren := isUnion && len(union.Union.Types) > 1
+		_, isPtr := elem.Typ.(*schema.Type_Pointer) // pointers are unions between a type and null
+		paren := isPtr || (isUnion && len(union.Union.Types) > 1)
 
 		if paren {
 			ts.WriteString("(")
@@ -1769,9 +1770,21 @@ func (ts *typescript) writeTyp(ns string, typ *schema.Type, numIndents int) {
 		ts.WriteString(ts.builtinType(typ.Builtin))
 
 	case *schema.Type_Pointer:
-		// FIXME(ENC-827): Handle pointers in TypeScript in a way which more technically correct without
-		// making the end user experience of using a generated client worse.
-		ts.writeTyp(ns, typ.Pointer.Base, numIndents)
+		nullType := &schema.Type{
+			Typ: &schema.Type_Literal{
+				Literal: &schema.Literal{
+					Value: &schema.Literal_Null{},
+				},
+			},
+		}
+		union := &schema.Type{
+			Typ: &schema.Type_Union{
+				Union: &schema.Union{
+					Types: []*schema.Type{typ.Pointer.Base, nullType},
+				},
+			},
+		}
+		ts.writeTyp(ns, union, numIndents)
 
 	case *schema.Type_Literal:
 		switch lit := typ.Literal.Value.(type) {
