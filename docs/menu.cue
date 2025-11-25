@@ -385,6 +385,11 @@
 				text: "Validation"
 				path: "/go/develop/validation"
 				file: "go/develop/validation"
+			}, {
+				kind: "basic"
+				text: "Environment Variables"
+				path: "/go/develop/env-vars"
+				file: "go/develop/env-vars"
 			}]
 		},
 		{
@@ -838,11 +843,16 @@
 				text: "Multithreading"
 				path: "/ts/develop/multithreading"
 				file: "ts/develop/multithreading"
-			},{
+			}, {
 				kind: "basic"
 				text: "Running Scripts"
 				path: "/ts/develop/running-scripts"
 				file: "ts/develop/running-scripts"
+			}, {
+				kind: "basic"
+				text: "Environment Variables"
+				path: "/ts/develop/env-vars"
+				file: "ts/develop/env-vars"
 			}]
 		},
 		{
