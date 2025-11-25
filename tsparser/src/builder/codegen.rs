@@ -88,6 +88,7 @@ impl Builder<'_> {
             let mut gateways = Vec::new();
             let mut subscriptions = Vec::new();
             let mut auth_handlers = Vec::new();
+            let mut metrics = Vec::new();
             let mut service = None;
 
             let svc_rel_path = params.app.rel_path_string(&svc.root)?;
@@ -116,6 +117,22 @@ impl Builder<'_> {
                     }
                     Resource::Service(svc) => {
                         service = Some(svc);
+                    }
+                    Resource::Metric(_) => {
+                        // Collect metrics that have a bind name (are exported variables)
+                        if let Some(bind_name) = &b.name {
+                            if let Some(range) = b.range {
+                                let rel_path = get_svc_rel_path(&svc.root, range, true);
+                                let import_path = Path::new("../../../../../")
+                                    .join(&svc_rel_path)
+                                    .join(rel_path);
+
+                                metrics.push(json!({
+                                    "name": bind_name,
+                                    "import_path": import_path,
+                                }));
+                            }
+                        }
                     }
                     _ => {}
                 }
@@ -203,6 +220,7 @@ impl Builder<'_> {
                     "endpoints": endpoint_ctx,
                     "subscriptions": subscription_ctx,
                     "service": service_ctx,
+                    "metrics": metrics,
                 });
                 let main = self.entrypoint_service_main.render(&self.reg, ctx)?;
 
@@ -373,12 +391,14 @@ impl Builder<'_> {
             let mut endpoint_ctx = Vec::new();
             let mut gateway_ctx = Vec::new();
             let mut subscription_ctx = Vec::new();
+            let mut metrics_ctx = Vec::new();
             let mut services_ctx = HashMap::new();
 
             for svc in &params.desc.parse.services {
                 let mut endpoints = Vec::new();
                 let mut gateways = Vec::new();
                 let mut subscriptions = Vec::new();
+                let mut metrics = Vec::new();
 
                 let svc_rel_path = params.app.rel_path_string(&svc.root)?;
 
@@ -400,6 +420,14 @@ impl Builder<'_> {
                         }
                         Resource::PubSubSubscription(sub) => {
                             subscriptions.push(sub);
+                        }
+                        Resource::Metric(_) => {
+                            // Collect metrics that have a bind name (are exported variables)
+                            if let Some(bind_name) = &b.name {
+                                if let Some(range) = b.range {
+                                    metrics.push((bind_name.as_str(), range));
+                                }
+                            }
                         }
                         Resource::Service(service) => {
                             let rel_path = get_svc_rel_path(&svc.root, service.range, true);
@@ -474,12 +502,25 @@ impl Builder<'_> {
                         "import_path": import_path,
                     }));
                 }
+
+                // Metrics
+                for (bind_name, range) in &metrics {
+                    let rel_path = get_svc_rel_path(&svc.root, *range, true);
+                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+
+                    metrics_ctx.push(json!({
+                        "name": bind_name,
+                        "import_path": import_path,
+                        "service_name": svc.name,
+                    }));
+                }
             }
 
             let ctx = &json!({
                 "endpoints": endpoint_ctx,
                 "gateways": gateway_ctx,
                 "subscriptions": subscription_ctx,
+                "metrics": metrics_ctx,
                 "services": services_ctx,
             });
             let main = self.entrypoint_combined_main.render(&self.reg, ctx)?;
