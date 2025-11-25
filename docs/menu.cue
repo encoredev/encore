@@ -455,6 +455,11 @@
 				text: "Logging"
 				path: "/go/observability/logging"
 				file: "go/observability/logging"
+			}, {
+				kind: "basic"
+				text: "Metrics"
+				path: "/go/observability/metrics"
+				file: "go/observability/metrics"
 			}]
 		},
 		{
@@ -948,6 +953,11 @@
 				text: "Service Catalog"
 				path: "/ts/observability/service-catalog"
 				file: "ts/observability/service-catalog"
+			}, {
+				kind: "basic"
+				text: "Metrics"
+				path: "/ts/observability/metrics"
+				file: "ts/observability/metrics"
 			}]
 		},
 		{
