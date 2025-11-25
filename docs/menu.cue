@@ -387,9 +387,9 @@
 				file: "go/develop/validation"
 			}, {
 				kind: "basic"
-				text: "Environment"
-				path: "/go/develop/environment"
-				file: "go/develop/environment"
+				text: "Environment Variables"
+				path: "/go/develop/env-vars"
+				file: "go/develop/env-vars"
 			}]
 		},
 		{
@@ -850,9 +850,9 @@
 				file: "ts/develop/running-scripts"
 			}, {
 				kind: "basic"
-				text: "Environment"
-				path: "/ts/develop/environment"
-				file: "ts/develop/environment"
+				text: "Environment Variables"
+				path: "/ts/develop/env-vars"
+				file: "ts/develop/env-vars"
 			}]
 		},
 		{
