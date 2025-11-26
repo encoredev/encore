@@ -150,6 +150,14 @@ func (c *legacyConverter) Convert() (*config.Runtime, error) {
 			currLevel = zerolog.TraceLevel
 		}
 		cfg.LogConfig = currLevel.String()
+
+		// Check if any service has disabled request logs.
+		for _, svc := range deployment.HostedServices {
+			if svc.DisableRequestLogs != nil && *svc.DisableRequestLogs {
+				cfg.DisableRequestLogs = true
+				break
+			}
+		}
 	}
 
 	// Infrastructure handling.

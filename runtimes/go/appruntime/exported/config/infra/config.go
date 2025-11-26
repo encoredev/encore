@@ -25,6 +25,10 @@ type InfraConfig struct {
 	// If empty it defaults to "trace".
 	LogConfig string `json:"log_config,omitemty"`
 
+	// DisableRequestLogs disables the "starting request" and "request completed"
+	// log messages that are emitted for each API request.
+	DisableRequestLogs bool `json:"disable_request_logs,omitempty"`
+
 	// Number of worker threads to use for the application.
 	// If unset it defaults to a single worker thread.
 	// If set to 0 it defaults to the number of CPUs.

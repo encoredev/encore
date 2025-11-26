@@ -64,6 +64,10 @@ type File struct {
 	// LogLevel is the minimum log level for the app.
 	// If empty it defaults to "trace".
 	LogLevel string `json:"log_level,omitempty"`
+
+	// DisableRequestLogs disables the "starting request" and "request completed"
+	// log messages that are emitted for each API request.
+	DisableRequestLogs bool `json:"disable_request_logs,omitempty"`
 }
 
 type Build struct {

@@ -495,6 +495,8 @@ type HostedService struct {
 	// The log configuration to use for this service.
 	// If unset it defaults to "trace".
 	LogConfig *string `protobuf:"bytes,3,opt,name=log_config,json=logConfig,proto3,oneof" json:"log_config,omitempty"`
+	// Whether to disable request lifecycle logs ("starting request", "request completed").
+	DisableRequestLogs *bool `protobuf:"varint,4,opt,name=disable_request_logs,json=disableRequestLogs,proto3,oneof" json:"disable_request_logs,omitempty"`
 }
 
 func (x *HostedService) Reset() {
@@ -548,6 +550,13 @@ func (x *HostedService) GetLogConfig() string {
 		return *x.LogConfig
 	}
 	return ""
+}
+
+func (x *HostedService) GetDisableRequestLogs() bool {
+	if x != nil && x.DisableRequestLogs != nil {
+		return *x.DisableRequestLogs
+	}
+	return false
 }
 
 type ServiceAuth struct {

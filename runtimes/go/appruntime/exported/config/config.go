@@ -92,6 +92,10 @@ type Runtime struct {
 	// Log configuration to set for the application.
 	// If empty it defaults to "trace".
 	LogConfig string `json:"log_config"`
+
+	// DisableRequestLogs disables the "starting request" and "request completed"
+	// log messages that are emitted for each API request.
+	DisableRequestLogs bool `json:"disable_request_logs,omitempty"`
 }
 
 // GracefulShutdownTimings defines the timings for the graceful shutdown process.

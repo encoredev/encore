@@ -155,8 +155,9 @@ func (g *RuntimeConfigGenerator) initialize() error {
 		}
 		for _, svc := range g.md.Svcs {
 			cfg := &runtimev1.HostedService{
-				Name:      svc.Name,
-				LogConfig: ptrOrNil(appFile.LogLevel),
+				Name:               svc.Name,
+				LogConfig:          ptrOrNil(appFile.LogLevel),
+				DisableRequestLogs: ptrOrNil(appFile.DisableRequestLogs),
 			}
 
 			if appFile.Build.WorkerPooling {

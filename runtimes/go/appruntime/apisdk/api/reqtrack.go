@@ -162,15 +162,17 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 	reqLogger := logCtx.Logger()
 	req.Logger = &reqLogger
 
-	switch req.Type {
-	case model.AuthHandler:
-		req.Logger.Info().Msg("running auth handler")
-	default:
-		ev := req.Logger.Info()
-		if p.ExtRequestID != "" {
-			ev = ev.Str("ext_request_id", p.ExtRequestID)
+	if !s.runtime.DisableRequestLogs {
+		switch req.Type {
+		case model.AuthHandler:
+			req.Logger.Info().Msg("running auth handler")
+		default:
+			ev := req.Logger.Info()
+			if p.ExtRequestID != "" {
+				ev = ev.Str("ext_request_id", p.ExtRequestID)
+			}
+			ev.Msg("starting request")
 		}
-		ev.Msg("starting request")
 	}
 
 	return req, nil
@@ -211,16 +213,18 @@ func (s *Server) finishRequest(resp *model.Response) {
 	}
 
 	resp.Duration = time.Since(req.Start)
-	switch req.Type {
-	case model.AuthHandler:
-		req.Logger.Info().Dur("duration", resp.Duration).Msg("auth handler completed")
-	default:
-		if resp.HTTPStatus != errs.HTTPStatus(resp.Err) {
-			code := errs.HTTPStatusToCode(resp.HTTPStatus).String()
-			req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
-		} else {
-			code := errs.Code(resp.Err).String()
-			req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Msg("request completed")
+	if !s.runtime.DisableRequestLogs {
+		switch req.Type {
+		case model.AuthHandler:
+			req.Logger.Info().Dur("duration", resp.Duration).Msg("auth handler completed")
+		default:
+			if resp.HTTPStatus != errs.HTTPStatus(resp.Err) {
+				code := errs.HTTPStatusToCode(resp.HTTPStatus).String()
+				req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
+			} else {
+				code := errs.Code(resp.Err).String()
+				req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Msg("request completed")
+			}
 		}
 	}
 

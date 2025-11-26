@@ -154,6 +154,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 	cfg.EnvCloud = infraCfg.Metadata.Cloud
 	cfg.APIBaseURL = infraCfg.Metadata.BaseURL
 	cfg.LogConfig = infraCfg.LogConfig
+	cfg.DisableRequestLogs = infraCfg.DisableRequestLogs
 
 	// Map graceful shutdown configuration
 	if infraCfg.GracefulShutdown != nil {

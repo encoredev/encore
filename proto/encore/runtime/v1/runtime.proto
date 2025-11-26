@@ -92,6 +92,9 @@ message HostedService {
   // The log configuration to use for this service.
   // If unset it defaults to "trace".
   optional string log_config = 3;
+
+  // Whether to disable request lifecycle logs ("starting request", "request completed").
+  optional bool disable_request_logs = 4;
 }
 
 message ServiceAuth {
