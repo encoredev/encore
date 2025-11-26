@@ -886,12 +886,14 @@ func (d *Desc[Req, Resp]) rpcDesc() *model.RPCDesc {
 	d.rpcDescOnce.Do(func() {
 		var reqTyp Req
 		desc := &model.RPCDesc{
-			Service:     d.Service,
-			SvcNum:      d.SvcNum,
-			Endpoint:    d.Endpoint,
-			Raw:         d.Raw,
-			RequestType: reflect.TypeOf(reqTyp),
-			Tags:        d.Tags,
+			Service:      d.Service,
+			SvcNum:       d.SvcNum,
+			Endpoint:     d.Endpoint,
+			Raw:          d.Raw,
+			RequestType:  reflect.TypeOf(reqTyp),
+			Tags:         d.Tags,
+			Exposed:      d.Access == Public || d.Access == RequiresAuth,
+			AuthRequired: d.Access == RequiresAuth,
 		}
 
 		if !isVoid[Resp]() {

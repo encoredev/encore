@@ -31,6 +31,9 @@ type RPCDesc struct {
 	RequestType  reflect.Type // nil if no payload
 	ResponseType reflect.Type // nil if no payload
 	Tags         []string
+
+	Exposed      bool // True if the endpoint is exposed (access level "public" or "auth")
+	AuthRequired bool // True if the endpoint requires authentication ("auth")
 }
 
 type PathParams []PathParam
