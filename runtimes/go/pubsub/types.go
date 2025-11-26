@@ -70,6 +70,20 @@ type SubscriptionConfig[T any] struct {
 	// [GCP Push Delivery Rate]: https://cloud.google.com/pubsub/docs/push#push_delivery_rate
 	MaxConcurrency int
 
+	// PullConcurrency is the number of concurrent pull connections to use
+	// for this subscription. Each connection can pull multiple messages, and this
+	// setting controls the number of parallel streaming connections to the provider.
+	//
+	// This is useful for GCP Pub/Sub to control quota consumption, as each
+	// streaming connection generates operations for heartbeats and state management.
+	//
+	// If not set, it defaults to the cloud provider's implementation default (10 for GCP Pub/Sub).
+	// Set to a lower value to reduce quota consumption for low-traffic subscriptions.
+	//
+	// This setting only affects GCP Pub/Sub pull subscriptions and is ignored by
+	// other providers.
+	PullConcurrency int
+
 	// Filter is a boolean expression using =, !=, IN, &&
 	// It is used to filter which messages are forwarded from the
 	// topic to a subscription
