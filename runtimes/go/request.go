@@ -26,6 +26,14 @@ type APIDesc struct {
 
 	// Tags describes what tags are attached to the endpoint.
 	Tags Tags
+
+	// Exposed is true if the endpoint is exposed to the public internet.
+	// This is true for "public" and "auth" endpoints.
+	Exposed bool
+
+	// AuthRequired is true if the endpoint requires authentication to be called.
+	// This is true for "auth" endpoints.
+	AuthRequired bool
 }
 
 // Request provides metadata about how and why the currently running code was started.
@@ -182,7 +190,9 @@ func (mgr *Manager) CurrentRequest() *Request {
 			RequestType:  desc.RequestType,
 			ResponseType: desc.ResponseType,
 			Raw:          desc.Raw,
-			Tags:         data.Desc.Tags,
+			Tags:         desc.Tags,
+			Exposed:      desc.Exposed,
+			AuthRequired: desc.AuthRequired,
 		}
 
 		if data.FromEncorePlatform {

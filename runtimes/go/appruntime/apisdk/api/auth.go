@@ -175,6 +175,9 @@ func (d *AuthHandlerDesc[Params]) rpcDesc() *model.RPCDesc {
 			RequestType:  nil,
 			ResponseType: nil,
 			Tags:         nil,
+
+			Exposed:      true,
+			AuthRequired: false,
 		}
 		d.cachedRPCDesc = desc
 	})
