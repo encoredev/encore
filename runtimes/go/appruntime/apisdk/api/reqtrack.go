@@ -164,9 +164,9 @@ func (s *Server) beginRequest(ctx context.Context, p *beginRequestParams) (*mode
 
 	switch req.Type {
 	case model.AuthHandler:
-		req.Logger.Info().Msg("running auth handler")
+		req.Logger.Trace().Msg("running auth handler")
 	default:
-		ev := req.Logger.Info()
+		ev := req.Logger.Trace()
 		if p.ExtRequestID != "" {
 			ev = ev.Str("ext_request_id", p.ExtRequestID)
 		}
@@ -213,14 +213,14 @@ func (s *Server) finishRequest(resp *model.Response) {
 	resp.Duration = time.Since(req.Start)
 	switch req.Type {
 	case model.AuthHandler:
-		req.Logger.Info().Dur("duration", resp.Duration).Msg("auth handler completed")
+		req.Logger.Trace().Dur("duration", resp.Duration).Msg("auth handler completed")
 	default:
 		if resp.HTTPStatus != errs.HTTPStatus(resp.Err) {
 			code := errs.HTTPStatusToCode(resp.HTTPStatus).String()
-			req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
+			req.Logger.Trace().Dur("duration", resp.Duration).Str("code", code).Int("http_code", resp.HTTPStatus).Msg("request completed")
 		} else {
 			code := errs.Code(resp.Err).String()
-			req.Logger.Info().Dur("duration", resp.Duration).Str("code", code).Msg("request completed")
+			req.Logger.Trace().Dur("duration", resp.Duration).Str("code", code).Msg("request completed")
 		}
 	}
 
