@@ -54,7 +54,7 @@ module test
 
 go 1.20
 
-require encore.dev v1.13.4
+require encore.dev v1.52.0
 
 -- fakesvcfortest/test.go --
 // this service only exists to suppress the "no services found error"

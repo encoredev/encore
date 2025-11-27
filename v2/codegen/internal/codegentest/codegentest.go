@@ -48,7 +48,7 @@ func Run(t *testing.T, fn func(*codegen.Generator, *app.Desc)) {
 				if !errors.Is(err, fs.ErrNotExist) {
 					c.Fatal(err)
 				}
-				modContents := "module example.com\nrequire encore.dev v1.13.4"
+				modContents := "module example.com\nrequire encore.dev v1.52.0"
 				err := os.WriteFile(modPath, []byte(modContents), 0644)
 				c.Assert(err, qt.IsNil)
 			}

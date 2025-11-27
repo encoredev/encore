@@ -136,7 +136,7 @@ func Raw(w http.ResponseWriter, req *http.Request) {}
 		return testutil.ParseTxtar(`
 -- go.mod --
 module example.com
-require encore.dev v1.13.4
+require encore.dev v1.52.0
 -- code.go --
 package foo
 ` + imports + `

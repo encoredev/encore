@@ -40,7 +40,7 @@ func TestParse(t *testing.T) {
 				if !os.IsNotExist(err) {
 					c.Fatal(err)
 				}
-				modContents := "module example.com\nrequire encore.dev v1.13.4"
+				modContents := "module example.com\nrequire encore.dev v1.52.0"
 				err := os.WriteFile(modPath, []byte(modContents), 0644)
 				c.Assert(err, qt.IsNil)
 			}
