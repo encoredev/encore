@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use itertools::Itertools;
 use matchit::InsertError;
 use swc_common::errors::HANDLER;
 use swc_common::Span;
@@ -8,10 +9,14 @@ use crate::encore::parser::meta::v1;
 use crate::legacymeta::compute_meta;
 use crate::parser::parser::{ParseContext, ParseResult};
 use crate::parser::resources::apis::api::{Endpoint, Method, Methods};
+use crate::parser::resources::apis::encoding::{Param, ParamData};
 use crate::parser::resources::Resource;
 use crate::parser::respath::Path;
 use crate::parser::types::visitor::VisitWith;
-use crate::parser::types::{validation, visitor, ObjectId, ResolveState, Type, Validated};
+use crate::parser::types::{
+    validation, visitor, Basic, Custom, Interface, ObjectId, ResolveState, Type, Validated,
+    WireLocation, WireSpec,
+};
 use crate::parser::Range;
 use crate::span_err::ErrReporter;
 use litparser::Sp;
@@ -125,11 +130,96 @@ impl AppValidator<'_> {
     }
 
     fn validate_endpoint(&self, ep: &Endpoint) {
+        if let Some(req_enc) = &ep.encoding.handshake {
+            self.validate_req_params(&req_enc.params);
+        }
+        for req_enc in &ep.encoding.req {
+            self.validate_req_params(&req_enc.params);
+        }
+        self.validate_resp_params(&ep.encoding.resp.params);
+        if let Some(schema) = &ep.encoding.raw_handshake_schema {
+            self.validate_schema_type(schema);
+            self.validate_validations(schema);
+        }
         if let Some(schema) = &ep.encoding.raw_req_schema {
+            self.validate_schema_type(schema);
             self.validate_validations(schema);
         }
         if let Some(schema) = &ep.encoding.raw_resp_schema {
+            self.validate_schema_type(schema);
             self.validate_validations(schema);
+        }
+    }
+
+    fn validate_req_params(&self, params: &Vec<Param>) {
+        for param in params {
+            if let ParamData::Query { .. } = param.loc {
+                fn is_valid_query_type(state: &ResolveState, typ: &Type) -> bool {
+                    match resolve_to_concrete(state, typ) {
+                        Type::Basic(_) | Type::Literal(_) => true,
+                        Type::Enum(_) => true,
+                        Type::Array(ref t) => is_valid_query_type(state, &t.0),
+                        Type::Union(ref u) => u.types.iter().all(|t| is_valid_query_type(state, t)),
+                        Type::Custom(Custom::Decimal) => true,
+                        Type::Custom(Custom::WireSpec(WireSpec {
+                            location: WireLocation::Query,
+                            underlying: typ,
+                            ..
+                        })) => is_valid_query_type(state, &typ),
+                        _ => false,
+                    }
+                }
+
+                if !is_valid_query_type(self.pc.type_checker.state(), &param.typ) {
+                    HANDLER.with(|handler| {
+                        handler.span_err(param.range, "type not supported for query parameters")
+                    });
+                }
+            };
+        }
+    }
+
+    fn validate_resp_params(&self, params: &[Param]) {
+        let http_status_params: Vec<_> = params
+            .iter()
+            .filter(|p| matches!(p.loc, ParamData::HTTPStatus))
+            .sorted_by(|a, b| a.range.cmp(&b.range))
+            .collect();
+
+        if http_status_params.len() > 1 {
+            let first = http_status_params[0];
+            HANDLER.with(|handler| {
+                let mut err = handler.struct_span_err(
+                    first.range,
+                    "http status can only be defined once per response type",
+                );
+
+                for param in &http_status_params[1..] {
+                    err.span_note(param.range, "also defined here");
+                }
+
+                err.emit();
+            });
+        }
+    }
+
+    fn validate_schema_type(&self, schema: &Sp<Type>) {
+        let state = self.pc.type_checker.state();
+        let concrete = resolve_to_concrete(state, schema.get());
+
+        let error_msg = match concrete {
+            Type::Interface(Interface { index: Some(_), .. }) => {
+                Some("type index is not supported in schema types")
+            }
+            Type::Interface(Interface { call: Some(_), .. }) => {
+                Some("call signatures are not supported in schema types")
+            }
+            Type::Interface(_) | Type::Basic(Basic::Void) => None,
+            _ => Some("request and response types must be interfaces or void"),
+        };
+
+        if let Some(msg) = error_msg {
+            HANDLER.with(|handler| handler.span_err(schema.span(), msg));
         }
     }
 
@@ -202,5 +292,17 @@ impl AppValidator<'_> {
                 }
             }
         }
+    }
+}
+
+fn resolve_to_concrete(state: &ResolveState, typ: &Type) -> Type {
+    match typ {
+        Type::Optional(opt) => resolve_to_concrete(state, &opt.0),
+        Type::Validated(v) => resolve_to_concrete(state, &v.typ),
+        Type::Named(named) => {
+            let underlying = named.underlying(state);
+            resolve_to_concrete(state, &underlying)
+        }
+        _ => typ.clone(),
     }
 }
