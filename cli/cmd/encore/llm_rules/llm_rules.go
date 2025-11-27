@@ -7,8 +7,8 @@ import (
 )
 
 var llmRulesCmd = &cobra.Command{
-	Use:   "llm_rules",
-	Short: "Commands to create llm rules for apps",
+	Use:   "llm-rules",
+	Short: "Commands to create LLM rules for apps",
 }
 
 func init() {

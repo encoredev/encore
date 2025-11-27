@@ -353,5 +353,5 @@ Generate llm rules in an existing app
 Initialize the llm rules files
 
 ```shell
-$ encore llm_rules init
+$ encore llm-rules init
 ```
