@@ -103,14 +103,14 @@ func (app *App) logStartupInfo() {
 
 		if logEachRegistration {
 			for _, h := range handlers {
-				app.logger.Info().
+				app.logger.Trace().
 					Str("service", h.ServiceName()).
 					Str("endpoint", h.EndpointName()).
 					Str("path", h.SemanticPath()).
 					Msg("registered API endpoint")
 			}
 		} else {
-			app.logger.Info().Msgf("registered %d API endpoints", len(handlers))
+			app.logger.Trace().Msgf("registered %d API endpoints", len(handlers))
 		}
 	}
 }

@@ -246,7 +246,7 @@ func NewSubscription[T any](topic *Topic[T], name string, cfg SubscriptionConfig
 
 	if !mgr.static.Testing {
 		// Log the subscription registration - unless we're in unit tests
-		log.Info().Msg("registered subscription")
+		log.Trace().Msg("registered subscription")
 	}
 
 	return &Subscription[T]{topic: topic, name: name, cfg: cfg, mgr: mgr}

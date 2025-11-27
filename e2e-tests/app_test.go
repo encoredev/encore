@@ -88,6 +88,7 @@ func RunApp(c testing.TB, appRoot string, logger RunLogger, env []string) *RunAp
 		ResourceManager: rm,
 		Mgr:             mgr,
 		Builder:         bld,
+		Params:          &StartParams{},
 	}
 
 	parse, build, configs := testBuild(c, appRoot, env)

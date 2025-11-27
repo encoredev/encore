@@ -116,6 +116,9 @@ message RunRequest {
   // debug_mode specifies the debug mode to use.
   DebugMode debug_mode = 11;
 
+  // Log level override.
+  optional string log_level = 12;
+
   enum BrowserMode {
     BROWSER_AUTO = 0;
     BROWSER_NEVER = 1;

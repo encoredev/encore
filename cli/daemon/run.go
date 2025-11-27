@@ -17,6 +17,7 @@ import (
 	"encr.dev/internal/userconfig"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/fns"
+	"encr.dev/pkg/option"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -147,6 +148,7 @@ func (s *Server) Run(req *daemonpb.RunRequest, stream daemonpb.Daemon_RunServer)
 		OpsTracker: ops,
 		Browser:    browser,
 		Debug:      run.DebugModeFromProto(req.DebugMode),
+		LogLevel:   option.FromPointer(req.LogLevel),
 	})
 	if err != nil {
 		s.mu.Unlock()

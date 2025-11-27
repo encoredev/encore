@@ -406,7 +406,7 @@ func (s *Server) getGlobalMiddleware(ids []string) []*Middleware {
 
 func (s *Server) Serve(ln net.Listener) error {
 	if s.runtime.EnvCloud != "local" || s.IsGateway() {
-		s.rootLogger.Info().Msg("listening for incoming HTTP requests")
+		s.rootLogger.Trace().Msg("listening for incoming HTTP requests")
 	}
 	return s.httpsrv.Serve(ln)
 }

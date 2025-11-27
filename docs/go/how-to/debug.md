@@ -78,7 +78,7 @@ $ encore run --debug
 API Base URL:      http://localhost:4000
 Dev Dashboard URL: http://localhost:9400/hello-world-cgu2
 Process ID:        51894
-1:48PM INF registered endpoint path=/hello/:name service=hello endpoint=Hello
+1:48PM TRC registered endpoint path=/hello/:name service=hello endpoint=Hello
 ```
 
 (Your process id will differ).
@@ -115,4 +115,3 @@ it has completed, click `Run | Attach to Process` again. In the dialog that appe
 process ID from above.
 
 That's it. You should be able to set breakpoints and have the Encore application pause when they’re hit like you would expect.
-

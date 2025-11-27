@@ -644,7 +644,9 @@ type RunRequest struct {
 	// browser specifies whether and how to open the browser on startup.
 	Browser RunRequest_BrowserMode `protobuf:"varint,10,opt,name=browser,proto3,enum=encore.daemon.RunRequest_BrowserMode" json:"browser,omitempty"`
 	// debug_mode specifies the debug mode to use.
-	DebugMode     RunRequest_DebugMode `protobuf:"varint,11,opt,name=debug_mode,json=debugMode,proto3,enum=encore.daemon.RunRequest_DebugMode" json:"debug_mode,omitempty"`
+	DebugMode RunRequest_DebugMode `protobuf:"varint,11,opt,name=debug_mode,json=debugMode,proto3,enum=encore.daemon.RunRequest_DebugMode" json:"debug_mode,omitempty"`
+	// Log level override.
+	LogLevel      *string `protobuf:"bytes,12,opt,name=log_level,json=logLevel,proto3,oneof" json:"log_level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -740,6 +742,13 @@ func (x *RunRequest) GetDebugMode() RunRequest_DebugMode {
 		return x.DebugMode
 	}
 	return RunRequest_DEBUG_DISABLED
+}
+
+func (x *RunRequest) GetLogLevel() string {
+	if x != nil && x.LogLevel != nil {
+		return *x.LogLevel
+	}
+	return ""
 }
 
 type TestRequest struct {
@@ -3772,7 +3781,7 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\btemplate\x18\x02 \x01(\tR\btemplate\x12\x1a\n" +
 	"\btutorial\x18\x03 \x01(\bR\btutorial\"*\n" +
 	"\x11CreateAppResponse\x12\x15\n" +
-	"\x06app_id\x18\x01 \x01(\tR\x05appId\"\x8f\x04\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\"\xbf\x04\n" +
 	"\n" +
 	"RunRequest\x12\x19\n" +
 	"\bapp_root\x18\x01 \x01(\tR\aappRoot\x12\x1f\n" +
@@ -3788,7 +3797,8 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\abrowser\x18\n" +
 	" \x01(\x0e2%.encore.daemon.RunRequest.BrowserModeR\abrowser\x12B\n" +
 	"\n" +
-	"debug_mode\x18\v \x01(\x0e2#.encore.daemon.RunRequest.DebugModeR\tdebugMode\"F\n" +
+	"debug_mode\x18\v \x01(\x0e2#.encore.daemon.RunRequest.DebugModeR\tdebugMode\x12 \n" +
+	"\tlog_level\x18\f \x01(\tH\x02R\blogLevel\x88\x01\x01\"F\n" +
 	"\vBrowserMode\x12\x10\n" +
 	"\fBROWSER_AUTO\x10\x00\x12\x11\n" +
 	"\rBROWSER_NEVER\x10\x01\x12\x12\n" +
@@ -3799,7 +3809,9 @@ const file_encore_daemon_daemon_proto_rawDesc = "" +
 	"\vDEBUG_BREAK\x10\x02B\r\n" +
 	"\v_trace_fileB\f\n" +
 	"\n" +
-	"_namespace\"\xf0\x01\n" +
+	"_namespaceB\f\n" +
+	"\n" +
+	"_log_level\"\xf0\x01\n" +
 	"\vTestRequest\x12\x19\n" +
 	"\bapp_root\x18\x01 \x01(\tR\aappRoot\x12\x1f\n" +
 	"\vworking_dir\x18\x02 \x01(\tR\n" +
