@@ -260,7 +260,7 @@ Note that this strips trailing newlines from the secret value.
 
 Lists secrets, optionally for a specific key
 
-```shell 
+```shell
 $ encore secret list [keys...]
 ```
 
@@ -340,3 +340,15 @@ $ encore build docker
 
 `--base string` defines the base image to build from (default "scratch")
 `--push` pushes image to remote repository
+
+## LLM Rules
+
+Generate llm rules in an existing app
+
+#### Init
+
+Initialize the llm rules files
+
+```shell
+$ encore llm-rules init
+```

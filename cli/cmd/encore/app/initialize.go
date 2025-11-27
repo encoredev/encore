@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/cli/cmd/encore/llm_rules"
 	"encr.dev/internal/conf"
 	"encr.dev/pkg/xos"
 )
@@ -29,7 +30,14 @@ const (
 )
 
 var (
-	initAppLang string
+	initAppLang = cmdutil.Oneof{
+		Value:     "",
+		Allowed:   cmdutil.LanguageFlagValues(),
+		Flag:      "lang",
+		FlagShort: "l",
+		Desc:      "Programming language to use for the app.",
+		TypeDesc:  "string",
+	}
 )
 
 // Create a new app from scratch: `encore app create`
@@ -54,7 +62,7 @@ func init() {
 	}
 
 	appCmd.AddCommand(initAppCmd)
-	initAppCmd.Flags().StringVar(&initAppLang, "lang", "", "Programming language to use for the app. (ts, go)")
+	initAppLang.AddFlag(initAppCmd)
 }
 
 func initializeApp(name string) error {
@@ -64,7 +72,7 @@ func initializeApp(name string) error {
 		// expected
 	} else if err != nil {
 		cmdutil.Fatal(err)
-	} else if err == nil {
+	} else {
 		// There is already an app here or in a parent directory.
 		cmdutil.Fatal("an encore.app file already exists (here or in a parent directory)")
 	}
@@ -72,7 +80,7 @@ func initializeApp(name string) error {
 	cyan := color.New(color.FgCyan)
 	promptAccountCreation()
 
-	name, _, lang := selectTemplate(name, "", language(initAppLang), true)
+	name, _, lang, _ := createAppForm(name, "", cmdutil.Language(initAppLang.Value), llm_rules.LLMRulesToolNone, true)
 
 	if err := validateName(name); err != nil {
 		return err
@@ -106,17 +114,27 @@ func initializeApp(name string) error {
 			`Use "encore app link" to link it.`,
 		}, "\n\t//")
 	}
-	encoreAppData := []byte(fmt.Sprintf(encoreAppTemplate, appSlugComments, appSlug))
+	encoreAppData := fmt.Appendf(nil, encoreAppTemplate, appSlugComments, appSlug)
 	if err := xos.WriteFile("encore.app", encoreAppData, 0644); err != nil {
 		return err
 	}
 
-	// Update to latest encore.dev release if this looks to be a go module.
+	// Update to latest encore.dev release
 	if _, err := os.Stat("go.mod"); err == nil {
+		lang = cmdutil.LanguageGo
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Prefix = "Running go get encore.dev@latest"
 		s.Start()
 		if err := gogetEncore("."); err != nil {
+			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
+		}
+		s.Stop()
+	} else if _, err := os.Stat("package.json"); err == nil {
+		lang = cmdutil.LanguageTS
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Prefix = "Running npm install encore.dev@latest"
+		s.Start()
+		if err := npmInstallEncore("."); err != nil {
 			s.FinalMSG = fmt.Sprintf("failed, skipping: %v", err.Error())
 		}
 		s.Stop()
