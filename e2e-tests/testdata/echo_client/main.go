@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"echo_client/golang/client"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 var assertNumber = 1
@@ -132,6 +134,11 @@ func main() {
 	assert(err, nil, "unable to marshal response to JSON")
 	reqAsJSON, err := json.Marshal(params)
 	assert(err, nil, "unable to marshal response to JSON")
+	if diff := cmp.Diff(string(respAsJSON), string(reqAsJSON)); diff != "" {
+		assertNumber++
+		fmt.Printf("Assertion Failure %d: %s\n", assertNumber, diff)
+		os.Exit(assertNumber)
+	}
 	assert(string(respAsJSON), string(reqAsJSON), "Expected the same response from the marshaller test")
 
 	// Test auth handlers

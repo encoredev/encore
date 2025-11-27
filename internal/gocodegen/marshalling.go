@@ -589,6 +589,9 @@ func (w *MarshallingCodeWrapper) FromString(targetType *schema.Type, fieldName s
 			if err != nil {
 				return nil, err
 			}
+
+			// Options are not required.
+			required = false
 		} else {
 			return nil, errors.Newf("unsupported option type %T", t.Option.Value.Typ)
 		}

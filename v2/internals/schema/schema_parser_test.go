@@ -222,7 +222,7 @@ func TestParser_ParseType(t *testing.T) {
 		return testutil.ParseTxtar(`
 -- go.mod --
 module example.com
-require encore.dev v1.13.4
+require encore.dev v1.52.0
 -- code.go --
 package foo
 ` + imports + `
@@ -351,7 +351,7 @@ func TestParser_ParseFuncDecl(t *testing.T) {
 		return testutil.ParseTxtar(`
 -- go.mod --
 module example.com
-require encore.dev v1.13.4
+require encore.dev v1.52.0
 -- code.go --
 package foo
 ` + imports + `

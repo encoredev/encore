@@ -50,7 +50,7 @@ func doRun(t *testing.T, experiments []string) {
 			e.Setenv("EXTRA_EXPERIMENTS", strings.Join(experiments, ","))
 			e.Setenv("HOME", home)
 			e.Setenv("GOFLAGS", "-modcacherw")
-			gomod := []byte("module test\n\ngo 1.21.0\n\nrequire encore.dev v1.13.4")
+			gomod := []byte("module test\n\ngo 1.21.0\n\nrequire encore.dev v1.52.0")
 			if err := os.WriteFile(filepath.Join(e.WorkDir, "go.mod"), gomod, 0755); err != nil {
 				return err
 			}

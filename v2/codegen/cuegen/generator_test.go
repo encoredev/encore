@@ -38,7 +38,7 @@ func TestCodeGen_TestMain(t *testing.T) {
 
 			a.Files = append(a.Files, txtar.File{
 				Name: "go.mod",
-				Data: []byte("module encore.app\nrequire encore.dev v1.13.4\n"),
+				Data: []byte("module encore.app\nrequire encore.dev v1.52.0\n"),
 			})
 
 			tc := testutil.NewContext(c, false, a)

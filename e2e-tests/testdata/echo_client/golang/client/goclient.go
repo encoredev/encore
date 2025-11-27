@@ -957,7 +957,7 @@ func (c *testClient) MarshallerTestHandler(ctx context.Context, params TestMarsh
 	resp.HeaderJson = respDecoder.ToJSON("HeaderJson", respHeaders.Get("x-json"), true)
 	resp.HeaderUUID = respDecoder.ToString("HeaderUUID", respHeaders.Get("x-uuid"), true)
 	resp.HeaderUserID = respDecoder.ToString("HeaderUserID", respHeaders.Get("x-user-id"), true)
-	resp.HeaderOption = respDecoder.ToStringOption("HeaderOption", respHeaders.Get("x-option"), true)
+	resp.HeaderOption = respDecoder.ToStringOption("HeaderOption", respHeaders.Get("x-option"), false)
 	resp.QueryBoolean = respBody.QueryBoolean
 	resp.QueryInt = respBody.QueryInt
 	resp.QueryFloat = respBody.QueryFloat

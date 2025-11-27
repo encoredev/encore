@@ -19,6 +19,7 @@ import (
 	"encore.dev/rlog"
 	"encore.dev/types/option"
 	"encore.dev/types/uuid"
+	"github.com/google/go-cmp/cmp"
 )
 
 var assertNumber = 0
@@ -136,7 +137,10 @@ func GeneratedWrappersEndToEndTest(ctx context.Context) (err error) {
 	assert(err, nil, "unable to marshal response to JSON")
 	reqAsJSON, err := json.Marshal(params)
 	assert(err, nil, "unable to marshal response to JSON")
-	assert(respAsJSON, reqAsJSON, "Expected the same response from the marshaller test")
+	if diff := cmp.Diff(string(respAsJSON), string(reqAsJSON)); diff != "" {
+		assertNumber++
+		panic(fmt.Sprintf("Assertion Failure %d: %s", assertNumber, diff))
+	}
 
 	// Test the raw endpoint (Unsupported currently in service to service calls)
 	// {

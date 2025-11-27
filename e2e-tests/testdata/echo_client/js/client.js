@@ -456,7 +456,7 @@ class TestServiceClient {
         rtn.HeaderJson = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
         rtn.HeaderUUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
         rtn.HeaderUserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
-        rtn.HeaderOption = mustBeSet("Header `x-option`", resp.headers.get("x-option"))
+        rtn.HeaderOption = resp.headers.get("x-option")
         return rtn
     }
 
