@@ -101,6 +101,9 @@ type StartParams struct {
 
 	// Debug specifies to compile the application for debugging.
 	Debug builder.DebugMode
+
+	// LogLevel overrides the default log level for the run.
+	LogLevel option.Option[string]
 }
 
 // BrowserMode specifies how to open the browser when starting 'encore run'.
@@ -582,6 +585,7 @@ func (r *Run) StartProcGroup(params *StartProcGroupParams) (p *ProcGroup, err er
 			IncludeMeta:       r.Builder.NeedsMeta(),
 			MetaPath:          metaPath,
 			RuntimeConfigPath: runtimeConfigPath,
+			LogLevel:          r.Params.LogLevel,
 		},
 		Experiments: params.Experiments,
 		Meta:        params.Meta,

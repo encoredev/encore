@@ -87,6 +87,9 @@ type RuntimeConfigGenerator struct {
 	// instead of including it as an environment variable.
 	RuntimeConfigPath option.Option[string]
 
+	// Minimum log level, if any.
+	LogLevel option.Option[string]
+
 	// The values of defined secrets.
 	DefinedSecrets map[string]string
 	// The configs, per service.
@@ -153,10 +156,16 @@ func (g *RuntimeConfigGenerator) initialize() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to get app's build settings")
 		}
+
+		logLevel := appFile.LogLevel
+		if level, ok := g.LogLevel.Get(); ok {
+			logLevel = level
+		}
+
 		for _, svc := range g.md.Svcs {
 			cfg := &runtimev1.HostedService{
 				Name:      svc.Name,
-				LogConfig: ptrOrNil(appFile.LogLevel),
+				LogConfig: ptrOrNil(logLevel),
 			}
 
 			if appFile.Build.WorkerPooling {

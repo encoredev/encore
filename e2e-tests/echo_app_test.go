@@ -591,6 +591,7 @@ func TestProcClosedOnCtxCancel(t *testing.T) {
 		ListenAddr:      "127.0.0.1:34212",
 		SvcProxy:        svcProxy,
 		Builder:         v2builder.New(),
+		Params:          &StartParams{},
 	}
 
 	parse, build, _ := testBuild(c, appRoot, append(os.Environ(), "ENCORE_EXPERIMENT=v2"))

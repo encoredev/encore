@@ -32,6 +32,14 @@ var (
 	}
 	watch    bool
 	listen   string
+	logLevel = cmdutil.Oneof{
+		Value:     "",
+		Allowed:   []string{"trace", "debug", "info", "warn", "error"},
+		Flag:      "level",
+		FlagShort: "l",
+		Desc:      "Minimum log level to display",
+		TypeDesc:  "string",
+	}
 	port     uint
 	jsonLogs bool
 	browser  = cmdutil.Oneof{
@@ -46,7 +54,7 @@ var (
 
 func init() {
 	runCmd := &cobra.Command{
-		Use:   "run [--debug] [--watch=true] [--port=4000] [--listen=<listen-addr>]",
+		Use:   "run [--debug] [--watch=true] [--level=TRACE] [--port=4000] [--listen=<listen-addr>]",
 		Short: "Runs your application",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -71,6 +79,7 @@ func init() {
 	runCmd.Flags().BoolVar(&color, "color", isTerm, "Whether to display colorized output")
 	runCmd.Flags().BoolVar(&noColor, "no-color", false, "Equivalent to --color=false")
 	runCmd.Flags().MarkHidden("no-color")
+	logLevel.AddFlag(runCmd)
 	debug.AddFlag(runCmd)
 	browser.AddFlag(runCmd)
 }
@@ -124,6 +133,7 @@ func runApp(appRoot, wd string) {
 		TraceFile:  root.TraceFile,
 		Namespace:  nonZeroPtr(nsName),
 		Browser:    browserMode,
+		LogLevel:   nonZeroPtr(logLevel.Value),
 	})
 	if err != nil {
 		fatal(err)
