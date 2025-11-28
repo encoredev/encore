@@ -24,6 +24,8 @@ pub mod error;
 pub mod infracfg;
 pub mod log;
 pub mod meta;
+pub mod metadata;
+pub mod metrics;
 pub mod model;
 mod names;
 pub mod objects;
@@ -209,6 +211,7 @@ pub struct Runtime {
     app_meta: meta::AppMeta,
     compute: ComputeConfig,
     runtime: tokio::runtime::Runtime,
+    metrics: metrics::Manager,
 }
 
 impl Runtime {
@@ -238,6 +241,7 @@ impl Runtime {
 
         let mut deployment = cfg.deployment.take().unwrap_or_default();
         let service_discovery = deployment.service_discovery.take().unwrap_or_default();
+        let observability = deployment.observability.take().unwrap_or_default();
 
         let http_client = reqwest::Client::builder()
             .build()
@@ -250,11 +254,19 @@ impl Runtime {
         );
         let platform_validator = Arc::new(platform_validator);
 
+        // Initialize metrics manager from runtime config
+        let metrics_manager = metrics::Manager::from_runtime_config(
+            &observability,
+            &environment,
+            &secrets,
+            &http_client,
+            tokio_rt.handle().clone(),
+        );
+
         // Set up observability.
         let disable_tracing =
             testing || std::env::var("ENCORE_NOTRACE").is_ok_and(|v| !v.is_empty());
         let tracer = if !disable_tracing {
-            let observability = deployment.observability.take().unwrap_or_default();
             let trace_endpoint = observability
                 .tracing
                 .into_iter()
@@ -388,6 +400,7 @@ impl Runtime {
             runtime: tokio_rt.handle().clone(),
             testing,
             proxied_push_subs,
+            metrics: &metrics_manager,
         }
         .build()
         .context("unable to initialize api manager")?;
@@ -411,6 +424,7 @@ impl Runtime {
             app_meta,
             compute,
             runtime: tokio_rt,
+            metrics: metrics_manager,
         })
     }
 
@@ -442,6 +456,11 @@ impl Runtime {
     #[inline]
     pub fn api(&self) -> &api::Manager {
         &self.api
+    }
+
+    #[inline]
+    pub fn metrics(&self) -> &metrics::Manager {
+        &self.metrics
     }
 
     #[inline]

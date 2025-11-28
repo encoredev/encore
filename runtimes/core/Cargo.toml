@@ -10,6 +10,7 @@ rttrace = []
 [dependencies]
 pingora = { version = "0.4", features = ["lb", "openssl"] }
 anyhow = "1.0.76"
+async-trait = "0.1"
 base64 = "0.21.5"
 gjson = "0.8.1"
 prost = "0.12.3"
@@ -123,6 +124,15 @@ email_address = "0.2.9"
 cookie = "0.18.1"
 malachite = "0.6.1"
 byteorder = "1.5.0"
+metrics = "0.24.2"
+dashmap = "6.1.0"
+google-cloud-monitoring-v3 = "1.0.0"
+google-cloud-api = "1.0.0"
+google-cloud-wkt = "1.0.0"
+sysinfo = "0.37.2"
+aws-sdk-cloudwatch = "1.94.0"
+datadog-api-client = "0.20.0"
+snap = "1.1.1"
 
 [build-dependencies]
 prost-build = "0.12.3"
