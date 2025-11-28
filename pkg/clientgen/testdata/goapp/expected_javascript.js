@@ -183,7 +183,7 @@ class SvcServiceClient {
         rtn.Json = JSON.parse(mustBeSet("Header `x-json`", resp.headers.get("x-json")))
         rtn.UUID = mustBeSet("Header `x-uuid`", resp.headers.get("x-uuid"))
         rtn.UserID = mustBeSet("Header `x-user-id`", resp.headers.get("x-user-id"))
-        rtn.Optional = mustBeSet("Header `x-optional`", resp.headers.get("x-optional"))
+        rtn.Optional = resp.headers.get("x-optional")
         return rtn
     }
 
