@@ -35,7 +35,7 @@ var (
 		Allowed:   cmdutil.LanguageFlagValues(),
 		Flag:      "lang",
 		FlagShort: "l",
-		Desc:      "Programming language to use for the app.",
+		Desc:      "Programming language to use for the app",
 		TypeDesc:  "string",
 	}
 )
