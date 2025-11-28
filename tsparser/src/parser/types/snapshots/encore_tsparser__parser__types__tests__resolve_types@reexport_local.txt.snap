@@ -1,0 +1,31 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/reexport_local.txt
+---
+{
+    "MyType": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "field",
+                    ),
+                    optional: false,
+                    typ: Named(
+                        Named {
+                            obj: Object {
+                                name: Some(
+                                    "foo",
+                                ),
+                            },
+                            type_arguments: [],
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

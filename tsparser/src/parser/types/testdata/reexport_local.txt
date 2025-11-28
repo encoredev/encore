@@ -1,0 +1,11 @@
+import { foo } from "./foo";
+
+export interface MyType {
+    field: foo;
+}
+
+-- foo.ts --
+interface foo {
+  bar: string;
+}
+export { foo };
