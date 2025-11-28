@@ -169,7 +169,7 @@ func Foo(ctx context.Context, p *Params) error { return nil }
 func testParse(c *qt.C, code string) *meta.Data {
 	code = strings.ReplaceAll(code, "SCRUB", "`encore:\"sensitive\"`")
 	ar := txtar.Parse([]byte(code))
-	ar.Files = append(ar.Files, txtar.File{Name: "go.mod", Data: []byte("module test")})
+	ar.Files = append(ar.Files, txtar.File{Name: "go.mod", Data: []byte("module test\n\nrequire (\n\tencore.dev v1.52.1\n)\n")})
 
 	root := c.TempDir()
 	err := txtar.Write(ar, root)

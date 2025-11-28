@@ -425,7 +425,7 @@ func (c *svcClient) GetRequestWithAllInputTypes(ctx context.Context, params SvcA
 	resp.Json = respDecoder.ToJSON("Json", respHeaders.Get("x-json"), true)
 	resp.UUID = respDecoder.ToString("UUID", respHeaders.Get("x-uuid"), true)
 	resp.UserID = respDecoder.ToString("UserID", respHeaders.Get("x-user-id"), true)
-	resp.Optional = respDecoder.ToStringOption("Optional", respHeaders.Get("x-optional"), true)
+	resp.Optional = respDecoder.ToStringOption("Optional", respHeaders.Get("x-optional"), false)
 
 	if respDecoder.LastError != nil {
 		err = fmt.Errorf("unable to unmarshal headers: %w", respDecoder.LastError)

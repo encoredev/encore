@@ -1,6 +1,10 @@
 -- go.mod --
 module app
 
+require (
+	encore.dev v1.52.1
+)
+
 -- encore.app --
 {"id": ""}
 
