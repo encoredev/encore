@@ -503,6 +503,34 @@ impl Ctx<'_> {
                     Type::Basic(Basic::Never)
                 }
             }
+            ast::TsTypeQueryExpr::TsEntityName(qn @ ast::TsEntityName::TsQualifiedName(_)) => {
+                // Helper function to recursively resolve qualified names to their type
+                fn resolve_qualified_type(ctx: &Ctx, entity: &ast::TsEntityName) -> Type {
+                    match entity {
+                        ast::TsEntityName::Ident(ident) => {
+                            // Base case: simple identifier
+                            if let Some(obj) = ctx.ident_obj(ident) {
+                                ctx.obj_type(&obj)
+                            } else {
+                                HANDLER.with(|handler| {
+                                    handler.span_err(ident.span, "unknown identifier")
+                                });
+                                Type::Basic(Basic::Never)
+                            }
+                        }
+                        ast::TsEntityName::TsQualifiedName(qn) => {
+                            // resolve the left side first
+                            let base_type = resolve_qualified_type(ctx, &qn.left);
+
+                            // Then access the right side property on that type
+                            let prop = ast::MemberProp::Ident(qn.right.clone());
+                            ctx.resolve_member_prop(&base_type, &prop)
+                        }
+                    }
+                }
+
+                resolve_qualified_type(self, qn)
+            }
             _ => {
                 HANDLER.with(|handler| {
                     handler.span_err(typ.span, "typeof with non-ident not yet supported")

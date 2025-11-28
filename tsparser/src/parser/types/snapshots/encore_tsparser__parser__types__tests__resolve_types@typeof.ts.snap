@@ -1,0 +1,61 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/typeof.ts
+---
+{
+    "O": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Literal(
+                        String(
+                            "blah",
+                        ),
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "nested",
+                    ),
+                    optional: false,
+                    typ: Interface(
+                        Interface {
+                            fields: [
+                                InterfaceField {
+                                    name: String(
+                                        "baz",
+                                    ),
+                                    optional: false,
+                                    typ: Literal(
+                                        Number(
+                                            55.0,
+                                        ),
+                                    ),
+                                },
+                            ],
+                            index: None,
+                            call: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "S": Literal(
+        String(
+            "blah",
+        ),
+    ),
+    "N": Literal(
+        Number(
+            55.0,
+        ),
+    ),
+}
