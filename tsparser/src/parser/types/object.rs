@@ -309,39 +309,40 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
                 }
 
                 ast::ModuleDecl::ExportNamed(decl) => {
-                    // Re-exporting from another module.
-                    let Some(src) = &decl.src else {
-                        log::debug!("ExportNamed without src");
-                        continue;
-                    };
-
-                    ns.reexports.push(Reexport::List {
-                        import_path: src.value.to_string(),
-                        items: decl
-                            .specifiers
-                            .iter()
-                            .filter_map(|spec| match spec {
-                                ast::ExportSpecifier::Named(named) => {
-                                    let orig_name = module_export_name_to_string(&named.orig);
-                                    Some(NamedReexport {
-                                        orig_name,
-                                        renamed: named
-                                            .exported
-                                            .as_ref()
-                                            .map(module_export_name_to_string),
-                                    })
-                                }
-                                ast::ExportSpecifier::Default(_) => {
-                                    log::debug!("TODO: ExportNamed with default");
-                                    None
-                                }
-                                ast::ExportSpecifier::Namespace(_) => {
-                                    log::debug!("TODO: ExportNamed with namespace");
-                                    None
-                                }
-                            })
-                            .collect(),
-                    });
+                    if let Some(src) = &decl.src {
+                        // Re-exporting from another module.
+                        ns.reexports.push(Reexport::List {
+                            import_path: src.value.to_string(),
+                            items: decl
+                                .specifiers
+                                .iter()
+                                .filter_map(|spec| match spec {
+                                    ast::ExportSpecifier::Named(named) => {
+                                        let orig_name = module_export_name_to_string(&named.orig);
+                                        Some(NamedReexport {
+                                            orig_name,
+                                            renamed: named
+                                                .exported
+                                                .as_ref()
+                                                .map(module_export_name_to_string),
+                                        })
+                                    }
+                                    ast::ExportSpecifier::Default(_) => {
+                                        log::debug!("TODO: ExportNamed with default");
+                                        None
+                                    }
+                                    ast::ExportSpecifier::Namespace(_) => {
+                                        log::debug!("TODO: ExportNamed with namespace");
+                                        None
+                                    }
+                                })
+                                .collect(),
+                        });
+                    } else {
+                        // Exporting from the same module (no src).
+                        // We need to defer this until after processing all declarations.
+                        ns.unprocessed_exports.push(it.clone());
+                    }
                 }
 
                 ast::ModuleDecl::ExportAll(decl) => {
@@ -366,6 +367,61 @@ fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::Modul
 
             ast::ModuleItem::Stmt(stmt) => {
                 process_stmt(ctx, ns, stmt);
+            }
+        }
+    }
+
+    // Process deferred exports (exports from the same module).
+    process_local_exports(ns);
+}
+
+/// Process exports from the same module (export { foo, bar as baz }).
+fn process_local_exports(ns: &mut NSData) {
+    let unprocessed = std::mem::take(&mut ns.unprocessed_exports);
+
+    for item in unprocessed {
+        if let ast::ModuleItem::ModuleDecl(ast::ModuleDecl::ExportNamed(decl)) = item {
+            for spec in &decl.specifiers {
+                match spec {
+                    ast::ExportSpecifier::Named(named) => {
+                        let orig_name = module_export_name_to_string(&named.orig);
+                        let export_name = named
+                            .exported
+                            .as_ref()
+                            .map(module_export_name_to_string)
+                            .unwrap_or_else(|| orig_name.clone());
+
+                        // Look up the object in top_level by name.
+                        if let Some(obj) = ns.top_level.values().find(|obj| {
+                            obj.name.as_ref().is_some_and(|n| n == &orig_name)
+                        }) {
+                            ns.named_exports.insert(export_name, obj.clone());
+                        } else if let Some(import) = ns.imports.values().find(|imp| {
+                            matches!(&imp.kind, ImportKind::Named(name) if name == &orig_name)
+                        }) {
+                            // The export refers to an import - we need to add it as a reexport.
+                            ns.reexports.push(Reexport::List {
+                                import_path: import.import_path.clone(),
+                                items: vec![NamedReexport {
+                                    orig_name: orig_name.clone(),
+                                    renamed: if export_name != orig_name {
+                                        Some(export_name)
+                                    } else {
+                                        None
+                                    },
+                                }],
+                            });
+                        } else {
+                            log::debug!("Export '{}' not found in module", orig_name);
+                        }
+                    }
+                    ast::ExportSpecifier::Default(_) => {
+                        log::debug!("TODO: local export with default");
+                    }
+                    ast::ExportSpecifier::Namespace(_) => {
+                        log::debug!("TODO: local export with namespace");
+                    }
+                }
             }
         }
     }
