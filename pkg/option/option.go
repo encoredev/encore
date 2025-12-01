@@ -1,10 +1,12 @@
 package option
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/google/go-cmp/cmp"
@@ -181,4 +183,16 @@ func (o Option[T]) PtrOrNil() *T {
 		return &o.value
 	}
 	return nil
+}
+
+func ToNullString(o Option[string]) sql.NullString {
+	return sql.NullString{String: o.value, Valid: o.present}
+}
+
+func ToNullBool(o Option[bool]) sql.NullBool {
+	return sql.NullBool{Bool: o.value, Valid: o.present}
+}
+
+func ToNullTime(o Option[time.Time]) sql.NullTime {
+	return sql.NullTime{Time: o.value, Valid: o.present}
 }
