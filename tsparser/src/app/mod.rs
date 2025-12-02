@@ -133,10 +133,14 @@ impl AppValidator<'_> {
         if let Some(req_enc) = &ep.encoding.handshake {
             self.validate_req_params(&req_enc.params);
         }
-        for req_enc in &ep.encoding.req {
-            self.validate_req_params(&req_enc.params);
+        if !ep.streaming_request {
+            for req_enc in &ep.encoding.req {
+                self.validate_req_params(&req_enc.params);
+            }
         }
-        self.validate_resp_params(&ep.encoding.resp.params);
+        if !ep.streaming_response {
+            self.validate_resp_params(&ep.encoding.resp.params);
+        }
         if let Some(schema) = &ep.encoding.raw_handshake_schema {
             self.validate_schema_type(schema);
             self.validate_validations(schema);
