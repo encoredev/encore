@@ -168,16 +168,11 @@ pub fn describe_stream_endpoint(
         None
     };
 
-    let (handshake_enc, _req_schema) = describe_req(
-        def_span,
-        tc,
-        &Methods::Some(vec![Method::Get]),
-        Some(&path),
-        &handshake,
-        false,
-    )?;
-
     let post_method = Methods::Some(vec![Method::Post]);
+    let get_method = Methods::Some(vec![Method::Get]);
+
+    let (handshake_enc, _req_schema) =
+        describe_req(def_span, tc, &get_method, Some(&path), &handshake, false)?;
 
     let handshake_enc = match handshake_enc.as_slice() {
         [] => None,
@@ -202,8 +197,8 @@ pub fn describe_stream_endpoint(
     Ok(EndpointEncoding {
         span: def_span,
         path,
-        methods: post_method,
-        default_method: Method::Post,
+        methods: get_method,
+        default_method: Method::Get,
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,
