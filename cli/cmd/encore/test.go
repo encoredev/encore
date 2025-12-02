@@ -97,7 +97,8 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 	}
 
 	var tempDir string
-	if !slices.Contains(args, "-o") {
+	// only use temp dir if we are not compiling tests
+	if !slices.Contains(args, "-o") && !slices.Contains(args, "-c") {
 		var err error
 		tempDir, err = os.MkdirTemp("", "encore-test")
 		if err != nil {
