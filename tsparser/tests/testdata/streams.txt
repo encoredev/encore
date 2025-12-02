@@ -1,0 +1,28 @@
+-- foo/foo.ts --
+import { api } from "encore.dev/api";
+
+export type Handshake = {
+    id: string;
+};
+export type InMessage = {
+    data: {
+        foo: string;
+        bar: number;
+    };
+};
+export type OutMessage = {
+    foo: string;
+    bar: number;
+    baz: { qux: string };
+}
+
+export const ping = api.streamInOut<Handshake, InMessage, OutMessage>({}, (handshake, stream) => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.52.2"
+  }
+}
