@@ -131,16 +131,12 @@ impl AppValidator<'_> {
 
     fn validate_endpoint(&self, ep: &Endpoint) {
         if let Some(req_enc) = &ep.encoding.handshake {
-            self.validate_req_params(&req_enc.params);
+            self.validate_req_params(&req_enc.params, false);
         }
-        if !ep.streaming_request {
-            for req_enc in &ep.encoding.req {
-                self.validate_req_params(&req_enc.params);
-            }
+        for req_enc in &ep.encoding.req {
+            self.validate_req_params(&req_enc.params, ep.streaming_request);
         }
-        if !ep.streaming_response {
-            self.validate_resp_params(&ep.encoding.resp.params);
-        }
+        self.validate_resp_params(&ep.encoding.resp.params, ep.streaming_response);
         if let Some(schema) = &ep.encoding.raw_handshake_schema {
             self.validate_schema_type(schema);
             self.validate_validations(schema);
@@ -155,7 +151,17 @@ impl AppValidator<'_> {
         }
     }
 
-    fn validate_req_params(&self, params: &Vec<Param>) {
+    fn validate_req_params(&self, params: &[Param], _stream: bool) {
+        self.validate_query_params(params);
+    }
+
+    fn validate_resp_params(&self, params: &[Param], stream: bool) {
+        if !stream {
+            self.validate_http_status_params(params);
+        }
+    }
+
+    fn validate_query_params(&self, params: &[Param]) {
         for param in params {
             if let ParamData::Query { .. } = param.loc {
                 fn is_valid_query_type(state: &ResolveState, typ: &Type) -> bool {
@@ -183,7 +189,7 @@ impl AppValidator<'_> {
         }
     }
 
-    fn validate_resp_params(&self, params: &[Param]) {
+    fn validate_http_status_params(&self, params: &[Param]) {
         let http_status_params: Vec<_> = params
             .iter()
             .filter(|p| matches!(p.loc, ParamData::HTTPStatus))

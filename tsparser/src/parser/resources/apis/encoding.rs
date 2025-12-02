@@ -156,7 +156,6 @@ impl ResponseEncoding {
 pub fn describe_stream_endpoint(
     def_span: Span,
     tc: &TypeChecker,
-    methods: Methods,
     path: Path,
     req: Option<Sp<Type>>,
     resp: Option<Sp<Type>>,
@@ -169,8 +168,6 @@ pub fn describe_stream_endpoint(
         None
     };
 
-    let default_method = default_method(&methods);
-
     let (handshake_enc, _req_schema) = describe_req(
         def_span,
         tc,
@@ -180,6 +177,8 @@ pub fn describe_stream_endpoint(
         false,
     )?;
 
+    let post_method = Methods::Some(vec![Method::Post]);
+
     let handshake_enc = match handshake_enc.as_slice() {
         [] => None,
         [ref enc] => Some(enc.clone()),
@@ -187,12 +186,12 @@ pub fn describe_stream_endpoint(
     };
 
     let (req_enc, _req_schema) = if handshake_enc.is_some() {
-        describe_req(def_span, tc, &methods, None, &req, false)?
+        describe_req(def_span, tc, &post_method, None, &req, false)?
     } else {
-        describe_req(def_span, tc, &methods, Some(&path), &req, false)?
+        describe_req(def_span, tc, &post_method, Some(&path), &req, false)?
     };
 
-    let (resp_enc, _resp_schema) = describe_resp(tc, &methods, &resp)?;
+    let (resp_enc, _resp_schema) = describe_resp(tc, &post_method, &resp)?;
 
     let path = if let Some(ref enc) = handshake_enc {
         rewrite_path_types(enc, path, false)?
@@ -203,8 +202,8 @@ pub fn describe_stream_endpoint(
     Ok(EndpointEncoding {
         span: def_span,
         path,
-        methods,
-        default_method,
+        methods: post_method,
+        default_method: Method::Post,
         req: req_enc,
         resp: resp_enc,
         handshake: handshake_enc,

@@ -289,9 +289,6 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     streaming_request = request.is_stream();
                     streaming_response = response.is_stream();
 
-                    // always register as a get endpoint
-                    let methods = Methods::Some(vec![Method::Get]);
-
                     let request = request
                         .ts_type()
                         .map(|t| pass.type_checker.resolve_type(module.clone(), t));
@@ -304,7 +301,6 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                     report_and_continue!(describe_stream_endpoint(
                         r.range.to_span(),
                         pass.type_checker,
-                        methods,
                         path,
                         request,
                         response,
