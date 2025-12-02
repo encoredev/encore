@@ -16,7 +16,10 @@ export type OutMessage = {
     baz: { qux: string };
 }
 
-export const ping = api.streamInOut<Handshake, InMessage, OutMessage>({}, (handshake, stream) => {});
+export const inoutStream = api.streamInOut<Handshake, InMessage, OutMessage>({}, (handshake, stream) => {});
+export const inStream = api.streamIn<Handshake, InMessage>({}, (handshake, stream) => {});
+export const outStream = api.streamOut<Handshake, OutMessage>({}, (handshake, stream) => {});
+
 
 -- package.json --
 {
