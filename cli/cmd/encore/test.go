@@ -96,15 +96,19 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 		converter = convertTestEventOutputOnly(converter)
 	}
 
-	daemon := setupDaemon(ctx)
-
-	tempDir, err := os.MkdirTemp("", "encore-test")
-	if err != nil {
-		return 1, fmt.Errorf("couldn't create temp dir for test: %w", err)
+	var tempDir string
+	if !slices.Contains(args, "-o") {
+		var err error
+		tempDir, err = os.MkdirTemp("", "encore-test")
+		if err != nil {
+			return 1, fmt.Errorf("couldn't create temp dir for test: %w", err)
+		}
+		defer func() {
+			_ = os.RemoveAll(tempDir)
+		}()
 	}
-	defer func() {
-		_ = os.RemoveAll(tempDir)
-	}()
+
+	daemon := setupDaemon(ctx)
 
 	// Is this a node package?
 	packageJsonPath := filepath.Join(appRoot, "package.json")
