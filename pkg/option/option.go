@@ -77,6 +77,15 @@ func FromPointer[T any](v *T) Option[T] {
 	return Some[T](*v)
 }
 
+// FromErr returns an Option[string] where a nil error is considered None
+// and any other value is considered Some, with the error message as the value.
+func FromErr(err error) Option[string] {
+	if err == nil {
+		return None[string]()
+	}
+	return Some(err.Error())
+}
+
 // Some returns an Option with the given value and present set to true
 //
 // This means Some(nil) is a valid present Option
