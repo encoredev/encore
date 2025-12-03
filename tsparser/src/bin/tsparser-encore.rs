@@ -10,18 +10,17 @@ use prost::Message;
 use serde::Deserialize;
 use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
 use swc_common::{Globals, SourceMap, SourceMapper, GLOBALS};
-use tracing_subscriber::fmt::format::FmtSpan;
 
 use encore_tsparser::builder::{Builder, DebugMode, NodeJSRuntime, PlainError};
 use encore_tsparser::parser::parser::ParseContext;
 use encore_tsparser::{app, builder};
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_span_events(FmtSpan::ENTER)
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .with_writer(io::stderr)
-        .init();
+    // tracing_subscriber::fmt()
+    //     .with_span_events(FmtSpan::ENTER)
+    //     .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    //     .with_writer(io::stderr)
+    //     .init();
     let cwd = std::env::current_dir()?;
 
     let globals = Globals::new();
