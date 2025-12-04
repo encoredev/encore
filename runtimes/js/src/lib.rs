@@ -15,6 +15,7 @@ mod pvalue;
 mod raw_api;
 mod request_meta;
 pub mod runtime;
+mod runtime_config;
 mod secret;
 mod sqldb;
 mod stream;

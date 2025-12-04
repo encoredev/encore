@@ -944,6 +944,7 @@ type Service struct {
 	Databases     []string               `protobuf:"bytes,5,rep,name=databases,proto3" json:"databases,omitempty"`                   // databases this service connects to
 	HasConfig     bool                   `protobuf:"varint,6,opt,name=has_config,json=hasConfig,proto3" json:"has_config,omitempty"` // true if the service has uses config
 	Buckets       []*BucketUsage         `protobuf:"bytes,7,rep,name=buckets,proto3" json:"buckets,omitempty"`                       // buckets this service uses
+	Metrics       []string               `protobuf:"bytes,8,rep,name=metrics,proto3" json:"metrics,omitempty"`                       // metrics this service uses
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1023,6 +1024,13 @@ func (x *Service) GetHasConfig() bool {
 func (x *Service) GetBuckets() []*BucketUsage {
 	if x != nil {
 		return x.Buckets
+	}
+	return nil
+}
+
+func (x *Service) GetMetrics() []string {
+	if x != nil {
+		return x.Metrics
 	}
 	return nil
 }
@@ -3666,7 +3674,7 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\asecrets\x18\x05 \x03(\tR\asecrets\x12A\n" +
 	"\trpc_calls\x18\x06 \x03(\v2$.encore.parser.meta.v1.QualifiedNameR\brpcCalls\x12A\n" +
 	"\vtrace_nodes\x18\a \x03(\v2 .encore.parser.meta.v1.TraceNodeR\n" +
-	"traceNodes\"\xa7\x02\n" +
+	"traceNodes\"\xc1\x02\n" +
 	"\aService\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\brel_path\x18\x02 \x01(\tR\arelPath\x12.\n" +
@@ -3677,7 +3685,8 @@ const file_encore_parser_meta_v1_meta_proto_rawDesc = "" +
 	"\tdatabases\x18\x05 \x03(\tR\tdatabases\x12\x1d\n" +
 	"\n" +
 	"has_config\x18\x06 \x01(\bR\thasConfig\x12<\n" +
-	"\abuckets\x18\a \x03(\v2\".encore.parser.meta.v1.BucketUsageR\abuckets\"\xd8\x02\n" +
+	"\abuckets\x18\a \x03(\v2\".encore.parser.meta.v1.BucketUsageR\abuckets\x12\x18\n" +
+	"\ametrics\x18\b \x03(\tR\ametrics\"\xd8\x02\n" +
 	"\vBucketUsage\x12\x16\n" +
 	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12L\n" +
 	"\n" +

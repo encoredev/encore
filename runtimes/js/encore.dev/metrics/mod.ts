@@ -36,8 +36,33 @@ import {
   processLabelsToPairs,
   serializeLabels
 } from "../internal/metrics/mod";
+import { currentRequest } from "../req_meta";
 
 export interface MetricConfig {}
+
+/**
+ * Resolves the service name for a metric by checking:
+ * 1. If there's only one service using this metric in the runtime config
+ * 2. Otherwise, looks at the current request context
+ */
+function resolveServiceName(metricName: string): string | undefined {
+  const rtConfig = runtime.runtimeConfig();
+  const rtSvcs = rtConfig.metrics[metricName]?.services ?? [];
+  if (rtSvcs.length === 1) {
+    return rtSvcs[0];
+  }
+
+  const currReq = currentRequest();
+  if (currReq) {
+    if (currReq.type === "api-call") {
+      return currReq.api.service;
+    } else {
+      return currReq.service;
+    }
+  }
+
+  return undefined;
+}
 
 /**
  * A Counter tracks cumulative values that only increase.
@@ -45,9 +70,7 @@ export interface MetricConfig {}
  */
 export class Counter {
   private name: string;
-  private slot: number | undefined;
-  private metric: AtomicCounter | undefined;
-  private serviceName: string | undefined;
+  private cache: Map<string, AtomicCounter>;
   private labelPairs: [string, string][];
   private cfg: MetricConfig;
 
@@ -55,56 +78,43 @@ export class Counter {
     this.name = name;
     this.cfg = cfg ?? {};
     this.labelPairs = [];
+    this.cache = new Map();
   }
 
   /**
    * Increment the counter by the given value (default 1).
    */
   increment(value: number = 1): void {
-    if (!this.metric) {
-      this.ensureInitialized();
-    }
-    this.metric?.increment(value);
-  }
-
-  private get registry(): runtime.MetricsRegistry | undefined {
-    return getRegistry();
-  }
-
-  private get buffer(): SharedArrayBuffer | undefined {
-    return getBuffer();
-  }
-
-  private ensureInitialized(): void {
-    const registry = this.registry;
-    const buffer = this.buffer;
-
-    // If registry or buffer are not initialized, silently skip
-    if (!registry || !buffer) {
+    const serviceName = resolveServiceName(this.name);
+    if (!serviceName) {
       return;
     }
 
-    if (this.slot === undefined) {
-      // Allocate slot for this metric with service name
-      this.slot = registry.allocateSlot(
+    let metric = this.cache.get(serviceName);
+    if (!metric) {
+      const registry = getRegistry();
+      const buffer = getBuffer();
+
+      // If registry or buffer are not initialized, silently skip
+      if (!registry || !buffer) {
+        return;
+      }
+
+      const slot = registry.allocateSlot(
         this.name,
         this.labelPairs,
-        this.serviceName,
+        serviceName,
         MetricType.Counter
       );
+      metric = new AtomicCounter(buffer, slot);
+      this.cache.set(serviceName, metric);
     }
 
-    if (!this.metric) {
-      this.metric = new AtomicCounter(buffer, this.slot);
-    }
+    metric.increment(value);
   }
 
-  /**
-   * Internal method called by generated code to associate this counter with a service.
-   * @internal
-   */
-  __internalSetServiceName(serviceName: string): void {
-    this.serviceName = serviceName;
+  ref(): Counter {
+    return this;
   }
 }
 
@@ -120,7 +130,6 @@ export class CounterGroup<
 > {
   private name: string;
   private labelCache: Map<string, Counter>;
-  private serviceName: string | undefined;
   private cfg: MetricConfig;
 
   constructor(name: string, cfg?: MetricConfig) {
@@ -142,10 +151,6 @@ export class CounterGroup<
       // Create counter instance
       cached = new Counter(this.name, this.cfg);
 
-      if (this.serviceName) {
-        cached.__internalSetServiceName(this.serviceName);
-      }
-
       const labelPairs = processLabelsToPairs(labels);
       (cached as any).labelPairs = labelPairs;
 
@@ -155,12 +160,8 @@ export class CounterGroup<
     return cached;
   }
 
-  /**
-   * Internal method called by generated code to associate this counter group with a service.
-   * @internal
-   */
-  __internalSetServiceName(serviceName: string): void {
-    this.serviceName = serviceName;
+  ref(): CounterGroup<L> {
+    return this;
   }
 }
 
@@ -170,9 +171,7 @@ export class CounterGroup<
  */
 export class Gauge {
   private name: string;
-  private slot: number | undefined;
-  private metric: AtomicGauge | undefined;
-  private serviceName: string | undefined;
+  private cache: Map<string, AtomicGauge>;
   private labelPairs: [string, string][];
   private cfg: MetricConfig;
 
@@ -180,69 +179,49 @@ export class Gauge {
     this.name = name;
     this.cfg = cfg ?? {};
     this.labelPairs = [];
-  }
-
-  private get registry(): runtime.MetricsRegistry | undefined {
-    return getRegistry();
-  }
-
-  private get buffer(): SharedArrayBuffer | undefined {
-    return getBuffer();
+    this.cache = new Map();
   }
 
   /**
    * Set the gauge to the given value.
    */
   set(value: number): void {
-    if (!this.metric) {
-      this.ensureInitialized();
-    }
-    this.metric?.set(value);
-  }
-
-  private ensureInitialized(): void {
-    const registry = this.registry;
-    const buffer = this.buffer;
-
-    // If registry or buffer are not initialized, silently skip
-    if (!registry || !buffer) {
+    const serviceName = resolveServiceName(this.name);
+    if (!serviceName) {
       return;
     }
 
-    if (this.slot === undefined) {
-      // Allocate slot for this metric with service name
-      this.slot = registry.allocateSlot(
+    let metric = this.cache.get(serviceName);
+    if (!metric) {
+      const registry = getRegistry();
+      const buffer = getBuffer();
+
+      // If registry or buffer are not initialized, silently skip
+      if (!registry || !buffer) {
+        return;
+      }
+
+      const slot = registry.allocateSlot(
         this.name,
         this.labelPairs,
-        this.serviceName,
+        serviceName,
         MetricType.Gauge
       );
+      metric = new AtomicGauge(buffer, slot);
+      this.cache.set(serviceName, metric);
     }
-    if (!this.metric) {
-      this.metric = new AtomicGauge(buffer, this.slot);
-    }
+
+    metric.set(value);
   }
 
-  /**
-   * Internal method called by generated code to associate this gauge with a service.
-   * @internal
-   */
-  __internalSetServiceName(serviceName: string): void {
-    this.serviceName = serviceName;
+  ref(): Gauge {
+    return this;
   }
 }
 
-/**
- * A GaugeGroup tracks gauges with labels.
- * Each unique combination of label values creates a separate gauge time series.
- *
- * @typeParam L - The label interface (must have string/number/boolean fields)
- * Note: Number values in labels are converted to integers using Math.floor().
- */
 export class GaugeGroup<L extends Record<keyof L, string | number | boolean>> {
   private name: string;
   private labelCache: Map<string, Gauge>;
-  private serviceName: string | undefined;
   private cfg: MetricConfig;
 
   constructor(name: string, cfg?: MetricConfig) {
@@ -264,10 +243,6 @@ export class GaugeGroup<L extends Record<keyof L, string | number | boolean>> {
       // Create gauge instance
       cached = new Gauge(this.name, this.cfg);
 
-      if (this.serviceName) {
-        cached.__internalSetServiceName(this.serviceName);
-      }
-
       const labelPairs = processLabelsToPairs(labels);
       (cached as any).labelPairs = labelPairs;
 
@@ -277,11 +252,7 @@ export class GaugeGroup<L extends Record<keyof L, string | number | boolean>> {
     return cached;
   }
 
-  /**
-   * Internal method called by generated code to associate this gauge group with a service.
-   * @internal
-   */
-  __internalSetServiceName(serviceName: string): void {
-    this.serviceName = serviceName;
+  ref(): GaugeGroup<L> {
+    return this;
   }
 }

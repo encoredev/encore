@@ -6,7 +6,7 @@ use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::pvalue::{parse_pvalues, transform_pvalues_request, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
-use crate::{meta, objects, websocket_api};
+use crate::{meta, objects, runtime_config, websocket_api};
 use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
@@ -356,6 +356,12 @@ impl Runtime {
     pub fn app_meta(&self) -> meta::AppMeta {
         let md = self.runtime.app_meta();
         md.clone().into()
+    }
+
+    #[napi]
+    pub fn runtime_config(&self) -> runtime_config::RuntimeConfig {
+        let rt = self.runtime.runtime_config();
+        rt.clone().into()
     }
 
     /// Reports the total number of worker threads,
