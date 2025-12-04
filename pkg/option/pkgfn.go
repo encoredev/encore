@@ -39,3 +39,14 @@ func FoldLeft[T, R any](option Option[T], zero R, f func(accum R, value T) R) R 
 	}
 	return zero
 }
+
+// Equal returns true if both Options are equal.
+func Equal[T comparable](a, b Option[T]) bool {
+	if a.present != b.present {
+		return false
+	}
+	if !a.present {
+		return true
+	}
+	return a.value == b.value
+}
