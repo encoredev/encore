@@ -600,6 +600,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         observability,
         service_discovery,
         graceful_shutdown,
+        metrics: Vec::new(), // TODO(fredr) should be populated from infra config?
     });
 
     let mut credentials = Credentials {

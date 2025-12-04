@@ -15,6 +15,7 @@ use crate::parser::resources::parseutil::{
 };
 use crate::parser::resources::Resource;
 use crate::parser::types::{FieldName, Type};
+use crate::parser::usageparser::{ResolveUsageData, Usage, UsageExprKind};
 use crate::parser::Range;
 
 #[derive(Debug, Clone)]
@@ -55,12 +56,6 @@ pub const METRIC_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<MetricDefinition>(&module, &names) {
             let r = report_and_continue!(r);
-
-            // Validate metric is within a service
-            if pass.service_name.is_none() {
-                r.range.err("metrics must be defined within a service");
-                continue;
-            }
 
             // Validate metric name is snake_case and doesn't start with "e_"
             if let Err(err_msg) = validate_snake_case_name(&r.resource_name, Some("e_")) {
@@ -184,4 +179,65 @@ impl ReferenceParser for MetricDefinition {
             label_type: label_type.map(|lt| lt.to_owned()),
         }))
     }
+}
+
+#[derive(Debug)]
+pub struct MetricUsage {
+    pub range: Range,
+    pub metric: Lrc<Metric>,
+    pub ops: Vec<MetricOperation>,
+}
+
+pub fn resolve_metric_usage(data: &ResolveUsageData, metric: Lrc<Metric>) -> Option<Usage> {
+    match &data.expr.kind {
+        UsageExprKind::MethodCall(call) => {
+            if call.method.as_ref() == "ref" || call.method.as_ref() == "with" {
+                let ops = determine_metric_operations(&metric);
+                return Some(Usage::Metric(MetricUsage {
+                    range: data.expr.range,
+                    metric,
+                    ops,
+                }));
+            }
+
+            // Determine the operation based on method name and metric type
+            let operation = match call.method.as_ref() {
+                "increment" => Some(MetricOperation::Increment),
+                "set" => Some(MetricOperation::Set),
+                _ => None,
+            };
+
+            operation.map(|op| {
+                Usage::Metric(MetricUsage {
+                    range: data.expr.range,
+                    metric,
+                    ops: vec![op],
+                })
+            })
+        }
+        UsageExprKind::ConstructorArg(_arg) => {
+            // Metrics used as constructor args (similar to topics in subscriptions)
+            None
+        }
+        _ => {
+            data.expr.range.err("invalid metric usage");
+            None
+        }
+    }
+}
+
+/// Determine what operations are available for a given metric type
+fn determine_metric_operations(metric: &Metric) -> Vec<MetricOperation> {
+    match metric.metric_type {
+        MetricType::Counter | MetricType::CounterGroup => vec![MetricOperation::Increment],
+        MetricType::Gauge | MetricType::GaugeGroup => vec![MetricOperation::Set],
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MetricOperation {
+    /// Incrementing a counter.
+    Increment,
+    /// Setting a gauge value.
+    Set,
 }

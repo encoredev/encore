@@ -10,7 +10,6 @@ import {
   initGlobalMetricsBuffer,
   setGlobalMetricsBuffer
 } from "../metrics/registry";
-import log from "../../log/mod";
 
 export type Handler = {
   apiRoute: runtime.ApiRoute;

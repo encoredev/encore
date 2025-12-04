@@ -60,6 +60,7 @@ message Service {
   repeated string      databases  = 5; // databases this service connects to
   bool                 has_config = 6; // true if the service has uses config
   repeated BucketUsage buckets    = 7; // buckets this service uses
+  repeated string      metrics    = 8; // metrics this service uses
 }
 
 message BucketUsage {

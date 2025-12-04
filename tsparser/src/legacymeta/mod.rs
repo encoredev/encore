@@ -86,6 +86,7 @@ impl MetaBuilder<'_> {
                 rpcs: vec![],      // filled in later
                 databases: vec![], // filled in later
                 buckets: vec![],   // filled in later
+                metrics: vec![],   // filled in later
                 has_config: false, // TODO change when config is supported
 
                 // We no longer care about migrations in a service, so just set
@@ -308,11 +309,9 @@ impl MetaBuilder<'_> {
                 Resource::Metric(m) => {
                     use crate::encore::parser::schema::v1::Builtin;
 
-                    let service_name = b
-                        .range
-                        .as_ref()
-                        .and_then(|range| self.service_for_range(range))
-                        .map(|svc| svc.name.clone());
+                    // Metrics can be defined outside of services, so service_name is None
+                    // Service usage is tracked via Service.metrics field instead
+                    let service_name = None;
 
                     let value_type = match m.metric_type {
                         MetricType::Counter | MetricType::CounterGroup => Builtin::Int64 as i32,
@@ -604,6 +603,24 @@ impl MetaBuilder<'_> {
                         .entry((*idx, &access.bucket.name))
                         .or_insert(vec![])
                         .extend(ops);
+                }
+
+                Usage::Metric(access) => {
+                    // Track which services use which metrics (increment/set operations)
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        access
+                            .range
+                            .err("cannot determine which service is accessing this metric");
+                        continue;
+                    };
+
+                    let idx = svc_index.get(&svc.name).unwrap();
+                    let service = &mut self.data.svcs[*idx];
+
+                    // Only add if not already present (avoid duplicates)
+                    if !service.metrics.contains(&access.metric.name) {
+                        service.metrics.push(access.metric.name.clone());
+                    }
                 }
 
                 Usage::CallEndpoint(call) => {

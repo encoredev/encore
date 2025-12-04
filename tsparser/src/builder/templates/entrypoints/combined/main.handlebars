@@ -18,9 +18,6 @@ import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
 import { {{name}} as metric{{@index}} } from {{toJSON import_path}};
 {{/each}}
 
-{{#each metrics}}
-metric{{@index}}.__internalSetServiceName({{toJSON service_name}});
-{{/each}}
 
 const gateways: any[] = [
 {{#each gateways}}
