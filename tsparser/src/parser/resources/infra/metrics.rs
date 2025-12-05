@@ -1,6 +1,7 @@
 use convert_case::{Case, Casing};
 use litparser_derive::LitParser;
 use swc_common::sync::Lrc;
+use swc_common::Span;
 use swc_ecma_ast as ast;
 
 use litparser::{report_and_continue, ParseResult, Sp};
@@ -25,6 +26,8 @@ pub struct Metric {
     pub metric_type: MetricType,
     /// The type parameter for labels (for CounterGroup/GaugeGroup)
     pub label_type: Option<Sp<Type>>,
+    /// The source location where this metric was defined.
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,6 +110,7 @@ pub const METRIC_PARSER: ResourceParser = ResourceParser {
                 doc: r.doc_comment,
                 metric_type: r.metric_type,
                 label_type,
+                span: r.range.to_span(),
             }));
 
             pass.add_resource(resource.clone());

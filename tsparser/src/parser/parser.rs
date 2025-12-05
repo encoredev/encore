@@ -256,9 +256,6 @@ impl<'a> Parser<'a> {
         // Resolve the initial binds.
         let mut binds = resolve_binds(&resources, binds);
 
-        // Validate metrics for duplicate names (after binds are resolved so we have access to ranges)
-        validate_metrics(&binds);
-
         // Discover the services we have.
         let services = discover_services(&self.pc.file_set, &binds);
 
@@ -319,42 +316,6 @@ impl<'a> Parser<'a> {
         }
 
         (resources, binds)
-    }
-}
-
-fn validate_metrics(binds: &[Lrc<Bind>]) {
-    use std::collections::HashMap;
-    use crate::parser::Range;
-
-    let mut seen_metrics: HashMap<String, Range> = HashMap::new();
-
-    for bind in binds {
-        if let Resource::Metric(metric) = &bind.resource {
-            if bind.kind != BindKind::Create {
-                // Only validate the creation site
-                continue;
-            }
-
-            if let Some(_first_range) = seen_metrics.get(&metric.name) {
-                // We have a duplicate metric name
-                let err_msg = format!(
-                    "metric '{}' is defined multiple times; metrics must have unique names across the entire application",
-                    metric.name
-                );
-
-                // Report error on the duplicate (current) metric
-                if let Some(range) = bind.range {
-                    range.to_span().err(&err_msg);
-                } else {
-                    HANDLER.with(|h| h.err(&err_msg));
-                }
-            } else {
-                // Store this metric name for future duplicate checks
-                if let Some(range) = bind.range {
-                    seen_metrics.insert(metric.name.clone(), range);
-                }
-            }
-        }
     }
 }
 
