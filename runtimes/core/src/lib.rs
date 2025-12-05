@@ -31,6 +31,7 @@ mod names;
 pub mod objects;
 pub mod proccfg;
 pub mod pubsub;
+pub mod runtime_config;
 pub mod secrets;
 pub mod sqldb;
 mod trace;
@@ -212,6 +213,7 @@ pub struct Runtime {
     compute: ComputeConfig,
     runtime: tokio::runtime::Runtime,
     metrics: metrics::Manager,
+    runtime_config: runtime_config::RuntimeConfig,
 }
 
 impl Runtime {
@@ -233,6 +235,7 @@ impl Runtime {
             .context("failed to build tokio runtime")?;
 
         let app_meta = meta::AppMeta::new(&cfg, &md);
+        let runtime_config = runtime_config::RuntimeConfig::new(&cfg);
         let environment = cfg.environment.take().unwrap_or_default();
         let mut infra = cfg.infra.take().unwrap_or_default();
         let resources = infra.resources.take().unwrap_or_default();
@@ -425,6 +428,7 @@ impl Runtime {
             compute,
             runtime: tokio_rt,
             metrics: metrics_manager,
+            runtime_config,
         })
     }
 
@@ -487,6 +491,11 @@ impl Runtime {
     #[inline]
     pub fn app_meta(&self) -> &meta::AppMeta {
         &self.app_meta
+    }
+
+    #[inline]
+    pub fn runtime_config(&self) -> &runtime_config::RuntimeConfig {
+        &self.runtime_config
     }
 
     #[inline]

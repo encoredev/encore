@@ -240,6 +240,7 @@ pub enum Usage {
     Topic(infra::pubsub_topic::TopicUsage),
     AccessDatabase(infra::sqldb::AccessDatabaseUsage),
     Bucket(infra::objects::BucketUsage),
+    Metric(infra::metrics::MetricUsage),
 }
 
 pub struct ResolveUsageData<'a> {
@@ -285,6 +286,11 @@ impl UsageResolver<'_> {
                 }
                 Resource::Bucket(bkt) => {
                     if let Some(u) = infra::objects::resolve_bucket_usage(&data, bkt.clone()) {
+                        usages.push(u)
+                    }
+                }
+                Resource::Metric(metric) => {
+                    if let Some(u) = infra::metrics::resolve_metric_usage(&data, metric.clone()) {
                         usages.push(u)
                     }
                 }

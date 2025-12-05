@@ -6,7 +6,7 @@ use crate::pubsub::{PubSubSubscription, PubSubSubscriptionConfig, PubSubTopic};
 use crate::pvalue::{parse_pvalues, transform_pvalues_request, PVals};
 use crate::secret::Secret;
 use crate::sqldb::SQLDatabase;
-use crate::{meta, objects, websocket_api};
+use crate::{meta, objects, runtime_config, websocket_api};
 use encore_runtime_core::api::{AuthOpts, PValues};
 use encore_runtime_core::pubsub::SubName;
 use encore_runtime_core::{api, EncoreName, EndpointName};
@@ -358,6 +358,12 @@ impl Runtime {
         md.clone().into()
     }
 
+    #[napi]
+    pub fn runtime_config(&self) -> runtime_config::RuntimeConfig {
+        let rt = self.runtime.runtime_config();
+        rt.clone().into()
+    }
+
     /// Reports the total number of worker threads,
     /// including the main thread.
     #[napi]
@@ -372,6 +378,36 @@ impl Runtime {
             }
             None => 1u32,
         }
+    }
+
+    /// Register the shared metrics buffer (called once by main thread)
+    /// All worker threads will use the same registry
+    #[napi]
+    pub fn create_metrics_registry(&self, env: Env, buffer: JsObject) -> napi::Result<()> {
+        let inner = crate::metrics::MetricsRegistry::get_or_init_global(env, buffer)?;
+
+        // Create a registry wrapper to pass to the collector
+        let registry = crate::metrics::MetricsRegistry { inner };
+
+        // Register the JS metrics collector with the core runtime (idempotent)
+        let collector = Arc::new(crate::metrics::JsMetricsCollector::new(&registry));
+        self.runtime
+            .metrics()
+            .registry()
+            .register_collector(collector);
+
+        Ok(())
+    }
+
+    /// Get the shared metrics registry (all worker threads use this)
+    #[napi]
+    pub fn get_metrics_registry(&self) -> napi::Result<crate::metrics::MetricsRegistry> {
+        crate::metrics::MetricsRegistry::get_global().ok_or_else(|| {
+            napi::Error::new(
+                napi::Status::GenericFailure,
+                "Metrics registry not initialized",
+            )
+        })
     }
 }
 

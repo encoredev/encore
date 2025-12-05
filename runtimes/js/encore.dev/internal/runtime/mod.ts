@@ -11,3 +11,23 @@ export const RT = new Runtime({
     decimal: (val: string | number | bigint) => new Decimal(val)
   }
 });
+
+export interface Metric {
+  name: string;
+  services: string[];
+}
+
+export interface RuntimeConfig {
+  metrics: Record<string, Metric>;
+}
+
+let cached: RuntimeConfig | null = null;
+export function runtimeConfig(): RuntimeConfig {
+  if (cached === null) {
+    let cfg = RT.runtimeConfig();
+    cached = {
+      metrics: cfg.metrics
+    };
+  }
+  return cached;
+}
