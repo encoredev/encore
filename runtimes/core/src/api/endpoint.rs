@@ -467,12 +467,7 @@ impl EndpointHandler {
             .into_parts();
 
         // Authenticate the request from the platform, if applicable.
-        #[allow(clippy::manual_unwrap_or_default)]
-        let platform_seal_of_approval = match self.authenticate_platform(&parts) {
-            Ok(seal) => seal,
-            Err(_err) => None,
-        };
-
+        let platform_seal_of_approval = self.authenticate_platform(&parts)?;
         let meta = CallMeta::parse_with_caller(
             &self.shared.inbound_svc_auth,
             &parts.headers,
