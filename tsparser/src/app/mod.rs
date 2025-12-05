@@ -95,6 +95,7 @@ impl AppValidator<'_> {
         self.validate_apis();
         self.validate_pubsub();
         self.validate_sqldb();
+        self.validate_metrics();
     }
 
     fn validate_apis(&self) {
@@ -291,6 +292,28 @@ impl AppValidator<'_> {
                         handler
                             .struct_span_err(db.span, "SQL Database with this name already defined")
                             .span_note(prev_range, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+    }
+
+    fn validate_metrics(&self) {
+        let mut seen = std::collections::HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::Metric(metric) = resource {
+                if let Some(prev_span) = seen.insert(metric.name.clone(), metric.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                metric.span,
+                                &format!(
+                                    "metric '{}' is defined multiple times; metrics must have unique names across the entire application",
+                                    metric.name
+                                ),
+                            )
+                            .span_note(prev_span, "previously defined here")
                             .emit();
                     })
                 }
