@@ -17,6 +17,7 @@ pub struct InfraConfig {
     pub auth: Option<Vec<Auth>>,
     pub service_discovery: Option<HashMap<String, ServiceDiscovery>>,
     pub metrics: Option<Metrics>,
+    pub used_metrics: Option<Vec<Metric>>,
     pub sql_servers: Option<Vec<SQLServer>>,
     pub redis: Option<HashMap<String, Redis>>,
     pub pubsub: Option<Vec<PubSub>>,
@@ -146,6 +147,12 @@ pub struct GCPCloudMonitoringMetrics {
 pub struct AWSCloudWatchMetrics {
     pub collection_interval: Option<i32>,
     pub namespace: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Metric {
+    name: String,
+    services: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -600,7 +607,15 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
         observability,
         service_discovery,
         graceful_shutdown,
-        metrics: Vec::new(), // TODO(fredr) should be populated from infra config?
+        metrics: infra
+            .used_metrics
+            .unwrap_or_default()
+            .into_iter()
+            .map(|m| pbruntime::Metric {
+                encore_name: m.name,
+                services: m.services,
+            })
+            .collect(),
     });
 
     let mut credentials = Credentials {
