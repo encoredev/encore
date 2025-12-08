@@ -183,6 +183,32 @@ function processJob(jobType: string, priority: number) {
 }
 ```
 
+## Metric references
+
+Encore uses static analysis to determine which services are using each metric, and what operations each service is performing.
+
+This means metric objects can't be passed around however you like, as it makes static analysis impossible in many cases. To simplify your workflow, given these restrictions, Encore supports defining a "reference" to a metric that can be passed around any way you want.
+
+To create a reference, call the `.ref()` method on any metric:
+
+```typescript
+import { Counter } from "encore.dev/metrics";
+
+export const ordersProcessed = new Counter("orders_processed");
+
+// Create a reference that can be passed around
+const metricRef = ordersProcessed.ref();
+
+// Pass the reference to other functions
+function logMetric(metric: Counter) {
+    metric.increment();
+}
+
+logMetric(metricRef);
+```
+
+This works for all metric types (`Counter`, `CounterGroup`, `Gauge`, and `GaugeGroup`).
+
 <Callout type="important">
 
 Each combination of label values creates a unique time series tracked in memory and stored by the monitoring system.
