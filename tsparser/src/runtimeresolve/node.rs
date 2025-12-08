@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::ffi::OsStr;
 use std::{
     fs::File,
     io::BufReader,
@@ -147,9 +148,38 @@ where
             }
         }
 
-        match self.resolve_encore_module(target)? {
-            Some(buf) => Ok(FileName::Real(buf.clean())),
-            None => self.inner.resolve(base, target),
+        let result = match self.resolve_encore_module(target)? {
+            Some(buf) => FileName::Real(buf.clean()),
+            None => self.inner.resolve(base, target)?,
+        };
+
+        // Prefer TypeScript declaration files (.d.ts) over JavaScript files if they exist.
+        if let FileName::Real(ref path) = result {
+            if let Some(dts_path) = declaration_file(path) {
+                return Ok(FileName::Real(dts_path));
+            }
         }
+
+        Ok(result)
+    }
+}
+
+fn declaration_file(path: &Path) -> Option<PathBuf> {
+    let ext = path.extension().and_then(OsStr::to_str)?;
+
+    let new_ext = match ext {
+        "js" => "d.ts",
+        "mjs" => "d.mts",
+        "cjs" => "d.cts",
+        _ => return None,
+    };
+
+    let mut dts = path.to_path_buf();
+    dts.set_extension(new_ext);
+
+    if dts.exists() {
+        Some(dts)
+    } else {
+        None
     }
 }
