@@ -246,7 +246,10 @@ impl NSData {
 
                 Reexport::All { import_path } => {
                     if let Some(module) = ctx.resolve_module_import(curr_module, import_path) {
-                        if let Some(export) = module.data.get_named_export(ctx, curr_module, needle)
+                        if let Some(export) =
+                            module
+                                .data
+                                .get_named_export(ctx, &module.base.swc_file_path, needle)
                         {
                             return Some(export);
                         }
