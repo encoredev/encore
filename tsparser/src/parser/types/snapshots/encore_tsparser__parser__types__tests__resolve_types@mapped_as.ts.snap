@@ -1,0 +1,320 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/mapped_as.ts
+---
+{
+    "Person": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "age",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "kind",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "RemoveKind": Generic(
+        Mapped(
+            Mapped {
+                in_type: Generic(
+                    Keyof(
+                        Keyof(
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                value_type: Generic(
+                    Index(
+                        Index {
+                            source: Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            index: Generic(
+                                MappedKeyType(
+                                    MappedKeyType,
+                                ),
+                            ),
+                        },
+                    ),
+                ),
+                optional: None,
+                as_type: Some(
+                    Generic(
+                        Conditional(
+                            Conditional {
+                                check_type: Generic(
+                                    MappedKeyType(
+                                        MappedKeyType,
+                                    ),
+                                ),
+                                extends_type: Literal(
+                                    String(
+                                        "kind",
+                                    ),
+                                ),
+                                true_type: Basic(
+                                    Never,
+                                ),
+                                false_type: Generic(
+                                    MappedKeyType(
+                                        MappedKeyType,
+                                    ),
+                                ),
+                            },
+                        ),
+                    ),
+                ),
+            },
+        ),
+    ),
+    "PersonNoKind": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "age",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Identity": Generic(
+        Mapped(
+            Mapped {
+                in_type: Generic(
+                    Keyof(
+                        Keyof(
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                value_type: Generic(
+                    Index(
+                        Index {
+                            source: Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            index: Generic(
+                                MappedKeyType(
+                                    MappedKeyType,
+                                ),
+                            ),
+                        },
+                    ),
+                ),
+                optional: None,
+                as_type: Some(
+                    Generic(
+                        MappedKeyType(
+                            MappedKeyType,
+                        ),
+                    ),
+                ),
+            },
+        ),
+    ),
+    "IdentityPerson": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "age",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "kind",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "OnlyStrings": Generic(
+        Mapped(
+            Mapped {
+                in_type: Generic(
+                    Keyof(
+                        Keyof(
+                            Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                value_type: Generic(
+                    Index(
+                        Index {
+                            source: Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            index: Generic(
+                                MappedKeyType(
+                                    MappedKeyType,
+                                ),
+                            ),
+                        },
+                    ),
+                ),
+                optional: None,
+                as_type: Some(
+                    Generic(
+                        Conditional(
+                            Conditional {
+                                check_type: Generic(
+                                    Index(
+                                        Index {
+                                            source: Generic(
+                                                TypeParam(
+                                                    TypeParam {
+                                                        idx: 0,
+                                                        constraint: None,
+                                                    },
+                                                ),
+                                            ),
+                                            index: Generic(
+                                                MappedKeyType(
+                                                    MappedKeyType,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                ),
+                                extends_type: Basic(
+                                    String,
+                                ),
+                                true_type: Generic(
+                                    MappedKeyType(
+                                        MappedKeyType,
+                                    ),
+                                ),
+                                false_type: Basic(
+                                    Never,
+                                ),
+                            },
+                        ),
+                    ),
+                ),
+            },
+        ),
+    ),
+    "PersonStrings": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "kind",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

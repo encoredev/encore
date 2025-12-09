@@ -335,6 +335,9 @@ impl<V: ?Sized + Visit> VisitWith<V> for Mapped {
     fn visit_children_with(&self, visitor: &mut V) {
         <Type as VisitWith<V>>::visit_with(&self.in_type, visitor);
         <Type as VisitWith<V>>::visit_with(&self.value_type, visitor);
+        if let Some(as_type) = &self.as_type {
+            <Type as VisitWith<V>>::visit_with(as_type, visitor);
+        }
     }
 }
 

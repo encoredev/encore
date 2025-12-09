@@ -1,0 +1,66 @@
+-- foo/foo.ts --
+import { api } from "encore.dev/api";
+
+// Test filtering with never
+type RemoveKind<T> = {
+  [K in keyof T as K extends "kind" ? never : K]: T[K]
+}
+
+interface Person {
+  name: string;
+  age: number;
+  kind: string;
+}
+
+type PersonWithoutKind = RemoveKind<Person>;
+
+// Test identity mapping
+type Identity<T> = {
+  [K in keyof T as K]: T[K]
+}
+
+type IdentityPerson = Identity<Person>;
+
+// Test conditional on value type
+type OnlyStrings<T> = {
+  [K in keyof T as T[K] extends string ? K : never]: T[K]
+}
+
+type PersonStrings = OnlyStrings<Person>;
+
+// Test Drizzle ORM-style pattern with nested type transformations
+type RequiredKeyOnly<TKey extends string, TColumn> = TColumn extends { notNull: true } ? TKey : never;
+type MapColumnName<TKey extends string, TColumn, TMapping> = TKey;
+
+interface TColumns {
+  id: { notNull: true; data: number };
+  name: { notNull: false; data: string };
+  age: { notNull: true; data: number };
+}
+
+type TConfig = {
+  dbColumnNames: false;
+};
+
+// This pattern from Drizzle uses complex nested type transformations in the as clause
+type DrizzleTable = {
+  [Key in keyof TColumns & string as RequiredKeyOnly<MapColumnName<Key, TColumns[Key], TConfig['dbColumnNames']>, TColumns[Key]>]: TColumns[Key];
+};
+
+interface Params {
+    person: PersonWithoutKind;
+    identity: IdentityPerson;
+    strings: PersonStrings;
+    table: DrizzleTable;
+};
+
+export const ping = api<Params, void>({}, () => {});
+
+-- package.json --
+{
+  "name": "foo",
+  "type": "module",
+  "dependencies": {
+    "encore.dev": "^1.35.0"
+  }
+}

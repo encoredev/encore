@@ -567,14 +567,21 @@ pub struct Mapped {
     /// Whether to force fields to be optional (Some(True)), to make them required (Some(False)),
     /// or to keep them as-is (None).
     pub optional: Option<bool>,
-    // Indicates a remapping of the property name.
-    // Must be evaluated using the property name in the evaluation context.
-    // pub as_type: Option<Box<Type>>,
+
+    /// Indicates a remapping of the property name.
+    /// Must be evaluated using the property name in the evaluation context.
+    pub as_type: Option<Box<Type>>,
 }
 
 impl Mapped {
     pub fn identical(&self, other: &Mapped) -> bool {
-        self.in_type.identical(&other.in_type) && self.value_type.identical(&other.value_type)
+        self.in_type.identical(&other.in_type)
+            && self.value_type.identical(&other.value_type)
+            && match (&self.as_type, &other.as_type) {
+                (Some(a), Some(b)) => a.identical(b),
+                (None, None) => true,
+                _ => false,
+            }
     }
 }
 
