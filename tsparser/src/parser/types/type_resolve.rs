@@ -239,13 +239,6 @@ impl Ctx<'_> {
             return Type::Basic(Basic::Never);
         };
 
-        if let Some(name_type) = &tt.name_type {
-            HANDLER.with(|handler| {
-                handler.span_err(name_type.span(), "'as' type annotation not yet supported")
-            });
-            return Type::Basic(Basic::Never);
-        };
-
         // First parse the "in" type.
         let in_type = self.btyp(in_type);
 
@@ -258,6 +251,9 @@ impl Ctx<'_> {
         // Next, parse the value type.
         let value_type = nested.btyp(value_type);
 
+        // Parse the 'as' type annotation if present.
+        let as_type = tt.name_type.as_ref().map(|nt| nested.btyp(nt));
+
         let optional = match tt.optional {
             None => None,
             Some(ast::TruePlusMinus::Plus | ast::TruePlusMinus::True) => Some(true),
@@ -268,6 +264,7 @@ impl Ctx<'_> {
             in_type,
             value_type,
             optional,
+            as_type,
         }))
     }
 
@@ -608,13 +605,48 @@ impl Ctx<'_> {
                     index = Some((Box::new(key), Box::new(value)))
                 }
 
-                ast::TsTypeElement::TsMethodSignature(_)
-                | ast::TsTypeElement::TsCallSignatureDecl(_)
-                | ast::TsTypeElement::TsConstructSignatureDecl(_)
-                | ast::TsTypeElement::TsGetterSignature(_)
-                | ast::TsTypeElement::TsSetterSignature(_) => {
+                ast::TsTypeElement::TsMethodSignature(_) => {
                     HANDLER.with(|handler| {
-                        handler.span_err(m.span(), &format!("unsupported: {type_lit:#?}"))
+                        handler.span_err(
+                            m.span(),
+                            "method signatures are not yet supported in object type literals",
+                        )
+                    });
+                    continue;
+                }
+                ast::TsTypeElement::TsCallSignatureDecl(_) => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            m.span(),
+                            "call signatures are not yet supported in object type literals",
+                        )
+                    });
+                    continue;
+                }
+                ast::TsTypeElement::TsConstructSignatureDecl(_) => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            m.span(),
+                            "constructor signatures are not yet supported in object type literals",
+                        )
+                    });
+                    continue;
+                }
+                ast::TsTypeElement::TsGetterSignature(_) => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            m.span(),
+                            "getter signatures are not yet supported in object type literals",
+                        )
+                    });
+                    continue;
+                }
+                ast::TsTypeElement::TsSetterSignature(_) => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            m.span(),
+                            "setter signatures are not yet supported in object type literals",
+                        )
                     });
                     continue;
                 }
@@ -1900,20 +1932,30 @@ impl Ctx<'_> {
 
                     let keys = self.underlying(&mapped.in_type).into_owned();
                     for key in keys.into_iter_unions() {
-                        let value = self
-                            .clone()
-                            .with_mapped_key_type(Some(&key))
-                            .concrete(&mapped.value_type)
-                            .into_owned();
+                        let ctx_with_key = self.clone().with_mapped_key_type(Some(&key));
+
+                        let value = ctx_with_key.concrete(&mapped.value_type).into_owned();
 
                         // If the value resolves to 'never' it should be skipped.
                         if let Type::Basic(Basic::Never) = &value {
                             continue;
                         }
 
-                        // Get the underlying key type if it's named.
+                        // Evaluate the as_type to get the transformed key, if present.
+                        let transformed_key = if let Some(as_type) = &mapped.as_type {
+                            let concrete = ctx_with_key.concrete(as_type).into_owned();
+                            // Get the underlying type if it's a Named type
+                            ctx_with_key.underlying(&concrete).into_owned()
+                        } else {
+                            key.clone()
+                        };
 
-                        match key {
+                        // If the transformed key is 'never', skip this property (filtering).
+                        if let Type::Basic(Basic::Never) = &transformed_key {
+                            continue;
+                        }
+
+                        match transformed_key {
                             // Never means the field should be excluded.
                             Type::Basic(Basic::Never) => {
                                 HANDLER.with(|handler| {
@@ -1929,6 +1971,10 @@ impl Ctx<'_> {
                                         self.concrete(&mapped.value_type).into_owned(),
                                     ),
                                     optional: mapped.optional,
+                                    as_type: mapped
+                                        .as_type
+                                        .as_ref()
+                                        .map(|at| Box::new(self.concrete(at).into_owned())),
                                 })))
                             }
 

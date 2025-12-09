@@ -250,6 +250,7 @@ input_file: tsparser/src/parser/types/testdata/basic.ts
                                 ),
                             ),
                             optional: None,
+                            as_type: None,
                         },
                     ),
                 ),
