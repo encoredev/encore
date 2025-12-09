@@ -338,10 +338,10 @@ type SpanSummary struct {
 	TopicName        *string                `protobuf:"bytes,11,opt,name=topic_name,json=topicName,proto3,oneof" json:"topic_name,omitempty"`
 	SubscriptionName *string                `protobuf:"bytes,12,opt,name=subscription_name,json=subscriptionName,proto3,oneof" json:"subscription_name,omitempty"`
 	MessageId        *string                `protobuf:"bytes,13,opt,name=message_id,json=messageId,proto3,oneof" json:"message_id,omitempty"`
-	TestSkipped      *bool                  `protobuf:"varint,14,opt,name=test_skipped,json=testSkipped,proto3,oneof" json:"test_skipped,omitempty"`      // whether the test was skipped
-	SrcFile          *string                `protobuf:"bytes,15,opt,name=src_file,json=srcFile,proto3,oneof" json:"src_file,omitempty"`                   // the source file where the span was started (if available)
-	SrcLine          *uint32                `protobuf:"varint,16,opt,name=src_line,json=srcLine,proto3,oneof" json:"src_line,omitempty"`                  // the source line where the span was started (if available)
-	ParentSpanId     *uint64                `protobuf:"varint,17,opt,name=parent_span_id,json=parentSpanId,proto3,oneof" json:"parent_span_id,omitempty"` // parent of the span if it's a child, if this is not populated then it's a root
+	TestSkipped      *bool                  `protobuf:"varint,14,opt,name=test_skipped,json=testSkipped,proto3,oneof" json:"test_skipped,omitempty"`     // whether the test was skipped
+	SrcFile          *string                `protobuf:"bytes,15,opt,name=src_file,json=srcFile,proto3,oneof" json:"src_file,omitempty"`                  // the source file where the span was started (if available)
+	SrcLine          *uint32                `protobuf:"varint,16,opt,name=src_line,json=srcLine,proto3,oneof" json:"src_line,omitempty"`                 // the source line where the span was started (if available)
+	ParentSpanId     *string                `protobuf:"bytes,17,opt,name=parent_span_id,json=parentSpanId,proto3,oneof" json:"parent_span_id,omitempty"` // parent of the span if it's a child, if this is not populated then it's a root
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -488,11 +488,11 @@ func (x *SpanSummary) GetSrcLine() uint32 {
 	return 0
 }
 
-func (x *SpanSummary) GetParentSpanId() uint64 {
+func (x *SpanSummary) GetParentSpanId() string {
 	if x != nil && x.ParentSpanId != nil {
 		return *x.ParentSpanId
 	}
-	return 0
+	return ""
 }
 
 type TraceID struct {
@@ -5244,7 +5244,7 @@ const file_encore_engine_trace2_trace2_proto_rawDesc = "" +
 	"\ftest_skipped\x18\x0e \x01(\bH\x04R\vtestSkipped\x88\x01\x01\x12\x1e\n" +
 	"\bsrc_file\x18\x0f \x01(\tH\x05R\asrcFile\x88\x01\x01\x12\x1e\n" +
 	"\bsrc_line\x18\x10 \x01(\rH\x06R\asrcLine\x88\x01\x01\x12)\n" +
-	"\x0eparent_span_id\x18\x11 \x01(\x04H\aR\fparentSpanId\x88\x01\x01\"L\n" +
+	"\x0eparent_span_id\x18\x11 \x01(\tH\aR\fparentSpanId\x88\x01\x01\"L\n" +
 	"\bSpanType\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aREQUEST\x10\x01\x12\b\n" +
