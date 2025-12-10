@@ -710,11 +710,11 @@ func (a *AWSTopic) DeleteSubscription(name string) {
 }
 
 type AWSSub struct {
-	ARN string `json:"arn,omitempty"`
+	URL string `json:"url,omitempty"`
 }
 
 func (a *AWSSub) Validate(v *validator) {
-	v.ValidateField("arn", NotZero(a.ARN))
+	v.ValidateField("url", NotZero(a.URL))
 }
 
 // NSQPubsub specific configuration.

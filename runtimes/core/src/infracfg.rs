@@ -287,7 +287,7 @@ pub struct AWSTopic {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AWSSub {
-    pub arn: String,
+    pub url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -863,7 +863,7 @@ pub fn map_infra_to_runtime(infra: InfraConfig) -> RuntimeConfig {
                                         topic_encore_name: topic_name.clone(),
                                         subscription_encore_name: sub_name.clone(),
                                         topic_cloud_name: topic.arn.clone(),
-                                        subscription_cloud_name: sub.arn.clone(),
+                                        subscription_cloud_name: sub.url.clone(),
                                         push_only: false, // AWS SQS doesn't typically use push config
                                         provider_config: None, // AWS doesn't need additional provider config
                                     }
