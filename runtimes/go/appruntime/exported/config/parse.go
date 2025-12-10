@@ -355,7 +355,7 @@ func parseInfraConfigEnv(infraCfgPath string) *Runtime {
 				case *infra.AWSSub:
 					cfg.PubsubTopics[topicName].Subscriptions[subName] = &PubsubSubscription{
 						EncoreName:   subName,
-						ProviderName: subscription.ARN,
+						ProviderName: subscription.URL,
 						PushOnly:     false,
 					}
 				case *infra.NSQSub:

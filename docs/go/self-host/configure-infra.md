@@ -417,7 +417,7 @@ The configuration for each provider is different. Below are examples for each pr
           "arn": "arn:aws:sns:us-east-1:123456789012:my-topic",
           "subscriptions": {
             "my-queue": {
-              "arn": "arn:aws:sqs:us-east-1:123456789012:my-queue"
+              "url": "https://sqs.eu-east-1.amazonaws.com/123456789012/my-queue"
             }
           }
         }
@@ -429,7 +429,8 @@ The configuration for each provider is different. Below are examples for each pr
 
 - `my-topic`: This is the name of the topic as it is declared in your Encore app.
 - `my-queue`: This is the name of the queue as it is declared in your Encore app.
-- `arn`: The ARN of the SNS topic or SQS queue.
+- `arn`: The ARN of the SNS topic.
+- `url`: The URL of the SQS queue.
 
 #### 9.3. NSQ Configuration
 
