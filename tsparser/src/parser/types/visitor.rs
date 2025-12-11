@@ -3,9 +3,10 @@ use std::collections::HashSet;
 use litparser::Sp;
 
 use super::{
-    validation, Array, Basic, ClassType, Conditional, Custom, EnumType, Generic, Index, Inferred,
-    Interface, InterfaceField, Intersection, Keyof, Literal, Mapped, MappedKeyType, Named,
-    ObjectId, Optional, ResolveState, This, Tuple, Type, TypeParam, Union, Validated, WireSpec,
+    validation, Array, Basic, ClassType, Conditional, Custom, EnumType, FunctionParam,
+    FunctionType, Generic, Index, Inferred, Interface, InterfaceField, Intersection, Keyof,
+    Literal, Mapped, MappedKeyType, Named, ObjectId, Optional, ResolveState, This, Tuple, Type,
+    TypeParam, Union, Validated, WireSpec,
 };
 
 pub trait Visit {
@@ -145,6 +146,16 @@ pub trait Visit {
     #[inline]
     fn visit_wire_spec(&mut self, node: &WireSpec) {
         <WireSpec as VisitWith<Self>>::visit_children_with(node, self)
+    }
+
+    #[inline]
+    fn visit_function(&mut self, node: &FunctionType) {
+        <FunctionType as VisitWith<Self>>::visit_children_with(node, self)
+    }
+
+    #[inline]
+    fn visit_function_param(&mut self, node: &FunctionParam) {
+        <FunctionParam as VisitWith<Self>>::visit_children_with(node, self)
     }
 }
 
@@ -500,6 +511,7 @@ impl<V: ?Sized + Visit> VisitWith<V> for Type {
             Type::Validation(expr) => <validation::Expr as VisitWith<V>>::visit_with(expr, visitor),
             Type::Validated(expr) => <Validated as VisitWith<V>>::visit_with(expr, visitor),
             Type::Custom(custom) => <Custom as VisitWith<V>>::visit_with(custom, visitor),
+            Type::Function(func) => <FunctionType as VisitWith<V>>::visit_with(func, visitor),
         }
     }
 }
@@ -562,5 +574,28 @@ where
     #[inline]
     fn visit_children_with(&self, visitor: &mut V) {
         <[T] as VisitWith<V>>::visit_children_with(self, visitor)
+    }
+}
+
+impl<V: ?Sized + Visit> VisitWith<V> for FunctionType {
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_function(visitor, self)
+    }
+
+    fn visit_children_with(&self, visitor: &mut V) {
+        self.params
+            .iter()
+            .for_each(|item| <FunctionParam as VisitWith<V>>::visit_with(item, visitor));
+        <Type as VisitWith<V>>::visit_with(&self.return_type, visitor);
+    }
+}
+
+impl<V: ?Sized + Visit> VisitWith<V> for FunctionParam {
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_function_param(visitor, self)
+    }
+
+    fn visit_children_with(&self, visitor: &mut V) {
+        <Type as VisitWith<V>>::visit_with(&self.typ, visitor);
     }
 }
