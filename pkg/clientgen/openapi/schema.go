@@ -186,12 +186,13 @@ func (g *Generator) schemaType(typ *schema.Type) *openapi3.SchemaRef {
 		}
 
 		// Otherwise, we have to represent this as an anyOf schema.
-		schemas := make([]*openapi3.Schema, 0, len(t.Union.Types))
+		schemaRefs := make([]*openapi3.SchemaRef, 0, len(t.Union.Types))
 		for _, tt := range t.Union.Types {
-			schemas = append(schemas, g.schemaType(tt).Value)
+			schemaRefs = append(schemaRefs, g.schemaType(tt))
 		}
 
-		s := openapi3.NewAnyOfSchema(schemas...)
+		s := openapi3.NewSchema()
+		s.AnyOf = schemaRefs
 		s.Nullable = haveLiteralNull
 		return s.NewRef()
 
