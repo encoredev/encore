@@ -743,11 +743,13 @@ func describeParam(lang meta.Lang, encodingHints *encodingHints, field *schema.F
 			usedOverrideTag = tag.Key
 		}
 		if tagHint.location == location {
-			param.Name = tag.Name
-			if tagHint.wireFormatter != nil {
-				param.WireFormat = tagHint.wireFormatter(tag.Name)
-			} else {
-				param.WireFormat = tag.Name
+			if tag.Name != "" {
+				param.Name = tag.Name
+				if tagHint.wireFormatter != nil {
+					param.WireFormat = tagHint.wireFormatter(tag.Name)
+				} else {
+					param.WireFormat = tag.Name
+				}
 			}
 		}
 		if tagHint.omitEmptyOption != "" {
