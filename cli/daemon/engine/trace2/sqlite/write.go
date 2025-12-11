@@ -215,7 +215,8 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
-				endpoint_name = excluded.endpoint_name
+				endpoint_name = excluded.endpoint_name,
+				parent_span_id = excluded.parent_span_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_AUTH, ev.EventTime.AsTime().UnixNano(),
 			isRoot, auth.ServiceName, auth.EndpointName, parentSpanID)
@@ -241,7 +242,8 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 				service_name = excluded.service_name,
 				topic_name = excluded.topic_name,
 				subscription_name = excluded.subscription_name,
-				message_id = excluded.message_id
+				message_id = excluded.message_id,
+				parent_span_id = excluded.parent_span_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_PUBSUB_MESSAGE, ev.EventTime.AsTime().UnixNano(),
 			isRoot, msg.ServiceName, msg.TopicName, msg.SubscriptionName, msg.MessageId, parentSpanID)
@@ -265,7 +267,8 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
-				endpoint_name = excluded.endpoint_name
+				endpoint_name = excluded.endpoint_name,
+				parent_span_id = excluded.parent_span_id
 		`, meta.AppID, encodeTraceID(ev.TraceId), encodeSpanID(ev.SpanId),
 			tracepbcli.SpanSummary_TEST, ev.EventTime.AsTime().UnixNano(),
 			isRoot, msg.ServiceName, msg.TestName, msg.Uid, msg.TestFile, msg.TestLine, parentSpanID)
