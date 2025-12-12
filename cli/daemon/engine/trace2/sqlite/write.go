@@ -184,8 +184,9 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		}
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, external_request_id, has_response, test_skipped, parent_span_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, false, false, ?)
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, external_request_id, parent_span_id,
+				has_response, test_skipped
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
@@ -209,9 +210,9 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		}
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name,
-				endpoint_name, has_response, test_skipped, parent_span_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, false, false, ?)
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, parent_span_id,
+				has_response, test_skipped
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, false, false)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
 				service_name = excluded.service_name,
@@ -235,7 +236,8 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
 				app_id, trace_id, span_id, span_type, started_at, is_root, service_name,
-				topic_name, subscription_name, message_id, has_response, test_skipped, parent_span_id
+				topic_name, subscription_name, message_id, parent_span_id,
+				has_response, test_skipped
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
@@ -261,8 +263,8 @@ func (s *Store) updateSpanStartIndex(ctx context.Context, meta *trace2.Meta, ev 
 		}
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, started_at, is_root, service_name,
-				endpoint_name, user_id, src_file, src_line, has_response, test_skipped, parent_span_id
+				app_id, trace_id, span_id, span_type, started_at, is_root, service_name, endpoint_name, user_id, src_file, src_line, parent_span_id, 
+				has_response, test_skipped
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, false, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				is_root = excluded.is_root,
