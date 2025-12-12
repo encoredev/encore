@@ -58,6 +58,7 @@ where
             Type::Validation(v) => self.render_validation(v),
             Type::Validated(v) => self.render_validated(v),
             Type::Custom(c) => self.render_custom(c),
+            Type::Function(func) => self.render_function(func),
         }
     }
 
@@ -238,5 +239,32 @@ where
                 self.render_type(&i.y)
             }
         }
+    }
+
+    fn render_function(&mut self, func: &super::FunctionType) -> std::fmt::Result {
+        self.buf.write_char('(')?;
+
+        for (i, param) in func.params.iter().enumerate() {
+            if i > 0 {
+                self.buf.write_str(", ")?;
+            }
+
+            if let Some(name) = &param.name {
+                self.buf.write_str(name)?;
+                if param.optional {
+                    self.buf.write_char('?')?;
+                }
+                self.buf.write_str(": ")?;
+            }
+
+            if param.rest {
+                self.buf.write_str("...")?;
+            }
+
+            self.render_type(&param.typ)?;
+        }
+
+        self.buf.write_str(") => ")?;
+        self.render_type(&func.return_type)
     }
 }

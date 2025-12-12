@@ -478,6 +478,7 @@ impl Ctx<'_> {
 
             Type::Custom(Custom::WireSpec(spec)) => self.keyof(&spec.underlying),
             Type::Custom(Custom::Decimal) => Type::Basic(Basic::Never),
+            Type::Function(_) => Type::Basic(Basic::Never),
         }
     }
 
@@ -605,14 +606,51 @@ impl Ctx<'_> {
                     index = Some((Box::new(key), Box::new(value)))
                 }
 
-                ast::TsTypeElement::TsMethodSignature(_) => {
-                    HANDLER.with(|handler| {
-                        handler.span_err(
-                            m.span(),
-                            "method signatures are not yet supported in object type literals",
-                        )
+                ast::TsTypeElement::TsMethodSignature(method) => {
+                    let name = match *method.key {
+                        ast::Expr::Ident(ref ident) => {
+                            FieldName::String(ident.sym.as_ref().to_string())
+                        }
+                        ast::Expr::Lit(ast::Lit::Str(ref str)) => {
+                            FieldName::String(str.value.to_string())
+                        }
+                        _ => {
+                            if method.computed {
+                                HANDLER.with(|handler| {
+                                    handler.span_err(
+                                        method.key.span(),
+                                        "computed method names not yet supported",
+                                    )
+                                });
+                            } else {
+                                HANDLER.with(|handler| {
+                                    handler.span_err(method.key.span(), "unsupported method key")
+                                });
+                            }
+                            continue;
+                        }
+                    };
+
+                    // Check for unsupported type parameters
+                    if let Some(type_params) = &method.type_params {
+                        HANDLER.with(|handler| {
+                            handler.span_err(
+                                type_params.span(),
+                                "generic methods are not yet supported in object type literals",
+                            )
+                        });
+                        continue;
+                    }
+
+                    // Parse function type
+                    let function_type = self.parse_method_signature(method);
+
+                    fields.push(InterfaceField {
+                        range: m.span().into(),
+                        name,
+                        typ: Type::Function(function_type),
+                        optional: method.optional,
                     });
-                    continue;
                 }
                 ast::TsTypeElement::TsCallSignatureDecl(_) => {
                     HANDLER.with(|handler| {
@@ -660,6 +698,105 @@ impl Ctx<'_> {
             index,
             call: None,
         })
+    }
+
+    fn parse_method_signature(&self, method: &ast::TsMethodSignature) -> FunctionType {
+        // Parse parameters
+        let params = method
+            .params
+            .iter()
+            .filter_map(|param| self.parse_function_param(param))
+            .collect();
+
+        // Parse return type
+        let return_type = if let Some(type_ann) = &method.type_ann {
+            Box::new(self.typ(&type_ann.type_ann))
+        } else {
+            Box::new(Type::Basic(Basic::Any))
+        };
+
+        FunctionType {
+            params,
+            return_type,
+            type_params: None, // Not supported yet
+        }
+    }
+
+    fn parse_function_param(&self, param: &ast::TsFnParam) -> Option<FunctionParam> {
+        match param {
+            ast::TsFnParam::Ident(ident) => {
+                let name = Some(ident.id.sym.as_ref().to_string());
+                let optional = ident.id.optional;
+
+                let typ = if let Some(type_ann) = &ident.type_ann {
+                    self.typ(&type_ann.type_ann)
+                } else {
+                    Type::Basic(Basic::Any)
+                };
+
+                Some(FunctionParam {
+                    name,
+                    typ,
+                    optional,
+                    rest: false,
+                })
+            }
+
+            ast::TsFnParam::Rest(rest) => {
+                // Rest parameter: ...args: string[]
+                let name = match rest.arg.as_ref() {
+                    ast::Pat::Ident(ident) => Some(ident.id.sym.as_ref().to_string()),
+                    _ => None,
+                };
+
+                let typ = if let Some(type_ann) = &rest.type_ann {
+                    self.typ(&type_ann.type_ann)
+                } else {
+                    Type::Basic(Basic::Any)
+                };
+
+                Some(FunctionParam {
+                    name,
+                    typ,
+                    optional: false,
+                    rest: true,
+                })
+            }
+
+            ast::TsFnParam::Array(array) => {
+                // Destructured array parameter: [a, b]: [string, number]
+                // We extract the type but lose the destructuring structure
+                let typ = if let Some(type_ann) = &array.type_ann {
+                    self.typ(&type_ann.type_ann)
+                } else {
+                    Type::Basic(Basic::Any)
+                };
+
+                Some(FunctionParam {
+                    name: None, // No simple name for destructured param
+                    typ,
+                    optional: array.optional,
+                    rest: false,
+                })
+            }
+
+            ast::TsFnParam::Object(object) => {
+                // Destructured object parameter: {x, y}: {x: number, y: number}
+                // We extract the type but lose the destructuring structure
+                let typ = if let Some(type_ann) = &object.type_ann {
+                    self.typ(&type_ann.type_ann)
+                } else {
+                    Type::Basic(Basic::Any)
+                };
+
+                Some(FunctionParam {
+                    name: None, // No simple name for destructured param
+                    typ,
+                    optional: object.optional,
+                    rest: false,
+                })
+            }
+        }
     }
 
     /// Resolves literals.
@@ -1495,6 +1632,17 @@ impl Ctx<'_> {
                 // Decimal has no properties accessible
                 Type::Basic(Basic::Never)
             }
+            Type::Function(_) => {
+                // Functions have methods like 'call', 'apply', 'bind'
+                // but we don't support accessing them yet
+                HANDLER.with(|handler| {
+                    handler.span_err(
+                        prop.span(),
+                        "member access on function type not yet supported",
+                    )
+                });
+                Type::Basic(Basic::Never)
+            }
         }
     }
 
@@ -2068,6 +2216,50 @@ impl Ctx<'_> {
                 Same(_) => Same(typ),
             },
             Type::Custom(Custom::Decimal) => Same(typ), // Decimal is already concrete
+            Type::Function(func) => {
+                // Concretize parameter types
+                let params_resolved = func
+                    .params
+                    .iter()
+                    .map(|p| match self.concrete(&p.typ) {
+                        New(t) => (
+                            true,
+                            FunctionParam {
+                                name: p.name.clone(),
+                                typ: t,
+                                optional: p.optional,
+                                rest: p.rest,
+                            },
+                        ),
+                        Changed(t) => (
+                            true,
+                            FunctionParam {
+                                name: p.name.clone(),
+                                typ: t.clone(),
+                                optional: p.optional,
+                                rest: p.rest,
+                            },
+                        ),
+                        Same(_) => (false, p.clone()),
+                    })
+                    .collect::<Vec<_>>();
+
+                let return_resolved = self.concrete(&func.return_type);
+
+                // Check if anything changed
+                let params_changed = params_resolved.iter().any(|(changed, _)| *changed);
+                let return_changed = !matches!(return_resolved, Same(_));
+
+                if params_changed || return_changed {
+                    New(Type::Function(FunctionType {
+                        params: params_resolved.into_iter().map(|(_, p)| p).collect(),
+                        return_type: Box::new(return_resolved.into_owned()),
+                        type_params: func.type_params.clone(),
+                    }))
+                } else {
+                    Same(typ)
+                }
+            }
         }
     }
 
