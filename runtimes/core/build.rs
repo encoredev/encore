@@ -5,6 +5,7 @@ fn main() -> std::io::Result<()> {
         &[
             "../../proto/encore/runtime/v1/runtime.proto",
             "../../proto/encore/parser/meta/v1/meta.proto",
+            "../../proto/prompb/remote.proto",
         ],
         &["../../proto/"],
     )?;

@@ -259,6 +259,7 @@ impl SubHandler {
                 duration: tokio::time::Instant::now().duration_since(start),
                 data: ResponseData::PubSub(result.clone()),
             };
+
             self.obj.tracer.request_span_end(&resp, false);
             result
         })
