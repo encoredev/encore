@@ -70,6 +70,9 @@ message Deployment {
 
   // Graceful shutdown behavior.
   GracefulShutdown graceful_shutdown = 9;
+
+  // The metrics used by this deployment.
+  repeated Metric metrics = 10;
 }
 
 message Observability {
@@ -247,4 +250,12 @@ message EncoreCloudProvider {
   string server_url = 2;
 
   repeated EncoreAuthKey auth_keys = 3;
+}
+
+message Metric {
+  // The encore name of the metric.
+  string encore_name = 1;
+
+  // The services that have access to this metric.
+  repeated string services = 2;
 }

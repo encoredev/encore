@@ -14,6 +14,10 @@ import {{toJSON import_path}};
 import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
 {{/if}}
 {{/each}}
+{{#each metrics}}
+import { {{name}} as metric{{@index}} } from {{toJSON import_path}};
+{{/each}}
+
 
 const gateways: any[] = [
 {{#each gateways}}

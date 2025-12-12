@@ -14,6 +14,9 @@ import {{toJSON import_path}};
 import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
 {{/if}}
 {{/with}}
+{{#each metrics}}
+import { {{name}} as metric{{@index}} } from {{toJSON import_path}};
+{{/each}}
 
 const handlers: Handler[] = [
 {{#each endpoints}}

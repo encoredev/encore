@@ -15,7 +15,7 @@ use std::sync::Arc;
 pub use counter::{Counter, CounterOps};
 pub use gauge::{Gauge, GaugeOps};
 pub use manager::Manager;
-pub use registry::{CollectedMetric, MetricValue, Registry};
+pub use registry::{CollectedMetric, MetricValue, MetricsCollector, Registry};
 pub use system::SystemMetricsCollector;
 
 /// Create a requests counter schema

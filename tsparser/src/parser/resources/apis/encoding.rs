@@ -433,6 +433,8 @@ pub(crate) fn iface_fields<'a>(
     tc: &'a TypeChecker,
     typ: &'a Sp<Type>,
 ) -> Result<FieldMap, SpErr<Error>> {
+    use crate::parser::resources::parseutil::resolve_interface;
+
     fn to_fields(iface: &Interface) -> Result<FieldMap, SpErr<Error>> {
         let mut map = HashMap::new();
         for f in &iface.fields {
@@ -445,14 +447,13 @@ pub(crate) fn iface_fields<'a>(
 
     let span = typ.span();
     let typ = unwrap_promise(tc.state(), typ);
+
     match typ {
         Type::Basic(Basic::Void) => Ok(HashMap::new()),
-        Type::Interface(iface) => to_fields(iface),
-        Type::Named(named) => {
-            let underlying = Sp::new(span, tc.underlying(named.obj.module_id, typ));
-            iface_fields(tc, &underlying)
-        }
-        _ => Err(Error::ExpectedNamedInterfaceType(format!("{typ:?}")).with_span(span)),
+        _ => match resolve_interface(tc, &Sp::new(span, typ.clone())) {
+            Some(iface) => to_fields(&iface),
+            None => Err(Error::ExpectedNamedInterfaceType(format!("{typ:?}")).with_span(span)),
+        },
     }
 }
 

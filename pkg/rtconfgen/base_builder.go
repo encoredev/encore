@@ -228,6 +228,38 @@ func (d *Deployment) BuildRuntimeConfig() (*runtimev1.RuntimeConfig, error) {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
+	// Build metrics for this deployment
+	var metrics []*runtimev1.Metric
+	if reduced, ok := d.reduceWith.Get(); ok {
+		// Build a map: metric name -> list of services that use it
+		metricToServices := make(map[string][]string)
+
+		for _, svc := range reduced.Svcs {
+			// Only include metrics from services hosted by this deployment
+			if !slices.Contains(d.hostedServiceNames, svc.Name) {
+				continue
+			}
+
+			for _, metricName := range svc.Metrics {
+				metricToServices[metricName] = append(metricToServices[metricName], svc.Name)
+			}
+		}
+
+		// Convert to Metric protobuf messages
+		for metricName, services := range metricToServices {
+			// Sort services for consistency
+			slices.Sort(services)
+			metrics = append(metrics, &runtimev1.Metric{
+				EncoreName: metricName,
+				Services:   services,
+			})
+		}
+	}
+	// Sort metrics by name for consistency
+	slices.SortFunc(metrics, func(a, b *runtimev1.Metric) int {
+		return cmp.Compare(a.EncoreName, b.EncoreName)
+	})
+
 	gatewaysByName := make(map[string]*runtimev1.Gateway)
 	for _, gw := range infra.Resources.Gateways {
 		gatewaysByName[gw.EncoreName] = gw
@@ -252,6 +284,7 @@ func (d *Deployment) BuildRuntimeConfig() (*runtimev1.RuntimeConfig, error) {
 		AuthMethods:        d.b.authMethods,
 		DeployId:           d.deployID.GetOrElse(b.defaultDeployID),
 		DeployedAt:         timestamppb.New(d.deployedAt.GetOrElse(b.defaultDeployedAt)),
+		Metrics:            metrics,
 	}
 
 	cfg := &runtimev1.RuntimeConfig{
