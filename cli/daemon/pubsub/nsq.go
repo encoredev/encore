@@ -56,11 +56,33 @@ func (n *NSQDaemon) Start() error {
 			n.Opts.LogLevel = nsqd.LOG_WARN
 			n.Opts.Logger = &logAdapter{"nsqd"}
 
-			// Take the default address options and scope down to localhost (to prevent firewall warnings / permission requests)
-			// then set the port to 0 to allow any port to be used which is free
-			n.Opts.TCPAddress = "127.0.0.1:0"
-			n.Opts.HTTPAddress = "127.0.0.1:0"
-			n.Opts.HTTPSAddress = "127.0.0.1:0"
+			// Check for environment variables to configure NSQ bind addresses
+			// This allows external services to connect to NSQ during local development
+			// ENCORE_NSQ_TCP_ADDRESS: TCP address for message publishing (default: 127.0.0.1:0)
+			// ENCORE_NSQ_HTTP_ADDRESS: HTTP address for admin/stats (default: 127.0.0.1:0)
+			// Use 0.0.0.0 to bind to all interfaces, or a specific IP:port
+			if tcpAddr := os.Getenv("ENCORE_NSQ_TCP_ADDRESS"); tcpAddr != "" {
+				n.Opts.TCPAddress = tcpAddr
+			} else {
+				// Default to localhost to prevent firewall warnings / permission requests
+				// then set the port to 0 to allow any port to be used which is free
+				n.Opts.TCPAddress = "127.0.0.1:0"
+			}
+
+			if httpAddr := os.Getenv("ENCORE_NSQ_HTTP_ADDRESS"); httpAddr != "" {
+				n.Opts.HTTPAddress = httpAddr
+			} else {
+				// Default to localhost
+				n.Opts.HTTPAddress = "127.0.0.1:0"
+			}
+
+			// HTTPS address follows HTTP address if not explicitly set
+			if httpsAddr := os.Getenv("ENCORE_NSQ_HTTPS_ADDRESS"); httpsAddr != "" {
+				n.Opts.HTTPSAddress = httpsAddr
+			} else {
+				n.Opts.HTTPSAddress = "127.0.0.1:0"
+			}
+
 			n.Opts.MaxMsgSize = 10 * 1024 * 1024 // 10MB
 		}
 		nsq, err := nsqd.New(n.Opts)
