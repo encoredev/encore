@@ -130,7 +130,11 @@ google-cloud-monitoring-v3 = "1.0.0"
 google-cloud-api = "1.0.0"
 google-cloud-wkt = "1.0.0"
 sysinfo = "0.37.2"
-aws-sdk-cloudwatch = "1.94.0"
+aws-sdk-cloudwatch = { version = "1.94.0", default-features = false, features = [
+    "behavior-version-latest",
+    "rt-tokio",
+    "rustls",
+] }
 datadog-api-client = "0.20.0"
 snap = "1.1.1"
 
