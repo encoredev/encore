@@ -197,6 +197,9 @@ impl BuilderCtx<'_, '_> {
                 typ: Some(styp::Typ::Builtin(schema::Builtin::Decimal as i32)),
                 validation: None,
             },
+            Type::Function(_) => {
+                anyhow::bail!("function types are not supported in schemas")
+            }
         })
     }
 

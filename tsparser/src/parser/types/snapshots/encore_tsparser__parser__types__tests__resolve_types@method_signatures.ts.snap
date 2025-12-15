@@ -1,0 +1,525 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/method_signatures.ts
+---
+{
+    "SimpleMethod": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "foo",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Basic(
+                                Void,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "bar",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Basic(
+                                String,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "MethodsWithParams": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "simple",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "a",
+                                    ),
+                                    typ: Basic(
+                                        String,
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Basic(
+                                Void,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "multiple",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "a",
+                                    ),
+                                    typ: Basic(
+                                        String,
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                                FunctionParam {
+                                    name: Some(
+                                        "b",
+                                    ),
+                                    typ: Basic(
+                                        Number,
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Basic(
+                                Boolean,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "withOptional",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "a",
+                                    ),
+                                    typ: Basic(
+                                        String,
+                                    ),
+                                    optional: true,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Basic(
+                                Void,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "withRest",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "args",
+                                    ),
+                                    typ: Array(
+                                        Array(
+                                            Basic(
+                                                String,
+                                            ),
+                                        ),
+                                    ),
+                                    optional: false,
+                                    rest: true,
+                                },
+                            ],
+                            return_type: Basic(
+                                Void,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "ComplexReturns": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "returnsObject",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Interface(
+                                Interface {
+                                    fields: [
+                                        InterfaceField {
+                                            name: String(
+                                                "x",
+                                            ),
+                                            optional: false,
+                                            typ: Basic(
+                                                Number,
+                                            ),
+                                        },
+                                    ],
+                                    index: None,
+                                    call: None,
+                                },
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "returnsArray",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Array(
+                                Array(
+                                    Basic(
+                                        String,
+                                    ),
+                                ),
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "returnsUnion",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Union(
+                                Union {
+                                    types: [
+                                        Basic(
+                                            String,
+                                        ),
+                                        Basic(
+                                            Number,
+                                        ),
+                                    ],
+                                },
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "OptionalMethods": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "required",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Basic(
+                                Void,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optional",
+                    ),
+                    optional: true,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Basic(
+                                Void,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "MixedInterface": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "prop",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "method",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Basic(
+                                Number,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optionalProp",
+                    ),
+                    optional: true,
+                    typ: Basic(
+                        Boolean,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "optionalMethod",
+                    ),
+                    optional: true,
+                    typ: Function(
+                        FunctionType {
+                            params: [],
+                            return_type: Basic(
+                                String,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "Column": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "mapFromDriverValue",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "value",
+                                    ),
+                                    typ: Generic(
+                                        TypeParam(
+                                            TypeParam {
+                                                idx: 0,
+                                                constraint: None,
+                                            },
+                                        ),
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 1,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "mapToDriverValue",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "value",
+                                    ),
+                                    typ: Generic(
+                                        TypeParam(
+                                            TypeParam {
+                                                idx: 1,
+                                                constraint: None,
+                                            },
+                                        ),
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Generic(
+                                TypeParam(
+                                    TypeParam {
+                                        idx: 0,
+                                        constraint: None,
+                                    },
+                                ),
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "SqlDialect": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "escape",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "str",
+                                    ),
+                                    typ: Basic(
+                                        String,
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Basic(
+                                String,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "escapeId",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "id",
+                                    ),
+                                    typ: Basic(
+                                        String,
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Basic(
+                                String,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "buildQuery",
+                    ),
+                    optional: false,
+                    typ: Function(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: Some(
+                                        "sql",
+                                    ),
+                                    typ: Basic(
+                                        String,
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                                FunctionParam {
+                                    name: Some(
+                                        "values",
+                                    ),
+                                    typ: Array(
+                                        Array(
+                                            Basic(
+                                                Any,
+                                            ),
+                                        ),
+                                    ),
+                                    optional: false,
+                                    rest: false,
+                                },
+                            ],
+                            return_type: Basic(
+                                String,
+                            ),
+                            type_params: None,
+                        },
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+}

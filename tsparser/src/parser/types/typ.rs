@@ -52,6 +52,9 @@ pub enum Type {
 
     // A custom type of some kind.
     Custom(Custom),
+
+    /// A function type
+    Function(FunctionType),
 }
 
 #[derive(Debug, Clone, Hash, Serialize)]
@@ -74,6 +77,85 @@ pub struct Union {
 pub struct Validated {
     pub typ: Box<Type>,
     pub expr: validation::Expr,
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct FunctionType {
+    /// Function parameters with names, types, and modifiers
+    pub params: Vec<FunctionParam>,
+
+    /// Return type of the function
+    pub return_type: Box<Type>,
+
+    /// Generic type parameters
+    pub type_params: Option<Vec<GenericTypeParam>>,
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct FunctionParam {
+    /// Parameter name (optional for destructured params)
+    pub name: Option<String>,
+
+    /// Parameter type
+    pub typ: Type,
+
+    /// Whether parameter is optional (foo?: string)
+    pub optional: bool,
+
+    /// Whether this is a rest parameter (...args: string[])
+    pub rest: bool,
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct GenericTypeParam {
+    pub idx: usize,
+    pub name: String,
+    pub constraint: Option<Box<Type>>,
+    pub default: Option<Box<Type>>,
+}
+
+impl FunctionType {
+    pub fn identical(&self, other: &FunctionType) -> bool {
+        // Check parameter count and types
+        if self.params.len() != other.params.len() {
+            return false;
+        }
+
+        for (a, b) in self.params.iter().zip(&other.params) {
+            if !a.identical(b) {
+                return false;
+            }
+        }
+
+        // Check return type
+        if !self.return_type.identical(&other.return_type) {
+            return false;
+        }
+
+        // Type parameters must match in count (names don't matter for structural equality)
+        match (&self.type_params, &other.type_params) {
+            (Some(a), Some(b)) if a.len() == b.len() => {
+                for (tp_a, tp_b) in a.iter().zip(b) {
+                    if let (Some(c_a), Some(c_b)) = (&tp_a.constraint, &tp_b.constraint) {
+                        if !c_a.identical(c_b) {
+                            return false;
+                        }
+                    } else if tp_a.constraint.is_some() != tp_b.constraint.is_some() {
+                        return false;
+                    }
+                }
+                true
+            }
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl FunctionParam {
+    pub fn identical(&self, other: &FunctionParam) -> bool {
+        self.typ.identical(&other.typ) && self.optional == other.optional && self.rest == other.rest
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Hash)]
@@ -149,6 +231,7 @@ impl Type {
             (Type::Generic(a), Type::Generic(b)) => a.identical(b),
             (Type::Enum(a), Type::Enum(b)) => a.identical(b),
             (Type::Custom(a), Type::Custom(b)) => a.identical(b),
+            (Type::Function(a), Type::Function(b)) => a.identical(b),
             _ => false,
         }
     }
@@ -181,6 +264,9 @@ impl Type {
                     expr: validated.expr.clone().or(expr.clone()),
                 }))
             }
+
+            // Functions don't merge in unions
+            (Type::Function(_), Type::Function(_)) => None,
 
             // TODO more rules?
 
