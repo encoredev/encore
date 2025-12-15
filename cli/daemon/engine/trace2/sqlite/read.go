@@ -46,7 +46,8 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
 		    trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
-		    topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, src_file, src_line
+		    topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, 
+			src_file, src_line, parent_span_id
 		FROM trace_span_index
 		WHERE app_id = $1 AND has_response AND is_root AND span_type != $2 `+extraWhereClause+`
 		ORDER BY started_at DESC
@@ -68,7 +69,8 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		var startedAt int64
 		err := rows.Scan(
 			&t.TraceId, &t.SpanId, &startedAt, &t.Type, &t.IsRoot, &t.ServiceName, &t.EndpointName,
-			&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped, &t.DurationNanos, &t.SrcFile, &t.SrcLine)
+			&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
+			&t.DurationNanos, &t.SrcFile, &t.SrcLine, &t.ParentSpanId)
 		if err != nil {
 			return errors.Wrap(err, "scan trace")
 		}
@@ -91,13 +93,15 @@ func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID,
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
 			trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
-			topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, src_file, src_line
+			topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, 
+			src_file, src_line, parent_span_id
 		FROM trace_span_index
 		WHERE app_id = ? AND trace_id = ? AND span_id = ? AND has_response AND is_root AND span_type != ?
 		ORDER BY started_at DESC
 	`, appID, traceID, spanID, tracepb2.SpanSummary_AUTH).Scan(
 		&t.TraceId, &t.SpanId, &startedAt, &t.Type, &t.IsRoot, &t.ServiceName, &t.EndpointName,
-		&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped, &t.DurationNanos, &t.SrcFile, &t.SrcLine)
+		&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
+		&t.DurationNanos, &t.SrcFile, &t.SrcLine, &t.ParentSpanId)
 	if errors.Is(err, sql.ErrNoRows) {
 		return
 	} else if err != nil {
