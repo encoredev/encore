@@ -58,7 +58,6 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 	}
 
 	defer fns.CloseIgnore(rows)
-
 	n := 0
 	for rows.Next() {
 		if n >= limit {
@@ -68,7 +67,6 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 
 		var t tracepb2.SpanSummary
 		var startedAt int64
-
 		err := rows.Scan(
 			&t.TraceId, &t.SpanId, &startedAt, &t.Type, &t.IsRoot, &t.ServiceName, &t.EndpointName,
 			&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
@@ -84,7 +82,7 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		}
 	}
 
-	return nil
+	return errors.Wrap(rows.Err(), "iterate traces")
 }
 
 // emitCompleteSpanToListeners emits the given trace/span to all listeners
@@ -92,7 +90,6 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID, spanID string) {
 	var t tracepb2.SpanSummary
 	var startedAt int64
-
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
 			trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
@@ -114,7 +111,6 @@ func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID,
 
 	ts := time.Unix(0, startedAt)
 	t.StartedAt = timestamppb.New(ts)
-
 	for _, ln := range s.listeners {
 		ln <- trace2.NewSpanEvent{
 			AppID:     appID,
@@ -156,7 +152,7 @@ func (s *Store) Get(ctx context.Context, appID, traceID string, iter trace2.Even
 	if err := rows.Err(); err != nil {
 		return errors.Wrap(err, "iterate events")
 	} else if !hasRows {
-		return errors.Wrap(rows.Err(), "iterate traces")
+		return trace2.ErrNotFound
 	}
 	return nil
 }
