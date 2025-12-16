@@ -247,22 +247,28 @@ func (g *RuntimeConfigGenerator) initialize() error {
 					return errors.Newf("unknown delivery guarantee %q", topic.DeliveryGuarantee)
 				}
 
+				// Ensure topic name is valid for NSQ
+				topicCloudName := ensureValidNSQName(topic.Name)
+
 				cluster.PubSubTopic(&runtimev1.PubSubTopic{
 					Rid:               topicRid,
 					EncoreName:        topic.Name,
-					CloudName:         topic.Name,
+					CloudName:         topicCloudName,
 					DeliveryGuarantee: deliveryGuarantee,
 					OrderingAttr:      ptrOrNil(topic.OrderingKey),
 					ProviderConfig:    nil,
 				})
 
 				for _, sub := range topic.Subscriptions {
+					// Ensure subscription name is valid for NSQ
+					subCloudName := ensureValidNSQName(sub.Name)
+
 					cluster.PubSubSubscription(&runtimev1.PubSubSubscription{
 						Rid:                    newRid(),
 						TopicEncoreName:        topic.Name,
 						SubscriptionEncoreName: sub.Name,
-						TopicCloudName:         topic.Name,
-						SubscriptionCloudName:  sub.Name,
+						TopicCloudName:         topicCloudName,
+						SubscriptionCloudName:  subCloudName,
 						PushOnly:               false,
 						ProviderConfig:         nil,
 					})

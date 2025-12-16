@@ -6,7 +6,6 @@ use crate::pubsub;
 use crate::pubsub::nsq::sub::NsqSubscription;
 use crate::pubsub::nsq::topic::NsqTopic;
 
-mod names;
 mod sub;
 mod topic;
 
