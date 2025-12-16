@@ -37,8 +37,11 @@ impl NsqSubscription {
         cfg: &pb::PubSubSubscription,
         meta: &meta::pub_sub_topic::Subscription,
     ) -> Self {
-        let topic = NSQTopic::new(cfg.topic_cloud_name.clone()).unwrap();
-        let channel = NSQChannel::new(cfg.subscription_cloud_name.clone()).unwrap();
+        let topic = NSQTopic::new(&cfg.topic_cloud_name)
+            .expect("topic_cloud_name should be valid NSQ topic name");
+
+        let channel = NSQChannel::new(&cfg.subscription_cloud_name)
+            .expect("subscription_cloud_name should be valid NSQ channel name");
 
         let mut config = NSQConsumerConfig::new(topic, channel)
             .set_sources(NSQConsumerConfigSources::Daemons(vec![addr.clone()]))

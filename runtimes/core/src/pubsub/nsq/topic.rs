@@ -25,7 +25,8 @@ impl NsqTopic {
         let cloud_name = cfg.cloud_name.clone();
         let (tx, mut rx) = mpsc::channel::<PublishRequest>(32);
         tokio::spawn(async move {
-            let topic = NSQTopic::new(&cloud_name).unwrap();
+            let topic =
+                NSQTopic::new(&cloud_name).expect("cloud_name should be valid NSQ topic name");
             let mut producer = NSQProducerConfig::new(addr).build();
 
             // Wait for the producer to send a Ready event.
