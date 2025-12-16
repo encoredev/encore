@@ -14,6 +14,7 @@ use crate::encore::parser::meta::v1 as meta;
 use crate::encore::runtime::v1 as pb;
 use crate::pubsub;
 use crate::pubsub::manager::SubHandler;
+use crate::pubsub::nsq::names::hash_name;
 use crate::pubsub::nsq::topic::EncodedMessage;
 use crate::pubsub::Subscription;
 
@@ -37,8 +38,15 @@ impl NsqSubscription {
         cfg: &pb::PubSubSubscription,
         meta: &meta::pub_sub_topic::Subscription,
     ) -> Self {
-        let topic = NSQTopic::new(cfg.topic_cloud_name.clone()).unwrap();
-        let channel = NSQChannel::new(cfg.subscription_cloud_name.clone()).unwrap();
+        let topic = NSQTopic::new(&cfg.topic_cloud_name).unwrap_or_else(|| {
+            let topic_name = hash_name(&cfg.topic_cloud_name);
+            NSQTopic::new(topic_name).expect("hashed topic name should always be valid")
+        });
+
+        let channel = NSQChannel::new(&cfg.subscription_cloud_name).unwrap_or_else(|| {
+            let channel_name = hash_name(&cfg.subscription_cloud_name);
+            NSQChannel::new(channel_name).expect("hashed subscription name should always be valid")
+        });
 
         let mut config = NSQConsumerConfig::new(topic, channel)
             .set_sources(NSQConsumerConfigSources::Daemons(vec![addr.clone()]))

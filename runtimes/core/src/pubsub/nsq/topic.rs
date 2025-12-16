@@ -8,6 +8,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_nsq::{NSQEvent, NSQProducerConfig, NSQTopic};
 
 use crate::encore::runtime::v1 as pb;
+use crate::pubsub::nsq::names::hash_name;
 use crate::pubsub::{MessageData, MessageId, Topic};
 
 struct PublishRequest {
@@ -25,7 +26,10 @@ impl NsqTopic {
         let cloud_name = cfg.cloud_name.clone();
         let (tx, mut rx) = mpsc::channel::<PublishRequest>(32);
         tokio::spawn(async move {
-            let topic = NSQTopic::new(&cloud_name).unwrap();
+            let topic = NSQTopic::new(&cloud_name).unwrap_or_else(|| {
+                let topic_name = hash_name(&cloud_name);
+                NSQTopic::new(topic_name).expect("hashed topic name should always be valid")
+            });
             let mut producer = NSQProducerConfig::new(addr).build();
 
             // Wait for the producer to send a Ready event.
