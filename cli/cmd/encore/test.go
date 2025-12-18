@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"encr.dev/cli/cmd/encore/cmdutil"
+	"encr.dev/internal/env"
 	daemonpb "encr.dev/proto/encore/daemon"
 )
 
@@ -110,6 +111,13 @@ func runTests(appRoot, testDir string, args []string, traceFile string, codegenD
 	}
 
 	daemon := setupDaemon(ctx)
+
+	// prefix PATH with encore-go, so it doesnt conflict with other installed go versions
+	// if not set causes problems when running cover tests in go
+	if goRoot, ok := env.OptEncoreGoRoot().Get(); ok {
+		pathValue := filepath.Join(goRoot, "bin") + string(filepath.ListSeparator) + os.Getenv("PATH")
+		os.Setenv("PATH", pathValue)
+	}
 
 	// Is this a node package?
 	packageJsonPath := filepath.Join(appRoot, "package.json")
