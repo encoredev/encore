@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"encr.dev/internal/etrace"
@@ -188,10 +189,25 @@ func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
 		env = append(env, "CGO_ENABLED=0")
 	}
 
+	environ := append(os.Environ(), env...)
+
+	// Get the last PATH= item
+	var originalPath string
+	for _, e := range environ {
+		if path, ok := strings.CutPrefix(e, "PATH="); ok {
+			originalPath = path
+		}
+	}
+
+	// prefix PATH with encore-go, so it doesnt conflict with other installed go versions
+	// if not set causes problems when running cover tests in go
+	path := goroot.Join("bin").ToIO() + string(filepath.ListSeparator) + originalPath
+	environ = append(environ, "PATH="+path)
+
 	return &TestSpec{
 		Command: goroot.Join("bin", "go"+b.exe()).ToIO(),
 		Args:    args,
-		Environ: append(os.Environ(), env...),
+		Environ: environ,
 		cfg:     b.cfg,
 	}
 }
