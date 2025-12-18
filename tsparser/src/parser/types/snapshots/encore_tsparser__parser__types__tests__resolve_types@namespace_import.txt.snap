@@ -1,0 +1,13 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/namespace_import.txt
+---
+{
+    "TestBar": Basic(
+        Never,
+    ),
+    "TestBaz": Basic(
+        Never,
+    ),
+}
