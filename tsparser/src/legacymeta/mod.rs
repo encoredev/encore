@@ -6,6 +6,7 @@ use convert_case::{Case, Casing};
 use swc_common::errors::HANDLER;
 
 use crate::encore::parser::meta::v1::{self, selector, Selector};
+use crate::encore::parser::schema::v1::Builtin;
 use crate::legacymeta::schema::{loc_from_range, SchemaBuilder};
 use crate::parser::parser::{ParseContext, ParseResult, Service};
 use crate::parser::resourceparser::bind::{Bind, BindKind};
@@ -15,7 +16,7 @@ use crate::parser::resources::infra::metrics::MetricType;
 use crate::parser::resources::infra::pubsub_topic::TopicOperation;
 use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
 use crate::parser::resources::Resource;
-use crate::parser::types::{validation, FieldName, Type};
+use crate::parser::types::{validation, Basic, FieldName, Literal, Type};
 use crate::parser::types::{Object, ObjectId};
 use crate::parser::usageparser::Usage;
 use crate::parser::{respath, FilePath, Range};
@@ -354,9 +355,15 @@ impl MetaBuilder<'_> {
                                         continue;
                                     }
 
-                                    let field_type = match &field.typ {
-                                        Type::Basic(basic) => basic_to_proto(basic),
-                                        _ => Builtin::Any as i32,
+                                    let field_type = match type_to_proto(&field.typ) {
+                                        Ok(builtin) => builtin as i32,
+                                        Err(err_msg) => {
+                                            field.range.err(&format!(
+                                                "invalid type for metric label '{}': {}. Labels must be string, number, or boolean (or unions thereof)",
+                                                key, err_msg
+                                            ));
+                                            continue;
+                                        }
                                     };
 
                                     // Extract doc comment for the label
@@ -865,16 +872,68 @@ impl respath::Path {
     }
 }
 
-fn basic_to_proto(basic: &crate::parser::types::Basic) -> i32 {
-    use crate::encore::parser::schema::v1::Builtin;
-    use crate::parser::types::Basic;
-
-    (match basic {
+fn basic_to_proto(basic: &crate::parser::types::Basic) -> Builtin {
+    match basic {
         Basic::Boolean => Builtin::Bool,
         Basic::String => Builtin::String,
         Basic::Number => Builtin::Int64,
         _ => Builtin::Any,
-    }) as i32
+    }
+}
+
+fn literal_to_proto(lit: &crate::parser::types::Literal) -> Builtin {
+    match lit {
+        Literal::String(_) => Builtin::String,
+        Literal::Number(_) | Literal::BigInt(_) => Builtin::Int64,
+        Literal::Boolean(_) => Builtin::Bool,
+    }
+}
+/// Converts a Type to a protobuf builtin type, handling unions and literals.
+/// Returns an error if the type is not valid for metric labels.
+fn type_to_proto(typ: &Type) -> Result<Builtin, String> {
+    match typ {
+        Type::Basic(basic @ (Basic::String | Basic::Number | Basic::Boolean)) => {
+            Ok(basic_to_proto(basic))
+        }
+        Type::Basic(other) => Err(format!("type '{:?}' is not allowed", other)),
+
+        Type::Literal(lit) => Ok(literal_to_proto(lit)),
+
+        Type::Union(union) => check_union_same_proto_type(&union.types),
+
+        Type::Array(_) => Err("array types are not allowed".to_string()),
+        Type::Interface(_) => Err("object types are not allowed".to_string()),
+        Type::Named(n) => Err(format!(
+            "named type '{}' is not allowed",
+            n.obj.name.clone().unwrap_or_else(|| "unknown".to_string())
+        )),
+        Type::Optional(_) => Err("optional types are not allowed".to_string()),
+        _ => Err("this type is not allowed".to_string()),
+    }
+}
+
+/// Checks if all types in a union map to the same protobuf type.
+/// For example: "hello" | "world" → String, 1 | 2 | 3 → Int64, true | false → Bool
+fn check_union_same_proto_type(types: &[Type]) -> Result<Builtin, String> {
+    if types.is_empty() {
+        return Err("empty union type".to_string());
+    }
+
+    // Get the proto type of the first member
+    let first_proto = type_to_proto(&types[0])?;
+
+    // Check if all remaining types map to the same proto type
+    for typ in &types[1..] {
+        let proto = type_to_proto(typ)?;
+        if proto != first_proto {
+            return Err(format!(
+                "union contains incompatible types: expected all members to be compatible with {:?}",
+                first_proto
+            ));
+        }
+    }
+
+    Ok(first_proto)
 }
 
 fn new_meta() -> v1::Data {
