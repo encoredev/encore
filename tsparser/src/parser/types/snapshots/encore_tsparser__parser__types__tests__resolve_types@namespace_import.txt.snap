@@ -4,10 +4,74 @@ expression: result
 input_file: tsparser/src/parser/types/testdata/namespace_import.txt
 ---
 {
-    "TestBar": Basic(
-        Never,
+    "TestBar": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "description",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
     ),
-    "TestBaz": Basic(
-        Never,
+    "TestBaz": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "description",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
     ),
 }
