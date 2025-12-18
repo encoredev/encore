@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"encr.dev/internal/etrace"
@@ -187,6 +188,11 @@ func (b *builder) generateTestSpec(testCfg *GenerateTestSpecConfig) *TestSpec {
 	if !build.CgoEnabled {
 		env = append(env, "CGO_ENABLED=0")
 	}
+
+	// prefix PATH with encore-go, so it doesnt conflict with other installed go versions
+	// if not set causes problems when running cover tests in go
+	path := goroot.Join("bin").ToIO() + string(filepath.ListSeparator) + os.Getenv("PATH")
+	env = append(env, "PATH="+path)
 
 	return &TestSpec{
 		Command: goroot.Join("bin", "go"+b.exe()).ToIO(),
