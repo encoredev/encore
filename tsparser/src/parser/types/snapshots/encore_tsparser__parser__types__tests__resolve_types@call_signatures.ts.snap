@@ -1,0 +1,235 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/call_signatures.ts
+---
+{
+    "BasicCallable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                String,
+                            ),
+                        ],
+                        Basic(
+                            Number,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "MultiParamCallable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                String,
+                            ),
+                            Basic(
+                                Number,
+                            ),
+                        ],
+                        Basic(
+                            Boolean,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "OptionalCallable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                String,
+                            ),
+                            Basic(
+                                Number,
+                            ),
+                        ],
+                        Basic(
+                            Void,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "MixedCallable": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "prop",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                Number,
+                            ),
+                        ],
+                        Basic(
+                            String,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "RestCallable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                String,
+                            ),
+                            Array(
+                                Array(
+                                    Basic(
+                                        Number,
+                                    ),
+                                ),
+                            ),
+                        ],
+                        Basic(
+                            Boolean,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "CallableInterface": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                Number,
+                            ),
+                        ],
+                        Basic(
+                            String,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "NoParamCallable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [],
+                        Basic(
+                            String,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "OverloadedCallable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                String,
+                            ),
+                        ],
+                        Basic(
+                            Number,
+                        ),
+                    ),
+                    (
+                        [
+                            Basic(
+                                Number,
+                            ),
+                        ],
+                        Basic(
+                            String,
+                        ),
+                    ),
+                    (
+                        [
+                            Basic(
+                                Boolean,
+                            ),
+                            Basic(
+                                Number,
+                            ),
+                            Basic(
+                                String,
+                            ),
+                        ],
+                        Basic(
+                            Void,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "Callable": Interface(
+        Interface {
+            fields: [],
+            index: None,
+            call: Some(
+                [
+                    (
+                        [
+                            Basic(
+                                String,
+                            ),
+                        ],
+                        Basic(
+                            Number,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    "Res": Basic(
+        Number,
+    ),
+}
