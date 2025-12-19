@@ -2127,7 +2127,7 @@ impl Ctx<'_> {
 
                 // If we have any parts that aren't Same, we need to make the whole thing New.
                 // Otherwise return the original type.
-                let call_changed = call.as_ref().map_or(false, |overloads| {
+                let call_changed = call.as_ref().is_some_and(|overloads| {
                     overloads
                         .iter()
                         .any(|(params, ret)| !matches!(params, Same(_)) || !matches!(ret, Same(_)))
