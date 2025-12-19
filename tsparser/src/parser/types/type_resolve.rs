@@ -712,13 +712,121 @@ impl Ctx<'_> {
         let return_type = if let Some(type_ann) = &method.type_ann {
             Box::new(self.typ(&type_ann.type_ann))
         } else {
-            Box::new(Type::Basic(Basic::Any))
+            HANDLER.with(|handler| {
+                handler.span_err(
+                    method.span,
+                    "method must have explicit return type annotation (function body parsing not yet supported)",
+                )
+            });
+            Box::new(Type::Basic(Basic::Never))
         };
 
         FunctionType {
             params,
             return_type,
             type_params: None, // Not supported yet
+        }
+    }
+
+    fn parse_function(&self, func: &ast::Function) -> FunctionType {
+        // Parse parameters
+        let params = func
+            .params
+            .iter()
+            .filter_map(|param| match &param.pat {
+                ast::Pat::Ident(ident) => {
+                    let name = Some(ident.id.sym.as_ref().to_string());
+                    let optional = ident.id.optional;
+
+                    let typ = if let Some(type_ann) = &ident.type_ann {
+                        self.typ(&type_ann.type_ann)
+                    } else {
+                        Type::Basic(Basic::Any)
+                    };
+
+                    Some(FunctionParam {
+                        name,
+                        typ,
+                        optional,
+                        rest: false,
+                    })
+                }
+                ast::Pat::Array(array) => {
+                    let typ = if let Some(type_ann) = &array.type_ann {
+                        self.typ(&type_ann.type_ann)
+                    } else {
+                        Type::Basic(Basic::Any)
+                    };
+
+                    Some(FunctionParam {
+                        name: None,
+                        typ,
+                        optional: array.optional,
+                        rest: false,
+                    })
+                }
+                ast::Pat::Object(object) => {
+                    let typ = if let Some(type_ann) = &object.type_ann {
+                        self.typ(&type_ann.type_ann)
+                    } else {
+                        Type::Basic(Basic::Any)
+                    };
+
+                    Some(FunctionParam {
+                        name: None,
+                        typ,
+                        optional: object.optional,
+                        rest: false,
+                    })
+                }
+                ast::Pat::Rest(rest) => {
+                    let name = match rest.arg.as_ref() {
+                        ast::Pat::Ident(ident) => Some(ident.id.sym.as_ref().to_string()),
+                        _ => None,
+                    };
+
+                    let typ = if let Some(type_ann) = &rest.type_ann {
+                        self.typ(&type_ann.type_ann)
+                    } else {
+                        Type::Basic(Basic::Any)
+                    };
+
+                    Some(FunctionParam {
+                        name,
+                        typ,
+                        optional: false,
+                        rest: true,
+                    })
+                }
+                ast::Pat::Assign(_) | ast::Pat::Expr(_) | ast::Pat::Invalid(_) => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            param.span(),
+                            "pattern not yet supported in function parameters",
+                        )
+                    });
+                    None
+                }
+            })
+            .collect();
+
+        // Parse return type
+        let return_type = if let Some(type_ann) = &func.return_type {
+            Box::new(self.typ(&type_ann.type_ann))
+        } else {
+            HANDLER.with(|handler| {
+                handler.span_err(
+                    func.span,
+                    "function must have explicit return type annotation (function body parsing not yet supported)",
+                )
+            });
+            Box::new(Type::Basic(Basic::Never))
+        };
+
+        FunctionType {
+            params,
+            return_type,
+            type_params: None, // Generic functions not yet fully supported
         }
     }
 
@@ -1275,8 +1383,19 @@ impl Ctx<'_> {
                 left.simplify_or_union(right)
             }
             ast::Expr::Call(expr) => {
-                HANDLER.with(|handler| handler.span_err(expr.span, "call expr not yet supported"));
-                Type::Basic(Basic::Never)
+                // Resolve the callee to get its type
+                let callee_type = match &expr.callee {
+                    ast::Callee::Expr(callee_expr) => self.expr(callee_expr),
+                    ast::Callee::Super(_) | ast::Callee::Import(_) => {
+                        HANDLER.with(|handler| {
+                            handler.span_err(expr.span, "super/import calls not yet supported")
+                        });
+                        return Type::Basic(Basic::Never);
+                    }
+                };
+
+                // Extract and return the function's return type
+                self.get_return_type(&callee_type, expr.span)
             }
             ast::Expr::New(expr) => {
                 // The type of a class instance is the same as the class itself.
@@ -1665,6 +1784,22 @@ impl Ctx<'_> {
             }
         }
     }
+
+    /// Extracts the return type from a callable type.
+    fn get_return_type(&self, typ: &Type, span: Span) -> Type {
+        match typ {
+            Type::Function(func) => *func.return_type.clone(),
+            Type::Named(_) => {
+                let underlying = self.underlying(typ);
+                self.get_return_type(&underlying, span)
+            }
+
+            _ => {
+                HANDLER.with(|handler| handler.span_err(span, "cannot call non-function type"));
+                Type::Basic(Basic::Never)
+            }
+        }
+    }
 }
 
 impl Ctx<'_> {
@@ -1791,12 +1926,7 @@ impl Ctx<'_> {
                 }
             }
 
-            ObjectKind::Func(_o) => {
-                HANDLER.with(|handler| {
-                    handler.span_err(obj.range.to_span(), "function types not yet supported");
-                });
-                Type::Basic(Basic::Never)
-            }
+            ObjectKind::Func(o) => Type::Function(self.parse_function(&o.spec)),
 
             ObjectKind::Class(o) => {
                 let methods = o
