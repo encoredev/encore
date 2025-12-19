@@ -701,6 +701,12 @@ impl Ctx<'_> {
     }
 
     fn parse_method_signature(&self, method: &ast::TsMethodSignature) -> FunctionType {
+        if let Some(type_params) = &method.type_params {
+            HANDLER.with(|handler| {
+                handler.span_err(type_params.span, "generic methods are not yet supported")
+            });
+        }
+
         // Parse parameters
         let params = method
             .params
@@ -724,11 +730,17 @@ impl Ctx<'_> {
         FunctionType {
             params,
             return_type,
-            type_params: None, // Not supported yet
+            type_params: None,
         }
     }
 
     fn parse_function(&self, func: &ast::Function) -> FunctionType {
+        if let Some(type_params) = &func.type_params {
+            HANDLER.with(|handler| {
+                handler.span_err(type_params.span, "generic functions are not yet supported")
+            });
+        }
+
         // Parse parameters
         let params = func
             .params
@@ -826,7 +838,7 @@ impl Ctx<'_> {
         FunctionType {
             params,
             return_type,
-            type_params: None, // Generic functions not yet fully supported
+            type_params: None,
         }
     }
 
