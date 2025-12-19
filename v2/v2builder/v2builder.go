@@ -221,7 +221,7 @@ func (*BuilderImpl) ServiceConfigs(ctx context.Context, p builder.ServiceConfigs
 
 	pd := p.Parse.Data.(*parseData)
 	cfg := computeConfigs(pd.pc.Errs, pd.appDesc, pd.mainModule, p.CueMeta)
-	if err != nil {
+	if err := pd.pc.Errs.AsError(); err != nil {
 		return nil, err
 	}
 	return &builder.ServiceConfigsResult{

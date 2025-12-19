@@ -2,9 +2,11 @@ package export
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -74,21 +76,6 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	if err := app.CacheMetadata(parse.Meta); err != nil {
 		log.Info().Err(err).Msg("failed to cache metadata")
 		return false, errors.Wrap(err, "cache metadata")
-	}
-
-	// Validate the service configs.
-	_, err = bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
-		Parse: parse,
-		CueMeta: &cueutil.Meta{
-			// Dummy data to satisfy config validation.
-			APIBaseURL: "http://localhost:0",
-			EnvName:    "encore-eject",
-			EnvType:    cueutil.EnvType_Development,
-			CloudType:  cueutil.CloudType_Local,
-		},
-	})
-	if err != nil {
-		return false, err
 	}
 
 	log.Info().Msgf("compiling Encore application for %s/%s", req.Goos, req.Goarch)
@@ -192,6 +179,28 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		}
 		spec.WriteFiles[defaultInfraConfigPath] = data
 		spec.Env = append(spec.Env, fmt.Sprintf("ENCORE_INFRA_CONFIG_PATH=%s", defaultInfraConfigPath))
+
+		// Validate the service configs.
+		cfgs, err := bld.ServiceConfigs(ctx, builder.ServiceConfigsParams{
+			Parse: parse,
+			CueMeta: &cueutil.Meta{
+				APIBaseURL: cfg.Metadata.BaseURL,
+				EnvName:    cfg.Metadata.EnvName,
+				EnvType:    orDefault(cueutil.EnvType(cfg.Metadata.EnvType), "development"),
+				CloudType:  orDefault(cueutil.CloudType(cfg.Metadata.Cloud), "local"),
+			},
+		})
+		if err != nil {
+			return false, err
+		}
+		for svcName, cfgStr := range cfgs.Configs {
+			spec.Env = append(spec.Env, fmt.Sprintf(
+				"%s%s=%s",
+				"ENCORE_CFG_",
+				strings.ToUpper(svcName),
+				base64.RawURLEncoding.EncodeToString([]byte(cfgStr)),
+			))
+		}
 	}
 	var baseImgOverride option.Option[v1.Image]
 	if params.BaseImageTag != "" {
@@ -251,6 +260,14 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 
 	log.Info().Msgf("successfully exported app as docker image\n%s", logResponse)
 	return true, nil
+}
+
+func orDefault[T comparable](value T, defaultValue T) T {
+	var zero T
+	if value == zero {
+		return defaultValue
+	}
+	return value
 }
 
 func resolveBaseImage(ctx context.Context, log zerolog.Logger, p *daemonpb.DockerExportParams, spec *dockerbuild.ImageSpec) (v1.Image, error) {
