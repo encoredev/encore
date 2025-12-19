@@ -3,10 +3,12 @@
 /encore
 /git-remote-encore
 /target
+/__debug_*
 
 # Don't commit dotfiles
 /.encore
 /.vscode
+/.zed
 
 # Build artifact that must be placed alongside go files for Windows
 *.syso
