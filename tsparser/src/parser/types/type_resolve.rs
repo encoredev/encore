@@ -541,6 +541,7 @@ impl Ctx<'_> {
     fn type_lit(&self, type_lit: &ast::TsTypeLit) -> Type {
         let mut fields: Vec<InterfaceField> = Vec::with_capacity(type_lit.members.len());
         let mut index = None;
+        let mut call_signatures: Vec<(Vec<Type>, Box<Type>)> = Vec::new();
         for m in &type_lit.members {
             match m {
                 ast::TsTypeElement::TsPropertySignature(p) => {
@@ -652,14 +653,42 @@ impl Ctx<'_> {
                         optional: method.optional,
                     });
                 }
-                ast::TsTypeElement::TsCallSignatureDecl(_) => {
-                    HANDLER.with(|handler| {
-                        handler.span_err(
-                            m.span(),
-                            "call signatures are not yet supported in object type literals",
-                        )
-                    });
-                    continue;
+                ast::TsTypeElement::TsCallSignatureDecl(call_sig) => {
+                    // Check for unsupported generic type parameters
+                    if let Some(type_params) = &call_sig.type_params {
+                        HANDLER.with(|handler| {
+                            handler.span_err(
+                                type_params.span,
+                                "generic call signatures are not yet supported",
+                            )
+                        });
+                        continue;
+                    }
+
+                    // Parse parameters
+                    let params = call_sig
+                        .params
+                        .iter()
+                        .filter_map(|param| {
+                            // Parse the parameter and extract just the type
+                            self.parse_function_param(param).map(|fp| fp.typ)
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Parse return type
+                    let return_type = if let Some(type_ann) = &call_sig.type_ann {
+                        self.typ(&type_ann.type_ann)
+                    } else {
+                        HANDLER.with(|handler| {
+                            handler.span_err(
+                                call_sig.span,
+                                "call signature must have explicit return type annotation",
+                            )
+                        });
+                        Type::Basic(Basic::Never)
+                    };
+
+                    call_signatures.push((params, Box::new(return_type)));
                 }
                 ast::TsTypeElement::TsConstructSignatureDecl(_) => {
                     HANDLER.with(|handler| {
@@ -693,10 +722,12 @@ impl Ctx<'_> {
 
         Type::Interface(Interface {
             fields,
-
-            // TODO should these be set?
             index,
-            call: None,
+            call: if call_signatures.is_empty() {
+                None
+            } else {
+                Some(call_signatures)
+            },
         })
     }
 
@@ -1699,7 +1730,12 @@ impl Ctx<'_> {
             | Type::Generic(_)
             | Type::Class(_)
             | Type::Validation(_) => {
-                HANDLER.with(|handler| handler.span_err(prop.span(), "unsupported member on type"));
+                HANDLER.with(|handler| {
+                    handler.span_err(
+                        prop.span(),
+                        &format!("unsupported member on type {obj_type}"),
+                    )
+                });
                 Type::Basic(Basic::Never)
             }
             Type::Enum(tt) => {
@@ -1805,9 +1841,32 @@ impl Ctx<'_> {
                 let underlying = self.underlying(typ);
                 self.get_return_type(&underlying, span)
             }
+            Type::Interface(iface) => {
+                if let Some(overloads) = &iface.call {
+                    if overloads.len() == 1 {
+                        let (_, return_type) = &overloads[0];
+                        *return_type.clone()
+                    } else {
+                        HANDLER.with(|handler| {
+                            handler.span_err(
+                                span,
+                                "cannot call interface with multiple overloaded signatures (overload resolution not yet implemented)",
+                            )
+                        });
+                        Type::Basic(Basic::Never)
+                    }
+                } else {
+                    HANDLER.with(|handler| {
+                        handler.span_err(span, "cannot call non-callable interface")
+                    });
+                    Type::Basic(Basic::Never)
+                }
+            }
 
             _ => {
-                HANDLER.with(|handler| handler.span_err(span, "cannot call non-function type"));
+                HANDLER.with(|handler| {
+                    handler.span_err(span, &format!("cannot call non-function type {typ}"))
+                });
                 Type::Basic(Basic::Never)
             }
         }
@@ -2059,22 +2118,34 @@ impl Ctx<'_> {
                     .index
                     .as_ref()
                     .map(|(key, val)| (self.concrete(key), self.concrete(val)));
-                let call = iface
-                    .call
-                    .as_ref()
-                    .map(|(params, ret)| (self.concrete_list(params), self.concrete_list(ret)));
+                let call = iface.call.as_ref().map(|overloads| {
+                    overloads
+                        .iter()
+                        .map(|(params, ret)| (self.concrete_list(params), self.concrete(ret)))
+                        .collect::<Vec<_>>()
+                });
 
                 // If we have any parts that aren't Same, we need to make the whole thing New.
                 // Otherwise return the original type.
+                let call_changed = call.as_ref().is_some_and(|overloads| {
+                    overloads
+                        .iter()
+                        .any(|(params, ret)| !matches!(params, Same(_)) || !matches!(ret, Same(_)))
+                });
                 if !matches!(fields, Same(_))
-                    || !matches!(index, Some((Same(_), _) | (_, Same(_))))
-                    || !matches!(call, Some((Same(_), _) | (_, Same(_))))
+                    || !matches!(index, Some((Same(_), Same(_))))
+                    || call_changed
                 {
                     New(Type::Interface(Interface {
                         fields: fields.into_owned(),
                         index: index
                             .map(|(k, v)| (Box::new(k.into_owned()), Box::new(v.into_owned()))),
-                        call: call.map(|(p, r)| (p.into_owned(), r.into_owned())),
+                        call: call.map(|overloads| {
+                            overloads
+                                .into_iter()
+                                .map(|(p, r)| (p.into_owned(), Box::new(r.into_owned())))
+                                .collect()
+                        }),
                     }))
                 } else {
                     Same(typ)
