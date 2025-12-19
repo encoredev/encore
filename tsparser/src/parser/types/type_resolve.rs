@@ -1018,11 +1018,9 @@ impl Ctx<'_> {
                 None
             }
             ObjectKind::Module(module) => {
-                if name == "default" {
-                    module.data.default_export.clone()
-                } else {
-                    module.data.named_exports.get(name).cloned()
-                }
+                module
+                    .data
+                    .get_named_export(self.state, &module.base.swc_file_path, name)
             }
             ObjectKind::Namespace(ns) => {
                 if name == "default" {

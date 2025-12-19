@@ -1,0 +1,22 @@
+import * as pkg from "./pkg";
+
+export type TestBar = pkg.Bar;
+export type TestBaz = pkg.Baz;
+
+-- pkg.ts --
+export * from "./bar";
+export * from "./baz";
+
+-- bar.ts --
+export type Bar = {
+  id: number;
+  name: string;
+  description: string;
+};
+
+-- baz.ts --
+export type Baz = {
+  id: number;
+  name: string;
+  description: string;
+};
