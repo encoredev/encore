@@ -25,6 +25,7 @@ message SpanSummary {
   optional string src_file             = 15; // the source file where the span was started (if available)
   optional uint32 src_line             = 16; // the source line where the span was started (if available)
   optional string parent_span_id       = 17; // parent of the span if it's a child, if this is not populated then it's a root
+  optional uint64 caller_event_id      = 18; // the event id of the call that started this span
 
   enum SpanType {
     UNKNOWN = 0;
