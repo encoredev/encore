@@ -19,7 +19,30 @@ static ROOT: OnceCell<&Logger> = OnceCell::new();
 /// This function is idempotent and will not re-initialize the logger
 /// if it has already been initialized.
 pub fn init() {
+    // Initialize the logger first.
     _ = root();
+
+    // Set a custom panic hook to ensure panics are logged at error level.
+    // We write directly to stderr in JSON format to ensure the message
+    // is properly captured by log aggregators like Cloud Run.
+    std::panic::set_hook(Box::new(|info| {
+        use std::io::Write;
+
+        let msg = info.to_string();
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()));
+
+        // Write JSON directly to stderr to ensure proper log level detection.
+        let json = serde_json::json!({
+            "level": "error",
+            "severity": "ERROR",
+            "message": msg,
+            "caller": location,
+            "time": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        });
+        let _ = writeln!(std::io::stderr(), "{}", json);
+    }));
 }
 
 /// Set the tracer on the global logger
