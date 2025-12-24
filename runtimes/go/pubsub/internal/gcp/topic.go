@@ -75,7 +75,7 @@ func (t *topic) PublishMessage(ctx context.Context, orderingKey string, attrs ma
 	return id, err
 }
 
-func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
+func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, pullConcurrency int, ackDeadline time.Duration, retryPolicy *types.RetryPolicy, subCfg *config.PubsubSubscription, f types.RawSubscriptionCallback) {
 	if subCfg.PushOnly && subCfg.ID == "" {
 		panic("push-only subscriptions must have a subscription ID")
 	}
@@ -104,8 +104,12 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 		}
 		subscription.ReceiveSettings.MaxOutstandingMessages = maxConcurrency
 
-		if experiments.AdaptiveGCPPubSubGoroutines.Enabled(t.mgr.experiments) {
-			// Compute the number of goroutines to use for this subscription.
+		// Set the number of pull connections
+		if pullConcurrency > 0 {
+			// User explicitly configured PullConcurrency
+			subscription.ReceiveSettings.NumGoroutines = pullConcurrency
+		} else if experiments.AdaptiveGCPPubSubGoroutines.Enabled(t.mgr.experiments) {
+			// Fall back to adaptive calculation if experiment is enabled
 			streamingSubsInProject := 0
 			for _, topic := range t.mgr.runtime.PubsubTopics {
 				for _, sub := range topic.Subscriptions {
@@ -114,8 +118,9 @@ func (t *topic) Subscribe(logger *zerolog.Logger, maxConcurrency int, ackDeadlin
 					}
 				}
 			}
-			subscription.ReceiveSettings.NumGoroutines = numGoroutines(streamingSubsInProject)
+			subscription.ReceiveSettings.NumGoroutines = adaptivePullConcurrency(streamingSubsInProject)
 		}
+		// Otherwise, use GCP's default (10)
 
 		// Start the subscription with the GCP library
 		go func() {
