@@ -70,7 +70,6 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 		err := rows.Scan(
 			&t.TraceId, &t.SpanId, &startedAt, &t.Type, &t.IsRoot, &t.ServiceName, &t.EndpointName,
 			&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
-			&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
 			&t.DurationNanos, &t.SrcFile, &t.SrcLine, &t.ParentSpanId, &t.CallerEventId)
 		if err != nil {
 			return errors.Wrap(err, "scan trace")
@@ -95,14 +94,12 @@ func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID,
 		SELECT
 			trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
 			topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, 
-			topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, 
 			src_file, src_line, parent_span_id, caller_event_id
 		FROM trace_span_index
 		WHERE app_id = ? AND trace_id = ? AND span_id = ? AND has_response AND is_root AND span_type != ?
 		ORDER BY started_at DESC
 	`, appID, traceID, spanID, tracepb2.SpanSummary_AUTH).Scan(
 		&t.TraceId, &t.SpanId, &startedAt, &t.Type, &t.IsRoot, &t.ServiceName, &t.EndpointName,
-		&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
 		&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
 		&t.DurationNanos, &t.SrcFile, &t.SrcLine, &t.ParentSpanId, &t.CallerEventId)
 	if errors.Is(err, sql.ErrNoRows) {
