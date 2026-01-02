@@ -338,10 +338,11 @@ type SpanSummary struct {
 	TopicName        *string                `protobuf:"bytes,11,opt,name=topic_name,json=topicName,proto3,oneof" json:"topic_name,omitempty"`
 	SubscriptionName *string                `protobuf:"bytes,12,opt,name=subscription_name,json=subscriptionName,proto3,oneof" json:"subscription_name,omitempty"`
 	MessageId        *string                `protobuf:"bytes,13,opt,name=message_id,json=messageId,proto3,oneof" json:"message_id,omitempty"`
-	TestSkipped      *bool                  `protobuf:"varint,14,opt,name=test_skipped,json=testSkipped,proto3,oneof" json:"test_skipped,omitempty"`     // whether the test was skipped
-	SrcFile          *string                `protobuf:"bytes,15,opt,name=src_file,json=srcFile,proto3,oneof" json:"src_file,omitempty"`                  // the source file where the span was started (if available)
-	SrcLine          *uint32                `protobuf:"varint,16,opt,name=src_line,json=srcLine,proto3,oneof" json:"src_line,omitempty"`                 // the source line where the span was started (if available)
-	ParentSpanId     *string                `protobuf:"bytes,17,opt,name=parent_span_id,json=parentSpanId,proto3,oneof" json:"parent_span_id,omitempty"` // parent of the span if it's a child, if this is not populated then it's a root
+	TestSkipped      *bool                  `protobuf:"varint,14,opt,name=test_skipped,json=testSkipped,proto3,oneof" json:"test_skipped,omitempty"`         // whether the test was skipped
+	SrcFile          *string                `protobuf:"bytes,15,opt,name=src_file,json=srcFile,proto3,oneof" json:"src_file,omitempty"`                      // the source file where the span was started (if available)
+	SrcLine          *uint32                `protobuf:"varint,16,opt,name=src_line,json=srcLine,proto3,oneof" json:"src_line,omitempty"`                     // the source line where the span was started (if available)
+	ParentSpanId     *string                `protobuf:"bytes,17,opt,name=parent_span_id,json=parentSpanId,proto3,oneof" json:"parent_span_id,omitempty"`     // parent of the span if it's a child, if this is not populated then it's a root
+	CallerEventId    *uint64                `protobuf:"varint,18,opt,name=caller_event_id,json=callerEventId,proto3,oneof" json:"caller_event_id,omitempty"` // the event id of the call that started this span
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -493,6 +494,13 @@ func (x *SpanSummary) GetParentSpanId() string {
 		return *x.ParentSpanId
 	}
 	return ""
+}
+
+func (x *SpanSummary) GetCallerEventId() uint64 {
+	if x != nil && x.CallerEventId != nil {
+		return *x.CallerEventId
+	}
+	return 0
 }
 
 type TraceID struct {
@@ -5222,7 +5230,7 @@ var File_encore_engine_trace2_trace2_proto protoreflect.FileDescriptor
 
 const file_encore_engine_trace2_trace2_proto_rawDesc = "" +
 	"\n" +
-	"!encore/engine/trace2/trace2.proto\x12\x14encore.engine.trace2\x1a\x1fgoogle/protobuf/timestamp.proto\"\xec\x06\n" +
+	"!encore/engine/trace2/trace2.proto\x12\x14encore.engine.trace2\x1a\x1fgoogle/protobuf/timestamp.proto\"\xad\a\n" +
 	"\vSpanSummary\x12\x19\n" +
 	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12\x17\n" +
 	"\aspan_id\x18\x02 \x01(\tR\x06spanId\x12>\n" +
@@ -5244,7 +5252,8 @@ const file_encore_engine_trace2_trace2_proto_rawDesc = "" +
 	"\ftest_skipped\x18\x0e \x01(\bH\x04R\vtestSkipped\x88\x01\x01\x12\x1e\n" +
 	"\bsrc_file\x18\x0f \x01(\tH\x05R\asrcFile\x88\x01\x01\x12\x1e\n" +
 	"\bsrc_line\x18\x10 \x01(\rH\x06R\asrcLine\x88\x01\x01\x12)\n" +
-	"\x0eparent_span_id\x18\x11 \x01(\tH\aR\fparentSpanId\x88\x01\x01\"L\n" +
+	"\x0eparent_span_id\x18\x11 \x01(\tH\aR\fparentSpanId\x88\x01\x01\x12+\n" +
+	"\x0fcaller_event_id\x18\x12 \x01(\x04H\bR\rcallerEventId\x88\x01\x01\"L\n" +
 	"\bSpanType\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aREQUEST\x10\x01\x12\b\n" +
@@ -5258,7 +5267,8 @@ const file_encore_engine_trace2_trace2_proto_rawDesc = "" +
 	"\r_test_skippedB\v\n" +
 	"\t_src_fileB\v\n" +
 	"\t_src_lineB\x11\n" +
-	"\x0f_parent_span_id\"/\n" +
+	"\x0f_parent_span_idB\x12\n" +
+	"\x10_caller_event_id\"/\n" +
 	"\aTraceID\x12\x12\n" +
 	"\x04high\x18\x01 \x01(\x04R\x04high\x12\x10\n" +
 	"\x03low\x18\x02 \x01(\x04R\x03low\"E\n" +
