@@ -112,27 +112,6 @@ func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID,
 		return
 	}
 
-	if t.CallerEventId == nil {
-		rows, err := s.db.QueryContext(ctx, "SELECT event_data FROM trace_event WHERE app_id = ? AND trace_id = ? AND span_id = ?", appID, traceID, spanID)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var data []byte
-				if err := rows.Scan(&data); err != nil {
-					continue
-				}
-				var ev tracepb2.TraceEvent
-				if err := protojson.Unmarshal(data, &ev); err != nil {
-					continue
-				}
-				if start := ev.GetSpanStart(); start != nil {
-					t.CallerEventId = start.CallerEventId
-					break
-				}
-			}
-		}
-	}
-
 	ts := time.Unix(0, startedAt)
 	t.StartedAt = timestamppb.New(ts)
 	for _, ln := range s.listeners {
