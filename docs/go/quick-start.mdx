@@ -32,13 +32,19 @@ $ encore app create
 If this is the first time you're using Encore, you'll be asked if you wish to create a free account.
 This is needed when you want Encore to manage functionality like secrets and handle cloud deployments (which we'll use later on in the tutorial).
 
-🥐 Continue by picking a name for your app and select the `Hello World` template.
+🥐 Continue by choosing the language if prompted.
 
-This will create an example application, with a simple REST API, in a new folder using the app name you picked.
+You will be prompted to choose between Go and TypeScript. Choose Go.
+
+🥐 Continue by selecting the `Hello World` template.
+
+This will create an example application with a simple REST API in a new folder named with the app name you choose in the upcoming step.
 
 ### Optional: Add Encore LLM instructions
 
-To help LLM powered tools like Cursor, Claude Code, and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+To help LLM-powered tools like Cursor, Claude Code, Zed, and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+
+🥐 Continue by selecting the LLM rule format based on your preferred tool, or follow the manual steps below if you prefer to set this up yourself.
 
 🥐 Download the [go_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/go_llm_instructions.txt) file.
 
@@ -48,6 +54,10 @@ To help LLM powered tools like Cursor, Claude Code, and GitHub Copilot understan
 - Claude Code: Rename the file to `CLAUDE.md` and place in your app root.
 - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
 - For other tools, place the file in your app root.
+
+🥐 Choose an app name according to your preference when prompted.
+
+This will be used to create a new folder for your application.
 
 ### Let's take a look at the code
 
