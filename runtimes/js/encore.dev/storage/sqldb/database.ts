@@ -4,7 +4,7 @@ import { StringLiteral } from "../../internal/utils/constraints";
 
 export interface SQLMigrationsConfig {
   path: string;
-  source?: "prisma" | "drizzle" | "drizzle-v1";
+  source?: "prisma" | "drizzle" | "drizzle/v1";
 }
 export interface SQLDatabaseConfig {
   migrations?: string | SQLMigrationsConfig;

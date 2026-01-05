@@ -54,7 +54,7 @@ impl FromStr for MigrationFileSource {
         match input {
             "prisma" => Ok(MigrationFileSource::Prisma),
             "drizzle" => Ok(MigrationFileSource::Drizzle),
-            "drizzle-v1" => Ok(MigrationFileSource::DrizzleV1),
+            "drizzle/v1" => Ok(MigrationFileSource::DrizzleV1),
             _ => Err(MigrationFileSourceParseError::UnexpectedValue(
                 input.to_string(),
             )),
