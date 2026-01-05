@@ -292,10 +292,8 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	spanID := encodeSpanID(ev.SpanId)
 
 	defer func() {
-		if err == nil {
-			// If the span is complete, emit it to listeners.
-			s.emitCompleteSpanToListeners(ctx, meta.AppID, traceID, spanID)
-		}
+		// If the span is complete, emit it to listeners.
+		s.emitCompleteSpanToListeners(ctx, meta.AppID, traceID, spanID)
 	}()
 
 	if req := end.GetRequest(); req != nil {
@@ -320,16 +318,17 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	if auth := end.GetAuth(); auth != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, user_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, user_id, caller_event_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos,
-				user_id = excluded.user_id
+				user_id = excluded.user_id,
+				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_AUTH, true,
-			end.Error != nil, end.DurationNanos, auth.Uid)
+			end.Error != nil, end.DurationNanos, auth.Uid, end.CallerEventId)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
