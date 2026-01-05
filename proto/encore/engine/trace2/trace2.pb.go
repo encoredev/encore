@@ -899,6 +899,7 @@ type SpanEnd struct {
 	PanicStack    *StackTrace `protobuf:"bytes,3,opt,name=panic_stack,json=panicStack,proto3,oneof" json:"panic_stack,omitempty"`
 	ParentTraceId *TraceID    `protobuf:"bytes,4,opt,name=parent_trace_id,json=parentTraceId,proto3,oneof" json:"parent_trace_id,omitempty"`
 	ParentSpanId  *uint64     `protobuf:"varint,5,opt,name=parent_span_id,json=parentSpanId,proto3,oneof" json:"parent_span_id,omitempty"`
+	CallerEventId *uint64     `protobuf:"varint,6,opt,name=caller_event_id,json=callerEventId,proto3,oneof" json:"caller_event_id,omitempty"`
 	// Types that are valid to be assigned to Data:
 	//
 	//	*SpanEnd_Request
@@ -971,6 +972,13 @@ func (x *SpanEnd) GetParentTraceId() *TraceID {
 func (x *SpanEnd) GetParentSpanId() uint64 {
 	if x != nil && x.ParentSpanId != nil {
 		return *x.ParentSpanId
+	}
+	return 0
+}
+
+func (x *SpanEnd) GetCallerEventId() uint64 {
+	if x != nil && x.CallerEventId != nil {
+		return *x.CallerEventId
 	}
 	return 0
 }
@@ -5306,14 +5314,15 @@ const file_encore_engine_trace2_trace2_proto_rawDesc = "" +
 	"\x10_caller_event_idB\x1a\n" +
 	"\x18_external_correlation_idB\n" +
 	"\n" +
-	"\b_def_loc\"\xf9\x04\n" +
+	"\b_def_loc\"\xba\x05\n" +
 	"\aSpanEnd\x12%\n" +
 	"\x0eduration_nanos\x18\x01 \x01(\x04R\rdurationNanos\x126\n" +
 	"\x05error\x18\x02 \x01(\v2\x1b.encore.engine.trace2.ErrorH\x01R\x05error\x88\x01\x01\x12F\n" +
 	"\vpanic_stack\x18\x03 \x01(\v2 .encore.engine.trace2.StackTraceH\x02R\n" +
 	"panicStack\x88\x01\x01\x12J\n" +
 	"\x0fparent_trace_id\x18\x04 \x01(\v2\x1d.encore.engine.trace2.TraceIDH\x03R\rparentTraceId\x88\x01\x01\x12)\n" +
-	"\x0eparent_span_id\x18\x05 \x01(\x04H\x04R\fparentSpanId\x88\x01\x01\x12@\n" +
+	"\x0eparent_span_id\x18\x05 \x01(\x04H\x04R\fparentSpanId\x88\x01\x01\x12+\n" +
+	"\x0fcaller_event_id\x18\x06 \x01(\x04H\x05R\rcallerEventId\x88\x01\x01\x12@\n" +
 	"\arequest\x18\n" +
 	" \x01(\v2$.encore.engine.trace2.RequestSpanEndH\x00R\arequest\x127\n" +
 	"\x04auth\x18\v \x01(\v2!.encore.engine.trace2.AuthSpanEndH\x00R\x04auth\x12S\n" +
@@ -5323,7 +5332,8 @@ const file_encore_engine_trace2_trace2_proto_rawDesc = "" +
 	"\x06_errorB\x0e\n" +
 	"\f_panic_stackB\x12\n" +
 	"\x10_parent_trace_idB\x11\n" +
-	"\x0f_parent_span_id\"\x9b\x04\n" +
+	"\x0f_parent_span_idB\x12\n" +
+	"\x10_caller_event_id\"\x9b\x04\n" +
 	"\x10RequestSpanStart\x12!\n" +
 	"\fservice_name\x18\x01 \x01(\tR\vserviceName\x12#\n" +
 	"\rendpoint_name\x18\x02 \x01(\tR\fendpointName\x12\x1f\n" +
