@@ -60,7 +60,7 @@ type createFormModel struct {
 	aborted bool
 }
 
-func (m createFormModel) nextStep() option.Option[CreateStep] {
+func (m createFormModel) currentStep() option.Option[CreateStep] {
 	if len(m.steps) == 0 {
 		return option.None[CreateStep]()
 	}
@@ -248,12 +248,21 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc", "q":
+		case "ctrl+c", "esc":
+			m.aborted = true
+			return m, tea.Quit
+		case "q":
+			// Only quit if no text input is focused
+			if step, ok := m.currentStep().Get(); ok && step == CreateStepAppName {
+				if m.appName.text.Focused() {
+					break
+				}
+			}
 			m.aborted = true
 			return m, tea.Quit
 		}
 
-		if step, ok := m.nextStep().Get(); ok {
+		if step, ok := m.currentStep().Get(); ok {
 			switch step {
 			case CreateStepLang:
 				m.lang, c = m.lang.Update(msg)
@@ -299,7 +308,7 @@ func (m createFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// No more steps, quit
-	if !m.nextStep().Present() {
+	if !m.currentStep().Present() {
 		cmds = append(cmds, tea.Quit)
 	}
 
@@ -388,7 +397,7 @@ func (m createFormModel) View() string {
 		b.WriteByte('\n')
 	}
 
-	if step, ok := m.nextStep().Get(); ok {
+	if step, ok := m.currentStep().Get(); ok {
 		if step == CreateStepLang {
 			b.WriteString(m.lang.View())
 		}
