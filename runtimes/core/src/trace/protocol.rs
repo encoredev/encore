@@ -58,7 +58,7 @@ pub struct Tracer {
     tx: Option<tokio::sync::mpsc::UnboundedSender<TraceEvent>>,
 }
 
-pub static TRACE_VERSION: u16 = 14;
+pub static TRACE_VERSION: u16 = 16;
 
 impl Tracer {
     pub(super) fn new(tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>) -> Self {
@@ -198,6 +198,7 @@ impl Tracer {
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(rpc.auth_user_id.as_deref());
+                eb.bool(false); // mocked
 
                 EventType::RequestSpanStart
             }
@@ -267,6 +268,7 @@ impl Tracer {
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(data.auth_user_id.as_deref());
+                eb.bool(false); // mocked
 
                 EventType::RequestSpanStart
             }
@@ -282,6 +284,11 @@ impl Tracer {
 
         let mut eb = SpanEndEventData {
             parent: Parent::from(req),
+            caller_event_id: if matches!(resp.data, model::ResponseData::RPC(_)) {
+                req.caller_event_id
+            } else {
+                None
+            },
             duration: resp.duration,
             err: match &resp.data {
                 model::ResponseData::RPC(rpc) => rpc.error.as_ref(),
@@ -966,6 +973,7 @@ impl SpanStartEventData<'_> {
 
 struct SpanEndEventData<'a> {
     parent: Option<Parent>,
+    caller_event_id: Option<model::TraceEventId>,
     duration: std::time::Duration,
     err: Option<&'a api::Error>,
 
@@ -975,12 +983,13 @@ struct SpanEndEventData<'a> {
 
 impl SpanEndEventData<'_> {
     pub fn into_eb(self) -> EventBuffer {
-        let mut eb = EventBuffer::with_capacity(8 + 12 + 8 + self.extra_space);
+        let mut eb = EventBuffer::with_capacity(8 + 12 + 8 + 8 + self.extra_space);
 
         eb.duration(self.duration);
         eb.api_err_with_legacy_stack(self.err);
         eb.formatted_stack(self.err.as_ref().and_then(|err| err.stack.as_ref()));
         eb.parent(self.parent.as_ref());
+        eb.event_id(self.caller_event_id);
 
         eb
     }
