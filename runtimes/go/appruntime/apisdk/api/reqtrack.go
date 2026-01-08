@@ -254,9 +254,10 @@ func (s *Server) finishRequest(resp *model.Response) {
 		switch req.Type {
 		case model.RPCCall:
 			curr.Trace.RequestSpanEnd(trace2.RequestSpanEndParams{
-				EventParams: ep,
-				Req:         req,
-				Resp:        resp,
+				EventParams:   ep,
+				Req:           req,
+				Resp:          resp,
+				CallerEventID: req.CallerEventID,
 			})
 		case model.AuthHandler:
 			curr.Trace.AuthSpanEnd(trace2.AuthSpanEndParams{

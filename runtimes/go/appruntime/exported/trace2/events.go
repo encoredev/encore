@@ -162,6 +162,7 @@ type spanEndEventData struct {
 	Err           error
 	ParentTraceID model.TraceID
 	ParentSpanID  model.SpanID
+	CallerEventID model.TraceEventID
 	ExtraSpace    int
 }
 
@@ -177,6 +178,7 @@ func (l *Log) newSpanEndEvent(data spanEndEventData) EventBuffer {
 
 	tb.Bytes(data.ParentTraceID[:])
 	tb.Bytes(data.ParentSpanID[:])
+	tb.UVarint(uint64(data.CallerEventID))
 	return tb
 }
 
@@ -233,8 +235,9 @@ func (l *Log) RequestSpanStart(req *model.Request, goid uint32) {
 
 type RequestSpanEndParams struct {
 	EventParams
-	Req  *model.Request
-	Resp *model.Response
+	Req           *model.Request
+	Resp          *model.Response
+	CallerEventID model.TraceEventID
 }
 
 func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
@@ -244,6 +247,7 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
 		ParentSpanID:  p.Req.ParentSpanID,
+		CallerEventID: p.CallerEventID,
 		ExtraSpace:    len(desc.Service) + len(desc.Endpoint) + 64 + len(p.Resp.Payload),
 	})
 
