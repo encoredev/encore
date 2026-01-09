@@ -36,6 +36,8 @@ pub enum EventType {
     CacheCallStart = 0x14,
     CacheCallEnd = 0x15,
     BodyStream = 0x16,
+    // NOTE: We don't have an easy way of implementing test tracing for rust (i.e. typescript)
+    // so that's why we haven't implemented emitting TestStart/TestEnd etc.
     TestStart = 0x17,
     TestEnd = 0x18,
     BucketObjectUploadStart = 0x19,
@@ -58,7 +60,7 @@ pub struct Tracer {
     tx: Option<tokio::sync::mpsc::UnboundedSender<TraceEvent>>,
 }
 
-pub static TRACE_VERSION: u16 = 14;
+pub static TRACE_VERSION: u16 = 15;
 
 impl Tracer {
     pub(super) fn new(tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>) -> Self {
@@ -143,6 +145,8 @@ impl Tracer {
 }
 
 impl Tracer {
+    // Note: We don't have an easy way of implementing test tracing for rust (i.e. typescript)
+    // so that's why we haven't implemented emitting TestStart/TestEnd etc.
     #[inline]
     pub fn request_span_start(&self, req: &model::Request, redact_details: bool) {
         let mut eb = SpanStartEventData {
@@ -198,6 +202,7 @@ impl Tracer {
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(rpc.auth_user_id.as_deref());
+                eb.bool(false); // NOTE: mocked field not used
 
                 EventType::RequestSpanStart
             }
@@ -267,6 +272,7 @@ impl Tracer {
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(data.auth_user_id.as_deref());
+                eb.bool(false); // NOTE: mocked field not used
 
                 EventType::RequestSpanStart
             }
