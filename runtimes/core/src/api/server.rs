@@ -113,12 +113,13 @@ impl Server {
 
                         let handler = axum::routing::on(filter, server_handler.clone());
                         for path in paths {
-                            router = router.route(path, handler.clone());
+                            let normalized = paths::normalize_path(path);
+                            router = router.route(&normalized, handler.clone());
                         }
                         handler_map.insert(ep.name.clone(), server_handler);
                     }
                     None => {
-                        log::warn!("no methods for endpoint {}, skipping", ep.name,);
+                        log::warn!("no methods for endpoint {}, skipping", ep.name);
                     }
                 }
             }

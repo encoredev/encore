@@ -112,6 +112,46 @@ where
     PathSet { main, fallback }
 }
 
+/// Normalizes a path by replacing all parameter names with a canonical placeholder.
+/// This is used to group endpoints with the same structure but different param names.
+///
+/// Examples:
+/// - `/my/path/:name` -> `/my/path/:_`
+/// - `/my/path/:id` -> `/my/path/:_`
+/// - `/foo/:bar/baz/:qux` -> `/foo/:_/baz/:_`
+pub fn normalize_path(path: &str) -> String {
+    let mut result = String::with_capacity(path.len());
+    let mut chars = path.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == ':' {
+            // Parameter - replace name with underscore
+            result.push_str(":_");
+            // Skip the parameter name
+            while let Some(&next) = chars.peek() {
+                if next == '/' {
+                    break;
+                }
+                chars.next();
+            }
+        } else if ch == '*' {
+            // Wildcard - replace name with underscore
+            result.push_str("*_");
+            // Skip the wildcard name
+            while let Some(&next) = chars.peek() {
+                if next == '/' {
+                    break;
+                }
+                chars.next();
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,6 +202,32 @@ mod tests {
         insta::with_settings!({sort_maps => true}, {
             insta::assert_yaml_snapshot!(paths);
         });
+    }
+
+    #[test]
+    fn test_normalize_path_basic() {
+        assert_eq!(normalize_path("/foo/bar"), "/foo/bar");
+        assert_eq!(normalize_path("/"), "/");
+    }
+
+    #[test]
+    fn test_normalize_path_param() {
+        assert_eq!(normalize_path("/my/path/:name"), "/my/path/:_");
+        assert_eq!(normalize_path("/my/path/:id"), "/my/path/:_");
+        assert_eq!(normalize_path("/:foo/:bar"), "/:_/:_");
+    }
+
+    #[test]
+    fn test_normalize_path_wildcard() {
+        assert_eq!(normalize_path("/assets/*files"), "/assets/*_");
+        assert_eq!(normalize_path("/assets/*path"), "/assets/*_");
+        assert_eq!(normalize_path("/*everything"), "/*_");
+    }
+
+    #[test]
+    fn test_normalize_path_mixed() {
+        assert_eq!(normalize_path("/api/:version/users/:id"), "/api/:_/users/:_");
+        assert_eq!(normalize_path("/files/:dir/*path"), "/files/:_/*_");
     }
 
     fn path(segs: &[meta::PathSegment]) -> meta::Path {
