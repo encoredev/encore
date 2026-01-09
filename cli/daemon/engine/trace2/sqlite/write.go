@@ -320,14 +320,13 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	if auth := end.GetAuth(); auth != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, user_id, caller_event_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, user_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos,
 				user_id = excluded.user_id,
-				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_AUTH, true,
 			end.Error != nil, end.DurationNanos, auth.Uid, end.CallerEventId)
@@ -340,16 +339,15 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	if msg := end.GetPubsubMessage(); msg != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, caller_event_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos,
-				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_PUBSUB_MESSAGE, true,
-			end.Error != nil, end.DurationNanos, end.CallerEventId)
+			end.Error != nil, end.DurationNanos)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
@@ -359,17 +357,16 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	if msg := end.GetTest(); msg != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, has_response, is_error, test_skipped, duration_nanos, caller_event_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				app_id, trace_id, span_id, span_type, has_response, is_error, test_skipped, duration_nanos
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				test_skipped = excluded.test_skipped,
-				duration_nanos = excluded.duration_nanos,
-				caller_event_id = excluded.caller_event_id
+				duration_nanos = excluded.duration_nanos
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_TEST, true,
-			msg.Failed, msg.Skipped, end.DurationNanos, end.CallerEventId)
+			msg.Failed, msg.Skipped, end.DurationNanos)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
