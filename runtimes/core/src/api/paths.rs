@@ -226,7 +226,10 @@ mod tests {
 
     #[test]
     fn test_normalize_path_mixed() {
-        assert_eq!(normalize_path("/api/:version/users/:id"), "/api/:_/users/:_");
+        assert_eq!(
+            normalize_path("/api/:version/users/:id"),
+            "/api/:_/users/:_"
+        );
         assert_eq!(normalize_path("/files/:dir/*path"), "/files/:_/*_");
     }
 
