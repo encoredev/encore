@@ -38,6 +38,7 @@ pub struct SQLDatabase {
 pub enum MigrationFileSource {
     Prisma,
     Drizzle,
+    DrizzleV1,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -53,6 +54,7 @@ impl FromStr for MigrationFileSource {
         match input {
             "prisma" => Ok(MigrationFileSource::Prisma),
             "drizzle" => Ok(MigrationFileSource::Drizzle),
+            "drizzle/v1" => Ok(MigrationFileSource::DrizzleV1),
             _ => Err(MigrationFileSourceParseError::UnexpectedValue(
                 input.to_string(),
             )),
@@ -141,8 +143,10 @@ pub const SQLDB_PARSER: ResourceParser = ResourceParser {
                             &dir,
                             source.as_ref()
                         ));
-                        let non_seq_migrations =
-                            matches!(source, Some(MigrationFileSource::Prisma));
+                        let non_seq_migrations = matches!(
+                            source,
+                            Some(MigrationFileSource::Prisma | MigrationFileSource::DrizzleV1)
+                        );
                         Some(Sp::new(
                             cfg.path.span,
                             DBMigrations {
@@ -348,6 +352,74 @@ fn parse_prisma(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
     Ok(migrations)
 }
 
+/// Parses Drizzle v1 migrations with the directory structure:
+/// migration-dir/
+/// ├── 0000_init_migration/
+/// │   ├── migration.sql
+/// │   └── snapshot.json
+/// ├── 0001_add_user_profile/
+/// │   ├── migration.sql
+/// │   └── snapshot.json
+/// └── meta/
+fn parse_drizzle_v1(span: Span, dir: &Path) -> ParseResult<Vec<DBMigration>> {
+    let mut migrations = vec![];
+
+    static DIR_NAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d+)_(.+)$").unwrap());
+
+    visit_dirs(span, dir, 0, 1, &mut |entry| -> ParseResult<()> {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_str().ok_or(span.parse_err(format!(
+            "invalid migration filename: {}",
+            name.to_string_lossy()
+        )))?;
+
+        // Only look for migration.sql files
+        if name != "migration.sql" {
+            return Ok(());
+        }
+
+        let dir_name = path
+            .parent()
+            .ok_or(span.parse_err("migration file has no parent directory"))?
+            .file_name()
+            .ok_or(span.parse_err("migration directory has no name"))?
+            .to_str()
+            .ok_or(span.parse_err("migration directory has invalid name"))?;
+
+        // Skip the meta directory
+        if dir_name == "meta" {
+            return Ok(());
+        }
+
+        // Ensure the directory name matches the expected pattern
+        let captures = DIR_NAME_RE
+            .captures(dir_name)
+            .ok_or(span.parse_err(format!("invalid migration directory name: {dir_name}")))?;
+
+        migrations.push(DBMigration {
+            file_name: path
+                .strip_prefix(dir)
+                .map_err(|_| {
+                    span.parse_err(format!(
+                        "migration directory is not a subdirectory of {}",
+                        dir.display()
+                    ))
+                })?
+                .to_string_lossy()
+                .to_string(),
+            description: captures[2].to_string(),
+            number: captures[1]
+                .parse::<u64>()
+                .map_err(|err| span.parse_err(err.to_string()))?,
+        });
+
+        Ok(())
+    })?;
+
+    Ok(migrations)
+}
+
 fn parse_migrations(
     span: Span,
     dir: &Path,
@@ -361,6 +433,7 @@ fn parse_migrations(
 
     let mut migrations = match source {
         Some(MigrationFileSource::Drizzle) => parse_drizzle(span, dir),
+        Some(MigrationFileSource::DrizzleV1) => parse_drizzle_v1(span, dir),
         Some(MigrationFileSource::Prisma) => parse_prisma(span, dir),
         None => parse_default(span, dir),
     }?;

@@ -36,7 +36,7 @@ pub enum EventType {
     CacheCallStart = 0x14,
     CacheCallEnd = 0x15,
     BodyStream = 0x16,
-    // We don't have an easy way of implementing test tracing for rust (i.e. typescript)
+    // NOTE: We don't have an easy way of implementing test tracing for rust (i.e. typescript)
     // so that's why we haven't implemented emitting TestStart/TestEnd etc.
     TestStart = 0x17,
     TestEnd = 0x18,
