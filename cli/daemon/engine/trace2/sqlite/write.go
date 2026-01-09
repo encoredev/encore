@@ -292,8 +292,10 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	spanID := encodeSpanID(ev.SpanId)
 
 	defer func() {
-		// If the span is complete, emit it to listeners.
-		s.emitCompleteSpanToListeners(ctx, meta.AppID, traceID, spanID)
+		if err == nil {
+			// If the span is complete, emit it to listeners.
+			s.emitCompleteSpanToListeners(ctx, meta.AppID, traceID, spanID)
+		}
 	}()
 
 	if req := end.GetRequest(); req != nil {
