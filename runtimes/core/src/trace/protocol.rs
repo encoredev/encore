@@ -272,7 +272,7 @@ impl Tracer {
 
                 eb.opt_str(req.ext_correlation_id.as_deref()); // yes, this is repeated for some reason
                 eb.opt_str(data.auth_user_id.as_deref());
-                eb.bool(false); // NOTE: mocked field, not used
+                eb.bool(false); // NOTE: mocked field not used
 
                 EventType::RequestSpanStart
             }
