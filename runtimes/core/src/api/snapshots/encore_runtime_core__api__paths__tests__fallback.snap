@@ -7,4 +7,4 @@ fallback:
   a:
     - - one
       - - /
-        - /*foo
+        - /*_
