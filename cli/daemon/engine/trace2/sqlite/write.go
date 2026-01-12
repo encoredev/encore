@@ -326,7 +326,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
 				duration_nanos = excluded.duration_nanos,
-				user_id = excluded.user_id,
+				user_id = excluded.user_id
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_AUTH, true,
 			end.Error != nil, end.DurationNanos, auth.Uid)
@@ -344,7 +344,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
-				duration_nanos = excluded.duration_nanos,
+				duration_nanos = excluded.duration_nanos
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_PUBSUB_MESSAGE, true,
 			end.Error != nil, end.DurationNanos)
