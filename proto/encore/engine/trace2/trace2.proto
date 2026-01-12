@@ -81,7 +81,6 @@ message SpanEnd {
   optional StackTrace panic_stack = 3;
   optional TraceID parent_trace_id = 4;
   optional uint64 parent_span_id = 5;
-  optional uint64 caller_event_id  = 6;
 
   oneof data {
     RequestSpanEnd request = 10;
@@ -114,6 +113,8 @@ message RequestSpanEnd {
   uint32 http_status_code = 3;
   map<string, string> response_headers = 4;
   optional bytes response_payload = 5;
+
+  optional uint64 caller_event_id  = 6;
 }
 
 message AuthSpanStart {
