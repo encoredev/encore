@@ -22,12 +22,17 @@ use crate::encore::parser::meta::v1::path_segment::ParamType;
 pub struct Path {
     /// The path segments.
     segments: Vec<Segment>,
-    dynamic_segments: Vec<(Basic, Option<jsonschema::validation::Expr>)>,
-    /// Names of dynamic segments in order for lookup via index
-    dynamic_segment_names: Vec<Box<str>>,
+    dynamic_segments: Vec<DynamicSegment>,
 
     /// The capacity to use for generating requests.
     capacity: usize,
+}
+
+#[derive(Debug, Clone)]
+struct DynamicSegment {
+    name: Box<str>,
+    typ: Basic,
+    validation: Option<jsonschema::validation::Expr>,
 }
 
 impl Path {
@@ -92,7 +97,6 @@ impl Path {
     pub fn from_segments(segments: Vec<Segment>) -> Self {
         let mut capacity = 0;
         let mut dynamic_segments = Vec::new();
-        let mut dynamic_segment_names = Vec::new();
         for seg in segments.iter() {
             use Segment::*;
             capacity += 1; // slash
@@ -104,14 +108,20 @@ impl Path {
                     validation,
                 } => {
                     capacity += 10; // assume path parameters on average are 10 characters long
-                    dynamic_segments.push((*typ, validation.clone()));
-                    dynamic_segment_names.push(name.clone());
+                    dynamic_segments.push(DynamicSegment {
+                        name: name.clone(),
+                        typ: *typ,
+                        validation: validation.clone(),
+                    });
                 }
                 Wildcard { name, validation } | Fallback { name, validation } => {
                     // Assume path parameters on average are 10 characters long.
                     capacity += 10;
-                    dynamic_segments.push((jsonschema::Basic::String, validation.clone()));
-                    dynamic_segment_names.push(name.clone());
+                    dynamic_segments.push(DynamicSegment {
+                        name: name.clone(),
+                        typ: jsonschema::Basic::String,
+                        validation: validation.clone(),
+                    });
                 }
             }
         }
@@ -119,7 +129,6 @@ impl Path {
         Self {
             segments,
             dynamic_segments,
-            dynamic_segment_names,
             capacity,
         }
     }
@@ -250,21 +259,12 @@ impl Path {
 
                 // For each param, find the corresponding segment and deserialize it.
                 for (idx, (_axum_name, val)) in params.into_iter().enumerate() {
-                    if let Some((typ, validation)) = self.dynamic_segments.get(idx) {
-                        let schema_param_name =
-                            self.dynamic_segment_names
-                                .get(idx)
-                                .ok_or_else(|| api::Error {
-                                    code: api::ErrCode::Internal,
-                                    message: "path parameter mismatch".into(),
-                                    internal_message: Some(format!(
-                                        "missing dynamic segment at position {}",
-                                        idx
-                                    )),
-                                    stack: None,
-                                    details: None,
-                                })?;
-
+                    if let Some(DynamicSegment {
+                        name,
+                        typ,
+                        validation,
+                    }) = self.dynamic_segments.get(idx)
+                    {
                         // Decode it into the correct type based on the type.
                         let val = match &typ {
                             // For strings and any, use the value directly.
@@ -331,9 +331,7 @@ impl Path {
                             if let Err(err) = validation.validate_pval(&val) {
                                 return Err(api::Error {
                                     code: api::ErrCode::InvalidArgument,
-                                    message: format!(
-                                        "invalid path parameter {schema_param_name}: {err}"
-                                    ),
+                                    message: format!("invalid path parameter {name}: {err}"),
                                     internal_message: None,
                                     stack: None,
                                     details: None,
@@ -341,7 +339,7 @@ impl Path {
                             }
                         }
 
-                        map.insert(schema_param_name.to_string(), val);
+                        map.insert(name.to_string(), val);
                     }
                 }
 
