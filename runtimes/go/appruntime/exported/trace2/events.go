@@ -162,7 +162,6 @@ type spanEndEventData struct {
 	Err           error
 	ParentTraceID model.TraceID
 	ParentSpanID  model.SpanID
-	CallerEventID model.TraceEventID
 	ExtraSpace    int
 }
 
@@ -178,7 +177,6 @@ func (l *Log) newSpanEndEvent(data spanEndEventData) EventBuffer {
 
 	tb.Bytes(data.ParentTraceID[:])
 	tb.Bytes(data.ParentSpanID[:])
-	tb.UVarint(uint64(data.CallerEventID))
 	return tb
 }
 
@@ -247,7 +245,6 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
 		ParentSpanID:  p.Req.ParentSpanID,
-		CallerEventID: p.CallerEventID,
 		ExtraSpace:    len(desc.Service) + len(desc.Endpoint) + 64 + len(p.Resp.Payload),
 	})
 
@@ -257,6 +254,7 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 	tb.UVarint(uint64(p.Resp.HTTPStatus))
 	l.logHeaders(&tb, p.Resp.RawResponseHeaders)
 	tb.ByteString(p.Resp.Payload)
+	tb.UVarint(uint64(p.CallerEventID))
 
 	l.Add(Event{
 		Type:    RequestSpanEnd,

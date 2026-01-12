@@ -288,11 +288,6 @@ impl Tracer {
 
         let mut eb = SpanEndEventData {
             parent: Parent::from(req),
-            caller_event_id: if matches!(resp.data, model::ResponseData::RPC(_)) {
-                req.caller_event_id
-            } else {
-                None
-            },
             duration: resp.duration,
             err: match &resp.data {
                 model::ResponseData::RPC(rpc) => rpc.error.as_ref(),
@@ -342,6 +337,8 @@ impl Tracer {
                 } else {
                     eb.byte_string(b"<redacted>");
                 };
+
+                eb.event_id(req.caller_event_id);
 
                 EventType::RequestSpanEnd
             }
@@ -977,7 +974,6 @@ impl SpanStartEventData<'_> {
 
 struct SpanEndEventData<'a> {
     parent: Option<Parent>,
-    caller_event_id: Option<model::TraceEventId>,
     duration: std::time::Duration,
     err: Option<&'a api::Error>,
 
@@ -993,7 +989,6 @@ impl SpanEndEventData<'_> {
         eb.api_err_with_legacy_stack(self.err);
         eb.formatted_stack(self.err.as_ref().and_then(|err| err.stack.as_ref()));
         eb.parent(self.parent.as_ref());
-        eb.event_id(self.caller_event_id);
 
         eb
     }

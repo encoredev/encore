@@ -84,7 +84,6 @@ type spanEndEvent struct {
 	PanicStack    option.Option[*tracepb2.StackTrace]
 	ParentTraceID option.Option[*tracepb2.TraceID]
 	ParentSpanID  option.Option[uint64]
-	CallerEventID option.Option[trace2.EventID]
 }
 
 type traceParser struct {
@@ -180,17 +179,12 @@ func (tp *traceParser) spanEndEvent() spanEndEvent {
 	panicStack := tp.formattedStack()
 	parentTraceID := tp.traceID()
 	parentSpanID := tp.Uint64()
-	var callerEventID trace2.EventID
-	if tp.version >= 16 {
-		callerEventID = trace2.EventID(tp.UVarint())
-	}
 
 	ev := spanEndEvent{
 		DurationNanos: uint64(dur),
 		Err:           err,
 		PanicStack:    option.AsOptional(panicStack),
 		ParentSpanID:  option.AsOptional(parentSpanID),
-		CallerEventID: option.AsOptional(callerEventID),
 	}
 	if !parentTraceID.IsZero() {
 		ev.ParentTraceID = option.Some(parentTraceID)
@@ -326,7 +320,13 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 				HttpStatusCode:  uint32(tp.UVarint()),
 				ResponseHeaders: tp.headers(),
 				ResponsePayload: tp.ByteString(),
-				CallerEventId:   (*uint64)(spanEnd.CallerEventID.PtrOrNil()),
+				CallerEventId: (func() *uint64 {
+					if tp.version >= 16 {
+						id := uint64(tp.EventID())
+						return &id
+					}
+					return nil
+				})(),
 			},
 		},
 	}
