@@ -341,7 +341,7 @@ impl Path {
                             }
                         }
 
-                        map.insert(schema_param_name.as_ref().to_owned(), val);
+                        map.insert(schema_param_name.to_string(), val);
                     }
                 }
 
