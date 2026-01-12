@@ -319,7 +319,6 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
 		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
 		ParentSpanId:  spanEnd.ParentSpanID.PtrOrNil(),
-		CallerEventId: (*uint64)(spanEnd.CallerEventID.PtrOrNil()),
 		Data: &tracepb2.SpanEnd_Request{
 			Request: &tracepb2.RequestSpanEnd{
 				ServiceName:     tp.String(),
@@ -327,6 +326,7 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 				HttpStatusCode:  uint32(tp.UVarint()),
 				ResponseHeaders: tp.headers(),
 				ResponsePayload: tp.ByteString(),
+				CallerEventId:   (*uint64)(spanEnd.CallerEventID.PtrOrNil()),
 			},
 		},
 	}
