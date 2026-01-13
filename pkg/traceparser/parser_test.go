@@ -128,6 +128,7 @@ func TestParse(t *testing.T) {
 							HttpStatusCode:  123,
 							ResponseHeaders: map[string]string{"Content-Type": "application/json"},
 							ResponsePayload: []byte("payload"),
+							CallerEventId:   ptr(uint64(0)),
 						},
 					},
 				}},

@@ -113,6 +113,8 @@ message RequestSpanEnd {
   uint32 http_status_code = 3;
   map<string, string> response_headers = 4;
   optional bytes response_payload = 5;
+
+  optional uint64 caller_event_id  = 6;
 }
 
 message AuthSpanStart {

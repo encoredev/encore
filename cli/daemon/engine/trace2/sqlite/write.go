@@ -301,12 +301,13 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	if req := end.GetRequest(); req != nil {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO trace_span_index (
-				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos
-			) VALUES (?, ?, ?, ?, ?, ?, ?)
+				app_id, trace_id, span_id, span_type, has_response, is_error, duration_nanos, caller_event_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (trace_id, span_id) DO UPDATE SET
 				has_response = excluded.has_response,
 				is_error = excluded.is_error,
-				duration_nanos = excluded.duration_nanos
+				duration_nanos = excluded.duration_nanos,
+				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_REQUEST, true,
 			end.Error != nil, end.DurationNanos)

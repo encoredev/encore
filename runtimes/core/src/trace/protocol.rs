@@ -60,7 +60,7 @@ pub struct Tracer {
     tx: Option<tokio::sync::mpsc::UnboundedSender<TraceEvent>>,
 }
 
-pub static TRACE_VERSION: u16 = 15;
+pub static TRACE_VERSION: u16 = 16;
 
 impl Tracer {
     pub(super) fn new(tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>) -> Self {
@@ -337,6 +337,8 @@ impl Tracer {
                 } else {
                     eb.byte_string(b"<redacted>");
                 };
+
+                eb.event_id(req.caller_event_id);
 
                 EventType::RequestSpanEnd
             }

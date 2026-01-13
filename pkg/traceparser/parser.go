@@ -320,6 +320,13 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 				HttpStatusCode:  uint32(tp.UVarint()),
 				ResponseHeaders: tp.headers(),
 				ResponsePayload: tp.ByteString(),
+				CallerEventId: (func() *uint64 {
+					if tp.version >= 16 {
+						id := uint64(tp.EventID())
+						return &id
+					}
+					return nil
+				})(),
 			},
 		},
 	}

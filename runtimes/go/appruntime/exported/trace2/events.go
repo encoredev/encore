@@ -233,8 +233,9 @@ func (l *Log) RequestSpanStart(req *model.Request, goid uint32) {
 
 type RequestSpanEndParams struct {
 	EventParams
-	Req  *model.Request
-	Resp *model.Response
+	Req           *model.Request
+	Resp          *model.Response
+	CallerEventID model.TraceEventID
 }
 
 func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
@@ -253,6 +254,7 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 	tb.UVarint(uint64(p.Resp.HTTPStatus))
 	l.logHeaders(&tb, p.Resp.RawResponseHeaders)
 	tb.ByteString(p.Resp.Payload)
+	tb.UVarint(uint64(p.CallerEventID))
 
 	l.Add(Event{
 		Type:    RequestSpanEnd,
