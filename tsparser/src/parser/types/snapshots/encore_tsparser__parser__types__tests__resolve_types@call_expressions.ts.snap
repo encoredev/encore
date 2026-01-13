@@ -1,0 +1,142 @@
+---
+source: tsparser/src/parser/types/tests.rs
+expression: result
+input_file: tsparser/src/parser/types/testdata/call_expressions.ts
+---
+{
+    "Ret": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "description",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "x": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "description",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "y": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        Number,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+                InterfaceField {
+                    name: String(
+                        "description",
+                    ),
+                    optional: false,
+                    typ: Basic(
+                        String,
+                    ),
+                },
+            ],
+            index: None,
+            call: None,
+        },
+    ),
+    "optResult": Basic(
+        String,
+    ),
+    "OptType": Basic(
+        String,
+    ),
+    "restResult": Basic(
+        Boolean,
+    ),
+    "RestType": Basic(
+        Boolean,
+    ),
+    "objResult": Basic(
+        Number,
+    ),
+    "ObjType": Basic(
+        Number,
+    ),
+    "arrResult": Basic(
+        String,
+    ),
+    "ArrType": Basic(
+        String,
+    ),
+    "nested": Basic(
+        String,
+    ),
+    "NestedType": Basic(
+        String,
+    ),
+}
