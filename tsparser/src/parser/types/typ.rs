@@ -396,9 +396,10 @@ pub struct Interface {
     /// Set for index signature types, like `[key: string]: number`.
     pub index: Option<(Box<Type>, Box<Type>)>,
 
-    /// Callable signature, like `(a: number): string`.
-    /// The first tuple element is the args, and the second is the returns.
-    pub call: Option<(Vec<Type>, Vec<Type>)>,
+    /// Callable signatures, like `(a: number): string`.
+    /// Supports multiple overloaded signatures.
+    /// Each tuple contains (params, return_type).
+    pub call: Option<Vec<(Vec<Type>, Box<Type>)>>,
 }
 
 impl Interface {
@@ -436,6 +437,32 @@ impl Interface {
             if !self_key.identical(other_key) || !self_value.identical(other_value) {
                 return false;
             }
+        }
+
+        // Compare call signatures.
+        match (&self.call, &other.call) {
+            (Some(self_overloads), Some(other_overloads)) => {
+                if self_overloads.len() != other_overloads.len() {
+                    return false;
+                }
+                for ((self_params, self_ret), (other_params, other_ret)) in
+                    self_overloads.iter().zip(other_overloads)
+                {
+                    if self_params.len() != other_params.len() {
+                        return false;
+                    }
+                    for (a, b) in self_params.iter().zip(other_params) {
+                        if !a.identical(b) {
+                            return false;
+                        }
+                    }
+                    if !self_ret.as_ref().identical(other_ret.as_ref()) {
+                        return false;
+                    }
+                }
+            }
+            (None, None) => {}
+            _ => return false,
         }
 
         true
