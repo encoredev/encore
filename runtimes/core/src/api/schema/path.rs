@@ -22,10 +22,17 @@ use crate::encore::parser::meta::v1::path_segment::ParamType;
 pub struct Path {
     /// The path segments.
     segments: Vec<Segment>,
-    dynamic_segments: Vec<(Basic, Option<jsonschema::validation::Expr>)>,
+    dynamic_segments: Vec<DynamicSegment>,
 
     /// The capacity to use for generating requests.
     capacity: usize,
+}
+
+#[derive(Debug, Clone)]
+struct DynamicSegment {
+    name: Box<str>,
+    typ: Basic,
+    validation: Option<jsonschema::validation::Expr>,
 }
 
 impl Path {
@@ -96,15 +103,25 @@ impl Path {
             match seg {
                 Literal(lit) => capacity += lit.len(),
                 Param {
-                    typ, validation, ..
+                    name,
+                    typ,
+                    validation,
                 } => {
                     capacity += 10; // assume path parameters on average are 10 characters long
-                    dynamic_segments.push((*typ, validation.clone()));
+                    dynamic_segments.push(DynamicSegment {
+                        name: name.clone(),
+                        typ: *typ,
+                        validation: validation.clone(),
+                    });
                 }
-                Wildcard { validation, .. } | Fallback { validation, .. } => {
+                Wildcard { name, validation } | Fallback { name, validation } => {
                     // Assume path parameters on average are 10 characters long.
                     capacity += 10;
-                    dynamic_segments.push((jsonschema::Basic::String, validation.clone()));
+                    dynamic_segments.push(DynamicSegment {
+                        name: name.clone(),
+                        typ: jsonschema::Basic::String,
+                        validation: validation.clone(),
+                    });
                 }
             }
         }
@@ -241,8 +258,13 @@ impl Path {
                 let mut map = IndexMap::with_capacity(params.len());
 
                 // For each param, find the corresponding segment and deserialize it.
-                for (idx, (name, val)) in params.into_iter().enumerate() {
-                    if let Some((typ, validation)) = self.dynamic_segments.get(idx) {
+                for (idx, (_axum_name, val)) in params.into_iter().enumerate() {
+                    if let Some(DynamicSegment {
+                        name,
+                        typ,
+                        validation,
+                    }) = self.dynamic_segments.get(idx)
+                    {
                         // Decode it into the correct type based on the type.
                         let val = match &typ {
                             // For strings and any, use the value directly.
@@ -317,7 +339,7 @@ impl Path {
                             }
                         }
 
-                        map.insert(name, val);
+                        map.insert(name.to_string(), val);
                     }
                 }
 

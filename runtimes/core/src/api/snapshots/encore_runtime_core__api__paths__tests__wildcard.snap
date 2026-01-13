@@ -6,5 +6,5 @@ main:
   a:
     - - one
       - - /
-        - /*foo
+        - /*_
 fallback: {}

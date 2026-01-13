@@ -40,26 +40,21 @@ where
                     result.push('/');
                     result.push_str(&seg.value)
                 }
-                SegmentType::Param => {
-                    result.push_str("/:");
-                    result.push_str(&seg.value)
-                }
+                SegmentType::Param => result.push_str("/:_"),
                 SegmentType::Wildcard => {
                     // The wildcard is the last segment.
                     // Axum doesn't match e.g. "/" for "/*wildcard", so we need to register both.
                     result.push('/');
                     entries.push(result.clone());
 
-                    result.push('*');
-                    result.push_str(&seg.value);
+                    result.push_str("*_");
                 }
                 SegmentType::Fallback => {
                     // Axum doesn't match e.g. "/" for "/*wildcard", so we need to register both.
                     result.push('/');
                     entries.push(result.clone());
 
-                    result.push('*');
-                    result.push_str(&seg.value);
+                    result.push_str("*_");
                 }
             }
         }

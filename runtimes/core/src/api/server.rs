@@ -118,7 +118,7 @@ impl Server {
                         handler_map.insert(ep.name.clone(), server_handler);
                     }
                     None => {
-                        log::warn!("no methods for endpoint {}, skipping", ep.name,);
+                        log::warn!("no methods for endpoint {}, skipping", ep.name);
                     }
                 }
             }
