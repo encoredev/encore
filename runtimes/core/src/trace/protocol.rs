@@ -983,7 +983,7 @@ struct SpanEndEventData<'a> {
 
 impl SpanEndEventData<'_> {
     pub fn into_eb(self) -> EventBuffer {
-        let mut eb = EventBuffer::with_capacity(8 + 12 + 8 + 8 + self.extra_space);
+        let mut eb = EventBuffer::with_capacity(8 + 12 + 8 + self.extra_space);
 
         eb.duration(self.duration);
         eb.api_err_with_legacy_stack(self.err);
