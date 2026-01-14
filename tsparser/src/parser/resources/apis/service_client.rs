@@ -13,6 +13,17 @@ pub fn resolve_service_client_usage(
     client: Lrc<ServiceClient>,
 ) -> Option<Usage> {
     match &data.expr.kind {
+        UsageExprKind::FieldAccess(field) => {
+            if field.field.sym.as_ref() == "Client" {
+                return Some(Usage::CallEndpoint(CallEndpointUsage {
+                    range: data.expr.range,
+                    endpoint: (client.service_name.clone(), "".to_string()),
+                }));
+            }
+
+            data.expr.err("invalid service client field access");
+            None
+        }
         UsageExprKind::MethodCall(method) => {
             let method_name = method.method.as_ref();
 
