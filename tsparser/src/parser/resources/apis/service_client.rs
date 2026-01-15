@@ -17,7 +17,8 @@ pub fn resolve_service_client_usage(
             if field.field.sym.as_ref() == "Client" {
                 return Some(Usage::CallEndpoint(CallEndpointUsage {
                     range: data.expr.range,
-                    endpoint: (client.service_name.clone(), "".to_string()),
+                    service: client.service_name.clone(),
+                    endpoint: None,
                 }));
             }
 
@@ -29,7 +30,8 @@ pub fn resolve_service_client_usage(
 
             Some(Usage::CallEndpoint(CallEndpointUsage {
                 range: data.expr.range,
-                endpoint: (client.service_name.clone(), method_name.to_string()),
+                service: client.service_name.clone(),
+                endpoint: Some(method_name.to_string()),
             }))
         }
         _ => {

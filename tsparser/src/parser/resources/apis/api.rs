@@ -410,7 +410,9 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
 #[derive(Debug)]
 pub struct CallEndpointUsage {
     pub range: Range,
-    pub endpoint: (String, String),
+    pub service: String,
+    // None when using client ref, then we don't know what endpoint is used
+    pub endpoint: Option<String>,
 }
 
 #[derive(Debug)]

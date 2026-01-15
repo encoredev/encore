@@ -636,8 +636,12 @@ impl MetaBuilder<'_> {
                         .ok_or(call.range.parse_err("unable to determine service for call"))?
                         .name
                         .clone();
-                    let dst_service = call.endpoint.0.clone();
-                    let dst_endpoint = call.endpoint.1.clone();
+                    let dst_service = call.service.clone();
+                    let dst_endpoint = call
+                        .endpoint
+                        .as_ref()
+                        .map(|s| s.clone())
+                        .unwrap_or_else(|| "".to_string());
 
                     let dst_idx = svc_to_pkg_index
                         .get(&dst_service)
