@@ -173,7 +173,7 @@ func (s *handler) browserConn(ctx context.Context, appID string, dbID string) (*
 	if err != nil {
 		return nil, err
 	}
-	uri := info.ConnURI(db.EncoreName, info.Config.Superuser)
+	uri := info.ConnURI(db.ApplicationCloudName(), info.Config.Superuser)
 	conn, err := pgx.Connect(ctx, uri)
 	if err != nil {
 		return nil, err
