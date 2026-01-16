@@ -858,8 +858,11 @@ func (ts *typescript) writeDeclDef(ns string, decl *schema.Decl) {
 	} else {
 		fmt.Fprintf(ts, "    export type %s%s = ", ts.typeName(decl.Name), typeParams.String())
 	}
+
+	prev := ts.currDecl
 	ts.currDecl = decl
 	ts.writeTyp(ns, decl.Type, 1)
+	ts.currDecl = prev
 	ts.WriteString("\n")
 }
 
