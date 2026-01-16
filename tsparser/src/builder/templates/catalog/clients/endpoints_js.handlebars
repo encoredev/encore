@@ -30,3 +30,20 @@ export async function {{name}}(opts) {
     {{/if}}
 }
 {{/each}}
+
+export class Client {
+  constructor() {
+{{#each endpoints}}
+    this.{{name}} = {{name}};
+{{/each}}
+  }
+}
+
+let _client_instance;
+
+export function ref() {
+  if (!_client_instance) {
+    _client_instance = new Client();
+  }
+  return _client_instance;
+}
