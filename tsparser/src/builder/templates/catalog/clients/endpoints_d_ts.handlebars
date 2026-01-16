@@ -91,9 +91,10 @@ export { {{name}} };
 
 export class Client {
   private constructor();
-  static ref(): Client;
 
 {{#each endpoints}}
   readonly {{name}}: {{name}}_Type;
 {{/each}}
 }
+
+export declare function ref(): Client;

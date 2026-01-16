@@ -15,11 +15,7 @@ pub fn resolve_service_client_usage(
     match &data.expr.kind {
         UsageExprKind::FieldAccess(field) => {
             if field.field.sym.as_ref() == "Client" {
-                return Some(Usage::CallEndpoint(CallEndpointUsage {
-                    range: data.expr.range,
-                    service: client.service_name.clone(),
-                    endpoint: None,
-                }));
+                return None;
             }
 
             data.expr.err("invalid service client field access");
@@ -31,7 +27,11 @@ pub fn resolve_service_client_usage(
             Some(Usage::CallEndpoint(CallEndpointUsage {
                 range: data.expr.range,
                 service: client.service_name.clone(),
-                endpoint: Some(method_name.to_string()),
+                endpoint: if method_name == "ref" {
+                    None
+                } else {
+                    Some(method_name.to_string())
+                },
             }))
         }
         _ => {
