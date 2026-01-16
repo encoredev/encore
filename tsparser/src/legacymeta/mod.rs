@@ -637,9 +637,7 @@ impl MetaBuilder<'_> {
                         .name
                         .clone();
                     let dst_service = call.service.clone();
-                    let dst_endpoint = call
-                        .endpoint.clone()
-                        .unwrap_or_else(|| "".to_string());
+                    let dst_endpoint = call.endpoint.clone().unwrap_or_else(|| "".to_string());
 
                     let dst_idx = svc_to_pkg_index
                         .get(&dst_service)
