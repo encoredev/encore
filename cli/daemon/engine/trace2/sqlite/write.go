@@ -310,7 +310,8 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 				caller_event_id = excluded.caller_event_id
 		`, meta.AppID, traceID, spanID,
 			tracepbcli.SpanSummary_REQUEST, true,
-			end.Error != nil, end.DurationNanos)
+			end.Error != nil, end.DurationNanos, req.CallerEventId,
+		)
 		if err != nil {
 			return errors.Wrap(err, "insert trace span event")
 		}
