@@ -82,6 +82,14 @@ impl Runtime {
             .test_mode
             .unwrap_or(std::env::var("NODE_ENV").is_ok_and(|val| val == "test"));
 
+        TYPE_CONSTRUCTORS.get_or_init(env, || {
+            Arc::new(TypeConstructorRefs {
+                decimal: env
+                    .create_reference(options.type_constructors.decimal)
+                    .expect("couldn't create reference to Decimal"),
+            })
+        });
+
         if test_mode {
             // Don't reuse the runtime in tests, as vitest and other test frameworks
             // use multiple workers to isolate tests from each other. We don't want tests
@@ -103,14 +111,6 @@ impl Runtime {
         let runtime = RUNTIME
             .get_or_init(|| Ok(Arc::new(init_runtime(false)?)))
             .clone()?;
-
-        TYPE_CONSTRUCTORS.get_or_init(env, || {
-            Arc::new(TypeConstructorRefs {
-                decimal: env
-                    .create_reference(options.type_constructors.decimal)
-                    .expect("couldn't create reference to Decimal"),
-            })
-        });
 
         Ok(Self { runtime })
     }
