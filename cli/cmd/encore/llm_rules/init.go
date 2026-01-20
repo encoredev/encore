@@ -110,7 +110,7 @@ func initLLMRules(tool Tool) error {
 	// Determine the app root.
 	root, _, err := cmdutil.MaybeAppRoot()
 	if errors.Is(err, cmdutil.ErrNoEncoreApp) {
-		root, err = os.Getwd()
+		cmdutil.Fatalf("no encore.app found, this command must be run from an Encore app directory")
 	}
 	if err != nil {
 		cmdutil.Fatal(err)
