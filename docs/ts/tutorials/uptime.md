@@ -111,7 +111,7 @@ Then open up the Local Development Dashboard at [http://localhost:9400](http://l
 You can then see the response, logs, and view a trace of the request. It will look like this:
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/uptime_tut_1.mp4" className="w-full h-full" type="video/mp4"/>
+  <source src="/assets/docs/localdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
 </video>
 
 If you prefer to use the terminal instead run `curl http://localhost:4000/ping/google.com` in a new terminal instead. Either way you should see the response:
@@ -299,11 +299,7 @@ const Sites = () => orm<Site>("site");
 
 🥐 Now make sure you have [Docker](https://docker.com) installed and running, and then restart `encore run` to cause the `site` database to be created by Encore.
 
-You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), and then use the Service Catalog to call the `site.add` endpoint:
-
-<video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/uptime_tut_2.mp4" className="w-full h-full" type="video/mp4"/>
-</video>
+You can verify that the database was created by looking at your application's Flow architecture diagram in the local development dashboard at [localhost:9400](http://localhost:9400), and then use the Service Catalog to call the `site.add` endpoint.
 
 You can also call the `site.add` endpoint from the terminal:
 
@@ -380,7 +376,7 @@ We can then call the `monitor.check` endpoint using the id `1` that we got in th
 It will look something like this:
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/uptime_tut_3.mp4" className="w-full h-full" type="video/mp4"/>
+  <source src="/assets/docs/flow.mp4" className="w-full h-full" type="video/mp4"/>
 </video>
 
 You can also also inspect the database using `encore db shell <database-name>`:
@@ -594,7 +590,7 @@ After triggering the deployment, you will see a URL where you can view its progr
 From the Cloud Dashboard you can also see metrics, trigger Cron Jobs, see traces, and later connect your own AWS or GCP account to use for deployment.
 
 <video autoPlay playsInline loop controls muted className="w-full h-full">
-  <source src="/assets/docs/uptime_tut_4.mp4" className="w-full h-full" type="video/mp4"/>
+  <source src="/assets/docs/webdashvideo.mp4" className="w-full h-full" type="video/mp4"/>
 </video>
 
 🥐 When the deploy has finished, you can try out your uptime monitor by going to `https://staging-$APP_ID.encr.app`.
