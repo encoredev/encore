@@ -6,7 +6,9 @@ subtitle: Supercharge your development with AI-powered coding assistants
 lang: go
 ---
 
-Encore gives AI coding assistants superpowers. With Encore-specific rules and MCP integration, AI understands your architecture, generates type-safe code that follows your patterns, and can provision infrastructure, whether [self-hosted](/docs/go/self-host/build) or via [Encore Cloud](https://encore.cloud) in AWS/GCP with automatic guardrails.
+Encore gives AI coding assistants superpowers. With Encore-specific rules and MCP integration, AI understands your architecture and generates type-safe code that follows your patterns. When you run `encore run`, Encore provisions local infrastructure automatically.
+
+To deploy, you can [self-host](/docs/go/self-host/build) or use [Encore Cloud](https://encore.cloud) which provisions infrastructure in your AWS/GCP account with automatic guardrails.
 
 ## What AI Enables
 
@@ -108,10 +110,26 @@ Verify with `claude mcp list`. You should see `encore-mcp` in the list.
 
 With Encore skills and MCP connected, AI can:
 
-- **Provision infrastructure** - databases, pub/sub, secrets, whether [self-hosted](/docs/go/self-host/build) or via [Encore Cloud](https://encore.cloud) in AWS/GCP
+- **Define infrastructure in code** - AI declares databases, pub/sub, cron jobs, buckets, and other [primitives](/docs/go/primitives)
 - **Generate type-safe APIs** - code that follows your patterns and passes validation
-- **Understand architecture** - query databases, inspect services, analyze traces via MCP
+- **Understand architecture** - inspect services and how they connect via MCP
+- **Query databases** - introspect schema and data to generate accurate queries
+- **Debug with tracing** - view request traces, timing, and span details to pinpoint issues
 - **Test instantly** - run `encore run` to test with real infrastructure, not mocks
+
+### In Practice
+
+#### Smarter Debugging with Tracing
+
+AI can access Encore's distributed tracing via MCP to debug issues intelligently. Instead of guessing, AI can view actual request traces, analyze timing across services, and inspect span details to pinpoint exactly where things went wrong. This creates a powerful feedback loop: generate code, test it, analyze the traces, and iterate.
+
+#### Database Introspection
+
+AI can query your actual database schema and data via MCP. This means AI understands your real data model and can generate accurate queries, suggest schema changes, and debug data issues by inspecting actual records.
+
+#### Instant Validation with Real Infrastructure
+
+When you run `encore run`, Encore provisions real local infrastructure (databases, pub/sub, etc.). AI can generate code and immediately test it against real services, catching issues early and ensuring the code works before you deploy.
 
 Example prompts:
 
