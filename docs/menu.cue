@@ -1073,6 +1073,11 @@
 				text: "Introduction"
 				path: "/platform/introduction"
 				file: "platform/introduction"
+			}, {
+				kind: "basic"
+				text: "AI Integration"
+				path: "/platform/ai-integration"
+				file: "platform/ai-integration"
 			}]
 		},
 		{
