@@ -26,9 +26,10 @@
 
 **Use with AI coding assistants:**
 
-Add LLM instructions ([Encore.ts](./ts_llm_instructions.txt) / [Encore.go](./go_llm_instructions.txt)) to your project for better AI code suggestions. Use the [MCP server](https://encore.dev/docs/ts/ai-integration) to give your AI tools runtime context (query databases, call APIs, analyze traces). [Learn more](https://encore.dev/docs/ts/ai-integration)
+Add Encore's [LLM instructions](https://encore.dev/docs/ts/ai-integration) to your project, so your AI tools can understand your architecture, generate type-safe code, and use Encore's infrastructure primitives.
+Use the built-in [MCP server](https://encore.dev/docs/ts/ai-integration) to give your AI runtime context (query databases, call APIs, analyze traces) for seamless debugging and faster iterations. [Learn more](https://encore.dev/docs/ts/ai-integration)
 
-https://github.com/encoredev/encore/assets/78424526/4d066c76-9e6c-4c0e-b4c7-6b2ba6161dc8
+https://github.com/user-attachments/assets/461b902f-8fd3-46f1-a73c-0ebbfa789ce3
 
 _Encore's local development dashboard_
 
