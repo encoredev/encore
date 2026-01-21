@@ -29,7 +29,7 @@ There are two ways to set up AI support:
 
 **New projects:** When you run `encore app create`, you'll be prompted to select an AI tool. Encore generates the appropriate configuration files for your chosen tool.
 
-<img src="/assets/docs/initllm.png" />
+<img src="/assets/docs/initllm.png" className="noshadow" />
 
 **Existing projects:** Run `encore llm-rules init` to add AI support:
 
