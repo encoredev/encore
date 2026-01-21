@@ -60,7 +60,7 @@ pub struct Tracer {
     tx: Option<tokio::sync::mpsc::UnboundedSender<TraceEvent>>,
 }
 
-pub static TRACE_VERSION: u16 = 16;
+pub static TRACE_VERSION: u16 = 17;
 
 impl Tracer {
     pub(super) fn new(tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>) -> Self {
@@ -312,6 +312,7 @@ impl Tracer {
                 eb.str(&msg_data.service);
                 eb.str(&msg_data.topic);
                 eb.str(&msg_data.subscription);
+                eb.str(&msg_data.message_id);
             }
             model::RequestData::Stream(data) => {
                 eb.str(data.endpoint.name.service());
@@ -339,6 +340,14 @@ impl Tracer {
                 };
 
                 eb.event_id(req.caller_event_id);
+
+                // uid
+                let uid = match &req.data {
+                    model::RequestData::RPC(rpc) => rpc.auth_user_id.as_deref(),
+                    model::RequestData::Stream(data) => data.auth_user_id.as_deref(),
+                    _ => None,
+                };
+                eb.str(uid.unwrap_or(""));
 
                 EventType::RequestSpanEnd
             }
@@ -986,6 +995,14 @@ impl SpanEndEventData<'_> {
         let mut eb = EventBuffer::with_capacity(8 + 12 + 8 + self.extra_space);
 
         eb.duration(self.duration);
+
+        let status_code: u8 = self
+            .err
+            .as_ref()
+            .map(|e| e.code.to_trace_code())
+            .unwrap_or(0);
+        eb.byte(status_code);
+
         eb.api_err_with_legacy_stack(self.err);
         eb.formatted_stack(self.err.as_ref().and_then(|err| err.stack.as_ref()));
         eb.parent(self.parent.as_ref());

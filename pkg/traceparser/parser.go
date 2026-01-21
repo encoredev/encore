@@ -80,6 +80,7 @@ type spanStartEvent struct {
 
 type spanEndEvent struct {
 	DurationNanos uint64
+	StatusCode    tracepb2.StatusCode
 	Err           *tracepb2.Error
 	PanicStack    option.Option[*tracepb2.StackTrace]
 	ParentTraceID option.Option[*tracepb2.TraceID]
@@ -175,13 +176,30 @@ func (tp *traceParser) spanEndEvent() spanEndEvent {
 	if dur < 0 {
 		dur = 0
 	}
-	err := tp.errWithStack()
+
+	var (
+		status tracepb2.StatusCode
+		err    *tracepb2.Error
+	)
+	if tp.version >= 17 {
+		status = tp.statusCode()
+		err = tp.errWithStack()
+	} else {
+		err = tp.errWithStack()
+		if err != nil {
+			status = tracepb2.StatusCode_STATUS_CODE_UNKNOWN
+		} else {
+			status = tracepb2.StatusCode_STATUS_CODE_OK
+		}
+	}
+
 	panicStack := tp.formattedStack()
 	parentTraceID := tp.traceID()
 	parentSpanID := tp.Uint64()
 
 	ev := spanEndEvent{
 		DurationNanos: uint64(dur),
+		StatusCode:    status,
 		Err:           err,
 		PanicStack:    option.AsOptional(panicStack),
 		ParentSpanID:  option.AsOptional(parentSpanID),
@@ -309,6 +327,7 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 	spanEnd := tp.spanEndEvent()
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
+		StatusCode:    spanEnd.StatusCode,
 		Error:         spanEnd.Err,
 		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
 		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
@@ -324,6 +343,12 @@ func (tp *traceParser) requestSpanEnd() *tracepb2.SpanEnd {
 					if tp.version >= 16 {
 						id := uint64(tp.EventID())
 						return &id
+					}
+					return nil
+				})(),
+				Uid: (func() *string {
+					if tp.version >= 17 {
+						return tp.OptString()
 					}
 					return nil
 				})(),
@@ -356,6 +381,7 @@ func (tp *traceParser) authSpanEnd() *tracepb2.SpanEnd {
 	spanEnd := tp.spanEndEvent()
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
+		StatusCode:    spanEnd.StatusCode,
 		Error:         spanEnd.Err,
 		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
 		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
@@ -399,6 +425,7 @@ func (tp *traceParser) pubsubMessageSpanEnd() *tracepb2.SpanEnd {
 	spanEnd := tp.spanEndEvent()
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
+		StatusCode:    spanEnd.StatusCode,
 		Error:         spanEnd.Err,
 		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
 		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
@@ -408,6 +435,12 @@ func (tp *traceParser) pubsubMessageSpanEnd() *tracepb2.SpanEnd {
 				ServiceName:      tp.String(),
 				TopicName:        tp.String(),
 				SubscriptionName: tp.String(),
+				MessageId: (func() string {
+					if tp.version >= 17 {
+						return tp.String()
+					}
+					return ""
+				})(),
 			},
 		},
 	}
@@ -439,6 +472,7 @@ func (tp *traceParser) testSpanEnd() *tracepb2.SpanEnd {
 	spanEnd := tp.spanEndEvent()
 	return &tracepb2.SpanEnd{
 		DurationNanos: spanEnd.DurationNanos,
+		StatusCode:    spanEnd.StatusCode,
 		Error:         spanEnd.Err,
 		PanicStack:    spanEnd.PanicStack.GetOrElse(nil),
 		ParentTraceId: spanEnd.ParentTraceID.GetOrElse(nil),
@@ -449,6 +483,12 @@ func (tp *traceParser) testSpanEnd() *tracepb2.SpanEnd {
 				TestName:    tp.String(),
 				Failed:      tp.Bool(),
 				Skipped:     tp.Bool(),
+				Uid: (func() *string {
+					if tp.version >= 17 {
+						return ptrOrNil(tp.String())
+					}
+					return nil
+				})(),
 			},
 		},
 	}
@@ -969,6 +1009,11 @@ func (tp *traceParser) formattedStack() *tracepb2.StackTrace {
 	return tr
 }
 
+// statusCode parses a status code.
+func (tp *traceParser) statusCode() tracepb2.StatusCode {
+	return tracepb2.StatusCode(tp.Byte())
+}
+
 // errWithStack parses an error with stack information.
 func (tp *traceParser) errWithStack() *tracepb2.Error {
 	msg := tp.String()
@@ -1003,4 +1048,39 @@ type bailout struct {
 
 func (tp *traceParser) bailout(err error) {
 	panic(bailout{err: err})
+}
+
+// httpStatusToStatusCode converts an HTTP status code to a tracepb2.StatusCode.
+func httpStatusToStatusCode(status uint32) tracepb2.StatusCode {
+	switch status {
+	case 200:
+		return tracepb2.StatusCode_STATUS_CODE_OK
+	case 499:
+		return tracepb2.StatusCode_STATUS_CODE_CANCELED
+	case 500:
+		return tracepb2.StatusCode_STATUS_CODE_INTERNAL
+	case 400:
+		return tracepb2.StatusCode_STATUS_CODE_INVALID_ARGUMENT
+	case 401:
+		return tracepb2.StatusCode_STATUS_CODE_UNAUTHENTICATED
+	case 403:
+		return tracepb2.StatusCode_STATUS_CODE_PERMISSION_DENIED
+	case 404:
+		return tracepb2.StatusCode_STATUS_CODE_NOT_FOUND
+	case 409:
+		return tracepb2.StatusCode_STATUS_CODE_ALREADY_EXISTS
+	case 429:
+		return tracepb2.StatusCode_STATUS_CODE_RESOURCE_EXHAUSTED
+	case 501:
+		return tracepb2.StatusCode_STATUS_CODE_UNIMPLEMENTED
+	case 503:
+		return tracepb2.StatusCode_STATUS_CODE_UNAVAILABLE
+	case 504:
+		return tracepb2.StatusCode_STATUS_CODE_DEADLINE_EXCEEDED
+	default:
+		if status >= 200 && status < 300 {
+			return tracepb2.StatusCode_STATUS_CODE_OK
+		}
+		return tracepb2.StatusCode_STATUS_CODE_UNKNOWN
+	}
 }

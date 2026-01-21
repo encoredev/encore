@@ -166,8 +166,9 @@ type spanEndEventData struct {
 }
 
 func (l *Log) newSpanEndEvent(data spanEndEventData) EventBuffer {
-	tb := NewEventBuffer(8 + 12 + 8 + data.ExtraSpace)
+	tb := NewEventBuffer(8 + 1 + 12 + 8 + data.ExtraSpace)
 	tb.Duration(data.Duration)
+	tb.StatusCode(errs.Code(data.Err))
 	tb.ErrWithStack(data.Err)
 	if panicStack, ok := errs.Meta(data.Err)["panic_stack"].(stack.Stack); ok {
 		tb.FormattedStack(panicStack)
@@ -240,12 +241,13 @@ type RequestSpanEndParams struct {
 
 func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 	desc := p.Req.RPCData.Desc
+	uid := string(p.Req.RPCData.UserID)
 	tb := l.newSpanEndEvent(spanEndEventData{
 		Duration:      p.Resp.Duration,
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
 		ParentSpanID:  p.Req.ParentSpanID,
-		ExtraSpace:    len(desc.Service) + len(desc.Endpoint) + 64 + len(p.Resp.Payload),
+		ExtraSpace:    len(desc.Service) + len(desc.Endpoint) + 64 + len(p.Resp.Payload) + len(uid) + 2,
 	})
 
 	tb.String(desc.Service)
@@ -255,6 +257,7 @@ func (l *Log) RequestSpanEnd(p RequestSpanEndParams) {
 	l.logHeaders(&tb, p.Resp.RawResponseHeaders)
 	tb.ByteString(p.Resp.Payload)
 	tb.UVarint(uint64(p.CallerEventID))
+	tb.String(uid)
 
 	l.Add(Event{
 		Type:    RequestSpanEnd,
@@ -359,12 +362,13 @@ func (l *Log) PubsubMessageSpanEnd(p PubsubMessageSpanEndParams) {
 		Err:           p.Resp.Err,
 		ParentTraceID: p.Req.ParentTraceID,
 		ParentSpanID:  p.Req.ParentSpanID,
-		ExtraSpace:    len(msg.Service) + len(msg.Topic) + len(msg.Subscription) + 4,
+		ExtraSpace:    len(msg.Service) + len(msg.Topic) + len(msg.Subscription) + len(msg.MessageID) + 6,
 	})
 
 	tb.String(msg.Service)
 	tb.String(msg.Topic)
 	tb.String(msg.Subscription)
+	tb.String(msg.MessageID)
 
 	l.Add(Event{
 		Type:    PubsubMessageSpanEnd,
@@ -413,18 +417,20 @@ func (l *Log) TestSpanEnd(p TestSpanEndParams) {
 	if desc.Current.Failed() {
 		err = errors.New("test failed")
 	}
+	uid := string(desc.UserID)
 	tb := l.newSpanEndEvent(spanEndEventData{
 		Duration:      time.Since(p.Req.Start),
 		Err:           err,
 		ParentTraceID: p.Req.ParentTraceID,
 		ParentSpanID:  p.Req.ParentSpanID,
-		ExtraSpace:    len(desc.Service) + len(desc.Current.Name()) + 20,
+		ExtraSpace:    len(desc.Service) + len(desc.Current.Name()) + len(uid) + 20,
 	})
 
 	tb.String(desc.Service)
 	tb.String(desc.Current.Name())
 	tb.Bool(p.Failed)
 	tb.Bool(p.Skipped)
+	tb.String(uid)
 
 	l.Add(Event{
 		Type:    TestEnd,
