@@ -88,6 +88,15 @@ func DefaultBuildInfo() BuildInfo {
 	}
 }
 
+type PrepareParams struct {
+	Build      BuildInfo
+	App        *apps.Instance
+	WorkingDir string
+	Stderr     option.Option[io.Writer]
+}
+
+type PrepareResult struct{}
+
 type ParseParams struct {
 	Build       BuildInfo
 	App         *apps.Instance
@@ -275,6 +284,7 @@ type ServiceConfigsResult struct {
 }
 
 type Impl interface {
+	Prepare(context.Context, PrepareParams) (*PrepareResult, error)
 	Parse(context.Context, ParseParams) (*ParseResult, error)
 	Compile(context.Context, CompileParams) (*CompileResult, error)
 	TestSpec(context.Context, TestSpecParams) (*TestSpecResult, error)

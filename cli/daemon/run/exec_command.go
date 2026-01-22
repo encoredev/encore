@@ -91,6 +91,15 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
+	_, err = bld.Prepare(ctx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        p.App,
+		WorkingDir: p.WorkingDir,
+	})
+	if err != nil {
+		tracker.Fail(parseOp, errors.New("prepare error"))
+		return err
+	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         p.App,

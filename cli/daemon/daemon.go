@@ -113,6 +113,14 @@ func (s *Server) GenClient(ctx context.Context, params *daemonpb.GenClientReques
 		// Parse the app to figure out what infrastructure is needed.
 		bld := builderimpl.Resolve(app.Lang(), expSet)
 		defer fns.CloseIgnore(bld)
+		_, err = bld.Prepare(ctx, builder.PrepareParams{
+			Build:      builder.DefaultBuildInfo(),
+			App:        app,
+			WorkingDir: ".",
+		})
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to prepare app: %v", err)
+		}
 		parse, err := bld.Parse(ctx, builder.ParseParams{
 			Build:       builder.DefaultBuildInfo(),
 			App:         app,

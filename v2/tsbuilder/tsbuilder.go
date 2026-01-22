@@ -36,6 +36,11 @@ func New() *BuilderImpl {
 type BuilderImpl struct {
 	mu   sync.Mutex
 	cmds map[*runningCmd]bool
+
+	// preparedData stores the running tsparser process state.
+	// It's set by Prepare() and used by Parse().
+	preparedData *data
+	preparedRC   *runningCmd
 }
 
 type parseInput struct {
@@ -85,7 +90,14 @@ func (i *BuilderImpl) Close() error {
 	return nil
 }
 
-func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
+func (i *BuilderImpl) Prepare(ctx context.Context, p builder.PrepareParams) (*builder.PrepareResult, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	if i.preparedData != nil {
+		return &builder.PrepareResult{}, nil
+	}
+
 	exe, err := getTSParserPath()
 	if err != nil {
 		return nil, err
@@ -121,7 +133,7 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get stdin: %s", err)
+		return nil, fmt.Errorf("unable to get stdout: %s", err)
 	}
 
 	if stderr, ok := p.Stderr.Get(); ok {
@@ -135,9 +147,7 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 	}
 
 	rc := newRunningCmd(cmd)
-	i.mu.Lock()
 	i.cmds[rc] = true
-	i.mu.Unlock()
 
 	go func() {
 		<-rc.done
@@ -146,41 +156,58 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 		i.mu.Unlock()
 	}()
 
-	{
-		input := prepareInput{
-			AppRoot:        paths.FS(p.App.Root()),
-			JSRuntimeRoot:  jsRuntimePath,
-			RuntimeVersion: version.Version,
-		}
-		if p.Build.UseLocalJSRuntime {
-			input.LocalRuntimeOverride = jsRuntimePath.ToIO()
-		}
-		inputData, _ := json.Marshal(input)
-		_, _ = stdin.Write([]byte("prepare\n"))
-		if _, err := stdin.Write(inputData); err != nil {
-			return nil, fmt.Errorf("unable to write to stdin: %s", err)
-		}
-
-		isSuccess, parseResp, err := readResp(stdout)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read response: %s", err)
-		} else if !isSuccess {
-			return nil, errors.New(string(parseResp))
-		}
+	// Send prepare command
+	input := prepareInput{
+		AppRoot:        paths.FS(p.App.Root()),
+		JSRuntimeRoot:  jsRuntimePath,
+		RuntimeVersion: version.Version,
+	}
+	if p.Build.UseLocalJSRuntime {
+		input.LocalRuntimeOverride = jsRuntimePath.ToIO()
+	}
+	inputData, _ := json.Marshal(input)
+	_, _ = stdin.Write([]byte("prepare\n"))
+	if _, err := stdin.Write(inputData); err != nil {
+		return nil, fmt.Errorf("unable to write to stdin: %s", err)
 	}
 
+	isSuccess, prepareResp, err := readResp(stdout)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read response: %s", err)
+	} else if !isSuccess {
+		return nil, errors.New(string(prepareResp))
+	}
+
+	// Store state for Parse to use
+	i.preparedData = &data{
+		cmd:    cmd,
+		stdin:  stdin,
+		stdout: stdout,
+	}
+	i.preparedRC = rc
+
+	return &builder.PrepareResult{}, nil
+}
+
+func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
+	// Get prepared data from Prepare()
+	i.mu.Lock()
+	data := i.preparedData
+	i.mu.Unlock()
+
+	// Send parse command
 	input, _ := json.Marshal(parseInput{
 		AppRoot:    p.App.Root(),
 		PlatformID: p.App.PlatformID(),
 		LocalID:    p.App.LocalID(),
 		ParseTests: p.ParseTests,
 	})
-	_, _ = stdin.Write([]byte("parse\n"))
-	if _, err := stdin.Write(input); err != nil {
+	_, _ = data.stdin.Write([]byte("parse\n"))
+	if _, err := data.stdin.Write(input); err != nil {
 		return nil, fmt.Errorf("unable to write to stdin: %s", err)
 	}
 
-	isSuccess, parseResp, err := readResp(stdout)
+	isSuccess, parseResp, err := readResp(data.stdout)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read response: %s", err)
 	} else if !isSuccess {
@@ -190,12 +217,6 @@ func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builde
 	var md metav1.Data
 	if err := proto.Unmarshal(parseResp, &md); err != nil {
 		return nil, fmt.Errorf("unable to parse app: %s", err)
-	}
-
-	data := &data{
-		cmd:    cmd,
-		stdin:  stdin,
-		stdout: stdout,
 	}
 
 	return &builder.ParseResult{Meta: &md, Data: data}, nil

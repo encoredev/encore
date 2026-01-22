@@ -63,6 +63,14 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	appLang := app.Lang()
 	bld := builderimpl.Resolve(appLang, expSet)
 	defer fns.CloseIgnore(bld)
+	_, err = bld.Prepare(ctx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        app,
+		WorkingDir: ".",
+	})
+	if err != nil {
+		return false, err
+	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,

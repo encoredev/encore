@@ -178,9 +178,16 @@ func testParse(c *qt.C, code string) *meta.Data {
 	bld := v2builder.New()
 	ctx := context.Background()
 
+	app := apps.NewInstance(root, "test", "")
+	_, err = bld.Prepare(ctx, builder.PrepareParams{
+		Build:      builder.DefaultBuildInfo(),
+		App:        app,
+		WorkingDir: ".",
+	})
+	c.Assert(err, qt.IsNil)
 	res, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       builder.DefaultBuildInfo(),
-		App:         apps.NewInstance(root, "test", ""),
+		App:         app,
 		Experiments: nil,
 		WorkingDir:  ".",
 		ParseTests:  false,
