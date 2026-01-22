@@ -431,6 +431,7 @@ Built-in request validation using TypeScript types for both runtime and compile-
 
 Example:
 import { Header, Query, api } from "encore.dev/api";
+import { Min, Max, MinLen, MaxLen, IsEmail, IsURL, StartsWith, EndsWith, MatchesRegexp } from "encore.dev/validate";
 
 interface Request {
   limit?: Query<number>;               // Optional query parameter
