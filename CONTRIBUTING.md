@@ -49,6 +49,8 @@ To do that, run `encore daemon env` and grab the value of `ENCORE_GOROOT`. For e
 export ENCORE_GOROOT=/opt/homebrew/Cellar/encore/0.16.2/libexec/encore-go
 ```
 
+Note: It is easiest to use the office `encore` binary.
+
 ### Running applications when building from source
 Once you've built your own `encore` binary and set the environment variables above, you're ready to go!
 
