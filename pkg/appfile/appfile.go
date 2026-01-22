@@ -76,6 +76,14 @@ type Build struct {
 
 	// WorkerPooling enables worker pooling for Encore.ts.
 	WorkerPooling bool `json:"worker_pooling,omitempty"`
+
+	// Hooks configures hooks for the build process.
+	Hooks Hooks `json:"hooks,omitempty"`
+}
+
+type Hooks struct {
+	PreBuild  string `json:"prebuild,omitempty"`
+	PostBuild string `json:"postbuild,omitempty"`
 }
 
 type Docker struct {
