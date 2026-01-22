@@ -46,7 +46,7 @@ func TestClientCodeGenerationFromGoApp(t *testing.T) {
 			c.Assert(err, qt.IsNil)
 
 			app := apps.NewInstance(base, "app", "")
-			_, err = bld.Prepare(ctx, builder.PrepareParams{
+			prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 				Build:      builder.DefaultBuildInfo(),
 				App:        app,
 				WorkingDir: ".",
@@ -58,6 +58,7 @@ func TestClientCodeGenerationFromGoApp(t *testing.T) {
 				Experiments: nil,
 				WorkingDir:  ".",
 				ParseTests:  false,
+				Prepare:     prepareResult,
 			})
 			c.Assert(err, qt.IsNil)
 
@@ -122,7 +123,7 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 			c.Assert(err, qt.IsNil)
 
 			app := apps.NewInstance(base, "app", "")
-			_, err = bld.Prepare(ctx, builder.PrepareParams{
+			prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 				Build:      builder.DefaultBuildInfo(),
 				App:        app,
 				WorkingDir: ".",
@@ -134,6 +135,7 @@ func TestClientCodeGenerationFromTSApp(t *testing.T) {
 				Experiments: nil,
 				WorkingDir:  ".",
 				ParseTests:  false,
+				Prepare:     prepareResult,
 			})
 			c.Assert(err, qt.IsNil)
 

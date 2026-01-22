@@ -50,7 +50,7 @@ func (s *Server) DumpMeta(ctx context.Context, req *daemonpb.DumpMetaRequest) (*
 
 	bld := builderimpl.Resolve(app.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
-	_, err = bld.Prepare(ctx, builder.PrepareParams{
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 		Build:      buildInfo,
 		App:        app,
 		WorkingDir: req.WorkingDir,
@@ -64,6 +64,7 @@ func (s *Server) DumpMeta(ctx context.Context, req *daemonpb.DumpMetaRequest) (*
 		Experiments: expSet,
 		WorkingDir:  req.WorkingDir,
 		ParseTests:  req.ParseTests,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

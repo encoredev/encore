@@ -72,7 +72,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 	// Parse the app to figure out what infrastructure is needed.
 	bld := builderimpl.Resolve(app.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
-	_, err = bld.Prepare(ctx, builder.PrepareParams{
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 		Build:      builder.DefaultBuildInfo(),
 		App:        app,
 		WorkingDir: ".",
@@ -86,6 +86,7 @@ func (s *Server) dbConnectLocal(ctx context.Context, req *daemonpb.DBConnectRequ
 		Experiments: expSet,
 		WorkingDir:  ".",
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return nil, err
@@ -212,7 +213,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 		// Parse the app to figure out what infrastructure is needed.
 		bld := builderimpl.Resolve(app.Lang(), expSet)
 		defer fns.CloseIgnore(bld)
-		_, err = bld.Prepare(ctx, builder.PrepareParams{
+		prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 			Build:      builder.DefaultBuildInfo(),
 			App:        app,
 			WorkingDir: ".",
@@ -226,6 +227,7 @@ func (s *Server) DBProxy(params *daemonpb.DBProxyRequest, stream daemonpb.Daemon
 			Experiments: expSet,
 			WorkingDir:  ".",
 			ParseTests:  false,
+			Prepare:     prepareResult,
 		})
 		if err != nil {
 			return err

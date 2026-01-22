@@ -64,7 +64,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 
 	bld := builderimpl.Resolve(p.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
-	_, err = bld.Prepare(ctx, builder.PrepareParams{
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 		Build:      buildInfo,
 		App:        p.App,
 		WorkingDir: p.WorkingDir,
@@ -78,6 +78,7 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 		Experiments: expSet,
 		WorkingDir:  p.WorkingDir,
 		ParseTests:  p.Tests,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return "", err

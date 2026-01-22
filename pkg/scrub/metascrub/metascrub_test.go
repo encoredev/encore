@@ -179,7 +179,7 @@ func testParse(c *qt.C, code string) *meta.Data {
 	ctx := context.Background()
 
 	app := apps.NewInstance(root, "test", "")
-	_, err = bld.Prepare(ctx, builder.PrepareParams{
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 		Build:      builder.DefaultBuildInfo(),
 		App:        app,
 		WorkingDir: ".",
@@ -191,6 +191,7 @@ func testParse(c *qt.C, code string) *meta.Data {
 		Experiments: nil,
 		WorkingDir:  ".",
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	c.Assert(err, qt.IsNil)
 	return res.Meta

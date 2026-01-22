@@ -36,11 +36,6 @@ func New() *BuilderImpl {
 type BuilderImpl struct {
 	mu   sync.Mutex
 	cmds map[*runningCmd]bool
-
-	// preparedData stores the running tsparser process state.
-	// It's set by Prepare() and used by Parse().
-	preparedData *data
-	preparedRC   *runningCmd
 }
 
 type parseInput struct {
@@ -91,13 +86,6 @@ func (i *BuilderImpl) Close() error {
 }
 
 func (i *BuilderImpl) Prepare(ctx context.Context, p builder.PrepareParams) (*builder.PrepareResult, error) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	if i.preparedData != nil {
-		return &builder.PrepareResult{}, nil
-	}
-
 	exe, err := getTSParserPath()
 	if err != nil {
 		return nil, err
@@ -178,22 +166,19 @@ func (i *BuilderImpl) Prepare(ctx context.Context, p builder.PrepareParams) (*bu
 		return nil, errors.New(string(prepareResp))
 	}
 
-	// Store state for Parse to use
-	i.preparedData = &data{
-		cmd:    cmd,
-		stdin:  stdin,
-		stdout: stdout,
-	}
-	i.preparedRC = rc
-
-	return &builder.PrepareResult{}, nil
+	// Return process state for Parse to use
+	return &builder.PrepareResult{
+		Data: &data{
+			cmd:    cmd,
+			stdin:  stdin,
+			stdout: stdout,
+		},
+	}, nil
 }
 
 func (i *BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	// Get prepared data from Prepare()
-	i.mu.Lock()
-	data := i.preparedData
-	i.mu.Unlock()
+	data := p.Prepare.Data.(*data)
 
 	// Send parse command
 	input, _ := json.Marshal(parseInput{

@@ -95,7 +95,9 @@ type PrepareParams struct {
 	Stderr     option.Option[io.Writer]
 }
 
-type PrepareResult struct{}
+type PrepareResult struct {
+	Data any
+}
 
 type ParseParams struct {
 	Build       BuildInfo
@@ -103,6 +105,10 @@ type ParseParams struct {
 	Experiments *experiments.Set
 	WorkingDir  string
 	ParseTests  bool
+
+	// Prepare is the result from calling Prepare().
+	// Required for TypeScript apps, ignored for Go apps.
+	Prepare *PrepareResult
 
 	// Optional writer to redirect stderr to.
 	Stderr option.Option[io.Writer]

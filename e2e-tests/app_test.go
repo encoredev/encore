@@ -265,7 +265,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
-	_, err = bld.Prepare(ctx, builder.PrepareParams{
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 		Build:      buildInfo,
 		App:        app,
 		WorkingDir: ".",
@@ -279,6 +279,7 @@ func testBuild(t testing.TB, appRoot string, env []string) (*builder.ParseResult
 		Experiments: expSet,
 		WorkingDir:  ".",
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		t.Fatal(err)

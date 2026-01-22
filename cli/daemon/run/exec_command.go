@@ -91,7 +91,7 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
-	_, err = bld.Prepare(ctx, builder.PrepareParams{
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
 		Build:      buildInfo,
 		App:        p.App,
 		WorkingDir: p.WorkingDir,
@@ -106,6 +106,7 @@ func (mgr *Manager) ExecCommand(ctx context.Context, p ExecCommandParams) (err e
 		Experiments: expSet,
 		WorkingDir:  p.WorkingDir,
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		// Don't use the error itself in tracker.Fail, as it will lead to duplicate error output.
