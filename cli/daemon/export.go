@@ -20,7 +20,7 @@ func (s *Server) Export(req *daemonpb.ExportRequest, stream daemonpb.Daemon_Expo
 	}
 
 	exitCode := 0
-	success, err := export.Docker(stream.Context(), app, req, log)
+	success, err := export.Docker(stream.Context(), app, req, log, slog)
 	if err != nil {
 		exitCode = 1
 		if list, ok := err.(scanner.ErrorList); ok {

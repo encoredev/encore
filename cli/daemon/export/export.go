@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -22,6 +21,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/internal/runlog"
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/appfile"
@@ -36,7 +36,7 @@ import (
 )
 
 // Docker exports the app as a docker image.
-func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest, log zerolog.Logger) (success bool, err error) {
+func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest, log zerolog.Logger, streamLog runlog.Log) (success bool, err error) {
 	params := req.GetDocker()
 	if params == nil {
 		return false, errors.Newf("unsupported format: %T", req.Format)
@@ -81,7 +81,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if hooks.PreBuild != "" {
-		if err := executeHook(hooks.PreBuild, app.Root()); err != nil {
+		if err := executeHook(hooks.PreBuild, app.Root(), streamLog); err != nil {
 			return false, err
 		}
 	}
@@ -118,7 +118,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if hooks.PostBuild != "" {
-		if err := executeHook(hooks.PostBuild, app.Root()); err != nil {
+		if err := executeHook(hooks.PostBuild, app.Root(), streamLog); err != nil {
 			return false, err
 		}
 	}
@@ -357,7 +357,7 @@ func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, dest
 	return nil
 }
 
-func executeHook(cmd, workingDir string) error {
+func executeHook(cmd, workingDir string, streamLog runlog.Log) error {
 	var shellCmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		shellCmd = exec.Command("cmd", "/C", cmd)
@@ -365,8 +365,8 @@ func executeHook(cmd, workingDir string) error {
 		shellCmd = exec.Command("sh", "-c", cmd)
 	}
 	shellCmd.Dir = workingDir
-	shellCmd.Stdout = os.Stdout
-	shellCmd.Stderr = os.Stderr
+	shellCmd.Stdout = streamLog.Stdout(false)
+	shellCmd.Stderr = streamLog.Stderr(false)
 	if err := shellCmd.Run(); err != nil {
 		return errors.Wrap(err, "execute hook")
 	}
