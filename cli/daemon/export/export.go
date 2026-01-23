@@ -356,7 +356,13 @@ func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, dest
 }
 
 func executeHook(ctx context.Context, hook appfile.Hook, workingDir string, streamLog runlog.Log) error {
-	cmd := hook.CmdContext(ctx)
+	cmd, err := hook.CmdContext(ctx)
+	if err != nil {
+		return errors.Wrap(err, "prepare hook")
+	}
+	if cmd == nil {
+		return nil
+	}
 	cmd.Dir = workingDir
 	cmd.Stdout = streamLog.Stdout(false)
 	cmd.Stderr = streamLog.Stderr(false)

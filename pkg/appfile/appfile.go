@@ -10,10 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/tailscale/hujson"
+	"mvdan.cc/sh/v3/shell"
 
 	"encore.dev/appruntime/exported/experiments"
 )
@@ -90,99 +89,82 @@ type Hooks struct {
 	PostBuild Hook `json:"postbuild,omitempty"`
 }
 
-// HookType identifies which hook variant is active.
-type HookType string
-
-const (
-	HookTypeNone  HookType = ""      // No hook configured
-	HookTypeShell HookType = "shell" // Shell command string
-	HookTypeExec  HookType = "exec"  // Direct binary execution
-)
-
-// Hook represents a build hook with two variants:
-// - Shell: a command string executed via sh -c (or cmd /C on Windows)
-// - Exec: direct binary execution with args and env
+// Hook represents a build hook command.
+// Can be specified as a string or as an object with command and env.
 type Hook struct {
-	Type  HookType
-	Shell ShellHook
-	Exec  ExecHook
-}
-
-// ShellHook executes a command through the shell.
-type ShellHook struct {
-	Command string
-}
-
-// ExecHook executes a binary directly without a shell.
-type ExecHook struct {
-	Binary string            `json:"binary"`
-	Args   []string          `json:"args"`
-	Env    map[string]string `json:"env"`
+	Command string            // The command to execute
+	Env     map[string]string // Optional environment variables
 }
 
 // IsSet returns true if the hook is configured.
 func (h Hook) IsSet() bool {
-	return h.Type != HookTypeNone
+	return h.Command != ""
 }
 
 // UnmarshalJSON handles both string and object formats.
 func (h *Hook) UnmarshalJSON(data []byte) error {
-	// Try string format first -> Shell variant
+	// Try string format first
 	var cmd string
 	if err := json.Unmarshal(data, &cmd); err == nil {
-		h.Type = HookTypeShell
-		h.Shell.Command = cmd
+		h.Command = cmd
 		return nil
 	}
 
-	// Try structured format -> Exec variant
-	var execHook ExecHook
-	if err := json.Unmarshal(data, &execHook); err != nil {
+	// Try structured format
+	type hookData struct {
+		Command string            `json:"command"`
+		Env     map[string]string `json:"env"`
+	}
+	var hd hookData
+	if err := json.Unmarshal(data, &hd); err != nil {
 		return err
 	}
-	h.Type = HookTypeExec
-	h.Exec = execHook
+	h.Command = hd.Command
+	h.Env = hd.Env
 	return nil
 }
 
 // CmdContext creates an exec.Cmd with context for this hook.
-func (h Hook) CmdContext(ctx context.Context) *exec.Cmd {
-	switch h.Type {
-	case HookTypeShell:
-		if runtime.GOOS == "windows" {
-			return exec.CommandContext(ctx, "cmd", "/C", h.Shell.Command)
-		}
-		return exec.CommandContext(ctx, "sh", "-c", h.Shell.Command)
-	case HookTypeExec:
-		return exec.CommandContext(ctx, h.Exec.Binary, h.Exec.Args...)
-	default:
-		return nil
+// The command is parsed with shell-style quoting and variable expansion.
+func (h Hook) CmdContext(ctx context.Context) (*exec.Cmd, error) {
+	if h.Command == "" {
+		return nil, nil
 	}
-}
 
-// String returns a human-readable representation of the hook.
-func (h Hook) String() string {
-	switch h.Type {
-	case HookTypeShell:
-		return h.Shell.Command
-	case HookTypeExec:
-		return h.Exec.Binary + " " + strings.Join(h.Exec.Args, " ")
-	default:
-		return ""
+	envFunc := func(name string) string {
+		if v, ok := h.Env[name]; ok {
+			return v
+		}
+		return os.Getenv(name)
 	}
+
+	// Parse and expand command
+	fields, err := shell.Fields(h.Command, envFunc)
+	if err != nil {
+		return nil, fmt.Errorf("parse command: %w", err)
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("empty command")
+	}
+
+	return exec.CommandContext(ctx, fields[0], fields[1:]...), nil
 }
 
 // Environ returns environment variables for exec.Cmd.Env.
-// Returns nil if no custom env is set (inherits parent env).
 func (h Hook) Environ() []string {
-	if h.Type != HookTypeExec || len(h.Exec.Env) == 0 {
+	if len(h.Env) == 0 {
 		return nil
 	}
 	env := os.Environ()
-	for k, v := range h.Exec.Env {
+	for k, v := range h.Env {
 		env = append(env, k+"="+v)
 	}
 	return env
+}
+
+// String returns the command string.
+func (h Hook) String() string {
+	return h.Command
 }
 
 type Docker struct {
