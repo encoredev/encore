@@ -5,7 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -71,6 +74,18 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	if err != nil {
 		return false, err
 	}
+
+	hooks, err := app.Hooks()
+	if err != nil {
+		return false, err
+	}
+
+	if hooks.PreBuild != "" {
+		if err := executeHook(hooks.PreBuild, app.Root()); err != nil {
+			return false, err
+		}
+	}
+
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,
@@ -100,6 +115,12 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	if err != nil {
 		log.Info().Err(err).Msg("compilation failed")
 		return false, errors.Wrap(err, "compilation failed")
+	}
+
+	if hooks.PostBuild != "" {
+		if err := executeHook(hooks.PostBuild, app.Root()); err != nil {
+			return false, err
+		}
 	}
 
 	var crossNodeRuntime option.Option[dockerbuild.HostPath]
@@ -333,5 +354,21 @@ func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, dest
 		return errors.WithStack(err)
 	}
 	log.Info().Msg("successfully pushed docker image")
+	return nil
+}
+
+func executeHook(cmd, workingDir string) error {
+	var shellCmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		shellCmd = exec.Command("cmd", "/C", cmd)
+	} else {
+		shellCmd = exec.Command("sh", "-c", cmd)
+	}
+	shellCmd.Dir = workingDir
+	shellCmd.Stdout = os.Stdout
+	shellCmd.Stderr = os.Stderr
+	if err := shellCmd.Run(); err != nil {
+		return errors.Wrap(err, "execute hook")
+	}
 	return nil
 }
