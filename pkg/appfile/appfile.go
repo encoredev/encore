@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/tailscale/hujson"
 
@@ -82,8 +84,91 @@ type Build struct {
 }
 
 type Hooks struct {
-	PreBuild  string `json:"prebuild,omitempty"`
-	PostBuild string `json:"postbuild,omitempty"`
+	PreBuild  Hook `json:"prebuild,omitempty"`
+	PostBuild Hook `json:"postbuild,omitempty"`
+}
+
+// HookType identifies which hook variant is active.
+type HookType string
+
+const (
+	HookTypeNone  HookType = ""      // No hook configured
+	HookTypeShell HookType = "shell" // Shell command string
+	HookTypeExec  HookType = "exec"  // Direct binary execution
+)
+
+// Hook represents a build hook with two variants:
+// - Shell: a command string executed via sh -c (or cmd /C on Windows)
+// - Exec: direct binary execution with args and env
+type Hook struct {
+	Type  HookType
+	Shell ShellHook
+	Exec  ExecHook
+}
+
+// ShellHook executes a command through the shell.
+type ShellHook struct {
+	Command string
+}
+
+// ExecHook executes a binary directly without a shell.
+type ExecHook struct {
+	Binary string            `json:"binary"`
+	Args   []string          `json:"args"`
+	Env    map[string]string `json:"env"`
+}
+
+// IsSet returns true if the hook is configured.
+func (h Hook) IsSet() bool {
+	return h.Type != HookTypeNone
+}
+
+// UnmarshalJSON handles both string and object formats.
+func (h *Hook) UnmarshalJSON(data []byte) error {
+	// Try string format first -> Shell variant
+	var cmd string
+	if err := json.Unmarshal(data, &cmd); err == nil {
+		h.Type = HookTypeShell
+		h.Shell.Command = cmd
+		return nil
+	}
+
+	// Try structured format -> Exec variant
+	var execHook ExecHook
+	if err := json.Unmarshal(data, &execHook); err != nil {
+		return err
+	}
+	h.Type = HookTypeExec
+	h.Exec = execHook
+	return nil
+}
+
+// Cmd creates an exec.Cmd for this hook.
+func (h Hook) Cmd() *exec.Cmd {
+	switch h.Type {
+	case HookTypeShell:
+		if runtime.GOOS == "windows" {
+			return exec.Command("cmd", "/C", h.Shell.Command)
+		}
+		return exec.Command("sh", "-c", h.Shell.Command)
+	case HookTypeExec:
+		return exec.Command(h.Exec.Binary, h.Exec.Args...)
+	default:
+		return nil
+	}
+}
+
+// Environ returns environment variables for exec.Cmd.Env.
+// Returns nil if no custom env is set (inherits parent env).
+func (h Hook) Environ() []string {
+	if h.Type != HookTypeExec || len(h.Exec.Env) == 0 {
+		return nil
+	}
+	env := os.Environ()
+	for k, v := range h.Exec.Env {
+		env = append(env, k+"="+v)
+	}
+	return env
 }
 
 type Docker struct {

@@ -5,9 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -80,7 +78,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, err
 	}
 
-	if hooks.PreBuild != "" {
+	if hooks.PreBuild.IsSet() {
 		if err := executeHook(hooks.PreBuild, app.Root(), streamLog); err != nil {
 			return false, err
 		}
@@ -117,7 +115,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 		return false, errors.Wrap(err, "compilation failed")
 	}
 
-	if hooks.PostBuild != "" {
+	if hooks.PostBuild.IsSet() {
 		if err := executeHook(hooks.PostBuild, app.Root(), streamLog); err != nil {
 			return false, err
 		}
@@ -357,17 +355,15 @@ func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, dest
 	return nil
 }
 
-func executeHook(cmd, workingDir string, streamLog runlog.Log) error {
-	var shellCmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		shellCmd = exec.Command("cmd", "/C", cmd)
-	} else {
-		shellCmd = exec.Command("sh", "-c", cmd)
+func executeHook(hook appfile.Hook, workingDir string, streamLog runlog.Log) error {
+	cmd := hook.Cmd()
+	cmd.Dir = workingDir
+	cmd.Stdout = streamLog.Stdout(false)
+	cmd.Stderr = streamLog.Stderr(false)
+	if env := hook.Environ(); env != nil {
+		cmd.Env = env
 	}
-	shellCmd.Dir = workingDir
-	shellCmd.Stdout = streamLog.Stdout(false)
-	shellCmd.Stderr = streamLog.Stderr(false)
-	if err := shellCmd.Run(); err != nil {
+	if err := cmd.Run(); err != nil {
 		return errors.Wrap(err, "execute hook")
 	}
 	return nil
