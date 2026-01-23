@@ -2,6 +2,7 @@
 package appfile
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/tailscale/hujson"
 
@@ -143,18 +145,30 @@ func (h *Hook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Cmd creates an exec.Cmd for this hook.
-func (h Hook) Cmd() *exec.Cmd {
+// CmdContext creates an exec.Cmd with context for this hook.
+func (h Hook) CmdContext(ctx context.Context) *exec.Cmd {
 	switch h.Type {
 	case HookTypeShell:
 		if runtime.GOOS == "windows" {
-			return exec.Command("cmd", "/C", h.Shell.Command)
+			return exec.CommandContext(ctx, "cmd", "/C", h.Shell.Command)
 		}
-		return exec.Command("sh", "-c", h.Shell.Command)
+		return exec.CommandContext(ctx, "sh", "-c", h.Shell.Command)
 	case HookTypeExec:
-		return exec.Command(h.Exec.Binary, h.Exec.Args...)
+		return exec.CommandContext(ctx, h.Exec.Binary, h.Exec.Args...)
 	default:
 		return nil
+	}
+}
+
+// String returns a human-readable representation of the hook.
+func (h Hook) String() string {
+	switch h.Type {
+	case HookTypeShell:
+		return h.Shell.Command
+	case HookTypeExec:
+		return h.Exec.Binary + " " + strings.Join(h.Exec.Args, " ")
+	default:
+		return ""
 	}
 }
 

@@ -79,7 +79,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if hooks.PreBuild.IsSet() {
-		if err := executeHook(hooks.PreBuild, app.Root(), streamLog); err != nil {
+		if err := executeHook(ctx, hooks.PreBuild, app.Root(), streamLog); err != nil {
 			return false, err
 		}
 	}
@@ -116,7 +116,7 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	}
 
 	if hooks.PostBuild.IsSet() {
-		if err := executeHook(hooks.PostBuild, app.Root(), streamLog); err != nil {
+		if err := executeHook(ctx, hooks.PostBuild, app.Root(), streamLog); err != nil {
 			return false, err
 		}
 	}
@@ -355,8 +355,8 @@ func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, dest
 	return nil
 }
 
-func executeHook(hook appfile.Hook, workingDir string, streamLog runlog.Log) error {
-	cmd := hook.Cmd()
+func executeHook(ctx context.Context, hook appfile.Hook, workingDir string, streamLog runlog.Log) error {
+	cmd := hook.CmdContext(ctx)
 	cmd.Dir = workingDir
 	cmd.Stdout = streamLog.Stdout(false)
 	cmd.Stderr = streamLog.Stderr(false)
