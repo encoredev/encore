@@ -23,14 +23,14 @@ To locally run Encore apps with databases, you also need to have [Docker](https:
 
 ### Optional: Add Encore LLM instructions
 
-To help LLM powered tools like Cursor and GitHub Copilot understand how to use Encore, you can add pre-made instructions to your app.
+To help LLM-powered tools like Cursor, Claude Code, Zed, and GitHub Copilot understand how to use Encore, you can select your preferred LLM rule format during app creation using the CLI. Alternatively, you can manually add pre-made instructions to your app by following the steps below.
 
 Download the [go_llm_instructions.txt](https://github.com/encoredev/encore/blob/main/go_llm_instructions.txt) file.
   
-  **How to use:**
-  - Cursor: Rename the file to `.cursorrules`.
-  - GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
-  - For other tools, place the file in your app root.
+**How to use:**
+- Cursor: Rename the file to `.cursorrules`.
+- GitHub Copilot: Paste content in `.github/copilot-instructions.md`.
+- For other tools, place the file in your app root.
 
 ### Build from source
 If you prefer to build from source, [follow these instructions](https://github.com/encoredev/encore/blob/main/CONTRIBUTING.md).
@@ -40,7 +40,7 @@ If you prefer to build from source, [follow these instructions](https://github.c
 Check which version of Encore you have installed by running `encore version` in your terminal.
 It should print something like:
 ```shell
-encore version v1.28.0
+encore version v1.53.4
 ```
 
 If you think you're on an older version of Encore, you can easily update to the latest version by running
