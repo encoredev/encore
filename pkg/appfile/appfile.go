@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/tailscale/hujson"
-	"mvdan.cc/sh/v3/shell"
+	"mvdan.cc/sh/v3/expand"
+	"mvdan.cc/sh/v3/interp"
+	"mvdan.cc/sh/v3/syntax"
 
 	"encore.dev/appruntime/exported/experiments"
 )
@@ -124,42 +127,36 @@ func (h *Hook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// CmdContext creates an exec.Cmd with context for this hook.
-// The command is parsed with shell-style quoting and variable expansion.
-func (h Hook) CmdContext(ctx context.Context) (*exec.Cmd, error) {
+// Run executes the hook command with shell-style parsing and variable expansion.
+// Supports shell operators like &&, ||, and pipes.
+func (h Hook) Run(ctx context.Context, dir string, stdout, stderr io.Writer) error {
 	if h.Command == "" {
-		return nil, nil
-	}
-
-	envFunc := func(name string) string {
-		if v, ok := h.Env[name]; ok {
-			return v
-		}
-		return os.Getenv(name)
-	}
-
-	// Parse and expand command
-	fields, err := shell.Fields(h.Command, envFunc)
-	if err != nil {
-		return nil, fmt.Errorf("parse command: %w", err)
-	}
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("empty command")
-	}
-
-	return exec.CommandContext(ctx, fields[0], fields[1:]...), nil
-}
-
-// Environ returns environment variables for exec.Cmd.Env.
-func (h Hook) Environ() []string {
-	if len(h.Env) == 0 {
 		return nil
 	}
+
+	// Parse the command as a shell script
+	file, err := syntax.NewParser().Parse(strings.NewReader(h.Command), "")
+	if err != nil {
+		return fmt.Errorf("parse command: %w", err)
+	}
+
+	// Build environment: system env + custom env vars
 	env := os.Environ()
 	for k, v := range h.Env {
 		env = append(env, k+"="+v)
 	}
-	return env
+
+	// Create interpreter with environment and I/O
+	runner, err := interp.New(
+		interp.Env(expand.ListEnviron(env...)),
+		interp.Dir(dir),
+		interp.StdIO(nil, stdout, stderr),
+	)
+	if err != nil {
+		return fmt.Errorf("create interpreter: %w", err)
+	}
+
+	return runner.Run(ctx, file)
 }
 
 // String returns the command string.
