@@ -1,43 +1,45 @@
 ---
-seotitle: Using Encore with Turborepo in a monorepo
-seodesc: Learn how to set up Encore.ts in a Turborepo monorepo with shared packages that require building before use.
-title: Turborepo
-subtitle: Using Encore in a Turborepo monorepo
+seotitle: Using Encore with Nx in a monorepo
+seodesc: Learn how to set up Encore.ts in an Nx monorepo with shared packages that require building before use.
+title: Nx
+subtitle: Using Encore in an Nx monorepo
 lang: ts
 ---
 
-[Turborepo](https://turbo.build/repo) is a build system for JavaScript and TypeScript monorepos. This guide shows how to set up an Encore application within a Turborepo monorepo that depends on shared packages requiring compilation.
+[Nx](https://nx.dev) is a build system for JavaScript and TypeScript monorepos. This guide shows how to set up an Encore application within an Nx monorepo that depends on shared packages requiring compilation.
 
 ## Overview
 
-When using Encore in a Turborepo monorepo, you may have shared packages (like utility libraries or shared types) that need to be built before the Encore app can use them. Since Encore parses your application on startup, these dependencies must be compiled first.
+When using Encore in an Nx monorepo, you may have shared packages (like utility libraries or shared types) that need to be built before the Encore app can use them. Since Encore parses your application on startup, these dependencies must be compiled first.
 
 This guide covers two scenarios:
-- **Local development**: Use Turborepo to build dependencies before running `encore run`
+- **Local development**: Use Nx to build dependencies before running `encore run`
 - **Deployment**: Use Encore's `prebuild` hook to automatically build dependencies when deploying via Encore Cloud or exporting a Docker image
 
 ## Project structure
 
-A typical Turborepo setup with Encore looks like this:
+A typical Nx setup with Encore looks like this:
 
 ```
-my-turborepo/
+my-nx-workspace/
 ├── apps/
 │   └── backend/           # Encore application
 │       ├── encore.app
 │       ├── package.json
+│       ├── project.json
 │       ├── tsconfig.json
 │       └── article/
 │           └── article.ts
 ├── packages/
 │   └── shared/            # Shared library requiring build
 │       ├── package.json
+│       ├── project.json
 │       ├── tsconfig.json
 │       ├── src/
 │       │   └── index.ts
 │       └── dist/          # Built output
 │           └── index.js
-├── turbo.json
+├── nx.json
 ├── package.json
 └── package-lock.json
 ```
@@ -50,15 +52,14 @@ Configure npm workspaces to include your apps and packages:
 
 ```json
 {
-  "name": "my-turborepo",
+  "name": "my-nx-workspace",
   "private": true,
-  "packageManager": "npm@10.0.0",
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev"
+    "build": "nx run-many -t build",
+    "dev": "nx run-many -t dev"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
+    "nx": "^21.0.0",
     "typescript": "^5.0.0"
   },
   "workspaces": [
@@ -68,38 +69,31 @@ Configure npm workspaces to include your apps and packages:
 }
 ```
 
-The `packageManager` field is required by Turborepo. Adjust the version to match your installed npm version (run `npm --version` to check).
+### nx.json
 
-### turbo.json
-
-Configure Turborepo's build pipeline in the root `turbo.json`. The `@repo/backend#dev` task depends on the shared package being built first:
+Configure Nx's build pipeline in the root `nx.json`:
 
 ```json
 {
-  "$schema": "https://turbo.build/schema.json",
-  "tasks": {
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
-    },
-    "@repo/backend#dev": {
-      "dependsOn": ["@repo/shared#build"],
-      "cache": false,
-      "persistent": true
+      "outputs": ["{projectRoot}/dist/**"],
+      "cache": true
     },
     "dev": {
-      "cache": false,
-      "persistent": true
+      "cache": false
     }
   }
 }
 ```
 
-The `@repo/backend#dev` task configuration ensures the shared package is built before running `encore run` in local development.
+The `"dependsOn": ["^build"]` configuration ensures that a project's dependencies are built before the project itself.
 
 ### Shared package
 
-Your shared package needs to compile TypeScript to JavaScript and expose the built output:
+Your shared package needs to compile TypeScript to JavaScript and expose the built output.
 
 **packages/shared/package.json:**
 ```json
@@ -121,6 +115,26 @@ Your shared package needs to compile TypeScript to JavaScript and expose the bui
   },
   "devDependencies": {
     "typescript": "^5.0.0"
+  }
+}
+```
+
+**packages/shared/project.json:**
+```json
+{
+  "name": "@repo/shared",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/shared/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc",
+        "cwd": "packages/shared"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    }
   }
 }
 ```
@@ -172,10 +186,11 @@ export function truncate(text: string, maxLength: number): string {
 
 ### Encore application
 
-The Encore app needs two key configurations:
+The Encore app needs three key configurations:
 
 1. **encore.app** - Use the `prebuild` hook to build dependencies during deployment
 2. **package.json** - Declare the dependency on the shared package
+3. **project.json** - Configure Nx targets and task dependencies
 
 To create the Encore app, run `encore app init --lang ts` from the `apps/backend` directory. Then add the `prebuild` hook to the generated `encore.app` file:
 
@@ -186,13 +201,13 @@ To create the Encore app, run `encore app init --lang ts` from the `apps/backend
     "lang": "typescript",
     "build": {
         "hooks": {
-            "prebuild": "npx turbo build --filter=@repo/backend^..."
+            "prebuild": "npx nx build-deps @repo/backend"
         }
     }
 }
 ```
 
-The `prebuild` hook runs when deploying via Encore Cloud or when exporting a Docker image with the Encore CLI. The filter `@repo/backend^...` tells Turborepo to build all dependencies of `@repo/backend`. The `^` excludes the backend itself, building only its dependencies.
+The `prebuild` hook runs when deploying via Encore Cloud or when exporting a Docker image with the Encore CLI. The `build-deps` target builds all dependencies of the backend.
 
 **apps/backend/package.json:**
 ```json
@@ -209,6 +224,33 @@ The `prebuild` hook runs when deploying via Encore Cloud or when exporting a Doc
   }
 }
 ```
+
+**apps/backend/project.json:**
+```json
+{
+  "name": "@repo/backend",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend",
+  "projectType": "application",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "encore run",
+        "cwd": "apps/backend"
+      },
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "build-deps": {
+      "dependsOn": ["^build"],
+      "cache": true
+    }
+  }
+}
+```
+
+The `"dependsOn": ["^build"]` configuration uses the `^` prefix to indicate "run the build target on all dependencies first". This automatically builds all shared packages before running `encore run`, without needing to list each dependency explicitly.
 
 ### Using the shared package
 
@@ -242,33 +284,33 @@ First, install all dependencies from the monorepo root:
 $ npm install
 ```
 
-This installs dependencies for all workspaces, including Turborepo.
+This installs dependencies for all workspaces, including Nx.
 
 ### Local development
 
 For local development, you need to build the shared packages before running `encore run`. From the monorepo root:
 
 ```shell
-$ npx turbo run build
+$ npx nx build-deps @repo/backend
 $ cd apps/backend && encore run
 ```
 
-Or use Turborepo's `dev` task which handles the dependency ordering:
+Or use Nx's `dev` target which handles the dependency ordering:
 
 ```shell
-$ npx turbo run dev --filter=@repo/backend
+$ npx nx dev @repo/backend
 ```
 
-The `turbo.json` configuration ensures `@repo/shared` is built before the backend's dev task runs.
+The `"dependsOn": ["^build"]` configuration ensures all dependencies are built before the backend's dev target runs.
 
 ### Deployment
 
-When deploying via Encore Cloud or exporting a Docker image, the `prebuild` hook in `encore.app` automatically runs the Turborepo build pipeline. No additional setup is needed.
+When deploying via Encore Cloud or exporting a Docker image, the `prebuild` hook in `encore.app` automatically runs the Nx build. No additional setup is needed.
 
 ## Key points
 
-- **Local development**: Run `npx turbo run build` before `encore run`, or use `npx turbo run dev --filter=@repo/backend` to handle dependency ordering automatically
+- **Local development**: Run `npx nx build-deps @repo/backend` before `encore run`, or use `npx nx dev @repo/backend` to handle dependency ordering automatically
 - **Prebuild hook**: The `prebuild` hook in `encore.app` runs during deployment (Encore Cloud) or Docker export, not during local development
-- **Turborepo filter**: Using `--filter=@repo/backend^...` builds only the dependencies of the backend (the `^` excludes the package itself)
+- **Task dependencies**: Use `"dependsOn": ["^build"]` in `project.json` to automatically build all dependencies before running a target
 - **ESM modules**: Use `"type": "module"` in package.json files for ES module support
 - **Exports field**: Define the `exports` field in shared packages to specify entry points for both types and JavaScript
