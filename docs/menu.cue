@@ -858,6 +858,20 @@
 				text: "Environment Variables"
 				path: "/ts/develop/env-vars"
 				file: "ts/develop/env-vars"
+			}, {
+				kind: "accordion"
+				text: "Monorepo"
+				accordion: [{
+					kind: "basic"
+					text: "Turborepo"
+					path: "/ts/develop/monorepo/turborepo"
+					file: "ts/develop/monorepo/turborepo"
+				}, {
+					kind: "basic"
+					text: "Nx"
+					path: "/ts/develop/monorepo/nx"
+					file: "ts/develop/monorepo/nx"
+				}]
 			}]
 		},
 		{
