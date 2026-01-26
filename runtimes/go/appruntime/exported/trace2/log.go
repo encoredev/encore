@@ -218,6 +218,10 @@ func (tb *EventBuffer) ByteString(b []byte) {
 	tb.Bytes(b)
 }
 
+func (tb *EventBuffer) StatusCode(code errs.ErrCode) {
+	tb.Byte(byte(code))
+}
+
 // TruncatedByteString is like ByteString except it truncates b to maximum of maxLen.
 // If truncationSuffix is provided, it is appended after truncating, leading to
 // the final length being maxLen+len(truncationSuffix).

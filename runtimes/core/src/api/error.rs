@@ -377,6 +377,28 @@ impl ErrCode {
         }
     }
 
+    /// Converts the error code to the trace protocol byte value.
+    pub fn to_trace_code(&self) -> u8 {
+        match self {
+            ErrCode::Canceled => 1,
+            ErrCode::Unknown => 2,
+            ErrCode::InvalidArgument => 3,
+            ErrCode::DeadlineExceeded => 4,
+            ErrCode::NotFound => 5,
+            ErrCode::AlreadyExists => 6,
+            ErrCode::PermissionDenied => 7,
+            ErrCode::ResourceExhausted => 8,
+            ErrCode::FailedPrecondition => 9,
+            ErrCode::Aborted => 10,
+            ErrCode::OutOfRange => 11,
+            ErrCode::Unimplemented => 12,
+            ErrCode::Internal => 13,
+            ErrCode::Unavailable => 14,
+            ErrCode::DataLoss => 15,
+            ErrCode::Unauthenticated => 16,
+        }
+    }
+
     pub fn status_code(&self) -> axum::http::StatusCode {
         match self {
             ErrCode::Canceled => axum::http::StatusCode::from_u16(499).unwrap(),

@@ -120,7 +120,8 @@ func TestParse(t *testing.T) {
 				TraceId: pbTraceID,
 				SpanId:  pbSpanID,
 				Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{
-					Error: pbErr,
+					StatusCode: tracepb2.StatusCode_STATUS_CODE_UNKNOWN,
+					Error:      pbErr,
 					Data: &tracepb2.SpanEnd_Request{
 						Request: &tracepb2.RequestSpanEnd{
 							ServiceName:     "service",
@@ -129,6 +130,7 @@ func TestParse(t *testing.T) {
 							ResponseHeaders: map[string]string{"Content-Type": "application/json"},
 							ResponsePayload: []byte("payload"),
 							CallerEventId:   ptr(uint64(0)),
+							Uid:             nil, // ptrOrNil returns nil for empty strings
 						},
 					},
 				}},
@@ -201,7 +203,8 @@ func TestParse(t *testing.T) {
 				TraceId: pbTraceID,
 				SpanId:  pbSpanID,
 				Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{
-					Error: pbErr,
+					StatusCode: tracepb2.StatusCode_STATUS_CODE_UNKNOWN,
+					Error:      pbErr,
 					Data: &tracepb2.SpanEnd_Auth{
 						Auth: &tracepb2.AuthSpanEnd{
 							ServiceName:  "service",
@@ -279,12 +282,14 @@ func TestParse(t *testing.T) {
 				TraceId: pbTraceID,
 				SpanId:  pbSpanID,
 				Event: &tracepb2.TraceEvent_SpanEnd{SpanEnd: &tracepb2.SpanEnd{
-					Error: pbErr,
+					StatusCode: tracepb2.StatusCode_STATUS_CODE_UNKNOWN,
+					Error:      pbErr,
 					Data: &tracepb2.SpanEnd_PubsubMessage{
 						PubsubMessage: &tracepb2.PubsubMessageSpanEnd{
 							ServiceName:      "service",
 							TopicName:        "topic",
 							SubscriptionName: "subscription",
+							MessageId:        "",
 						},
 					},
 				}},
