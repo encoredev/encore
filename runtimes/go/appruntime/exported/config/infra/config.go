@@ -355,16 +355,18 @@ func (m *Metrics) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON custom unmarshaller to handle dynamic types in Metrics.
 func (m *Metrics) UnmarshalJSON(data []byte) error {
-	// Anonymous struct to capture the "type" field first
+	// Anonymous struct to capture the base fields first
 	var aux struct {
-		Type string `json:"type,omitempty"`
+		Type               string `json:"type,omitempty"`
+		CollectionInterval int    `json:"collection_interval,omitempty"`
 	}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 
-	// Set the Type field
+	// Set the base fields
 	m.Type = aux.Type
+	m.CollectionInterval = aux.CollectionInterval
 
 	// Unmarshal based on the "type" field
 	switch aux.Type {
