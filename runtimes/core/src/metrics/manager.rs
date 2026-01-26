@@ -170,8 +170,8 @@ impl Manager {
                 .first()
                 .and_then(|p| p.collection_interval.as_ref())
                 .and_then(|d| Duration::try_from(d.clone()).ok())
+                .filter(|d| !d.is_zero())
                 .unwrap_or(Duration::from_secs(60)); // Default to 1 minute
-
             manager.start_collection_loop(runtime_handle, collection_interval);
         }
 
