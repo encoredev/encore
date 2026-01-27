@@ -263,7 +263,11 @@ The `turbo.json` configuration ensures `@repo/shared` is built before the backen
 
 ### Deployment
 
-When deploying via Encore Cloud or exporting a Docker image, the `prebuild` hook in `encore.app` automatically runs the Turborepo build pipeline. No additional setup is needed.
+When deploying via Encore Cloud or exporting a Docker image, the `prebuild` hook in `encore.app` automatically runs the Turborepo build pipeline.
+
+<Callout type="info">
+When deploying a monorepo to Encore Cloud, configure the root path to your Encore app in the app settings: **Settings > General > Root Directory** (e.g., `apps/backend`).
+</Callout>
 
 ## Key points
 
