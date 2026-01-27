@@ -276,5 +276,3 @@ When deploying a monorepo to Encore Cloud, configure the root path to your Encor
 - **Local development**: Run `npx turbo run build` before `encore run`, or use `npx turbo run dev --filter=@repo/backend` to handle dependency ordering automatically
 - **Prebuild hook**: The `prebuild` hook in `encore.app` runs during deployment (Encore Cloud) or Docker export, not during local development
 - **Turborepo filter**: Using `--filter=@repo/backend^...` builds only the dependencies of the backend (the `^` excludes the package itself)
-- **ESM modules**: Use `"type": "module"` in package.json files for ES module support
-- **Exports field**: Define the `exports` field in shared packages to specify entry points for both types and JavaScript

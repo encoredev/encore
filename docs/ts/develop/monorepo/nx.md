@@ -308,7 +308,9 @@ The `"dependsOn": ["^build"]` configuration ensures all dependencies are built b
 When deploying via Encore Cloud or exporting a Docker image, the `prebuild` hook in `encore.app` automatically runs the Nx build.
 
 <Callout type="info">
+
 When deploying a monorepo to Encore Cloud, configure the root path to your Encore app in the app settings: **Settings > General > Root Directory** (e.g., `apps/backend`).
+
 </Callout>
 
 ## Key points
@@ -316,5 +318,3 @@ When deploying a monorepo to Encore Cloud, configure the root path to your Encor
 - **Local development**: Run `npx nx build-deps @repo/backend` before `encore run`, or use `npx nx dev @repo/backend` to handle dependency ordering automatically
 - **Prebuild hook**: The `prebuild` hook in `encore.app` runs during deployment (Encore Cloud) or Docker export, not during local development
 - **Task dependencies**: Use `"dependsOn": ["^build"]` in `project.json` to automatically build all dependencies before running a target
-- **ESM modules**: Use `"type": "module"` in package.json files for ES module support
-- **Exports field**: Define the `exports` field in shared packages to specify entry points for both types and JavaScript
