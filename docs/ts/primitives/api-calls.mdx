@@ -25,6 +25,26 @@ export const myOtherAPI = api({}, async (): Promise<void> => {
 });
 ```
 
+### Service client references
+
+Encore uses static analysis to determine which services are calling each other. This means service client objects can't be passed around however you like, as it makes static analysis impossible in many cases.
+
+To simplify your workflow, given these restrictions, Encore supports defining a "reference" to a service client that can be passed around any way you want. To create a reference, call the `.ref()` method on any service client:
+
+```typescript
+import { hello } from "~encore/clients";
+
+// Create a reference that can be passed around
+const helloRef = hello.ref();
+
+// Pass the reference to other functions
+function doSomething(client: typeof helloRef) {
+  return client.ping({ name: "World" });
+}
+
+doSomething(helloRef);
+```
+
 <GitHubLink
     href="https://github.com/encoredev/examples/tree/main/ts/simple-event-driven"
     desc="Simple microservices example application with service-to-service API calls."
