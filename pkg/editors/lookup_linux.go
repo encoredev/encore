@@ -157,6 +157,15 @@ var editors = []LinuxExternalEditor{
 		Name:  Mousepad,
 		Paths: []string{"/usr/bin/mousepad"},
 	},
+	{
+		Name: Cursor,
+		Paths: []string{
+			"/usr/bin/cursor",
+			"/usr/share/cursor/cursor",
+			"/snap/bin/cursor",
+			"/opt/Cursor/cursor",
+		},
+	},
 }
 
 // Returns the first available path from the provided list.

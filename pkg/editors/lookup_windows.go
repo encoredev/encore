@@ -371,6 +371,16 @@ var editors = []WindowsExternalEditor{
 		DisplayNamePrefixes: []string{"Pulsar"},
 		Publishers:          []string{"Pulsar-Edit"},
 	},
+	{
+		Name: Cursor,
+		RegistryKeys: []RegistryKey{
+			// 64-bit version of Cursor (user)
+			CurrentUserUninstallKey("{4F4FB13E-18F1-5261-B8EB-6E696B5F2C7E}_is1"),
+		},
+		ExecutableShimPaths: []string{"bin/cursor.cmd"},
+		DisplayNamePrefixes: []string{"Cursor"},
+		Publishers:          []string{"Anysphere Inc.", "Anysphere"},
+	},
 }
 
 func registryKey(key registry.Key, subKey string) RegistryKey {
