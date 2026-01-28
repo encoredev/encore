@@ -58,17 +58,43 @@ static EVENT_ID: AtomicU64 = AtomicU64::new(1);
 #[derive(Debug, Clone)]
 pub struct Tracer {
     tx: Option<tokio::sync::mpsc::UnboundedSender<TraceEvent>>,
+    sampling_rate: Option<f64>,
 }
 
 pub static TRACE_VERSION: u16 = 17;
 
 impl Tracer {
-    pub(super) fn new(tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>) -> Self {
-        Self { tx: Some(tx) }
+    pub(super) fn new(
+        tx: tokio::sync::mpsc::UnboundedSender<TraceEvent>,
+        sampling_rate: Option<f64>,
+    ) -> Self {
+        Self {
+            tx: Some(tx),
+            sampling_rate,
+        }
     }
 
     pub fn noop() -> Self {
-        Self { tx: None }
+        Self {
+            tx: None,
+            sampling_rate: None,
+        }
+    }
+
+    /// Determines whether a new request should be traced based on sampling rate.
+    /// Returns false if this is a noop tracer (no sender).
+    /// Returns true if no sampling rate is configured (trace everything).
+    /// Otherwise, returns true with probability equal to the sampling rate.
+    pub fn should_sample(&self) -> bool {
+        // No sender = noop tracer = don't trace
+        if self.tx.is_none() {
+            return false;
+        }
+        // No rate configured = always trace
+        match self.sampling_rate {
+            None => true,
+            Some(rate) => rand::random::<f64>() < rate,
+        }
     }
 }
 
@@ -149,6 +175,9 @@ impl Tracer {
     // so that's why we haven't implemented emitting TestStart/TestEnd etc.
     #[inline]
     pub fn request_span_start(&self, req: &model::Request, redact_details: bool) {
+        if !req.traced {
+            return;
+        }
         let mut eb = SpanStartEventData {
             parent: Parent::from(req),
             caller_event_id: req.caller_event_id,
@@ -283,8 +312,10 @@ impl Tracer {
 
     #[inline]
     pub fn request_span_end(&self, resp: &model::Response, redact_details: bool) {
-        // If the request has no span, we don't need to do anything.
         let req = resp.request.as_ref();
+        if !req.traced {
+            return;
+        }
 
         let mut eb = SpanEndEventData {
             parent: Parent::from(req),
@@ -375,12 +406,25 @@ impl Tracer {
     }
 }
 
+pub struct RPCCallStartData<'a> {
+    pub source: &'a Request,
+    pub target: &'a crate::EndpointName,
+}
+
+pub struct RPCCallEndData<'a> {
+    pub start_id: Option<TraceEventId>,
+    pub source: &'a Request,
+    pub target: &'a crate::EndpointName,
+    pub err: Option<&'a api::Error>,
+}
+
 impl Tracer {
     #[inline]
-    pub fn rpc_call_start(&self, call: &model::APICall) -> Option<TraceEventId> {
-        let source = call.source.as_ref()?;
-
-        let (service, endpoint) = (call.target.service(), call.target.endpoint());
+    pub fn rpc_call_start(&self, data: RPCCallStartData) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
+        let (service, endpoint) = (data.target.service(), data.target.endpoint());
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + service.len() + endpoint.len(),
@@ -391,30 +435,24 @@ impl Tracer {
         eb.str(endpoint);
         eb.nyi_stack_pcs();
 
-        Some(self.send(EventType::RPCCallStart, source.span, eb))
+        Some(self.send(EventType::RPCCallStart, data.source.span, eb))
     }
 
     #[inline]
-    pub fn rpc_call_end(
-        &self,
-        call: &model::APICall,
-        start_event_id: TraceEventId,
-        err: Option<&api::Error>,
-    ) {
-        let Some(source) = &call.source else {
+    pub fn rpc_call_end(&self, data: RPCCallEndData) {
+        let Some(start_id) = data.start_id else {
             return;
         };
-
-        let (service, endpoint) = (call.target.service(), call.target.endpoint());
+        let (service, endpoint) = (data.target.service(), data.target.endpoint());
         let mut eb = BasicEventData {
-            correlation_event_id: Some(start_event_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + service.len() + endpoint.len(),
         }
         .into_eb();
 
-        eb.api_err_with_legacy_stack(err);
+        eb.api_err_with_legacy_stack(data.err);
 
-        _ = self.send(EventType::RPCCallEnd, source.span, eb);
+        _ = self.send(EventType::RPCCallEnd, data.source.span, eb);
     }
 }
 
@@ -425,14 +463,17 @@ pub struct PublishStartData<'a> {
 }
 
 pub struct PublishEndData<'a> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub result: &'a anyhow::Result<String>,
 }
 
 impl Tracer {
     #[inline]
-    pub fn pubsub_publish_start(&self, data: PublishStartData) -> TraceEventId {
+    pub fn pubsub_publish_start(&self, data: PublishStartData) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + 8 + data.topic.len() + data.payload.len(),
@@ -443,13 +484,16 @@ impl Tracer {
         eb.byte_string(data.payload);
         eb.nyi_stack_pcs();
 
-        self.send(EventType::PubsubPublishStart, data.source.span, eb)
+        Some(self.send(EventType::PubsubPublishStart, data.source.span, eb))
     }
 
     #[inline]
     pub fn pubsub_publish_end(&self, data: PublishEndData) {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();
@@ -467,14 +511,17 @@ pub struct DBQueryStartData<'a> {
 }
 
 pub struct DBQueryEndData<'a, E> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub error: Option<&'a E>,
 }
 
 impl Tracer {
     #[inline]
-    pub fn db_query_start(&self, data: DBQueryStartData) -> TraceEventId {
+    pub fn db_query_start(&self, data: DBQueryStartData) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + data.query.len() + 32,
@@ -484,7 +531,7 @@ impl Tracer {
         eb.str(data.query);
         eb.nyi_stack_pcs();
 
-        self.send(EventType::DBQueryStart, data.source.span, eb)
+        Some(self.send(EventType::DBQueryStart, data.source.span, eb))
     }
 
     #[inline]
@@ -492,8 +539,11 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();
@@ -512,7 +562,7 @@ pub struct BucketObjectUploadStart<'a> {
 }
 
 pub struct BucketObjectUploadEnd<'a, E> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub result: BucketObjectUploadEndResult<'a, E>,
 }
@@ -552,7 +602,13 @@ impl EventBuffer {
 
 impl Tracer {
     #[inline]
-    pub fn bucket_object_upload_start(&self, data: BucketObjectUploadStart) -> TraceEventId {
+    pub fn bucket_object_upload_start(
+        &self,
+        data: BucketObjectUploadStart,
+    ) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + 8 + data.bucket.len() + data.object.len(),
@@ -564,7 +620,7 @@ impl Tracer {
         eb.bucket_object_attrs(&data.attrs);
         eb.nyi_stack_pcs();
 
-        self.send(EventType::BucketObjectUploadStart, data.source.span, eb)
+        Some(self.send(EventType::BucketObjectUploadStart, data.source.span, eb))
     }
 
     #[inline]
@@ -572,8 +628,11 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();
@@ -602,7 +661,7 @@ pub struct BucketObjectDownloadStart<'a> {
 }
 
 pub struct BucketObjectDownloadEnd<'a, E> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub result: BucketObjectDownloadEndResult<'a, E>,
 }
@@ -614,7 +673,13 @@ pub enum BucketObjectDownloadEndResult<'a, E> {
 
 impl Tracer {
     #[inline]
-    pub fn bucket_object_download_start(&self, data: BucketObjectDownloadStart) -> TraceEventId {
+    pub fn bucket_object_download_start(
+        &self,
+        data: BucketObjectDownloadStart,
+    ) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + 8 + data.bucket.len() + data.object.len(),
@@ -626,7 +691,7 @@ impl Tracer {
         eb.opt_str(data.version);
         eb.nyi_stack_pcs();
 
-        self.send(EventType::BucketObjectDownloadStart, data.source.span, eb)
+        Some(self.send(EventType::BucketObjectDownloadStart, data.source.span, eb))
     }
 
     #[inline]
@@ -634,8 +699,11 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();
@@ -667,7 +735,7 @@ pub struct BucketDeleteObjectEntry<'a> {
 }
 
 pub struct BucketDeleteObjectsEnd<'a, E> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub result: BucketDeleteObjectsEndResult<'a, E>,
 }
@@ -682,10 +750,13 @@ impl Tracer {
     pub fn bucket_delete_objects_start<'a, O>(
         &self,
         data: BucketDeleteObjectsStart<'a, O>,
-    ) -> TraceEventId
+    ) -> Option<TraceEventId>
     where
         O: ExactSizeIterator<Item = BucketDeleteObjectEntry<'a>>,
     {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + 8 + data.bucket.len() + data.objects.len() * 8,
@@ -700,7 +771,7 @@ impl Tracer {
             eb.opt_str(obj.version);
         }
 
-        self.send(EventType::BucketDeleteObjectsStart, data.source.span, eb)
+        Some(self.send(EventType::BucketDeleteObjectsStart, data.source.span, eb))
     }
 
     #[inline]
@@ -708,8 +779,11 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();
@@ -734,7 +808,7 @@ pub struct BucketListObjectsStart<'a> {
 }
 
 pub struct BucketListObjectsEnd<'a, E> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub result: BucketListObjectsEndResult<'a, E>,
 }
@@ -746,7 +820,10 @@ pub enum BucketListObjectsEndResult<'a, E> {
 
 impl Tracer {
     #[inline]
-    pub fn bucket_list_objects_start(&self, data: BucketListObjectsStart) -> TraceEventId {
+    pub fn bucket_list_objects_start(&self, data: BucketListObjectsStart) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4
@@ -761,7 +838,7 @@ impl Tracer {
         eb.opt_str(data.prefix);
         eb.nyi_stack_pcs();
 
-        self.send(EventType::BucketListObjectsStart, data.source.span, eb)
+        Some(self.send(EventType::BucketListObjectsStart, data.source.span, eb))
     }
 
     #[inline]
@@ -769,8 +846,11 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();
@@ -800,7 +880,7 @@ pub struct BucketObjectGetAttrsStart<'a> {
 }
 
 pub struct BucketObjectGetAttrsEnd<'a, E> {
-    pub start_id: TraceEventId,
+    pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
     pub result: BucketObjectGetAttrsEndResult<'a, E>,
 }
@@ -812,7 +892,13 @@ pub enum BucketObjectGetAttrsEndResult<'a, E> {
 
 impl Tracer {
     #[inline]
-    pub fn bucket_object_get_attrs_start(&self, data: BucketObjectGetAttrsStart) -> TraceEventId {
+    pub fn bucket_object_get_attrs_start(
+        &self,
+        data: BucketObjectGetAttrsStart,
+    ) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + 8 + data.bucket.len() + data.object.len(),
@@ -824,7 +910,7 @@ impl Tracer {
         eb.opt_str(data.version);
         eb.nyi_stack_pcs();
 
-        self.send(EventType::BucketObjectGetAttrsStart, data.source.span, eb)
+        Some(self.send(EventType::BucketObjectGetAttrsStart, data.source.span, eb))
     }
 
     #[inline]
@@ -832,8 +918,11 @@ impl Tracer {
     where
         E: std::fmt::Display,
     {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
         let mut eb = BasicEventData {
-            correlation_event_id: Some(data.start_id),
+            correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + 8,
         }
         .into_eb();

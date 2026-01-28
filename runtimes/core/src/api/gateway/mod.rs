@@ -27,7 +27,7 @@ use crate::api::call::{CallDesc, ServiceRegistry};
 use crate::api::paths::PathSet;
 use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::{svcauth, CallMeta};
-use crate::{api, model, EncoreName};
+use crate::{api, model, trace, EncoreName};
 
 use super::cors::cors_headers_config::CorsHeadersConfig;
 use super::encore_routes::healthz;
@@ -86,10 +86,12 @@ impl Gateway {
         healthz: healthz::Handler,
         own_api_address: Option<SocketAddr>,
         proxied_push_subs: HashMap<String, EncoreName>,
+        tracer: trace::Tracer,
     ) -> anyhow::Result<Self> {
         let shared = Arc::new(SharedGatewayData {
             name,
             auth: auth_handler,
+            tracer,
         });
 
         let mut router = router::Router::new();
@@ -390,6 +392,9 @@ impl ProxyHttp for Gateway {
                     .ext_correlation_id
                     .as_ref()
                     .map(|s| Cow::Borrowed(s.as_str())),
+                traced: call_meta
+                    .trace_sampled
+                    .unwrap_or_else(|| self.inner.shared.tracer.should_sample()),
                 auth_user_id: None,
                 auth_data: None,
                 svc_auth_method: svc_auth_method.as_ref(),
@@ -527,4 +532,5 @@ impl crate::api::auth::InboundRequest for RequestHeader {
 struct SharedGatewayData {
     name: EncoreName,
     auth: Option<auth::Authenticator>,
+    tracer: trace::Tracer,
 }

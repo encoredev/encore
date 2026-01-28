@@ -67,6 +67,10 @@ impl AuthHandler for LocalAuthHandler {
             let span = model::SpanKey(meta.trace_id, span_id);
             let parent_span = meta.parent_span_id.map(|sp| meta.trace_id.with_span(sp));
 
+            let traced = meta
+                .trace_sampled
+                .unwrap_or_else(|| self.tracer.should_sample());
+
             let req = Arc::new(model::Request {
                 span,
                 parent_trace: None,
@@ -85,6 +89,7 @@ impl AuthHandler for LocalAuthHandler {
                         cookie,
                     },
                 }),
+                traced,
             });
 
             let logger = crate::log::root();
@@ -155,7 +160,6 @@ impl AuthHandler for LocalAuthHandler {
                             user_id: auth_uid.clone(),
                         })),
                     };
-
                     self.tracer.request_span_end(&model_resp, false);
                     self.requests_total.with([("code", "ok")]).increment();
                     Ok(AuthResponse::Authenticated {

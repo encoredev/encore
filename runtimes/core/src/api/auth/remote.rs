@@ -6,7 +6,7 @@ use crate::api::reqauth::caller::Caller;
 use crate::api::reqauth::meta::{MetaKey, MetaMap};
 use crate::api::reqauth::svcauth;
 use crate::api::{APIResult, PValues};
-use crate::{api, EndpointName};
+use crate::{api, trace, EndpointName};
 use anyhow::Context;
 use std::borrow::Cow;
 use std::future::Future;
@@ -19,6 +19,7 @@ pub struct RemoteAuthHandler {
     auth_handler_url: reqwest::Url,
     http_client: reqwest::Client,
     auth_data_schema: JSONSchema,
+    tracer: trace::Tracer,
 }
 
 impl RemoteAuthHandler {
@@ -27,6 +28,7 @@ impl RemoteAuthHandler {
         reg: &ServiceRegistry,
         http_client: reqwest::Client,
         auth_data_schema: JSONSchema,
+        tracer: trace::Tracer,
     ) -> anyhow::Result<Self> {
         let svc_auth_method = reg
             .service_auth_method(name.service())
@@ -52,6 +54,7 @@ impl RemoteAuthHandler {
             auth_handler_url,
             http_client,
             auth_data_schema,
+            tracer,
         })
     }
 
@@ -87,6 +90,9 @@ impl RemoteAuthHandler {
                 .ext_correlation_id
                 .as_ref()
                 .map(|s| Cow::Borrowed(s.as_str())),
+            traced: meta
+                .trace_sampled
+                .unwrap_or_else(|| self.tracer.should_sample()),
             auth_user_id: None,
             auth_data: None,
             svc_auth_method: self.svc_auth_method.as_ref(),

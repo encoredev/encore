@@ -127,20 +127,29 @@ impl ServiceRegistry {
         opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let tracer = self.tracer.clone();
-        let call = model::APICall { source, target };
-        let start_event_id = tracer.rpc_call_start(&call);
+        let start_event_id = source.as_deref().and_then(|source| {
+            tracer.rpc_call_start(crate::trace::protocol::RPCCallStartData {
+                source,
+                target: &target,
+            })
+        });
 
         let fut = self.do_api_call(
-            &call.target,
+            &target,
             data,
-            call.source.as_deref(),
+            source.as_deref(),
             start_event_id,
             opts.as_ref(),
         );
         async move {
             let result = fut.await;
-            if let Some(start_event_id) = start_event_id {
-                tracer.rpc_call_end(&call, start_event_id, result.as_ref().err());
+            if let Some(source) = source.as_deref() {
+                tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
+                    start_id: start_event_id,
+                    source,
+                    target: &target,
+                    err: result.as_ref().err(),
+                });
             }
             result
         }
@@ -154,21 +163,30 @@ impl ServiceRegistry {
         opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         let tracer = self.tracer.clone();
-        let call = model::APICall { source, target };
-        let start_event_id = tracer.rpc_call_start(&call);
+        let start_event_id = source.as_deref().and_then(|source| {
+            tracer.rpc_call_start(crate::trace::protocol::RPCCallStartData {
+                source,
+                target: &target,
+            })
+        });
 
         let fut = self.do_connect_stream(
-            &call.target,
+            &target,
             data,
-            call.source.as_deref(),
+            source.as_deref(),
             start_event_id,
             opts.as_ref(),
         );
 
         async move {
             let result = fut.await;
-            if let Some(start_event_id) = start_event_id {
-                tracer.rpc_call_end(&call, start_event_id, result.as_ref().err());
+            if let Some(source) = source.as_deref() {
+                tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
+                    start_id: start_event_id,
+                    source,
+                    target: &target,
+                    err: result.as_ref().err(),
+                });
             }
             result
         }
@@ -482,6 +500,7 @@ impl ServiceRegistry {
                     .as_ref()
                     .map(|id| Cow::Borrowed(id.as_str()))
             }),
+            traced: source.map(|r| r.traced).unwrap_or(false),
             auth_user_id,
             auth_data,
         };
@@ -498,6 +517,9 @@ pub struct CallDesc<'a, AuthData> {
     pub parent_span: Option<SpanKey>,
     pub parent_event_id: Option<TraceEventId>,
     pub ext_correlation_id: Option<Cow<'a, str>>,
+
+    /// Whether the source request is being traced.
+    pub traced: bool,
 
     pub auth_user_id: Option<Cow<'a, str>>,
     pub auth_data: Option<AuthData>,
@@ -516,9 +538,10 @@ where
             headers.set(
                 MetaKey::TraceParent,
                 format!(
-                    "00-{}-{}-01",
+                    "00-{}-{}-{}",
                     span.0.serialize_std(),
                     span.1.serialize_std(),
+                    if self.traced { "01" } else { "00" },
                 ),
             )?;
 
