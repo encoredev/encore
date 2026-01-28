@@ -23,6 +23,11 @@ func convertFilePathToURLScheme(editorName EditorName, fullPath string, startLin
 			fullPath = fmt.Sprintf("%s:%d", fullPath, startLine)
 		}
 		return toURLScheme("vscode", "file", fullPath, "", "", 0, 0), true
+	case Cursor:
+		if startLine > 0 {
+			fullPath = fmt.Sprintf("%s:%d", fullPath, startLine)
+		}
+		return toURLScheme("cursor", "file", fullPath, "", "", 0, 0), true
 	case JetbrainsGoLand:
 		return toJetBrainsScheme("goland", fullPath, startLine, startCol), true
 	case JetbrainsPhpStorm:
