@@ -482,6 +482,7 @@ impl ServiceRegistry {
                     .as_ref()
                     .map(|id| Cow::Borrowed(id.as_str()))
             }),
+            traced: source.map(|r| r.traced).unwrap_or(false),
             auth_user_id,
             auth_data,
         };
@@ -499,6 +500,9 @@ pub struct CallDesc<'a, AuthData> {
     pub parent_event_id: Option<TraceEventId>,
     pub ext_correlation_id: Option<Cow<'a, str>>,
 
+    /// Whether the source request is being traced.
+    pub traced: bool,
+
     pub auth_user_id: Option<Cow<'a, str>>,
     pub auth_data: Option<AuthData>,
 
@@ -513,12 +517,15 @@ where
         headers.set(MetaKey::Version, "1".to_string())?;
 
         if let Some(span) = self.parent_span {
+            // Set the sampled flag based on whether the source is being traced
+            let sampled = if self.traced { "01" } else { "00" };
             headers.set(
                 MetaKey::TraceParent,
                 format!(
-                    "00-{}-{}-01",
+                    "00-{}-{}-{}",
                     span.0.serialize_std(),
                     span.1.serialize_std(),
+                    sampled,
                 ),
             )?;
 

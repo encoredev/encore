@@ -149,6 +149,10 @@ pub struct Request {
 
     /// Type-specific data.
     pub data: RequestData,
+
+    /// Whether this request should be traced.
+    /// Determined by sampling rate or inherited from parent.
+    pub traced: bool,
 }
 
 impl Request {

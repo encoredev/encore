@@ -72,6 +72,10 @@ pub struct CallMeta {
     /// Correlation id to use.
     pub ext_correlation_id: Option<String>,
 
+    /// Whether the parent span was sampled (from traceparent flags).
+    /// None if there's no parent span or if the sampled flag couldn't be parsed.
+    pub parent_sampled: Option<bool>,
+
     /// Information about an internal call, if any.
     /// If set it can be trusted as it has been authenticated.
     pub internal: Option<InternalCallMeta>,
@@ -124,6 +128,7 @@ impl CallMeta {
                 this_span_id: None,
                 parent_event_id: None,
                 ext_correlation_id: None,
+                parent_sampled: None,
                 internal: None,
             };
 
@@ -193,10 +198,11 @@ impl CallMeta {
             // to interopt with other tracing systems.
             if let Some(traceparent) = headers.get_meta(MetaKey::TraceParent) {
                 // Parse the traceparent.
-                if let Ok((trace_id, parent_span_id)) = parse_traceparent(traceparent) {
+                if let Ok((trace_id, parent_span_id, sampled)) = parse_traceparent(traceparent) {
                     meta.trace_id = trace_id;
                     meta.caller_trace_id = Some(trace_id);
                     meta.parent_span_id = Some(parent_span_id);
+                    meta.parent_sampled = Some(sampled);
                 };
 
                 // If the caller is a gateway, ignore the parent span id as gateways don't currently record a span.
@@ -233,7 +239,7 @@ impl CallMeta {
     }
 }
 
-fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, model::SpanId)> {
+fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, model::SpanId, bool)> {
     let version = "00";
     let trace_id_len = 32;
     let span_id_len = 16;
@@ -273,7 +279,12 @@ fn parse_traceparent(s: &str) -> anyhow::Result<(model::TraceId, model::SpanId)>
     let span_id = &s[span_id_start..span_id_end];
     let span_id = model::SpanId::parse_std(span_id).context("invalid span id")?;
 
-    Ok((trace_id, span_id))
+    // Parse trace flags - bit 0 (0x01) indicates "sampled"
+    let trace_flags = &s[trace_flags_start..trace_flags_end];
+    let trace_flags = u8::from_str_radix(trace_flags, 16).context("invalid trace flags")?;
+    let sampled = trace_flags & 0x01 != 0;
+
+    Ok((trace_id, span_id, sampled))
 }
 
 fn parse_tracestate<'a>(

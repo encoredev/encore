@@ -111,7 +111,7 @@ impl Bucket {
             let res = self.imp.clone().list(options).await;
 
             match res {
-                Ok(stream) => (stream, Some(start_id)),
+                Ok(stream) => (stream, start_id),
                 Err(err) => {
                     self.tracer
                         .bucket_list_objects_end(protocol::BucketListObjectsEnd {
@@ -516,7 +516,7 @@ impl Drop for ListIterator {
         if let (Some(start_id), Some(source)) = (self.start_id, self.source.as_deref()) {
             self.tracer
                 .bucket_list_objects_end(protocol::BucketListObjectsEnd {
-                    start_id,
+                    start_id: Some(start_id),
                     source,
                     result: match self.err {
                         Some(ref err) => protocol::BucketListObjectsEndResult::Err(err),

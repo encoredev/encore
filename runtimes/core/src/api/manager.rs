@@ -190,6 +190,7 @@ impl ManagerConfig<'_> {
                     healthz_handler.clone(),
                     own_api_address,
                     self.proxied_push_subs.clone(),
+                    self.tracer.clone(),
                 )
                 .context("couldn't create gateway")?,
             );
@@ -309,7 +310,7 @@ fn build_auth_handler(
         auth::Authenticator::remote(
             schema,
             auth_data.clone(),
-            RemoteAuthHandler::new(name, service_registry, http_client, auth_data)?,
+            RemoteAuthHandler::new(name, service_registry, http_client, auth_data, tracer)?,
         )?
     };
 
