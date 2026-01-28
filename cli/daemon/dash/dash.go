@@ -267,6 +267,38 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 		}
 		return reply(ctx, events, err)
 
+	case "traces/spans/summaries/list":
+		telemetry.Send("traces.spans.summaries.list")
+		var params struct {
+			AppID   string `json:"app_id"`
+			TraceID string `json:"trace_id"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		spans, err := h.tr.GetSpanSummaries(ctx, params.AppID, params.TraceID)
+		if err != nil {
+			log.Error().Err(err).Msg("dash: could not list trace spans")
+			return reply(ctx, nil, err)
+		}
+		return reply(ctx, spans, err)
+	case "traces/spans/events/list":
+		telemetry.Send("traces.spans.events.list")
+		var params struct {
+			AppID   string `json:"app_id"`
+			TraceID string `json:"trace_id"`
+			SpanID  string `json:"span_id"`
+		}
+		if err := unmarshal(&params); err != nil {
+			return reply(ctx, nil, err)
+		}
+
+		events, err := h.tr.GetEvents(ctx, params.AppID, params.TraceID, params.SpanID)
+		if err != nil {
+			log.Error().Err(err).Msg("dash: could not get span events")
+		}
+		return reply(ctx, events, err)
 	case "status":
 		var params struct {
 			AppID string

@@ -72,6 +72,11 @@ type Store interface {
 	// If the trace is not found it reports an error matching ErrNotFound.
 	Get(ctx context.Context, appID, traceID string, iter EventIterator) error
 
+	// GetSpanSummaries returns all span summaries for a trace.
+	GetSpanSummaries(ctx context.Context, appID, traceID string) ([]*tracepb2.SpanSummary, error)
+	// GetEvents returns events for a specific span.
+	GetEvents(ctx context.Context, appID, traceID, spanID string) ([]*tracepb2.TraceEvent, error)
+
 	// Listen listens for new spans.
 	Listen(ch chan<- NewSpanEvent)
 

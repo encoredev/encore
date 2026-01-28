@@ -46,7 +46,7 @@ func (s *Store) List(ctx context.Context, q *trace2.Query, iter trace2.ListEntry
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
 		    trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
-		    topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, 
+		    topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos,
 			src_file, src_line, parent_span_id, caller_event_id
 		FROM trace_span_index
 		WHERE app_id = $1 AND has_response AND is_root AND span_type != $2 `+extraWhereClause+`
@@ -93,7 +93,7 @@ func (s *Store) emitCompleteSpanToListeners(ctx context.Context, appID, traceID,
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
 			trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
-			topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos, 
+			topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos,
 			src_file, src_line, parent_span_id, caller_event_id
 		FROM trace_span_index
 		WHERE app_id = ? AND trace_id = ? AND span_id = ? AND has_response AND is_root AND span_type != ?
@@ -155,4 +155,70 @@ func (s *Store) Get(ctx context.Context, appID, traceID string, iter trace2.Even
 		return trace2.ErrNotFound
 	}
 	return nil
+}
+
+func (s *Store) GetSpanSummaries(ctx context.Context, appID, traceID string) ([]*tracepb2.SpanSummary, error) {
+	rows, err := s.db.QueryContext(ctx, `
+        SELECT
+            trace_id, span_id, started_at, span_type, is_root, service_name, endpoint_name,
+            topic_name, subscription_name, message_id, is_error, test_skipped, duration_nanos,
+            src_file, src_line, parent_span_id, caller_event_id
+        FROM trace_span_index
+        WHERE app_id = ? AND trace_id = ?
+        ORDER BY started_at ASC
+    `, appID, traceID)
+	if err != nil {
+		return nil, errors.Wrap(err, "query span summaries")
+	}
+	defer fns.CloseIgnore(rows)
+
+	var summaries []*tracepb2.SpanSummary
+	for rows.Next() {
+		var t tracepb2.SpanSummary
+		var startedAt int64
+		err := rows.Scan(
+			&t.TraceId, &t.SpanId, &startedAt, &t.Type, &t.IsRoot, &t.ServiceName, &t.EndpointName,
+			&t.TopicName, &t.SubscriptionName, &t.MessageId, &t.IsError, &t.TestSkipped,
+			&t.DurationNanos, &t.SrcFile, &t.SrcLine, &t.ParentSpanId, &t.CallerEventId)
+		if err != nil {
+			return nil, errors.Wrap(err, "scan span summary")
+		}
+		ts := time.Unix(0, startedAt)
+		t.StartedAt = timestamppb.New(ts)
+		summaries = append(summaries, &t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "iterate span summaries")
+	}
+	return summaries, nil
+}
+
+func (s *Store) GetEvents(ctx context.Context, appID, traceID, spanID string) ([]*tracepb2.TraceEvent, error) {
+	rows, err := s.db.QueryContext(ctx, `
+        SELECT event_data
+        FROM trace_event
+        WHERE app_id = ? AND trace_id = ? AND span_id = ?
+    `, appID, traceID, spanID)
+	if err != nil {
+		return nil, errors.Wrap(err, "get span events")
+	}
+	defer fns.CloseIgnore(rows)
+
+	var events []*tracepb2.TraceEvent
+	for rows.Next() {
+		var data []byte
+		if err := rows.Scan(&data); err != nil {
+			return nil, errors.Wrap(err, "scan event data")
+		}
+		var ev tracepb2.TraceEvent
+		if err := protojson.Unmarshal(data, &ev); err != nil {
+			return nil, errors.Wrap(err, "unmarshal trace event")
+		}
+		events = append(events, &ev)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "iterate events")
+	}
+	return events, nil
 }
