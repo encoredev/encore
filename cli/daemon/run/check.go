@@ -64,12 +64,21 @@ func (mgr *Manager) Check(ctx context.Context, p CheckParams) (buildDir string, 
 
 	bld := builderimpl.Resolve(p.App.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        p.App,
+		WorkingDir: p.WorkingDir,
+	})
+	if err != nil {
+		return "", err
+	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         p.App,
 		Experiments: expSet,
 		WorkingDir:  p.WorkingDir,
 		ParseTests:  p.Tests,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return "", err

@@ -54,12 +54,21 @@ func (s *Server) genUserFacing(ctx context.Context, app *apps.Instance) error {
 	bld := builderimpl.Resolve(app.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
 
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        app,
+		WorkingDir: ".",
+	})
+	if err != nil {
+		return errors.Wrap(err, "prepare app")
+	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,
 		Experiments: expSet,
 		WorkingDir:  ".",
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return errors.Wrap(err, "parse app")

@@ -51,6 +51,10 @@ func (i *BuilderImpl) Close() error {
 	return nil
 }
 
+func (*BuilderImpl) Prepare(ctx context.Context, p builder.PrepareParams) (*builder.PrepareResult, error) {
+	return &builder.PrepareResult{}, nil
+}
+
 func (*BuilderImpl) Parse(ctx context.Context, p builder.ParseParams) (*builder.ParseResult, error) {
 	return etrace.Sync2(ctx, "", "v2builder.Parse", func(ctx context.Context) (res *builder.ParseResult, err error) {
 		defer func() {

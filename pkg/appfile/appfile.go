@@ -2,14 +2,20 @@
 package appfile
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/tailscale/hujson"
+	"mvdan.cc/sh/v3/expand"
+	"mvdan.cc/sh/v3/interp"
+	"mvdan.cc/sh/v3/syntax"
 
 	"encore.dev/appruntime/exported/experiments"
 )
@@ -76,6 +82,86 @@ type Build struct {
 
 	// WorkerPooling enables worker pooling for Encore.ts.
 	WorkerPooling bool `json:"worker_pooling,omitempty"`
+
+	// Hooks configures hooks for the build process.
+	Hooks Hooks `json:"hooks,omitempty"`
+}
+
+type Hooks struct {
+	PreBuild  Hook `json:"prebuild,omitempty"`
+	PostBuild Hook `json:"postbuild,omitempty"`
+}
+
+// Hook represents a build hook command.
+// Can be specified as a string or as an object with command and env.
+type Hook struct {
+	Command string            // The command to execute
+	Env     map[string]string // Optional environment variables
+}
+
+// IsSet returns true if the hook is configured.
+func (h Hook) IsSet() bool {
+	return h.Command != ""
+}
+
+// UnmarshalJSON handles both string and object formats.
+func (h *Hook) UnmarshalJSON(data []byte) error {
+	// Try string format first
+	var cmd string
+	if err := json.Unmarshal(data, &cmd); err == nil {
+		h.Command = cmd
+		return nil
+	}
+
+	// Try structured format
+	type hookData struct {
+		Command string            `json:"command"`
+		Env     map[string]string `json:"env"`
+	}
+	var hd hookData
+	if err := json.Unmarshal(data, &hd); err != nil {
+		return err
+	}
+	h.Command = hd.Command
+	h.Env = hd.Env
+	return nil
+}
+
+// Run executes the hook command with shell-style parsing and variable expansion.
+// Supports shell operators like &&, ||, and pipes.
+func (h Hook) Run(ctx context.Context, dir string, stdout, stderr io.Writer) error {
+	if h.Command == "" {
+		return nil
+	}
+
+	// Parse the command as a shell script
+	file, err := syntax.NewParser().Parse(strings.NewReader(h.Command), "")
+	if err != nil {
+		return fmt.Errorf("parse command: %w", err)
+	}
+
+	// Build environment: system env + custom env vars
+	env := os.Environ()
+	for k, v := range h.Env {
+		env = append(env, k+"="+v)
+	}
+
+	// Create interpreter with environment and I/O
+	runner, err := interp.New(
+		interp.Env(expand.ListEnviron(env...)),
+		interp.Dir(dir),
+		interp.StdIO(nil, stdout, stderr),
+	)
+	if err != nil {
+		return fmt.Errorf("create interpreter: %w", err)
+	}
+
+	return runner.Run(ctx, file)
+}
+
+// String returns the command string.
+func (h Hook) String() string {
+	return h.Command
 }
 
 type Docker struct {

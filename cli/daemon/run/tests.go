@@ -149,12 +149,21 @@ func (mgr *Manager) testSpec(ctx context.Context, bld builder.Impl, expSet *expe
 		UseLocalJSRuntime: version.Channel == version.DevBuild,
 	}
 
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        params.App,
+		WorkingDir: params.WorkingDir,
+	})
+	if err != nil {
+		return nil, err
+	}
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         params.App,
 		Experiments: expSet,
 		WorkingDir:  params.WorkingDir,
 		ParseTests:  true,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return nil, err

@@ -88,12 +88,27 @@ func DefaultBuildInfo() BuildInfo {
 	}
 }
 
+type PrepareParams struct {
+	Build      BuildInfo
+	App        *apps.Instance
+	WorkingDir string
+	Stderr     option.Option[io.Writer]
+}
+
+type PrepareResult struct {
+	Data any
+}
+
 type ParseParams struct {
 	Build       BuildInfo
 	App         *apps.Instance
 	Experiments *experiments.Set
 	WorkingDir  string
 	ParseTests  bool
+
+	// Prepare is the result from calling Prepare().
+	// Required for TypeScript apps, ignored for Go apps.
+	Prepare *PrepareResult
 
 	// Optional writer to redirect stderr to.
 	Stderr option.Option[io.Writer]
@@ -275,6 +290,7 @@ type ServiceConfigsResult struct {
 }
 
 type Impl interface {
+	Prepare(context.Context, PrepareParams) (*PrepareResult, error)
 	Parse(context.Context, ParseParams) (*ParseResult, error)
 	Compile(context.Context, CompileParams) (*CompileResult, error)
 	TestSpec(context.Context, TestSpecParams) (*TestSpecResult, error)

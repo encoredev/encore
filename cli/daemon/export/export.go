@@ -19,6 +19,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"encr.dev/cli/daemon/apps"
+	"encr.dev/cli/daemon/internal/runlog"
 	"encr.dev/internal/env"
 	"encr.dev/internal/version"
 	"encr.dev/pkg/appfile"
@@ -33,7 +34,7 @@ import (
 )
 
 // Docker exports the app as a docker image.
-func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest, log zerolog.Logger) (success bool, err error) {
+func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest, log zerolog.Logger, streamLog runlog.Log) (success bool, err error) {
 	params := req.GetDocker()
 	if params == nil {
 		return false, errors.Newf("unsupported format: %T", req.Format)
@@ -63,12 +64,33 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	appLang := app.Lang()
 	bld := builderimpl.Resolve(appLang, expSet)
 	defer fns.CloseIgnore(bld)
+	prepareResult, err := bld.Prepare(ctx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        app,
+		WorkingDir: ".",
+	})
+	if err != nil {
+		return false, err
+	}
+
+	hooks, err := app.Hooks()
+	if err != nil {
+		return false, err
+	}
+
+	if hooks.PreBuild.IsSet() {
+		if err := executeHook(ctx, hooks.PreBuild, app.Root(), streamLog); err != nil {
+			return false, err
+		}
+	}
+
 	parse, err := bld.Parse(ctx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         app,
 		Experiments: expSet,
 		WorkingDir:  ".",
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		return false, err
@@ -91,6 +113,12 @@ func Docker(ctx context.Context, app *apps.Instance, req *daemonpb.ExportRequest
 	if err != nil {
 		log.Info().Err(err).Msg("compilation failed")
 		return false, errors.Wrap(err, "compilation failed")
+	}
+
+	if hooks.PostBuild.IsSet() {
+		if err := executeHook(ctx, hooks.PostBuild, app.Root(), streamLog); err != nil {
+			return false, err
+		}
 	}
 
 	var crossNodeRuntime option.Option[dockerbuild.HostPath]
@@ -324,5 +352,12 @@ func pushDockerImage(ctx context.Context, log zerolog.Logger, img v1.Image, dest
 		return errors.WithStack(err)
 	}
 	log.Info().Msg("successfully pushed docker image")
+	return nil
+}
+
+func executeHook(ctx context.Context, hook appfile.Hook, workingDir string, streamLog runlog.Log) error {
+	if err := hook.Run(ctx, workingDir, streamLog.Stdout(false), streamLog.Stderr(false)); err != nil {
+		return errors.Wrap(err, "execute hook")
+	}
 	return nil
 }
