@@ -134,8 +134,9 @@ with their default values:
 
         // Docker-related configuration
         "docker": {
-        	// The Docker base image to use when deploying the application.
-        	// It must be a publicly accessible image, and defaults to "scratch".
+            // The Docker base image to use when deploying the application.
+            // It must be a publicly accessible image. It defaults to "scratch" for go apps
+            // and "node:24-trixie" for typescript apps.
             "base_image": "scratch",
 
             // Whether to bundle the source code in the docker image.
@@ -147,6 +148,21 @@ with their default values:
             // The working directory to start the docker image in.
             // If empty it defaults to "/workspace" if the source code is bundled, and to "/" otherwise.
             "working_dir": ""
+        }
+
+        // Build hooks allow you to run custom commands during the build process.
+        // They can be specified as a string (e.g. "cmd1 && cmd2") or as an object
+        // with a command and optional environment variables.
+        "hooks": {
+            // Runs before the Encore build, but after dependencies are fetched (e.g. npm install).
+            "prebuild": "my-command",
+            // Or as an object:
+            // "prebuild": {"command": "my-command", "env": {"MY_VAR": "value"}},
+
+            // Runs after the Encore build has finished.
+            "postbuild": "my-command"
+            // Or as an object:
+            // "postbuild": {"command": "my-command", "env": {"MY_VAR": "value"}}
         }
     }
 }
