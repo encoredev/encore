@@ -288,14 +288,14 @@ impl Runtime {
                 });
 
             match trace_cfg {
-                Some(cfg) => {
+                Some((trace_sampling_rate, trace_endpoint)) => {
                     let config = trace::ReporterConfig {
                         app_id: environment.app_id.clone(),
                         env_id: environment.env_id.clone(),
                         deploy_id: deployment.deploy_id.clone(),
                         app_commit: md.app_revision.clone(),
-                        trace_endpoint: cfg.1,
-                        trace_sampling_rate: cfg.0,
+                        trace_endpoint,
+                        trace_sampling_rate,
                         platform_validator: platform_validator.clone(),
                     };
 

@@ -504,7 +504,6 @@ impl EndpointHandler {
         let span = trace_id.with_span(span_id);
         let parent_span = meta.parent_span_id.map(|sp| trace_id.with_span(sp));
 
-        // Determine traced status: inherit from parent or sample
         let traced = meta
             .parent_sampled
             .unwrap_or_else(|| self.shared.tracer.should_sample());

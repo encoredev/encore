@@ -517,15 +517,13 @@ where
         headers.set(MetaKey::Version, "1".to_string())?;
 
         if let Some(span) = self.parent_span {
-            // Set the sampled flag based on whether the source is being traced
-            let sampled = if self.traced { "01" } else { "00" };
             headers.set(
                 MetaKey::TraceParent,
                 format!(
                     "00-{}-{}-{}",
                     span.0.serialize_std(),
                     span.1.serialize_std(),
-                    sampled,
+                    if self.traced { "01" } else { "00" },
                 ),
             )?;
 

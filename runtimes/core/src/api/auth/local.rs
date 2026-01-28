@@ -67,7 +67,6 @@ impl AuthHandler for LocalAuthHandler {
             let span = model::SpanKey(meta.trace_id, span_id);
             let parent_span = meta.parent_span_id.map(|sp| meta.trace_id.with_span(sp));
 
-            // Determine traced status: inherit from parent or sample
             let traced = meta
                 .parent_sampled
                 .unwrap_or_else(|| self.tracer.should_sample());
