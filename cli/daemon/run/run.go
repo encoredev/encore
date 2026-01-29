@@ -393,12 +393,22 @@ func (r *Run) buildAndStart(ctx context.Context, tracker *optracker.OpTracker, i
 		}
 	}()
 
+	prepareResult, err := r.Builder.Prepare(procCtx, builder.PrepareParams{
+		Build:      buildInfo,
+		App:        r.App,
+		WorkingDir: r.Params.WorkingDir,
+	})
+	if err != nil {
+		return err
+	}
+
 	parse, err := r.Builder.Parse(procCtx, builder.ParseParams{
 		Build:       buildInfo,
 		App:         r.App,
 		Experiments: expSet,
 		WorkingDir:  r.Params.WorkingDir,
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		// Don't use the error itself in tracker.Fail, as it will lead to duplicate error output.

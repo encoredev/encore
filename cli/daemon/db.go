@@ -323,7 +323,7 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 	// Parse the app to figure out what infrastructure is needed.
 	bld := builderimpl.Resolve(app.Lang(), expSet)
 	defer fns.CloseIgnore(bld)
-	_, err = bld.Prepare(stream.Context(), builder.PrepareParams{
+	prepareResult, err := bld.Prepare(stream.Context(), builder.PrepareParams{
 		Build:      builder.DefaultBuildInfo(),
 		App:        app,
 		WorkingDir: ".",
@@ -338,6 +338,7 @@ func (s *Server) DBReset(req *daemonpb.DBResetRequest, stream daemonpb.Daemon_DB
 		Experiments: expSet,
 		WorkingDir:  ".",
 		ParseTests:  false,
+		Prepare:     prepareResult,
 	})
 	if err != nil {
 		sendErr(err)
