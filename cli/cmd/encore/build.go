@@ -53,6 +53,9 @@ func init() {
 				if !cmd.Flag("base").Changed && file.Lang == appfile.LangTS {
 					p.BaseImg = "node:slim"
 				}
+				else {
+					p.BaseImg = "scratch"
+				}
 				if !cmd.Flag("cgo").Changed {
 					p.CgoEnabled = file.Build.CgoEnabled
 				}
@@ -63,7 +66,7 @@ func init() {
 	}
 
 	dockerBuildCmd.Flags().BoolVarP(&p.Push, "push", "p", false, "push image to remote repository")
-	dockerBuildCmd.Flags().StringVar(&p.BaseImg, "base", "scratch", "base image to build from")
+	dockerBuildCmd.Flags().StringVar(&p.BaseImg, "base", "", "base image to build from (default for TS: \"node:slim\", for Go: \"scratch\")")
 	dockerBuildCmd.Flags().BoolVar(&p.CgoEnabled, "cgo", false, "enable cgo")
 	dockerBuildCmd.Flags().BoolVar(&p.SkipInfraConf, "skip-config", false, "do not read or generate a infra configuration file")
 	dockerBuildCmd.Flags().StringVar(&p.InfraConfPath, "config", "", "infra configuration file path")
