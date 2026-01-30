@@ -407,9 +407,8 @@ impl Tracer {
 }
 
 pub struct RPCCallEndData<'a> {
+    pub call: &'a APICall,
     pub start_id: Option<TraceEventId>,
-    pub source: &'a Request,
-    pub target: &'a crate::EndpointName,
     pub err: Option<&'a api::Error>,
 }
 
@@ -436,10 +435,13 @@ impl Tracer {
 
     #[inline]
     pub fn rpc_call_end(&self, data: RPCCallEndData) {
+        let Some(source) = data.call.source.as_ref() else {
+            return;
+        };
         let Some(start_id) = data.start_id else {
             return;
         };
-        let (service, endpoint) = (data.target.service(), data.target.endpoint());
+        let (service, endpoint) = (data.call.target.service(), data.call.target.endpoint());
         let mut eb = BasicEventData {
             correlation_event_id: Some(start_id),
             extra_space: 4 + 4 + service.len() + endpoint.len(),
@@ -448,7 +450,7 @@ impl Tracer {
 
         eb.api_err_with_legacy_stack(data.err);
 
-        _ = self.send(EventType::RPCCallEnd, data.source.span, eb);
+        _ = self.send(EventType::RPCCallEnd, source.span, eb);
     }
 }
 

@@ -139,14 +139,11 @@ impl ServiceRegistry {
         );
         async move {
             let result = fut.await;
-            if let Some(source) = call.source.as_deref() {
-                tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
-                    start_id: start_event_id,
-                    source,
-                    target: &call.target,
-                    err: result.as_ref().err(),
-                });
-            }
+            tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
+                start_id: start_event_id,
+                call: &call,
+                err: result.as_ref().err(),
+            });
             result
         }
     }
@@ -172,14 +169,11 @@ impl ServiceRegistry {
 
         async move {
             let result = fut.await;
-            if let Some(source) = call.source.as_deref() {
-                tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
-                    start_id: start_event_id,
-                    source,
-                    target: &call.target,
-                    err: result.as_ref().err(),
-                });
-            }
+            tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
+                call: &call,
+                start_id: start_event_id,
+                err: result.as_ref().err(),
+            });
             result
         }
     }
