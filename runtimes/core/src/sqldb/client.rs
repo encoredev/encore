@@ -221,21 +221,17 @@ impl QueryTracer {
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<tokio_postgres::RowStream, Error>>,
     {
-        let start_id = if let Some(source) = source {
-            let id = self
-                .0
-                .db_query_start(protocol::DBQueryStartData { source, query });
-            Some(id)
-        } else {
-            None
-        };
+        let start_id = source.and_then(|source| {
+            self.0
+                .db_query_start(protocol::DBQueryStartData { source, query })
+        });
 
         let result = exec().await;
 
-        if let Some(start_id) = start_id {
+        if let Some(source) = source {
             self.0.db_query_end(protocol::DBQueryEndData {
                 start_id,
-                source: source.unwrap(),
+                source,
                 error: result.as_ref().err(),
             });
         }
@@ -256,21 +252,17 @@ impl QueryTracer {
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<(), Error>>,
     {
-        let start_id = if let Some(source) = source {
-            let id = self
-                .0
-                .db_query_start(protocol::DBQueryStartData { source, query });
-            Some(id)
-        } else {
-            None
-        };
+        let start_id = source.and_then(|source| {
+            self.0
+                .db_query_start(protocol::DBQueryStartData { source, query })
+        });
 
         let result = exec().await;
 
-        if let Some(start_id) = start_id {
+        if let Some(source) = source {
             self.0.db_query_end(protocol::DBQueryEndData {
                 start_id,
-                source: source.unwrap(),
+                source,
                 error: result.as_ref().err(),
             });
         }

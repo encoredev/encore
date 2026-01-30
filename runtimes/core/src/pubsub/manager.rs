@@ -109,6 +109,9 @@ impl TopicInner {
                         ext_correlation_id.clone(),
                     );
                 }
+                // Propagate sampled flag to child requests
+                msg.attrs
+                    .insert(ATTR_PARENT_SAMPLED.to_string(), source.traced.to_string());
 
                 let start_id = tracer.pubsub_publish_start(protocol::PublishStartData {
                     source,
@@ -174,6 +177,7 @@ pub struct SubHandler {
 
 const ATTR_PARENT_TRACE_ID: &str = "encore_parent_trace_id";
 const ATTR_EXT_CORRELATION_ID: &str = "encore_ext_correlation_id";
+const ATTR_PARENT_SAMPLED: &str = "encore_parent_sampled";
 
 impl SubHandler {
     fn add_handler(&self, h: Arc<dyn SubscriptionHandler>) {
@@ -193,6 +197,14 @@ impl SubHandler {
                 .get(ATTR_PARENT_TRACE_ID)
                 .and_then(|s| TraceId::parse_encore(s).ok());
             let ext_correlation_id = msg.data.attrs.get(ATTR_EXT_CORRELATION_ID);
+
+            // Check parent sampled attribute first, fallback to sampling
+            let traced = msg
+                .data
+                .attrs
+                .get(ATTR_PARENT_SAMPLED)
+                .and_then(|s| s.parse::<bool>().ok())
+                .unwrap_or_else(|| self.obj.tracer.should_sample());
 
             let mut de = serde_json::Deserializer::from_slice(&msg.data.raw_body);
             let parsed_payload = self.obj.schema.deserialize(
@@ -235,6 +247,7 @@ impl SubHandler {
                     payload: msg.data.raw_body.clone(),
                     parsed_payload,
                 }),
+                traced,
             });
 
             let logger = crate::log::root();
@@ -259,7 +272,6 @@ impl SubHandler {
                 duration: tokio::time::Instant::now().duration_since(start),
                 data: ResponseData::PubSub(result.clone()),
             };
-
             self.obj.tracer.request_span_end(&resp, false);
             result
         })

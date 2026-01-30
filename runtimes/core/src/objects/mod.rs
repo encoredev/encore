@@ -99,32 +99,28 @@ impl Bucket {
         options: ListOptions,
         source: Option<Arc<model::Request>>,
     ) -> Result<ListIterator, Error> {
-        let (stream, start_id) = if let Some(source) = source.as_deref() {
-            let start_id =
-                self.tracer
-                    .bucket_list_objects_start(protocol::BucketListObjectsStart {
-                        source,
-                        bucket: self.imp.name(),
-                        prefix: options.prefix.as_deref(),
-                    });
+        let start_id = source.as_deref().and_then(|source| {
+            self.tracer
+                .bucket_list_objects_start(protocol::BucketListObjectsStart {
+                    source,
+                    bucket: self.imp.name(),
+                    prefix: options.prefix.as_deref(),
+                })
+        });
 
-            let res = self.imp.clone().list(options).await;
-
-            match res {
-                Ok(stream) => (stream, Some(start_id)),
-                Err(err) => {
+        let stream = match self.imp.clone().list(options).await {
+            Ok(stream) => stream,
+            Err(err) => {
+                if let Some(source) = source.as_deref() {
                     self.tracer
                         .bucket_list_objects_end(protocol::BucketListObjectsEnd {
                             source,
                             start_id,
                             result: protocol::BucketListObjectsEndResult::Err(&err),
                         });
-                    return Err(err);
                 }
+                return Err(err);
             }
-        } else {
-            let stream = self.imp.clone().list(options).await?;
-            (stream, None)
         };
 
         Ok(ListIterator {
@@ -162,17 +158,19 @@ impl Object {
         options: ExistsOptions,
         source: Option<Arc<model::Request>>,
     ) -> Result<bool, Error> {
-        if let Some(source) = source.as_deref() {
-            let start_id =
-                self.tracer
-                    .bucket_object_get_attrs_start(protocol::BucketObjectGetAttrsStart {
-                        source,
-                        bucket: self.imp.bucket_name(),
-                        object: self.imp.key(),
-                        version: options.version.as_deref(),
-                    });
-            let res = self.imp.clone().exists(options).await;
+        let start_id = source.as_deref().and_then(|source| {
+            self.tracer
+                .bucket_object_get_attrs_start(protocol::BucketObjectGetAttrsStart {
+                    source,
+                    bucket: self.imp.bucket_name(),
+                    object: self.imp.key(),
+                    version: options.version.as_deref(),
+                })
+        });
 
+        let res = self.imp.clone().exists(options).await;
+
+        if let Some(source) = source.as_deref() {
             self.tracer
                 .bucket_object_get_attrs_end(protocol::BucketObjectGetAttrsEnd {
                     start_id,
@@ -185,10 +183,8 @@ impl Object {
                         Err(err) => protocol::BucketObjectGetAttrsEndResult::Err(err),
                     },
                 });
-            res
-        } else {
-            self.imp.clone().exists(options).await
         }
+        res
     }
 
     pub fn upload(
@@ -201,20 +197,21 @@ impl Object {
         let imp = self.imp.clone();
 
         async move {
+            let start_id = source.as_deref().and_then(|source| {
+                tracer.bucket_object_upload_start(protocol::BucketObjectUploadStart {
+                    source,
+                    bucket: imp.bucket_name(),
+                    object: imp.key(),
+                    attrs: protocol::BucketObjectAttributes {
+                        content_type: options.content_type.as_deref(),
+                        ..Default::default()
+                    },
+                })
+            });
+
+            let res = imp.upload(data, options).await;
+
             if let Some(source) = source.as_deref() {
-                let start_id =
-                    tracer.bucket_object_upload_start(protocol::BucketObjectUploadStart {
-                        source,
-                        bucket: imp.bucket_name(),
-                        object: imp.key(),
-                        attrs: protocol::BucketObjectAttributes {
-                            content_type: options.content_type.as_deref(),
-                            ..Default::default()
-                        },
-                    });
-
-                let res = imp.upload(data, options).await;
-
                 tracer.bucket_object_upload_end(protocol::BucketObjectUploadEnd {
                     start_id,
                     source,
@@ -226,11 +223,9 @@ impl Object {
                         Err(err) => protocol::BucketObjectUploadEndResult::Err(err),
                     },
                 });
-
-                res
-            } else {
-                imp.upload(data, options).await
             }
+
+            res
         }
     }
 
@@ -273,24 +268,20 @@ impl Object {
     ) -> impl Future<Output = Result<Vec<u8>, Error>> + Send + 'static {
         let tracer = self.tracer.clone();
         let imp = self.imp.clone();
-        let start_id = if let Some(source) = source.as_deref() {
-            Some(
-                tracer.bucket_object_download_start(protocol::BucketObjectDownloadStart {
-                    source,
-                    bucket: imp.bucket_name(),
-                    object: imp.key(),
-                    version: options.version.as_deref(),
-                }),
-            )
-        } else {
-            None
-        };
+        let start_id = source.as_deref().and_then(|source| {
+            tracer.bucket_object_download_start(protocol::BucketObjectDownloadStart {
+                source,
+                bucket: imp.bucket_name(),
+                object: imp.key(),
+                version: options.version.as_deref(),
+            })
+        });
 
         let fut = self.do_download_all(options);
         async move {
             let res = fut.await;
 
-            if let (Some(start_id), Some(source)) = (start_id, source.as_deref()) {
+            if let Some(source) = source.as_deref() {
                 tracer.bucket_object_download_end(protocol::BucketObjectDownloadEnd {
                     start_id,
                     source,
@@ -328,17 +319,19 @@ impl Object {
         options: AttrsOptions,
         source: Option<Arc<model::Request>>,
     ) -> Result<ObjectAttrs, Error> {
-        if let Some(source) = source.as_deref() {
-            let start_id =
-                self.tracer
-                    .bucket_object_get_attrs_start(protocol::BucketObjectGetAttrsStart {
-                        source,
-                        bucket: self.imp.bucket_name(),
-                        object: self.imp.key(),
-                        version: options.version.as_deref(),
-                    });
-            let res = self.imp.clone().attrs(options).await;
+        let start_id = source.as_deref().and_then(|source| {
+            self.tracer
+                .bucket_object_get_attrs_start(protocol::BucketObjectGetAttrsStart {
+                    source,
+                    bucket: self.imp.bucket_name(),
+                    object: self.imp.key(),
+                    version: options.version.as_deref(),
+                })
+        });
 
+        let res = self.imp.clone().attrs(options).await;
+
+        if let Some(source) = source.as_deref() {
             self.tracer
                 .bucket_object_get_attrs_end(protocol::BucketObjectGetAttrsEnd {
                     start_id,
@@ -348,10 +341,8 @@ impl Object {
                         Err(err) => protocol::BucketObjectGetAttrsEndResult::Err(err),
                     },
                 });
-            res
-        } else {
-            self.imp.clone().attrs(options).await
         }
+        res
     }
 
     pub async fn delete(
@@ -359,21 +350,22 @@ impl Object {
         options: DeleteOptions,
         source: Option<Arc<model::Request>>,
     ) -> Result<(), Error> {
+        let start_id = source.as_deref().and_then(|source| {
+            self.tracer
+                .bucket_delete_objects_start(protocol::BucketDeleteObjectsStart {
+                    source,
+                    bucket: self.imp.bucket_name(),
+                    objects: [protocol::BucketDeleteObjectEntry {
+                        object: self.imp.key(),
+                        version: options.version.as_deref(),
+                    }]
+                    .into_iter(),
+                })
+        });
+
+        let res = self.imp.clone().delete(options).await;
+
         if let Some(source) = source.as_deref() {
-            let start_id =
-                self.tracer
-                    .bucket_delete_objects_start(protocol::BucketDeleteObjectsStart {
-                        source,
-                        bucket: self.imp.bucket_name(),
-                        objects: [protocol::BucketDeleteObjectEntry {
-                            object: self.imp.key(),
-                            version: options.version.as_deref(),
-                        }]
-                        .into_iter(),
-                    });
-
-            let res = self.imp.clone().delete(options).await;
-
             self.tracer
                 .bucket_delete_objects_end(protocol::BucketDeleteObjectsEnd {
                     start_id,
@@ -383,11 +375,9 @@ impl Object {
                         Err(err) => protocol::BucketDeleteObjectsEndResult::Err(err),
                     },
                 });
-
-            res
-        } else {
-            self.imp.clone().delete(options).await
         }
+
+        res
     }
 
     /// Returns the public URL of the object, if available.
@@ -513,10 +503,10 @@ impl ListIterator {
 
 impl Drop for ListIterator {
     fn drop(&mut self) {
-        if let (Some(start_id), Some(source)) = (self.start_id, self.source.as_deref()) {
+        if let Some(source) = self.source.as_deref() {
             self.tracer
                 .bucket_list_objects_end(protocol::BucketListObjectsEnd {
-                    start_id,
+                    start_id: self.start_id,
                     source,
                     result: match self.err {
                         Some(ref err) => protocol::BucketListObjectsEndResult::Err(err),

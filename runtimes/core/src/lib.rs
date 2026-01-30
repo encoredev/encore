@@ -270,31 +270,32 @@ impl Runtime {
         let disable_tracing =
             testing || std::env::var("ENCORE_NOTRACE").is_ok_and(|v| !v.is_empty());
         let tracer = if !disable_tracing {
-            let trace_endpoint = observability
+            let trace_cfg = observability
                 .tracing
                 .into_iter()
                 .find_map(|p| match p.provider {
                     Some(runtimepb::tracing_provider::Provider::Encore(encore)) => {
-                        Some(encore.trace_endpoint)
+                        Some((encore.sampling_rate, encore.trace_endpoint))
                     }
                     _ => None,
                 })
-                .and_then(|ep| match reqwest::Url::parse(&ep) {
-                    Ok(ep) => Some(ep),
+                .and_then(|(r, ep)| match reqwest::Url::parse(&ep) {
+                    Ok(ep) => Some((r, ep)),
                     Err(err) => {
                         ::log::warn!("disabling tracing: invalid trace endpoint {}: {}", ep, err);
                         None
                     }
                 });
 
-            match trace_endpoint {
-                Some(trace_endpoint) => {
+            match trace_cfg {
+                Some((trace_sampling_rate, trace_endpoint)) => {
                     let config = trace::ReporterConfig {
                         app_id: environment.app_id.clone(),
                         env_id: environment.env_id.clone(),
                         deploy_id: deployment.deploy_id.clone(),
                         app_commit: md.app_revision.clone(),
                         trace_endpoint,
+                        trace_sampling_rate,
                         platform_validator: platform_validator.clone(),
                     };
 

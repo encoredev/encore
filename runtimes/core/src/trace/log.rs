@@ -18,6 +18,7 @@ pub struct ReporterConfig {
     pub deploy_id: String,
     pub app_commit: String,
     pub trace_endpoint: reqwest::Url,
+    pub trace_sampling_rate: Option<f64>,
     pub platform_validator: Arc<platform::RequestValidator>,
 }
 
@@ -35,7 +36,7 @@ pub fn streaming_tracer(
     config: ReporterConfig,
 ) -> (Tracer, Reporter) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let tracer = Tracer::new(tx);
+    let tracer = Tracer::new(tx, config.trace_sampling_rate);
 
     let anchor = TimeAnchor::new();
     let reporter = Reporter {
@@ -317,6 +318,7 @@ mod tests {
                 deploy_id: "test-deploy".to_string(),
                 app_commit: "test-commit".to_string(),
                 trace_endpoint: Url::parse("http://localhost:8080").unwrap(),
+                trace_sampling_rate: None,
                 platform_validator: RequestValidator::new_mock().into(),
             },
         }
