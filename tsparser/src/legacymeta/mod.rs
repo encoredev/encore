@@ -115,7 +115,10 @@ impl MetaBuilder<'_> {
         let mut topic_by_name: HashMap<String, usize> = HashMap::new();
 
         let mut auth_handlers: HashMap<ObjectId, Rc<authhandler::AuthHandler>> = HashMap::new();
-        let mut cache_cluster_idx: HashMap<String, usize> = HashMap::new();
+        // Track cache clusters by object ID (for keyspace lookups)
+        let mut cache_cluster_idx: HashMap<ObjectId, usize> = HashMap::new();
+        // Track cache clusters by name (for fallback usage-based detection)
+        let mut cache_cluster_by_name: HashMap<String, usize> = HashMap::new();
 
         for b in &self.parse.binds {
             if b.kind != BindKind::Create {
@@ -394,13 +397,50 @@ impl MetaBuilder<'_> {
                     // Add the cache cluster to metadata.
                     // Track the index so we can update keyspaces with service mappings later.
                     let idx = self.data.cache_clusters.len();
-                    cache_cluster_idx.insert(cluster.name.clone(), idx);
+                    // Track by object ID so keyspaces can look up their cluster
+                    if let Some(obj) = &b.object {
+                        cache_cluster_idx.insert(obj.id, idx);
+                    }
+                    // Also track by name for fallback usage-based keyspace detection
+                    cache_cluster_by_name.insert(cluster.name.clone(), idx);
                     self.data.cache_clusters.push(v1::CacheCluster {
                         name: cluster.name.clone(),
                         doc: cluster.doc.clone().unwrap_or_default(),
-                        keyspaces: vec![], // Populated below based on usage tracking
+                        keyspaces: vec![], // Populated below from CacheKeyspace resources
                         eviction_policy: cluster.eviction_policy.as_str().to_string(),
                     });
+                }
+
+                Resource::CacheKeyspace(keyspace) => {
+                    // Find which service this keyspace belongs to
+                    let svc = self.service_for_range(&keyspace.span.into());
+                    let svc_name = svc.map(|s| s.name.clone()).unwrap_or_default();
+
+                    // Convert key_type to schema
+                    let key_type = self.schema.typ(&keyspace.key_type).ok();
+
+                    // Convert value_type to schema (if explicit)
+                    let value_type = keyspace
+                        .value_type
+                        .as_ref()
+                        .and_then(|vt| self.schema.typ(vt).ok());
+
+                    // Parse the key pattern into path segments
+                    let path_pattern = parse_key_pattern(&keyspace.key_pattern);
+
+                    // Store the keyspace info for later addition to the cluster
+                    let ks_info = v1::cache_cluster::Keyspace {
+                        service: svc_name,
+                        key_type,
+                        value_type,
+                        doc: keyspace.doc.clone().unwrap_or_default(),
+                        path_pattern: Some(path_pattern),
+                    };
+
+                    // Add to the cluster's keyspaces using the cluster object ID
+                    if let Some(&idx) = cache_cluster_idx.get(&keyspace.cluster.id) {
+                        self.data.cache_clusters[idx].keyspaces.push(ks_info);
+                    }
                 }
             }
         }
@@ -709,21 +749,28 @@ impl MetaBuilder<'_> {
         }
 
         // Add keyspaces to cache clusters based on service usage.
-        // This is required for the runtime config generator to include the
-        // cache cluster in the service's configuration.
+        // This is a fallback for cases where keyspace parsing didn't capture all usage,
+        // ensuring the runtime config generator includes the cache cluster.
         for (cluster_name, services) in cache_cluster_services {
-            if let Some(&idx) = cache_cluster_idx.get(&cluster_name) {
+            if let Some(&idx) = cache_cluster_by_name.get(&cluster_name) {
                 let cluster = &mut self.data.cache_clusters[idx];
                 for svc_name in services {
-                    cluster.keyspaces.push(v1::cache_cluster::Keyspace {
-                        service: svc_name,
-                        // These fields are not known at compile time for TypeScript,
-                        // but the service field is what matters for config filtering.
-                        key_type: None,
-                        value_type: None,
-                        doc: String::new(),
-                        path_pattern: None,
-                    });
+                    // Only add if we don't already have a keyspace for this service
+                    // (from parsed CacheKeyspace resources)
+                    let already_has_service = cluster
+                        .keyspaces
+                        .iter()
+                        .any(|ks| ks.service == svc_name);
+                    if !already_has_service {
+                        cluster.keyspaces.push(v1::cache_cluster::Keyspace {
+                            service: svc_name,
+                            // Fallback: no type info available from usage tracking
+                            key_type: None,
+                            value_type: None,
+                            doc: String::new(),
+                            path_pattern: None,
+                        });
+                    }
                 }
             }
         }
@@ -929,6 +976,38 @@ fn basic_to_proto(basic: &crate::parser::types::Basic) -> Builtin {
         Basic::String => Builtin::String,
         Basic::Number => Builtin::Int64,
         _ => Builtin::Any,
+    }
+}
+
+/// Parses a cache keyspace key pattern like "greeting/:name" into a Path proto.
+fn parse_key_pattern(pattern: &str) -> v1::Path {
+    let segments: Vec<v1::PathSegment> = pattern
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|segment| {
+            if let Some(param_name) = segment.strip_prefix(':') {
+                // Parameter segment like ":name"
+                v1::PathSegment {
+                    r#type: v1::path_segment::SegmentType::Param as i32,
+                    value_type: v1::path_segment::ParamType::String as i32,
+                    value: param_name.to_string(),
+                    validation: None,
+                }
+            } else {
+                // Literal segment
+                v1::PathSegment {
+                    r#type: v1::path_segment::SegmentType::Literal as i32,
+                    value_type: v1::path_segment::ParamType::String as i32,
+                    value: segment.to_string(),
+                    validation: None,
+                }
+            }
+        })
+        .collect();
+
+    v1::Path {
+        r#type: v1::path::Type::CacheKeyspace as i32,
+        segments,
     }
 }
 

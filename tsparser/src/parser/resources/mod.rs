@@ -35,6 +35,7 @@ pub enum Resource {
     Secret(Lrc<infra::secret::Secret>),
     Metric(Lrc<infra::metrics::Metric>),
     CacheCluster(Lrc<infra::cache::CacheCluster>),
+    CacheKeyspace(Lrc<infra::cache::CacheKeyspace>),
 }
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
@@ -65,6 +66,10 @@ impl Display for Resource {
             Resource::Service(svc) => write!(f, "Service({})", svc.name),
             Resource::Metric(metric) => write!(f, "Metric({})", metric.name),
             Resource::CacheCluster(cluster) => write!(f, "CacheCluster({})", cluster.name),
+            Resource::CacheKeyspace(keyspace) => {
+                let cluster_name = keyspace.cluster.name.as_deref().unwrap_or("<unknown>");
+                write!(f, "CacheKeyspace({}::{})", cluster_name, keyspace.key_pattern)
+            }
         }
     }
 }
