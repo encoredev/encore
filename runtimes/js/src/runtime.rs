@@ -1,4 +1,5 @@
 use crate::api::{new_api_handler, APIRoute, Request};
+use crate::cache::CacheCluster;
 use crate::gateway::{Gateway, GatewayConfig};
 use crate::log::Logger;
 use crate::napi_util::EnvMap;
@@ -151,6 +152,12 @@ impl Runtime {
             .bucket(encore_name.into())
             .ok_or_else(|| Error::new(Status::GenericFailure, "bucket not found"))?;
         Ok(objects::Bucket::new(bkt))
+    }
+
+    #[napi]
+    pub fn cache_cluster(&self, encore_name: String) -> napi::Result<CacheCluster> {
+        let cluster = self.runtime.cache().cluster(&encore_name.into());
+        CacheCluster::new(cluster)
     }
 
     #[napi]

@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod cron;
 pub mod metrics;
 pub mod objects;

@@ -20,6 +20,7 @@ use crate::encore::runtime::v1 as runtimepb;
 
 pub mod api;
 mod base32;
+pub mod cache;
 pub mod error;
 pub mod infracfg;
 pub mod log;
@@ -207,6 +208,7 @@ pub struct Runtime {
     pubsub: pubsub::Manager,
     secrets: secrets::Manager,
     sqldb: sqldb::Manager,
+    cache: cache::Manager,
     objects: objects::Manager,
     api: api::Manager,
     app_meta: meta::AppMeta,
@@ -227,7 +229,9 @@ impl Runtime {
         testing: bool,
     ) -> anyhow::Result<Self> {
         // Initialize OpenSSL system root certificates, so that libraries can find them.
-        openssl_probe::init_ssl_cert_env_vars();
+        unsafe {
+            openssl_probe::init_openssl_env_vars();
+        }
 
         let tokio_rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -363,6 +367,18 @@ impl Runtime {
         .build()
         .context("unable to initialize sqldb proxy")?;
 
+        let cloud = runtimepb::environment::Cloud::try_from(environment.cloud)
+            .unwrap_or(runtimepb::environment::Cloud::Unspecified);
+        let cache = cache::ManagerConfig {
+            clusters: resources.redis_clusters,
+            creds: &creds,
+            secrets: &secrets,
+            tracer: tracer.clone(),
+            cloud,
+        }
+        .build()
+        .context("unable to initialize cache manager")?;
+
         // Determine the compute configuration.
         let compute = {
             let mut cfg = ComputeConfig::default();
@@ -427,6 +443,7 @@ impl Runtime {
             pubsub,
             secrets,
             sqldb,
+            cache,
             objects,
             api,
             app_meta,
@@ -450,6 +467,11 @@ impl Runtime {
     #[inline]
     pub fn sqldb(&self) -> &sqldb::Manager {
         &self.sqldb
+    }
+
+    #[inline]
+    pub fn cache(&self) -> &cache::Manager {
+        &self.cache
     }
 
     #[inline]

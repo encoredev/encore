@@ -14,7 +14,9 @@ use crate::parser::resources::apis::{authhandler, gateway};
 use crate::parser::resources::infra::cron::CronJobSchedule;
 use crate::parser::resources::infra::metrics::MetricType;
 use crate::parser::resources::infra::pubsub_topic::TopicOperation;
-use crate::parser::resources::infra::{cron, objects, pubsub_subscription, pubsub_topic, sqldb};
+use crate::parser::resources::infra::{
+    cache, cron, objects, pubsub_subscription, pubsub_topic, sqldb,
+};
 use crate::parser::resources::Resource;
 use crate::parser::types::{validation, Basic, FieldName, Literal, Type};
 use crate::parser::types::{Object, ObjectId};
@@ -107,6 +109,9 @@ impl MetaBuilder<'_> {
 
             // Depends on auth handler objects
             Gateway((&'a Bind, &'a gateway::Gateway)),
+
+            // Depends on cache cluster objects
+            CacheKeyspace(&'a cache::CacheKeyspace),
         }
 
         let mut dependent: Vec<Dependent> = Vec::new();
@@ -115,11 +120,14 @@ impl MetaBuilder<'_> {
         let mut topic_by_name: HashMap<String, usize> = HashMap::new();
 
         let mut auth_handlers: HashMap<ObjectId, Rc<authhandler::AuthHandler>> = HashMap::new();
+        let mut cache_cluster_idx: HashMap<ObjectId, usize> = HashMap::new();
+        let mut cache_cluster_by_name: HashMap<String, usize> = HashMap::new();
 
         for b in &self.parse.binds {
             if b.kind != BindKind::Create {
                 continue;
             }
+
             match &b.resource {
                 // Do nothing for these resources:
                 Resource::Service(_) => {}
@@ -296,7 +304,6 @@ impl MetaBuilder<'_> {
                 }
 
                 // Dependent resources
-                // TODO: Include Cache Keyspace here too.
                 Resource::PubSubSubscription(sub) => {
                     dependent.push(Dependent::PubSubSubscription((b, sub)));
                 }
@@ -388,6 +395,24 @@ impl MetaBuilder<'_> {
 
                     self.data.metrics.push(metric);
                 }
+
+                Resource::CacheCluster(cluster) => {
+                    let idx = self.data.cache_clusters.len();
+                    if let Some(obj) = &b.object {
+                        cache_cluster_idx.insert(obj.id, idx);
+                    }
+                    cache_cluster_by_name.insert(cluster.name.clone(), idx);
+                    self.data.cache_clusters.push(v1::CacheCluster {
+                        name: cluster.name.clone(),
+                        doc: cluster.doc.clone().unwrap_or_default(),
+                        keyspaces: vec![],
+                        eviction_policy: cluster.eviction_policy.as_str().to_string(),
+                    });
+                }
+
+                Resource::CacheKeyspace(keyspace) => {
+                    dependent.push(Dependent::CacheKeyspace(keyspace));
+                }
             }
         }
 
@@ -397,6 +422,20 @@ impl MetaBuilder<'_> {
         let mut first_auth_handler: Option<&Object> = None;
 
         // Make a second pass for resources that depend on other resources.
+        // Register Reference bind Object IDs for CacheCluster so that keyspaces
+        // referencing a .named() cluster can find the correct cluster index.
+        for b in &self.parse.binds {
+            if b.kind == BindKind::Reference {
+                if let Resource::CacheCluster(cluster) = &b.resource {
+                    if let (Some(obj), Some(&idx)) =
+                        (&b.object, cache_cluster_by_name.get(&cluster.name))
+                    {
+                        cache_cluster_idx.insert(obj.id, idx);
+                    }
+                }
+            }
+        }
+
         for r in &dependent {
             match r {
                 Dependent::PubSubSubscription((b, sub)) => {
@@ -531,6 +570,31 @@ impl MetaBuilder<'_> {
                         }),
                     });
                 }
+
+                Dependent::CacheKeyspace(keyspace) => {
+                    let svc = self.service_for_range(&keyspace.span.into());
+                    let svc_name = svc.map(|s| s.name.clone()).unwrap_or_default();
+
+                    let key_type = self.schema.typ(&keyspace.key_type).ok();
+                    let value_type = keyspace
+                        .value_type
+                        .as_ref()
+                        .and_then(|vt| self.schema.typ(vt).ok());
+
+                    let path_pattern = parse_key_pattern(&keyspace.key_pattern);
+
+                    let ks_info = v1::cache_cluster::Keyspace {
+                        service: svc_name,
+                        key_type,
+                        value_type,
+                        doc: keyspace.doc.clone().unwrap_or_default(),
+                        path_pattern: Some(path_pattern),
+                    };
+
+                    if let Some(&idx) = cache_cluster_idx.get(&keyspace.cluster.id) {
+                        self.data.cache_clusters[idx].keyspaces.push(ks_info);
+                    }
+                }
             }
         }
 
@@ -538,6 +602,7 @@ impl MetaBuilder<'_> {
         let mut seen_calls = HashSet::new();
 
         let mut bucket_perms = HashMap::new();
+        let mut cache_cluster_services: HashMap<String, HashSet<String>> = HashMap::new();
         for u in &self.parse.usages {
             match u {
                 Usage::Topic(access) => {
@@ -630,6 +695,22 @@ impl MetaBuilder<'_> {
                     }
                 }
 
+                Usage::CacheCluster(access) => {
+                    // Track which services use which cache clusters.
+                    // This is used to populate keyspace service mappings in metadata.
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        access
+                            .range
+                            .err("cannot determine which service is accessing this cache cluster");
+                        continue;
+                    };
+
+                    cache_cluster_services
+                        .entry(access.cluster.name.clone())
+                        .or_default()
+                        .insert(svc.name.clone());
+                }
+
                 Usage::CallEndpoint(call) => {
                     let src_service = self
                         .service_for_range(&call.range)
@@ -675,6 +756,31 @@ impl MetaBuilder<'_> {
                 bucket: bucket.clone(),
                 operations,
             });
+        }
+
+        // Add keyspaces to cache clusters based on service usage.
+        // This is a fallback for cases where keyspace parsing didn't capture all usage,
+        // ensuring the runtime config generator includes the cache cluster.
+        for (cluster_name, services) in cache_cluster_services {
+            if let Some(&idx) = cache_cluster_by_name.get(&cluster_name) {
+                let cluster = &mut self.data.cache_clusters[idx];
+                for svc_name in services {
+                    // Only add if we don't already have a keyspace for this service
+                    // (from parsed CacheKeyspace resources)
+                    let already_has_service =
+                        cluster.keyspaces.iter().any(|ks| ks.service == svc_name);
+                    if !already_has_service {
+                        cluster.keyspaces.push(v1::cache_cluster::Keyspace {
+                            service: svc_name,
+                            // Fallback: no type info available from usage tracking
+                            key_type: None,
+                            value_type: None,
+                            doc: String::new(),
+                            path_pattern: None,
+                        });
+                    }
+                }
+            }
         }
 
         // Sort the packages for deterministic output.
@@ -881,6 +987,38 @@ fn basic_to_proto(basic: &crate::parser::types::Basic) -> Builtin {
     }
 }
 
+/// Parses a cache keyspace key pattern like "greeting/:name" into a Path proto.
+fn parse_key_pattern(pattern: &str) -> v1::Path {
+    let segments: Vec<v1::PathSegment> = pattern
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|segment| {
+            if let Some(param_name) = segment.strip_prefix(':') {
+                // Parameter segment like ":name"
+                v1::PathSegment {
+                    r#type: v1::path_segment::SegmentType::Param as i32,
+                    value_type: v1::path_segment::ParamType::String as i32,
+                    value: param_name.to_string(),
+                    validation: None,
+                }
+            } else {
+                // Literal segment
+                v1::PathSegment {
+                    r#type: v1::path_segment::SegmentType::Literal as i32,
+                    value_type: v1::path_segment::ParamType::String as i32,
+                    value: segment.to_string(),
+                    validation: None,
+                }
+            }
+        })
+        .collect();
+
+    v1::Path {
+        r#type: v1::path::Type::CacheKeyspace as i32,
+        segments,
+    }
+}
+
 fn literal_to_proto(lit: &crate::parser::types::Literal) -> Builtin {
     match lit {
         Literal::String(_) => Builtin::String,
@@ -1021,6 +1159,157 @@ export const Bar = 5;
         let tmp_dir = TempDir::new("tsparser-test")?;
         let meta = parse(tmp_dir.path(), src)?;
         assert_eq!(meta.svcs.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_cache_keyspace_metadata() -> anyhow::Result<()> {
+        let src = r#"
+-- svc/encore.service.ts --
+import { Service } from "encore.dev/service";
+export default new Service("svc");
+
+-- svc/cache.ts --
+import {
+    CacheCluster,
+    StringKeyspace,
+    IntKeyspace,
+    FloatKeyspace,
+    StructKeyspace,
+    StringListKeyspace,
+    NumberListKeyspace,
+    StringSetKeyspace,
+    NumberSetKeyspace,
+} from "encore.dev/storage/cache";
+
+export const cluster = new CacheCluster("myCluster", {
+    evictionPolicy: "allkeys-lru",
+});
+
+export const greetings = new StringKeyspace<string>(cluster, {
+    keyPattern: "greeting/:key",
+});
+export const counters = new IntKeyspace<string>(cluster, {
+    keyPattern: "counter/:key",
+});
+export const scores = new FloatKeyspace<string>(cluster, {
+    keyPattern: "score/:key",
+});
+interface User { name: string; email: string; }
+export const users = new StructKeyspace<string, User>(cluster, {
+    keyPattern: "user/:key",
+});
+export const recentViews = new StringListKeyspace<string>(cluster, {
+    keyPattern: "recent-views/:key",
+});
+export const scoreHistory = new NumberListKeyspace<string>(cluster, {
+    keyPattern: "score-history/:key",
+});
+export const tags = new StringSetKeyspace<string>(cluster, {
+    keyPattern: "tags/:key",
+});
+export const uniqueScores = new NumberSetKeyspace<string>(cluster, {
+    keyPattern: "unique-scores/:key",
+});
+
+-- package.json --
+{ "name": "test", "type": "module", "dependencies": { "encore.dev": "^1.35.0" } }
+        "#;
+        let tmp_dir = TempDir::new("tsparser-cache-test")?;
+        let meta = parse(tmp_dir.path(), src)?;
+
+        // Should have exactly one cache cluster
+        assert_eq!(meta.cache_clusters.len(), 1, "expected 1 cache cluster");
+        let cluster = &meta.cache_clusters[0];
+        assert_eq!(cluster.name, "myCluster");
+
+        // Should have 8 keyspaces (one for each type)
+        assert_eq!(
+            cluster.keyspaces.len(),
+            8,
+            "expected 8 keyspaces, got {}: {:?}",
+            cluster.keyspaces.len(),
+            cluster
+                .keyspaces
+                .iter()
+                .map(|ks| &ks.doc)
+                .collect::<Vec<_>>()
+        );
+
+        // Verify all keyspaces have the correct service
+        for ks in &cluster.keyspaces {
+            assert_eq!(ks.service, "svc", "keyspace service should be 'svc'");
+        }
+
+        // Verify all keyspaces have path patterns
+        for ks in &cluster.keyspaces {
+            assert!(
+                ks.path_pattern.is_some(),
+                "keyspace should have a path pattern"
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_cache_named_keyspace_metadata() -> anyhow::Result<()> {
+        let src = r#"
+-- svc/encore.service.ts --
+import { Service } from "encore.dev/service";
+export default new Service("svc");
+
+-- svc/cache.ts --
+import { CacheCluster, StringKeyspace } from "encore.dev/storage/cache";
+
+export const cluster = new CacheCluster("myCluster", {
+    evictionPolicy: "allkeys-lru",
+});
+
+export const greetings = new StringKeyspace<string>(cluster, {
+    keyPattern: "greeting/:key",
+});
+
+-- other/encore.service.ts --
+import { Service } from "encore.dev/service";
+export default new Service("other");
+
+-- other/cache.ts --
+import { CacheCluster, StringListKeyspace, StringSetKeyspace } from "encore.dev/storage/cache";
+
+const cluster = CacheCluster.named("myCluster");
+
+export const recentViews = new StringListKeyspace<string>(cluster, {
+    keyPattern: "recent-views/:key",
+});
+
+export const tags = new StringSetKeyspace<string>(cluster, {
+    keyPattern: "tags/:key",
+});
+
+-- package.json --
+{ "name": "test", "type": "module", "dependencies": { "encore.dev": "^1.35.0" } }
+        "#;
+        let tmp_dir = TempDir::new("tsparser-cache-named-test")?;
+        let meta = parse(tmp_dir.path(), src)?;
+
+        assert_eq!(meta.cache_clusters.len(), 1, "expected 1 cache cluster");
+        let cluster = &meta.cache_clusters[0];
+        assert_eq!(cluster.name, "myCluster");
+
+        // Should have 3 keyspaces: 1 from svc + 2 from other
+        assert_eq!(
+            cluster.keyspaces.len(),
+            3,
+            "expected 3 keyspaces, got {}: services={:?}",
+            cluster.keyspaces.len(),
+            cluster
+                .keyspaces
+                .iter()
+                .map(|ks| &ks.service)
+                .collect::<Vec<_>>()
+        );
+
         Ok(())
     }
 }

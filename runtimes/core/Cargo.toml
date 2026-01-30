@@ -8,7 +8,7 @@ edition = "2021"
 rttrace = []
 
 [dependencies]
-pingora = { version = "0.4", features = ["lb", "openssl"] }
+pingora = { version = "0.7", features = ["lb", "openssl"] }
 anyhow = "1.0.76"
 async-trait = "0.1"
 base64 = "0.21.5"
@@ -76,8 +76,10 @@ base32 = "0.4.0"
 
 # We need to vendor openssl to allow cross-compilation on our build systems
 openssl = { version = "0.10.57", features = ["vendored"] }
-bb8 = "0.8.3"
-bb8-postgres = "0.8.1"
+bb8 = "0.9"
+bb8-postgres = "0.9"
+bb8-redis = "0.26"
+redis = { version = "1.0", features = ["tokio-rustls-comp", "tls-rustls-insecure", "connection-manager"] }
 uuid = "1.7.0"
 openssl-probe = "0.1.5"
 jsonwebtoken = "9.2.0"

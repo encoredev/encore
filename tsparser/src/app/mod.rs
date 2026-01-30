@@ -99,6 +99,7 @@ impl AppValidator<'_> {
         self.validate_crons();
         self.validate_buckets();
         self.validate_auth_handlers();
+        self.validate_caches();
     }
 
     fn validate_apis(&self) {
@@ -345,6 +346,27 @@ impl AppValidator<'_> {
                         handler
                             .struct_span_err(bucket.span, "bucket with this name already defined")
                             .span_note(prev_span, "previously defined here")
+                            .emit();
+                    })
+                }
+            }
+        }
+    }
+
+    fn validate_caches(&self) {
+        // Validate duplicate cache cluster names.
+        let mut seen_clusters = HashMap::new();
+        for resource in &self.parse.resources {
+            if let Resource::CacheCluster(cluster) = resource {
+                if let Some(prev_span) = seen_clusters.insert(cluster.name.clone(), cluster.span) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                cluster.span,
+                                "cache cluster with this name already defined",
+                            )
+                            .span_note(prev_span, "previously defined here")
+                            .help("if you wish to reuse the same cluster, export the original CacheCluster object and import it, or use CacheCluster.named()")
                             .emit();
                     })
                 }
