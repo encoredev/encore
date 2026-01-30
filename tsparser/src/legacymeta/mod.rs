@@ -115,6 +115,7 @@ impl MetaBuilder<'_> {
         let mut topic_by_name: HashMap<String, usize> = HashMap::new();
 
         let mut auth_handlers: HashMap<ObjectId, Rc<authhandler::AuthHandler>> = HashMap::new();
+        let mut cache_cluster_idx: HashMap<String, usize> = HashMap::new();
 
         for b in &self.parse.binds {
             if b.kind != BindKind::Create {
@@ -388,6 +389,19 @@ impl MetaBuilder<'_> {
 
                     self.data.metrics.push(metric);
                 }
+
+                Resource::CacheCluster(cluster) => {
+                    // Add the cache cluster to metadata.
+                    // Track the index so we can update keyspaces with service mappings later.
+                    let idx = self.data.cache_clusters.len();
+                    cache_cluster_idx.insert(cluster.name.clone(), idx);
+                    self.data.cache_clusters.push(v1::CacheCluster {
+                        name: cluster.name.clone(),
+                        doc: cluster.doc.clone().unwrap_or_default(),
+                        keyspaces: vec![], // Populated below based on usage tracking
+                        eviction_policy: cluster.eviction_policy.as_str().to_string(),
+                    });
+                }
             }
         }
 
@@ -538,6 +552,7 @@ impl MetaBuilder<'_> {
         let mut seen_calls = HashSet::new();
 
         let mut bucket_perms = HashMap::new();
+        let mut cache_cluster_services: HashMap<String, HashSet<String>> = HashMap::new();
         for u in &self.parse.usages {
             match u {
                 Usage::Topic(access) => {
@@ -630,6 +645,22 @@ impl MetaBuilder<'_> {
                     }
                 }
 
+                Usage::CacheCluster(access) => {
+                    // Track which services use which cache clusters.
+                    // This is used to populate keyspace service mappings in metadata.
+                    let Some(svc) = self.service_for_range(&access.range) else {
+                        access
+                            .range
+                            .err("cannot determine which service is accessing this cache cluster");
+                        continue;
+                    };
+
+                    cache_cluster_services
+                        .entry(access.cluster.name.clone())
+                        .or_insert_with(HashSet::new)
+                        .insert(svc.name.clone());
+                }
+
                 Usage::CallEndpoint(call) => {
                     let src_service = self
                         .service_for_range(&call.range)
@@ -675,6 +706,26 @@ impl MetaBuilder<'_> {
                 bucket: bucket.clone(),
                 operations,
             });
+        }
+
+        // Add keyspaces to cache clusters based on service usage.
+        // This is required for the runtime config generator to include the
+        // cache cluster in the service's configuration.
+        for (cluster_name, services) in cache_cluster_services {
+            if let Some(&idx) = cache_cluster_idx.get(&cluster_name) {
+                let cluster = &mut self.data.cache_clusters[idx];
+                for svc_name in services {
+                    cluster.keyspaces.push(v1::cache_cluster::Keyspace {
+                        service: svc_name,
+                        // These fields are not known at compile time for TypeScript,
+                        // but the service field is what matters for config filtering.
+                        key_type: None,
+                        value_type: None,
+                        doc: String::new(),
+                        path_pattern: None,
+                    });
+                }
+            }
         }
 
         // Sort the packages for deterministic output.

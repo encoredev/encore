@@ -20,6 +20,7 @@ use crate::encore::runtime::v1 as runtimepb;
 
 pub mod api;
 mod base32;
+pub mod cache;
 pub mod error;
 pub mod infracfg;
 pub mod log;
@@ -34,7 +35,7 @@ pub mod pubsub;
 pub mod runtime_config;
 pub mod secrets;
 pub mod sqldb;
-mod trace;
+pub mod trace;
 
 pub mod encore {
     pub mod runtime {
@@ -207,6 +208,7 @@ pub struct Runtime {
     pubsub: pubsub::Manager,
     secrets: secrets::Manager,
     sqldb: sqldb::Manager,
+    cache: cache::Manager,
     objects: objects::Manager,
     api: api::Manager,
     app_meta: meta::AppMeta,
@@ -359,6 +361,15 @@ impl Runtime {
         .build()
         .context("unable to initialize sqldb proxy")?;
 
+        let cache = cache::ManagerConfig {
+            clusters: resources.redis_clusters,
+            creds: &creds,
+            secrets: &secrets,
+            tracer: tracer.clone(),
+        }
+        .build()
+        .context("unable to initialize cache manager")?;
+
         // Determine the compute configuration.
         let compute = {
             let mut cfg = ComputeConfig::default();
@@ -423,6 +434,7 @@ impl Runtime {
             pubsub,
             secrets,
             sqldb,
+            cache,
             objects,
             api,
             app_meta,
@@ -446,6 +458,11 @@ impl Runtime {
     #[inline]
     pub fn sqldb(&self) -> &sqldb::Manager {
         &self.sqldb
+    }
+
+    #[inline]
+    pub fn cache(&self) -> &cache::Manager {
+        &self.cache
     }
 
     #[inline]

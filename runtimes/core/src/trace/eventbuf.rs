@@ -24,7 +24,7 @@ impl EventBuffer {
         }
     }
 
-    pub(super) fn freeze(self) -> Bytes {
+    pub fn freeze(self) -> Bytes {
         self.buf.freeze()
     }
 

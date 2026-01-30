@@ -7,6 +7,7 @@ use crate::parser::resources::apis::api::ENDPOINT_PARSER;
 use crate::parser::resources::apis::authhandler::AUTHHANDLER_PARSER;
 use crate::parser::resources::apis::gateway::GATEWAY_PARSER;
 use crate::parser::resources::apis::service::SERVICE_PARSER;
+use crate::parser::resources::infra::cache::{CACHE_CLUSTER_PARSER, CACHE_KEYSPACE_PARSER};
 use crate::parser::resources::infra::cron::CRON_PARSER;
 use crate::parser::resources::infra::metrics::METRIC_PARSER;
 use crate::parser::resources::infra::objects::OBJECTS_PARSER;
@@ -33,6 +34,7 @@ pub enum Resource {
     CronJob(Lrc<infra::cron::CronJob>),
     Secret(Lrc<infra::secret::Secret>),
     Metric(Lrc<infra::metrics::Metric>),
+    CacheCluster(Lrc<infra::cache::CacheCluster>),
 }
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
@@ -62,6 +64,7 @@ impl Display for Resource {
             Resource::Secret(secret) => write!(f, "Secret({})", secret.name),
             Resource::Service(svc) => write!(f, "Service({})", svc.name),
             Resource::Metric(metric) => write!(f, "Metric({})", metric.name),
+            Resource::CacheCluster(cluster) => write!(f, "CacheCluster({})", cluster.name),
         }
     }
 }
@@ -80,4 +83,7 @@ pub static DEFAULT_RESOURCE_PARSERS: &[&ResourceParser] = &[
     &CRON_PARSER,
     &SECRET_PARSER,
     &METRIC_PARSER,
+    // Cache cluster must come before keyspace as keyspaces depend on clusters.
+    &CACHE_CLUSTER_PARSER,
+    &CACHE_KEYSPACE_PARSER,
 ];
