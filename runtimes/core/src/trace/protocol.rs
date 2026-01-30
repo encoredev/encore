@@ -940,6 +940,17 @@ impl Tracer {
 }
 
 impl Tracer {
+    /// Send a raw trace event. Used by cache and other modules that need direct access to tracing.
+    #[inline]
+    pub fn send_raw(
+        &self,
+        typ: EventType,
+        span: model::SpanKey,
+        eb: EventBuffer,
+    ) -> Option<model::TraceEventId> {
+        Some(self.send(typ, span, eb))
+    }
+
     #[inline]
     fn send(&self, typ: EventType, span: model::SpanKey, eb: EventBuffer) -> model::TraceEventId {
         // Make sure the event id is never 0, as it's used to indicate "no event" in the protocol.
@@ -1001,7 +1012,7 @@ impl EventBuffer {
         }
     }
 
-    fn event_id(&mut self, event_id: Option<model::TraceEventId>) {
+    pub fn event_id(&mut self, event_id: Option<model::TraceEventId>) {
         self.uvarint(match event_id {
             Some(event_id) => event_id.0,
             None => 0,
@@ -1098,11 +1109,13 @@ impl SpanEndEventData<'_> {
     }
 }
 
-struct BasicEventData {
-    correlation_event_id: Option<model::TraceEventId>,
+/// Basic event data for trace events that follow the common header format.
+/// Used by cache and other modules that need direct access to tracing.
+pub struct BasicEventData {
+    pub correlation_event_id: Option<model::TraceEventId>,
 
     /// Additional extra space to allocate in the buffer.
-    extra_space: usize,
+    pub extra_space: usize,
 }
 
 impl BasicEventData {

@@ -78,6 +78,8 @@ base32 = "0.4.0"
 openssl = { version = "0.10.57", features = ["vendored"] }
 bb8 = "0.8.3"
 bb8-postgres = "0.8.1"
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+tokio-native-tls = "0.3"
 uuid = "1.7.0"
 openssl-probe = "0.1.5"
 jsonwebtoken = "9.2.0"
