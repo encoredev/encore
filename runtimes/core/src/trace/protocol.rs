@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::api::reqauth::meta::HeaderValueExt;
 use crate::api::{self, PValue};
-use crate::model::{LogField, LogFieldValue, Request, TraceEventId};
+use crate::model::{APICall, LogField, LogFieldValue, Request, TraceEventId};
 use crate::trace::eventbuf::EventBuffer;
 use crate::trace::log::TraceEvent;
 use crate::{model, objects, EncoreName};
@@ -406,11 +406,6 @@ impl Tracer {
     }
 }
 
-pub struct RPCCallStartData<'a> {
-    pub source: &'a Request,
-    pub target: &'a crate::EndpointName,
-}
-
 pub struct RPCCallEndData<'a> {
     pub start_id: Option<TraceEventId>,
     pub source: &'a Request,
@@ -420,11 +415,12 @@ pub struct RPCCallEndData<'a> {
 
 impl Tracer {
     #[inline]
-    pub fn rpc_call_start(&self, data: RPCCallStartData) -> Option<TraceEventId> {
-        if !data.source.traced {
+    pub fn rpc_call_start(&self, call: &APICall) -> Option<TraceEventId> {
+        let source = call.source.as_ref()?;
+        if !source.traced {
             return None;
         }
-        let (service, endpoint) = (data.target.service(), data.target.endpoint());
+        let (service, endpoint) = (call.target.service(), call.target.endpoint());
         let mut eb = BasicEventData {
             correlation_event_id: None,
             extra_space: 4 + 4 + service.len() + endpoint.len(),
@@ -435,7 +431,7 @@ impl Tracer {
         eb.str(endpoint);
         eb.nyi_stack_pcs();
 
-        Some(self.send(EventType::RPCCallStart, data.source.span, eb))
+        Some(self.send(EventType::RPCCallStart, source.span, eb))
     }
 
     #[inline]

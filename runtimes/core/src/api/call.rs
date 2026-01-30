@@ -127,27 +127,23 @@ impl ServiceRegistry {
         opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<ResponsePayload>> + 'static {
         let tracer = self.tracer.clone();
-        let start_event_id = source.as_deref().and_then(|source| {
-            tracer.rpc_call_start(crate::trace::protocol::RPCCallStartData {
-                source,
-                target: &target,
-            })
-        });
+        let call = model::APICall { source, target };
+        let start_event_id = tracer.rpc_call_start(&call);
 
         let fut = self.do_api_call(
-            &target,
+            &call.target,
             data,
-            source.as_deref(),
+            call.source.as_deref(),
             start_event_id,
             opts.as_ref(),
         );
         async move {
             let result = fut.await;
-            if let Some(source) = source.as_deref() {
+            if let Some(source) = call.source.as_deref() {
                 tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
                     start_id: start_event_id,
                     source,
-                    target: &target,
+                    target: &call.target,
                     err: result.as_ref().err(),
                 });
             }
@@ -163,28 +159,24 @@ impl ServiceRegistry {
         opts: Option<api::CallOpts>,
     ) -> impl Future<Output = APIResult<WebSocketClient>> + 'static {
         let tracer = self.tracer.clone();
-        let start_event_id = source.as_deref().and_then(|source| {
-            tracer.rpc_call_start(crate::trace::protocol::RPCCallStartData {
-                source,
-                target: &target,
-            })
-        });
+        let call = model::APICall { source, target };
+        let start_event_id = tracer.rpc_call_start(&call);
 
         let fut = self.do_connect_stream(
-            &target,
+            &call.target,
             data,
-            source.as_deref(),
+            call.source.as_deref(),
             start_event_id,
             opts.as_ref(),
         );
 
         async move {
             let result = fut.await;
-            if let Some(source) = source.as_deref() {
+            if let Some(source) = call.source.as_deref() {
                 tracer.rpc_call_end(crate::trace::protocol::RPCCallEndData {
                     start_id: start_event_id,
                     source,
-                    target: &target,
+                    target: &call.target,
                     err: result.as_ref().err(),
                 });
             }
