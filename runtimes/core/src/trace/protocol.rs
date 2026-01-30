@@ -952,6 +952,76 @@ impl Tracer {
     }
 }
 
+/// Cache operation result for tracing.
+/// Values must match the Go trace parser's CacheOp_Result enum.
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum CacheOpResult {
+    Unknown = 0,
+    Ok = 1,
+    NoSuchKey = 2,
+    Conflict = 3,
+    Err = 4,
+}
+
+pub struct CacheCallStartData<'a> {
+    pub source: &'a Request,
+    pub operation: &'a str,
+    pub is_write: bool,
+    pub keys: &'a [&'a str],
+}
+
+pub struct CacheCallEndData<'a, E> {
+    pub start_id: Option<TraceEventId>,
+    pub source: &'a Request,
+    pub result: CacheOpResult,
+    pub error: Option<&'a E>,
+}
+
+impl Tracer {
+    #[inline]
+    pub fn cache_call_start(&self, data: CacheCallStartData) -> Option<TraceEventId> {
+        if !data.source.traced {
+            return None;
+        }
+        let mut eb = BasicEventData {
+            correlation_event_id: None,
+            extra_space: 64 + data.operation.len() + data.keys.len() * 32,
+        }
+        .into_eb();
+
+        eb.str(data.operation);
+        eb.bool(data.is_write);
+        eb.nyi_stack_pcs();
+        eb.uvarint(data.keys.len() as u64);
+        for key in data.keys {
+            eb.str(key);
+        }
+
+        Some(self.send(EventType::CacheCallStart, data.source.span, eb))
+    }
+
+    #[inline]
+    pub fn cache_call_end<E>(&self, data: CacheCallEndData<E>)
+    where
+        E: std::fmt::Display,
+    {
+        let Some(start_id) = data.start_id else {
+            return;
+        };
+        let mut eb = BasicEventData {
+            correlation_event_id: Some(start_id),
+            extra_space: 32,
+        }
+        .into_eb();
+
+        eb.byte(data.result as u8);
+        eb.err_with_legacy_stack(data.error);
+
+        _ = self.send(EventType::CacheCallEnd, data.source.span, eb);
+    }
+}
+
 impl Tracer {
     #[inline]
     fn send(&self, typ: EventType, span: model::SpanKey, eb: EventBuffer) -> model::TraceEventId {
