@@ -167,6 +167,24 @@ The API responds with a 2xx status code on successful creation of a new rollout.
 On success it returns a **Rollout** object as its JSON response payload,
 representing the current state of the newly created rollout.
 
+### Retrieving a rollout
+
+**Method**: `GET` <br/>
+**Path**: `/api/apps/${APP_ID}/rollouts/${ROLLOUT_ID}`
+
+#### Path Parameters
+
+| Parameter      | Description                                                  |
+| -------------- | ------------------------------------------------------------ |
+| **APP_ID**     | The id of the Encore application to trigger a rollout for.   |
+| **ROLLOUT_ID** | The id of the rollout to retrieve, in the form `"roll_..."`. |
+
+#### Response
+
+The API responds with a 2xx status code on successful retrieval of the rollout.
+On success it returns a **Rollout** object as its JSON response payload,
+representing the current state of the requested rollout.
+
 ## Member Management
 
 Encore Cloud provides APIs for managing application members, including inviting users, listing members, and updating member roles.
