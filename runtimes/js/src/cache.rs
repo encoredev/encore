@@ -25,7 +25,10 @@ impl CacheCluster {
         self.pool
             .get_or_init(|| {
                 self.inner.pool().map_err(|e| {
-                    Error::new(Status::GenericFailure, format!("failed to create pool: {e}"))
+                    Error::new(
+                        Status::GenericFailure,
+                        format!("failed to create pool: {e}"),
+                    )
                 })
             })
             .as_ref()
@@ -146,7 +149,11 @@ impl CacheCluster {
     ) -> napi::Result<Vec<Option<Buffer>>> {
         let source = source.map(|s| s.inner.as_ref());
         let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
-        let result = self.pool()?.mget(&key_refs, source).await.map_err(to_error)?;
+        let result = self
+            .pool()?
+            .mget(&key_refs, source)
+            .await
+            .map_err(to_error)?;
         Ok(result.into_iter().map(|v| v.map(|b| b.into())).collect())
     }
 

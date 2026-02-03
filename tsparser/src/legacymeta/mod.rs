@@ -757,10 +757,8 @@ impl MetaBuilder<'_> {
                 for svc_name in services {
                     // Only add if we don't already have a keyspace for this service
                     // (from parsed CacheKeyspace resources)
-                    let already_has_service = cluster
-                        .keyspaces
-                        .iter()
-                        .any(|ks| ks.service == svc_name);
+                    let already_has_service =
+                        cluster.keyspaces.iter().any(|ks| ks.service == svc_name);
                     if !already_has_service {
                         cluster.keyspaces.push(v1::cache_cluster::Keyspace {
                             service: svc_name,

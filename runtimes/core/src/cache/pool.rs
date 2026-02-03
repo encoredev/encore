@@ -130,7 +130,11 @@ impl Pool {
 
         match result {
             Ok(set) => {
-                let op_result = if set { OpResult::Ok } else { OpResult::Conflict };
+                let op_result = if set {
+                    OpResult::Ok
+                } else {
+                    OpResult::Conflict
+                };
                 self.trace_end(trace, op_result, None);
                 Ok(set)
             }
@@ -282,12 +286,7 @@ impl Pool {
     // ==================== String Operations ====================
 
     /// Append to a string value.
-    pub async fn append(
-        &self,
-        key: &str,
-        value: &[u8],
-        source: Option<&Request>,
-    ) -> Result<i64> {
+    pub async fn append(&self, key: &str, value: &[u8], source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("append", true, &[&key], source);
 
@@ -316,7 +315,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("getrange", false, &[&key], source);
 
-        let result: RedisResult<Vec<u8>> = self.conn().await?.getrange(&key, start as isize, end as isize).await;
+        let result: RedisResult<Vec<u8>> = self
+            .conn()
+            .await?
+            .getrange(&key, start as isize, end as isize)
+            .await;
 
         match result {
             Ok(value) => {
@@ -341,7 +344,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("setrange", true, &[&key], source);
 
-        let result: RedisResult<i64> = self.conn().await?.setrange(&key, offset as isize, value).await;
+        let result: RedisResult<i64> = self
+            .conn()
+            .await?
+            .setrange(&key, offset as isize, value)
+            .await;
 
         match result {
             Ok(new_len) => {
@@ -377,12 +384,7 @@ impl Pool {
     // ==================== Numeric Operations ====================
 
     /// Increment an integer value.
-    pub async fn incr_by(
-        &self,
-        key: &str,
-        delta: i64,
-        source: Option<&Request>,
-    ) -> Result<i64> {
+    pub async fn incr_by(&self, key: &str, delta: i64, source: Option<&Request>) -> Result<i64> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("incrby", true, &[&key], source);
 
@@ -487,7 +489,8 @@ impl Pool {
         let result: RedisResult<Vec<Vec<u8>>> = match count.and_then(NonZeroUsize::new) {
             Some(n) => self.conn().await?.lpop(&key, Some(n)).await,
             None => {
-                let single: RedisResult<Option<Vec<u8>>> = self.conn().await?.lpop(&key, None).await;
+                let single: RedisResult<Option<Vec<u8>>> =
+                    self.conn().await?.lpop(&key, None).await;
                 single.map(|v| v.into_iter().collect())
             }
         };
@@ -517,7 +520,8 @@ impl Pool {
         let result: RedisResult<Vec<Vec<u8>>> = match count.and_then(NonZeroUsize::new) {
             Some(n) => self.conn().await?.rpop(&key, Some(n)).await,
             None => {
-                let single: RedisResult<Option<Vec<u8>>> = self.conn().await?.rpop(&key, None).await;
+                let single: RedisResult<Option<Vec<u8>>> =
+                    self.conn().await?.rpop(&key, None).await;
                 single.map(|v| v.into_iter().collect())
             }
         };
@@ -544,7 +548,8 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lindex", false, &[&key], source);
 
-        let result: RedisResult<Option<Vec<u8>>> = self.conn().await?.lindex(&key, index as isize).await;
+        let result: RedisResult<Option<Vec<u8>>> =
+            self.conn().await?.lindex(&key, index as isize).await;
 
         match result {
             Ok(value) => {
@@ -594,7 +599,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("lrange", false, &[&key], source);
 
-        let result: RedisResult<Vec<Vec<u8>>> = self.conn().await?.lrange(&key, start as isize, stop as isize).await;
+        let result: RedisResult<Vec<Vec<u8>>> = self
+            .conn()
+            .await?
+            .lrange(&key, start as isize, stop as isize)
+            .await;
 
         match result {
             Ok(values) => {
@@ -619,7 +628,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("ltrim", true, &[&key], source);
 
-        let result: RedisResult<()> = self.conn().await?.ltrim(&key, start as isize, stop as isize).await;
+        let result: RedisResult<()> = self
+            .conn()
+            .await?
+            .ltrim(&key, start as isize, stop as isize)
+            .await;
 
         match result {
             Ok(()) => {
@@ -1122,12 +1135,7 @@ impl Pool {
     // ==================== Expiry Operations ====================
 
     /// Set expiry on a key in milliseconds.
-    pub async fn pexpire(
-        &self,
-        key: &str,
-        ttl_ms: u64,
-        source: Option<&Request>,
-    ) -> Result<bool> {
+    pub async fn pexpire(&self, key: &str, ttl_ms: u64, source: Option<&Request>) -> Result<bool> {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("pexpire", true, &[&key], source);
 
@@ -1172,7 +1180,12 @@ impl Pool {
         })
     }
 
-    fn trace_end(&self, trace: Option<TraceStart>, result: OpResult, err: Option<&redis::RedisError>) {
+    fn trace_end(
+        &self,
+        trace: Option<TraceStart>,
+        result: OpResult,
+        err: Option<&redis::RedisError>,
+    ) {
         let Some(trace) = trace else { return };
 
         // Send start event
@@ -1192,7 +1205,8 @@ impl Pool {
                 eb.str(key);
             }
 
-            self.tracer.send_raw(EventType::CacheCallStart, trace.span, eb)
+            self.tracer
+                .send_raw(EventType::CacheCallStart, trace.span, eb)
         };
 
         // Send end event
@@ -1207,7 +1221,8 @@ impl Pool {
             eb.byte(result as u8);
             eb.err_with_legacy_stack(err);
 
-            self.tracer.send_raw(EventType::CacheCallEnd, trace.span, eb);
+            self.tracer
+                .send_raw(EventType::CacheCallEnd, trace.span, eb);
         }
     }
 }

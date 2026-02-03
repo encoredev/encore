@@ -277,9 +277,8 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                 .resolve_type(pass.module.clone(), key_type_ast.unwrap());
 
             // Resolve the value type (if explicit)
-            let value_type = value_type_ast.map(|vt| {
-                pass.type_checker.resolve_type(pass.module.clone(), vt)
-            });
+            let value_type =
+                value_type_ast.map(|vt| pass.type_checker.resolve_type(pass.module.clone(), vt));
 
             // Resolve the cluster reference from the stored expression
             let cluster_span = r.cluster_expr.span();
@@ -287,7 +286,9 @@ pub const CACHE_KEYSPACE_PARSER: ResourceParser = ResourceParser {
                 .type_checker
                 .resolve_obj(pass.module.clone(), &r.cluster_expr)
             else {
-                r.expr.span().err("could not resolve cache cluster reference");
+                r.expr
+                    .span()
+                    .err("could not resolve cache cluster reference");
                 continue;
             };
 
@@ -361,7 +362,9 @@ impl ReferenceParser for KeyspaceReference {
                 // First argument is the cluster reference
                 let cluster_arg = &args[0];
                 if cluster_arg.spread.is_some() {
-                    return Err(cluster_arg.span().parse_err("cannot use spread for cluster"));
+                    return Err(cluster_arg
+                        .span()
+                        .parse_err("cannot use spread for cluster"));
                 }
 
                 // Store the cluster expression to be resolved later
@@ -420,13 +423,11 @@ pub fn resolve_cache_cluster_usage(
             let method_name = method.method.sym.as_ref();
             match method_name {
                 "keyspace" | "stringKeyspace" | "intKeyspace" | "floatKeyspace"
-                | "listKeyspace" | "setKeyspace" => {
-                    Some(Usage::CacheCluster(CacheClusterUsage {
-                        cluster,
-                        operation: "keyspace".to_string(),
-                        range: data.expr.range.clone(),
-                    }))
-                }
+                | "listKeyspace" | "setKeyspace" => Some(Usage::CacheCluster(CacheClusterUsage {
+                    cluster,
+                    operation: "keyspace".to_string(),
+                    range: data.expr.range.clone(),
+                })),
                 _ => None,
             }
         }

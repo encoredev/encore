@@ -68,7 +68,11 @@ impl Display for Resource {
             Resource::CacheCluster(cluster) => write!(f, "CacheCluster({})", cluster.name),
             Resource::CacheKeyspace(keyspace) => {
                 let cluster_name = keyspace.cluster.name.as_deref().unwrap_or("<unknown>");
-                write!(f, "CacheKeyspace({}::{})", cluster_name, keyspace.key_pattern)
+                write!(
+                    f,
+                    "CacheKeyspace({}::{})",
+                    cluster_name, keyspace.key_pattern
+                )
             }
         }
     }

@@ -27,13 +27,9 @@ pub struct ManagerConfig<'a> {
 
 impl ManagerConfig<'_> {
     pub fn build(self) -> anyhow::Result<Manager> {
-        let clusters = clusters_from_cfg(
-            self.clusters,
-            self.creds,
-            self.secrets,
-            self.tracer.clone(),
-        )
-        .context("failed to parse Redis clusters")?;
+        let clusters =
+            clusters_from_cfg(self.clusters, self.creds, self.secrets, self.tracer.clone())
+                .context("failed to parse Redis clusters")?;
 
         Ok(Manager {
             clusters: Arc::new(clusters),
@@ -120,8 +116,11 @@ fn clusters_from_cfg(
     log::debug!("cache: configuring {} Redis clusters", clusters.len());
 
     // Build role lookup
-    let roles: HashMap<&str, &pb::RedisRole> =
-        creds.redis_roles.iter().map(|r| (r.rid.as_str(), r)).collect();
+    let roles: HashMap<&str, &pb::RedisRole> = creds
+        .redis_roles
+        .iter()
+        .map(|r| (r.rid.as_str(), r))
+        .collect();
 
     for cluster in clusters {
         // Get the primary server
@@ -131,7 +130,10 @@ fn clusters_from_cfg(
             .find(|s| s.kind() == pb::ServerKind::Primary);
 
         let Some(server) = server else {
-            log::warn!("no primary server found for Redis cluster {}, skipping", cluster.rid);
+            log::warn!(
+                "no primary server found for Redis cluster {}, skipping",
+                cluster.rid
+            );
             continue;
         };
 
@@ -157,8 +159,7 @@ fn clusters_from_cfg(
 
             // Build connection URL
             let conn_url = build_connection_url(server, db, role, secrets)?;
-            let client = redis::Client::open(conn_url)
-                .context("failed to create Redis client")?;
+            let client = redis::Client::open(conn_url).context("failed to create Redis client")?;
 
             let name: EncoreName = db.encore_name.clone().into();
             log::debug!("cache: configured Redis database {}", db.encore_name);
@@ -207,7 +208,9 @@ fn build_connection_url(
     let auth = match &role.auth {
         Some(Auth::AuthString(secret_data)) => {
             let password = secrets.load(secret_data.clone());
-            let password = password.get().context("failed to resolve Redis auth string")?;
+            let password = password
+                .get()
+                .context("failed to resolve Redis auth string")?;
             let password_str = std::str::from_utf8(password).context("invalid auth string")?;
             format!(":{password_str}@")
         }
@@ -243,7 +246,9 @@ fn build_unix_socket_url(
     let auth_params = match &role.auth {
         Some(Auth::AuthString(secret_data)) => {
             let password = secrets.load(secret_data.clone());
-            let password = password.get().context("failed to resolve Redis auth string")?;
+            let password = password
+                .get()
+                .context("failed to resolve Redis auth string")?;
             let password_str = std::str::from_utf8(password).context("invalid auth string")?;
             format!("&password={}", urlencoding::encode(password_str))
         }
