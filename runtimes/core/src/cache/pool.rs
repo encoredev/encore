@@ -1,22 +1,39 @@
 use std::num::NonZeroUsize;
 
-use anyhow::Context;
-use redis::aio::ConnectionManager;
-use redis::{AsyncCommands, RedisResult};
-use tokio::sync::OnceCell;
+use bb8::{ErrorSink, Pool as Bb8Pool, RunError};
+use bb8_redis::redis::{self as redis, AsyncCommands, RedisResult};
+use bb8_redis::RedisConnectionManager;
 
-use crate::cache::error::Result;
+use crate::cache::error::{Error, Result};
 use crate::model::{Request, TraceEventId};
 use crate::trace::protocol::{CacheCallEndData, CacheCallStartData, CacheOpResult};
 use crate::trace::Tracer;
 
 /// A connection pool to a Redis cache cluster.
-/// Uses ConnectionManager for automatic reconnection handling.
+/// Uses bb8 for connection pooling with configurable min/max connections.
 pub struct Pool {
-    client: redis::Client,
-    conn: OnceCell<ConnectionManager>,
+    pool: Bb8Pool<RedisConnectionManager>,
     key_prefix: Option<String>,
     tracer: Tracer,
+}
+
+#[derive(Debug, Clone)]
+struct RedisErrorSink {
+    cluster_name: String,
+}
+
+impl ErrorSink<redis::RedisError> for RedisErrorSink {
+    fn sink(&self, err: redis::RedisError) {
+        log::error!(
+            "cache cluster {}: connection pool error: {:?}",
+            self.cluster_name,
+            err
+        );
+    }
+
+    fn boxed_clone(&self) -> Box<dyn ErrorSink<redis::RedisError>> {
+        Box::new(self.clone())
+    }
 }
 
 impl Pool {
@@ -24,29 +41,35 @@ impl Pool {
         client: redis::Client,
         key_prefix: Option<String>,
         tracer: Tracer,
-        _min_conns: u32,
-        _max_conns: u32,
+        min_conns: u32,
+        max_conns: u32,
     ) -> anyhow::Result<Self> {
+        let mgr = RedisConnectionManager::new(client.get_connection_info().clone())?;
+
+        let cluster_name = key_prefix.clone().unwrap_or_else(|| "default".to_string());
+        let mut pool = Bb8Pool::builder()
+            .error_sink(Box::new(RedisErrorSink { cluster_name }))
+            .max_size(if max_conns > 0 { max_conns } else { 30 });
+
+        if min_conns > 0 {
+            pool = pool.min_idle(Some(min_conns));
+        }
+
+        let pool = pool.build_unchecked(mgr);
+
         Ok(Self {
-            client,
-            conn: OnceCell::new(),
+            pool,
             key_prefix,
             tracer,
         })
     }
 
-    /// Gets or creates the ConnectionManager lazily.
-    /// ConnectionManager handles automatic reconnection on connection failures.
-    async fn conn(&self) -> Result<ConnectionManager> {
-        self.conn
-            .get_or_try_init(|| async {
-                ConnectionManager::new(self.client.clone())
-                    .await
-                    .context("failed to connect to Redis")
-            })
-            .await
-            .cloned()
-            .map_err(Into::into)
+    /// Gets a connection from the pool.
+    async fn conn(&self) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>> {
+        self.pool.get().await.map_err(|e| match e {
+            RunError::User(err) => Error::Redis(err),
+            RunError::TimedOut => Error::Pool("connection pool timeout".to_string()),
+        })
     }
 
     /// Returns a prefixed key if a key prefix is configured.
@@ -64,7 +87,8 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("get", false, &[&key], source);
 
-        let result: RedisResult<Option<Vec<u8>>> = self.conn().await?.get(&key).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<Option<Vec<u8>>> = (&mut *conn).get(&key).await;
 
         match result {
             Ok(value) => {
@@ -89,10 +113,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("set", true, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<()> = if let Some(ms) = ttl_ms {
-            self.conn().await?.set_ex(&key, value, ms / 1000).await
+            (&mut *conn).set_ex(&key, value, ms / 1000).await
         } else {
-            self.conn().await?.set(&key, value).await
+            (&mut *conn).set(&key, value).await
         };
 
         match result {
@@ -119,12 +144,13 @@ impl Pool {
         let trace = self.trace_start("setnx", true, &[&key], source);
 
         let result: RedisResult<bool> = {
+            let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("NX");
             if let Some(ms) = ttl_ms {
                 cmd.arg("PX").arg(ms);
             }
-            cmd.query_async(&mut self.conn().await?).await
+            cmd.query_async(&mut *conn).await
         };
 
         match result {
@@ -156,12 +182,13 @@ impl Pool {
         let trace = self.trace_start("replace", true, &[&key], source);
 
         let result: RedisResult<Option<()>> = {
+            let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("XX");
             if let Some(ms) = ttl_ms {
                 cmd.arg("PX").arg(ms);
             }
-            cmd.query_async(&mut self.conn().await?).await
+            cmd.query_async(&mut *conn).await
         };
 
         match result {
@@ -192,12 +219,13 @@ impl Pool {
         let trace = self.trace_start("getset", true, &[&key], source);
 
         let result: RedisResult<Option<Vec<u8>>> = {
+            let mut conn = self.conn().await?;
             let mut cmd = redis::cmd("SET");
             cmd.arg(&key).arg(value).arg("GET");
             if let Some(ms) = ttl_ms {
                 cmd.arg("PX").arg(ms);
             }
-            cmd.query_async(&mut self.conn().await?).await
+            cmd.query_async(&mut *conn).await
         };
 
         match result {
@@ -221,9 +249,10 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("getdel", true, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<Option<Vec<u8>>> = redis::cmd("GETDEL")
             .arg(&key)
-            .query_async(&mut self.conn().await?)
+            .query_async(&mut *conn)
             .await;
 
         match result {
@@ -244,7 +273,8 @@ impl Pool {
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("del", true, &key_refs, source);
 
-        let result: RedisResult<u64> = self.conn().await?.del(&prefixed).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<u64> = (&mut *conn).del(&prefixed).await;
 
         match result {
             Ok(count) => {
@@ -268,7 +298,8 @@ impl Pool {
         let key_refs: Vec<&str> = prefixed.iter().map(|s| s.as_str()).collect();
         let trace = self.trace_start("mget", false, &key_refs, source);
 
-        let result: RedisResult<Vec<Option<Vec<u8>>>> = self.conn().await?.mget(&prefixed).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<Vec<Option<Vec<u8>>>> = (&mut *conn).mget(&prefixed).await;
 
         match result {
             Ok(values) => {
@@ -289,7 +320,8 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("append", true, &[&key], source);
 
-        let result: RedisResult<i64> = self.conn().await?.append(&key, value).await;
+        let mut conn = self.conn().await?;
+        let result: RedisResult<i64> = (&mut *conn).append(&key, value).await;
 
         match result {
             Ok(new_len) => {
@@ -656,12 +688,13 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("linsert", true, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<i64> = redis::cmd("LINSERT")
             .arg(&key)
             .arg("BEFORE")
             .arg(pivot)
             .arg(value)
-            .query_async(&mut self.conn().await?)
+            .query_async(&mut *conn)
             .await;
 
         match result {
@@ -687,12 +720,13 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("linsert", true, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<i64> = redis::cmd("LINSERT")
             .arg(&key)
             .arg("AFTER")
             .arg(pivot)
             .arg(value)
-            .query_async(&mut self.conn().await?)
+            .query_async(&mut *conn)
             .await;
 
         match result {
@@ -748,12 +782,13 @@ impl Pool {
         let dst_key = self.prefixed_key(dst);
         let trace = self.trace_start("lmove", true, &[&src_key, &dst_key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<Option<Vec<u8>>> = redis::cmd("LMOVE")
             .arg(&src_key)
             .arg(&dst_key)
             .arg(src_dir.as_str())
             .arg(dst_dir.as_str())
-            .query_async(&mut self.conn().await?)
+            .query_async(&mut *conn)
             .await;
 
         match result {
@@ -871,16 +906,17 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("spop", true, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = match count {
             Some(n) => {
                 redis::cmd("SPOP")
                     .arg(&key)
                     .arg(n)
-                    .query_async(&mut self.conn().await?)
+                    .query_async(&mut *conn)
                     .await
             }
             None => {
-                let single: RedisResult<Option<Vec<u8>>> = self.conn().await?.spop(&key).await;
+                let single: RedisResult<Option<Vec<u8>>> = (&mut *conn).spop(&key).await;
                 single.map(|v| v.into_iter().collect())
             }
         };
@@ -908,10 +944,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("srandmember", false, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<Vec<Vec<u8>>> = redis::cmd("SRANDMEMBER")
             .arg(&key)
             .arg(count)
-            .query_async(&mut self.conn().await?)
+            .query_async(&mut *conn)
             .await;
 
         match result {
@@ -1138,10 +1175,11 @@ impl Pool {
         let key = self.prefixed_key(key);
         let trace = self.trace_start("pexpire", true, &[&key], source);
 
+        let mut conn = self.conn().await?;
         let result: RedisResult<bool> = redis::cmd("PEXPIRE")
             .arg(&key)
             .arg(ttl_ms as i64)
-            .query_async(&mut self.conn().await?)
+            .query_async(&mut *conn)
             .await;
 
         match result {

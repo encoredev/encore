@@ -1,3 +1,4 @@
+use bb8_redis::redis;
 use thiserror::Error;
 
 /// Result type for cache operations.

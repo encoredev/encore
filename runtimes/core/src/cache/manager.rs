@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Context;
+use bb8_redis::redis;
 
 use crate::cache::noop::NoopCluster;
 use crate::cache::pool::Pool;
