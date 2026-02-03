@@ -2,7 +2,6 @@ package supervisor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -17,9 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
-	"go4.org/syncutil"
 
 	"encr.dev/pkg/noopgateway"
 	runtimev1 "encr.dev/proto/encore/runtime/v1"
@@ -68,9 +65,6 @@ type Supervisor struct {
 	cfg   *Config
 	rt    *runtimev1.RuntimeConfig
 	procs map[string]*supervisedProc
-
-	buildInfoOnce syncutil.Once
-	buildInfo     BuildInfo
 
 	log zerolog.Logger
 }
@@ -248,15 +242,6 @@ func (p *supervisedProc) Supervise() {
 			continue
 		}
 	}
-}
-
-func readBuildInfo() (BuildInfo, error) {
-	var info BuildInfo
-	data, err := os.ReadFile("/encore/build-info.json")
-	if err == nil {
-		err = json.Unmarshal(data, &info)
-	}
-	return info, errors.Wrap(err, "read build info")
 }
 
 type BuildInfo struct {

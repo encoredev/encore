@@ -21,8 +21,7 @@ type Watcher struct {
 	events         *Events
 	signalDebounce func(func())
 
-	log     *zerolog.Logger
-	appRoot string
+	log *zerolog.Logger
 
 	watcher     *fsnotify.Watcher
 	directories map[string]struct{}

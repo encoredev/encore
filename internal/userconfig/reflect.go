@@ -14,22 +14,6 @@ import (
 	"github.com/fatih/structtag"
 )
 
-func keyForField(f *reflect.StructField) (string, error) {
-	tags, err := structtag.Parse(string(f.Tag))
-	if err != nil {
-		return "", err
-	}
-	tag, err := tags.Get("koanf")
-	if err != nil {
-		return "", err
-	}
-	key := tag.Name
-	if key == "" {
-		return "", errors.New("empty key")
-	}
-	return key, nil
-}
-
 type keyDesc struct {
 	Doc       string
 	Type      Type

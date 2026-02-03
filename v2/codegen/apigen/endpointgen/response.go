@@ -188,22 +188,6 @@ func (d *responseDesc) DecodeExternalResp() *Statement {
 	})
 }
 
-// httpRespExpr returns an expression to access the HTTP response writer variable.
-func (d *requestDesc) httpRespExpr() *Statement {
-	return Id("httpResp")
-}
-
-// respDataExpr returns the expression to access the respData variable.
-func (d *responseDesc) respDataExpr() *Statement {
-	return Id("respData")
-}
-
-// respDataPayloadExpr returns an expression for accessing the payload
-// in the reqData variable.
-func (d *responseDesc) respDataPayloadExpr() *Statement {
-	return d.respDataExpr()
-}
-
 // zero returns an expression representing the zero value
 // of the response type.
 func (d *responseDesc) zero() *Statement {

@@ -6,7 +6,6 @@ import (
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/parsectx"
-	"encr.dev/v2/internals/perr"
 	"encr.dev/v2/internals/pkginfo"
 	"encr.dev/v2/parser"
 	"encr.dev/v2/parser/apis/api"
@@ -105,7 +104,6 @@ func discoverServices(pc *parsectx.Context, result *parser.Result) []*Service {
 }
 
 type serviceDiscovery struct {
-	errs     *perr.List            // errs is the error list to add errors to.
 	services map[paths.FS]*Service // services maps the root folder to a service to the service
 
 	// strongRoot marks a folder as a strong root, meaning we won't allow it to be merged

@@ -143,9 +143,6 @@ type Deployment struct {
 	// The service-discovery configuration for this deployment.
 	sd *runtimev1.ServiceDiscovery
 
-	// The base URL for reaching this deployment from another service.
-	svc2svcBaseURL string
-
 	hostedGateways     []string
 	hostedServiceNames []string
 }

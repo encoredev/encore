@@ -2,11 +2,6 @@ package rtconfgen
 
 import "fmt"
 
-// A resource is an object with a unique resource id (rid).
-type resource interface {
-	GetRid() string
-}
-
 type resourceKey struct {
 	typ string
 	rid string

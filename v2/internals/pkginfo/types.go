@@ -49,7 +49,6 @@ func (m *Module) FSPathToPkg(pkgPath paths.Pkg) (path paths.FS, ok bool) {
 }
 
 type Package struct {
-	l          *Loader // the loader that created it.
 	AST        *ast.Package
 	Name       string
 	Doc        string

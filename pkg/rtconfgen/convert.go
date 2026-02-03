@@ -559,25 +559,6 @@ func (c *legacyConverter) authKeys(keys []*runtimev1.EncoreAuthKey) []config.Enc
 	})
 }
 
-func (c *legacyConverter) limiter(lim *runtimev1.RateLimiter) *config.Limiter {
-	if lim == nil {
-		return nil
-	}
-
-	switch lim := lim.Kind.(type) {
-	case *runtimev1.RateLimiter_TokenBucket_:
-		return &config.Limiter{
-			TokenBucket: &config.TokenBucketLimiter{
-				PerSecondRate: lim.TokenBucket.Rate,
-				BucketSize:    int(lim.TokenBucket.Burst),
-			},
-		}
-	default:
-		c.setErrf("unknown rate limiter type %T", lim)
-		return nil
-	}
-}
-
 func (c *legacyConverter) secretString(s *runtimev1.SecretData) string {
 	return string(c.secretBytes(s))
 }
@@ -675,10 +656,3 @@ func ptrOrNil[T comparable](val T) *T {
 	return &val
 }
 
-func randomMapValue[K comparable, V any](m map[K]V) (V, bool) {
-	for _, v := range m {
-		return v, true
-	}
-	var zero V
-	return zero, false
-}

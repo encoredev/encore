@@ -149,9 +149,3 @@ func dockerBuild(p buildParams) {
 	}
 }
 
-func or(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}

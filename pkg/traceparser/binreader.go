@@ -17,11 +17,10 @@ import (
 var bin = binary.LittleEndian
 
 type traceReader struct {
-	buf        *bufio.Reader
-	version    trace2.Version
-	bytesRead  int
-	timeAnchor int64
-	err        error // any error encountered during reading
+	buf       *bufio.Reader
+	version   trace2.Version
+	bytesRead int
+	err       error // any error encountered during reading
 }
 
 func (tr *traceReader) setErr(err error) {

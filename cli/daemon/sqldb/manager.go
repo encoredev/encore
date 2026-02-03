@@ -10,7 +10,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/sync/singleflight"
 
 	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/namespace"
@@ -33,12 +32,11 @@ func NewClusterManager(driver Driver, apps *apps.Manager, ns *namespace.Manager,
 
 // A ClusterManager manages running local sqldb clusters.
 type ClusterManager struct {
-	log        zerolog.Logger
-	driver     Driver
-	apps       *apps.Manager
-	ns         *namespace.Manager
-	startGroup singleflight.Group
-	secretMgr  *secret.Manager
+	log       zerolog.Logger
+	driver    Driver
+	apps      *apps.Manager
+	ns        *namespace.Manager
+	secretMgr *secret.Manager
 
 	mu       sync.Mutex
 	clusters map[clusterKey]*Cluster

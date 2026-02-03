@@ -232,21 +232,3 @@ func newRouteLookuper(routes []*Route) *httprouter.Router {
 	return r
 }
 
-// authInfo represents extracted auth information from a request.
-type authInfo struct {
-}
-
-// extractAuthInfo extracts the auth information from the request.
-// If there is no auth information (or the gateway has no auth handler)
-// it reports nil.
-func (g *Gateway) extractAuthInfo(req *http.Request) *authInfo {
-	auth := g.desc.Auth
-	if auth == nil {
-		return nil
-	}
-
-	// TODO check Query, Header, Cookie etc
-	// TODO check legacy bearer token auth
-
-	return nil
-}

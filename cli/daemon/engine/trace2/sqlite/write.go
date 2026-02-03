@@ -377,10 +377,7 @@ func (s *Store) updateSpanEndIndex(ctx context.Context, meta *trace2.Meta, ev *t
 	return nil
 }
 
-var (
-	binBE = binary.BigEndian
-	binLE = binary.LittleEndian
-)
+var binLE = binary.LittleEndian
 
 // encodeTraceID encodes the trace id as a human-readable string.
 func encodeTraceID(id *tracepbcli.TraceID) string {

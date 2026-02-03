@@ -60,10 +60,6 @@ func resolvePackages(dir string, patterns ...string) ([]string, error) {
 	return paths, nil
 }
 
-func displayError(out *os.File, err []byte) {
-	cmdutil.DisplayError(out, err)
-}
-
 func fatal(args ...interface{}) {
 	cmdutil.Fatal(args...)
 }
