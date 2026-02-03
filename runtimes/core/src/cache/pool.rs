@@ -250,10 +250,8 @@ impl Pool {
         let trace = self.trace_start("getdel", true, &[&key], source);
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<Option<Vec<u8>>> = redis::cmd("GETDEL")
-            .arg(&key)
-            .query_async(&mut *conn)
-            .await;
+        let result: RedisResult<Option<Vec<u8>>> =
+            redis::cmd("GETDEL").arg(&key).query_async(&mut *conn).await;
 
         match result {
             Ok(value) => {
