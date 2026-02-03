@@ -1,14 +1,13 @@
 use std::num::NonZeroUsize;
-use std::time::Instant;
 
 use anyhow::Context;
 use redis::aio::ConnectionManager;
 use redis::{AsyncCommands, RedisResult};
 use tokio::sync::OnceCell;
 
-use crate::cache::error::{OpResult, Result};
-use crate::model::{Request, SpanKey};
-use crate::trace::protocol::{BasicEventData, EventType};
+use crate::cache::error::Result;
+use crate::model::{Request, TraceEventId};
+use crate::trace::protocol::{CacheCallEndData, CacheCallStartData, CacheOpResult};
 use crate::trace::Tracer;
 
 /// A connection pool to a Redis cache cluster.
@@ -69,11 +68,11 @@ impl Pool {
 
         match result {
             Ok(value) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(value)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -98,11 +97,11 @@ impl Pool {
 
         match result {
             Ok(()) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(())
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -131,15 +130,15 @@ impl Pool {
         match result {
             Ok(set) => {
                 let op_result = if set {
-                    OpResult::Ok
+                    CacheOpResult::Ok
                 } else {
-                    OpResult::Conflict
+                    CacheOpResult::Conflict
                 };
-                self.trace_end(trace, op_result, None);
+                self.trace_end(trace, source, op_result, None);
                 Ok(set)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -167,15 +166,15 @@ impl Pool {
 
         match result {
             Ok(Some(())) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(true)
             }
             Ok(None) => {
-                self.trace_end(trace, OpResult::NoSuchKey, None);
+                self.trace_end(trace, source, CacheOpResult::NoSuchKey, None);
                 Ok(false)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -203,11 +202,11 @@ impl Pool {
 
         match result {
             Ok(old_value) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(old_value)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -229,11 +228,11 @@ impl Pool {
 
         match result {
             Ok(value) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(value)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -249,11 +248,11 @@ impl Pool {
 
         match result {
             Ok(count) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(count)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -273,11 +272,11 @@ impl Pool {
 
         match result {
             Ok(values) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(values)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -294,11 +293,11 @@ impl Pool {
 
         match result {
             Ok(new_len) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(new_len)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -323,11 +322,11 @@ impl Pool {
 
         match result {
             Ok(value) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(value)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -352,11 +351,11 @@ impl Pool {
 
         match result {
             Ok(new_len) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(new_len)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -371,11 +370,11 @@ impl Pool {
 
         match result {
             Ok(len) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(len)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -392,11 +391,11 @@ impl Pool {
 
         match result {
             Ok(new_val) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(new_val)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -416,11 +415,11 @@ impl Pool {
 
         match result {
             Ok(new_val) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(new_val)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -442,11 +441,11 @@ impl Pool {
 
         match result {
             Ok(len) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(len)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -466,11 +465,11 @@ impl Pool {
 
         match result {
             Ok(len) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(len)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -497,11 +496,11 @@ impl Pool {
 
         match result {
             Ok(values) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(values)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -528,11 +527,11 @@ impl Pool {
 
         match result {
             Ok(values) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(values)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -553,11 +552,11 @@ impl Pool {
 
         match result {
             Ok(value) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(value)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -578,11 +577,11 @@ impl Pool {
 
         match result {
             Ok(()) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(())
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -607,11 +606,11 @@ impl Pool {
 
         match result {
             Ok(values) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(values)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -636,11 +635,11 @@ impl Pool {
 
         match result {
             Ok(()) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(())
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -667,11 +666,11 @@ impl Pool {
 
         match result {
             Ok(pos) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(pos)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -698,11 +697,11 @@ impl Pool {
 
         match result {
             Ok(pos) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(pos)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -726,11 +725,11 @@ impl Pool {
 
         match result {
             Ok(removed) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(removed)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -759,11 +758,11 @@ impl Pool {
 
         match result {
             Ok(value) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(value)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -778,11 +777,11 @@ impl Pool {
 
         match result {
             Ok(len) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(len)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -804,11 +803,11 @@ impl Pool {
 
         match result {
             Ok(added) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(added)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -828,11 +827,11 @@ impl Pool {
 
         match result {
             Ok(removed) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(removed)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -852,11 +851,11 @@ impl Pool {
 
         match result {
             Ok(is_member) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(is_member)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -888,11 +887,11 @@ impl Pool {
 
         match result {
             Ok(members) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(members)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -917,11 +916,11 @@ impl Pool {
 
         match result {
             Ok(members) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(members)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -936,11 +935,11 @@ impl Pool {
 
         match result {
             Ok(members) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(members)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -955,11 +954,11 @@ impl Pool {
 
         match result {
             Ok(count) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(count)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -975,11 +974,11 @@ impl Pool {
 
         match result {
             Ok(members) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(members)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1002,11 +1001,11 @@ impl Pool {
 
         match result {
             Ok(count) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(count)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1022,11 +1021,11 @@ impl Pool {
 
         match result {
             Ok(members) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(members)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1049,11 +1048,11 @@ impl Pool {
 
         match result {
             Ok(count) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(count)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1069,11 +1068,11 @@ impl Pool {
 
         match result {
             Ok(members) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(members)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1096,11 +1095,11 @@ impl Pool {
 
         match result {
             Ok(count) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(count)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1122,11 +1121,11 @@ impl Pool {
 
         match result {
             Ok(moved) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(moved)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1147,11 +1146,11 @@ impl Pool {
 
         match result {
             Ok(set) => {
-                self.trace_end(trace, OpResult::Ok, None);
+                self.trace_end(trace, source, CacheOpResult::Ok, None);
                 Ok(set)
             }
             Err(e) => {
-                self.trace_end(trace, OpResult::Err, Some(&e));
+                self.trace_end(trace, source, CacheOpResult::Err, Some(&e));
                 Err(e.into())
             }
         }
@@ -1165,75 +1164,31 @@ impl Pool {
         is_write: bool,
         keys: &[&str],
         source: Option<&Request>,
-    ) -> Option<TraceStart> {
+    ) -> Option<TraceEventId> {
         let source = source?;
-        if !source.traced {
-            return None;
-        }
-
-        Some(TraceStart {
-            start: Instant::now(),
-            span: source.span,
-            operation: operation.to_string(),
+        self.tracer.cache_call_start(CacheCallStartData {
+            source,
+            operation,
             is_write,
-            keys: keys.iter().map(|k| k.to_string()).collect(),
+            keys,
         })
     }
 
     fn trace_end(
         &self,
-        trace: Option<TraceStart>,
-        result: OpResult,
+        start_id: Option<TraceEventId>,
+        source: Option<&Request>,
+        result: CacheOpResult,
         err: Option<&redis::RedisError>,
     ) {
-        let Some(trace) = trace else { return };
-
-        // Send start event
-        // Format must match Go parser: header (def_loc, goid, correlation), then Operation, Write, Stack, Keys
-        let start_id = {
-            let mut eb = BasicEventData {
-                correlation_event_id: None,
-                extra_space: 64 + trace.operation.len() + trace.keys.len() * 32,
-            }
-            .into_eb();
-
-            eb.str(&trace.operation);
-            eb.bool(trace.is_write);
-            eb.nyi_stack_pcs(); // Stack comes before keys
-            eb.uvarint(trace.keys.len() as u64);
-            for key in &trace.keys {
-                eb.str(key);
-            }
-
-            self.tracer
-                .send_raw(EventType::CacheCallStart, trace.span, eb)
-        };
-
-        // Send end event
-        // Format: header (def_loc, goid, correlation), then Result, Err
-        {
-            let mut eb = BasicEventData {
-                correlation_event_id: start_id,
-                extra_space: 32,
-            }
-            .into_eb();
-
-            eb.byte(result as u8);
-            eb.err_with_legacy_stack(err);
-
-            self.tracer
-                .send_raw(EventType::CacheCallEnd, trace.span, eb);
-        }
+        let Some(source) = source else { return };
+        self.tracer.cache_call_end(CacheCallEndData {
+            start_id,
+            source,
+            result,
+            error: err,
+        });
     }
-}
-
-struct TraceStart {
-    #[allow(dead_code)]
-    start: Instant, // Reserved for future duration tracking
-    span: SpanKey,
-    operation: String,
-    is_write: bool,
-    keys: Vec<String>,
 }
 
 /// Direction for list operations.

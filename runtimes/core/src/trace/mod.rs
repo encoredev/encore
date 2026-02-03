@@ -1,8 +1,7 @@
-pub mod eventbuf;
+mod eventbuf;
 mod log;
-pub mod protocol;
+pub(crate) mod protocol;
 mod time_anchor;
 
-pub use eventbuf::EventBuffer;
 pub use log::{streaming_tracer, ReporterConfig};
 pub use protocol::Tracer;
