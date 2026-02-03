@@ -229,7 +229,9 @@ impl Runtime {
         testing: bool,
     ) -> anyhow::Result<Self> {
         // Initialize OpenSSL system root certificates, so that libraries can find them.
-        openssl_probe::init_ssl_cert_env_vars();
+        unsafe {
+            openssl_probe::init_openssl_env_vars();
+        }
 
         let tokio_rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()

@@ -88,7 +88,7 @@ impl Pool {
         let trace = self.trace_start("get", false, &[&key], source);
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<Option<Vec<u8>>> = (&mut *conn).get(&key).await;
+        let result: RedisResult<Option<Vec<u8>>> = (*conn).get(&key).await;
 
         match result {
             Ok(value) => {
@@ -115,9 +115,9 @@ impl Pool {
 
         let mut conn = self.conn().await?;
         let result: RedisResult<()> = if let Some(ms) = ttl_ms {
-            (&mut *conn).set_ex(&key, value, ms / 1000).await
+            (*conn).set_ex(&key, value, ms / 1000).await
         } else {
-            (&mut *conn).set(&key, value).await
+            (*conn).set(&key, value).await
         };
 
         match result {
@@ -272,7 +272,7 @@ impl Pool {
         let trace = self.trace_start("del", true, &key_refs, source);
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<u64> = (&mut *conn).del(&prefixed).await;
+        let result: RedisResult<u64> = (*conn).del(&prefixed).await;
 
         match result {
             Ok(count) => {
@@ -297,7 +297,7 @@ impl Pool {
         let trace = self.trace_start("mget", false, &key_refs, source);
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<Vec<Option<Vec<u8>>>> = (&mut *conn).mget(&prefixed).await;
+        let result: RedisResult<Vec<Option<Vec<u8>>>> = (*conn).mget(&prefixed).await;
 
         match result {
             Ok(values) => {
@@ -319,7 +319,7 @@ impl Pool {
         let trace = self.trace_start("append", true, &[&key], source);
 
         let mut conn = self.conn().await?;
-        let result: RedisResult<i64> = (&mut *conn).append(&key, value).await;
+        let result: RedisResult<i64> = (*conn).append(&key, value).await;
 
         match result {
             Ok(new_len) => {
@@ -914,7 +914,7 @@ impl Pool {
                     .await
             }
             None => {
-                let single: RedisResult<Option<Vec<u8>>> = (&mut *conn).spop(&key).await;
+                let single: RedisResult<Option<Vec<u8>>> = (*conn).spop(&key).await;
                 single.map(|v| v.into_iter().collect())
             }
         };
