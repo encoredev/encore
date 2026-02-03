@@ -426,7 +426,7 @@ pub fn resolve_cache_cluster_usage(
                 | "listKeyspace" | "setKeyspace" => Some(Usage::CacheCluster(CacheClusterUsage {
                     cluster,
                     operation: "keyspace".to_string(),
-                    range: data.expr.range.clone(),
+                    range: data.expr.range,
                 })),
                 _ => None,
             }
@@ -437,7 +437,7 @@ pub fn resolve_cache_cluster_usage(
             Some(Usage::CacheCluster(CacheClusterUsage {
                 cluster,
                 operation: "keyspace".to_string(),
-                range: data.expr.range.clone(),
+                range: data.expr.range,
             }))
         }
         _ => None,

@@ -697,7 +697,7 @@ impl MetaBuilder<'_> {
 
                     cache_cluster_services
                         .entry(access.cluster.name.clone())
-                        .or_insert_with(HashSet::new)
+                        .or_default()
                         .insert(svc.name.clone());
                 }
 
