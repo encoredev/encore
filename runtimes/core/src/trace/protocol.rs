@@ -1071,7 +1071,7 @@ impl EventBuffer {
         }
     }
 
-    pub fn event_id(&mut self, event_id: Option<model::TraceEventId>) {
+    fn event_id(&mut self, event_id: Option<model::TraceEventId>) {
         self.uvarint(match event_id {
             Some(event_id) => event_id.0,
             None => 0,
@@ -1168,7 +1168,6 @@ impl SpanEndEventData<'_> {
     }
 }
 
-/// Basic event data for trace events that follow the common header format.
 struct BasicEventData {
     correlation_event_id: Option<model::TraceEventId>,
 
@@ -1177,7 +1176,7 @@ struct BasicEventData {
 }
 
 impl BasicEventData {
-    fn into_eb(self) -> EventBuffer {
+    pub fn into_eb(self) -> EventBuffer {
         let mut eb = EventBuffer::with_capacity(4 + 4 + self.extra_space);
 
         eb.uvarint(0u64); // TODO: def loc
