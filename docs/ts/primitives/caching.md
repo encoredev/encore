@@ -236,7 +236,7 @@ interface UserProfile {
   };
 }
 
-const profiles = new StructKeyspace<{ oddsId: string }, UserProfile>(cluster, {
+const profiles = new StructKeyspace<{ userId: string }, UserProfile>(cluster, {
   keyPattern: "profile/:userId",
   defaultExpiry: ExpireIn(3600 * 1000),
 });
@@ -262,7 +262,7 @@ Stores ordered lists of values.
 ```typescript
 import { ListKeyspace } from "encore.dev/storage/cache";
 
-const recentItems = new ListKeyspace<{ oddsId: string }, string>(cluster, {
+const recentItems = new ListKeyspace<{ userId: string }, string>(cluster, {
   keyPattern: "recent/:userId",
 });
 
@@ -283,7 +283,7 @@ Stores unordered sets of unique values.
 ```typescript
 import { SetKeyspace } from "encore.dev/storage/cache";
 
-const tags = new SetKeyspace<{ oddsId: string }, string>(cluster, {
+const tags = new SetKeyspace<{ articleId: string }, string>(cluster, {
   keyPattern: "tags/:articleId",
 });
 
