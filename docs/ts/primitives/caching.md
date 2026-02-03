@@ -386,5 +386,9 @@ Each test is automatically fully isolated.
 
 ## Local development
 
-For local development, Encore uses Redis running in Docker.
-Make sure Docker is installed and running on your machine before running `encore run`.
+For local development, Encore maintains a local, in-memory implementation of Redis.
+This implementation is designed to store a small amount of keys (currently 100).
+
+When the number of keys exceeds this value, keys are randomly purged to get below the limit.
+This is designed in order to simulate the ephemeral, transient nature of caches while also
+limiting memory use. The precise behavior for local development may change over time and should not be relied on.
