@@ -1633,13 +1633,6 @@ function mustBeSet<A>(field: string, value: A | null | undefined): A {
 	}
 }
 
-func (ts *typescript) writeDecl(ns string, decl *schema.Decl) {
-	if decl.Loc.PkgName != ns {
-		ts.WriteString(ts.typeName(decl.Loc.PkgName) + ".")
-	}
-	ts.WriteString(ts.typeName(decl.Name))
-}
-
 func (ts *typescript) writeDecl2(buf *bytes.Buffer, ns string, decl *schema.Decl) {
 	if decl.Loc.PkgName != ns {
 		buf.WriteString(ts.typeName(decl.Loc.PkgName) + ".")

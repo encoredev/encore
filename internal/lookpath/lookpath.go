@@ -88,11 +88,6 @@ func findExecutable(dir, file string, exts []string) (string, error) {
 	return "", fmt.Errorf("not found")
 }
 
-// findFile returns the path to an existing file.
-func findFile(dir, file string, _ []string) (string, error) {
-	return checkStat(dir, file, false)
-}
-
 // InDir is similar to [os/exec.LookPath], with the difference that it uses the
 // provided environment. env is used to fetch relevant environment variables
 // such as PWD and PATH.

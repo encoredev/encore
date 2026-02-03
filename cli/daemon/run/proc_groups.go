@@ -26,7 +26,6 @@ import (
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/internal/lookpath"
 	"encr.dev/pkg/builder"
-	"encr.dev/pkg/fns"
 	"encr.dev/pkg/noopgateway"
 	"encr.dev/pkg/noopgwdesc"
 	meta "encr.dev/proto/encore/parser/meta/v1"
@@ -171,22 +170,6 @@ func (pg *ProcGroup) Kill() {
 	for _, p := range pg.allProcesses {
 		p.Kill()
 	}
-}
-
-// parseSymTable parses the symbol table of the binary at binPath
-// and stores the result in p.sym and p.symErr.
-func (pg *ProcGroup) parseSymTable(binPath string) {
-	parse := func() (*sym.Table, error) {
-		f, err := os.Open(binPath)
-		if err != nil {
-			return nil, err
-		}
-		defer fns.CloseIgnore(f)
-		return sym.Load(f)
-	}
-
-	defer close(pg.symParsed)
-	pg.sym, pg.symErr = parse()
 }
 
 // SymTable waits for the proc's symbol table to be parsed and then returns it.

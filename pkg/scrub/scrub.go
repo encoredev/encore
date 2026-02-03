@@ -2,9 +2,7 @@ package scrub
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
-	"unsafe"
 
 	"github.com/fmstephe/unsafeutil"
 )
@@ -252,19 +250,6 @@ func (s *stream) next() {
 	}
 }
 
-func (s *stream) unread() {
-	if s.unreadItem.tok != 0 {
-		panic(fmt.Sprintf("double unread: %s followed by %s", s.unreadItem.tok, s.tok))
-	}
-
-	s.unreadItem = scanItem{
-		tok:      s.tok,
-		from:     int64(s.pos.From),
-		to:       int64(s.pos.To),
-		isMapKey: s.mapKey,
-	}
-}
-
 // groupNodes transforms the paths into a node tree for efficient matching.
 func groupNodes(paths []Path) []node {
 	findMatch := func(parent *node, e PathEntry) int {
@@ -335,6 +320,3 @@ type node struct {
 	Children      []node
 }
 
-func unsafeStrToBytes(s string) []byte {
-	return *(*[]byte)(unsafe.Pointer(&s))
-}

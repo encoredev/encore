@@ -572,12 +572,6 @@ func (v *cmd) run(dir string, cmd string, keyval ...string) error {
 	return err
 }
 
-// runVerboseOnly is like run but only generates error output to standard error in verbose mode.
-func (v *cmd) runVerboseOnly(dir string, cmd string, keyval ...string) error {
-	_, err := v.run1(dir, cmd, keyval, false)
-	return err
-}
-
 // runOutput is like run but returns the output of the command.
 func (v *cmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
 	return v.run1(dir, cmd, keyval, true)

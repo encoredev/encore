@@ -96,9 +96,6 @@ type builder struct {
 	overlayPath paths.FS
 
 	workdir paths.FS
-	// deleteWorkDir reports whether the workdir should be deleted.
-	// It's true for temporarily generated workdirs.
-	tempWorkDir bool
 }
 
 func (b *builder) Build() *Result {

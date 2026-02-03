@@ -613,11 +613,6 @@ func (h *handler) Handle(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2
 	return jsonrpc2.MethodNotFound(ctx, reply, r)
 }
 
-type sourceContextResponse struct {
-	Lines []string `json:"lines"`
-	Start int      `json:"start"`
-}
-
 func (h *handler) listenNotify(ctx context.Context, ch <-chan *notification) {
 	for {
 		select {

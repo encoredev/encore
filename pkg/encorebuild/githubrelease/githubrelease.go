@@ -200,11 +200,3 @@ func Extract(pathToArchive string, targetDir string) {
 	}
 }
 
-func copyDir(src, dst string) error {
-	cmd := exec.Command("cp", "-r", src+"/", dst)
-	// nosemgrep
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errors.Wrapf(err, "failed to copy dir: %s", out)
-	}
-	return nil
-}

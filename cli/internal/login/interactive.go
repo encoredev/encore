@@ -24,11 +24,9 @@ import (
 type interactive struct {
 	result chan *conf.Config // Successful logins are sent on this
 
-	state           string
-	challenge       string
-	pubKey, privKey string
-	srv             *http.Server
-	ln              net.Listener
+	state     string
+	challenge string
+	srv       *http.Server
 }
 
 // Interactive begins an interactive login attempt.

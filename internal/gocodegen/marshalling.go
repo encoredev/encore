@@ -51,7 +51,6 @@ type methodDescription struct {
 // MarshallingCodeWrapper is returned by NewPossibleInstance and tracks usage within a block
 type MarshallingCodeWrapper struct {
 	g            *MarshallingCodeGenerator
-	pkgPath      string
 	instanceName string
 	used         bool
 

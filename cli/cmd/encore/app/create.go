@@ -387,17 +387,6 @@ func createApp(ctx context.Context, name, template string, lang cmdutil.Language
 	return nil
 }
 
-// detectLang attempts to detect the application language for an Encore application
-// situated at appRoot.
-func detectLang(appRoot string) cmdutil.Language {
-	if _, err := os.Stat(filepath.Join(appRoot, "go.mod")); err == nil {
-		return cmdutil.LanguageGo
-	} else if _, err := os.Stat(filepath.Join(appRoot, "package.json")); err == nil {
-		return cmdutil.LanguageTS
-	}
-	return cmdutil.LanguageGo
-}
-
 func validateName(name string) error {
 	ln := len(name)
 	if ln == 0 {

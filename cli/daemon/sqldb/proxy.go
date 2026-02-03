@@ -448,11 +448,3 @@ func (cm *ClusterManager) cancelRequest(client io.Writer, req *pgproxy.CancelDat
 	_ = pgproxy.SendCancelRequest(backend, req.Raw)
 }
 
-func writeMsg(w io.Writer, msg pgproto3.Message) error {
-	encode, err := msg.Encode(nil)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(encode)
-	return err
-}

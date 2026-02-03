@@ -7,10 +7,7 @@ import (
 	"slices"
 	"sort"
 
-	. "github.com/dave/jennifer/jen"
-
 	"encore.dev/appruntime/exported/config"
-	"encore.dev/appruntime/exported/experiments"
 	"encr.dev/pkg/fns"
 	"encr.dev/pkg/option"
 	"encr.dev/v2/app"
@@ -123,20 +120,6 @@ func testServiceMap(appDesc *app.Desc) map[string]string {
 		result[svc.Name] = path
 	}
 	return result
-}
-
-func enabledExperiments(experiments *experiments.Set) *Statement {
-	list := experiments.StringList()
-
-	if len(list) == 0 {
-		return Nil()
-	}
-
-	return Index().String().ValuesFunc(func(g *Group) {
-		for _, e := range list {
-			g.Lit(e)
-		}
-	})
 }
 
 func computeCORSHeaders(appDesc *app.Desc) (allowHeaders, exposeHeaders []string) {

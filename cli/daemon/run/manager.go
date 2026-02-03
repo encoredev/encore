@@ -1,23 +1,13 @@
 package run
 
 import (
-	"fmt"
 	"sort"
 	"sync"
-	"time"
 
-	"github.com/cockroachdb/errors"
-	"github.com/rs/xid"
-
-	encore "encore.dev"
-	"encore.dev/appruntime/exported/config"
-	"encr.dev/cli/daemon/apps"
 	"encr.dev/cli/daemon/objects"
-	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
 	"encr.dev/cli/daemon/sqldb"
 	"encr.dev/pkg/errlist"
-	meta "encr.dev/proto/encore/parser/meta/v1"
 )
 
 // Manager manages the set of running applications.
@@ -126,114 +116,3 @@ func (mgr *Manager) RunError(r *Run, err *errlist.List) {
 	}
 }
 
-type parseAppParams struct {
-	App           *apps.Instance
-	Environ       []string
-	WorkingDir    string
-	ParseTests    bool
-	ScriptMainPkg string
-}
-
-type generateConfigParams struct {
-	App  *apps.Instance
-	RM   *infra.ResourceManager
-	Meta *meta.Data
-
-	ForTests   bool
-	AuthKey    config.EncoreAuthKey
-	APIBaseURL string
-
-	ConfigAppID string
-	ConfigEnvID string
-
-	ExternalCalls bool
-}
-
-// generateServiceDiscoveryMap generates a map of service names to
-// where the Encore daemon is listening to forward to that service binary.
-func (mgr *Manager) generateServiceDiscoveryMap(p generateConfigParams) (map[string]config.Service, error) {
-	services := make(map[string]config.Service)
-
-	// Add all the services from the app
-	for _, svc := range p.Meta.Svcs {
-		services[svc.Name] = config.Service{
-			Name: svc.Name,
-			// For now all services are hosted by the same running instance
-			URL:         p.APIBaseURL,
-			Protocol:    config.Http,
-			ServiceAuth: mgr.getInternalServiceToServiceAuthMethod(),
-		}
-	}
-
-	return services, nil
-}
-
-// getInternalServiceToServiceAuthMethod returns the auth method to use
-// when making service to service calls locally.
-//
-// This currently just returns the noop auth method, but in the future
-// this function will allow us to use environmental variables to configure
-// the auth method and test different auth methods locally.
-func (mgr *Manager) getInternalServiceToServiceAuthMethod() config.ServiceAuth {
-	return config.ServiceAuth{Method: "encore-auth"}
-}
-
-func (mgr *Manager) generateConfig(p generateConfigParams) (*config.Runtime, error) {
-	envType := encore.EnvDevelopment
-	if p.ForTests {
-		envType = encore.EnvTest
-	}
-
-	globalCORS, err := p.App.GlobalCORS()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get global CORS")
-	}
-
-	deployID := xid.New().String()
-	if p.ForTests {
-		deployID = "clitest_" + deployID
-	} else {
-		deployID = "run_" + deployID
-	}
-
-	serviceDiscovery, err := mgr.generateServiceDiscoveryMap(p)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate service discovery map")
-	}
-
-	cfg := &config.Runtime{
-		AppID:         p.ConfigAppID,
-		AppSlug:       p.App.PlatformID(),
-		APIBaseURL:    p.APIBaseURL,
-		DeployID:      deployID,
-		DeployedAt:    time.Now().UTC(), // Force UTC to not cause confusion
-		EnvID:         p.ConfigEnvID,
-		EnvName:       "local",
-		EnvCloud:      string(encore.CloudLocal),
-		EnvType:       string(envType),
-		TraceEndpoint: fmt.Sprintf("http://localhost:%d/trace", mgr.RuntimePort),
-		AuthKeys:      []config.EncoreAuthKey{p.AuthKey},
-		CORS: &config.CORS{
-			Debug: globalCORS.Debug,
-			AllowOriginsWithCredentials: []string{
-				// Allow all origins with credentials for local development;
-				// since it's only running on localhost for development this is safe.
-				config.UnsafeAllOriginWithCredentials,
-			},
-			AllowOriginsWithoutCredentials: []string{"*"},
-			ExtraAllowedHeaders:            globalCORS.AllowHeaders,
-			ExtraExposedHeaders:            globalCORS.ExposeHeaders,
-			AllowPrivateNetworkAccess:      true,
-		},
-		ServiceDiscovery: serviceDiscovery,
-		ServiceAuth: []config.ServiceAuth{
-			mgr.getInternalServiceToServiceAuthMethod(),
-		},
-		DynamicExperiments: nil, // All experiments would be included in the static config here
-	}
-
-	if err := p.RM.UpdateConfig(cfg, p.Meta, mgr.DBProxyPort); err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}

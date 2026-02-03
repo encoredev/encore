@@ -55,7 +55,6 @@ type javascript struct {
 	md               *meta.Data
 	appSlug          string
 	typs             *typeRegistry
-	currDecl         *schema.Decl
 	generatorVersion jsGenVersion
 
 	seenJSON           bool // true if a JSON type was seen
@@ -1219,14 +1218,6 @@ func (js *javascript) memberName(identifier string) string {
 	} else {
 		return idents.Convert(identifier, idents.CamelCase)
 	}
-}
-
-func (js *javascript) fieldNameInStruct(field *schema.Field) string {
-	name := field.Name
-	if field.JsonName != "" {
-		name = field.JsonName
-	}
-	return name
 }
 
 func (js *javascript) writeCustomErrorType() {

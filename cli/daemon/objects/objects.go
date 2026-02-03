@@ -21,7 +21,6 @@ type Server struct {
 	id        string
 	public    *PublicBucketServer
 	startOnce syncutil.Once
-	cancel    func() // set by Start
 	store     gcsemu.Store
 	emu       *gcsemu.GcsEmu
 	ln        net.Listener

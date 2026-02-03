@@ -380,21 +380,6 @@ type declKey struct {
 	pkgName string
 }
 
-func (b *builder) declKey(pkgPath paths.Pkg, pkgName string) uint32 {
-	k := declKey{pkgPath: pkgPath, pkgName: pkgName}
-	if n, ok := b.decls[k]; ok {
-		return n
-	}
-
-	n := uint32(len(b.decls))
-	b.decls[k] = n
-	return n
-}
-
-func (b *builder) typeDeclRef(typ *schemav2.TypeDeclRef) *schema.Type {
-	return b.schemaType(typ.ToType())
-}
-
 func (b *builder) typeDeclRefUnwrapPointer(typ *schemav2.TypeDeclRef) *schema.Type {
 	return b.schemaTypeUnwrapPointer(typ.ToType())
 }
