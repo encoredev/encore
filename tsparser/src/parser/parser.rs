@@ -305,7 +305,9 @@ impl<'a> Parser<'a> {
             let id = self.pass1.alloc_bind_id();
             binds.push(Lrc::new(Bind {
                 id,
-                name: Some(svc.name.clone()),
+                // The bind name is the service name but with "-" replaced
+                // with "_" to make it a valid identifier.
+                name: Some(svc.name.replace("-", "_")),
                 object: None,
                 kind: BindKind::Create,
                 resource,
